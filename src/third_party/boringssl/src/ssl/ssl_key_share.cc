@@ -31,7 +31,7 @@
 #include "../crypto/internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 namespace {
 
@@ -266,33 +266,33 @@ bool SSLKeyShare::Accept(CBB *out_public_key, Array<uint8_t> *out_secret,
          Finish(out_secret, out_alert, peer_key);
 }
 
-bool ssl_nid_to_group_id(uint16_t *out_group_id, int nid) {
+int ssl_nid_to_group_id(uint16_t *out_group_id, int nid) {
   for (const auto &group : kNamedGroups) {
     if (group.nid == nid) {
       *out_group_id = group.group_id;
-      return true;
+      return 1;
     }
   }
-  return false;
+  return 0;
 }
 
-bool ssl_name_to_group_id(uint16_t *out_group_id, const char *name, size_t len) {
+int ssl_name_to_group_id(uint16_t *out_group_id, const char *name, size_t len) {
   for (const auto &group : kNamedGroups) {
     if (len == strlen(group.name) &&
         !strncmp(group.name, name, len)) {
       *out_group_id = group.group_id;
-      return true;
+      return 1;
     }
     if (len == strlen(group.alias) &&
         !strncmp(group.alias, name, len)) {
       *out_group_id = group.group_id;
-      return true;
+      return 1;
     }
   }
-  return false;
+  return 0;
 }
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 using namespace bssl;
 

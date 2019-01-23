@@ -154,7 +154,7 @@ class Window : public EventTarget,
       const std::string& user_agent, const std::string& language,
       const std::string& font_language_script,
       const base::Callback<void(const GURL&)> navigation_callback,
-      const base::Callback<void(const std::string&)>& error_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback,
       network_bridge::CookieJar* cookie_jar,
       const network_bridge::PostSender& post_sender,
       csp::CSPHeaderPolicy require_csp,
@@ -403,7 +403,7 @@ class Window : public EventTarget,
   void StartDocumentLoad(
       loader::FetcherFactory* fetcher_factory, const GURL& url,
       Parser* dom_parser,
-      const base::Callback<void(const std::string&)>& error_callback);
+      const loader::Decoder::OnCompleteFunction& load_complete_callback);
   scoped_refptr<base::Clock> MakePerformanceClock(Window::ClockType clock_type);
 
   class RelayLoadEvent;

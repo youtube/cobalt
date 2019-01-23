@@ -133,7 +133,7 @@
 #include "internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 CERT::CERT(const SSL_X509_METHOD *x509_method_arg)
     : x509_method(x509_method_arg) {}
@@ -289,10 +289,10 @@ static int cert_set_chain_and_key(
   return 1;
 }
 
-bool ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
+int ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
   switch (check_leaf_cert_and_privkey(buffer.get(), cert->privatekey.get())) {
     case leaf_cert_and_privkey_error:
-      return false;
+      return 0;
     case leaf_cert_and_privkey_mismatch:
       // don't fail for a cert/key mismatch, just free current private key
       // (when switching to a different cert & key, first this function should
@@ -308,23 +308,23 @@ bool ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
   if (cert->chain != nullptr) {
     CRYPTO_BUFFER_free(sk_CRYPTO_BUFFER_value(cert->chain.get(), 0));
     sk_CRYPTO_BUFFER_set(cert->chain.get(), 0, buffer.release());
-    return true;
+    return 1;
   }
 
   cert->chain.reset(sk_CRYPTO_BUFFER_new_null());
   if (cert->chain == nullptr) {
-    return false;
+    return 0;
   }
 
   if (!PushToStack(cert->chain.get(), std::move(buffer))) {
     cert->chain.reset();
-    return false;
+    return 0;
   }
 
-  return true;
+  return 1;
 }
 
-bool ssl_has_certificate(const SSL_CONFIG *cfg) {
+int ssl_has_certificate(const SSL_CONFIG *cfg) {
   return cfg->cert->chain != nullptr &&
          sk_CRYPTO_BUFFER_value(cfg->cert->chain.get(), 0) != nullptr &&
          ssl_has_private_key(cfg);
@@ -394,7 +394,7 @@ bool ssl_parse_cert_chain(uint8_t *out_alert,
   return true;
 }
 
-bool ssl_add_cert_chain(SSL_HANDSHAKE *hs, CBB *cbb) {
+int ssl_add_cert_chain(SSL_HANDSHAKE *hs, CBB *cbb) {
   if (!ssl_has_certificate(hs->config)) {
     return CBB_add_u24(cbb, 0);
   }
@@ -402,7 +402,7 @@ bool ssl_add_cert_chain(SSL_HANDSHAKE *hs, CBB *cbb) {
   CBB certs;
   if (!CBB_add_u24_length_prefixed(cbb, &certs)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
-    return false;
+    return 0;
   }
 
   STACK_OF(CRYPTO_BUFFER) *chain = hs->config->cert->chain.get();
@@ -414,7 +414,7 @@ bool ssl_add_cert_chain(SSL_HANDSHAKE *hs, CBB *cbb) {
                        CRYPTO_BUFFER_len(buffer)) ||
         !CBB_flush(&certs)) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
-      return false;
+      return 0;
     }
   }
 
@@ -424,7 +424,7 @@ bool ssl_add_cert_chain(SSL_HANDSHAKE *hs, CBB *cbb) {
 // ssl_cert_skip_to_spki parses a DER-encoded, X.509 certificate from |in| and
 // positions |*out_tbs_cert| to cover the TBSCertificate, starting at the
 // subjectPublicKeyInfo.
-static bool ssl_cert_skip_to_spki(const CBS *in, CBS *out_tbs_cert) {
+static int ssl_cert_skip_to_spki(const CBS *in, CBS *out_tbs_cert) {
   /* From RFC 5280, section 4.1
    *    Certificate  ::=  SEQUENCE  {
    *      tbsCertificate       TBSCertificate,
@@ -460,10 +460,10 @@ static bool ssl_cert_skip_to_spki(const CBS *in, CBS *out_tbs_cert) {
       !CBS_get_asn1(out_tbs_cert, NULL, CBS_ASN1_SEQUENCE) ||
       // subject
       !CBS_get_asn1(out_tbs_cert, NULL, CBS_ASN1_SEQUENCE)) {
-    return false;
+    return 0;
   }
 
-  return true;
+  return 1;
 }
 
 UniquePtr<EVP_PKEY> ssl_cert_parse_pubkey(const CBS *in) {
@@ -476,42 +476,47 @@ UniquePtr<EVP_PKEY> ssl_cert_parse_pubkey(const CBS *in) {
   return UniquePtr<EVP_PKEY>(EVP_parse_public_key(&tbs_cert));
 }
 
-bool ssl_compare_public_and_private_key(const EVP_PKEY *pubkey,
-                                        const EVP_PKEY *privkey) {
+int ssl_compare_public_and_private_key(const EVP_PKEY *pubkey,
+                                       const EVP_PKEY *privkey) {
   if (EVP_PKEY_is_opaque(privkey)) {
     // We cannot check an opaque private key and have to trust that it
     // matches.
-    return true;
+    return 1;
   }
+
+  int ret = 0;
 
   switch (EVP_PKEY_cmp(pubkey, privkey)) {
     case 1:
-      return true;
+      ret = 1;
+      break;
     case 0:
       OPENSSL_PUT_ERROR(X509, X509_R_KEY_VALUES_MISMATCH);
-      return false;
+      break;
     case -1:
       OPENSSL_PUT_ERROR(X509, X509_R_KEY_TYPE_MISMATCH);
-      return false;
+      break;
     case -2:
       OPENSSL_PUT_ERROR(X509, X509_R_UNKNOWN_KEY_TYPE);
-      return false;
+      break;
+    default:
+      assert(0);
+      break;
   }
 
-  assert(0);
-  return false;
+  return ret;
 }
 
-bool ssl_cert_check_private_key(const CERT *cert, const EVP_PKEY *privkey) {
+int ssl_cert_check_private_key(const CERT *cert, const EVP_PKEY *privkey) {
   if (privkey == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_NO_PRIVATE_KEY_ASSIGNED);
-    return false;
+    return 0;
   }
 
   if (cert->chain == nullptr ||
       sk_CRYPTO_BUFFER_value(cert->chain.get(), 0) == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CERTIFICATE_ASSIGNED);
-    return false;
+    return 0;
   }
 
   CBS cert_cbs;
@@ -520,13 +525,13 @@ bool ssl_cert_check_private_key(const CERT *cert, const EVP_PKEY *privkey) {
   UniquePtr<EVP_PKEY> pubkey = ssl_cert_parse_pubkey(&cert_cbs);
   if (!pubkey) {
     OPENSSL_PUT_ERROR(X509, X509_R_UNKNOWN_KEY_TYPE);
-    return false;
+    return 0;
   }
 
   return ssl_compare_public_and_private_key(pubkey.get(), privkey);
 }
 
-bool ssl_cert_check_digital_signature_key_usage(const CBS *in) {
+int ssl_cert_check_digital_signature_key_usage(const CBS *in) {
   CBS buf = *in;
 
   CBS tbs_cert, outer_extensions;
@@ -546,17 +551,17 @@ bool ssl_cert_check_digital_signature_key_usage(const CBS *in) {
           &tbs_cert, &outer_extensions, &has_extensions,
           CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 3)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_PARSE_LEAF_CERT);
-    return false;
+    return 0;
   }
 
   if (!has_extensions) {
-    return true;
+    return 1;
   }
 
   CBS extensions;
   if (!CBS_get_asn1(&outer_extensions, &extensions, CBS_ASN1_SEQUENCE)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_PARSE_LEAF_CERT);
-    return false;
+    return 0;
   }
 
   while (CBS_len(&extensions) > 0) {
@@ -568,7 +573,7 @@ bool ssl_cert_check_digital_signature_key_usage(const CBS *in) {
         !CBS_get_asn1(&extension, &contents, CBS_ASN1_OCTETSTRING) ||
         CBS_len(&extension) != 0) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_PARSE_LEAF_CERT);
-      return false;
+      return 0;
     }
 
     static const uint8_t kKeyUsageOID[3] = {0x55, 0x1d, 0x0f};
@@ -582,26 +587,26 @@ bool ssl_cert_check_digital_signature_key_usage(const CBS *in) {
     if (!CBS_get_asn1(&contents, &bit_string, CBS_ASN1_BITSTRING) ||
         CBS_len(&contents) != 0) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_PARSE_LEAF_CERT);
-      return false;
+      return 0;
     }
 
     // This is the KeyUsage extension. See
     // https://tools.ietf.org/html/rfc5280#section-4.2.1.3
     if (!CBS_is_valid_asn1_bitstring(&bit_string)) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_PARSE_LEAF_CERT);
-      return false;
+      return 0;
     }
 
     if (!CBS_asn1_bitstring_has_bit(&bit_string, 0)) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_ECC_CERT_NOT_FOR_SIGNING);
-      return false;
+      return 0;
     }
 
-    return true;
+    return 1;
   }
 
   // No KeyUsage extension found.
-  return true;
+  return 1;
 }
 
 UniquePtr<STACK_OF(CRYPTO_BUFFER)> ssl_parse_client_CA_list(SSL *ssl,
@@ -661,10 +666,10 @@ bool ssl_has_client_CAs(const SSL_CONFIG *cfg) {
   return sk_CRYPTO_BUFFER_num(names) > 0;
 }
 
-bool ssl_add_client_CA_list(SSL_HANDSHAKE *hs, CBB *cbb) {
+int ssl_add_client_CA_list(SSL_HANDSHAKE *hs, CBB *cbb) {
   CBB child, name_cbb;
   if (!CBB_add_u16_length_prefixed(cbb, &child)) {
-    return false;
+    return 0;
   }
 
   const STACK_OF(CRYPTO_BUFFER) *names = hs->config->client_CA.get();
@@ -679,21 +684,21 @@ bool ssl_add_client_CA_list(SSL_HANDSHAKE *hs, CBB *cbb) {
     if (!CBB_add_u16_length_prefixed(&child, &name_cbb) ||
         !CBB_add_bytes(&name_cbb, CRYPTO_BUFFER_data(name),
                        CRYPTO_BUFFER_len(name))) {
-      return false;
+      return 0;
     }
   }
 
   return CBB_flush(cbb);
 }
 
-bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
-                                const CRYPTO_BUFFER *leaf) {
+int ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
+                               const CRYPTO_BUFFER *leaf) {
   assert(ssl_protocol_version(hs->ssl) < TLS1_3_VERSION);
 
   // Check the certificate's type matches the cipher.
   if (!(hs->new_cipher->algorithm_auth & ssl_cipher_auth_mask_for_key(pkey))) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_CERTIFICATE_TYPE);
-    return false;
+    return 0;
   }
 
   // Check key usages for all key types but RSA. This is needed to distinguish
@@ -706,7 +711,7 @@ bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
     CBS leaf_cbs;
     CBS_init(&leaf_cbs, CRYPTO_BUFFER_data(leaf), CRYPTO_BUFFER_len(leaf));
     if (!ssl_cert_check_digital_signature_key_usage(&leaf_cbs)) {
-      return false;
+      return 0;
     }
   }
 
@@ -719,22 +724,22 @@ bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
         !tls1_check_group_id(hs, group_id) ||
         EC_KEY_get_conv_form(ec_key) != POINT_CONVERSION_UNCOMPRESSED) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECC_CERT);
-      return false;
+      return 0;
     }
   }
 
-  return true;
+  return 1;
 }
 
-bool ssl_on_certificate_selected(SSL_HANDSHAKE *hs) {
+int ssl_on_certificate_selected(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
   if (!ssl_has_certificate(hs->config)) {
     // Nothing to do.
-    return true;
+    return 1;
   }
 
   if (!ssl->ctx->x509_method->ssl_auto_chain_if_needed(hs)) {
-    return false;
+    return 0;
   }
 
   CBS leaf;
@@ -745,7 +750,7 @@ bool ssl_on_certificate_selected(SSL_HANDSHAKE *hs) {
   return hs->local_pubkey != NULL;
 }
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 using namespace bssl;
 

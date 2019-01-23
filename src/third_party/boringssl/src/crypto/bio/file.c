@@ -107,12 +107,13 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
     return NULL;
   }
 
-  ret = BIO_new_fp(file, BIO_CLOSE);
+  ret = BIO_new(BIO_s_file());
   if (ret == NULL) {
     fclose(file);
     return NULL;
   }
 
+  BIO_set_fp(ret, file, BIO_CLOSE);
   return ret;
 }
 

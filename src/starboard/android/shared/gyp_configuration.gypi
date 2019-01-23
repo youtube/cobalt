@@ -1,0 +1,133 @@
+# Copyright 2016 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Platform specific configuration for Android on Starboard.  Automatically
+# included by gyp_cobalt in all .gyp files by Cobalt together with base.gypi.
+#
+{
+  'variables': {
+    'target_os': 'android',
+    'final_executable_type': 'shared_library',
+    'gtest_target_type': 'shared_library',
+
+    'gl_type': 'system_gles2',
+    'enable_remote_debugging': 0,
+
+    # Define platform specific compiler and linker flags.
+    # Refer to base.gypi for a list of all available variables.
+    'compiler_flags_host': [
+      '-O2',
+    ],
+    'compiler_flags_debug': [
+      '-frtti',
+      '-O0',
+    ],
+    'compiler_flags_devel': [
+      '-frtti',
+      '-O2',
+    ],
+    'compiler_flags_qa': [
+      '-fno-rtti',
+      '-O2',
+      '-gline-tables-only',
+    ],
+    'compiler_flags_gold': [
+      '-fno-rtti',
+      '-O2',
+      '-gline-tables-only',
+    ],
+    'platform_libraries': [
+      '-lEGL',
+      '-lGLESv2',
+      '-lOpenSLES',
+      '-landroid',
+      '-llog',
+      '-lmediandk',
+    ],
+    'conditions': [
+      ['cobalt_fastbuild==0', {
+        'compiler_flags_debug': [
+          '-g',
+        ],
+        'compiler_flags_devel': [
+          '-g',
+        ],
+        'compiler_flags_qa': [
+          '-gline-tables-only',
+        ],
+        'compiler_flags_gold': [
+          '-gline-tables-only',
+        ],
+      }],
+    ],
+  },
+
+  'target_defaults': {
+    'target_conditions': [
+      ['sb_pedantic_warnings==1', {
+        'cflags': [
+          '-Wall',
+          '-Wextra',
+          '-Wunreachable-code',
+          # Don't get pedantic about warnings from base macros. These must be
+          # disabled after the -Wall above, so this has to be done here rather
+          # than in the platform's target toolchain.
+          # TODO: Rebase base and use static_assert instead of COMPILE_ASSERT
+          '-Wno-unused-local-typedef',  # COMPILE_ASSERT
+          '-Wno-missing-field-initializers',  # LAZY_INSTANCE_INITIALIZER
+        ],
+      }],
+      ['_type=="executable"', {
+        # Android Lollipop+ requires relocatable executables.
+        'cflags': [
+          '-fPIE',
+        ],
+        'ldflags': [
+          '-pie',
+        ],
+      },{
+        # Android requires relocatable shared libraries.
+        'cflags': [
+          '-fPIC',
+        ],
+      }],
+      ['use_asan==1', {
+        'cflags': [
+          '-fsanitize=address',
+          '-fno-omit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=address',
+          # Force linking of the helpers in sanitizer_options.cc
+          '-Wl,-u_sanitizer_options_link_helper',
+        ],
+        'defines': [
+          'ADDRESS_SANITIZER',
+        ],
+      }],
+      ['use_tsan==1', {
+        'cflags': [
+          '-fsanitize=thread',
+          '-fno-omit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=thread',
+        ],
+        'defines': [
+          'THREAD_SANITIZER',
+        ],
+      }],
+    ],
+  }, # end of target_defaults
+}

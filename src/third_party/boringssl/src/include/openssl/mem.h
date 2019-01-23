@@ -142,12 +142,12 @@ OPENSSL_EXPORT int BIO_vsnprintf(char *buf, size_t n, const char *format,
 
 extern "C++" {
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 BORINGSSL_MAKE_DELETER(char, OPENSSL_free)
 BORINGSSL_MAKE_DELETER(uint8_t, OPENSSL_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 }  // extern C++
 

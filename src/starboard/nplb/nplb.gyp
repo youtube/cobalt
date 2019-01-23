@@ -21,6 +21,16 @@
       'msvs_disabled_warnings': [4100, 4189, 4456],
       'target_name': 'nplb',
       'type': '<(gtest_target_type)',
+      # Enable exceptions to test nothrow delete operator.
+      'cflags_cc!': ['-fno-exceptions' ],
+      'cflags_cc': ['-fexceptions' ],
+      'msvs_settings': {
+          'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                  '/EHsc',  # C++ exceptions
+              ],
+          },
+      },
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
         'accessibility_get_setting_test.cc',
@@ -291,6 +301,15 @@
             'player_create_test.cc',
             'player_output_mode_supported_test.cc',
             'url_player_create_test.cc',
+          ],
+          'conditions': [
+            ['gl_type != "none"', {
+              'dependencies': [
+                 # This is needed because SbPlayerTest depends on
+                 # FakeGraphicsContextProvider which depends on EGL and GLES.
+                '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+              ],
+            }],
           ],
         }],
       ],

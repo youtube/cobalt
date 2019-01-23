@@ -124,11 +124,11 @@ OPENSSL_EXPORT size_t BUF_strlcat(char *dst, const char *src, size_t dst_size);
 
 extern "C++" {
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 BORINGSSL_MAKE_DELETER(BUF_MEM, BUF_MEM_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 }  // extern C++
 

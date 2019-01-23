@@ -32,20 +32,15 @@ namespace mesh {
 class MeshDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<MeshProjection>&)>
-      SuccessCallback;
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
-
-  MeshDecoder(render_tree::ResourceProvider* resource_provider,
-              const SuccessCallback& success_callback,
-              const ErrorCallback& error_callback);
+      MeshAvailableCallback;
 
   // This function is used for binding a callback to create a MeshDecoder.
   static scoped_ptr<Decoder> Create(
       render_tree::ResourceProvider* resource_provider,
-      const SuccessCallback& success_callback,
-      const ErrorCallback& error_callback) {
-    return scoped_ptr<Decoder>(
-        new MeshDecoder(resource_provider, success_callback, error_callback));
+      const MeshAvailableCallback& mesh_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback) {
+    return scoped_ptr<Decoder>(new MeshDecoder(
+        resource_provider, mesh_available_callback, load_complete_callback));
   }
 
   // From Decoder.
@@ -55,11 +50,16 @@ class MeshDecoder : public Decoder {
   void Resume(render_tree::ResourceProvider* resource_provider) override;
 
  private:
+  MeshDecoder(
+      render_tree::ResourceProvider* resource_provider,
+      const MeshAvailableCallback& mesh_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback);
+
   void ReleaseRawData();
 
   render_tree::ResourceProvider* resource_provider_;
-  const SuccessCallback success_callback_;
-  const ErrorCallback error_callback_;
+  const MeshAvailableCallback mesh_available_callback_;
+  const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
   scoped_ptr<std::vector<uint8> > raw_data_;
 

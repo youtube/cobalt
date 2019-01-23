@@ -4,6 +4,10 @@
 
 #include "src/x64/assembler-x64.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include <cstring>
 
 #if V8_TARGET_ARCH_X64

@@ -30,6 +30,15 @@
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
       ],
+      'conditions': [
+        ['gl_type != "none"', {
+          'dependencies': [
+            # This is needed because VideoDecoderTest depends on
+            # FakeGraphicsContextProvider which depends on EGL and GLES.
+            '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+          ],
+        }],
+      ],
       'defines': [
         # This allows the tests to include internal only header files.
         'STARBOARD_IMPLEMENTATION',
@@ -48,13 +57,15 @@
       'variables': {
         'content_test_input_files': ['<!@(python <(DEPTH)/starboard/build/list_dmp_files.py "starboard/shared/starboard/player/testdata")'],
         'content_test_output_subdir': 'starboard/shared/starboard/player/testdata',
+        'depot_tools_path': ['<!@(python <(DEPTH)/build/find_depot_tools_escaped.py)'],
       },
       'actions' : [
         {
           # This action requires depot_tools to be in path
           # (https://cobalt.googlesource.com/depot_tools).
           'action_name': 'player_filter_tests_download_test_data',
-          'action': [ 'download_from_google_storage',
+          'action': [ 'python',
+                      '<(depot_tools_path)/download_from_google_storage.py',
                       '--no_resume',
                       '--no_auth',
                       '--num_threads', '8',

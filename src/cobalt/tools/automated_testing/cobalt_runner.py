@@ -321,6 +321,27 @@ class CobaltRunner(object):
     else:
       return json.loads(json_result)
 
+  def GetCvalBatch(self, cval_name_list):
+    """Retrieves a batch of cvals.
+
+    Use this instead of retrieving individual cvals to reduce the overhead of
+    the query. There can be several milliseconds of latency for each individual
+    query.
+
+    Args:
+      cval_name_list: List of cval names.
+
+    Returns:
+      Python dictionary of values indexed by the cval names provided.
+    """
+    javascript_code_list = ['h5vcc.cVal.getValue(\'{}\')'.format(name)
+                            for name in cval_name_list]
+    javascript_code = 'return [' + ','.join(javascript_code_list) + ']'
+    json_results = self.ExecuteJavaScript(javascript_code)
+    cval_value_list = [None if result is None else json.loads(result)
+                       for result in json_results]
+    return dict(zip(cval_name_list, cval_value_list))
+
   def GetUserAgent(self):
     """Returns the User Agent string."""
     return self.ExecuteJavaScript('return navigator.userAgent;')

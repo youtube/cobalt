@@ -166,13 +166,12 @@
 #include <openssl/md5.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
 
 #include "../crypto/internal.h"
 #include "internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 enum ssl_client_hs_state_t {
   state_start_connect = 0,
@@ -213,20 +212,20 @@ static void ssl_get_client_disabled(SSL_HANDSHAKE *hs, uint32_t *out_mask_a,
   }
 }
 
-static bool ssl_write_client_cipher_list(SSL_HANDSHAKE *hs, CBB *out) {
+static int ssl_write_client_cipher_list(SSL_HANDSHAKE *hs, CBB *out) {
   SSL *const ssl = hs->ssl;
   uint32_t mask_a, mask_k;
   ssl_get_client_disabled(hs, &mask_a, &mask_k);
 
   CBB child;
   if (!CBB_add_u16_length_prefixed(out, &child)) {
-    return false;
+    return 0;
   }
 
   // Add a fake cipher suite. See draft-davidben-tls-grease-01.
   if (ssl->ctx->grease_enabled &&
       !CBB_add_u16(&child, ssl_get_grease_value(hs, ssl_grease_cipher))) {
-    return false;
+    return 0;
   }
 
   // Add TLS 1.3 ciphers. Order ChaCha20-Poly1305 relative to AES-GCM based on
@@ -234,20 +233,20 @@ static bool ssl_write_client_cipher_list(SSL_HANDSHAKE *hs, CBB *out) {
   if (hs->max_version >= TLS1_3_VERSION) {
     if (!EVP_has_aes_hardware() &&
         !CBB_add_u16(&child, TLS1_CK_CHACHA20_POLY1305_SHA256 & 0xffff)) {
-      return false;
+      return 0;
     }
     if (!CBB_add_u16(&child, TLS1_CK_AES_128_GCM_SHA256 & 0xffff) ||
         !CBB_add_u16(&child, TLS1_CK_AES_256_GCM_SHA384 & 0xffff)) {
-      return false;
+      return 0;
     }
     if (EVP_has_aes_hardware() &&
         !CBB_add_u16(&child, TLS1_CK_CHACHA20_POLY1305_SHA256 & 0xffff)) {
-      return false;
+      return 0;
     }
   }
 
   if (hs->min_version < TLS1_3_VERSION) {
-    bool any_enabled = false;
+    int any_enabled = 0;
     for (const SSL_CIPHER *cipher : SSL_get_ciphers(ssl)) {
       // Skip disabled ciphers
       if ((cipher->algorithm_mkey & mask_k) ||
@@ -258,53 +257,53 @@ static bool ssl_write_client_cipher_list(SSL_HANDSHAKE *hs, CBB *out) {
           SSL_CIPHER_get_max_version(cipher) < hs->min_version) {
         continue;
       }
-      any_enabled = true;
+      any_enabled = 1;
       if (!CBB_add_u16(&child, ssl_cipher_get_value(cipher))) {
-        return false;
+        return 0;
       }
     }
 
     // If all ciphers were disabled, return the error to the caller.
     if (!any_enabled && hs->max_version < TLS1_3_VERSION) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CIPHERS_AVAILABLE);
-      return false;
+      return 0;
     }
   }
 
   if (ssl->mode & SSL_MODE_SEND_FALLBACK_SCSV) {
     if (!CBB_add_u16(&child, SSL3_CK_FALLBACK_SCSV & 0xffff)) {
-      return false;
+      return 0;
     }
   }
 
   return CBB_flush(out);
 }
 
-bool ssl_write_client_hello(SSL_HANDSHAKE *hs) {
+int ssl_write_client_hello(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
   ScopedCBB cbb;
   CBB body;
   if (!ssl->method->init_message(ssl, cbb.get(), &body, SSL3_MT_CLIENT_HELLO)) {
-    return false;
+    return 0;
   }
 
   CBB child;
   if (!CBB_add_u16(&body, hs->client_version) ||
       !CBB_add_bytes(&body, ssl->s3->client_random, SSL3_RANDOM_SIZE) ||
       !CBB_add_u8_length_prefixed(&body, &child)) {
-    return false;
+    return 0;
   }
 
   // Do not send a session ID on renegotiation.
   if (!ssl->s3->initial_handshake_complete &&
       !CBB_add_bytes(&child, hs->session_id, hs->session_id_len)) {
-    return false;
+    return 0;
   }
 
   if (SSL_is_dtls(ssl)) {
     if (!CBB_add_u8_length_prefixed(&body, &child) ||
         !CBB_add_bytes(&child, ssl->d1->cookie, ssl->d1->cookie_len)) {
-      return false;
+      return 0;
     }
   }
 
@@ -314,19 +313,19 @@ bool ssl_write_client_hello(SSL_HANDSHAKE *hs) {
       !CBB_add_u8(&body, 1 /* one compression method */) ||
       !CBB_add_u8(&body, 0 /* null compression */) ||
       !ssl_add_clienthello_tlsext(hs, &body, header_len + CBB_len(&body))) {
-    return false;
+    return 0;
   }
 
   Array<uint8_t> msg;
   if (!ssl->method->finish_message(ssl, cbb.get(), &msg)) {
-    return false;
+    return 0;
   }
 
   // Now that the length prefixes have been computed, fill in the placeholder
   // PSK binder.
   if (hs->needs_psk_binder &&
       !tls13_write_psk_binder(hs, msg.data(), msg.size())) {
-    return false;
+    return 0;
   }
 
   return ssl->method->add_message(ssl, std::move(msg));
@@ -608,7 +607,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
     }
   }
 
-  if (!ssl->s3->initial_handshake_complete && ssl->session != nullptr &&
+  if (!ssl->s3->initial_handshake_complete && ssl->session != NULL &&
       ssl->session->session_id_length != 0 &&
       CBS_mem_equal(&session_id, ssl->session->session_id,
                     ssl->session->session_id_length)) {
@@ -1607,11 +1606,14 @@ static enum ssl_hs_wait_t do_read_session_ticket(SSL_HANDSHAKE *hs) {
   }
   session->ticket_lifetime_hint = ticket_lifetime_hint;
 
-  // Generate a session ID for this session. Some callers expect all sessions to
-  // have a session ID. Additionally, it acts as the session ID to signal
-  // resumption.
-  SHA256(CBS_data(&ticket), CBS_len(&ticket), session->session_id);
-  session->session_id_length = SHA256_DIGEST_LENGTH;
+  // Generate a session ID for this session based on the session ticket. We use
+  // the session ID mechanism for detecting ticket resumption. This also fits in
+  // with assumptions elsewhere in OpenSSL.
+  if (!EVP_Digest(CBS_data(&ticket), CBS_len(&ticket),
+                  session->session_id, &session->session_id_length,
+                  EVP_sha256(), NULL)) {
+    return ssl_hs_error;
+  }
 
   if (renewed_session) {
     session->not_resumable = false;
@@ -1820,4 +1822,4 @@ const char *ssl_client_handshake_state(SSL_HANDSHAKE *hs) {
   return "TLS client unknown";
 }
 
-BSSL_NAMESPACE_END
+}

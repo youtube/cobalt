@@ -24,14 +24,13 @@
 #include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/sha.h>
 #include <openssl/stack.h>
 
 #include "../crypto/internal.h"
 #include "internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 enum client_hs_state_t {
   state_read_hello_retry_request = 0,
@@ -553,7 +552,7 @@ static enum ssl_hs_wait_t do_read_server_certificate(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  if (!tls13_process_certificate(hs, msg, false /* certificate required */) ||
+  if (!tls13_process_certificate(hs, msg, 0 /* certificate required */) ||
       !ssl_hash_message(hs, msg)) {
     return ssl_hs_error;
   }
@@ -613,7 +612,7 @@ static enum ssl_hs_wait_t do_read_server_finished(SSL_HANDSHAKE *hs) {
     return ssl_hs_read_message;
   }
   if (!ssl_check_message_type(ssl, msg, SSL3_MT_FINISHED) ||
-      !tls13_process_finished(hs, msg, false /* don't use saved value */) ||
+      !tls13_process_finished(hs, msg, 0 /* don't use saved value */) ||
       !ssl_hash_message(hs, msg) ||
       // Update the secret to the master secret and derive traffic keys.
       !tls13_advance_key_schedule(hs, kZeroes, hs->hash_len) ||
@@ -847,18 +846,18 @@ const char *tls13_client_handshake_state(SSL_HANDSHAKE *hs) {
   return "TLS 1.3 client unknown";
 }
 
-bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
+int tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
   if (ssl->s3->write_shutdown != ssl_shutdown_none) {
     // Ignore tickets on shutdown. Callers tend to indiscriminately call
     // |SSL_shutdown| before destroying an |SSL|, at which point calling the new
     // session callback may be confusing.
-    return true;
+    return 1;
   }
 
   UniquePtr<SSL_SESSION> session = SSL_SESSION_dup(
       ssl->s3->established_session.get(), SSL_SESSION_INCLUDE_NONAUTH);
   if (!session) {
-    return false;
+    return 0;
   }
 
   ssl_session_rebase_time(ssl, session.get());
@@ -874,7 +873,7 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
       CBS_len(&body) != 0) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
     OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
-    return false;
+    return 0;
   }
 
   // Cap the renewable lifetime by the server advertised value. This avoids
@@ -884,7 +883,7 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
   }
 
   if (!tls13_derive_session_psk(session.get(), ticket_nonce)) {
-    return false;
+    return 0;
   }
 
   // Parse out the extensions.
@@ -899,7 +898,7 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
                             OPENSSL_ARRAY_SIZE(ext_types),
                             1 /* ignore unknown */)) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
-    return false;
+    return 0;
   }
 
   if (have_early_data_info && ssl->enable_early_data) {
@@ -907,14 +906,9 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
         CBS_len(&early_data_info) != 0) {
       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
       OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
-      return false;
+      return 0;
     }
   }
-
-  // Generate a session ID for this session. Some callers expect all sessions to
-  // have a session ID.
-  SHA256(CBS_data(&ticket), CBS_len(&ticket), session->session_id);
-  session->session_id_length = SHA256_DIGEST_LENGTH;
 
   session->ticket_age_add_valid = true;
   session->not_resumable = false;
@@ -926,7 +920,7 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
     session.release();
   }
 
-  return true;
+  return 1;
 }
 
-BSSL_NAMESPACE_END
+}  // namespace bssl

@@ -1024,7 +1024,8 @@ func runTest(test *testCase, shimPath string, mallocNumToFail int64) error {
 			panic(fmt.Sprintf("The name of test %q suggests that it's version specific, but min/max version in the Config is %x/%x. One of them should probably be %x", test.name, test.config.MinVersion, test.config.MaxVersion, ver.version))
 		}
 
-		if ver.tls13Variant != 0 {
+		// Ignore this check against "TLS13", since TLS13 is used in many test names.
+		if ver.tls13Variant != 0 && ver.tls13Variant != TLS13RFC {
 			var foundFlag bool
 			for _, flag := range test.flags {
 				if flag == "-tls13-variant" {
@@ -1417,11 +1418,11 @@ func allShimVersions(protocol protocol) []tlsVersion {
 		return allVersions(protocol)
 	}
 	tls13Default := tlsVersion{
-		name:         "TLS13All",
+		name:         "TLS13Default",
 		version:      VersionTLS13,
 		excludeFlag:  "-no-tls13",
 		versionWire:  0,
-		tls13Variant: TLS13All,
+		tls13Variant: TLS13Default,
 	}
 
 	var shimVersions []tlsVersion
@@ -5580,7 +5581,7 @@ func addVersionNegotiationTests() {
 				}
 
 				if expectedVersion == VersionTLS13 && runnerVers.tls13Variant != shimVers.tls13Variant {
-					if shimVers.tls13Variant != TLS13All {
+					if shimVers.tls13Variant != TLS13Default {
 						expectedVersion = VersionTLS12
 					}
 				}
@@ -5781,7 +5782,7 @@ func addVersionNegotiationTests() {
 		name:     "IgnoreClientVersionOrder",
 		config: Config{
 			Bugs: ProtocolBugs{
-				SendSupportedVersions: []uint16{VersionTLS12, VersionTLS13},
+				SendSupportedVersions: []uint16{VersionTLS12, tls13Draft23Version},
 			},
 		},
 		expectedVersion: VersionTLS13,
@@ -7625,6 +7626,17 @@ func addResumptionVersionTests() {
 						},
 					})
 				} else {
+					error := ":OLD_SESSION_VERSION_NOT_RETURNED:"
+					// Clients offering TLS 1.3 will send a fake session ID
+					// unrelated to the session being offer. This session ID is
+					// invalid for the server to echo, so the handshake fails at
+					// a different point. It's not syntactically possible for a
+					// server to convince our client that it's accepted a TLS
+					// 1.3 session at an older version.
+					if resumeVers.version < VersionTLS13 && sessionVers.version >= VersionTLS13 {
+						error = ":SERVER_ECHOED_INVALID_SESSION_ID:"
+					}
+
 					testCases = append(testCases, testCase{
 						protocol:      protocol,
 						name:          "Resume-Client-Mismatch" + suffix,
@@ -7643,7 +7655,7 @@ func addResumptionVersionTests() {
 						},
 						expectedResumeVersion: resumeVers.version,
 						shouldFail:            true,
-						expectedError:         ":OLD_SESSION_VERSION_NOT_RETURNED:",
+						expectedError:         error,
 						flags: []string{
 							"-on-initial-tls13-variant", strconv.Itoa(sessionVers.tls13Variant),
 							"-on-resume-tls13-variant", strconv.Itoa(resumeVers.tls13Variant),

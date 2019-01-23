@@ -19,7 +19,7 @@
 
 #include <openssl/ssl.h>
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 namespace {
 
 static void TestCtor(Span<int> s, const int *ptr, size_t size) {
@@ -87,4 +87,4 @@ TEST(SpanTest, Accessor) {
 }
 
 }  // namespace
-BSSL_NAMESPACE_END
+}  // namespace bssl

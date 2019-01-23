@@ -32,7 +32,9 @@ namespace player {
 // This class implements a thread that holds a JobQueue.
 class JobThread {
  public:
-  explicit JobThread(const char* thread_name);
+  explicit JobThread(const char* thread_name,
+                     int64_t stack_size = 0,
+                     SbThreadPriority priority = kSbThreadPriorityNormal);
   ~JobThread();
 
   JobQueue* job_queue() { return job_queue_.get(); }

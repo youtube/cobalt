@@ -162,7 +162,7 @@
 #include "internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 SSL3_STATE::SSL3_STATE()
     : skip_early_data(false),
@@ -215,4 +215,4 @@ void ssl3_free(SSL *ssl) {
   ssl->s3 = NULL;
 }
 
-BSSL_NAMESPACE_END
+}  // namespace bssl

@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -77,16 +78,19 @@ class DocumentLoader : public dom::DocumentObserver {
     document_loader_.reset(new loader::Loader(
         base::Bind(&loader::FetcherFactory::CreateFetcher,
                    base::Unretained(&fetcher_factory_), url),
-        dom_parser_->ParseDocumentAsync(document_,
-                                        base::SourceLocation(url.spec(), 1, 1)),
-        base::Bind(&OnError)));
+        base::Bind(&dom_parser::Parser::ParseDocumentAsync,
+                   base::Unretained(dom_parser_.get()), document_,
+                   base::SourceLocation(url.spec(), 1, 1)),
+        base::Bind(&OnLoadComplete)));
 
     nested_loop_.Run();
   }
   dom::Document* document() { return document_.get(); }
 
  private:
-  static void OnError(const std::string& error) { DLOG(ERROR) << error; }
+  static void OnLoadComplete(const base::optional<std::string>& error) {
+    if (error) DLOG(ERROR) << *error;
+  }
 
   // dom::DocumentObserver functions
   void OnLoad() override { nested_loop_.Quit(); }

@@ -27,12 +27,10 @@
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <winsock2.h>
 OPENSSL_MSVC_PRAGMA(warning(pop))
-#else
-#include <signal.h>
 #endif
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 class ErrorTestEventListener : public testing::EmptyTestEventListener {
  public:
@@ -69,17 +67,13 @@ inline void SetupGoogleTest() {
     fprintf(stderr, "Didn't get expected version: %x\n", wsa_data.wVersion);
     exit(1);
   }
-#else
-  // Some tests create pipes. We check return values, so avoid being killed by
-  // |SIGPIPE|.
-  signal(SIGPIPE, SIG_IGN);
 #endif
 
   testing::UnitTest::GetInstance()->listeners().Append(
       new ErrorTestEventListener);
 }
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 
 #endif  // OPENSSL_HEADER_CRYPTO_TEST_GTEST_MAIN_H

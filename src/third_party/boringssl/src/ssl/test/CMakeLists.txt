@@ -14,8 +14,6 @@ add_executable(
   $<TARGET_OBJECTS:test_support>
 )
 
-add_dependencies(bssl_shim global_target)
-
 target_link_libraries(bssl_shim ssl crypto)
 
 if(UNIX AND NOT APPLE AND NOT ANDROID)
@@ -32,8 +30,6 @@ if(UNIX AND NOT APPLE AND NOT ANDROID)
 
     $<TARGET_OBJECTS:test_support>
   )
-
-  add_dependencies(handshaker global_target)
 
   target_link_libraries(handshaker ssl crypto)
 else()

@@ -36,6 +36,10 @@
 
 #include "googleurl/src/url_parse.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include <stdlib.h>
 
 #include "base/logging.h"

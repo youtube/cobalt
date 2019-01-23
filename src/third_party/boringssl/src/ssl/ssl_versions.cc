@@ -23,7 +23,7 @@
 #include "../crypto/internal.h"
 
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 bool ssl_protocol_version_from_wire(uint16_t *out, uint16_t version) {
   switch (version) {
@@ -304,7 +304,7 @@ bool ssl_supports_version(SSL_HANDSHAKE *hs, uint16_t version) {
         return version == TLS1_3_DRAFT28_VERSION;
       case tls13_rfc:
         return version == TLS1_3_VERSION;
-      case tls13_all:
+      case tls13_default:
         return true;
     }
   }
@@ -360,7 +360,7 @@ bool ssl_is_draft28(uint16_t version) {
   return version == TLS1_3_DRAFT28_VERSION || version == TLS1_3_VERSION;
 }
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 using namespace bssl;
 

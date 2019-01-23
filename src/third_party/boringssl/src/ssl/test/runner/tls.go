@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/ed25519"
+	"./ed25519"
 )
 
 // Server returns a new TLS server side connection
@@ -311,7 +311,8 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 
 	if bytes.HasPrefix(der, ed25519PKCS8Prefix) && len(der) == len(ed25519PKCS8Prefix)+32 {
 		seed := der[len(ed25519PKCS8Prefix):]
-		return ed25519.NewKeyFromSeed(seed), nil
+		_, key := ed25519.NewKeyPairFromSeed(seed)
+		return key, nil
 	}
 
 	return nil, errors.New("crypto/tls: failed to parse private key")

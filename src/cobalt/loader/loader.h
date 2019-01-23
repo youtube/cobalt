@@ -21,6 +21,7 @@
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
@@ -34,15 +35,19 @@ class Loader {
  public:
   typedef base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> FetcherCreator;
   typedef base::Callback<void(Loader*)> OnDestructionFunction;
-  typedef base::Callback<void(const std::string&)> OnErrorFunction;
+  typedef base::Callback<void(const base::optional<std::string>&)>
+      OnCompleteFunction;
+  typedef base::Callback<scoped_ptr<Decoder>(const OnCompleteFunction&)>
+      DecoderCreator;
 
   // The construction of Loader initiates the loading. It takes the ownership
   // of a Decoder and creates and manages a Fetcher using the given creation
   // method.
   // The fetcher creator, decoder and error callback shouldn't be NULL.
   // It is allowed to destroy the loader in the error callback.
-  Loader(const FetcherCreator& fetcher_creator, scoped_ptr<Decoder> decoder,
-         const OnErrorFunction& on_error,
+  Loader(const FetcherCreator& fetcher_creator,
+         const DecoderCreator& decoder_creator,
+         const OnCompleteFunction& on_load_complete,
          const OnDestructionFunction& on_destruction = OnDestructionFunction(),
          bool is_suspended = false);
 
@@ -58,6 +63,8 @@ class Loader {
 
   bool DidFailFromTransientError() const;
 
+  void LoadComplete(const base::optional<std::string>& status);
+
  private:
   class FetcherToDecoderAdapter;
 
@@ -65,6 +72,7 @@ class Loader {
   void Start();
 
   const FetcherCreator fetcher_creator_;
+  const DecoderCreator decoder_creator_;
 
   scoped_ptr<Decoder> decoder_;
   scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
@@ -73,10 +81,11 @@ class Loader {
   base::CancelableClosure fetcher_creator_error_closure_;
   base::ThreadChecker thread_checker_;
 
-  const OnErrorFunction on_error_;
+  const OnCompleteFunction on_load_complete_;
   const OnDestructionFunction on_destruction_;
 
   bool is_suspended_;
+  bool is_load_complete_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

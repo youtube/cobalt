@@ -19,7 +19,7 @@ import (
 	"net"
 	"time"
 
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/ed25519"
+	"./ed25519"
 )
 
 type clientHandshakeState struct {

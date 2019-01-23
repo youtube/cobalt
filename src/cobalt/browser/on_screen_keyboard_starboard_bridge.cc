@@ -42,6 +42,27 @@ void OnScreenKeyboardStarboardBridge::Blur(int ticket) {
   SbWindowBlurOnScreenKeyboard(sb_window_provider_.Run(), ticket);
 }
 
+void OnScreenKeyboardStarboardBridge::UpdateSuggestions(
+    const script::Sequence<std::string>& suggestions, int ticket) {
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+  std::unique_ptr<const char* []> suggestions_data(
+      new const char*[suggestions.size()]);
+  for (script::Sequence<std::string>::size_type i = 0; i < suggestions.size();
+       ++i) {
+    suggestions_data[i] = suggestions.at(i).c_str();
+  }
+  // Delay providing the SbWindow until as late as possible.
+  // TODO: Uncomment this when there's a Starboard implementation.
+  UNREFERENCED_PARAMETER(ticket);
+  // SbWindowUpdateOnScreenKeyboardSuggestions(
+  //     sb_window_provider_.Run(), suggestions_data.get(),
+  //     static_cast<int>(suggestions.size()), ticket);
+#else
+  LOG(WARNING) << "Starboard version " << SB_API_VERSION
+               << " does not support on-screen keyboard suggestions.";
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+}
+
 bool OnScreenKeyboardStarboardBridge::IsShown() const {
   // Delay providing the SbWindow until as late as possible.
   return SbWindowIsOnScreenKeyboardShown(sb_window_provider_.Run());

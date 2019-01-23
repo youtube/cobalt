@@ -36,25 +36,25 @@ struct TextDecoderCallback {
 
 TEST(TextDecoderTest, EmptyString) {
   TextDecoderCallback text_decoder_result;
-  TextDecoder text_decoder(base::Bind(&TextDecoderCallback::Callback,
-                                      base::Unretained(&text_decoder_result)));
+  scoped_ptr<Decoder> text_decoder = TextDecoder::Create(base::Bind(
+      &TextDecoderCallback::Callback, base::Unretained(&text_decoder_result)));
 
   EXPECT_EQ("", text_decoder_result.text);
-  text_decoder.DecodeChunk("abc", 0);
-  text_decoder.DecodeChunk("", 0);
-  text_decoder.Finish();
+  text_decoder->DecodeChunk("abc", 0);
+  text_decoder->DecodeChunk("", 0);
+  text_decoder->Finish();
   EXPECT_EQ("", text_decoder_result.text);
 }
 
 TEST(TextDecoderTest, NonEmptyString) {
   TextDecoderCallback text_decoder_result;
-  TextDecoder text_decoder(base::Bind(&TextDecoderCallback::Callback,
-                                      base::Unretained(&text_decoder_result)));
+  scoped_ptr<Decoder> text_decoder = TextDecoder::Create(base::Bind(
+      &TextDecoderCallback::Callback, base::Unretained(&text_decoder_result)));
 
   EXPECT_EQ("", text_decoder_result.text);
-  text_decoder.DecodeChunk("abc", 3);
-  text_decoder.DecodeChunk("defghi", 3);
-  text_decoder.Finish();
+  text_decoder->DecodeChunk("abc", 3);
+  text_decoder->DecodeChunk("defghi", 3);
+  text_decoder->Finish();
   EXPECT_EQ("abcdef", text_decoder_result.text);
 }
 

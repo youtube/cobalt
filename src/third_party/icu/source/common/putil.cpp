@@ -63,6 +63,9 @@
 #include "ucln_cmn.h"
 #include "charstr.h"
 
+// Must be after "umitex.h" which includes "time.h" on some platforms.
+#include "starboard/client_porting/poem/eztime_poem.h"
+
 /* Include standard headers. */
 #if !defined(STARBOARD)
 #include <stdio.h>

@@ -179,11 +179,11 @@ OPENSSL_EXPORT int i2d_ECDSA_SIG(const ECDSA_SIG *sig, uint8_t **outp);
 
 extern "C++" {
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 BORINGSSL_MAKE_DELETER(ECDSA_SIG, ECDSA_SIG_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 }  // extern C++
 

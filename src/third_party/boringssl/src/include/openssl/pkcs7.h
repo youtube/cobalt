@@ -199,11 +199,11 @@ OPENSSL_EXPORT PKCS7 *PKCS7_sign(X509 *sign_cert, EVP_PKEY *pkey,
 }  // extern C
 
 extern "C++" {
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 BORINGSSL_MAKE_DELETER(PKCS7, PKCS7_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 }  // extern C++
 #endif
 

@@ -205,6 +205,19 @@ SB_EXPORT void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket);
 // is not showing does nothing and does not fire any event.
 SB_EXPORT void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket);
 
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+// Update the on-screen keyboard custom suggestions. Fire
+// kSbEventTypeOnScreenKeyboardSuggestionsUpdated.
+// kSbEventTypeOnScreenKeyboardSuggestionsUpdated has data |ticket|. The
+// suggestions should remain up-to-date when the keyboard is shown after being
+// hidden.
+SB_EXPORT void SbWindowUpdateOnScreenKeyboardSuggestions(
+    SbWindow window,
+    const char* suggestions[],
+    int num_suggestions,
+    int ticket);
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #ifdef __cplusplus

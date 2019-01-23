@@ -10,12 +10,12 @@
     // { "name": "elements" },
     { "name": "har_importer" },
     { "name": "help" },
-    // { "name": "layer_viewer" },
+    { "name": "layer_viewer" },
     { "name": "network" },
     { "name": "product_registry_impl", "type": "remote" },
     { "name": "resources" },
-    // { "name": "timeline" },
-    // { "name": "timeline_model" }
+    { "name": "timeline" },
+    { "name": "timeline_model" }
   ],
   "extends": "shell",
   "has_html": true

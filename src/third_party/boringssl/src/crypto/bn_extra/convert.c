@@ -367,13 +367,17 @@ end:
 }
 
 int BN_print_fp(FILE *fp, const BIGNUM *a) {
-  BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);
+  BIO *b;
+  int ret;
+
+  b = BIO_new(BIO_s_file());
   if (b == NULL) {
     return 0;
   }
-
-  int ret = BN_print(b, a);
+  BIO_set_fp(b, fp, BIO_NOCLOSE);
+  ret = BN_print(b, a);
   BIO_free(b);
+
   return ret;
 }
 

@@ -25,10 +25,10 @@ XMLDecoder::XMLDecoder(
     const scoped_refptr<dom::Node>& reference_node,
     const int dom_max_element_depth, const base::SourceLocation& input_location,
     const base::Closure& done_callback,
-    const base::Callback<void(const std::string&)>& error_callback)
+    const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : libxml_xml_parser_wrapper_(new LibxmlXMLParserWrapper(
           xml_document, parent_node, reference_node, dom_max_element_depth,
-          input_location, error_callback)),
+          input_location, load_complete_callback)),
       done_callback_(done_callback) {}
 
 XMLDecoder::~XMLDecoder() {}

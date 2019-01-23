@@ -122,6 +122,7 @@ namespace base {
     MacroOpWithNameOnly(stop)                                        \
     MacroOpWithNameOnly(storage)                                     \
     MacroOpWithNameOnly(stalled)                                     \
+    MacroOpWithNameOnly(suggestionsUpdated)                          \
     MacroOpWithNameOnly(suspend)                                     \
     MacroOpWithNameOnly(text)                                        \
     MacroOpWithNameOnly(timeout)                                     \

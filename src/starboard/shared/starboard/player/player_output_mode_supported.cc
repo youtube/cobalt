@@ -18,15 +18,6 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
-#if SB_HAS(PLAYER_WITH_URL)
-
-bool SbPlayerOutputModeSupportedWithUrl(SbPlayerOutputMode output_mode) {
-  // Stub.
-  return false;
-}
-
-#else
-
 bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                  SbMediaVideoCodec codec,
                                  SbDrmSystem drm_system) {
@@ -34,4 +25,3 @@ bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
       OutputModeSupported(output_mode, codec, drm_system);
 }
 
-#endif  // SB_HAS(PLAYER_WITH_URL)

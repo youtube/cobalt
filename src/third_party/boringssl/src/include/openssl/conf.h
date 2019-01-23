@@ -60,6 +60,7 @@
 #include <openssl/base.h>
 
 #include <openssl/stack.h>
+#include <openssl/lhash.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -82,6 +83,10 @@ struct conf_value_st {
   char *section;
   char *name;
   char *value;
+};
+
+struct conf_st {
+  LHASH_OF(CONF_VALUE) *data;
 };
 
 DEFINE_STACK_OF(CONF_VALUE)
@@ -157,11 +162,11 @@ OPENSSL_EXPORT void OPENSSL_no_config(void);
 
 extern "C++" {
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 BORINGSSL_MAKE_DELETER(CONF, NCONF_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 }  // extern C++
 

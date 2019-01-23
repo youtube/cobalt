@@ -29,12 +29,10 @@ yet because creating them requires admin level acccess, or Windows 10 Insiders
 build 14972, which is not widely available yet.
 """
 
-import os
-import shutil
-import subprocess
-import stat
-import time
-import traceback
+
+################################################################################
+#                                  API                                         #
+################################################################################
 
 
 def CreateReparsePoint(from_folder, link_folder):
@@ -64,9 +62,17 @@ def RmtreeShallow(dirpath):
   return _RmtreeShallow(dirpath)
 
 
-#####################
-# Implementation
-#####################
+################################################################################
+#                                 IMPL                                         #
+################################################################################
+
+
+import os
+import shutil
+import subprocess
+import stat
+import time
+import traceback
 
 
 def _RemoveEmptyDirectory(path):
@@ -89,7 +95,7 @@ def _RmtreeShallow(path):
   subprocess.check_output(['cmd', '/c', 'rmdir', '/S', '/Q', path])
 
 
-def _ReadReparsePoint(path):
+def _ReadReparsePointShell(path):
   path = os.path.abspath(path)
   cmd_parts = ['fsutil', 'reparsepoint', 'query', path]
   try:
@@ -110,8 +116,25 @@ def _ReadReparsePoint(path):
     return None
 
 
+def _ReadReparsePoint(path):
+  try:
+    from win_symlink_fast import FastReadReparseLink
+    return FastReadReparseLink(path)
+  except Exception as err:
+    # Fallback
+    print(__file__ + ' error: ' + str(err) + \
+          ', falling back to command line version.')
+    return _ReadReparsePointShell(path)
+
+
 def _IsReparsePoint(path):
-  return None != _ReadReparsePoint(path)
+  try:
+    from win_symlink_fast import FastIsReparseLink
+    return FastIsReparseLink(path)
+  except  Exception as err:
+    print(__file__ + ' error: ' + str(err) + \
+          ', falling back to command line version.')
+    return None != _ReadReparsePointShell(path)
 
 
 def _CreateReparsePoint(from_folder, link_folder):
@@ -121,12 +144,17 @@ def _CreateReparsePoint(from_folder, link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
     _UnlinkReparsePoint(link_folder)  # Deletes if it exists.
-
-  par_dir = os.path.dirname(link_folder)
-  if not os.path.isdir(par_dir):
-    os.makedirs(par_dir)
-  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
-  subprocess.check_output(cmd_parts)
+  try:
+    from win_symlink_fast import FastCreateReparseLink
+    FastCreateReparseLink(from_folder, link_folder)
+  except Exception as err:
+    print(__file__ + ' error: ' + str(err) + \
+          ', falling back to command line version.')
+    par_dir = os.path.dirname(link_folder)
+    if not os.path.isdir(par_dir):
+      os.makedirs(par_dir)
+    cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+    subprocess.check_output(cmd_parts)
 
 
 

@@ -46,11 +46,11 @@ OPENSSL_EXPORT void ERR_restore_state(const ERR_SAVE_STATE *state);
 
 extern "C++" {
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
 BORINGSSL_MAKE_DELETER(ERR_SAVE_STATE, ERR_SAVE_STATE_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 }  // extern C++
 #endif

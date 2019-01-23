@@ -38,7 +38,8 @@ struct MockMeshDecoderCallback {
     mesh_projection = value;
   }
 
-  MOCK_METHOD1(ErrorCallback, void(const std::string& message));
+  MOCK_METHOD1(OnCompleteFunction,
+               void(const base::optional<std::string>& message));
 
   scoped_refptr<MeshProjection> mesh_projection;
 };
@@ -56,7 +57,7 @@ class MockMeshDecoder : public Decoder {
 
   scoped_refptr<MeshProjection> GetMeshProjection();
 
-  void ExpectCallWithError(const std::string& message);
+  void ExpectCallWithError(const base::optional<std::string>& message);
 
  protected:
   ::testing::StrictMock<MockMeshDecoderCallback> mesh_decoder_callback_;
@@ -65,12 +66,12 @@ class MockMeshDecoder : public Decoder {
 };
 
 MockMeshDecoder::MockMeshDecoder() {
-  mesh_decoder_.reset(new mesh::MeshDecoder(
+  mesh_decoder_ = MeshDecoder::Create(
       &resource_provider_,
       base::Bind(&MockMeshDecoderCallback::SuccessCallback,
                  base::Unretained(&mesh_decoder_callback_)),
-      base::Bind(&MockMeshDecoderCallback::ErrorCallback,
-                 base::Unretained(&mesh_decoder_callback_))));
+      base::Bind(&MockMeshDecoderCallback::OnCompleteFunction,
+                 base::Unretained(&mesh_decoder_callback_)));
 }
 
 void MockMeshDecoder::DecodeChunk(const char* data, size_t size) {
@@ -89,8 +90,9 @@ scoped_refptr<MeshProjection> MockMeshDecoder::GetMeshProjection() {
   return mesh_decoder_callback_.mesh_projection;
 }
 
-void MockMeshDecoder::ExpectCallWithError(const std::string& message) {
-  EXPECT_CALL(mesh_decoder_callback_, ErrorCallback(message));
+void MockMeshDecoder::ExpectCallWithError(
+    const base::optional<std::string>& error) {
+  EXPECT_CALL(mesh_decoder_callback_, OnCompleteFunction(error));
 }
 
 FilePath GetTestMeshPath(const char* file_name) {
@@ -127,6 +129,7 @@ std::vector<uint8> GetMeshData(const FilePath& file_path) {
 // Test that we can decode a mesh received in one chunk.
 TEST(MeshDecoderTest, DecodeMesh) {
   MockMeshDecoder mesh_decoder;
+  mesh_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> mesh_data = GetMeshData(GetTestMeshPath(kTestMeshbox));
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&mesh_data[0]),
@@ -167,6 +170,7 @@ TEST(MeshDecoderTest, DecodeMesh) {
 // Test that we can decode a mesh received in multiple chunks.
 TEST(MeshDecoderTest, DecodeMeshWithMultipleChunks) {
   MockMeshDecoder mesh_decoder;
+  mesh_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> mesh_data = GetMeshData(GetTestMeshPath(kTestMeshbox));
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&mesh_data[0]), 4);
@@ -184,7 +188,7 @@ TEST(MeshDecoderTest, DecodeMeshWithMultipleChunks) {
 TEST(MeshDecoderTest, DoNotDecodeEmptyProjectionBoxBuffer) {
   MockMeshDecoder mesh_decoder;
   mesh_decoder.ExpectCallWithError(
-      "MeshDecoder passed an empty buffer, cannot decode.");
+      std::string("MeshDecoder passed an empty buffer, cannot decode."));
 
   std::vector<uint8> empty_mesh_data(1);
   mesh_decoder.DecodeChunk(reinterpret_cast<char*>(&empty_mesh_data[0]), 0);
@@ -197,7 +201,7 @@ TEST(MeshDecoderTest, DoNotDecodeEmptyProjectionBoxBuffer) {
 TEST(MeshDecoderTest, DoNotDecodeInvalidProjectionBox) {
   MockMeshDecoder mesh_decoder;
   mesh_decoder.ExpectCallWithError(
-      "MeshDecoder passed an invalid mesh projection box.");
+      std::string("MeshDecoder passed an invalid mesh projection box."));
 
   std::vector<uint8> buffer(40, static_cast<uint8>(5));
 
@@ -211,7 +215,7 @@ TEST(MeshDecoderTest, DoNotDecodeInvalidProjectionBox) {
 TEST(MeshDecoderTest, DoNotDecodeProjectionBoxWithInvalidMeshes) {
   MockMeshDecoder mesh_decoder;
   mesh_decoder.ExpectCallWithError(
-      "MeshDecoder passed an invalid mesh projection box.");
+      std::string("MeshDecoder passed an invalid mesh projection box."));
 
   std::vector<uint8> buffer;
   size_t mshp_box_size_offset = buffer.size();
