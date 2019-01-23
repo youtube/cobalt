@@ -130,6 +130,9 @@
 // format_string.h.
 #define SB_MOVE_FORMAT_STRING_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add support for hybrid navigation.
+#define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
