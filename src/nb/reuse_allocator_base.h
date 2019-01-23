@@ -17,6 +17,7 @@
 #ifndef NB_REUSE_ALLOCATOR_BASE_H_
 #define NB_REUSE_ALLOCATOR_BASE_H_
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <vector>
@@ -66,7 +67,9 @@ class ReuseAllocatorBase : public Allocator {
 
   std::size_t max_capacity() const { return max_capacity_; }
   void set_max_capacity(std::size_t max_capacity) {
-    max_capacity_ = max_capacity;
+    // TODO: Properly implement decreasing the max capacity so that the
+    // capacity is not suddenly exceeded.
+    max_capacity_ = std::max(max_capacity, max_capacity_);
   }
 
  protected:

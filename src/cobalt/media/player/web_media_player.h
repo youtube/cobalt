@@ -193,7 +193,8 @@ class WebMediaPlayer {
   // in |WebMediaPlayerClient::EncryptedMediaInitData|.
   //
   // |drm_system| must not be NULL. The method can only be called once.
-  virtual void SetDrmSystem(DrmSystem* drm_system) = 0;
+  virtual void SetDrmSystem(
+      const scoped_refptr<media::DrmSystem>& drm_system) = 0;
 };
 
 // TODO: Add prefix "On" to all methods that handle events, such

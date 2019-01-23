@@ -176,6 +176,13 @@
       'target_name': 'mozjs-45_lib',
       'type': 'static_library',
       'cflags': ['<@(common_cflags)'],
+      # Dependent targets may need the headers from 'build_include_directory'
+      # as well. Although 'build_include_directory' specifies hard_dependency,
+      # that only prevents direct dependents from building in parallel -- it
+      # apparently does not prevent indirect dependents. So specifying this as
+      # a hard_dependency should ensure 'build_include_directory' is done for
+      # targets which depend on this.
+      'hard_dependency': 1,
       'dependencies': [
         'build_include_directory',
         '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
@@ -188,9 +195,6 @@
         'cflags': ['<@(common_cflags)'],
         'defines': ['<@(common_defines)'],
       },
-      'export_dependent_settings': [
-        'build_include_directory',
-      ],
       'include_dirs': [
         '<(DEPTH)/third_party/mozjs-45/js/src',
         '<@(common_include_dirs)',

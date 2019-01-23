@@ -23,6 +23,7 @@
 #include "cobalt/system_window/system_window.h"
 #include "nb/memory_scope.h"
 #include "starboard/media.h"
+#include "starboard/string.h"
 #include "starboard/window.h"
 
 namespace cobalt {
@@ -32,8 +33,21 @@ namespace {
 
 class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
-  std::string CanPlayType(const std::string& mime_type,
+  std::string CanPlayType(bool is_progressive, const std::string& mime_type,
                           const std::string& key_system) override {
+    if (is_progressive) {
+      // |mime_type| is something like:
+      //   video/mp4
+      //   video/webm
+      //   video/mp4; codecs="avc1.4d401e"
+      //   video/webm; codecs="vp9"
+      // We do a rough pre-filter to ensure that only video/mp4 is supported as
+      // progressive.
+      if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0 &&
+          SbStringFindString(mime_type.c_str(), "application/x-mpegURL") == 0) {
+        return "";
+      }
+    }
     SbMediaSupportType type =
         SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
     switch (type) {

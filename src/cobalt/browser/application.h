@@ -110,6 +110,9 @@ class Application {
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_HAS(CAPTIONS)
+  base::EventCallback on_caption_settings_changed_event_callback_;
+#endif  // SB_HAS(CAPTIONS)
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.

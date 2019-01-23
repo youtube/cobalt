@@ -431,21 +431,22 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @stable ICU 2.4
  */
 #define U8_APPEND_UNSAFE(s, i, c) { \
-    if((uint32_t)(c)<=0x7f) { \
-        (s)[(i)++]=(uint8_t)(c); \
+    uint32_t __uc=(c); \
+    if(__uc<=0x7f) { \
+        (s)[(i)++]=(uint8_t)__uc; \
     } else { \
-        if((uint32_t)(c)<=0x7ff) { \
-            (s)[(i)++]=(uint8_t)(((c)>>6)|0xc0); \
+        if(__uc<=0x7ff) { \
+            (s)[(i)++]=(uint8_t)((__uc>>6)|0xc0); \
         } else { \
-            if((uint32_t)(c)<=0xffff) { \
-                (s)[(i)++]=(uint8_t)(((c)>>12)|0xe0); \
+            if(__uc<=0xffff) { \
+                (s)[(i)++]=(uint8_t)((__uc>>12)|0xe0); \
             } else { \
-                (s)[(i)++]=(uint8_t)(((c)>>18)|0xf0); \
-                (s)[(i)++]=(uint8_t)((((c)>>12)&0x3f)|0x80); \
+                (s)[(i)++]=(uint8_t)((__uc>>18)|0xf0); \
+                (s)[(i)++]=(uint8_t)(((__uc>>12)&0x3f)|0x80); \
             } \
-            (s)[(i)++]=(uint8_t)((((c)>>6)&0x3f)|0x80); \
+            (s)[(i)++]=(uint8_t)(((__uc>>6)&0x3f)|0x80); \
         } \
-        (s)[(i)++]=(uint8_t)(((c)&0x3f)|0x80); \
+        (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
     } \
 }
 
@@ -467,17 +468,23 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @stable ICU 2.4
  */
 #define U8_APPEND(s, i, capacity, c, isError) { \
-    if((uint32_t)(c)<=0x7f) { \
-        (s)[(i)++]=(uint8_t)(c); \
-    } else if((uint32_t)(c)<=0x7ff && (i)+1<(capacity)) { \
-        (s)[(i)++]=(uint8_t)(((c)>>6)|0xc0); \
-        (s)[(i)++]=(uint8_t)(((c)&0x3f)|0x80); \
-    } else if((uint32_t)(c)<=0xd7ff && (i)+2<(capacity)) { \
-        (s)[(i)++]=(uint8_t)(((c)>>12)|0xe0); \
-        (s)[(i)++]=(uint8_t)((((c)>>6)&0x3f)|0x80); \
-        (s)[(i)++]=(uint8_t)(((c)&0x3f)|0x80); \
+    uint32_t __uc=(c); \
+    if(__uc<=0x7f) { \
+        (s)[(i)++]=(uint8_t)__uc; \
+    } else if(__uc<=0x7ff && (i)+1<(capacity)) { \
+        (s)[(i)++]=(uint8_t)((__uc>>6)|0xc0); \
+        (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
+    } else if((__uc<=0xd7ff || (0xe000<=__uc && __uc<=0xffff)) && (i)+2<(capacity)) { \
+        (s)[(i)++]=(uint8_t)((__uc>>12)|0xe0); \
+        (s)[(i)++]=(uint8_t)(((__uc>>6)&0x3f)|0x80); \
+        (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
+    } else if(0xffff<__uc && __uc<=0x10ffff && (i)+3<(capacity)) { \
+        (s)[(i)++]=(uint8_t)((__uc>>18)|0xf0); \
+        (s)[(i)++]=(uint8_t)(((__uc>>12)&0x3f)|0x80); \
+        (s)[(i)++]=(uint8_t)(((__uc>>6)&0x3f)|0x80); \
+        (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
     } else { \
-        (i)=utf8_appendCharSafeBody(s, (i), (capacity), c, &(isError)); \
+        (isError)=TRUE; \
     } \
 }
 

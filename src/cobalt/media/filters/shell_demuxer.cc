@@ -36,11 +36,7 @@ namespace cobalt {
 namespace media {
 
 ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer, Type type)
-    : demuxer_(demuxer),
-      type_(type),
-      last_buffer_timestamp_(kNoTimestamp),
-      stopped_(false),
-      total_buffer_size_(0) {
+    : demuxer_(demuxer), type_(type) {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::ShellDemuxerStream()");
   DCHECK(demuxer_);
 }
@@ -71,6 +67,7 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     } else {
       // Do not pop EOS buffers, so that subsequent read requests also get EOS
       total_buffer_size_ -= buffer->data_size();
+      --total_buffer_count_;
       buffer_queue_.pop_front();
     }
     read_cb.Run(
@@ -139,6 +136,7 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
     buffer_queue_.push_back(buffer);
     if (!buffer->end_of_stream()) {
       total_buffer_size_ += buffer->data_size();
+      ++total_buffer_count_;
     }
   }
 }
@@ -153,6 +151,11 @@ size_t ShellDemuxerStream::GetTotalBufferSize() const {
   return total_buffer_size_;
 }
 
+size_t ShellDemuxerStream::GetTotalBufferCount() const {
+  base::AutoLock auto_lock(lock_);
+  return total_buffer_count_;
+}
+
 void ShellDemuxerStream::FlushBuffers() {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::FlushBuffers()");
   base::AutoLock auto_lock(lock_);
@@ -160,6 +163,7 @@ void ShellDemuxerStream::FlushBuffers() {
   DLOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
   total_buffer_size_ = 0;
+  total_buffer_count_ = 0;
   last_buffer_timestamp_ = kNoTimestamp;
 }
 
@@ -169,6 +173,7 @@ void ShellDemuxerStream::Stop() {
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   total_buffer_size_ = 0;
+  total_buffer_count_ = 0;
   last_buffer_timestamp_ = kNoTimestamp;
   // fulfill any pending callbacks with EOS buffers set to end timestamp
   for (ReadQueue::iterator it = read_queue_.begin(); it != read_queue_.end();
@@ -368,16 +373,26 @@ void ShellDemuxer::AllocateBuffer() {
   if (requested_au_) {
     size_t total_buffer_size = audio_demuxer_stream_->GetTotalBufferSize() +
                                video_demuxer_stream_->GetTotalBufferSize();
+    size_t total_buffer_count = audio_demuxer_stream_->GetTotalBufferCount() +
+                                video_demuxer_stream_->GetTotalBufferCount();
 #if SB_API_VERSION >= 10
     int progressive_budget = SbMediaGetProgressiveBufferBudget(
         MediaVideoCodecToSbMediaVideoCodec(VideoConfig().codec()),
         VideoConfig().visible_rect().size().width(),
         VideoConfig().visible_rect().size().height(),
         VideoConfig().webm_color_metadata().BitsPerChannel);
+    int progressive_duration_cap_in_seconds =
+        SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
 #else   // SB_API_VERSION >= 10
     int progressive_budget = COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET;
+    int progressive_duration_cap_in_seconds =
+        COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS;
 #endif  // SB_API_VERSION >= 10
-    if (total_buffer_size >= progressive_budget) {
+    const int kEstimatedBufferCountPerSeconds = 70;
+    int progressive_buffer_count_cap =
+        progressive_duration_cap_in_seconds * kEstimatedBufferCountPerSeconds;
+    if (total_buffer_size >= progressive_budget ||
+        total_buffer_count > progressive_buffer_count_cap) {
       // Retry after 100 milliseconds.
       const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(100);
       blocking_thread_.message_loop()->PostDelayedTask(

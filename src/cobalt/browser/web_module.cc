@@ -1040,8 +1040,13 @@ void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
 
 void WebModule::Impl::SetSize(math::Size window_dimensions,
                               float video_pixel_ratio) {
+  // A value of 0.0 for the video pixel ratio means that the ratio could not be
+  // determined. In that case it should be assumed to be the same as the
+  // graphics resolution, which corresponds to a device pixel ratio of 1.0.
+  float device_pixel_ratio =
+      video_pixel_ratio == 0.0f ? 1.0f : video_pixel_ratio;
   window_->SetSize(window_dimensions.width(), window_dimensions.height(),
-                   video_pixel_ratio);
+                   device_pixel_ratio);
 }
 
 void WebModule::Impl::SetCamera3D(

@@ -54,6 +54,18 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
 
 FileFetcher::~FileFetcher() {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  if (message_loop_proxy_ != base::MessageLoopProxy::current()) {
+    // In case we are currently in the middle of a fetch (in which case it will
+    // be aborted), invalidate the weak pointers to this FileFetcher object to
+    // ensure that we do not process any responses from pending file I/O, which
+    // also guarantees that no new file I/O requests will be generated after the
+    // current one (if one is currently active).
+    weak_ptr_factory_.InvalidateWeakPtrs();
+    // Then wait for any currently active file I/O to complete, after which
+    // everything will be quiet and we can shutdown safely.
+    message_loop_proxy_->WaitForFence();
+  }
   CloseFile();
 }
 

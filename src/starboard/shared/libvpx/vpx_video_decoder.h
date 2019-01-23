@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 
+#include <queue>
 #include <string>
 
 #include "starboard/common/ref_counted.h"
@@ -92,7 +93,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
-  bool UpdateDecodeTarget(const scoped_refptr<CpuVideoFrame>& frame);
+  void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
   // The following callbacks will be initialized in Initialize() and won't be
   // changed during the life time of this class.
@@ -126,6 +127,8 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
   Mutex decode_target_mutex_;
+
+  std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
 }  // namespace vpx

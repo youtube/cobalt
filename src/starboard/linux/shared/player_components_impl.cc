@@ -88,8 +88,12 @@ class PlayerComponentsImpl : public PlayerComponents {
     }
 
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-    *video_renderer_sink = new PunchoutVideoRendererSink(
-        video_parameters.player, kVideoSinkRenderInterval);
+    if (video_parameters.output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      *video_renderer_sink = NULL;
+    } else {
+      *video_renderer_sink = new PunchoutVideoRendererSink(
+          video_parameters.player, kVideoSinkRenderInterval);
+    }
   }
 
   void GetAudioRendererParams(int* max_cached_frames,

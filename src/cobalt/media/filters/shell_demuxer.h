@@ -62,6 +62,7 @@ class ShellDemuxerStream : public DemuxerStream {
   void Stop();
   base::TimeDelta GetLastBufferTimestamp() const;
   size_t GetTotalBufferSize() const;
+  size_t GetTotalBufferCount() const;
 
  private:
   // The Ranges object doesn't offer a complement object so we rebuild
@@ -83,8 +84,8 @@ class ShellDemuxerStream : public DemuxerStream {
   //   1. Used with the timestamp of the current frame to calculate the
   //      buffer range.
   //   2. Used by the demuxer to deteminate what type of frame to get next.
-  base::TimeDelta last_buffer_timestamp_;
-  bool stopped_;
+  base::TimeDelta last_buffer_timestamp_ = kNoTimestamp;
+  bool stopped_ = false;
 
   typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
   BufferQueue buffer_queue_;
@@ -92,7 +93,8 @@ class ShellDemuxerStream : public DemuxerStream {
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
 
-  size_t total_buffer_size_;
+  size_t total_buffer_size_ = 0;
+  size_t total_buffer_count_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
 };

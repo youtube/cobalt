@@ -69,6 +69,7 @@ class CobaltRunner(object):
     device_id = None
     config = None
     out_directory = None
+    target_params = None
 
   class WindowDriverCreatedTimeoutException(Exception):
     """Exception thrown when WindowDriver was not created in time."""
@@ -92,9 +93,9 @@ class CobaltRunner(object):
       url:              The intial URL to launch Cobalt on.
       log_file:         The log file's name string.
       target_params:    An array of command line arguments to launch Cobalt
-      with.
+        with.
       success_message:  Optional success message to be printed on successful
-      exit.
+        exit.
     """
 
     self.test_script_started = threading.Event()
@@ -242,15 +243,14 @@ class CobaltRunner(object):
 
   def _KillLauncher(self):
     """Kills the launcher and its attached Cobalt instance."""
-    try:
-      self.launcher.Kill()
-    except Exception as e:  # pylint: disable=broad-except
-      sys.stderr.write('Exception killing launcher:\n')
-      sys.stderr.write('{}\n'.format(str(e)))
+    self.ExecuteJavaScript('window.close();')
 
     self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
     if self.runner_thread.isAlive():
-      sys.stderr.write('***Runner thread still alive***\n')
+      sys.stderr.write(
+          '***Runner thread still alive after sending graceful shutdown command, try again by killing app***\n'
+      )
+      self.launcher.Kill()
     # Once the write end of the pipe has been closed by the launcher, the reader
     # thread will get EOF and exit.
     self.reader_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
@@ -301,16 +301,20 @@ class CobaltRunner(object):
         thread.interrupt_main()
     return 0
 
+  def ExecuteJavaScript(self, js_code):
+    return self.webdriver.execute_script(js_code)
+
   def GetCval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
 
     Args:
       cval_name: Name of the cval.
+
     Returns:
       Python object represented by the JSON cval string
     """
     javascript_code = 'return h5vcc.cVal.getValue(\'{}\')'.format(cval_name)
-    json_result = self.webdriver.execute_script(javascript_code)
+    json_result = self.ExecuteJavaScript(javascript_code)
     if json_result is None:
       return None
     else:
@@ -322,6 +326,7 @@ class CobaltRunner(object):
     Args:
       css_selector: A CSS selector
       expected_num: The expected number of the selector type to be found.
+
     Raises:
       Underlying WebDriver exceptions
     """
@@ -337,6 +342,7 @@ class CobaltRunner(object):
 
     Args:
       unique_selector: A CSS selector that will select only one element
+
     Raises:
       AssertException: the element isn't unique
     Returns:
@@ -349,6 +355,7 @@ class CobaltRunner(object):
 
     Args:
       css_selector: A CSS selector
+
     Raises:
       AssertException: the element isn't found
     """
@@ -364,6 +371,7 @@ class CobaltRunner(object):
     Args:
       css_selector: A CSS selector
       expected_num: Expected number of matching elements
+
     Raises:
       AssertException: expected_num isn't met
     Returns:
@@ -406,6 +414,7 @@ class CobaltRunner(object):
 
     Args:
       url:  URL string to be loaded by Cobalt.
+
     Raises:
       Underlying WebDriver exceptions
     """
@@ -434,5 +443,9 @@ def GetDeviceParamsFromCommandLine():
   device_params.config = args.config
   device_params.device_id = args.device_id
   device_params.out_directory = args.out_directory
+  if args.target_params == None:
+    device_params.target_params = []
+  else:
+    device_params.target_params = [args.target_params]
 
   return device_params

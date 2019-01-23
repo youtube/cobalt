@@ -17,7 +17,6 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
-#include "cobalt/dom/script_event_log.h"
 
 namespace cobalt {
 namespace dom {
@@ -59,8 +58,6 @@ void GenericEventHandlerReference::HandleEvent(
     bool unpack_error_event) {
   TRACE_EVENT1("cobalt::dom", "GenericEventHandlerReference::HandleEvent",
                "Event Name", TRACE_STR_COPY(event->type().c_str()));
-  script_event_log.Get().PushEvent(event);
-
   bool had_exception;
   base::optional<bool> result;
 
@@ -76,8 +73,6 @@ void GenericEventHandlerReference::HandleEvent(
     NOTREACHED();
     had_exception = true;
   }
-
-  script_event_log.Get().PopEvent();
 
   if (had_exception) {
     return;

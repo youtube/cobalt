@@ -223,7 +223,7 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   DCHECK(dom_settings);
   media::CanPlayTypeHandler* handler = dom_settings->can_play_type_handler();
   DCHECK(handler);
-  std::string result = handler->CanPlayType(type, "");
+  std::string result = handler->CanPlayType(false, type, "");
   DLOG(INFO) << "MediaSource::IsTypeSupported(" << type << ") -> " << result;
   return result == "probably";
 }

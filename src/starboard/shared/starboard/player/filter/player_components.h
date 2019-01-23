@@ -88,7 +88,7 @@ class PlayerComponents {
     scoped_refptr<VideoRendererSink> video_renderer_sink;
     CreateVideoComponents(video_parameters, &video_decoder,
                           &video_render_algorithm, &video_renderer_sink);
-    if (!video_decoder || !video_render_algorithm || !video_renderer_sink) {
+    if (!video_decoder || !video_render_algorithm) {
       return scoped_ptr<VideoRenderer>();
     }
     return make_scoped_ptr(
