@@ -1869,20 +1869,7 @@ def CalculateVariables(default_variables, params):
     global generator_extra_sources_for_rules
     generator_extra_sources_for_rules = getattr(
         xcode_generator, 'generator_extra_sources_for_rules', [])
-  elif flavor in ['ps3']:
-    if is_windows:
-      # This is required for BuildCygwinBashCommandLine() to work.
-      import gyp.generator.msvs as msvs_generator
-      generator_additional_non_configuration_keys = getattr(
-          msvs_generator, 'generator_additional_non_configuration_keys', [])
-      generator_additional_path_sections = getattr(
-          msvs_generator, 'generator_additional_path_sections', [])
-
-    default_variables['SHARED_LIB_PREFIX'] = ''
-    default_variables['SHARED_LIB_SUFFIX'] = '.sprx'
-    generator_flags = params.get('generator_flags', {})
-
-  elif flavor in ['ps4', 'ps4-vr']:
+  elif flavor in sony_flavors:
     if is_windows:
       # This is required for BuildCygwinBashCommandLine() to work.
       import gyp.generator.msvs as msvs_generator
