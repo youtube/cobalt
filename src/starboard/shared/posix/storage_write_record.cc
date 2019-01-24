@@ -70,8 +70,6 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     to_write -= bytes_written;
   }
 
-  SbFileFlush(temp_file);
-
   if (SbFileIsValid(record->file) && !SbFileClose(record->file)) {
     return false;
   }
@@ -85,6 +83,8 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   if (rename(temp_file_path, original_file_path) != 0) {
     return false;
   }
+
+  SbFileFlush(temp_file);
 
   record->file = temp_file;
 
