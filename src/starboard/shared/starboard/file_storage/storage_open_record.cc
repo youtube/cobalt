@@ -19,6 +19,8 @@
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/user.h"
 
+const char kTempFileSuffix[] = ".temp";
+
 SbStorageRecord SbStorageOpenRecord(SbUser user
 #if SB_API_VERSION >= 6
                                     ,
@@ -38,6 +40,16 @@ SbStorageRecord SbStorageOpenRecord(SbUser user
       user, name, path, SB_ARRAY_SIZE_INT(path));
   if (!success) {
     return kSbStorageInvalidRecord;
+  }
+
+  // If temp file exist, we will replace original file
+  char temp_file_path[SB_FILE_MAX_PATH];
+  SbStringCopy(temp_file_path, path, SB_FILE_MAX_PATH);
+  SbStringConcat(temp_file_path, kTempFileSuffix, SB_FILE_MAX_PATH);
+  if (SbFileExists(temp_file_path)) {
+    if (!SbFileDelete(path) || rename(temp_file_path, path) != 0) {
+      return kSbStorageInvalidRecord;
+    }
   }
 
   // This will always create the storage file, even if it is just opened and
