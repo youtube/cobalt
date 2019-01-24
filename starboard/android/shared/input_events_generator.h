@@ -20,7 +20,10 @@
 #include <memory>
 #include <vector>
 
+#ifdef STARBOARD_INPUT_EVENTS_FILTER
 #include "starboard/android/shared/input_events_filter.h"
+#endif
+
 #include "starboard/input.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/window.h"
@@ -74,7 +77,9 @@ class InputEventsGenerator {
 
   SbWindow window_;
 
+#ifdef STARBOARD_INPUT_EVENTS_FILTER
   InputEventsFilter input_events_filter_;
+#endif
 
   // Map the device id with joystick flat position.
   // Cache the flat area of joystick to avoid calling jni functions frequently.
