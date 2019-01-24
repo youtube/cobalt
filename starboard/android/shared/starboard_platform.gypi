@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'variables': {
+    'has_input_events_filter' : '<!(python ../../../build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+  },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
   ],
@@ -90,8 +93,6 @@
         'file_truncate.cc',
         'file_write.cc',
         'get_home_directory.cc',
-        'input_events_filter.cc',
-        'input_events_filter.h',
         'input_events_generator.cc',
         'input_events_generator.h',
         'jni_env_ext.cc',
@@ -444,6 +445,17 @@
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_pause.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_unpause.cc',
+      ],
+      'conditions': [
+        ['has_input_events_filter=="True"', {
+          'sources': [
+            'input_events_filter.cc',
+            'input_events_filter.h',
+          ],
+          'defines': [
+            'STARBOARD_INPUT_EVENTS_FILTER',
+          ],
+        }],
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
