@@ -86,6 +86,13 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     return false;
   }
 
+  SbFile original_file =
+      SbFileOpen(original_file_path, kSbFileOpenOnly, NULL, &error);
+  if (error != kSbFileOk) {
+    return false;
+  }
+  SbFileFlush(original_file);
+
   record->file = temp_file;
 
   return true;
