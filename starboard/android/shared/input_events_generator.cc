@@ -17,6 +17,7 @@
 #include <android/input.h>
 #include <android/keycodes.h>
 #include <jni.h>
+#include <math.h>
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -610,9 +611,11 @@ void PossiblySynthesizeHatKeyEvents(HatAxis axis,
 
 bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
                                            Events* events) {
+#ifdef STARBOARD_INPUT_EVENTS_FILTER
   if (!input_events_filter_.ShouldProcessKeyEvent(android_event)) {
     return false;
   }
+#endif
 
   SbInputEventType type;
   switch (AKeyEvent_getAction(android_event)) {
