@@ -304,7 +304,7 @@
           ],
           'conditions': [
             ['gl_type != "none"', {
-              'sources': [
+              'dependencies': [
                  # This is needed because SbPlayerTest depends on
                  # FakeGraphicsContextProvider which depends on EGL and GLES.
                 '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
