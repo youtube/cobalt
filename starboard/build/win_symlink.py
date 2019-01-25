@@ -144,12 +144,17 @@ def _CreateReparsePoint(from_folder, link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
     _UnlinkReparsePoint(link_folder)  # Deletes if it exists.
-
-  par_dir = os.path.dirname(link_folder)
-  if not os.path.isdir(par_dir):
-    os.makedirs(par_dir)
-  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
-  subprocess.check_output(cmd_parts)
+  try:
+    from win_symlink_fast import FastCreateReparseLink
+    FastCreateReparseLink(from_folder, link_folder)
+  except Exception as err:
+    print(__file__ + ' error: ' + str(err) + \
+          ', falling back to command line version.')
+    par_dir = os.path.dirname(link_folder)
+    if not os.path.isdir(par_dir):
+      os.makedirs(par_dir)
+    cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+    subprocess.check_output(cmd_parts)
 
 
 
