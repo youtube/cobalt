@@ -99,7 +99,7 @@ def _IsOutDir(source_root, d):
   return out_dir in d
 
 
-def _FindPythonFiles(source_root):
+def _FindPythonAndCertFiles(source_root):
   logging.info('Searching in ' + source_root + ' for python files.')
   file_list = []
   for root, _, files in os.walk(source_root):
@@ -107,7 +107,7 @@ def _FindPythonFiles(source_root):
     if _IsOutDir(source_root, root):
       continue
     for f in files:
-      if f.endswith('.py'):
+      if f.endswith('.py') or f.endswith('.crt') or f.endswith('.key'):
         file_list.append(os.path.join(root, f))
   return file_list
 
@@ -151,7 +151,7 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_sub_dirs):
   subdirs = _PYTHON_SRC_DIRS + additional_sub_dirs
   copy_list = []
   for d in subdirs:
-    flist = _FindPythonFiles(os.path.join(repo_root, d))
+    flist = _FindPythonAndCertFiles(os.path.join(repo_root, d))
     copy_list.extend(flist)
   # Copy all src/*.py from repo_root without recursing down.
   for f in os.listdir(repo_root):
