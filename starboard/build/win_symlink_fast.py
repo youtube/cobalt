@@ -26,8 +26,9 @@ def FastReadReparseLink(path):
   return _FastReadReparseLink(path)
 
 
-# Note that FastCreateReparsePoint does not exist because the ctypes binding
-# to CreateSymbolicLink can only be invoked from admin privileges.
+def FastCreateReparseLink(from_folder, link_folder):
+  return _FastCreateReparseLink(from_folder, link_folder)
+
 
 ################################################################################
 #                                 IMPL                                         #
@@ -92,7 +93,8 @@ FSCTL_GET_REPARSE_POINT = 0x000900A8
 IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003
 IO_REPARSE_TAG_SYMLINK = 0xA000000C
 MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 0x4000
-
+SYMBOLIC_LINK_FLAG_DIRECTORY = 0x1
+SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
 
 class GENERIC_REPARSE_BUFFER(Structure):
   _fields_ = (('DataBuffer', UCHAR * 1),)
@@ -142,6 +144,17 @@ class REPARSE_DATA_BUFFER(Structure):
 
 def _ToUnicode(s):
   return s.decode('utf-8')
+
+
+def _FastCreateReparseLink(from_folder, link_folder):
+  from_folder = _ToUnicode(from_folder)
+  link_folder = _ToUnicode(link_folder)
+  from win32file import CreateSymbolicLink
+  # Only supported from Windows 10 Insiders build 14972
+  flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | \
+          SYMBOLIC_LINK_FLAG_DIRECTORY
+  CreateSymbolicLink(link_folder,from_folder, flags)
+
 
 def _FastIsReparseLink(path):
   path = _ToUnicode(path)
