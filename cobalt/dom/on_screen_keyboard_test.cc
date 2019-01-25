@@ -102,6 +102,14 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
     last_ticket_ = -1;
   }
 
+  void UpdateSuggestions(const script::Sequence<std::string>& suggestions,
+                         int ticket) override {
+    SB_UNREFERENCED_PARAMETER(suggestions);
+    SB_UNREFERENCED_PARAMETER(ticket);
+    // TODO: implement and test this.
+    SB_NOTIMPLEMENTED();
+  }
+
   bool IsShown() const override { return shown_; }
 
   scoped_refptr<DOMRect> BoundingRect() const override {
