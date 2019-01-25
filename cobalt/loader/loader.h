@@ -58,6 +58,8 @@ class Loader {
 
   bool DidFailFromTransientError() const;
 
+  void LoadComplete();
+
  private:
   class FetcherToDecoderAdapter;
 
@@ -77,6 +79,7 @@ class Loader {
   const OnDestructionFunction on_destruction_;
 
   bool is_suspended_;
+  bool is_load_complete_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

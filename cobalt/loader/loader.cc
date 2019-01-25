@@ -126,12 +126,16 @@ void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
   is_suspended_ = false;
 
   decoder_->Resume(resource_provider);
-  Start();
+  if (!is_load_complete_) Start();
 }
 
 bool Loader::DidFailFromTransientError() const {
   DCHECK(thread_checker_.CalledOnValidThread());
   return fetcher_ && fetcher_->did_fail_from_transient_error();
+}
+
+void Loader::LoadComplete() {
+  is_load_complete_ = true;
 }
 
 void Loader::Start() {
