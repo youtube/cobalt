@@ -29,6 +29,7 @@ OnScreenKeyboard::OnScreenKeyboard(
       script_value_factory_(script_value_factory),
       next_ticket_(0) {
   DCHECK(bridge_) << "OnScreenKeyboardBridge must not be NULL";
+  suggestions_supported_ = bridge_->SuggestionsSupported();
 }
 
 script::Handle<script::Promise<void>> OnScreenKeyboard::Show() {
@@ -91,22 +92,29 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
     const script::Sequence<std::string>& suggestions) {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
-
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
-  int ticket = next_ticket_++;
-  bool is_emplaced =
-      ticket_to_update_suggestions_promise_map_
-          .emplace(ticket, std::unique_ptr<VoidPromiseValue::Reference>(
-                               new VoidPromiseValue::Reference(this, promise)))
-          .second;
-  DCHECK(is_emplaced);
-  bridge_->UpdateSuggestions(suggestions, ticket);
+  if (suggestions_supported_) {
+    int ticket = next_ticket_++;
+    bool is_emplaced =
+        ticket_to_update_suggestions_promise_map_
+            .emplace(ticket,
+                     std::unique_ptr<VoidPromiseValue::Reference>(
+                         new VoidPromiseValue::Reference(this, promise)))
+            .second;
+    DCHECK(is_emplaced);
+    bridge_->UpdateSuggestions(suggestions, ticket);
+  } else {
+    LOG(WARNING)
+        << "Starboard version " << SB_API_VERSION
+        << " does not support on-screen keyboard suggestions on this platform.";
+    promise->Reject();
+  }
 #else
   UNREFERENCED_PARAMETER(suggestions);
-  LOG(WARNING) << "Starboard version " << SB_API_VERSION
-               << " does not support on-screen keyboard suggestions.";
-  promise->Resolve();
-  DispatchEvent(new dom::Event(base::Tokens::suggestionsUpdated()));
+  LOG(WARNING)
+      << "Starboard version " << SB_API_VERSION
+      << " does not support on-screen keyboard suggestions on this platform.";
+  promise->Reject();
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
   return promise;
 }

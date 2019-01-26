@@ -24,7 +24,9 @@
   Promise<void> blur();
   Promise<void> updateSuggestions(sequence<DOMString> suggestions);
   readonly attribute boolean shown;
-  // TODO: Add hasSuggestionsAbility boolean.
+  // If the keyboard has suggestions implemented. If false, calling
+  // updateSuggestions() will result in the promise being immediately rejected.
+  readonly attribute boolean suggestionsSupported;
 
   // If the keyboard is shown, return bounding rectangle in screen pixel
   // coordinates, otherwise return NULL.
