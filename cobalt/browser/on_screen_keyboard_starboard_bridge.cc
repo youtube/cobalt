@@ -52,20 +52,32 @@ void OnScreenKeyboardStarboardBridge::UpdateSuggestions(
     suggestions_data[i] = suggestions.at(i).c_str();
   }
   // Delay providing the SbWindow until as late as possible.
-  // TODO: Uncomment this when there's a Starboard implementation.
-  UNREFERENCED_PARAMETER(ticket);
-  // SbWindowUpdateOnScreenKeyboardSuggestions(
-  //     sb_window_provider_.Run(), suggestions_data.get(),
-  //     static_cast<int>(suggestions.size()), ticket);
+  SbWindowUpdateOnScreenKeyboardSuggestions(
+      sb_window_provider_.Run(), suggestions_data.get(),
+      static_cast<int>(suggestions.size()), ticket);
 #else
-  LOG(WARNING) << "Starboard version " << SB_API_VERSION
-               << " does not support on-screen keyboard suggestions.";
+  LOG(WARNING)
+      << "Starboard version " << SB_API_VERSION
+      << " does not support on-screen keyboard suggestions on this platform.";
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 }
 
 bool OnScreenKeyboardStarboardBridge::IsShown() const {
   // Delay providing the SbWindow until as late as possible.
   return SbWindowIsOnScreenKeyboardShown(sb_window_provider_.Run());
+}
+
+bool OnScreenKeyboardStarboardBridge::SuggestionsSupported() const {
+// Delay providing the SbWindow until as late as possible.
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+  return SbWindowOnScreenKeyboardSuggestionsSupported(
+      sb_window_provider_.Run());
+#else
+  LOG(WARNING)
+      << "Starboard version " << SB_API_VERSION
+      << " does not support on-screen keyboard suggestions on this platform.";
+  return false;
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 }
 
 scoped_refptr<dom::DOMRect>
