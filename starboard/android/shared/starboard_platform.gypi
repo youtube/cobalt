@@ -459,6 +459,8 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
+        '<(DEPTH)/starboard/shared/stub/window_on_screen_keyboard_suggestions_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc',
       ],
       'conditions': [
         ['has_input_events_filter=="True"', {
