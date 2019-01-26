@@ -102,9 +102,10 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
   DCHECK(is_emplaced);
   bridge_->UpdateSuggestions(suggestions, ticket);
 #else
+  UNREFERENCED_PARAMETER(suggestions);
   LOG(WARNING) << "Starboard version " << SB_API_VERSION
                << " does not support on-screen keyboard suggestions.";
-  promise.Resolve();
+  promise->Resolve();
   DispatchEvent(new dom::Event(base::Tokens::suggestionsUpdated()));
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
   return promise;
