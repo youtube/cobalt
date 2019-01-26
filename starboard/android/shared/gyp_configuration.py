@@ -252,7 +252,6 @@ class AndroidConfiguration(PlatformConfiguration):
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
           'SbAudioSinkTest.Underflow',
-          'SbMicrophoneGetAvailableTest.LabelIsValid',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
@@ -268,27 +267,28 @@ class AndroidConfiguration(PlatformConfiguration):
           'SpeechRecognizerTest.StartRecognizerWithContinuousRecognition',
           'SpeechRecognizerTest.StartRecognizerWithInterimResults',
           'SpeechRecognizerTest.StartTestSunnyDay',
-
-          # The following fail on MiBox
-          'SbAudioSinkTest.ContinuousAppend',
-          'SbAudioSinkTest.MultipleAppendAndConsume',
-          'SbAudioSinkTest.Pause',
-          # The following reboot on MiBox
-          'SpeechRecognizerTest.DestroyRecognizerWithoutStopping',
-          'SpeechRecognizerTest.StartWithInvalidSpeechRecognizer',
-          'SpeechRecognizerTest.StopIsCalledMultipleTimes',
       ],
       'player_filter_tests': [
-          # TODO: debug these crashes & failures.
-          'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
           'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
           'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
-          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
+          'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/1',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/1',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/2',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/3',
           'VideoDecoderTests/VideoDecoderTest'
-          '.GetCurrentDecodeTargetBeforeWriteInputBuffer/*',
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
-          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/*',
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*',
-          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/*',
+          '.GetCurrentDecodeTargetBeforeWriteInputBuffer/0',
+          'VideoDecoderTests/VideoDecoderTest'
+          '.GetCurrentDecodeTargetBeforeWriteInputBuffer/2',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/1',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/0',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/1',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/2',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/3',
       ],
   }
