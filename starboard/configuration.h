@@ -110,8 +110,9 @@
 // Add support for SbThreadSampler and SbThreadContext to support profiling.
 #define SB_THREAD_SAMPLER_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce a new API in starboard/window.h which declares the function
-// SbWindowUpdateOnScreenKeyboardSuggestions().
+// Introduce a new API in starboard/window.h which declares the functions
+// SbWindowUpdateOnScreenKeyboardSuggestions() and
+// SbWindowOnScreenKeyboardSuggestionsSupported().
 #define SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
