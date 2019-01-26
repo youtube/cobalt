@@ -287,7 +287,9 @@
         '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_size.cc',
+        '<(DEPTH)/starboard/shared/stub/window_on_screen_keyboard_suggestions_supported.cc',
         '<(DEPTH)/starboard/shared/stub/window_set_default_options.cc',
+        '<(DEPTH)/starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc',
     ],
   },
 }
