@@ -52,9 +52,11 @@ void OnScreenKeyboardStarboardBridge::UpdateSuggestions(
     suggestions_data[i] = suggestions.at(i).c_str();
   }
   // Delay providing the SbWindow until as late as possible.
-  SbWindowUpdateOnScreenKeyboardSuggestions(sb_window_provider_.Run(),
-                                            suggestions_data.get(),
-                                            suggestions.size(), ticket);
+  // TODO: Uncomment this when there's a Starboard implementation.
+  UNREFERENCED_PARAMETER(ticket);
+  // SbWindowUpdateOnScreenKeyboardSuggestions(
+  //     sb_window_provider_.Run(), suggestions_data.get(),
+  //     static_cast<int>(suggestions.size()), ticket);
 #else
   LOG(WARNING) << "Starboard version " << SB_API_VERSION
                << " does not support on-screen keyboard suggestions.";
