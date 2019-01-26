@@ -83,6 +83,9 @@ class OnScreenKeyboard : public EventTarget {
   // If the keyboard is shown.
   bool shown() const;
 
+  // If the keyboard has suggestions implemented.
+  bool suggestions_supported() const { return suggestions_supported_; }
+
   // The rectangle of the keyboard in screen pixel coordinates.
   scoped_refptr<DOMRect> bounding_rect() const;
 
@@ -121,6 +124,8 @@ class OnScreenKeyboard : public EventTarget {
   int next_ticket_;
 
   bool keep_focus_ = false;
+
+  bool suggestions_supported_;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };
