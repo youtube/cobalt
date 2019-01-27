@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_ALSA_ALSA_AUDIO_SINK_TYPE_H_
-#define STARBOARD_SHARED_ALSA_ALSA_AUDIO_SINK_TYPE_H_
+#ifndef STARBOARD_SHARED_PULSE_PULSE_AUDIO_SINK_TYPE_H_
+#define STARBOARD_SHARED_PULSE_PULSE_AUDIO_SINK_TYPE_H_
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
 namespace shared {
-namespace alsa {
+namespace pulse {
 
 void PlatformInitialize();
 void PlatformTearDown();
 
-}  // namespace alsa
+}  // namespace pulse
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_ALSA_ALSA_AUDIO_SINK_TYPE_H_
+#endif  // STARBOARD_SHARED_PULSE_PULSE_AUDIO_SINK_TYPE_H_
