@@ -104,7 +104,8 @@ void Read(const ReadCB& read_cb,
   audio_header->audio_specific_config =
       audio_header->stored_audio_specific_config.data();
 #else
-  SB_DCHECK(8 >= audio_header->stored_audio_specific_config.size());
+  SB_DCHECK(sizeof(audio_header->audio_specific_config) >=
+            audio_header->stored_audio_specific_config.size());
   SbMemoryCopy(audio_header->audio_specific_config,
                audio_header->stored_audio_specific_config.data(),
                audio_header->stored_audio_specific_config.size());
