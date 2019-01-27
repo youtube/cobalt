@@ -19,8 +19,10 @@
 #include <algorithm>
 #include <vector>
 
+#include "starboard/audio_sink.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
+#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/alsa/alsa_util.h"
@@ -105,6 +107,9 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   bool is_valid() { return playback_handle_ != NULL; }
 
  private:
+  AlsaAudioSink(const AlsaAudioSink&) = delete;
+  AlsaAudioSink& operator=(const AlsaAudioSink&) = delete;
+
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
   // Write silence to ALSA when there is not enough data in source or when the
@@ -378,7 +383,31 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
   }
 }
 
-}  // namespace
+class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
+ public:
+  SbAudioSink Create(
+      int channels,
+      int sampling_frequency_hz,
+      SbMediaAudioSampleType audio_sample_type,
+      SbMediaAudioFrameStorageType audio_frame_storage_type,
+      SbAudioSinkFrameBuffers frame_buffers,
+      int frames_per_channel,
+      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+      SbAudioSinkConsumeFramesFunc consume_frames_func,
+      void* context);
+
+  bool IsValid(SbAudioSink audio_sink) override {
+    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
+  }
+
+  void Destroy(SbAudioSink audio_sink) override {
+    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
+      SB_LOG(WARNING) << "audio_sink is invalid.";
+      return;
+    }
+    delete audio_sink;
+  }
+};
 
 SbAudioSink AlsaAudioSinkType::Create(
     int channels,
@@ -402,26 +431,29 @@ SbAudioSink AlsaAudioSinkType::Create(
   return audio_sink;
 }
 
-}  // namespace alsa
-}  // namespace shared
-}  // namespace starboard
+}  // namespace
 
 namespace {
-SbAudioSinkPrivate::Type* alsa_audio_sink_type_;
+AlsaAudioSinkType* alsa_audio_sink_type_;
 }  // namespace
 
 // static
-void SbAudioSinkPrivate::PlatformInitialize() {
+void PlatformInitialize() {
   SB_DCHECK(!alsa_audio_sink_type_);
-  alsa_audio_sink_type_ = new starboard::shared::alsa::AlsaAudioSinkType;
-  SetPrimaryType(alsa_audio_sink_type_);
-  EnableFallbackToStub();
+  alsa_audio_sink_type_ = new AlsaAudioSinkType();
+  SbAudioSinkPrivate::SetPrimaryType(alsa_audio_sink_type_);
 }
 
 // static
-void SbAudioSinkPrivate::PlatformTearDown() {
-  SB_DCHECK(alsa_audio_sink_type_ == GetPrimaryType());
-  SetPrimaryType(NULL);
+void PlatformTearDown() {
+  SB_DCHECK(alsa_audio_sink_type_);
+  SB_DCHECK(alsa_audio_sink_type_ == SbAudioSinkPrivate::GetPrimaryType());
+
+  SbAudioSinkPrivate::SetPrimaryType(NULL);
   delete alsa_audio_sink_type_;
   alsa_audio_sink_type_ = NULL;
 }
+
+}  // namespace alsa
+}  // namespace shared
+}  // namespace starboard
