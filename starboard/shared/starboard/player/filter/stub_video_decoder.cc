@@ -23,7 +23,8 @@ namespace filter {
 void StubVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                   const ErrorCB& error_cb) {
   SB_UNREFERENCED_PARAMETER(error_cb);
-  SB_DCHECK(decoder_status_cb_);
+  SB_DCHECK(decoder_status_cb);
+  SB_DCHECK(!decoder_status_cb_);
   decoder_status_cb_ = decoder_status_cb;
 }
 
@@ -48,6 +49,7 @@ void StubVideoDecoder::WriteInputBuffer(
 void StubVideoDecoder::WriteEndOfStream() {
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
 }
+
 void StubVideoDecoder::Reset() {}
 
 SbDecodeTarget StubVideoDecoder::GetCurrentDecodeTarget() {
