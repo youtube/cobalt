@@ -286,6 +286,9 @@ class AndroidConfiguration(PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/1',
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/1',
+
+          # Android currently does not support multi-video playback, which
+          # the following tests depend upon.
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/0',
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/1',
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/2',
