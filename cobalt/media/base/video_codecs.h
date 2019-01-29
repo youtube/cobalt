@@ -6,6 +6,8 @@
 #define COBALT_MEDIA_BASE_VIDEO_CODECS_H_
 
 #include <string>
+
+#include "cobalt/media/base/color_space.h"
 #include "cobalt/media/base/media_export.h"
 #include "starboard/types.h"
 
@@ -25,12 +27,14 @@ enum VideoCodec {
   kCodecVP8,
   kCodecVP9,
   kCodecHEVC,
+  kCodecDolbyVision,
+  kCodecAV1,
   // DO NOT ADD RANDOM VIDEO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
   // that uses said codec in the same CL.
 
-  kVideoCodecMax = kCodecHEVC  // Must equal the last "real" codec above.
+  kVideoCodecMax = kCodecAV1  // Must equal the last "real" codec above.
 };
 
 // Video codec profiles. Keep in sync with mojo::VideoCodecProfile (see
@@ -72,11 +76,30 @@ enum VideoCodecProfile {
   HEVCPROFILE_MAIN10 = 17,
   HEVCPROFILE_MAIN_STILL_PICTURE = 18,
   HEVCPROFILE_MAX = HEVCPROFILE_MAIN_STILL_PICTURE,
-  VIDEO_CODEC_PROFILE_MAX = HEVCPROFILE_MAX,
+  DOLBYVISION_MIN = 19,
+  DOLBYVISION_PROFILE0 = DOLBYVISION_MIN,
+  DOLBYVISION_PROFILE4 = 20,
+  DOLBYVISION_PROFILE5 = 21,
+  DOLBYVISION_PROFILE7 = 22,
+  DOLBYVISION_MAX = DOLBYVISION_PROFILE7,
+  THEORAPROFILE_MIN = 23,
+  THEORAPROFILE_ANY = THEORAPROFILE_MIN,
+  THEORAPROFILE_MAX = THEORAPROFILE_ANY,
+  AV1PROFILE_MIN = 24,
+  AV1PROFILE_PROFILE_MAIN = AV1PROFILE_MIN,
+  AV1PROFILE_PROFILE_HIGH = 25,
+  AV1PROFILE_PROFILE_PRO = 26,
+  AV1PROFILE_MAX = AV1PROFILE_PROFILE_PRO,
+  VIDEO_CODEC_PROFILE_MAX = AV1PROFILE_PROFILE_PRO,
 };
 
 std::string MEDIA_EXPORT GetCodecName(VideoCodec codec);
 std::string MEDIA_EXPORT GetProfileName(VideoCodecProfile profile);
+
+MEDIA_EXPORT bool ParseAv1CodecId(const std::string& codec_id,
+                                  VideoCodecProfile* profile,
+                                  uint8_t* level_idc,
+                                  gfx::ColorSpace* color_space);
 
 // Handle parsing AVC/H.264 codec ids as outlined in RFC 6381 and ISO-14496-10.
 MEDIA_EXPORT bool ParseAVCCodecId(const std::string& codec_id,
