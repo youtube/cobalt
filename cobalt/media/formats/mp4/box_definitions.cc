@@ -544,6 +544,73 @@ bool VPCodecConfigurationRecord::Parse(BoxReader* reader) {
   return true;
 }
 
+AV1CodecConfigurationRecord::AV1CodecConfigurationRecord()
+    : profile(VIDEO_CODEC_PROFILE_UNKNOWN) {}
+
+AV1CodecConfigurationRecord::~AV1CodecConfigurationRecord() = default;
+
+FourCC AV1CodecConfigurationRecord::BoxType() const { return FOURCC_AV1C; }
+
+// Parse the AV1CodecConfigurationRecord, which has the following format:
+// unsigned int (1) marker = 1;
+// unsigned int (7) version = 1;
+// unsigned int (3) seq_profile;
+// unsigned int (5) seq_level_idx_0;
+// unsigned int (1) seq_tier_0;
+// unsigned int (1) high_bitdepth;
+// unsigned int (1) twelve_bit;
+// unsigned int (1) monochrome;
+// unsigned int (1) chroma_subsampling_x;
+// unsigned int (1) chroma_subsampling_y;
+// unsigned int (2) chroma_sample_position;
+// unsigned int (3) reserved = 0;
+//
+// unsigned int (1) initial_presentation_delay_present;
+// if (initial_presentation_delay_present) {
+//   unsigned int (4) initial_presentation_delay_minus_one;
+// } else {
+//   unsigned int (4) reserved = 0;
+// }
+//
+// unsigned int (8)[] configOBUs;
+bool AV1CodecConfigurationRecord::Parse(BoxReader* reader) {
+  uint8_t av1c_byte = 0;
+  RCHECK(reader->Read1(&av1c_byte));
+  const uint8_t av1c_marker = av1c_byte >> 7;
+  if (!av1c_marker) {
+    MEDIA_LOG(ERROR, reader->media_log()) << "Unsupported av1C: marker unset.";
+    return false;
+  }
+
+  const uint8_t av1c_version = av1c_byte & 0b01111111;
+  if (av1c_version != 1) {
+    MEDIA_LOG(ERROR, reader->media_log())
+        << "Unsupported av1C: unexpected version number: " << av1c_version;
+    return false;
+  }
+
+  RCHECK(reader->Read1(&av1c_byte));
+  const uint8_t seq_profile = av1c_byte >> 5;
+  switch (seq_profile) {
+    case 0:
+      profile = AV1PROFILE_PROFILE_MAIN;
+      break;
+    case 1:
+      profile = AV1PROFILE_PROFILE_HIGH;
+      break;
+    case 2:
+      profile = AV1PROFILE_PROFILE_PRO;
+      break;
+    default:
+      MEDIA_LOG(ERROR, reader->media_log())
+          << "Unsupported av1C: unknown profile 0x" << std::hex << seq_profile;
+      return false;
+  }
+
+  // The remaining fields are ignored since we don't care about them yet.
+  return true;
+}
+
 PixelAspectRatioBox::PixelAspectRatioBox() : h_spacing(1), v_spacing(1) {}
 PixelAspectRatioBox::~PixelAspectRatioBox() {}
 FourCC PixelAspectRatioBox::BoxType() const { return FOURCC_PASP; }
@@ -614,6 +681,15 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
           make_scoped_refptr(new HEVCBitstreamConverter(hevcConfig.Pass()));
       break;
     }
+    case FOURCC_AV01: {
+      DVLOG(2) << __func__ << " reading AV1 configuration.";
+      AV1CodecConfigurationRecord av1_config;
+      RCHECK(reader->ReadChild(&av1_config));
+      frame_bitstream_converter = nullptr;
+      video_codec = kCodecAV1;
+      video_codec_profile = av1_config.profile;
+      break;
+    }
     default:
       // Unknown/unsupported format
       MEDIA_LOG(ERROR, reader->media_log()) << __FUNCTION__
@@ -633,6 +709,8 @@ bool VideoSampleEntry::IsFormatValid() const {
     case FOURCC_AVC3:
     case FOURCC_HEV1:
     case FOURCC_HVC1:
+      return true;
+    case FOURCC_AV01:
       return true;
     default:
       return false;
