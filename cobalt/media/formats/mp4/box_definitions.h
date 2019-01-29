@@ -226,6 +226,12 @@ struct MEDIA_EXPORT VPCodecConfigurationRecord : Box {
   VideoCodecProfile profile;
 };
 
+struct MEDIA_EXPORT AV1CodecConfigurationRecord : Box {
+  DECLARE_BOX_METHODS(AV1CodecConfigurationRecord);
+
+  VideoCodecProfile profile;
+};
+
 struct MEDIA_EXPORT PixelAspectRatioBox : Box {
   DECLARE_BOX_METHODS(PixelAspectRatioBox);
 
