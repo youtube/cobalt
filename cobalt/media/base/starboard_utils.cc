@@ -64,6 +64,12 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecVp8;
     case kCodecVP9:
       return kSbMediaVideoCodecVp9;
+    case kCodecAV1:
+#if SB_API_VERSION >= SB_HAS_AV1_VERSION
+      return kSbMediaVideoCodecAv1;
+#else  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+      return kSbMediaVideoCodecVp10;
+#endif  // SB_API_VERSION >= SB_HAS_AV1_VERSION
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
       DLOG(ERROR) << "Unsupported video codec "
