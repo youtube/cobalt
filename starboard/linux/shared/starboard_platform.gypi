@@ -82,6 +82,8 @@
       '<(DEPTH)/starboard/shared/iso/string_scan.cc',
       '<(DEPTH)/starboard/shared/iso/system_binary_search.cc',
       '<(DEPTH)/starboard/shared/iso/system_sort.cc',
+      '<(DEPTH)/starboard/shared/libaom/aom_video_decoder.cc',
+      '<(DEPTH)/starboard/shared/libaom/aom_video_decoder.h',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_add.cc',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_create.cc',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_destroy.cc',
