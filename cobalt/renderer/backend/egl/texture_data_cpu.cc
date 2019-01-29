@@ -59,16 +59,13 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
   }
 
   GLint original_texture_alignment;
-  glGetIntegerv(GL_UNPACK_ALIGNMENT, &original_texture_alignment);
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  GL_CALL(glGetIntegerv(GL_UNPACK_ALIGNMENT, &original_texture_alignment));
+  GL_CALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
 
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
   glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0, format,
                GL_UNSIGNED_BYTE, data);
-
-  glPixelStorei(GL_UNPACK_ALIGNMENT, original_texture_alignment);
-
   if (glGetError() != GL_NO_ERROR) {
     LOG(ERROR) << "Error calling glTexImage2D(size = (" << size.width() << ", "
                << size.height() << "))";
@@ -76,6 +73,8 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
     // 0 is considered by GL to be an invalid handle.
     texture_handle = 0;
   }
+
+  GL_CALL(glPixelStorei(GL_UNPACK_ALIGNMENT, original_texture_alignment));
 
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
