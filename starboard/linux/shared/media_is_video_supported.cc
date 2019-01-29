@@ -49,7 +49,12 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #endif  // SB_HAS(BLITTER)
 #endif  // SB_API_VERSION >= 10
 
-  return (video_codec == kSbMediaVideoCodecH264 ||
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
+  return (video_codec == kSbMediaVideoCodecVp10 ||
+#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+  return (video_codec == kSbMediaVideoCodecAv1 ||
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+          video_codec == kSbMediaVideoCodecH264 ||
           video_codec == kSbMediaVideoCodecVp9) &&
          frame_width <= 1920 && frame_height <= 1080 &&
          bitrate <= SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND && fps <= 60;

@@ -19,6 +19,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
+#include "starboard/shared/libaom/aom_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -62,6 +63,7 @@ class PlayerComponentsImpl : public PlayerComponents {
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+    typedef ::starboard::shared::aom::VideoDecoder Av1VideoDecoderImpl;
     typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
     typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
 
@@ -75,6 +77,14 @@ class PlayerComponentsImpl : public PlayerComponents {
 
     if (video_parameters.video_codec == kSbMediaVideoCodecVp9) {
       video_decoder->reset(new VpxVideoDecoderImpl(
+          video_parameters.video_codec, video_parameters.output_mode,
+          video_parameters.decode_target_graphics_context_provider));
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
+    } else if (video_parameters.video_codec == kSbMediaVideoCodecVp10) {
+#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+    } else if (video_parameters.video_codec == kSbMediaVideoCodecAv1) {
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+      video_decoder->reset(new Av1VideoDecoderImpl(
           video_parameters.video_codec, video_parameters.output_mode,
           video_parameters.decode_target_graphics_context_provider));
     } else {
