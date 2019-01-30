@@ -119,16 +119,15 @@ class AndroidConfiguration(PlatformConfiguration):
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
           'SbAudioSinkTest.Underflow',
+
+          # Because getifaddrs() isn't in the NDK until API 24, we can't use it
+          # to implement SbSocketGetInterfaceAddress(), and our Java-based
+          # implementation can't return a port for the interface. This test
+          # checks for a 0 port value, so we can't run it on Android with that
+          # incomplete implementation.
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDayDestination/0',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/0',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceNotLoopback/0',
-          'SbSocketBindTest.SunnyDayLocalInterface',
-          'SbSocketGetLocalAddressTest.SunnyDayBoundSpecified',
+          '.SunnyDaySourceForDestination/*',
+
           'SpeechRecognizerTest.StartIsCalledMultipleTimes',
           'SpeechRecognizerTest.StartRecognizerWith10MaxAlternatives',
           'SpeechRecognizerTest.StartRecognizerWithContinuousRecognition',

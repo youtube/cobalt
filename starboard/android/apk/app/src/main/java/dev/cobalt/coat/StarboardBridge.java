@@ -30,6 +30,7 @@ import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
+import android.util.Pair;
 import android.util.Size;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -273,10 +274,7 @@ public class StarboardBridge {
   }
 
   /**
-   * Returns non-loopback network interface address, or null if none.
-   *
-   * <p>An IPv4 address will have only a 4 byte array, while an IPv6 address will have a 16 byte
-   * array.
+   * Returns non-loopback network interface address and its netmask, or null if none.
    *
    * <p>A Java function to help implement Starboard's SbSocketGetLocalInterfaceAddress.
    *
@@ -285,7 +283,7 @@ public class StarboardBridge {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  byte[] getLocalInterfaceAddress() {
+  Pair<byte[], byte[]> getLocalInterfaceAddressAndNetask(boolean wantIPv6) {
     try {
       Enumeration<NetworkInterface> it = NetworkInterface.getNetworkInterfaces();
 
@@ -302,8 +300,25 @@ public class StarboardBridge {
         }
 
         for (InterfaceAddress ia : ni.getInterfaceAddresses()) {
-          // Just return the first address.
-          return ia.getAddress().getAddress();
+          byte[] address = ia.getAddress().getAddress();
+          boolean isIPv6 = (address.length > 4);
+          if (isIPv6 == wantIPv6) {
+            // Convert the network prefix length to a network mask.
+            int prefix = ia.getNetworkPrefixLength();
+            byte[] netmask = new byte[address.length];
+            for (int i = 0; i < netmask.length; i++) {
+              if (prefix == 0) {
+                netmask[i] = 0;
+              } else if (prefix >= 8) {
+                netmask[i] = (byte) 0xFF;
+                prefix -= 8;
+              } else {
+                netmask[i] = (byte) (0xFF << (8 - prefix));
+                prefix = 0;
+              }
+            }
+            return new Pair<>(address, netmask);
+          }
         }
       }
     } catch (SocketException ex) {
