@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/mutation_reporter.h"
 
+#include "base/debug/trace_event.h"
 #include "base/hash_tables.h"
 #include "cobalt/dom/mutation_observer.h"
 #include "cobalt/dom/mutation_observer_init.h"
@@ -153,6 +154,7 @@ void ReportToInterestedObservers(
     const scoped_refptr<Node>& target,
     MutationReporter::RegisteredObserverVector* registered_observers,
     MutationRecordBuilder* record_builder) {
+  TRACE_EVENT0("cobalt::dom", "ReportToInterestedObservers()");
   typedef base::hash_set<MutationObserver*> MutationObserverSet;
   MutationObserverSet reported_observers;
   for (size_t i = 0; i < registered_observers->size(); ++i) {
@@ -198,12 +200,15 @@ MutationReporter::~MutationReporter() {}
 void MutationReporter::ReportAttributesMutation(
     const std::string& name,
     const base::optional<std::string>& old_value) const {
+  TRACE_EVENT0("cobalt::dom", "MutationReporter::ReportAttributesMutation()");
   AttributeMutationRecordBuilder record_builder(name, old_value);
   ReportToInterestedObservers(target_, observers_.get(), &record_builder);
 }
 
 void MutationReporter::ReportCharacterDataMutation(
     const std::string& old_value) const {
+  TRACE_EVENT0("cobalt::dom",
+               "MutationReporter::ReportCharacterDataMutation()");
   CharacterDataMutationRecordBuilder record_builder(old_value);
   ReportToInterestedObservers(target_, observers_.get(), &record_builder);
 }
@@ -213,6 +218,7 @@ void MutationReporter::ReportChildListMutation(
     const scoped_refptr<dom::NodeList>& removed_nodes,
     const scoped_refptr<dom::Node>& previous_sibling,
     const scoped_refptr<dom::Node>& next_sibling) const {
+  TRACE_EVENT0("cobalt::dom", "MutationReporter::ReportChildListMutation()");
   ChildListMutationRecordBuilder record_builder(added_nodes, removed_nodes,
                                                 previous_sibling, next_sibling);
   ReportToInterestedObservers(target_, observers_.get(), &record_builder);
