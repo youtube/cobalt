@@ -83,16 +83,16 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   SbMemorySet(&source, kInvalidByte, sizeof(source));
 
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, NULL));
-  EXPECT_TRUE(source.type == GetAddressType());
+  EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, &netmask));
 
   EXPECT_FALSE(IsLocalhost(&source));
 
   // A netmask that starts with 0 is likely incorrect.
   EXPECT_TRUE(netmask.address[0] & 0x8);
-  EXPECT_EQ(source.type, GetAddressType());
-  EXPECT_EQ(netmask.type, GetAddressType());
-  EXPECT_EQ(source.port, 0);
+  EXPECT_EQ(GetAddressType(), source.type);
+  EXPECT_EQ(GetAddressType(), netmask.type);
+  EXPECT_EQ(0, source.port);
 }
 
 TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
@@ -125,11 +125,11 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   SbMemorySet(&invalid_address, kInvalidByte, sizeof(source));
   SbSocketGetInterfaceAddress(&destination_address, &source, &netmask);
 
-  EXPECT_TRUE(source.type == GetAddressType());
-  EXPECT_NE(source.port, 0);
+  EXPECT_EQ(GetAddressType(), source.type);
+  EXPECT_NE(0, source.port);
   // A netmask that starts with 0 is likely incorrect.
   EXPECT_TRUE(netmask.address[0] & 0x8);
-  EXPECT_EQ(netmask.type, GetAddressType());
+  EXPECT_EQ(GetAddressType(), netmask.type);
   EXPECT_NE(0, SbMemoryCompare(source.address, invalid_address.address,
                                SB_ARRAY_SIZE(source.address)));
   EXPECT_NE(0, SbMemoryCompare(netmask.address, invalid_address.address,
@@ -163,7 +163,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   SbMemorySet(&invalid_address, kInvalidByte, sizeof(invalid_address));
 
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, NULL));
-  EXPECT_EQ(source.type, GetAddressType());
+  EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, &netmask));
   EXPECT_FALSE(IsLocalhost(&source));
   EXPECT_FALSE(IsUnspecified(&source));
