@@ -30,7 +30,6 @@ import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
-import android.util.Pair;
 import android.util.Size;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -46,10 +45,6 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -269,62 +264,6 @@ public class StarboardBridge {
   @UsedByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
-  }
-
-  /**
-   * Returns non-loopback network interface address and its netmask, or null if none.
-   *
-   * <p>A Java function to help implement Starboard's SbSocketGetLocalInterfaceAddress.
-   *
-   * <p>Required for platforms older than 24. Since 24, bionic includes getifaddrs() which can be
-   * used by the C layer directly.
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  Pair<byte[], byte[]> getLocalInterfaceAddressAndNetask(boolean wantIPv6) {
-    try {
-      Enumeration<NetworkInterface> it = NetworkInterface.getNetworkInterfaces();
-
-      while (it.hasMoreElements()) {
-        NetworkInterface ni = it.nextElement();
-        if (ni.isLoopback()) {
-          continue;
-        }
-        if (!ni.isUp()) {
-          continue;
-        }
-        if (ni.isPointToPoint()) {
-          continue;
-        }
-
-        for (InterfaceAddress ia : ni.getInterfaceAddresses()) {
-          byte[] address = ia.getAddress().getAddress();
-          boolean isIPv6 = (address.length > 4);
-          if (isIPv6 == wantIPv6) {
-            // Convert the network prefix length to a network mask.
-            int prefix = ia.getNetworkPrefixLength();
-            byte[] netmask = new byte[address.length];
-            for (int i = 0; i < netmask.length; i++) {
-              if (prefix == 0) {
-                netmask[i] = 0;
-              } else if (prefix >= 8) {
-                netmask[i] = (byte) 0xFF;
-                prefix -= 8;
-              } else {
-                netmask[i] = (byte) (0xFF << (8 - prefix));
-                prefix = 0;
-              }
-            }
-            return new Pair<>(address, netmask);
-          }
-        }
-      }
-    } catch (SocketException ex) {
-      // TODO should we have a logging story that strips logs for production?
-      Log.w(TAG, "sbSocketGetLocalInterfaceAddress exception", ex);
-      return null;
-    }
-    return null;
   }
 
   @SuppressWarnings("unused")
