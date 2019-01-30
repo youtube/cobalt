@@ -27,11 +27,6 @@ namespace nplb {
 
 #if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
-class EventMock {
- public:
-  MOCK_METHOD0(OnEvent, void(void));
-};
-
 class SpeechRecognizerTest : public ::testing::Test {
  public:
   SpeechRecognizerTest() : handler_() {
@@ -41,35 +36,15 @@ class SpeechRecognizerTest : public ::testing::Test {
     handler_.context = this;
   }
 
-  static void OnSpeechDetected(void* context, bool detected) {
-    SpeechRecognizerTest* test = static_cast<SpeechRecognizerTest*>(context);
-    test->OnSignalEvent();
-  }
-  static void OnError(void* context, SbSpeechRecognizerError error) {
-    SpeechRecognizerTest* test = static_cast<SpeechRecognizerTest*>(context);
-    test->OnSignalEvent();
-  }
+  static void OnSpeechDetected(void* context, bool detected) {}
+  static void OnError(void* context, SbSpeechRecognizerError error) {}
   static void OnResults(void* context,
                         SbSpeechResult* results,
                         int results_size,
-                        bool is_final) {
-    SpeechRecognizerTest* test = static_cast<SpeechRecognizerTest*>(context);
-    test->OnSignalEvent();
-  }
+                        bool is_final) {}
 
-  SbSpeechRecognizerHandler* handler() { return &handler_; }
-
-  EventMock& test_mock() { return test_mock_; }
-
-  void Wait() {
-    if (!event_semaphore_.TakeWait(kWaitTime)) {
-      SB_LOG(WARNING) << "Waiting for recognizer event to come, but timeout!";
-    }
-  }
-
-  void OnSignalEvent() {
-    test_mock_.OnEvent();
-    event_semaphore_.Put();
+  SbSpeechRecognizerHandler* handler() {
+    return &handler_;
   }
 
  protected:
@@ -83,13 +58,8 @@ class SpeechRecognizerTest : public ::testing::Test {
 
  private:
   const SbTime kTearDownTime = 10 * kSbTimeMillisecond;
-  const SbTime kWaitTime = 600 * kSbTimeMillisecond;
 
   SbSpeechRecognizerHandler handler_;
-
-  starboard::Semaphore event_semaphore_;
-
-  ::testing::StrictMock<EventMock> test_mock_;
 };
 
 #endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
