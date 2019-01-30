@@ -15,6 +15,7 @@
 #include "cobalt/dom/mutation_observer_task_manager.h"
 
 #include "base/callback.h"
+#include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/mutation_observer.h"
 
@@ -25,6 +26,8 @@ void MutationObserverTaskManager::OnMutationObserverCreated(
     MutationObserver* observer) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(observers_.find(observer) == observers_.end());
+  TRACE_EVENT0("cobalt::dom",
+               "MutationObserverTaskManager::OnMutationObserverCreated()");
   observers_.insert(observer);
 }
 
@@ -32,11 +35,16 @@ void MutationObserverTaskManager::OnMutationObserverDestroyed(
     MutationObserver* observer) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(observers_.find(observer) != observers_.end());
+  TRACE_EVENT0("cobalt::dom",
+               "MutationObserverTaskManager::OnMutationObserverDestroyed()");
   observers_.erase(observer);
 }
 
 void MutationObserverTaskManager::QueueMutationObserverMicrotask() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::dom",
+               "MutationObserverTaskManager::QueueMutationObserverMicrotask()");
+
   // https://www.w3.org/TR/dom/#queue-a-mutation-observer-compound-microtask
   // To queue a mutation observer compound microtask, run these steps:
   // 1. If mutation observer compound microtask queued flag is set, terminate
@@ -58,6 +66,8 @@ void MutationObserverTaskManager::TraceMembers(script::Tracer* tracer) {
 }
 
 void MutationObserverTaskManager::NotifyMutationObservers() {
+  TRACE_EVENT0("cobalt::dom",
+               "MutationObserverTaskManager::NotifyMutationObservers()");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(task_posted_);
   DCHECK(MessageLoop::current());

@@ -199,6 +199,7 @@ scoped_refptr<NodeList> Node::child_nodes() const {
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-clonenode
 scoped_refptr<Node> Node::CloneNode(bool deep) const {
   TRACK_MEMORY_SCOPE("DOM");
+  TRACE_EVENT0("cobalt::dom", "Node::CloneNode()");
   scoped_refptr<Node> new_node = Duplicate();
   DCHECK(new_node);
   if (deep) {
@@ -229,6 +230,7 @@ bool Node::Contains(const scoped_refptr<Node>& other_node) const {
 scoped_refptr<Node> Node::InsertBefore(
     const scoped_refptr<Node>& new_child,
     const scoped_refptr<Node>& reference_child) {
+  TRACE_EVENT0("cobalt::dom", "Node::InsertBefore()");
   // The insertBefore(node, child) method must return the result of
   // pre-inserting node into the context object before child.
   return PreInsert(new_child, reference_child);
@@ -237,6 +239,7 @@ scoped_refptr<Node> Node::InsertBefore(
 // Algorithm for AppendChild:
 //   https://www.w3.org/TR/dom/#dom-node-appendchild
 scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
+  TRACE_EVENT0("cobalt::dom", "Node::AppendChild()");
   // The appendChild(node) method must return the result of appending node to
   // the context object.
   // To append a node to a parent, pre-insert node into parent before null.
@@ -247,6 +250,7 @@ scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
 //   https://www.w3.org/TR/dom/#dom-node-replacechild
 scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
                                        const scoped_refptr<Node>& child) {
+  TRACE_EVENT0("cobalt::dom", "Node::ReplaceChild()");
   // The replaceChild(node, child) method must return the result of replacing
   // child with node within the context object.
   // To replace a child with node within a parent, run these steps:
@@ -343,6 +347,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
 // Algorithm for RemoveChild:
 //   https://www.w3.org/TR/dom/#dom-node-removechild
 scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
+  TRACE_EVENT0("cobalt::dom", "Node::RemoveChild()");
   // The removeChild(child) method must return the result of pre-removing child
   // from the context object.
   return PreRemove(node);
@@ -424,6 +429,7 @@ Element* Node::next_element_sibling() const {
 // Algorithm for AdoptIntoDocument:
 //   https://www.w3.org/TR/dom/#concept-node-adopt
 void Node::AdoptIntoDocument(Document* document) {
+  TRACE_EVENT0("cobalt::dom", "Node::AdoptIntoDocument()");
   DCHECK(!IsDocument());
   if (!document) {
     return;
@@ -672,6 +678,7 @@ bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
 //   https://www.w3.org/TR/dom/#concept-node-pre-insert
 scoped_refptr<Node> Node::PreInsert(const scoped_refptr<Node>& node,
                                     const scoped_refptr<Node>& child) {
+  TRACE_EVENT0("cobalt::dom", "Node::PreInsert()");
   // 1. Ensure pre-insertion validity of node into parent before child.
   if (!EnsurePreInsertionValidity(node, child)) {
     return NULL;
@@ -692,6 +699,7 @@ scoped_refptr<Node> Node::PreInsert(const scoped_refptr<Node>& node,
 //   https://www.w3.org/TR/dom/#concept-node-insert
 void Node::Insert(const scoped_refptr<Node>& node,
                   const scoped_refptr<Node>& child, bool suppress_observers) {
+  TRACE_EVENT0("cobalt::dom", "Node::Insert()");
   // 1. 2. Not needed by Cobalt.
   // 3. Let nodes be node's children if node is a DocumentFragment node, and a
   // list containing solely node otherwise.
@@ -762,6 +770,7 @@ void Node::Insert(const scoped_refptr<Node>& node,
 // Algorithm for PreRemove:
 //   https://www.w3.org/TR/dom/#concept-node-pre-remove
 scoped_refptr<Node> Node::PreRemove(const scoped_refptr<Node>& child) {
+  TRACE_EVENT0("cobalt::dom", "Node::PreRemove()");
   // 1. If child's parent is not parent, throw a "NotFoundError" exception.
   if (!child || child->parent_ != this) {
     // TODO: Throw JS NotFoundError.
@@ -779,6 +788,7 @@ scoped_refptr<Node> Node::PreRemove(const scoped_refptr<Node>& child) {
 //   https://www.w3.org/TR/dom/#concept-node-remove
 void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
   DCHECK(node);
+  TRACE_EVENT0("cobalt::dom", "Node::Remove()");
 
   OnMutation();
   node->UpdateGenerationForNodeAndAncestors();
@@ -858,6 +868,7 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
 // Algorithm for ReplaceAll:
 //   https://www.w3.org/TR/dom/#concept-node-replace-all
 void Node::ReplaceAll(const scoped_refptr<Node>& node) {
+  TRACE_EVENT0("cobalt::dom", "Node::ReplaceAll()");
   // 1. If node is not null, adopt node into parent's node document.
   if (node) {
     node->AdoptIntoDocument(this->node_document());
