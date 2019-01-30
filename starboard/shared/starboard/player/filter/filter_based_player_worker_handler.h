@@ -87,11 +87,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
   SbDrmSystem drm_system_;
-#if SB_API_VERSION >= 6
+#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   // Store a copy of |SbMediaAudioHeader::audio_specific_config| passed to the
   // ctor so it is valid for the life time of the player worker.
   scoped_array<int8_t> audio_specific_config_;
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   SbMediaAudioHeader audio_header_;
 
   // |media_time_provider_impl_| is used to provide the media playback time when
