@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/mutation_observer.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
@@ -131,11 +132,13 @@ MutationObserver::MutationRecordSequence MutationObserver::TakeRecords() {
 
 void MutationObserver::QueueMutationRecord(
     const scoped_refptr<MutationRecord>& record) {
+  TRACE_EVENT0("cobalt::dom", "MutationObserver::QueueMutationRecord()");
   record_queue_.push_back(record);
   task_manager_->QueueMutationObserverMicrotask();
 }
 
 bool MutationObserver::Notify() {
+  TRACE_EVENT0("cobalt::dom", "MutationObserver::Notify()");
   // https://www.w3.org/TR/dom/#mutationobserver
   // Step 3 of "notify mutation observers" steps:
   //     1. Let queue be a copy of mo's record queue.
