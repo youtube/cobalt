@@ -260,12 +260,6 @@ class AndroidConfiguration(PlatformConfiguration):
           # incomplete implementation.
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDaySourceForDestination/*',
-
-          'SpeechRecognizerTest.StartIsCalledMultipleTimes',
-          'SpeechRecognizerTest.StartRecognizerWith10MaxAlternatives',
-          'SpeechRecognizerTest.StartRecognizerWithContinuousRecognition',
-          'SpeechRecognizerTest.StartRecognizerWithInterimResults',
-          'SpeechRecognizerTest.StartTestSunnyDay',
       ],
       'player_filter_tests': [
           'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
