@@ -100,16 +100,16 @@ void Read(const ReadCB& read_cb,
   Read(read_cb, reverse_byte_order, &audio_header->audio_specific_config_size);
   audio_header->stored_audio_specific_config.resize(
       audio_header->audio_specific_config_size);
-#if SB_API_VERSION >= 6
+#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   audio_header->audio_specific_config =
       audio_header->stored_audio_specific_config.data();
-#else
+#else   // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   SB_DCHECK(sizeof(audio_header->audio_specific_config) >=
             audio_header->stored_audio_specific_config.size());
   SbMemoryCopy(audio_header->audio_specific_config,
                audio_header->stored_audio_specific_config.data(),
                audio_header->stored_audio_specific_config.size());
-#endif
+#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   Read(read_cb, audio_header->stored_audio_specific_config.data(),
        audio_header->audio_specific_config_size);
 }
