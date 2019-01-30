@@ -27,15 +27,14 @@ namespace nplb {
 
 #if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
-class EventMock : public RefCounted<EventMock> {
+class EventMock {
  public:
   MOCK_METHOD0(OnEvent, void(void));
 };
 
 class SpeechRecognizerTest : public ::testing::Test {
  public:
-  SpeechRecognizerTest()
-      : handler_(), test_mock_(new ::testing::StrictMock<EventMock>()) {
+  SpeechRecognizerTest() : handler_() {
     handler_.on_speech_detected = OnSpeechDetected;
     handler_.on_error = OnError;
     handler_.on_results = OnResults;
@@ -60,7 +59,7 @@ class SpeechRecognizerTest : public ::testing::Test {
 
   SbSpeechRecognizerHandler* handler() { return &handler_; }
 
-  EventMock& test_mock() { return *test_mock_.get(); }
+  EventMock& test_mock() { return test_mock_; }
 
   void Wait() {
     if (!event_semaphore_.TakeWait(kWaitTime)) {
@@ -69,7 +68,7 @@ class SpeechRecognizerTest : public ::testing::Test {
   }
 
   void OnSignalEvent() {
-    test_mock_->OnEvent();
+    test_mock_.OnEvent();
     event_semaphore_.Put();
   }
 
@@ -90,7 +89,7 @@ class SpeechRecognizerTest : public ::testing::Test {
 
   starboard::Semaphore event_semaphore_;
 
-  const scoped_refptr<EventMock> test_mock_;
+  ::testing::StrictMock<EventMock> test_mock_;
 };
 
 #endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
