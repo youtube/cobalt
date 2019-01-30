@@ -22,11 +22,6 @@ from starboard.tools.testing import test_filter
 class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Android Cobalt shared configuration."""
 
-  def __init__(self, platform_configuration, application_name,
-               application_directory):
-    super(CobaltAndroidConfiguration, self).__init__(
-        platform_configuration, application_name, application_directory)
-
   def GetPostIncludes(self):
     # If there isn't a configuration.gypi found in the usual place, we'll
     # supplement with our shared implementation.
@@ -60,12 +55,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   # A map of failing or crashing tests per target.
   _FAILING_TESTS = {
       'net_unittests': [
-          'DialHttpServerTest.AllOtherRequests',
-          'DialHttpServerTest.CallbackExceptionInServiceHandler',
-          'DialHttpServerTest.CallbackHandleRequestReturnsFalse',
-          'DialHttpServerTest.CallbackNormalTest',
-          'DialHttpServerTest.CurrentRunningAppRedirect',
-          'DialHttpServerTest.SendManifest',
           'HostResolverImplDnsTest.DnsTaskUnspec',
       ],
       'renderer_test': [
