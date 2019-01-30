@@ -610,6 +610,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 
 #if SB_API_VERSION >= 6
+
 #if defined(SB_HAS_DRM_KEY_STATUSES)
 #if !SB_HAS(DRM_KEY_STATUSES)
 #error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
@@ -617,6 +618,17 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_KEY_STATUSES)
 #define SB_HAS_DRM_KEY_STATUSES 1
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
+
+#if defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#if !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#error \
+    "SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER is required for Starboard 6 " \
+       "or later."
+#endif  // !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#else   // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
+#endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+
 #endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION
