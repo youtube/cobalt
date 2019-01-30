@@ -249,6 +249,8 @@ class AndroidConfiguration(PlatformConfiguration):
   # A map of failing or crashing tests per target.
   _FILTERED_TESTS = {
       'nplb': [
+          # On Nvidia Shield the AudioFlinger triggers UNDERRUN and
+          # pauses the audio stream.
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
           'SbAudioSinkTest.Underflow',
