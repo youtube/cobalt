@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/string_util.h"
 #include "cobalt/base/tokens.h"
@@ -190,6 +191,8 @@ base::optional<std::string> Element::GetAttribute(
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-setattribute
 void Element::SetAttribute(const std::string& name, const std::string& value) {
   TRACK_MEMORY_SCOPE("DOM");
+  TRACE_EVENT2("cobalt::dom", "Element::SetAttribute",
+               "name", name, "value", value);
   Document* document = node_document();
 
   // 1. Not needed by Cobalt.
@@ -268,6 +271,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-removeattribute
 void Element::RemoveAttribute(const std::string& name) {
   TRACK_MEMORY_SCOPE("DOM");
+  TRACE_EVENT1("cobalt::dom", "Element::RemoveAttribute", "name", name);
   Document* document = node_document();
 
   // 1. If the context object is in the HTML namespace and its node document is
