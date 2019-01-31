@@ -37,6 +37,7 @@ class PageAgent {
   PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
             scoped_ptr<RenderLayer> render_layer,
             render_tree::ResourceProvider* resource_provider);
+  ~PageAgent();
 
  private:
   void Enable(const Command& command);
@@ -47,6 +48,8 @@ class PageAgent {
   dom::Window* window_;
   scoped_ptr<RenderLayer> render_layer_;
   render_tree::ResourceProvider* resource_provider_;
+
+  DebugDispatcher* dispatcher_;
 
   // Map of member functions implementing commands.
   CommandMap<PageAgent> commands_;

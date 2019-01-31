@@ -32,6 +32,7 @@ namespace backend {
 class DOMAgent {
  public:
   DOMAgent(DebugDispatcher* dispatcher, scoped_ptr<RenderLayer> render_layer);
+  ~DOMAgent();
 
  private:
   void Enable(const Command& command);
