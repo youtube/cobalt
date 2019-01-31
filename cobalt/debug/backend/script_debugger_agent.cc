@@ -51,6 +51,13 @@ ScriptDebuggerAgent::ScriptDebuggerAgent(
   }
 }
 
+ScriptDebuggerAgent::~ScriptDebuggerAgent() {
+  for (auto it = registered_domains_.begin(); it != registered_domains_.end();
+       ++it) {
+    dispatcher_->RemoveDomain(*it);
+  }
+}
+
 bool ScriptDebuggerAgent::RunCommand(const Command& command) {
   DCHECK(thread_checker_.CalledOnValidThread());
 

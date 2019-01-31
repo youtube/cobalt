@@ -21,11 +21,15 @@ namespace debug {
 namespace backend {
 
 namespace {
+// Definitions from the set specified here:
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime
+constexpr char kInspectorDomain[] = "Runtime";
+
 // File to load JavaScript runtime implementation from.
-const char kScriptFile[] = "runtime.js";
+constexpr char kScriptFile[] = "runtime.js";
 
 // Event "methods" (names):
-const char kExecutionContextCreated[] = "Runtime.executionContextCreated";
+constexpr char kExecutionContextCreated[] = "Runtime.executionContextCreated";
 }  // namespace
 
 RuntimeAgent::RuntimeAgent(DebugDispatcher* dispatcher)
@@ -39,7 +43,11 @@ RuntimeAgent::RuntimeAgent(DebugDispatcher* dispatcher)
   commands_["Runtime.disable"] = &RuntimeAgent::Disable;
   commands_["Runtime.compileScript"] = &RuntimeAgent::CompileScript;
 
-  dispatcher_->AddDomain("Runtime", commands_.Bind());
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+RuntimeAgent::~RuntimeAgent() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
 }
 
 void RuntimeAgent::CompileScript(const Command& command) {

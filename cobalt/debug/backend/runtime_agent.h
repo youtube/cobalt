@@ -32,6 +32,7 @@ namespace backend {
 class RuntimeAgent {
  public:
   explicit RuntimeAgent(DebugDispatcher* dispatcher);
+  ~RuntimeAgent();
 
  private:
   void CompileScript(const Command& command);

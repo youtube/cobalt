@@ -23,6 +23,7 @@ namespace backend {
 namespace {
 // Definitions from the set specified here:
 // https://chromedevtools.github.io/devtools-protocol/1-3/Log
+constexpr char kInspectorDomain[] = "Log";
 
 // Parameter fields:
 constexpr char kEntryText[] = "entry.text";
@@ -64,7 +65,7 @@ LogAgent::LogAgent(DebugDispatcher* dispatcher)
   commands_["Log.enable"] = &LogAgent::Enable;
   commands_["Log.disable"] = &LogAgent::Disable;
 
-  dispatcher_->AddDomain("Log", commands_.Bind());
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 
   // Get log output while still making it available elsewhere.
   log_message_handler_callback_id_ =
@@ -75,6 +76,8 @@ LogAgent::LogAgent(DebugDispatcher* dispatcher)
 LogAgent::~LogAgent() {
   base::LogMessageHandler::GetInstance()->RemoveCallback(
       log_message_handler_callback_id_);
+
+  dispatcher_->RemoveDomain(kInspectorDomain);
 }
 
 void LogAgent::Enable(const Command& command) {
