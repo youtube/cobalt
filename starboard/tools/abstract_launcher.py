@@ -91,17 +91,17 @@ def LauncherFactory(platform_name,
   launcher_module = _GetLauncherForPlatform(platform_name)
 
   if not launcher_module:
-    raise RuntimeError("No launcher implemented for the given platform.")
-  else:
-    return launcher_module.Launcher(
-        platform_name,
-        target_name,
-        config,
-        device_id,
-        target_params=target_params,
-        output_file=output_file,
-        out_directory=out_directory,
-        env_variables=env_variables)
+    raise RuntimeError("Cannot load launcher for given platform.")
+
+  return launcher_module.Launcher(
+      platform_name,
+      target_name,
+      config,
+      device_id,
+      target_params=target_params,
+      output_file=output_file,
+      out_directory=out_directory,
+      env_variables=env_variables)
 
 
 class AbstractLauncher(object):

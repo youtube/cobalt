@@ -278,8 +278,9 @@ class PlatformConfiguration(object):
         os.path.join(self.GetLauncherPath(), 'launcher.py'))
     try:
       return imp.load_source('launcher', module_path)
-    except (IOError, ImportError, RuntimeError):
-      logging.warning('Unable to load launcher from %s.', module_path)
+    except (IOError, ImportError, RuntimeError) as error:
+      logging.error('Unable to load launcher module from %s.', module_path)
+      logging.error(error)
       return None
 
   def GetTestEnvVariables(self):
