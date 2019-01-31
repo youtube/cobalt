@@ -48,6 +48,8 @@ DebugDispatcher::~DebugDispatcher() {
        it != clients_.end(); ++it) {
     (*it)->OnDetach(detach_reason);
   }
+  DCHECK(domain_registry_.empty())
+      << domain_registry_.begin()->first << " domain still registered.";
   for (DomainRegistry::iterator it = domain_registry_.begin();
        it != domain_registry_.end(); ++it) {
     RemoveDomain(it->first);

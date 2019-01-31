@@ -33,6 +33,7 @@ namespace backend {
 class ConsoleAgent {
  public:
   ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console);
+  ~ConsoleAgent();
 
  private:
   class Listener : public dom::Console::Listener {
