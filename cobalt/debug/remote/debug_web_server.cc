@@ -342,10 +342,15 @@ void DebugWebServer::StartServer(int port) {
   std::string address;
   int result = GetLocalAddress(&address);
   if (result == net::OK) {
-    DLOG(INFO) << "Debug web server running at: " << address;
+    // clang-format off
+    LOG(INFO) << "\n---------------------------------"
+              << "\n Connect to the web debugger at:"
+              << "\n " << address
+              << "\n---------------------------------";
+    // clang-format on
     local_address_ = address;
   } else {
-    DLOG(WARNING) << "Could not start debug web server";
+    LOG(WARNING) << "Could not start debug web server";
   }
 }
 
