@@ -24,6 +24,10 @@ namespace debug {
 namespace backend {
 
 namespace {
+// Definitions from the set specified here:
+// https://chromedevtools.github.io/devtools-protocol/tot/Tracing
+constexpr char kInspectorDomain[] = "Tracing";
+
 // Size in characters of JSON to batch dataCollected events.
 constexpr size_t kDataCollectedSize = 24 * 1024;
 
@@ -48,7 +52,11 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
   commands_["Tracing.end"] = &TracingAgent::End;
   commands_["Tracing.start"] = &TracingAgent::Start;
 
-  dispatcher_->AddDomain("Tracing", commands_.Bind());
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+TracingAgent::~TracingAgent() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
 }
 
 void TracingAgent::End(const Command& command) {

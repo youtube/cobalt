@@ -28,16 +28,20 @@ namespace debug {
 namespace backend {
 
 namespace {
+// Definitions from the set specified here:
+// https://chromedevtools.github.io/devtools-protocol/tot/DOM
+constexpr char kInspectorDomain[] = "DOM";
+
 // File to load JavaScript DOM debugging domain implementation from.
-const char kScriptFile[] = "dom.js";
+constexpr char kScriptFile[] = "dom.js";
 
 // Parameter names:
-const char kA[] = "a";
-const char kB[] = "b";
-const char kContentColor[] = "contentColor";
-const char kG[] = "g";
-const char kHighlightConfig[] = "highlightConfig";
-const char kR[] = "r";
+constexpr char kA[] = "a";
+constexpr char kB[] = "b";
+constexpr char kContentColor[] = "contentColor";
+constexpr char kG[] = "g";
+constexpr char kHighlightConfig[] = "highlightConfig";
+constexpr char kR[] = "r";
 }  // namespace
 
 DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
@@ -52,7 +56,11 @@ DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
   commands_["DOM.highlightNode"] = &DOMAgent::HighlightNode;
   commands_["DOM.hideHighlight"] = &DOMAgent::HideHighlight;
 
-  dispatcher_->AddDomain("DOM", commands_.Bind());
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+DOMAgent::~DOMAgent() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
 }
 
 void DOMAgent::Enable(const Command& command) {

@@ -34,6 +34,7 @@ class ScriptDebuggerAgent {
  public:
   ScriptDebuggerAgent(DebugDispatcher* dispatcher,
                       script::ScriptDebugger* script_debugger);
+  ~ScriptDebuggerAgent();
 
   bool IsSupportedDomain(const std::string& domain) {
     return registered_domains_.count(domain) != 0;

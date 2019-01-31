@@ -24,21 +24,22 @@ namespace backend {
 namespace {
 // Definitions from the set specified here:
 // https://chromedevtools.github.io/devtools-protocol/tot/Console
-//
+constexpr char kInspectorDomain[] = "Console";
+
 // The "Console" protocol domain is deprecated, but we still use it to forward
 // console messages from our console web API implementation (used only with
 // mozjs) to avoid blurring the line to the "Runtime" domain implementation.
 
 // Parameter fields:
-const char kMessageText[] = "message.text";
-const char kMessageLevel[] = "message.level";
-const char kMessageSource[] = "message.source";
+constexpr char kMessageText[] = "message.text";
+constexpr char kMessageLevel[] = "message.level";
+constexpr char kMessageSource[] = "message.source";
 
 // Constant parameter values:
-const char kMessageSourceValue[] = "console-api";
+constexpr char kMessageSourceValue[] = "console-api";
 
 // Events:
-const char kMessageAdded[] = "Console.messageAdded";
+constexpr char kMessageAdded[] = "Console.messageAdded";
 }  // namespace
 
 ConsoleAgent::Listener::Listener(dom::Console* console,
@@ -58,7 +59,11 @@ ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
   commands_["Console.disable"] = &ConsoleAgent::Disable;
   commands_["Console.enable"] = &ConsoleAgent::Enable;
 
-  dispatcher_->AddDomain("Console", commands_.Bind());
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+ConsoleAgent::~ConsoleAgent() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
 }
 
 void ConsoleAgent::Disable(const Command& command) { command.SendResponse(); }
