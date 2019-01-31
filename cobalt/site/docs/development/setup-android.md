@@ -1,6 +1,6 @@
 ---
 layout: doc
-title: "Set up your environment - Linux"
+title: "Set up your environment - Android"
 ---
 
 These instructions explain how to set up Cobalt for your workstation and Android
