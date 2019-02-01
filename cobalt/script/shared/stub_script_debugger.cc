@@ -44,20 +44,11 @@ class StubScriptDebugger : public ScriptDebugger {
   }
   void StopTracing() override { NOTIMPLEMENTED(); }
 
-  void Pause() override { NOTIMPLEMENTED(); }
-  void Resume() override { NOTIMPLEMENTED(); }
-  void SetBreakpoint(const std::string& script_id, int line_number,
-                     int column_number) override {
-    NOTIMPLEMENTED();
-  }
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override {
     NOTIMPLEMENTED();
     return kNone;
   }
-  void StepInto() override { NOTIMPLEMENTED(); }
-  void StepOut() override { NOTIMPLEMENTED(); }
-  void StepOver() override { NOTIMPLEMENTED(); }
 };
 
 // Static factory method declared in public interface.
