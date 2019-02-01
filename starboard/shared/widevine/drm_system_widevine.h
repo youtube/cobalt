@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 #define STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -198,6 +199,11 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
 #endif  // SB_API_VERSION >= 10
 
   volatile bool quitting_ = false;
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  int number_of_session_updates_sent_ = 0;
+  int maximum_number_of_session_updates_ = std::numeric_limits<int>::max();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 };
 
 }  // namespace widevine
