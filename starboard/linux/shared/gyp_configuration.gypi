@@ -27,6 +27,7 @@
       '-ldl',
       '-lpthread',
       '-lrt',
+      '-lvpx',
     ],
 
     'compiler_flags': [
