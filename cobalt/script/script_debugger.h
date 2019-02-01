@@ -103,18 +103,8 @@ class ScriptDebugger {
                             TraceDelegate* trace_delegate) = 0;
   virtual void StopTracing() = 0;
 
-  // Code execution control. Implementations may use
-  // |Delegate::OnScriptDebuggerPause| to have the delegate handle the
-  // actual blocking of the thread in an engine-independent way.
-  virtual void Pause() = 0;
-  virtual void Resume() = 0;
-  virtual void SetBreakpoint(const std::string& script_id, int line_number,
-                             int column_number) = 0;
   virtual PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) = 0;  // Returns the previous state.
-  virtual void StepInto() = 0;
-  virtual void StepOut() = 0;
-  virtual void StepOver() = 0;
 
  protected:
   virtual ~ScriptDebugger() {}

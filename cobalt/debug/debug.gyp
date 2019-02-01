@@ -32,8 +32,6 @@
         'backend/debug_script_runner.h',
         'backend/dom_agent.cc',
         'backend/dom_agent.h',
-        'backend/javascript_debugger_agent.cc',
-        'backend/javascript_debugger_agent.h',
         'backend/log_agent.cc',
         'backend/log_agent.h',
         'backend/page_agent.cc',
