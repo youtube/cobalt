@@ -15,6 +15,9 @@
 #ifndef STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 
+#include <vpx/vp8dx.h>
+#include <vpx/vpx_decoder.h>
+
 #include <queue>
 #include <string>
 
@@ -29,10 +32,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
-
-#define VPX_CODEC_DISABLE_COMPAT 1
-#include "third_party/libvpx/vpx/vp8dx.h"
-#include "third_party/libvpx/vpx/vpx_decoder.h"
 
 namespace starboard {
 namespace shared {
