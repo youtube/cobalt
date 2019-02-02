@@ -34,34 +34,24 @@ constexpr char kInspectorDomain[] = "DOM";
 
 // File to load JavaScript DOM debugging domain implementation from.
 constexpr char kScriptFile[] = "dom.js";
-
-// Parameter names:
-constexpr char kA[] = "a";
-constexpr char kB[] = "b";
-constexpr char kContentColor[] = "contentColor";
-constexpr char kG[] = "g";
-constexpr char kHighlightConfig[] = "highlightConfig";
-constexpr char kR[] = "r";
 }  // namespace
 
 DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
                    scoped_ptr<RenderLayer> render_layer)
     : dispatcher_(dispatcher),
       render_layer_(render_layer.Pass()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
   DCHECK(dispatcher_);
 
-  commands_["DOM.disable"] = &DOMAgent::Disable;
-  commands_["DOM.enable"] = &DOMAgent::Enable;
-  commands_["DOM.highlightNode"] = &DOMAgent::HighlightNode;
-  commands_["DOM.hideHighlight"] = &DOMAgent::HideHighlight;
+  commands_["disable"] = &DOMAgent::Disable;
+  commands_["enable"] = &DOMAgent::Enable;
+  commands_["highlightNode"] = &DOMAgent::HighlightNode;
+  commands_["hideHighlight"] = &DOMAgent::HideHighlight;
 
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
-DOMAgent::~DOMAgent() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-}
+DOMAgent::~DOMAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
 
 void DOMAgent::Enable(const Command& command) {
   bool initialized = dispatcher_->RunScriptFile(kScriptFile);
@@ -101,7 +91,7 @@ void DOMAgent::HighlightNode(const Command& command) {
   JSONObject params = JSONParse(command.GetParams());
   base::DictionaryValue* highlight_config_value = NULL;
   bool got_highlight_config =
-      params->GetDictionary(kHighlightConfig, &highlight_config_value);
+      params->GetDictionary("highlightConfig", &highlight_config_value);
   DCHECK(got_highlight_config);
   DCHECK(highlight_config_value);
 
@@ -127,12 +117,12 @@ void DOMAgent::RenderHighlight(
   double a = 0.66;
   const base::DictionaryValue* content_color = NULL;
   bool got_content_color =
-      highlight_config_value->GetDictionary(kContentColor, &content_color);
+      highlight_config_value->GetDictionary("contentColor", &content_color);
   if (got_content_color && content_color) {
-    content_color->GetInteger(kR, &r);
-    content_color->GetInteger(kG, &g);
-    content_color->GetInteger(kB, &b);
-    content_color->GetDouble(kA, &a);
+    content_color->GetInteger("r", &r);
+    content_color->GetInteger("g", &g);
+    content_color->GetInteger("b", &b);
+    content_color->GetDouble("a", &a);
   }
   render_tree::ColorRGBA color(r / 255.0f, g / 255.0f, b / 255.0f,
                                static_cast<float>(a));
