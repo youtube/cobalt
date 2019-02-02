@@ -78,40 +78,39 @@ typedef struct SbUiNavTransform {
 // This structure specifies all the callbacks which the platform UI engine
 // should invoke for various interaction events on navigation items. These
 // callbacks may be invoked from any thread at any frequency. The
-// |callback_context| is the value that was passed to set_callbacks(), and the
-// |item_context| is the value that was passed to create_item() or
-// create_root_item().
+// |callback_context| is the value that was passed on creation of the
+// relevant SbUiNavItem.
 typedef struct SbUiNavCallbacks {
   // Invoke when an item has lost focus.
-  void (*onblur)(SbUiNavItem item, void* callback_context, void* item_context);
+  void (*onblur)(SbUiNavItem item, void* callback_context);
 
   // Invoke when an item has gained focus.
-  void (*onfocus)(SbUiNavItem item, void* callback_context, void* item_context);
+  void (*onfocus)(SbUiNavItem item, void* callback_context);
 
-  // Invoke when an item's content offset is changed. This should only occur
-  // for navigation items which contain other items.
-  void (*onscroll)(SbUiNavItem item, void* callback_context, void* item_context,
-                   float content_offset_x, float content_offset_y);
+  // Invoke when an item's content offset is changed. This is only used on
+  // navigation items which are containers.
+  void (*onscroll)(SbUiNavItem item, void* callback_context);
 } SbUiNavCallbacks;
 
 // This structure declares the interface to the UI navigation implementation.
 // All function pointers must be specified if the platform supports UI
 // navigation.
 typedef struct SbUiNavInterface {
-  // Used to specify callbacks to be invoked for various interaction events on
-  // particular navigation items.
-  void (*set_callbacks)(SbUiNavCallbacks callbacks, void* callback_context);
-
   // Create a new navigation item. When the user interacts with this item
-  // the appropriate SbUiNavCallbacks callback will be invoked with the
-  // provided |item_context|. An item is not interactable until it is enabled.
-  SbUiNavItem (*create_item)(SbUiNavItemType type, void* item_context);
+  // the appropriate SbUiNavCallbacks function will be invoked with the
+  // provided |callback_context|. An item is not interactable until it is
+  // enabled.
+  SbUiNavItem (*create_item)(SbUiNavItemType type,
+                             const SbUiNavCallbacks* callbacks,
+                             void* callback_context);
 
   // This creates a root navigation item container associated with the given
   // |window|. Only navigation items which are transitively contents of this
   // root item are interactable. Only one root item will ever be used at any
   // given time.
-  SbUiNavItem (*create_root_item)(SbWindow window, void* item_context);
+  SbUiNavItem (*create_root_item)(SbWindow window,
+                                  const SbUiNavCallbacks* callbacks,
+                                  void* callback_context);
 
   // Destroy the given navigation item. If this is a content of another item,
   // then it will first be unregistered. Additionally, if this item contains
@@ -119,8 +118,10 @@ typedef struct SbUiNavInterface {
   // be automatically destroyed.
   void (*destroy_item)(SbUiNavItem item);
 
-  // This is used to manually force focus on a particular navigation item. Any
-  // previously focused navigation item should receive the blur event.
+  // This is used to manually force focus on a navigation item of type
+  // kSbUiNavItemTypeFocus. Any previously focused navigation item should
+  // receive the blur event. If the item is not transitively a content of the
+  // root item, then this does nothing.
   void (*set_focus)(SbUiNavItem item);
 
   // This is used to enable or disable user interaction with the specified
@@ -183,11 +184,13 @@ typedef struct SbUiNavInterface {
   // item's content offset helps determine where its content items should be
   // drawn. Essentially, a content item should be drawn at:
   //   [container position] + [content position] - [container content offset]
+  // If |item| is not a container, then this does nothing.
   // By default, the content offset is (0,0).
   void (*set_item_content_offset)(SbUiNavItem item,
       float content_offset_x, float content_offset_y);
 
-  // Retrieve the current content offset for the navigation item.
+  // Retrieve the current content offset for the navigation item. If |item| is
+  // not a container, then the content offset is (0,0).
   void (*get_item_content_offset)(SbUiNavItem item,
       float* out_content_offset_x, float* out_content_offset_y);
 } SbUiNavInterface;
@@ -205,9 +208,9 @@ static SB_C_INLINE bool SbUiNavItemIsValid(SbUiNavItem item) {
 }
 
 // Retrieve the platform's UI navigation implementation. If the platform does
-// not provide one, then return false without modifying |interface|. Otherwise,
-// return true and all members of |interface| must be initialized.
-SB_EXPORT bool SbUiNavGetInterface(SbUiNavInterface* interface);
+// not provide one, then return false without modifying |out_interface|.
+// Otherwise, initialize all members of |out_interface| and return true.
+SB_EXPORT bool SbUiNavGetInterface(SbUiNavInterface* out_interface);
 
 #ifdef __cplusplus
 }  // extern "C"
