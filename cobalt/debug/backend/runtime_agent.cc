@@ -27,28 +27,24 @@ constexpr char kInspectorDomain[] = "Runtime";
 
 // File to load JavaScript runtime implementation from.
 constexpr char kScriptFile[] = "runtime.js";
-
-// Event "methods" (names):
-constexpr char kExecutionContextCreated[] = "Runtime.executionContextCreated";
 }  // namespace
 
 RuntimeAgent::RuntimeAgent(DebugDispatcher* dispatcher)
-    : dispatcher_(dispatcher), ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+    : dispatcher_(dispatcher),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
   DCHECK(dispatcher_);
   if (!dispatcher_->RunScriptFile(kScriptFile)) {
     DLOG(WARNING) << "Cannot execute Runtime initialization script.";
   }
 
-  commands_["Runtime.enable"] = &RuntimeAgent::Enable;
-  commands_["Runtime.disable"] = &RuntimeAgent::Disable;
-  commands_["Runtime.compileScript"] = &RuntimeAgent::CompileScript;
+  commands_["enable"] = &RuntimeAgent::Enable;
+  commands_["disable"] = &RuntimeAgent::Disable;
+  commands_["compileScript"] = &RuntimeAgent::CompileScript;
 
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
-RuntimeAgent::~RuntimeAgent() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-}
+RuntimeAgent::~RuntimeAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
 
 void RuntimeAgent::CompileScript(const Command& command) {
   // TODO: Parse the JS without eval-ing it... This is to support:
@@ -60,8 +56,9 @@ void RuntimeAgent::CompileScript(const Command& command) {
 void RuntimeAgent::Disable(const Command& command) { command.SendResponse(); }
 
 void RuntimeAgent::Enable(const Command& command) {
-  dispatcher_->SendScriptEvent(kExecutionContextCreated,
-                               "runtime.executionContextCreatedEvent");
+  dispatcher_->SendScriptEvent(
+      std::string(kInspectorDomain) + ".executionContextCreated",
+      "runtime.executionContextCreatedEvent");
   command.SendResponse();
 }
 

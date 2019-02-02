@@ -25,15 +25,6 @@ namespace {
 // https://chromedevtools.github.io/devtools-protocol/1-3/Log
 constexpr char kInspectorDomain[] = "Log";
 
-// Parameter fields:
-constexpr char kEntryText[] = "entry.text";
-constexpr char kEntryLevel[] = "entry.level";
-
-// Events:
-// Our custom "Log.browserEntryAdded" event is just like "Log.entryAdded"
-// except it only shows up in the debug console and not in remote devtools.
-constexpr char kBrowserEntryAdded[] = "Log.browserEntryAdded";
-
 // Error levels:
 constexpr char kInfoLevel[] = "info";
 constexpr char kWarningLevel[] = "warning";
@@ -58,12 +49,12 @@ const char* GetLogLevelFromSeverity(int severity) {
 
 LogAgent::LogAgent(DebugDispatcher* dispatcher)
     : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)),
       enabled_(false) {
   DCHECK(dispatcher_);
 
-  commands_["Log.enable"] = &LogAgent::Enable;
-  commands_["Log.disable"] = &LogAgent::Disable;
+  commands_["enable"] = &LogAgent::Enable;
+  commands_["disable"] = &LogAgent::Disable;
 
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 
@@ -98,11 +89,14 @@ bool LogAgent::OnLogMessage(int severity, const char* file, int line,
   DCHECK(this);
 
   if (enabled_) {
+    // Our custom "Log.browserEntryAdded" event is just like "Log.entryAdded"
+    // except it only shows up in the debug console and not in remote devtools.
     // TODO: Flesh out the rest of LogEntry properties (source, timestamp)
     JSONObject params(new base::DictionaryValue());
-    params->SetString(kEntryText, str);
-    params->SetString(kEntryLevel, GetLogLevelFromSeverity(severity));
-    dispatcher_->SendEvent(kBrowserEntryAdded, params);
+    params->SetString("entry.text", str);
+    params->SetString("entry.level", GetLogLevelFromSeverity(severity));
+    dispatcher_->SendEvent(std::string(kInspectorDomain) + ".browserEntryAdded",
+                           params);
   }
 
   // Don't suppress the log message.
