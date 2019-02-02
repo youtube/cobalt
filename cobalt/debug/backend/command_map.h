@@ -36,12 +36,20 @@ using CommandFn = void (T::*)(const Command& command);
 template <class T>
 class CommandMap : public std::map<std::string, CommandFn<T>> {
  public:
-  explicit CommandMap(T* agent) : agent_(agent) {}
+  // If |domain| is specified, then commands for that domain should be mapped
+  // using just the the simple method name (i.e. "method" not "Domain.method").
+  explicit CommandMap(T* agent, const std::string& domain = std::string())
+      : agent_(agent), domain_(domain) {}
 
   // Calls the mapped method implementation.
   // Returns a true iff the command method is mapped and has been run.
   bool RunCommand(const Command& command) {
-    auto iter = this->find(command.GetMethod());
+    // If the domain matches, trim it and the dot from the method name.
+    const std::string& method =
+        (domain_ == command.GetDomain())
+            ? command.GetMethod().substr(domain_.size() + 1)
+            : command.GetMethod();
+    auto iter = this->find(method);
     if (iter == this->end()) return false;
     auto command_fn = iter->second;
     (agent_->*command_fn)(command);
@@ -55,6 +63,7 @@ class CommandMap : public std::map<std::string, CommandFn<T>> {
 
  private:
   T* agent_;
+  std::string domain_;
 };
 
 }  // namespace backend
