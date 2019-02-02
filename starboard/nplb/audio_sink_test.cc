@@ -38,7 +38,9 @@ TEST(SbAudioSinkTest, SomeFramesConsumed) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
-  environment.AppendFrame(512);
+  int frames_to_append = frame_buffers.frames_per_channel();
+
+  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
 }
 
@@ -47,7 +49,9 @@ TEST(SbAudioSinkTest, AllFramesConsumed) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
-  environment.AppendFrame(1024);
+  int frames_to_append = frame_buffers.frames_per_channel();
+
+  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
@@ -87,10 +91,12 @@ TEST(SbAudioSinkTest, Underflow) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
-  environment.AppendFrame(1024);
+  int frames_to_append = frame_buffers.frames_per_channel();
+
+  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
   SbThreadSleep(250 * kSbTimeMillisecond);
-  environment.AppendFrame(1024);
+  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
