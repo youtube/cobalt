@@ -40,6 +40,12 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
       return AV_CODEC_ID_AAC;
+#if SB_HAS(AC3_AUDIO)
+    case kSbMediaAudioCodecAc3:
+      return AV_CODEC_ID_AC3;
+    case kSbMediaAudioCodecEac3:
+      return AV_CODEC_ID_EAC3;
+#endif  // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return AV_CODEC_ID_OPUS;
     default:
