@@ -41,7 +41,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltAndroidConfiguration, self).GetTestFilters()
-    for target, tests in self._FAILING_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
@@ -53,7 +53,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
     }
 
   # A map of failing or crashing tests per target.
-  _FAILING_TESTS = {
+  __FILTERED_TESTS = {
       'net_unittests': [
           # This test fails on multiple platforms with our current version of
           # net library, and will be fixed when net is rebased.
