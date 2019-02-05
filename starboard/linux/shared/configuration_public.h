@@ -242,6 +242,9 @@
 // Allow playing audioless video.
 #define SB_HAS_AUDIOLESS_VIDEO 1
 
+// Allow ac3 and ec3 support
+#define SB_HAS_AC3_AUDIO 1
+
 // --- Decoder-only Params ---
 
 // Specifies how media buffers must be aligned on this platform as some
