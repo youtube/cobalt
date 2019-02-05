@@ -26,7 +26,9 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 
-/** A wrapper of the android AudioTrack class. */
+// A wrapper of the android AudioTrack class.
+// Android AudioTrack would not start playing until the buffer is fully
+// filled once.
 @UsedByNative
 public class AudioTrackBridge {
   private AudioTrack audioTrack;
