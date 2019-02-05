@@ -290,9 +290,15 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut};
 
   constexpr SbMediaAudioCodec kAudioCodecs[] = {
-      kSbMediaAudioCodecNone,
+    kSbMediaAudioCodecNone,
 
-      kSbMediaAudioCodecAac, kSbMediaAudioCodecOpus, kSbMediaAudioCodecVorbis,
+    kSbMediaAudioCodecAac,
+#if SB_HAS(AC3_AUDIO)
+    kSbMediaAudioCodecAc3,
+    kSbMediaAudioCodecEac3,
+#endif  // SB_HAS(AC3_AUDIO)
+    kSbMediaAudioCodecOpus,
+    kSbMediaAudioCodecVorbis,
   };
 
   // TODO: turn this into a macro.
@@ -305,6 +311,10 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kAudioCodecs[1]:
     case kAudioCodecs[2]:
     case kAudioCodecs[3]:
+#if SB_HAS(AC3_AUDIO)
+    case kAudioCodecs[4]:
+    case kAudioCodecs[5]:
+#endif  // SB_HAS(AC3_AUDIO)
       break;
   }
 

@@ -67,6 +67,8 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
 #if SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
       return mime_type.subtype() == "mp4";
+    case kSbMediaAudioCodecEac3:
+      return mime_type.subtype() == "mp4";
 #endif  // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
     case kSbMediaAudioCodecVorbis:
