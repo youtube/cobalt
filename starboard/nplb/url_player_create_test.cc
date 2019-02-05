@@ -17,7 +17,7 @@
 #include "starboard/player.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
-#include "starboard/shared/darwin/url_player.h"
+#include "starboard/shared/uikit/url_player.h"
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 #include "starboard/window.h"
