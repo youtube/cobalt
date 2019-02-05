@@ -32,7 +32,7 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltWinWin32Configuration, self).GetTestFilters()
-    filtered_tests = dict(self._FILTERED_TESTS)  # Copy.
+    filtered_tests = dict(self.__FILTERED_TESTS)  # Copy.
     # On the VWware buildbot doesn't have a lot of video memory and
     # the following tests will fail or crash the system. Therefore they
     # are filtered out.
@@ -47,7 +47,7 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  _FILTERED_TESTS = {
+  __FILTERED_TESTS = {
       'base_unittests': [
           'PathServiceTest.Get',
       ],

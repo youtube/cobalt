@@ -63,7 +63,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       return [test_filter.DISABLE_TESTING]
     else:
       filters = super(WinWin32PlatformConfig, self).GetTestFilters()
-      filtered_tests = dict(self._FILTERED_TESTS)  # Copy.
+      filtered_tests = dict(self.__FILTERED_TESTS)  # Copy.
       # On the VWware buildbot doesn't have a lot of video memory and
       # the following tests will fail or crash the system. Therefore they
       # are filtered out.
@@ -82,7 +82,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
 
-  _FILTERED_TESTS = {
+  __FILTERED_TESTS = {
       'nplb': [
           # TODO: Check these unit tests and fix them!
           'SbAudioSinkCreateTest.MultiSink',

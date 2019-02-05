@@ -242,12 +242,12 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetTestFilters(self):
     filters = super(AndroidConfiguration, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   # A map of failing or crashing tests per target.
-  _FILTERED_TESTS = {
+  __FILTERED_TESTS = {
       'nplb': [
           # On Nvidia Shield the AudioFlinger triggers UNDERRUN and
           # pauses the audio stream.

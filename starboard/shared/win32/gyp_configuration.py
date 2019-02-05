@@ -149,11 +149,11 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       return [test_filter.DISABLE_TESTING]
 
     filters = super(Win32SharedConfiguration, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  _FILTERED_TESTS = {
+  __FILTERED_TESTS = {
       'player_filter_tests': [
           # TODO: debug these failures.
           'AudioDecoderTests/AudioDecoderTest.SingleInvalidInput/0',
