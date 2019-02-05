@@ -49,6 +49,9 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
   if (SbStringCompareAll(codec, "ac-3") == 0) {
     return kSbMediaAudioCodecAc3;
   }
+  if (SbStringCompareAll(codec, "ec-3") == 0) {
+    return kSbMediaAudioCodecEac3;
+  }
 #endif  // SB_HAS(AC3_AUDIO)
   if (SbStringCompare(codec, "opus", 4) == 0) {
     return kSbMediaAudioCodecOpus;
