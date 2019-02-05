@@ -252,6 +252,8 @@ class AndroidConfiguration(PlatformConfiguration):
           # On Nvidia Shield the AudioFlinger triggers UNDERRUN and
           # pauses the audio stream.
           'SbAudioSinkTest.AllFramesConsumed',
+          'SbAudioSinkTest.ContinuousAppend',
+          'SbAudioSinkTest.MultipleAppendAndConsume',
           'SbAudioSinkTest.SomeFramesConsumed',
           'SbAudioSinkTest.Underflow',
       ],
