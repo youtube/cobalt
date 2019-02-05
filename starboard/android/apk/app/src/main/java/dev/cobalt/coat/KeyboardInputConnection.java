@@ -136,7 +136,7 @@ public class KeyboardInputConnection extends BaseInputConnection {
   public boolean sendKeyEvent(KeyEvent event) {
     if (event.getAction() == KeyEvent.ACTION_DOWN) {
       if (event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
-        keyboardEditor.hideKeyboard();
+        keyboardEditor.search();
       } else if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
         Editable editable = getEditable();
         int selStart = Selection.getSelectionStart(editable);
@@ -164,8 +164,7 @@ public class KeyboardInputConnection extends BaseInputConnection {
   @Override
   public boolean performEditorAction(int editorAction) {
     if (editorAction == EditorInfo.IME_ACTION_SEARCH) {
-      // TODO: Implement keep focus where the keyboard is only hidden if there are search results.
-      keyboardEditor.hideKeyboard();
+      keyboardEditor.search();
     }
     return true;
   }

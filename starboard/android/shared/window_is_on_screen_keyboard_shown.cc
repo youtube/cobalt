@@ -14,9 +14,15 @@
 
 #include "starboard/window.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
+
+using starboard::android::shared::JniEnvExt;
+
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
-  // Stub.
-  return true;
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean is_keyboard_shown =
+      env->CallStarboardBooleanMethodOrAbort("isKeyboardShowing", "()Z");
+  return is_keyboard_shown;
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

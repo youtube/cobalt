@@ -34,6 +34,8 @@ public class KeyboardEditor extends View {
   private final Context context;
   private Editable editable;
   private KeyboardInputConnection inputConnection;
+  private boolean keepFocus;
+  private boolean keyboardShowing;
 
   public KeyboardEditor(Context context) {
     this(context, null);
@@ -42,6 +44,8 @@ public class KeyboardEditor extends View {
   public KeyboardEditor(Context context, AttributeSet attrs) {
     super(context, attrs);
     this.context = context;
+    this.keepFocus = false;
+    this.keyboardShowing = false;
     setFocusable(true);
   }
 
@@ -61,6 +65,23 @@ public class KeyboardEditor extends View {
     return inputConnection;
   }
 
+  /** Update the keepFocus boolean. */
+  public void updateKeepFocus(boolean keepFocus) {
+    this.keepFocus = keepFocus;
+  }
+
+  /** If the on-screen keyboard is showing. */
+  public boolean isKeyboardShowing() {
+    return this.keyboardShowing;
+  }
+
+  /** Hide the on-screen keyboard if keepFocus is set to false. */
+  public void search() {
+    if (!this.keepFocus) {
+      hideKeyboard();
+    }
+  }
+
   /** Show the on-screen keyboard. */
   public void showKeyboard() {
     final Activity activity = (Activity) context;
@@ -75,7 +96,10 @@ public class KeyboardEditor extends View {
 
             InputMethodManager imm =
                 (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.showSoftInput(view, 0);
+            boolean success = imm.showSoftInput(view, 0);
+            if (success) {
+              view.updateKeyboardShowing(true);
+            }
           }
         });
   }
@@ -94,7 +118,10 @@ public class KeyboardEditor extends View {
 
             InputMethodManager imm =
                 (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            boolean success = imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            if (success) {
+              view.updateKeyboardShowing(false);
+            }
           }
         });
   }
@@ -111,5 +138,9 @@ public class KeyboardEditor extends View {
     InputMethodManager imm =
         (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
     imm.displayCompletions(this, completions);
+  }
+
+  private void updateKeyboardShowing(boolean keyboardShowing) {
+    this.keyboardShowing = keyboardShowing;
   }
 }

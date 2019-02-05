@@ -14,9 +14,17 @@
 
 #include "starboard/window.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
+
+using starboard::android::shared::JniEnvExt;
+
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus) {
-  // Stub.
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  env->CallVoidMethodOrAbort(j_keyboard_editor, "updateKeepFocus", "(Z)V",
+                             keep_focus);
   return;
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
