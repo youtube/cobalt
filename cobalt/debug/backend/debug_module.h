@@ -25,7 +25,6 @@
 #include "cobalt/debug/backend/log_agent.h"
 #include "cobalt/debug/backend/page_agent.h"
 #include "cobalt/debug/backend/render_overlay.h"
-#include "cobalt/debug/backend/runtime_agent.h"
 #include "cobalt/debug/backend/script_debugger_agent.h"
 #include "cobalt/debug/backend/tracing_agent.h"
 #include "cobalt/dom/console.h"
@@ -112,7 +111,6 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   scoped_ptr<LogAgent> log_agent_;
   scoped_ptr<DOMAgent> dom_agent_;
   scoped_ptr<PageAgent> page_agent_;
-  scoped_ptr<RuntimeAgent> runtime_agent_;
   scoped_ptr<ScriptDebuggerAgent> script_debugger_agent_;
   scoped_ptr<TracingAgent> tracing_agent_;
 };
