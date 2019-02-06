@@ -76,8 +76,7 @@ void FillAudioBusFromOneSource(
   scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_refptr<AudioBufferSourceNode> source(
       audio_context->CreateBufferSource());
-  scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), src_data.Pass()));
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, src_data.Pass()));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -687,7 +686,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioBufferSourceNode> source_1(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_1(
-      new AudioBuffer(audio_context->sample_rate(), src_data_1.Pass()));
+      new AudioBuffer(44100, src_data_1.Pass()));
   source_1->set_buffer(buffer_1);
 
   const size_t kNumOfFrames_2 = 50;
@@ -704,7 +703,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioBufferSourceNode> source_2(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_2(
-      new AudioBuffer(audio_context->sample_rate(), src_data_2.Pass()));
+      new AudioBuffer(44100, src_data_2.Pass()));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -744,20 +743,21 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CreateBufferLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, CreateBufferTest) {
   const size_t kNumOfChannels = 2;
   const size_t kNumOfFrames = 25;
+  const size_t kSampleRate = 44100;
 
   scoped_refptr<AudioContext> audio_context(new AudioContext());
-  scoped_refptr<AudioBuffer> buffer(audio_context->CreateBuffer(
-      kNumOfChannels, kNumOfFrames, audio_context->sample_rate()));
+  scoped_refptr<AudioBuffer> buffer(
+      audio_context->CreateBuffer(kNumOfChannels, kNumOfFrames, kSampleRate));
 
   EXPECT_EQ(buffer->number_of_channels(), kNumOfChannels);
   EXPECT_EQ(buffer->length(), kNumOfFrames);
-  EXPECT_EQ(buffer->sample_rate(), audio_context->sample_rate());
+  EXPECT_EQ(buffer->sample_rate(), kSampleRate);
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32LayoutTest) {
+TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32Test) {
   const size_t kNumOfChannels = 2;
   const size_t kNumOfFrames = 25;
   const size_t kOffset = 8;
@@ -779,8 +779,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32LayoutTest) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -796,7 +795,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32LayoutTest) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32LayoutTest) {
+TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32Test) {
   const size_t kNumOfChannels = 2;
   const size_t kNumOfFrames = 25;
   const size_t kOffset = 8;
@@ -818,8 +817,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32LayoutTest) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -835,7 +833,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32LayoutTest) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16LayoutTest) {
+TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16Test) {
   const size_t kNumOfChannels = 2;
   const size_t kNumOfFrames = 25;
   const size_t kOffset = 8;
@@ -857,8 +855,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16LayoutTest) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -876,7 +873,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16LayoutTest) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16LayoutTest) {
+TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16Test) {
   const size_t kNumOfChannels = 2;
   const size_t kNumOfFrames = 25;
   const size_t kOffset = 8;
@@ -898,8 +895,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16LayoutTest) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
