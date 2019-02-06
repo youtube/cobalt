@@ -103,18 +103,10 @@ class DebugDispatcher {
   // agents providing the protocol command implementations.
   void RemoveDomain(const std::string& domain);
 
-  // Creates a Runtime.RemoteObject from an engine object.
-  JSONObject CreateRemoteObject(const script::ValueHandleHolder* object);
-
   // Called by the debug agents when an event occurs.
   // Serializes the method and params object to a JSON string and
   // calls |SendEventInternal|.
   void SendEvent(const std::string& method, const JSONObject& params);
-
-  // Runs a JavaScript function with optional JSON parameters, and sends the
-  // event it returns with |SendEvent|.
-  void SendScriptEvent(const std::string& event, const std::string& method,
-                       const std::string& json_params = "");
 
   // Calls |method| in |script_runner_| and creates a response object from
   // the result.

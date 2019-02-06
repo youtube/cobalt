@@ -99,10 +99,6 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   script_debugger_agent_.reset(
       new ScriptDebuggerAgent(debug_dispatcher_.get(), script_debugger_.get()));
 
-  if (!script_debugger_agent_->IsSupportedDomain("Runtime")) {
-    runtime_agent_.reset(new RuntimeAgent(debug_dispatcher_.get()));
-  }
-
   console_agent_.reset(new ConsoleAgent(debug_dispatcher_.get(), data.console));
 
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
