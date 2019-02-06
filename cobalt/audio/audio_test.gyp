@@ -19,7 +19,7 @@
   'targets': [
     # This target can choose the correct media dependency.
     {
-      'target_name': 'media',
+      'target_name': 'media_audio_test',
       'type': 'static_library',
       'conditions': [
         ['cobalt_media_source_2016==1', {
@@ -40,7 +40,7 @@
         'audio_node_input_output_test.cc',
       ],
       'dependencies': [
-        'media',
+        'media_audio_test',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',

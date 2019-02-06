@@ -21,8 +21,10 @@
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/interleaved_sinc_resampler.h"
 #include "cobalt/media/base/shell_audio_bus.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "media/base/interleaved_sinc_resampler.h"
 #include "media/base/shell_audio_bus.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
@@ -35,8 +37,10 @@ namespace audio {
 //   https://www.w3.org/TR/webaudio/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioNode {
 #if defined(COBALT_MEDIA_SOURCE_2016)
+  typedef media::InterleavedSincResampler InterleavedSincResampler;
   typedef media::ShellAudioBus ShellAudioBus;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
+  typedef ::media::InterleavedSincResampler InterleavedSincResampler;
   typedef ::media::ShellAudioBus ShellAudioBus;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
@@ -101,6 +105,10 @@ class AudioBufferSourceNode : public AudioNode {
   // |read_index_| is a sample-frame index into out buffer representing the
   // current playback position.
   int32 read_index_;
+
+  // |interleaved_resampler_| is the InterleavedSincResampler object that will
+  // be used if resampling needs to occur.
+  std::unique_ptr<InterleavedSincResampler> interleaved_resampler_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBufferSourceNode);
 };

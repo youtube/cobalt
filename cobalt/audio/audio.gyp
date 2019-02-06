@@ -17,6 +17,22 @@
     'sb_pedantic_warnings': 1,
   },
   'targets': [
+    # This target can choose the correct media dependency.
+    {
+      'target_name': 'media_audio',
+      'type': 'static_library',
+      'conditions': [
+        ['cobalt_media_source_2016==1', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
+        }],
+      ],
+    },
     {
       'target_name': 'audio',
       'type': 'static_library',
@@ -46,6 +62,7 @@
         'audio_node_output.h',
       ],
       'dependencies': [
+        'media_audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ],
