@@ -27,16 +27,33 @@ enum MemorySizes {
   // This was experimentally selected.
   kMiscCobaltCpuSizeInBytes = 119 * 1024 * 1024,
 
-  kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
+  // Decoding image to multi-plane allows the decoded images to use 3/8 of
+  // memory compare to their RGBA counter part due to the more compact nature of
+  // the YUV images versus RGBA.  As most images in the image cache are jpegs,
+  // this effectively reduces the image cache size requirements by 2.  So we
+  // reduce the image cache size at 1080p and the minimum requirement of image
+  // cache by half when decoding to multi-plane is enabled.
+
+  // The image cache size when the output resolution is 1080p.  When calculating
+  // the image cache size for other output resolutions, we scale the image cache
+  // size at 1080p proportionally to the number of pixels of other resolutions.
+  // So when the pixels are doubled, the image cache size is also doubled,
+  // subject to clamping between minimum size and maximum size listed below.
+  kImageCacheSize1080pWithDecodingToMultiPlane = 16 * 1024 * 1024,     // 16mb
+  kImageCacheSize1080pWithoutDecodingToMultiPlane = 32 * 1024 * 1024,  // 32mb
+
+  kMinImageCacheSizeWithDecodingToMultiPlane = 10 * 1024 * 1024,     // 10mb
+  kMinImageCacheSizeWithoutDecodingToMultiPlane = 20 * 1024 * 1024,  // 20mb
+
   kMaxImageCacheSize = 64 * 1024 * 1024,  // 64mb
 
   kMinSkiaGlyphTextureAtlasWidth = 2048,
   kMinSkiaGlyphTextureAtlasHeight = 2048,
   kSkiaGlyphAtlasTextureBytesPerPixel = 2,
-  kDefaultRemoteTypeFaceCacheSize = 4 * 1024 * 1024,  // 4mb.
+  kDefaultRemoteTypeFaceCacheSize = 4 * 1024 * 1024,           // 4mb
   kDefaultJsGarbageCollectionThresholdSize = 8 * 1024 * 1024,  // 8mb
 
-  kMinSkiaCacheSize = 4 * 1024 * 1024,  // 4mb.
+  kMinSkiaCacheSize = 4 * 1024 * 1024,  // 4mb
 };
 
 }  // namespace memory_settings
