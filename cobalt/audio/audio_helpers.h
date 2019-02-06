@@ -50,8 +50,6 @@ const StorageType kStorageTypePlanar = ::media::ShellAudioBus::kPlanar;
 
 const float kMaxInt16AsFloat32 = 32767.0f;
 
-const int kStandardOutputSampleRate = 48000;
-
 #if defined(OS_STARBOARD)
 // Get the size in bytes of an SbMediaAudioSampleType.
 inline size_t GetStarboardSampleTypeSize(SbMediaAudioSampleType sample_type) {
