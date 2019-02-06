@@ -940,6 +940,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeNetworkConnect:
       DispatchEventInternal(
           new network::NetworkEvent(network::NetworkEvent::kConnection));
@@ -948,6 +949,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(
           new network::NetworkEvent(network::NetworkEvent::kDisconnection));
       break;
+#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
       DispatchEventInternal(new base::DeepLinkEvent(link));
@@ -987,7 +989,7 @@ void Application::OnNetworkEvent(const base::Event* event) {
     LOG(INFO) << "Detected a network disconnection.";
     network_status_ = kDisconnectedNetworkStatus;
     ++network_disconnect_count_;
-    browser_module_->Navigate(GURL("h5vcc://network-failure"));
+    // Wait patiently for the app to show a dialog, or for a reconnection event.
   } else if (network_event->type() == network::NetworkEvent::kConnection) {
     network_status_ = kConnectedNetworkStatus;
     ++network_connect_count_;
@@ -1074,8 +1076,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
+#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeNetworkConnect:
     case kSbEventTypeNetworkDisconnect:
+#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
