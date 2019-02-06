@@ -322,34 +322,8 @@ scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     return make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeJPEG) {
-#if SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-    // Many image formats can produce native output in multi plane images in YUV
-    // 420.  Allow these images to be decoded into multi plane image not only
-    // reduces the space to store the decoded image to 37.5%, but also improves
-    // decoding performance by not converting the output from YUV to RGBA.
-    bool allow_image_decoding_to_multi_plane = true;
-#else   // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-    // Decoding to single plane by default because blitter platforms usually
-    // don't have the ability to perform hardware accelerated YUV-formatted
-    // image blitting.
-    // This also applies to skia based "hardware" rasterizers as the rendering
-    // of multi plane images in such cases are not optimized, but this may be
-    // improved in future.
-    bool allow_image_decoding_to_multi_plane = false;
-#endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-    auto command_line = CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kAllowImageDecodingToMultiPlane)) {
-      std::string value = command_line->GetSwitchValueASCII(
-          switches::kAllowImageDecodingToMultiPlane);
-      if (value == "true") {
-        allow_image_decoding_to_multi_plane = true;
-      } else {
-        DCHECK_EQ(value, "false");
-        allow_image_decoding_to_multi_plane = false;
-      }
-    }
     return make_scoped_ptr<ImageDataDecoder>(new JPEGImageDecoder(
-        resource_provider, allow_image_decoding_to_multi_plane));
+        resource_provider, ImageDecoder::AllowDecodingToMultiPlane()));
   } else if (image_type == ImageDecoder::kImageTypePNG) {
     return make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));
@@ -403,6 +377,41 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
 
 // static
 void ImageDecoder::UseStubImageDecoder() { s_use_stub_image_decoder = true; }
+
+// static
+bool ImageDecoder::AllowDecodingToMultiPlane() {
+#if SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  // Many image formats can produce native output in multi plane images in YUV
+  // 420.  Allow these images to be decoded into multi plane image not only
+  // reduces the space to store the decoded image to 37.5%, but also improves
+  // decoding performance by not converting the output from YUV to RGBA.
+  bool allow_image_decoding_to_multi_plane = true;
+#else   // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  // Decoding to single plane by default because blitter platforms usually
+  // don't have the ability to perform hardware accelerated YUV-formatted
+  // image blitting.
+  // This also applies to skia based "hardware" rasterizers as the rendering
+  // of multi plane images in such cases are not optimized, but this may be
+  // improved in future.
+  bool allow_image_decoding_to_multi_plane = false;
+#endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  auto command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kAllowImageDecodingToMultiPlane)) {
+    std::string value = command_line->GetSwitchValueASCII(
+        switches::kAllowImageDecodingToMultiPlane);
+    if (value == "true") {
+      allow_image_decoding_to_multi_plane = true;
+    } else {
+      DCHECK_EQ(value, "false");
+      allow_image_decoding_to_multi_plane = false;
+    }
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+  return allow_image_decoding_to_multi_plane;
+}
 
 }  // namespace image
 }  // namespace loader
