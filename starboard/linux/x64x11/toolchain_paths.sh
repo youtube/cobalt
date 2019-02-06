@@ -25,11 +25,19 @@ canonical_path="$(python "${root}/starboard/tools/get_toolchains_path.py")"
 base_path="${COBALT_TOOLCHAINS_DIR:=${canonical_path}}"
 toolchain_path="${base_path}/${toolchain_folder}"
 toolchain_binary="${toolchain_path}/${binary_path}"
+toolchain_symlink_path="${toolchain_path}/${symlink_path}"
 
 if [ -x "${toolchain_binary}" ]; then
   # The toolchain binary already exist.
   1>&2 echo "${toolchain_name} ${version} already available."
-  exit 0
+
+  # If a symlink_path is set, then also verify that the
+  # toolchain_symlink_path actually is a symbolic link.
+  if [ -n "${symlink_path}" -a ! -L "${toolchain_symlink_path}" ]; then
+    1>&2 echo "${toolchain_symlink_path} is not a symbolic link, toolchain will be reinitialized."
+  else
+    exit 0
+  fi
 fi
 
 if [ -d "${toolchain_path}" ]; then
