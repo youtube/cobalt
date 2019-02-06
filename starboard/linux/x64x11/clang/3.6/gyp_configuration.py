@@ -24,7 +24,7 @@ from starboard.tools import build
 class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
   """Starboard Linux X64 X11 Clang 3.6 platform configuration."""
 
-  def __init__(self, platform, asan_enabled_by_default=True):
+  def __init__(self, platform, asan_enabled_by_default=False):
     super(LinuxX64X11Clang36Configuration, self).__init__(
         platform, asan_enabled_by_default, goma_supports_compiler=False)
 
@@ -32,8 +32,9 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
     # Run the script that ensures clang 3.6 is installed.
     subprocess.call(
         os.path.join(script_path, 'download_clang.sh'), cwd=script_path)
-    self.toolchain_dir = os.path.join(build.GetToolchainsDir(),
-                                      'x86_64-linux-gnu-clang-3.6', 'llvm',
+    self.toolchain_top_dir = os.path.join(build.GetToolchainsDir(),
+                                          'x86_64-linux-gnu-clang-3.6')
+    self.toolchain_dir = os.path.join(self.toolchain_top_dir, 'llvm',
                                       'Release+Asserts')
 
   def GetEnvironmentVariables(self):
@@ -52,8 +53,12 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
     variables = super(LinuxX64X11Clang36Configuration,
                       self).GetVariables(config_name)
     variables.update({
-        'javascript_engine': 'mozjs-45',
-        'cobalt_enable_jit': 0,
+        'javascript_engine':
+            'mozjs-45',
+        'cobalt_enable_jit':
+            0,
+        'GCC_TOOLCHAIN_FOLDER':
+            '\"%s\"' % os.path.join(self.toolchain_top_dir, 'libstdc++-7'),
     })
     return variables
 
