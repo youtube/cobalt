@@ -24,6 +24,7 @@
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -130,7 +131,7 @@ TEST(AutoMem, CommandLineOverrides) {
 }
 
 // Tests the expectation that if the command line specifies that the variable
-// is "autoset" that the builtin setting is overriden.
+// is "autoset" that the builtin setting is overridden.
 TEST(AutoMem, CommandLineSpecifiesAutoset) {
   AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
   command_line_settings.cobalt_image_cache_size_in_bytes = -1;
@@ -139,9 +140,12 @@ TEST(AutoMem, CommandLineSpecifiesAutoset) {
 
   AutoMem auto_mem(kResolution1080p, command_line_settings, build_settings);
 
-  EXPECT_MEMORY_SETTING(auto_mem.image_cache_size_in_bytes(),
-                        MemorySetting::kAutoSet, MemorySetting::kGPU,
-                        CalculateImageCacheSize(kResolution1080p));
+  EXPECT_MEMORY_SETTING(
+      auto_mem.image_cache_size_in_bytes(), MemorySetting::kAutoSet,
+      MemorySetting::kGPU,
+      CalculateImageCacheSize(
+          kResolution1080p,
+          loader::image::ImageDecoder::AllowDecodingToMultiPlane()));
 }
 
 // Tests that skia atlas texture will be bind to the built in value, iff it has

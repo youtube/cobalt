@@ -105,9 +105,17 @@ math::Size ExpandTextureSizeToContain(const int64_t num_pixels) {
 
 }  // namespace
 
-int64_t CalculateImageCacheSize(const math::Size& dimensions) {
+int64_t CalculateImageCacheSize(const math::Size& dimensions,
+                                bool allow_image_decoding_to_multi_plane) {
   const double display_scale = DisplayScaleTo1080p(dimensions);
-  static const int64_t kReferenceSize1080p = 32 * 1024 * 1024;
+  const int64_t kReferenceSize1080p =
+      allow_image_decoding_to_multi_plane
+          ? kImageCacheSize1080pWithDecodingToMultiPlane
+          : kImageCacheSize1080pWithoutDecodingToMultiPlane;
+  const int64_t kMinImageCacheSize =
+      allow_image_decoding_to_multi_plane
+          ? kMinImageCacheSizeWithDecodingToMultiPlane
+          : kMinImageCacheSizeWithoutDecodingToMultiPlane;
   double output_bytes = kReferenceSize1080p * display_scale;
 
   return math::Clamp<int64_t>(static_cast<int64_t>(output_bytes),
