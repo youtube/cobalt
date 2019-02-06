@@ -43,21 +43,6 @@ DebugScriptRunner::DebugScriptRunner(
   global_environment_->Bind(kObjectIdentifier, make_scoped_refptr(this));
 }
 
-base::optional<std::string> DebugScriptRunner::CreateRemoteObject(
-    const script::ValueHandleHolder* object, const std::string& params) {
-  // Callback function should have been set by runtime.js.
-  DCHECK(create_remote_object_callback_);
-
-  CreateRemoteObjectCallback::ReturnValue result =
-      create_remote_object_callback_->value().Run(object, params);
-  if (result.exception) {
-    DLOG(WARNING) << "Exception creating remote object.";
-    return base::nullopt;
-  } else {
-    return result.result;
-  }
-}
-
 bool DebugScriptRunner::RunCommand(const std::string& method,
                                    const std::string& json_params,
                                    std::string* json_result) {
@@ -134,20 +119,6 @@ void DebugScriptRunner::SetEvalAllowedFromCsp() {
 
   global_environment_->SetReportEvalCallback(base::Bind(
       &dom::CspDelegate::ReportEval, base::Unretained(csp_delegate_)));
-}
-
-const DebugScriptRunner::CreateRemoteObjectCallbackHolder*
-DebugScriptRunner::create_remote_object_callback() {
-  if (create_remote_object_callback_) {
-    return &(create_remote_object_callback_->referenced_value());
-  } else {
-    return NULL;
-  }
-}
-
-void DebugScriptRunner::set_create_remote_object_callback(
-    const CreateRemoteObjectCallbackHolder& callback) {
-  create_remote_object_callback_.emplace(this, callback);
 }
 
 }  // namespace backend

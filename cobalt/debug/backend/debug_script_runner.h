@@ -46,23 +46,9 @@ class DebugScriptRunner : public script::Wrappable {
                               const base::optional<std::string>& params)>
       OnEventCallback;
 
-  // Callback to create a JavaScript Runtime.RemoteObject from an opaque JS
-  // object.
-  typedef script::CallbackFunction<std::string(const script::ValueHandleHolder*,
-                                               const std::string&)>
-      CreateRemoteObjectCallback;
-  typedef script::ScriptValue<CreateRemoteObjectCallback>
-      CreateRemoteObjectCallbackHolder;
-
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
                     const dom::CspDelegate* csp_delegate,
                     const OnEventCallback& on_event_callback);
-
-  // Creates a Runtime.RemoteObject corresponding to an opaque JS object, by
-  // calling the |create_remote_object_callback_| script function.
-  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
-  base::optional<std::string> CreateRemoteObject(
-      const script::ValueHandleHolder* object, const std::string& params);
 
   // Runs |method| on the JavaScript |runtimeInspector| object, passing in
   // |json_params| and putting the result in |json_result|.
@@ -78,11 +64,6 @@ class DebugScriptRunner : public script::Wrappable {
   // Called to send an event via the callback specified in the constructor.
   void SendEvent(const std::string& method,
                  const base::optional<std::string>& params);
-
-  // Get/Set |create_remote_object_callback_|.
-  const CreateRemoteObjectCallbackHolder* create_remote_object_callback();
-  void set_create_remote_object_callback(
-      const CreateRemoteObjectCallbackHolder& callback);
 
   DEFINE_WRAPPABLE_TYPE(DebugScriptRunner);
 
@@ -103,10 +84,6 @@ class DebugScriptRunner : public script::Wrappable {
 
   // Callback to send events.
   OnEventCallback on_event_callback_;
-
-  // Callback to create a Runtime.RemoteObject.
-  base::optional<CreateRemoteObjectCallbackHolder::Reference>
-      create_remote_object_callback_;
 };
 
 }  // namespace backend
