@@ -23,7 +23,9 @@ AudioContext::AudioContext()
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
-      sample_rate_(0.0f),
+      sample_rate_(
+          static_cast<float>(SbAudioSinkGetNearestSupportedSampleFrequency(
+              kStandardOutputSampleRate))),
       current_time_(0.0f),
       audio_lock_(new AudioLock()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
