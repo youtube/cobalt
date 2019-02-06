@@ -1,20 +1,6 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-// Modifications Copyright 2019 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 //
 // Input buffer layout, dividing the total buffer into regions (r0_ - r5_):
 //
@@ -45,15 +31,13 @@
 // Note: we're glossing over how the sub-sample handling works with
 // |virtual_source_idx_|, etc.
 
-#include "cobalt/media/base/interleaved_sinc_resampler.h"
+#include "media/base/interleaved_sinc_resampler.h"
 
 #include <algorithm>
 #include <cmath>
 
 #include "base/logging.h"
-#include "starboard/memory.h"
 
-namespace cobalt {
 namespace media {
 
 namespace {
@@ -80,30 +64,6 @@ const int kBufferSize = kBlockSize + kKernelSize;
 const int kMaximumPendingBuffers = 8;
 
 }  // namespace
-
-class InterleavedSincResampler::Buffer
-    : public base::RefCountedThreadSafe<Buffer> {
- public:
-  Buffer() : data_(NULL), frames_(0) {}
-  Buffer(const float* data, int frames, int channel_count) : frames_(frames) {
-    data_.reset(new float[frames * channel_count]);
-    SbMemoryCopy(data_.get(), data, frames * channel_count * sizeof(float));
-  }
-  Buffer(scoped_array<float> data, int frames)
-      : data_(data.Pass()), frames_(frames) {}
-
-  const float* GetData() const { return data_.get(); }
-
-  int GetNumFrames() const { return frames_; }
-
-  bool IsEndOfStream() const { return GetData() == NULL; }
-
- private:
-  scoped_array<float> data_;
-  int frames_;
-
-  DISALLOW_COPY_AND_ASSIGN(Buffer);
-};
 
 InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
                                                    int channel_count)
@@ -148,14 +108,12 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   DCHECK_EQ(r5_ + kBlockSize * channel_count_,
             r1_ + kBufferSize * channel_count_);
 
-  SbMemorySet(kernel_storage_.get(), 0,
-              sizeof(*kernel_storage_.get()) * kKernelStorageSize);
-  SbMemorySet(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
+  memset(kernel_storage_.get(), 0,
+         sizeof(*kernel_storage_.get()) * kKernelStorageSize);
+  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
 
   InitializeKernel();
 }
-
-InterleavedSincResampler::~InterleavedSincResampler() {}
 
 void InterleavedSincResampler::InitializeKernel() {
   // Blackman window parameters.
@@ -173,8 +131,8 @@ void InterleavedSincResampler::InitializeKernel() {
   // windowing it the transition from pass to stop does not happen right away.
   // So we should adjust the low pass filter cutoff slightly downward to avoid
   // some aliasing at the very high-end.
-  // TODO: this value is empirical and to be more exact should vary depending
-  // on kKernelSize.
+  // TODO(crogers): this value is empirical and to be more exact should vary
+  // depending on kKernelSize.
   sinc_scale_factor *= 0.9;
 
   // Generates a set of windowed sinc() kernels.
@@ -200,43 +158,27 @@ void InterleavedSincResampler::InitializeKernel() {
   }
 }
 
-void InterleavedSincResampler::QueueBuffer(const float* data, int frames) {
+void InterleavedSincResampler::QueueBuffer(
+    const scoped_refptr<::media::Buffer>& buffer) {
+  DCHECK(buffer);
   DCHECK(CanQueueBuffer());
 
   if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
-    DCHECK(!data);
+    DCHECK(buffer->IsEndOfStream());
     return;
   }
 
-  if (!data) {
-    pending_buffers_.push(new Buffer);
-    return;
-  } else {
-    frames_queued_ += frames;
-    pending_buffers_.push(new Buffer(data, frames, channel_count_));
+  if (!buffer->IsEndOfStream()) {
+    frames_queued_ += buffer->GetDataSize() / frame_size_in_bytes_;
   }
+
+  pending_buffers_.push(buffer);
 }
 
-void InterleavedSincResampler::QueueBuffer(scoped_array<float> data,
-                                           int frames) {
-  DCHECK(CanQueueBuffer());
-
-  if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
-    DCHECK(!data.get());
-    return;
+bool InterleavedSincResampler::Resample(float* destination, int frames) {
+  if (!HasEnoughData(frames)) {
+    return false;
   }
-
-  if (!data.get()) {
-    pending_buffers_.push(new Buffer);
-    return;
-  } else {
-    frames_queued_ += frames;
-    pending_buffers_.push(new Buffer(data.Pass(), frames));
-  }
-}
-
-void InterleavedSincResampler::Resample(float* destination, int frames) {
-  DCHECK(HasEnoughData(frames));
 
   int remaining_frames = frames;
 
@@ -277,7 +219,7 @@ void InterleavedSincResampler::Resample(float* destination, int frames) {
 
       if (!--remaining_frames) {
         frames_resampled_ += frames;
-        return;
+        return true;
       }
     }
 
@@ -286,8 +228,8 @@ void InterleavedSincResampler::Resample(float* destination, int frames) {
 
     // Step (3) Copy r3_ to r1_ and r4_ to r2_.
     // This wraps the last input frames back to the start of the buffer.
-    SbMemoryCopy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
-    SbMemoryCopy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
+    memcpy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
+    memcpy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
 
     // Step (4)
     // Refresh the buffer with more input.
@@ -295,12 +237,13 @@ void InterleavedSincResampler::Resample(float* destination, int frames) {
   }
 
   NOTREACHED();
+  return false;
 }
 
 void InterleavedSincResampler::Flush() {
   virtual_source_idx_ = 0;
   buffer_primed_ = false;
-  SbMemorySet(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
+  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
   while (!pending_buffers_.empty()) {
     pending_buffers_.pop();
   }
@@ -344,15 +287,15 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
     scoped_refptr<Buffer> buffer = pending_buffers_.front();
     if (buffer->IsEndOfStream()) {
       // Zero fill the buffer after EOS has reached.
-      SbMemorySet(destination, 0, frame_size_in_bytes_ * frames);
+      memset(destination, 0, frame_size_in_bytes_ * frames);
       return;
     }
     // Copy the data over.
-    int frames_in_buffer = buffer->GetNumFrames();
+    int frames_in_buffer = buffer->GetDataSize() / frame_size_in_bytes_;
     int frames_to_copy = std::min(frames_in_buffer - offset_in_frames_, frames);
-    const float* source = buffer->GetData();
-    source += offset_in_frames_ * channel_count_;
-    SbMemoryCopy(destination, source, frame_size_in_bytes_ * frames_to_copy);
+    const uint8* source = buffer->GetData();
+    source += frame_size_in_bytes_ * offset_in_frames_;
+    memcpy(destination, source, frame_size_in_bytes_ * frames_to_copy);
     offset_in_frames_ += frames_to_copy;
     // Pop the first buffer if all its content has been read.
     if (offset_in_frames_ == frames_in_buffer) {
@@ -369,7 +312,8 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
 }
 
 float InterleavedSincResampler::Convolve(const float* input_ptr,
-                                         const float* k1, const float* k2,
+                                         const float* k1,
+                                         const float* k2,
                                          double kernel_interpolation_factor) {
   float sum1 = 0;
   float sum2 = 0;
@@ -389,4 +333,3 @@ float InterleavedSincResampler::Convolve(const float* input_ptr,
 }
 
 }  // namespace media
-}  // namespace cobalt
