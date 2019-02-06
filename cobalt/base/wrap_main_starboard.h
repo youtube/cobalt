@@ -101,8 +101,10 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeUser:
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
+#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeNetworkDisconnect:
     case kSbEventTypeNetworkConnect:
+#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeScheduled:
     case kSbEventTypeAccessiblitySettingsChanged:
 #if SB_API_VERSION >= 6
