@@ -23,12 +23,27 @@ toolchain_folder="x86_64-linux-gnu-${toolchain_name}-${version}"
 branch="release_36"
 
 binary_path="llvm/Release+Asserts/bin/clang++"
+
+# This version of clang depends on libstdc++-7, version 7.3.0.
+# The package "libstdc++-7-dev" provides that version.
+libstdcxx_version="7.3.0"
+libstdcxx_path="libstdc++-7"
+libstdcxx_symlink_folder="${libstdcxx_path}/lib/gcc/x86_64-linux-gnu"
+symlink_path="${libstdcxx_symlink_folder}/${libstdcxx_version}"
+
 build_duration="about 20 minutes"
 
 cd $(dirname $0)
 source ../../toolchain_paths.sh
 
 (
+  # Build a small symlink forest for the clang compiler to point to with the
+  # '--gcc-toolchain' parameter to allow it to build against a non-default version
+  # of libstdc++.
+  mkdir -p "${libstdcxx_symlink_folder}"
+  ln -s /usr/include "${libstdcxx_path}"
+  ln -s "/usr/lib/gcc/x86_64-linux-gnu/${libstdcxx_version}" ${libstdcxx_symlink_folder}
+
   git clone --branch ${branch} https://git.llvm.org/git/llvm.git/
   cd llvm/tools/
   git clone --branch ${branch} https://git.llvm.org/git/clang.git/
