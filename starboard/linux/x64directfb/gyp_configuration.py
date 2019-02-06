@@ -30,7 +30,6 @@ class CobaltLinuxX64DirectFbConfiguration(
     super(CobaltLinuxX64DirectFbConfiguration, self).__init__(
         platform, asan_enabled_by_default, goma_supported_by_compiler)
 
-
   def GetTestFilters(self):
     filters = (
         super(CobaltLinuxX64DirectFbConfiguration, self).GetTestFilters())
@@ -39,11 +38,12 @@ class CobaltLinuxX64DirectFbConfiguration(
     return filters
 
 
+  # All filtered tests are filtered because the DirectFB drivers on
+  # many Linux distributions are unstable and experience crashes when
+  # creating and working with SbWindow objects.
   __FILTERED_TESTS = {
       'nplb': [
-          # All filtered tests are filtered because the DirectFB drivers on
-          # many Linux distributions are unstable and experience crashes when
-          # creating and working with SbWindow objects.
+          'SbBlitterCreateSwapChainFromWindowTest.RainyDayBadDevice',
           'SbBlitterCreateSwapChainFromWindowTest.RainyDayBadWindow',
           'SbBlitterCreateSwapChainFromWindowTest.RainyDayInvalidSwapChain',
           'SbBlitterCreateSwapChainFromWindowTest.SunnyDay',
@@ -63,8 +63,8 @@ class CobaltLinuxX64DirectFbConfiguration(
           'SbWindowGetSizeTest.RainyDayInvalid',
           'SbWindowGetSizeTest.SunnyDay',
       ],
+      'player_filter_tests': [test_filter.FILTER_ALL],
   }
-
 
 
 def CreatePlatformConfig():
