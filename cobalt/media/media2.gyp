@@ -67,8 +67,6 @@
         'base/encryption_scheme.h',
         'base/hdr_metadata.cc',
         'base/hdr_metadata.h',
-        'base/interleaved_sinc_resampler.cc',
-        'base/interleaved_sinc_resampler.h',
         'base/media_log.cc',
         'base/media_log.h',
         'base/media_track.cc',
