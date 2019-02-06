@@ -64,27 +64,6 @@ void DebugDispatcher::RemoveClient(DebugClient* client) {
   clients_.erase(client);
 }
 
-JSONObject DebugDispatcher::CreateRemoteObject(
-    const script::ValueHandleHolder* object) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  // Use default values for the parameters in the JS createRemoteObjectCallback.
-  static const char* kDefaultParams = "{}";
-
-  // This will execute a JavaScript function to create a Runtime.Remote object
-  // that describes the opaque JavaScript object.
-  base::optional<std::string> json_result =
-      script_runner_->CreateRemoteObject(object, kDefaultParams);
-
-  // Parse the serialized JSON result.
-  if (json_result) {
-    return JSONParse(json_result.value());
-  } else {
-    DLOG(WARNING) << "Could not create Runtime.RemoteObject";
-    return JSONObject(new base::DictionaryValue());
-  }
-}
-
 void DebugDispatcher::SendCommand(const Command& command) {
   // Create a closure that will run the command and the response callback.
   // The task is either posted to the debug target (WebModule) thread if
@@ -168,24 +147,6 @@ void DebugDispatcher::SendEvent(const std::string& method,
   base::optional<std::string> json_params;
   if (params) json_params = JSONStringify(params);
   SendEventInternal(method, json_params);
-}
-
-void DebugDispatcher::SendScriptEvent(const std::string& event,
-                                      const std::string& method,
-                                      const std::string& json_params) {
-  script::ScriptDebugger::ScopedPauseOnExceptionsState no_pause(
-      script_debugger_, script::ScriptDebugger::kNone);
-
-  std::string json_result;
-  bool success = script_runner_->RunCommand(method, json_params, &json_result);
-
-  if (!success) {
-    DLOG(ERROR) << "Script event failed (" << method << "): " << json_result;
-  } else if (json_result.empty()) {
-    DLOG(ERROR) << "Script event method not defined: " << method;
-  } else {
-    SendEventInternal(event, json_result);
-  }
 }
 
 void DebugDispatcher::SendEventInternal(
