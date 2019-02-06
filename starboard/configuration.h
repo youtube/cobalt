@@ -68,6 +68,10 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate the events of type kSbEventTypeNetworkDisconnect,
+// kSbEventTypeNetworkConnect.
+#define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Add SbMediaTransferId* argument |eotf| to SbMediaIsVideoSupported, so the
 // platform may indicate support of resolution, bitrate, fps, and codec
 // conditioned on eotf. Also, remove the function
