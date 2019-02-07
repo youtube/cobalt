@@ -98,6 +98,11 @@ class ScriptDebugger {
   virtual bool CanDispatchProtocolMethod(const std::string& method) = 0;
   virtual void DispatchProtocolMessage(const std::string& message) = 0;
 
+  // Creates a JSON representation of an object.
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
+  virtual std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                         const std::string& group) = 0;
+
   // For performance tracing of JavaScript methods.
   virtual void StartTracing(const std::vector<std::string>& categories,
                             TraceDelegate* trace_delegate) = 0;
