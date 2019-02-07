@@ -41,6 +41,9 @@ class V8cScriptDebugger : public ScriptDebugger,
   bool CanDispatchProtocolMethod(const std::string& method) override;
   void DispatchProtocolMessage(const std::string& message) override;
 
+  std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                 const std::string& group) override;
+
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) override;
   void StopTracing() override;
@@ -69,8 +72,6 @@ class V8cScriptDebugger : public ScriptDebugger,
   void flushProtocolNotifications() override {}
 
  private:
-  std::string FromStringView(const v8_inspector::StringView& string_view);
-
   V8cGlobalEnvironment* global_environment_;
   Delegate* delegate_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;

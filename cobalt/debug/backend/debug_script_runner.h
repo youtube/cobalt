@@ -22,6 +22,7 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/script_debugger.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
@@ -47,6 +48,7 @@ class DebugScriptRunner : public script::Wrappable {
       OnEventCallback;
 
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
+                    script::ScriptDebugger* script_debugger,
                     const dom::CspDelegate* csp_delegate,
                     const OnEventCallback& on_event_callback);
 
@@ -60,10 +62,15 @@ class DebugScriptRunner : public script::Wrappable {
   // functionality to the JS object wrapped by this class.
   bool RunScriptFile(const std::string& filename);
 
-  // Non-standard JavaScript extension API.
-  // Called to send an event via the callback specified in the constructor.
+  // IDL: Sends a protocol event to the debugger frontend.
   void SendEvent(const std::string& method,
                  const base::optional<std::string>& params);
+
+  // IDL: Returns the RemoteObject JSON representation of the given object for
+  // the debugger frontend.
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
+  std::string CreateRemoteObject(const script::ValueHandleHolder& object,
+                                 const std::string& group);
 
   DEFINE_WRAPPABLE_TYPE(DebugScriptRunner);
 
@@ -78,6 +85,9 @@ class DebugScriptRunner : public script::Wrappable {
 
   // No ownership.
   script::GlobalEnvironment* global_environment_;
+
+  // Engine-specific debugger implementation.
+  script::ScriptDebugger* script_debugger_;
 
   // Non-owned reference to let this object query whether CSP allows eval.
   const dom::CspDelegate* csp_delegate_;

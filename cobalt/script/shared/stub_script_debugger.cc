@@ -38,6 +38,12 @@ class StubScriptDebugger : public ScriptDebugger {
     NOTIMPLEMENTED();
   }
 
+  std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                 const std::string& group) override {
+    NOTIMPLEMENTED();
+    return "{}";
+  }
+
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) {
     NOTIMPLEMENTED();

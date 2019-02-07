@@ -30,10 +30,10 @@ DebugDispatcher::DebugDispatcher(script::GlobalEnvironment* global_environment,
                                  const dom::CspDelegate* csp_delegate,
                                  script::ScriptDebugger* script_debugger)
     : script_debugger_(script_debugger),
-      ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(
-          new DebugScriptRunner(global_environment, csp_delegate,
-                                base::Bind(&DebugDispatcher::SendEventInternal,
-                                           base::Unretained(this))))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
+          global_environment, script_debugger, csp_delegate,
+          base::Bind(&DebugDispatcher::SendEventInternal,
+                     base::Unretained(this))))),
       message_loop_(MessageLoop::current()),
       is_paused_(false),
       // No manual reset, not initially signaled.

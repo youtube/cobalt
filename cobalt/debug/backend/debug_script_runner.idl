@@ -17,4 +17,5 @@
 ]
 interface DebugScriptRunner {
   void sendEvent(DOMString method, DOMString? params);
+  DOMString createRemoteObject(any obj, DOMString group);
 };

@@ -33,9 +33,11 @@ const char kObjectIdentifier[] = "devtoolsBackend";
 
 DebugScriptRunner::DebugScriptRunner(
     script::GlobalEnvironment* global_environment,
+    script::ScriptDebugger* script_debugger,
     const dom::CspDelegate* csp_delegate,
     const OnEventCallback& on_event_callback)
     : global_environment_(global_environment),
+      script_debugger_(script_debugger),
       csp_delegate_(csp_delegate),
       on_event_callback_(on_event_callback) {
   // Bind this object to the global object so it can persist state and be
@@ -101,6 +103,11 @@ bool DebugScriptRunner::EvaluateScriptFile(const std::string& filename,
 void DebugScriptRunner::SendEvent(const std::string& method,
                                   const base::optional<std::string>& params) {
   on_event_callback_.Run(method, params);
+}
+
+std::string DebugScriptRunner::CreateRemoteObject(
+    const script::ValueHandleHolder& object, const std::string& group) {
+  return script_debugger_->CreateRemoteObject(object, group);
 }
 
 void DebugScriptRunner::ForceEnableEval() {
