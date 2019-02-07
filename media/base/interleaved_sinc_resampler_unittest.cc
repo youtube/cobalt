@@ -14,6 +14,20 @@
  * limitations under the License.
  */
 
+// Modifications Copyright 2019 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <math.h>
 
 #include <algorithm>
@@ -60,22 +74,6 @@ void ReadCB(const float* source,
   }
 }
 
-class TestBuffer : public Buffer {
- public:
-  TestBuffer(const void* data, int data_size)
-      : Buffer(base::TimeDelta(), base::TimeDelta()),
-        data_(static_cast<const uint8*>(data)),
-        data_size_(data_size) {}
-
-  const uint8* GetData() const override { return data_; }
-
-  int GetDataSize() const override { return data_size_; }
-
- private:
-  const uint8* data_;
-  int data_size_;
-};
-
 }  // namespace
 
 TEST(InterleavedSincResamplerTest, InitialState) {
@@ -84,27 +82,26 @@ TEST(InterleavedSincResamplerTest, InitialState) {
 
   ASSERT_FALSE(interleaved_resampler.ReachedEOS());
   ASSERT_TRUE(interleaved_resampler.CanQueueBuffer());
-  ASSERT_FALSE(interleaved_resampler.Resample(output, 1));
+  ASSERT_FALSE(interleaved_resampler.HasEnoughData(1));
 }
 
 TEST(InterleavedSincResamplerTest, Read) {
   const int kInputFrames = 1024;
   const int kOutputFrames = kInputFrames * 2;
   float samples[kInputFrames] = {0.0};
-  float output[kOutputFrames];
 
   InterleavedSincResampler interleaved_resampler(
       static_cast<double>(kInputFrames) / kOutputFrames, 1);
 
-  interleaved_resampler.QueueBuffer(new TestBuffer(samples, sizeof(samples)));
-  ASSERT_FALSE(interleaved_resampler.Resample(output, kOutputFrames + 1));
+  interleaved_resampler.QueueBuffer(samples, kInputFrames);
+  ASSERT_FALSE(interleaved_resampler.HasEnoughData(kOutputFrames + 1));
 
   while (interleaved_resampler.CanQueueBuffer()) {
-    interleaved_resampler.QueueBuffer(new TestBuffer(samples, sizeof(samples)));
+    interleaved_resampler.QueueBuffer(samples, kInputFrames);
   }
 
   // There is really no guarantee that we can read more.
-  ASSERT_TRUE(interleaved_resampler.Resample(output, 1));
+  ASSERT_TRUE(interleaved_resampler.HasEnoughData(1));
 }
 
 TEST(InterleavedSincResamplerTest, ReachedEOS) {
@@ -115,17 +112,17 @@ TEST(InterleavedSincResamplerTest, ReachedEOS) {
   InterleavedSincResampler interleaved_resampler(
       static_cast<double>(kInputFrames) / kOutputFrames, 1);
 
-  interleaved_resampler.QueueBuffer(new TestBuffer(input, sizeof(input)));
-  interleaved_resampler.QueueBuffer(new TestBuffer(NULL, 0));  // EOS
+  interleaved_resampler.QueueBuffer(input, kInputFrames);
+  interleaved_resampler.QueueBuffer(NULL, 0);  // EOS
 
   ASSERT_FALSE(interleaved_resampler.ReachedEOS());
 
   float output[kOutputFrames];
 
-  ASSERT_TRUE(interleaved_resampler.Resample(output, kOutputFrames - 4));
+  interleaved_resampler.Resample(output, kOutputFrames - 4);
   ASSERT_FALSE(interleaved_resampler.ReachedEOS());
 
-  ASSERT_TRUE(interleaved_resampler.Resample(output, 4));
+  interleaved_resampler.Resample(output, 4);
   ASSERT_TRUE(interleaved_resampler.ReachedEOS());
 }
 
@@ -150,15 +147,14 @@ TEST(InterleavedSincResamplerTest, ResampleSingleChannel) {
       kResampleRatio, base::Bind(ReadCB, input, kInputFrames, 0, 1, &offset));
   InterleavedSincResampler interleaved_resampler(kResampleRatio, 1);
 
-  interleaved_resampler.QueueBuffer(new TestBuffer(input, sizeof(input)));
-  interleaved_resampler.QueueBuffer(new TestBuffer(NULL, 0));  // EOS
+  interleaved_resampler.QueueBuffer(input, kInputFrames);
+  interleaved_resampler.QueueBuffer(NULL, 0);  // EOS
 
   float non_interleaved_output[kOutputFrames];
   float interleaved_output[kOutputFrames];
 
   sinc_resampler.Resample(non_interleaved_output, kOutputFrames);
-  ASSERT_TRUE(
-      interleaved_resampler.Resample(interleaved_output, kOutputFrames));
+  interleaved_resampler.Resample(interleaved_output, kOutputFrames);
 
   for (int i = 0; i < kOutputFrames; ++i) {
     ASSERT_TRUE(
@@ -190,13 +186,12 @@ TEST(InterleavedSincResamplerTest, ResampleMultipleChannels) {
   }
 
   InterleavedSincResampler interleaved_resampler(kResampleRatio, kChannelCount);
-  interleaved_resampler.QueueBuffer(new TestBuffer(input, sizeof(input)));
-  interleaved_resampler.QueueBuffer(new TestBuffer(NULL, 0));  // EOS
+  interleaved_resampler.QueueBuffer(input, kInputFrames);
+  interleaved_resampler.QueueBuffer(NULL, 0);  // EOS
 
   float interleaved_output[kOutputFrames * kChannelCount];
 
-  ASSERT_TRUE(
-      interleaved_resampler.Resample(interleaved_output, kOutputFrames));
+  interleaved_resampler.Resample(interleaved_output, kOutputFrames);
 
   for (int i = 0; i < kOutputFrames; ++i) {
     for (int channel = 0; channel < kChannelCount; ++channel) {
@@ -227,9 +222,9 @@ TEST(InterleavedSincResamplerTest, Benchmark) {
   int total_output_frames = 0;
 
   for (int i = 0; i < kNumberOfIterations; ++i) {
-    interleaved_resampler.QueueBuffer(
-        new TestBuffer(&input[0], sizeof(float) * input.size()));
-    if (interleaved_resampler.Resample(&interleaved_output[0], kOutputFrames)) {
+    interleaved_resampler.QueueBuffer(&input[0], kInputFrames);
+    if (interleaved_resampler.HasEnoughData(kOutputFrames)) {
+      interleaved_resampler.Resample(&interleaved_output[0], kOutputFrames);
       total_output_frames += kOutputFrames;
     }
   }

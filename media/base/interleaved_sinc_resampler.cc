@@ -1,6 +1,20 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+// Modifications Copyright 2019 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //
 // Input buffer layout, dividing the total buffer into regions (r0_ - r5_):
 //
@@ -65,6 +79,30 @@ const int kMaximumPendingBuffers = 8;
 
 }  // namespace
 
+class InterleavedSincResampler::Buffer
+    : public base::RefCountedThreadSafe<Buffer> {
+ public:
+  Buffer() : data_(NULL), frames_(0) {}
+  Buffer(const float* data, int frames, int channel_count) : frames_(frames) {
+    data_.reset(new float[frames * channel_count]);
+    memcpy(data_.get(), data, frames * channel_count * sizeof(float));
+  }
+  Buffer(scoped_array<float> data, int frames)
+      : data_(data.Pass()), frames_(frames) {}
+
+  const float* GetData() const { return data_.get(); }
+
+  int GetNumFrames() const { return frames_; }
+
+  bool IsEndOfStream() const { return GetData() == NULL; }
+
+ private:
+  scoped_array<float> data_;
+  int frames_;
+
+  DISALLOW_COPY_AND_ASSIGN(Buffer);
+};
+
 InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
                                                    int channel_count)
     : io_sample_rate_ratio_(io_sample_rate_ratio),
@@ -115,6 +153,8 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   InitializeKernel();
 }
 
+InterleavedSincResampler::~InterleavedSincResampler() {}
+
 void InterleavedSincResampler::InitializeKernel() {
   // Blackman window parameters.
   static const double kAlpha = 0.16;
@@ -158,27 +198,43 @@ void InterleavedSincResampler::InitializeKernel() {
   }
 }
 
-void InterleavedSincResampler::QueueBuffer(
-    const scoped_refptr<Buffer>& buffer) {
-  DCHECK(buffer);
+void InterleavedSincResampler::QueueBuffer(const float* data, int frames) {
   DCHECK(CanQueueBuffer());
 
   if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
-    DCHECK(buffer->IsEndOfStream());
+    DCHECK(!data);
     return;
   }
 
-  if (!buffer->IsEndOfStream()) {
-    frames_queued_ += buffer->GetDataSize() / frame_size_in_bytes_;
+  if (!data) {
+    pending_buffers_.push(new Buffer);
+    return;
+  } else {
+    frames_queued_ += frames;
+    pending_buffers_.push(new Buffer(data, frames, channel_count_));
   }
-
-  pending_buffers_.push(buffer);
 }
 
-bool InterleavedSincResampler::Resample(float* destination, int frames) {
-  if (!HasEnoughData(frames)) {
-    return false;
+void InterleavedSincResampler::QueueBuffer(scoped_array<float> data,
+                                           int frames) {
+  DCHECK(CanQueueBuffer());
+
+  if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
+    DCHECK(!data.get());
+    return;
   }
+
+  if (!data.get()) {
+    pending_buffers_.push(new Buffer);
+    return;
+  } else {
+    frames_queued_ += frames;
+    pending_buffers_.push(new Buffer(data.Pass(), frames));
+  }
+}
+
+void InterleavedSincResampler::Resample(float* destination, int frames) {
+  DCHECK(HasEnoughData(frames));
 
   int remaining_frames = frames;
 
@@ -219,7 +275,7 @@ bool InterleavedSincResampler::Resample(float* destination, int frames) {
 
       if (!--remaining_frames) {
         frames_resampled_ += frames;
-        return true;
+        return;
       }
     }
 
@@ -237,7 +293,6 @@ bool InterleavedSincResampler::Resample(float* destination, int frames) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 void InterleavedSincResampler::Flush() {
@@ -291,10 +346,10 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
       return;
     }
     // Copy the data over.
-    int frames_in_buffer = buffer->GetDataSize() / frame_size_in_bytes_;
+    int frames_in_buffer = buffer->GetNumFrames();
     int frames_to_copy = std::min(frames_in_buffer - offset_in_frames_, frames);
-    const uint8* source = buffer->GetData();
-    source += frame_size_in_bytes_ * offset_in_frames_;
+    const float* source = buffer->GetData();
+    source += offset_in_frames_ * channel_count_;
     memcpy(destination, source, frame_size_in_bytes_ * frames_to_copy);
     offset_in_frames_ += frames_to_copy;
     // Pop the first buffer if all its content has been read.
