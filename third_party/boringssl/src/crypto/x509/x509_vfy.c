@@ -922,64 +922,8 @@ err:
   return ok;
 }
 
-///* Check CRL times against values in X509_STORE_CTX */
-
-#if 1
-static int check_crl_time(X509_STORE_CTX *ctx, X509_CRL *crl, int notify) {
-  OPENSSL_port_time_t *ptime;
-  int i;
-  if (notify)
-    ctx->current_crl = crl;
-  if (ctx->param->flags & X509_V_FLAG_USE_CHECK_TIME)
-    ptime = &ctx->param->check_time;
-  else
-    ptime = NULL;
-
-  i = X509_cmp_time(X509_CRL_get_lastUpdate(crl), ptime);
-  if (i == 0) {
-    if (!notify)
-      return 0;
-    ctx->error = X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD;
-    if (!ctx->verify_cb(0, ctx))
-      return 0;
-  }
-
-  if (i > 0) {
-    if (!notify)
-      return 0;
-    ctx->error = X509_V_ERR_CRL_NOT_YET_VALID;
-    if (!ctx->verify_cb(0, ctx))
-      return 0;
-  }
-
-  if (X509_CRL_get_nextUpdate(crl)) {
-    i = X509_cmp_time(X509_CRL_get_nextUpdate(crl), ptime);
-
-    if (i == 0) {
-      if (!notify)
-        return 0;
-      ctx->error = X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD;
-      if (!ctx->verify_cb(0, ctx))
-        return 0;
-    }
-    /* Ignore expiry of base CRL is delta is valid */
-    if ((i < 0) && !(ctx->current_crl_score & CRL_SCORE_TIME_DELTA)) {
-      if (!notify)
-        return 0;
-      ctx->error = X509_V_ERR_CRL_HAS_EXPIRED;
-      if (!ctx->verify_cb(0, ctx))
-        return 0;
-    }
-  }
-
-  if (notify)
-    ctx->current_crl = NULL;
-
-  return 1;
-}
-
 /* Check CRL times against values in X509_STORE_CTX */
-#else
+
 static int check_crl_time(X509_STORE_CTX *ctx, X509_CRL *crl, int notify) {
   OPENSSL_port_time_t *ptime;
   int i;
@@ -1032,7 +976,6 @@ static int check_crl_time(X509_STORE_CTX *ctx, X509_CRL *crl, int notify) {
 
   return 1;
 }
-#endif
 
 static int get_crl_sk(X509_STORE_CTX *ctx, X509_CRL **pcrl, X509_CRL **pdcrl,
                       X509 **pissuer, int *pscore, unsigned int *preasons,
@@ -1840,71 +1783,7 @@ end:
 int X509_cmp_current_time(const ASN1_TIME *ctm) {
   return X509_cmp_time(ctm, NULL);
 }
-#if 0
-int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) 
-{
-    static const size_t utctime_length = sizeof("YYMMDDHHMMSSZ") - 1;
-    static const size_t generalizedtime_length = sizeof("YYYYMMDDHHMMSSZ") - 1;
-    ASN1_TIME *asn1_cmp_time = NULL; int i, day, sec, ret = 0;
 
-    /*
-     * Note that ASN.1 allows much more slack in the time format than RFC5280.
-     * In RFC5280, the representation is fixed:
-     * UTCTime: YYMMDDHHMMSSZ
-     * GeneralizedTime: YYYYMMDDHHMMSSZ
-     *
-     * We do NOT currently enforce the following RFC 5280 requirement:
-     * "CAs conforming to this profile MUST always encode certificate
-     *  validity dates through the year 2049 as UTCTime; certificate validity
-     *  dates in 2050 or later MUST be encoded as GeneralizedTime."
-     */
-    switch (ctm->type) {
-    case V_ASN1_UTCTIME:
-        if (ctm->length != (int)(utctime_length))
-            return 0;
-        break;
-    case V_ASN1_GENERALIZEDTIME:
-        if (ctm->length != (int)(generalizedtime_length))
-            return 0;
-        break;
-    default:
-        return 0;
-    }
-
-    /**
-     * Verify the format: the ASN.1 functions we use below allow a more
-     * flexible format than what's mandated by RFC 5280.
-     * Digit and date ranges will be verified in the conversion methods.
-     */
-    for (i = 0; i < ctm->length - 1; i++) {
-        if (!isdigit(ctm->data[i]))
-            return 0;
-    }
-    if (ctm->data[ctm->length - 1] != 'Z')
-        return 0;
-
-    /*
-     * There is ASN1_UTCTIME_cmp_time_t but no
-     * ASN1_GENERALIZEDTIME_cmp_time_t or ASN1_TIME_cmp_time_t,
-     * so we go through ASN.1
-     */
-    asn1_cmp_time = X509_time_adj(NULL, 0, cmp_time);
-    if (asn1_cmp_time == NULL)
-        goto err;
-    if (!ASN1_TIME_diff(&day, &sec, ctm, asn1_cmp_time))
-        goto err;
-
-    /*
-     * X509_cmp_time comparison is <=.
-     * The return value 0 is reserved for errors.
-     */
-    ret = (day >= 0 && sec >= 0) ? -1 : 1;
-
- err:
-    ASN1_TIME_free(asn1_cmp_time);
-    return ret;
-}
-#else
 int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
   char *str;
   ASN1_TIME atm;
@@ -2019,43 +1898,18 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
   else
     return i;
 }
-#endif
 
 ASN1_TIME *X509_gmtime_adj(ASN1_TIME *s, long adj) {
   return X509_time_adj(s, adj, NULL);
 }
 
-#if 0
-ASN1_TIME *X509_time_adj(ASN1_TIME *s, long offset_sec, time_t *in_tm) {
-  return X509_time_adj_ex(s, 0, offset_sec, in_tm);
-}
-
-ASN1_TIME *X509_time_adj_ex(ASN1_TIME *s, int offset_day, long offset_sec,
-                            time_t *in_tm) {
-  time_t t = 0;
-
-  if (in_tm)
-    t = *in_tm;
-  else
-    time(&t);
-
-  if (s && !(s->flags & ASN1_STRING_FLAG_MSTRING)) {
-    if (s->type == V_ASN1_UTCTIME)
-      return ASN1_UTCTIME_adj(s, t, offset_day, offset_sec);
-    if (s->type == V_ASN1_GENERALIZEDTIME)
-      return ASN1_GENERALIZEDTIME_adj(s, t, offset_day, offset_sec);
-  }
-  return ASN1_TIME_adj(s, t, offset_day, offset_sec);
-}
-#else
-ASN1_TIME *X509_time_adj(ASN1_TIME *s, long offset_sec,
-                         OPENSSL_port_time_t *in_tm) {
+ASN1_TIME *X509_time_adj(ASN1_TIME *s, long offset_sec, OPENSSL_port_time_t *in_tm) {
   return X509_time_adj_ex(s, 0, offset_sec, in_tm);
 }
 
 ASN1_TIME *X509_time_adj_ex(ASN1_TIME *s, int offset_day, long offset_sec,
                             OPENSSL_port_time_t *in_tm) {
-  OPENSSL_port_time_t t;
+  OPENSSL_port_time_t t = 0;
 
   if (in_tm)
     t = *in_tm;
@@ -2070,7 +1924,7 @@ ASN1_TIME *X509_time_adj_ex(ASN1_TIME *s, int offset_day, long offset_sec,
   }
   return ASN1_TIME_adj(s, t, offset_day, offset_sec);
 }
-#endif
+
 /* Make a delta CRL as the diff between two full CRLs */
 
 X509_CRL *X509_CRL_diff(X509_CRL *base, X509_CRL *newer, EVP_PKEY *skey,
@@ -2482,7 +2336,7 @@ void X509_STORE_CTX_set_flags(X509_STORE_CTX *ctx, unsigned long flags) {
 }
 
 void X509_STORE_CTX_set_time(X509_STORE_CTX *ctx, unsigned long flags,
-                             time_t t) {
+                             OPENSSL_port_time_t t) {
   X509_VERIFY_PARAM_set_time(ctx->param, t);
 }
 

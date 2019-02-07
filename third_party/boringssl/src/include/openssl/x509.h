@@ -697,10 +697,13 @@ OPENSSL_EXPORT int X509_NAME_ENTRY_set(const X509_NAME_ENTRY *ne);
 OPENSSL_EXPORT int X509_NAME_get0_der(X509_NAME *nm, const unsigned char **pder,
                                       size_t *pderlen);
 
-OPENSSL_EXPORT int		X509_cmp_time(const ASN1_TIME *s, time_t *t);
+OPENSSL_EXPORT int X509_cmp_time(const ASN1_TIME *s, OPENSSL_port_time_t *t);
 OPENSSL_EXPORT int		X509_cmp_current_time(const ASN1_TIME *s);
-OPENSSL_EXPORT ASN1_TIME *	X509_time_adj(ASN1_TIME *s, long adj, time_t *t);
-OPENSSL_EXPORT ASN1_TIME *	X509_time_adj_ex(ASN1_TIME *s, int offset_day, long offset_sec, time_t *t);
+OPENSSL_EXPORT ASN1_TIME *X509_time_adj(ASN1_TIME *s, long adj,
+                                        OPENSSL_port_time_t *t);
+OPENSSL_EXPORT ASN1_TIME *X509_time_adj_ex(ASN1_TIME *s, int offset_day,
+                                           long offset_sec,
+                                           OPENSSL_port_time_t *t);
 OPENSSL_EXPORT ASN1_TIME *	X509_gmtime_adj(ASN1_TIME *s, long adj);
 
 OPENSSL_EXPORT const char *	X509_get_default_cert_area(void );
