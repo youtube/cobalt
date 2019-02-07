@@ -268,25 +268,25 @@
             "category": "Elements",
             "className": "Elements.ElementsPanel"
         },
-        {
-            "type": "view",
-            "location": "elements-sidebar",
-            "id": "elements.eventListeners",
-            "title": "Event Listeners",
-            "order": 5,
-            "hasToolbar": true,
-            "persistence": "permanent",
-            "className": "Elements.EventListenersWidget"
-        },
-        {
-            "type": "view",
-            "location": "elements-sidebar",
-            "id": "elements.domProperties",
-            "title": "Properties",
-            "order": 7,
-            "persistence": "permanent",
-            "className": "Elements.PropertiesWidget"
-        }
+        // {
+        //     "type": "view",
+        //     "location": "elements-sidebar",
+        //     "id": "elements.eventListeners",
+        //     "title": "Event Listeners",
+        //     "order": 5,
+        //     "hasToolbar": true,
+        //     "persistence": "permanent",
+        //     "className": "Elements.EventListenersWidget"
+        // },
+        // {
+        //     "type": "view",
+        //     "location": "elements-sidebar",
+        //     "id": "elements.domProperties",
+        //     "title": "Properties",
+        //     "order": 7,
+        //     "persistence": "permanent",
+        //     "className": "Elements.PropertiesWidget"
+        // }
     ],
     "dependencies": [
         "browser_components",
