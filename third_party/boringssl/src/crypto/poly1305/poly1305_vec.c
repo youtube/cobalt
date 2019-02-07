@@ -18,8 +18,8 @@
 // http://cr.yp.to/papers.html#neoncrypto. Unrolled to 2 powers, i.e. 64 byte
 // block size
 
-#include <openssl/mem.h>
 #include <openssl/poly1305.h>
+#include <openssl/mem.h>
 
 #include "../internal.h"
 
