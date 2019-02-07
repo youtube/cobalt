@@ -16,6 +16,7 @@
 // SUPERCOP by D. J. Bernstein and Peter Schwabe.
 
 #include <openssl/poly1305.h>
+#include <openssl/mem.h>
 
 #include <string.h>
 
