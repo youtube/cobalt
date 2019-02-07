@@ -54,7 +54,17 @@ static const unsigned kReseedInterval = 4096;
 // continuous random number generator test in FIPS 140-2, section 4.9.2.
 #define CRNGT_BLOCK_SIZE 16
 
-#if defined(OPENSSL_X86_64) && !defined(OPENSSL_NO_ASM) && \
+#if defined(STARBOARD)
+
+static int hwrand(uint8_t *buf, size_t len) {
+  if (len && buf) {
+    SbSystemGetRandomData(buf, len);
+    return 1;
+  }
+  return 0;
+}
+
+#elif defined(OPENSSL_X86_64) && !defined(OPENSSL_NO_ASM) && \
     !defined(BORINGSSL_UNSAFE_DETERMINISTIC_MODE)
 
 // These functions are defined in asm/rdrand-x86_64.pl
