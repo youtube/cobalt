@@ -7,7 +7,7 @@
     { "name": "browser_console" },
     { "name": "browser_debugger" },
     { "name": "cookie_table" },
-    // { "name": "elements" },
+    { "name": "elements" },
     { "name": "har_importer" },
     { "name": "help" },
     { "name": "layer_viewer" },
