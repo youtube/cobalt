@@ -223,28 +223,34 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   bool was_playing = true;
 
   while (!quit_) {
-    ScopedLocalJavaRef<jobject> j_audio_timestamp(
-        env->CallObjectMethodOrAbort(j_audio_track_bridge_, "getAudioTimestamp",
-                                     "()Landroid/media/AudioTimestamp;"));
+    int playback_head_position = 0;
+    SbTime frames_consumed_at = 0;
 
-    int playback_head_position =
-        env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "framePosition", "J");
-    SbTime frames_consumed_at =
-        env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
-        1000;
+    if (was_playing) {
+      ScopedLocalJavaRef<jobject> j_audio_timestamp(
+          env->CallObjectMethodOrAbort(j_audio_track_bridge_,
+                                       "getAudioTimestamp",
+                                       "()Landroid/media/AudioTimestamp;"));
+      playback_head_position = env->GetLongFieldOrAbort(j_audio_timestamp.Get(),
+                                                        "framePosition", "J");
+      frames_consumed_at =
+          env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
+          1000;
 
-    SB_DCHECK(playback_head_position >= last_playback_head_position_);
+      SB_DCHECK(playback_head_position >= last_playback_head_position_);
 
-    playback_head_position =
-        std::max(playback_head_position, last_playback_head_position_);
-    int frames_consumed = playback_head_position - last_playback_head_position_;
-    last_playback_head_position_ = playback_head_position;
-    frames_consumed = std::min(frames_consumed, written_frames_);
+      playback_head_position =
+          std::max(playback_head_position, last_playback_head_position_);
+      int frames_consumed =
+          playback_head_position - last_playback_head_position_;
+      last_playback_head_position_ = playback_head_position;
+      frames_consumed = std::min(frames_consumed, written_frames_);
 
-    if (frames_consumed != 0) {
-      SB_DCHECK(frames_consumed >= 0);
-      consume_frame_func_(frames_consumed, frames_consumed_at, context_);
-      written_frames_ -= frames_consumed;
+      if (frames_consumed != 0) {
+        SB_DCHECK(frames_consumed >= 0);
+        consume_frame_func_(frames_consumed, frames_consumed_at, context_);
+        written_frames_ -= frames_consumed;
+      }
     }
 
     int frames_in_buffer;
@@ -253,7 +259,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     bool is_eos_reached;
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
-
     {
       ScopedLock lock(mutex_);
       if (playback_rate_ == 0.0) {
@@ -290,6 +295,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (expected_written_frames == 0) {
       // It is possible that all the frames in buffer are written to the
       // soundcard, but those are not being consumed.
+      SbThreadSleep(10 * kSbTimeMillisecond);
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
