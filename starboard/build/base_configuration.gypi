@@ -67,6 +67,9 @@
     # The target platform id as a string, like 'linux-x64x11', 'win32', etc..
     'sb_target_platform': '',
 
+    # Whether this is an evergreen build.
+    'sb_evergreen': 0,
+
     # The operating system of the target, separate from the target_arch. In many
     # cases, an 'unknown' value is fine, but, if set to 'linux', then we can
     # assume some things, and it'll save us some configuration time.

@@ -46,6 +46,11 @@
         'SB_IS_LIBRARY=1',
       ],
     }],
+    ['sb_evergreen==1', {
+      'defines': [
+        'SB_IS_EVERGREEN=1',
+      ],
+    }],
     ['starboard_path == ""', {
       'defines': [
         # There doesn't appear to be any way to use the C preprocessor to do

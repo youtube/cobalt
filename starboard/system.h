@@ -563,7 +563,7 @@ SB_EXPORT void SbSystemHideSplashScreen();
 // send kSbEventTypeResume to the event handler.
 // The return value of this function cannot change over the life time of the
 // application.
-bool SbSystemSupportsResume();
+SB_EXPORT bool SbSystemSupportsResume();
 #endif  // SB_API_VERSION >= 10
 
 #ifdef __cplusplus
