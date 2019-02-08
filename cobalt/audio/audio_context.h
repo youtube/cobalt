@@ -15,6 +15,7 @@
 #ifndef COBALT_AUDIO_AUDIO_CONTEXT_H_
 #define COBALT_AUDIO_AUDIO_CONTEXT_H_
 
+#include <set>
 #include <string>
 
 #include "base/callback.h"
@@ -33,6 +34,7 @@
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
 
 namespace cobalt {
@@ -89,8 +91,12 @@ class AudioContext : public dom::EventTarget {
   typedef script::ScriptValue<DecodeErrorCallback> DecodeErrorCallbackArg;
   typedef DecodeErrorCallbackArg::Reference DecodeErrorCallbackReference;
 
-  AudioContext();
+  explicit AudioContext(script::EnvironmentSettings* settings);
   ~AudioContext();
+
+  script::GlobalEnvironment* global_environment() {
+    return global_environment_;
+  }
 
   // Web API: AudioContext
   //
@@ -132,6 +138,14 @@ class AudioContext : public dom::EventTarget {
   scoped_refptr<AudioBuffer> CreateBuffer(uint32 num_of_channels, uint32 length,
                                           float sample_rate);
 
+  void PreventGarbageCollection();
+  void AllowGarbageCollection();
+
+  void AddBufferSource(
+      const scoped_refptr<AudioBufferSourceNode>& buffer_source);
+  void RemoveBufferSource(
+      const scoped_refptr<AudioBufferSourceNode>& buffer_source);
+
   const scoped_refptr<AudioLock>& audio_lock() const { return audio_lock_; }
 
   DEFINE_WRAPPABLE_TYPE(AudioContext);
@@ -166,12 +180,20 @@ class AudioContext : public dom::EventTarget {
 
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
 
+  typedef std::set<scoped_refptr<AudioBufferSourceNode> >
+      AudioBufferSourceNodeSet;
+
   // From EventTarget.
   std::string GetDebugName() override { return "AudioContext"; }
 
   void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate,
                     scoped_ptr<ShellAudioBus> audio_bus);
+
+  script::GlobalEnvironment* global_environment_;
+
+  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_playback_complete_;
 
   base::WeakPtrFactory<AudioContext> weak_ptr_factory_;
   // We construct a WeakPtr upon AudioContext's construction in order to
@@ -192,6 +214,8 @@ class AudioContext : public dom::EventTarget {
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
 
   AsyncAudioDecoder audio_decoder_;
+
+  AudioBufferSourceNodeSet buffer_sources_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioContext);
 };
