@@ -16,7 +16,6 @@
 //
 // Provides macros for properly exporting or importing symbols from shared
 // libraries.
-
 #ifndef STARBOARD_EXPORT_H_
 #define STARBOARD_EXPORT_H_
 
@@ -31,7 +30,7 @@
 // SB_IMPORT: Specification for a symbol that is expected to be defined
 // externally to this module.
 
-#if defined(COMPONENT_BUILD) || SB_IS(LIBRARY)
+#if defined(COMPONENT_BUILD) || SB_IS(LIBRARY) || SB_IS(EVERGREEN)
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
 // EXPORT/IMPORT.
