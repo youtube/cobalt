@@ -235,6 +235,11 @@ class V8_EXPORT V8Inspector {
   static std::unique_ptr<V8Inspector> create(v8::Isolate*, V8InspectorClient*);
   virtual ~V8Inspector() {}
 
+  // Exposed so Cobalt's debugger can have a hybrid implementation using
+  // JavaScript without it showing up as debuggable source in DevTools.
+  virtual v8::MaybeLocal<v8::Value> compileAndRunInternalScript(
+      v8::Local<v8::Context>, v8::Local<v8::String>) = 0;
+
   // Contexts instrumentation.
   virtual void contextCreated(const V8ContextInfo&) = 0;
   virtual void contextDestroyed(v8::Local<v8::Context>) = 0;
