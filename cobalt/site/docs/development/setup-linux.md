@@ -31,11 +31,11 @@ SSH into another machine and run the binary on that machine.
 
     ```
     $ sudo apt-get install bison build-essential coreutils git gperf \
-           libasound2-dev libavformat-dev libavresample-dev \
+           libaom-dev libasound2-dev libavformat-dev libavresample-dev \
            libdirectfb-dev libdirectfb-extra libpulse-dev \
-           libgl1-mesa-dev libgles2-mesa-dev libx11-dev \
+           libgl1-mesa-dev libgles2-mesa-dev libvpx-dev libx11-dev \
            libxcomposite-dev libxcomposite1 libxrender-dev libxrender1 \
-           libxpm-dev m4 ruby tar xserver-xephyr xz-utils yasm
+           libxpm-dev m4 python ruby tar xserver-xephyr xz-utils yasm
     ```
 
 1.  Install the latest version of the standard C++ header files (`libstdc++`).
