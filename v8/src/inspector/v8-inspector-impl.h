@@ -62,8 +62,8 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
 
-  v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
-                                                        v8::Local<v8::String>);
+  v8::MaybeLocal<v8::Value> compileAndRunInternalScript(
+      v8::Local<v8::Context>, v8::Local<v8::String>) override;
   v8::MaybeLocal<v8::Script> compileScript(v8::Local<v8::Context>,
                                            const String16& code,
                                            const String16& fileName);
