@@ -52,9 +52,12 @@ class DebugScriptRunner : public script::Wrappable {
                     const dom::CspDelegate* csp_delegate,
                     const OnEventCallback& on_event_callback);
 
-  // Runs |method| on the JavaScript |runtimeInspector| object, passing in
-  // |json_params| and putting the result in |json_result|.
-  // Returns |true| if execution was successful, |false| otherwise.
+  // Runs |method| on the JavaScript |devtoolsBackend| object, passing in
+  // |json_params|. If |json_result| is non-NULL it receives the result.
+  // Returns |true| if the method was executed; |json_result| is the value
+  // returned by the method.
+  // Returns |false| if the method wasn't executed; if the method isn't defined
+  // |json_result| is empty, otherwise it's an error message.
   bool RunCommand(const std::string& method, const std::string& json_params,
                   std::string* json_result);
 
@@ -75,8 +78,8 @@ class DebugScriptRunner : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(DebugScriptRunner);
 
  private:
-  bool EvaluateScript(const std::string& js_code, std::string* result);
-  bool EvaluateScriptFile(const std::string& filename, std::string* result);
+  bool EvaluateDebuggerScript(const std::string& script,
+                              std::string* out_result_utf8);
 
   // Ensures the JS eval command is enabled, overriding CSP if necessary.
   void ForceEnableEval();

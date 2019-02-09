@@ -94,6 +94,14 @@ class ScriptDebugger {
   virtual void Attach() = 0;
   virtual void Detach() = 0;
 
+  // Evaluate JavaScript code that is part of the debugger implementation, such
+  // that it does not get reported as debuggable source. Returns true on
+  // success, false if there is an exception. If out_result_utf8 is non-NULL, it
+  // will be set to hold the result of the script evaluation if the script
+  // succeeds, or an exception message if it fails.
+  virtual bool EvaluateDebuggerScript(const std::string& js_code,
+                                      std::string* out_result_utf8) = 0;
+
   // For engines like V8 that directly handle protocol commands.
   virtual bool CanDispatchProtocolMethod(const std::string& method) = 0;
   virtual void DispatchProtocolMessage(const std::string& message) = 0;
