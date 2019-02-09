@@ -57,34 +57,11 @@ bool DebugScriptRunner::RunCommand(const std::string& method,
       "    ? '' : %s.%s(%s);",
       kObjectIdentifier, domain.c_str(), kObjectIdentifier, method.c_str(),
       kObjectIdentifier, method.c_str(), json_params.c_str());
-  return EvaluateScript(script, json_result);
+  return EvaluateDebuggerScript(script, json_result) && !json_result->empty();
 }
 
 bool DebugScriptRunner::RunScriptFile(const std::string& filename) {
   std::string result;
-  bool success = EvaluateScriptFile(filename, &result);
-  if (!success) {
-    DLOG(WARNING) << "Failed to run script file " << filename << ": " << result;
-  }
-  return success;
-}
-
-bool DebugScriptRunner::EvaluateScript(const std::string& js_code,
-                                       std::string* result) {
-  DCHECK(global_environment_);
-  DCHECK(result);
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCode(js_code, GetInlineSourceLocation());
-
-  ForceEnableEval();
-  bool succeeded = global_environment_->EvaluateScript(source_code, result);
-  SetEvalAllowedFromCsp();
-  return succeeded;
-}
-
-bool DebugScriptRunner::EvaluateScriptFile(const std::string& filename,
-                                           std::string* result) {
-  DCHECK(result);
 
   FilePath file_path;
   PathService::Get(paths::DIR_COBALT_WEB_ROOT, &file_path);
@@ -97,7 +74,20 @@ bool DebugScriptRunner::EvaluateScriptFile(const std::string& filename,
     return false;
   }
 
-  return EvaluateScript(script, result);
+  if (!EvaluateDebuggerScript(script, nullptr)) {
+    DLOG(ERROR) << "Failed to run script file " << filename << ": " << result;
+    return false;
+  }
+  return true;
+}
+
+bool DebugScriptRunner::EvaluateDebuggerScript(const std::string& script,
+                                               std::string* out_result_utf8) {
+  ForceEnableEval();
+  bool success =
+      script_debugger_->EvaluateDebuggerScript(script, out_result_utf8);
+  SetEvalAllowedFromCsp();
+  return success;
 }
 
 void DebugScriptRunner::SendEvent(const std::string& method,

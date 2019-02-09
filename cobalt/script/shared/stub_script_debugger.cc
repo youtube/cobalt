@@ -30,6 +30,11 @@ class StubScriptDebugger : public ScriptDebugger {
   void Attach() override { NOTIMPLEMENTED(); }
   void Detach() override { NOTIMPLEMENTED(); }
 
+  bool EvaluateDebuggerScript(const std::string& js_code,
+                              std::string* out_result_utf8) override {
+    return false;
+  }
+
   bool CanDispatchProtocolMethod(const std::string& method) override {
     NOTIMPLEMENTED();
     return false;

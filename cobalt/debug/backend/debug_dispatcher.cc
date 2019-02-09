@@ -177,17 +177,17 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
   bool success = script_runner_->RunCommand(method, json_params, &json_result);
 
   JSONObject response(new base::DictionaryValue());
-  if (json_result.empty()) {
-    // An empty result means the method isn't implemented so return no response.
-    response.reset();
-  } else if (!success) {
-    // On error, |json_result| is the error message.
-    response->SetString("error.message", json_result);
-  } else {
+  if (success) {
     JSONObject result = JSONParse(json_result);
     if (result) {
       response->Set("result", result.release());
     }
+  } else if (!json_result.empty()) {
+    // On error, |json_result| is the error message.
+    response->SetString("error.message", json_result);
+  } else {
+    // An empty error means the method isn't implemented so return no response.
+    response.reset();
   }
   return response.Pass();
 }
