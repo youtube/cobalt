@@ -17,11 +17,13 @@
 #include <sstream>
 #include <string>
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "include/inspector/Runtime.h"  // generated
+#include "nb/memory_scope.h"
 #include "v8/include/libplatform/v8-tracing.h"
 #include "v8/include/v8-inspector.h"
 
@@ -88,6 +90,48 @@ V8cScriptDebugger::~V8cScriptDebugger() {
   EntryScope entry_scope(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   inspector_->contextDestroyed(context);
+}
+
+bool V8cScriptDebugger::EvaluateDebuggerScript(const std::string& js_code,
+                                               std::string* out_result_utf8) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  TRACE_EVENT0("cobalt::script", "V8cScriptDebugger::EvaluateDebuggerScript()");
+
+  v8::Isolate* isolate = global_environment_->isolate();
+  EntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::TryCatch try_catch(isolate);
+  v8::MicrotasksScope microtasksScope(isolate,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+
+  v8::Local<v8::String> source;
+  if (!v8::String::NewFromUtf8(isolate, js_code.c_str(),
+                               v8::NewStringType::kNormal, js_code.length())
+           .ToLocal(&source)) {
+    LOG(ERROR) << "Failed to convert source code to V8 UTF-8 string.";
+    return false;
+  }
+
+  v8::Local<v8::Value> result;
+  if (!inspector_->compileAndRunInternalScript(context, source)
+           .ToLocal(&result)) {
+    v8::String::Utf8Value exception(try_catch.Exception());
+    std::string string(*exception, exception.length());
+    if (string.empty()) string.assign("Unknown error");
+    LOG(ERROR) << "Debugger script error: " << string;
+    if (out_result_utf8) {
+      out_result_utf8->assign(std::move(string));
+    }
+    return false;
+  }
+
+  if (out_result_utf8) {
+    V8cExceptionState exception_state(isolate);
+    FromJSValue(isolate, result, kNoConversionFlags, &exception_state,
+                out_result_utf8);
+  }
+
+  return true;
 }
 
 ScriptDebugger::PauseOnExceptionsState V8cScriptDebugger::SetPauseOnExceptions(

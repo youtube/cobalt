@@ -38,6 +38,9 @@ class V8cScriptDebugger : public ScriptDebugger,
   void Attach() override { attached_ = true; }
   void Detach() override { attached_ = false; }
 
+  bool EvaluateDebuggerScript(const std::string& js_code,
+                              std::string* out_result_utf8) override;
+
   bool CanDispatchProtocolMethod(const std::string& method) override;
   void DispatchProtocolMessage(const std::string& message) override;
 
