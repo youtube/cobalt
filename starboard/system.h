@@ -239,6 +239,7 @@ typedef void (*SbSystemPlatformErrorCallback)(
 // Private structure used to represent a raised platform error.
 typedef struct SbSystemPlatformErrorPrivate SbSystemPlatformErrorPrivate;
 
+#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
 // Opaque handle returned by |SbSystemRaisePlatformError| that can be passed
 // to |SbSystemClearPlatformError|.
 typedef SbSystemPlatformErrorPrivate* SbSystemPlatformError;
@@ -282,13 +283,41 @@ SB_EXPORT SbSystemPlatformError
 SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                            SbSystemPlatformErrorCallback callback,
                            void* user_data);
+#else   // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
+// Cobalt calls this function to notify the platform that an error has occurred
+// in the application that the platform may need to handle. The platform is
+// expected to then notify the user of the error and to provide a means for
+// any required interaction, such as by showing a dialog.
+//
+// The return value is a boolean. If the platform cannot respond to the error,
+// then this function should return |false|, otherwise it should return |true|.
+//
+// This function may be called from any thread, and it is the platform's
+// responsibility to decide how to handle an error received while a previous
+// error is still pending. If that platform can only handle one error at a
+// time, then it may queue the second error or ignore it by returning
+// |kSbSystemPlatformErrorInvalid|.
+//
+// |type|: An error type, from the SbSystemPlatformErrorType enum,
+//    that defines the error.
+// |callback|: A function that may be called by the platform to let the caller
+//   know that the user has reacted to the error.
+// |user_data|: An opaque pointer that the platform should pass as an argument
+//   to the callback function, if it is called.
+SB_EXPORT bool SbSystemRaisePlatformError(
+    SbSystemPlatformErrorType type,
+    SbSystemPlatformErrorCallback callback,
+    void* user_data);
+#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
 
+#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
 // Clears a platform error that was previously raised by a call to
 // |SbSystemRaisePlatformError|. The platform may use this, for example,
 // to close a dialog that was opened in response to the error.
 //
 // |handle|: The platform error to be cleared.
 SB_EXPORT void SbSystemClearPlatformError(SbSystemPlatformError handle);
+#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
 
 // Pointer to a function to compare two items. The return value uses standard
 // |*cmp| semantics:
