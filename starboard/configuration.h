@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate SbSystemClearPlatformError.
+#define SB_DEPRECATE_CLEAR_PLATFORM_ERROR SB_EXPERIMENTAL_API_VERSION
+
 // Deprecate the events of type kSbEventTypeNetworkDisconnect,
 // kSbEventTypeNetworkConnect.
 #define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
