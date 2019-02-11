@@ -14,6 +14,8 @@
 
 #include "cobalt/css_parser/scanner.h"
 
+#include <locale.h>
+
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/string_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,12 +26,57 @@ namespace css_parser {
 // When we support any of the at rule which already has a DISABLED test listed
 // below, this DISABLED test should be enabled.
 
-class ScannerTest : public ::testing::Test {
+const char* kNumericLocales[] = {
+  "",       // default locale
+  "C",      // dot radix separator
+  "de_DE",  // comma radix separator
+};
+
+class ScannerTest : public ::testing::Test,
+                    public ::testing::WithParamInterface<const char*> {
+ public:
+  virtual void SetUp() {
+    // Don't mess with the locale for non-parameterized tests.
+    if (!testing::UnitTest::GetInstance()->current_test_info()->value_param()) {
+      old_locale_.clear();
+      return;
+    }
+
+    // Save the old locale.
+    char* old_locale_cstr = setlocale(LC_NUMERIC, nullptr);
+    EXPECT_TRUE(old_locale_cstr != nullptr) << "Cant' save original locale";
+    old_locale_ = old_locale_cstr;
+
+    // Keep the default locale when the param is empty, and for other param
+    // values we'll skip the test if we can't change the locale to it.
+    locale_okay_ =
+        (GetParam()[0] == 0 || setlocale(LC_NUMERIC, GetParam()) != nullptr);
+  }
+
+  virtual void TearDown() {
+    if (!old_locale_.empty()) setlocale(LC_NUMERIC, old_locale_.c_str());
+  }
+
+  // TODO: Use GTEST_SKIP in |SetUp| when we have a newer version of gtest.
+  bool SkipLocale() {
+    if (!locale_okay_) {
+      std::cout << "[  SKIPPED ] Can't set locale to " << GetParam()
+                << std::endl;
+    }
+    return !locale_okay_;
+  }
+
  protected:
+  std::string old_locale_;
+  bool locale_okay_;
+
   StringPool string_pool_;
   TokenValue token_value_;
   YYLTYPE token_location_;
 };
+
+INSTANTIATE_TEST_CASE_P(LocaleNumeric, ScannerTest,
+                        ::testing::ValuesIn(kNumericLocales));
 
 TEST_F(ScannerTest, ScansSingleCodePointUnicodeRange) {
   Scanner scanner("u+1f4a9 U+1F4A9", &string_pool_);
@@ -317,7 +364,8 @@ TEST_F(ScannerTest, ScansInvalidDimension) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansPercentage) {
+TEST_P(ScannerTest, ScansPercentage) {
+  if (SkipLocale()) return;
   Scanner scanner("2.71828%", &string_pool_);
 
   ASSERT_EQ(kPercentageToken, yylex(&token_value_, &token_location_, &scanner));
@@ -335,7 +383,8 @@ TEST_F(ScannerTest, ScansInteger) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansReal) {
+TEST_P(ScannerTest, ScansReal) {
+  if (SkipLocale()) return;
   Scanner scanner("2.71828", &string_pool_);
 
   ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
@@ -344,7 +393,8 @@ TEST_F(ScannerTest, ScansReal) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansNegativeReal) {
+TEST_P(ScannerTest, ScansNegativeReal) {
+  if (SkipLocale()) return;
   Scanner scanner("-3.14159", &string_pool_);
 
   ASSERT_EQ('-', yylex(&token_value_, &token_location_, &scanner));
@@ -390,7 +440,8 @@ TEST_F(ScannerTest, ScansScientificNotationNumberWithNegativeExponent) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansScientificNotationNumberWithPositiveExponent) {
+TEST_P(ScannerTest, ScansScientificNotationNumberWithPositiveExponent) {
+  if (SkipLocale()) return;
   Scanner scanner("2.5e+6", &string_pool_);
 
   ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
@@ -408,29 +459,28 @@ TEST_F(ScannerTest, ScansScientificNotationNumberWithUnsignedExponent) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansScientificNotationNumberWithScientificExponent) {
+  // This should be parsed as the number "30000" and invalid dimension "e5",
+  // not 3*10^400000 nor 30000*10^5.
+  Scanner scanner("3e4e5", &string_pool_);
+
+  ASSERT_EQ(kInvalidDimensionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("3e4e5", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansHexadecimalNumber) {
   // We don't support scanning of hexadecimal numbers. This test is just to
   // confirm that we recover without crashing.
   Scanner scanner("0x0", &string_pool_);
 
-#if defined(COBALT_WIN) && _MSC_VER < 1900
-  // On Windows, with a MSVS version prior to VS2015, the behavior of
-  // |std::strtod| used to scan a number doesn't conform to the standard, so
-  // we get a different result on that platform.
+  // "x0" is an invalid dimension.
   ASSERT_EQ(kInvalidDimensionToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("0x0", token_value_.string);
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-#else
-  ASSERT_EQ(kInvalidNumberToken,
-            yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("0", token_value_.string);
-
-  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("x0", token_value_.string);
-
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-#endif
 }
 
 TEST_F(ScannerTest, ScansUnknownDashFunction) {
@@ -1113,7 +1163,8 @@ TEST_F(ScannerTest, ScansMediaOnlyTv) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansCentimeters) {
+TEST_P(ScannerTest, ScansCentimeters) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24cm", &string_pool_);
 
   ASSERT_EQ(kCentimetersToken,
@@ -1123,7 +1174,8 @@ TEST_F(ScannerTest, ScansCentimeters) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansZeroGlyphWidthsAkaCh) {
+TEST_P(ScannerTest, ScansZeroGlyphWidthsAkaCh) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24ch", &string_pool_);
 
   ASSERT_EQ(kZeroGlyphWidthsAkaChToken,
@@ -1133,7 +1185,8 @@ TEST_F(ScannerTest, ScansZeroGlyphWidthsAkaCh) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansDegrees) {
+TEST_P(ScannerTest, ScansDegrees) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24deg", &string_pool_);
 
   ASSERT_EQ(kDegreesToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1142,7 +1195,8 @@ TEST_F(ScannerTest, ScansDegrees) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansDotsPerPixel) {
+TEST_P(ScannerTest, ScansDotsPerPixel) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24dppx", &string_pool_);
 
   ASSERT_EQ(kDotsPerPixelToken,
@@ -1152,7 +1206,8 @@ TEST_F(ScannerTest, ScansDotsPerPixel) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansDotsPerCentimeter) {
+TEST_P(ScannerTest, ScansDotsPerCentimeter) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24dpcm", &string_pool_);
 
   ASSERT_EQ(kDotsPerCentimeterToken,
@@ -1162,7 +1217,8 @@ TEST_F(ScannerTest, ScansDotsPerCentimeter) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansDotsPerInch) {
+TEST_P(ScannerTest, ScansDotsPerInch) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24dpi", &string_pool_);
 
   ASSERT_EQ(kDotsPerInchToken,
@@ -1172,7 +1228,8 @@ TEST_F(ScannerTest, ScansDotsPerInch) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansFontSizesAkaEm) {
+TEST_P(ScannerTest, ScansFontSizesAkaEm) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24em", &string_pool_);
 
   ASSERT_EQ(kFontSizesAkaEmToken,
@@ -1182,7 +1239,8 @@ TEST_F(ScannerTest, ScansFontSizesAkaEm) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansXHeightsAkaEx) {
+TEST_P(ScannerTest, ScansXHeightsAkaEx) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24ex", &string_pool_);
 
   ASSERT_EQ(kXHeightsAkaExToken,
@@ -1192,7 +1250,8 @@ TEST_F(ScannerTest, ScansXHeightsAkaEx) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansFractions) {
+TEST_P(ScannerTest, ScansFractions) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24fr", &string_pool_);
 
   ASSERT_EQ(kFractionsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1201,7 +1260,8 @@ TEST_F(ScannerTest, ScansFractions) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansGradians) {
+TEST_P(ScannerTest, ScansGradians) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24grad", &string_pool_);
 
   ASSERT_EQ(kGradiansToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1210,7 +1270,8 @@ TEST_F(ScannerTest, ScansGradians) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansHertz) {
+TEST_P(ScannerTest, ScansHertz) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24hz", &string_pool_);
 
   ASSERT_EQ(kHertzToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1219,7 +1280,8 @@ TEST_F(ScannerTest, ScansHertz) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansInches) {
+TEST_P(ScannerTest, ScansInches) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24in", &string_pool_);
 
   ASSERT_EQ(kInchesToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1228,7 +1290,8 @@ TEST_F(ScannerTest, ScansInches) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansKilohertz) {
+TEST_P(ScannerTest, ScansKilohertz) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24khz", &string_pool_);
 
   ASSERT_EQ(kKilohertzToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1237,7 +1300,8 @@ TEST_F(ScannerTest, ScansKilohertz) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansMillimeters) {
+TEST_P(ScannerTest, ScansMillimeters) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24mm", &string_pool_);
 
   ASSERT_EQ(kMillimetersToken,
@@ -1247,7 +1311,8 @@ TEST_F(ScannerTest, ScansMillimeters) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansMilliseconds) {
+TEST_P(ScannerTest, ScansMilliseconds) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24ms", &string_pool_);
 
   ASSERT_EQ(kMillisecondsToken,
@@ -1257,7 +1322,8 @@ TEST_F(ScannerTest, ScansMilliseconds) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansPixels) {
+TEST_P(ScannerTest, ScansPixels) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24px", &string_pool_);
 
   ASSERT_EQ(kPixelsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1266,7 +1332,8 @@ TEST_F(ScannerTest, ScansPixels) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansPoints) {
+TEST_P(ScannerTest, ScansPoints) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24pt", &string_pool_);
 
   ASSERT_EQ(kPointsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1275,7 +1342,8 @@ TEST_F(ScannerTest, ScansPoints) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansPicas) {
+TEST_P(ScannerTest, ScansPicas) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24pc", &string_pool_);
 
   ASSERT_EQ(kPicasToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1284,7 +1352,8 @@ TEST_F(ScannerTest, ScansPicas) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansRadians) {
+TEST_P(ScannerTest, ScansRadians) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24rad", &string_pool_);
 
   ASSERT_EQ(kRadiansToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1293,7 +1362,8 @@ TEST_F(ScannerTest, ScansRadians) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansRootElementFontSizesAkaRem) {
+TEST_P(ScannerTest, ScansRootElementFontSizesAkaRem) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24rem", &string_pool_);
 
   ASSERT_EQ(kRootElementFontSizesAkaRemToken,
@@ -1303,7 +1373,8 @@ TEST_F(ScannerTest, ScansRootElementFontSizesAkaRem) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansSeconds) {
+TEST_P(ScannerTest, ScansSeconds) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24s", &string_pool_);
 
   ASSERT_EQ(kSecondsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1312,7 +1383,8 @@ TEST_F(ScannerTest, ScansSeconds) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansTurns) {
+TEST_P(ScannerTest, ScansTurns) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24turn", &string_pool_);
 
   ASSERT_EQ(kTurnsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1321,7 +1393,8 @@ TEST_F(ScannerTest, ScansTurns) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansViewportWidthPercentsAkaVw) {
+TEST_P(ScannerTest, ScansViewportWidthPercentsAkaVw) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24vw", &string_pool_);
 
   ASSERT_EQ(kViewportWidthPercentsAkaVwToken,
@@ -1331,7 +1404,8 @@ TEST_F(ScannerTest, ScansViewportWidthPercentsAkaVw) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansViewportHeightPercentsAkaVh) {
+TEST_P(ScannerTest, ScansViewportHeightPercentsAkaVh) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24vh", &string_pool_);
 
   ASSERT_EQ(kViewportHeightPercentsAkaVhToken,
@@ -1341,7 +1415,8 @@ TEST_F(ScannerTest, ScansViewportHeightPercentsAkaVh) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansViewportSmallerSizePercentsAkaVmin) {
+TEST_P(ScannerTest, ScansViewportSmallerSizePercentsAkaVmin) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24vmin", &string_pool_);
 
   ASSERT_EQ(kViewportSmallerSizePercentsAkaVminToken,
@@ -1351,7 +1426,8 @@ TEST_F(ScannerTest, ScansViewportSmallerSizePercentsAkaVmin) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScanskViewportLargerSizePercentsAkaVmax) {
+TEST_P(ScannerTest, ScanskViewportLargerSizePercentsAkaVmax) {
+  if (SkipLocale()) return;
   Scanner scanner("8.24vmax", &string_pool_);
 
   ASSERT_EQ(kViewportLargerSizePercentsAkaVmaxToken,
