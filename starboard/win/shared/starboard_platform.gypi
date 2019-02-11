@@ -39,7 +39,6 @@
       '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
       '<(DEPTH)/starboard/shared/win32/playready_license.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
-      '<(DEPTH)/starboard/shared/win32/system_clear_platform_error.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_device_type.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_property.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_total_cpu_memory.cc',

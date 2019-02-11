@@ -17,10 +17,9 @@
 
 using starboard::shared::win32::ApplicationWin32;
 
-SbSystemPlatformError SbSystemRaisePlatformError(
-    SbSystemPlatformErrorType type,
-    SbSystemPlatformErrorCallback callback,
-    void* user_data) {
+bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
+                                SbSystemPlatformErrorCallback callback,
+                                void* user_data) {
   return ApplicationWin32::Get()->OnSbSystemRaisePlatformError(type, callback,
                                                                user_data);
 }

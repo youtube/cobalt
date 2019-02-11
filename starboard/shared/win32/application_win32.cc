@@ -115,47 +115,6 @@ void AttachMiniDumpHandler(const CommandLine& cmd_line) {
 
 }  // namespace
 
-// Note that this is a "struct" and not a "class" because
-// that's how it's defined in starboard/system.h
-struct SbSystemPlatformErrorPrivate {
-  SbSystemPlatformErrorPrivate(const SbSystemPlatformErrorPrivate&) = delete;
-  SbSystemPlatformErrorPrivate& operator=(const SbSystemPlatformErrorPrivate&) =
-      delete;
-
-  SbSystemPlatformErrorPrivate(SbSystemPlatformErrorType type,
-                               SbSystemPlatformErrorCallback callback,
-                               void* user_data)
-      : callback_(callback), user_data_(user_data) {
-    if (type != kSbSystemPlatformErrorTypeConnectionError)
-      SB_NOTREACHED();
-
-    ApplicationWin32* app = ApplicationWin32::Get();
-    const bool created_dialog = starboard::shared::win32::ShowOkCancelDialog(
-        app->GetCoreWindow()->GetWindowHandle(),
-        "",  // No title.
-        app->GetLocalizedString("UNABLE_TO_CONTACT_YOUTUBE_1",
-                                "Sorry, could not connect to YouTube."),
-        app->GetLocalizedString("RETRY_BUTTON", "Retry"),
-        [this, callback, user_data]() {
-          callback(kSbSystemPlatformErrorResponsePositive, user_data);
-        },
-        app->GetLocalizedString("EXIT_BUTTON", "Exit"),
-        [this, callback, user_data]() {
-          callback(kSbSystemPlatformErrorResponseNegative, user_data);
-        });
-    SB_DCHECK(!created_dialog);
-    if (!created_dialog) {
-      SB_LOG(ERROR) << "Failed to create dialog!";
-    }
-  }
-
-  void Clear() { starboard::shared::win32::CancelDialog(); }
-
- private:
-  SbSystemPlatformErrorCallback callback_;
-  void* user_data_;
-};
-
 namespace starboard {
 namespace shared {
 namespace win32 {
@@ -195,22 +154,33 @@ bool ApplicationWin32::DestroyWindow(SbWindow window) {
   return true;
 }
 
-SbSystemPlatformError ApplicationWin32::OnSbSystemRaisePlatformError(
+bool ApplicationWin32::OnSbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
     void* user_data) {
-  return new SbSystemPlatformErrorPrivate(type, callback, user_data);
-}
+  // This was never being deleted, but it should be.
+  if (type != kSbSystemPlatformErrorTypeConnectionError)
+    SB_NOTREACHED();
 
-void ApplicationWin32::OnSbSystemClearPlatformError(
-    SbSystemPlatformError handle) {
-  if (handle == kSbSystemPlatformErrorInvalid) {
-    return;
+  ApplicationWin32* app = ApplicationWin32::Get();
+  const bool created_dialog = ShowOkCancelDialog(
+      app->GetCoreWindow()->GetWindowHandle(),
+      "",  // No title.
+      app->GetLocalizedString("UNABLE_TO_CONTACT_YOUTUBE_1",
+                              "Sorry, could not connect to YouTube."),
+      app->GetLocalizedString("RETRY_BUTTON", "Retry"),
+      [this, callback, user_data]() {
+        callback(kSbSystemPlatformErrorResponsePositive, user_data);
+      },
+      app->GetLocalizedString("EXIT_BUTTON", "Exit"),
+      [this, callback, user_data]() {
+        callback(kSbSystemPlatformErrorResponseNegative, user_data);
+      });
+  SB_DCHECK(!created_dialog);
+  if (!created_dialog) {
+    SB_LOG(ERROR) << "Failed to create dialog!";
   }
-  static_cast<SbSystemPlatformErrorPrivate*>(handle)->Clear();
-  // TODO: Determine if this should actually be deleted and if so, delete or
-  // don't consistently across platforms.
-  delete handle;
+  return true;
 }
 
 Application::Event* ApplicationWin32::WaitForSystemEventWithTimeout(

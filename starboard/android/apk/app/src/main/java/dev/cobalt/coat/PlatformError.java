@@ -26,13 +26,10 @@ import android.provider.Settings;
 import android.support.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Shows an ErrorDialog to inform the user of a Starboard platform error.
- */
+/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -71,18 +68,19 @@ public class PlatformError
 
   /** Display the error. */
   public void raise() {
-    uiThreadHandler.post(new Runnable() {
-      @Override
-      public void run() {
-        showDialogOnUiThread();
-      }
-    });
+    uiThreadHandler.post(
+        new Runnable() {
+          @Override
+          public void run() {
+            showDialogOnUiThread();
+          }
+        });
   }
 
   private void showDialogOnUiThread() {
     Activity activity = activityHolder.get();
     if (activity == null) {
-      onCleared(CANCELLED, data);
+      sendResponse(CANCELLED, data);
       return;
     }
     ErrorDialog.Builder dialogBuilder = new ErrorDialog.Builder(activity);
@@ -97,26 +95,8 @@ public class PlatformError
         Log.e(TAG, "Unknown platform error " + errorType);
         return;
     }
-    dialog = dialogBuilder
-        .setButtonClickListener(this)
-        .setOnDismissListener(this)
-        .create();
+    dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
     dialog.show();
-  }
-
-  /** Programmatically dismiss the error. */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public void clear() {
-    uiThreadHandler.post(
-        new Runnable() {
-          @Override
-          public void run() {
-            if (dialog != null) {
-              dialog.dismiss();
-            }
-          }
-        });
   }
 
   @Override
@@ -141,13 +121,13 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     dialog = null;
-    onCleared(response, data);
+    sendResponse(response, data);
   }
 
   /** Informs Starboard when the error is dismissed. */
-  protected void onCleared(@PlatformError.Response int response, long data) {
-    nativeOnCleared(response, data);
+  protected void sendResponse(@PlatformError.Response int response, long data) {
+    nativeSendResponse(response, data);
   }
 
-  private native void nativeOnCleared(@PlatformError.Response int response, long data);
+  private native void nativeSendResponse(@PlatformError.Response int response, long data);
 }

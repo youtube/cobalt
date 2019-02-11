@@ -54,12 +54,9 @@ class ApplicationWin32 : public starboard::QueueApplication {
     return SbWindowIsValid(window_.get()) ? window_.get() : kSbWindowInvalid;
   }
 
-  SbSystemPlatformError OnSbSystemRaisePlatformError(
-      SbSystemPlatformErrorType type,
-      SbSystemPlatformErrorCallback callback,
-      void* user_data);
-
-  void OnSbSystemClearPlatformError(SbSystemPlatformError handle);
+  bool OnSbSystemRaisePlatformError(SbSystemPlatformErrorType type,
+                                    SbSystemPlatformErrorCallback callback,
+                                    void* user_data);
 
   std::string GetLocalizedString(const char* id, const char* fallback) const {
     return localized_strings_.GetString(id, fallback);

@@ -315,7 +315,6 @@
       '<(DEPTH)/starboard/shared/stub/microphone_is_sample_rate_supported.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_open.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_read.cc',
-      '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
       '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
