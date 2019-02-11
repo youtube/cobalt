@@ -667,8 +667,18 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
 
   // Negative numbers are handled in the grammar.
   bool dot_seen(false);
+  double integer_part(0);
+  double fractional_part(0);
+  int fractional_digits(0);
   while (true) {
-    if (!IsAsciiDigit(input_iterator_[0])) {
+    if (IsAsciiDigit(input_iterator_[0])) {
+      if (dot_seen) {
+        ++fractional_digits;
+        fractional_part = (fractional_part * 10) + (input_iterator_[0] - '0');
+      } else {
+        integer_part = (integer_part * 10) + (input_iterator_[0] - '0');
+      }
+    } else {
       // Only one dot is allowed for a number,
       // and it must be followed by a digit.
       if (input_iterator_[0] != '.' || dot_seen ||
@@ -695,40 +705,35 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
 
   // Handle numbers in scientific notation.
   bool is_scientific(false);
-  if (IsAsciiAlphaCaselessEqual(*input_iterator_, 'e')) {
-    // Only one exponent symbol is allowed for a number,
-    // and it must be followed by a sign and digits, or just digits.
-    int exponent_prefix = 0;
-    if ((input_iterator_[1] == '-' || input_iterator_[1] == '+') &&
-         IsAsciiDigit(input_iterator_[2])) {
-      exponent_prefix = 3;
+  double exponent_part(0);
+  int exponent_sign(1);
+  if (IsAsciiAlphaCaselessEqual(input_iterator_[0], 'e')) {
+    int exponent_prefix(1);
+    if (input_iterator_[1] == '-') exponent_sign = -1;
+    if (input_iterator_[1] == '-' || input_iterator_[1] == '+') {
+      ++exponent_prefix;
     }
-    if (IsAsciiDigit(input_iterator_[1])) {
-      exponent_prefix = 2;
-    }
-    if (exponent_prefix > 0) {
+    if (IsAsciiDigit(input_iterator_[exponent_prefix])) {
       is_scientific = true;
       input_iterator_ = input_iterator_ + exponent_prefix;
     }
     while (IsAsciiDigit(input_iterator_[0])) {
+      exponent_part = (exponent_part * 10) + (input_iterator_[0] - '0');
       ++input_iterator_;
     }
   }
 
   number.end = input_iterator_;
-  char* number_end(const_cast<char*>(number.end));
-  // We parse into |double| for two reasons:
-  //   - C++03 doesn't have std::strtof() function;
-  //   - |float|'s significand is not large enough to represent |int| precisely.
-  // |number_end| is used by std::strtod() as a pure output parameter - it's
-  // input value is not used. std::strtod() may parse more of the number than
-  // we expect, e.g. in the case of hexadecimal format. In these cases
-  // (number_end != number.end), return an invalid number token.
-  double real_as_double(std::strtod(number.begin, &number_end));
-  if (number_end != number.end ||
-      real_as_double != real_as_double ||  // n != n if and only if it's NaN.
-      real_as_double == std::numeric_limits<float>::infinity() ||
-      real_as_double > std::numeric_limits<float>::max()) {
+
+  // Compute the number from its parts collected above according to:
+  // https://www.w3.org/TR/css-syntax-3/#convert-a-string-to-a-number
+  // We parse into |double| because |float|'s significand is not large enough
+  // to represent |int| precisely.
+  double real_as_double =
+      integer_part + fractional_part * pow(10, -fractional_digits);
+  if (is_scientific) real_as_double *= pow(10, exponent_sign * exponent_part);
+
+  if (real_as_double > std::numeric_limits<float>::max()) {
     token_value->string.begin = number.begin;
     token_value->string.end = number.end;
     return kInvalidNumberToken;
