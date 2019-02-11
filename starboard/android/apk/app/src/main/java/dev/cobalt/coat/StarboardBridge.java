@@ -209,10 +209,9 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  PlatformError raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+  void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
     error.raise();
-    return error;
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
