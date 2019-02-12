@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_NUMERICS_SAFE_MATH_IMPL_H_
-#define BASE_NUMERICS_SAFE_MATH_IMPL_H_
+#ifndef BASE_COPY_NUMERICS_SAFE_MATH_IMPL_H_
+#define BASE_COPY_NUMERICS_SAFE_MATH_IMPL_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,12 +15,12 @@
 #include <type_traits>
 
 #if defined(STARBOARD)
-#include "common/third_party/numerics/base/numerics/safe_conversions.h"
+#include "common/third_party/numerics/base_copy/numerics/safe_conversions.h"
 #else
 #include "base/numerics/safe_conversions.h"
 #endif
 
-namespace base
+namespace base_copy
 {
 namespace internal
 {
@@ -569,6 +569,6 @@ struct IsIntegerArithmeticSafe
 };
 
 }  // namespace internal
-}  // namespace base
+}  // namespace base_copy
 
-#endif  // BASE_NUMERICS_SAFE_MATH_IMPL_H_
+#endif  // BASE_COPY_NUMERICS_SAFE_MATH_IMPL_H_
