@@ -5,8 +5,8 @@
 //
 // logging.h: Compatiblity hacks for importing Chromium's base/numerics.
 
-#ifndef BASE_LOGGING_H_
-#define BASE_LOGGING_H_
+#ifndef BASE_COPY_LOGGING_H_
+#define BASE_COPY_LOGGING_H_
 
 #include "common/debug.h"
 
@@ -19,4 +19,4 @@
 #define NOTREACHED() UNREACHABLE()
 #endif
 
-#endif  // BASE_LOGGING_H_
+#endif  // BASE_COPY_LOGGING_H_

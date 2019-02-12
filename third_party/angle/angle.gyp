@@ -51,7 +51,6 @@
             [
                 './include',
                 './src',
-                './src/common/third_party/numerics',
             ],
             'direct_dependent_settings':
             {
@@ -59,7 +58,6 @@
                 [
                     '<(DEPTH)/third_party/angle/include',
                     '<(DEPTH)/third_party/angle/src',
-                    '<(DEPTH)/third_party/angle/src/common/third_party/numerics',
                 ],
                 'conditions':
                 [

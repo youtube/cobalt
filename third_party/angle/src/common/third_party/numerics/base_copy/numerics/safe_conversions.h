@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_NUMERICS_SAFE_CONVERSIONS_H_
-#define BASE_NUMERICS_SAFE_CONVERSIONS_H_
+#ifndef BASE_COPY_NUMERICS_SAFE_CONVERSIONS_H_
+#define BASE_COPY_NUMERICS_SAFE_CONVERSIONS_H_
 
 #include <stddef.h>
 
@@ -11,14 +11,14 @@
 #include <type_traits>
 
 #if defined(STARBOARD)
-#include "common/third_party/numerics/base/numerics_logging.h"
-#include "common/third_party/numerics/base/numerics/safe_conversions_impl.h"
+#include "common/third_party/numerics/base_copy/numerics_logging.h"
+#include "common/third_party/numerics/base_copy/numerics/safe_conversions_impl.h"
 #else
 #include "base/numerics_logging.h"
 #include "base/numerics/safe_conversions_impl.h"
 #endif
 
-namespace base
+namespace base_copy
 {
 
 // Convenience function that returns true if the supplied value is in range
@@ -122,9 +122,9 @@ constexpr Dst strict_cast(Src value)
                   "The numeric conversion is out of range for this type. You "
                   "should probably use one of the following conversion "
                   "mechanisms on the value you want to pass:\n"
-                  "- base::checked_cast\n"
-                  "- base::saturated_cast\n"
-                  "- base::CheckedNumeric");
+                  "- base_copy::checked_cast\n"
+                  "- base_copy::saturated_cast\n"
+                  "- base_copy::CheckedNumeric");
 
     return static_cast<Dst>(value);
 }
@@ -174,6 +174,6 @@ class StrictNumeric
 // Explicitly make a shorter size_t typedef for convenience.
 typedef StrictNumeric<size_t> SizeT;
 
-}  // namespace base
+}  // namespace base_copy
 
-#endif  // BASE_NUMERICS_SAFE_CONVERSIONS_H_
+#endif  // BASE_COPY_NUMERICS_SAFE_CONVERSIONS_H_
