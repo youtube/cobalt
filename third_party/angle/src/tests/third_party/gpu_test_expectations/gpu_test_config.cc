@@ -59,8 +59,8 @@ void DeviceIDToVendorAndDevice(const std::string& id,
     return;
   std::string vendor_id_string = id.substr(8, 4);
   std::string device_id_string = id.substr(17, 4);
-  base::HexStringToUInt(vendor_id_string, vendor_id);
-  base::HexStringToUInt(device_id_string, device_id);
+  base_copy::HexStringToUInt(vendor_id_string, vendor_id);
+  base_copy::HexStringToUInt(device_id_string, device_id);
 }
 
 CollectInfoResult CollectGpuID(uint32* vendor_id, uint32* device_id) {
@@ -214,7 +214,7 @@ GPUTestConfig::OS GetCurrentOS() {
   int32 major_version = 0;
   int32 minor_version = 0;
   int32 bugfix_version = 0;
-  base::SysInfo::OperatingSystemVersionNumbers(
+  base_copy::SysInfo::OperatingSystemVersionNumbers(
       &major_version, &minor_version, &bugfix_version);
   if (major_version == 5)
     return GPUTestConfig::kOsWinXP;
@@ -230,7 +230,7 @@ GPUTestConfig::OS GetCurrentOS() {
   int32 major_version = 0;
   int32 minor_version = 0;
   int32 bugfix_version = 0;
-  base::SysInfo::OperatingSystemVersionNumbers(
+  base_copy::SysInfo::OperatingSystemVersionNumbers(
       &major_version, &minor_version, &bugfix_version);
   if (major_version == 10) {
     switch (minor_version) {

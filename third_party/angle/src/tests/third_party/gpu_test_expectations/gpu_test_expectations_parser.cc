@@ -26,7 +26,7 @@ static inline bool DoLowerCaseEqualsASCII(Iter a_begin,
                                           Iter a_end,
                                           const char* b) {
   for (Iter it = a_begin; it != a_end; ++it, ++b) {
-    if (!*b || base::ToLowerASCII(*it) != *b)
+    if (!*b || base_copy::ToLowerASCII(*it) != *b)
       return false;
   }
   return *b == 0;
@@ -175,13 +175,13 @@ const char* kErrorMessage[] = {
 };
 
 Token ParseToken(const std::string& word) {
-  if (base::StartsWithASCII(word, "//", false))
+  if (base_copy::StartsWithASCII(word, "//", false))
     return kTokenComment;
-  if (base::StartsWithASCII(word, "0x", false))
+  if (base_copy::StartsWithASCII(word, "0x", false))
     return kConfigGPUDeviceID;
 
   for (int32 i = 0; i < kNumberOfExactMatchTokens; ++i) {
-    if (base::LowerCaseEqualsASCII(word, kTokenData[i].name))
+    if (base_copy::LowerCaseEqualsASCII(word, kTokenData[i].name))
       return static_cast<Token>(i);
   }
   return kTokenWord;
@@ -218,8 +218,8 @@ bool GPUTestExpectationsParser::LoadTestExpectations(const std::string& data) {
   entries_.clear();
   error_messages_.clear();
 
-  std::vector<std::string> lines = base::SplitString(
-      data, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  std::vector<std::string> lines = base_copy::SplitString(
+      data, "\n", base_copy::TRIM_WHITESPACE, base_copy::SPLIT_WANT_ALL);
   bool rt = true;
   for (size_t i = 0; i < lines.size(); ++i) {
     if (!ParseLine(lines[i], i + 1))
@@ -239,7 +239,7 @@ bool GPUTestExpectationsParser::LoadTestExpectationsFromFile(
   error_messages_.clear();
 
   std::string data;
-  if (!base::ReadFileToString(path, &data)) {
+  if (!base_copy::ReadFileToString(path, &data)) {
     error_messages_.push_back(kErrorMessage[kErrorFileIO]);
     return false;
   }
@@ -265,9 +265,9 @@ GPUTestExpectationsParser::GetErrorMessages() const {
 bool GPUTestExpectationsParser::ParseConfig(
     const std::string& config_data, GPUTestConfig* config) {
   DCHECK(config);
-  std::vector<std::string> tokens = base::SplitString(
-      config_data, base::kWhitespaceASCII, base::KEEP_WHITESPACE,
-      base::SPLIT_WANT_NONEMPTY);
+  std::vector<std::string> tokens = base_copy::SplitString(
+      config_data, base_copy::kWhitespaceASCII, base_copy::KEEP_WHITESPACE,
+      base_copy::SPLIT_WANT_NONEMPTY);
 
   for (size_t i = 0; i < tokens.size(); ++i) {
     Token token = ParseToken(tokens[i]);
@@ -317,9 +317,9 @@ bool GPUTestExpectationsParser::ParseConfig(
 
 bool GPUTestExpectationsParser::ParseLine(
     const std::string& line_data, size_t line_number) {
-  std::vector<std::string> tokens = base::SplitString(
-      line_data, base::kWhitespaceASCII, base::KEEP_WHITESPACE,
-      base::SPLIT_WANT_NONEMPTY);
+  std::vector<std::string> tokens = base_copy::SplitString(
+      line_data, base_copy::kWhitespaceASCII, base_copy::KEEP_WHITESPACE,
+      base_copy::SPLIT_WANT_NONEMPTY);
   int32 stage = kLineParserBegin;
   GPUTestExpectationEntry entry;
   entry.line_number = line_number;
@@ -530,7 +530,7 @@ bool GPUTestExpectationsParser::UpdateTestConfig(
   DCHECK(config);
   uint32 device_id = 0;
   if (config->gpu_device_id() != 0 ||
-      !base::HexStringToUInt(gpu_device_id, &device_id) ||
+      !base_copy::HexStringToUInt(gpu_device_id, &device_id) ||
       device_id == 0) {
     PushErrorMessage(kErrorMessage[kErrorEntryWithGpuDeviceIdConflicts],
                      line_number);
@@ -559,7 +559,7 @@ bool GPUTestExpectationsParser::DetectConflictsBetweenEntries() {
 void GPUTestExpectationsParser::PushErrorMessage(
     const std::string& message, size_t line_number) {
   error_messages_.push_back(
-      base::StringPrintf("Line %d : %s",
+      base_copy::StringPrintf("Line %d : %s",
                          static_cast<int>(line_number), message.c_str()));
 }
 
@@ -568,7 +568,7 @@ void GPUTestExpectationsParser::PushErrorMessage(
     size_t entry1_line_number,
     size_t entry2_line_number) {
   error_messages_.push_back(
-      base::StringPrintf("Line %d and %d : %s",
+      base_copy::StringPrintf("Line %d and %d : %s",
                          static_cast<int>(entry1_line_number),
                          static_cast<int>(entry2_line_number),
                          message.c_str()));

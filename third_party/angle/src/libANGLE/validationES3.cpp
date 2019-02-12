@@ -9,7 +9,7 @@
 #include "libANGLE/validationES3.h"
 
 #if defined(STARBOARD)
-#include "common/third_party/numerics/base/numerics/safe_conversions.h"
+#include "common/third_party/numerics/base_copy/numerics/safe_conversions.h"
 #else
 #include "base/numerics/safe_conversions.h"
 #endif
