@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
-#define BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
+#ifndef BASE_COPY_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
+#define BASE_COPY_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
 
 #include <limits.h>
 #include <stdint.h>
@@ -11,7 +11,7 @@
 #include <climits>
 #include <limits>
 
-namespace base
+namespace base_copy
 {
 namespace internal
 {
@@ -264,6 +264,6 @@ constexpr RangeConstraint DstRangeRelationToSrcRange(Src value)
 }
 
 }  // namespace internal
-}  // namespace base
+}  // namespace base_copy
 
-#endif  // BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
+#endif  // BASE_COPY_NUMERICS_SAFE_CONVERSIONS_IMPL_H_

@@ -126,7 +126,7 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_info.cc gpu_test_expectations/g
  
  void GPUInfo::EnumerateFields(Enumerator* enumerator) const {
    struct GPUInfoKnownFields {
--    base::TimeDelta initialization_time;
+-    base_copy::TimeDelta initialization_time;
      bool optimus;
      bool amd_switchable;
      bool lenovo_dcute;
@@ -230,7 +230,7 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_info.h gpu_test_expectations/gp
  
 -  // The amount of time taken to get from the process starting to the message
 -  // loop being pumped.
--  base::TimeDelta initialization_time;
+-  base_copy::TimeDelta initialization_time;
 -
    // Computer has NVIDIA Optimus
    bool optimus;
@@ -269,7 +269,7 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_info.h gpu_test_expectations/gp
      virtual void AddString(const char* name, const std::string& value) = 0;
      virtual void AddBool(const char* name, bool value) = 0;
 -    virtual void AddTimeDeltaInSecondsF(const char* name,
--                                        const base::TimeDelta& value) = 0;
+-                                        const base_copy::TimeDelta& value) = 0;
  
      // Markers indicating that a GPUDevice is being described.
      virtual void BeginGPUDevice() = 0;
@@ -346,8 +346,8 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_test_config.cc gpu_test_expecta
 +    return;
 +  std::string vendor_id_string = id.substr(8, 4);
 +  std::string device_id_string = id.substr(17, 4);
-+  base::HexStringToUInt(vendor_id_string, vendor_id);
-+  base::HexStringToUInt(device_id_string, device_id);
++  base_copy::HexStringToUInt(vendor_id_string, vendor_id);
++  base_copy::HexStringToUInt(device_id_string, device_id);
 +}
 +
 +CollectInfoResult CollectGpuID(uint32* vendor_id, uint32* device_id) {
@@ -564,12 +564,12 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_test_config.cc gpu_test_expecta
 -bool GPUTestBotConfig::GpuBlacklistedOnBot() {
 -#if defined(OS_MACOSX)
 -  // Blacklist rule #81 disables all Gpu acceleration on Mac < 10.8 bots.
--  if (CurrentConfigMatches("MAC VMWARE") && base::mac::IsOSLionOrEarlier()) {
+-  if (CurrentConfigMatches("MAC VMWARE") && base_copy::mac::IsOSLionOrEarlier()) {
 -    return true;
 -  }
 -#elif defined(OS_WIN)
 -  // Blacklist rule #79 disables all Gpu acceleration before Windows 7.
--  if (base::win::GetVersion() <= base::win::VERSION_VISTA) {
+-  if (base_copy::win::GetVersion() <= base_copy::win::VERSION_VISTA) {
 -    return true;
 -  }
 -#endif
@@ -751,7 +751,7 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_test_expectations_parser.cc gpu
 +                                          Iter a_end,
 +                                          const char* b) {
 +  for (Iter it = a_begin; it != a_end; ++it, ++b) {
-+    if (!*b || base::ToLowerASCII(*it) != *b)
++    if (!*b || base_copy::ToLowerASCII(*it) != *b)
 +      return false;
 +  }
 +  return *b == 0;
@@ -771,11 +771,11 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_test_expectations_parser.cc gpu
  };
  
  Token ParseToken(const std::string& word) {
--  if (base::StartsWith(word, "//", base::CompareCase::INSENSITIVE_ASCII))
-+  if (base::StartsWithASCII(word, "//", false))
+-  if (base_copy::StartsWith(word, "//", base_copy::CompareCase::INSENSITIVE_ASCII))
++  if (base_copy::StartsWithASCII(word, "//", false))
      return kTokenComment;
--  if (base::StartsWith(word, "0x", base::CompareCase::INSENSITIVE_ASCII))
-+  if (base::StartsWithASCII(word, "0x", false))
+-  if (base_copy::StartsWith(word, "0x", base_copy::CompareCase::INSENSITIVE_ASCII))
++  if (base_copy::StartsWithASCII(word, "0x", false))
      return kConfigGPUDeviceID;
  
    for (int32 i = 0; i < kNumberOfExactMatchTokens; ++i) {
@@ -799,7 +799,7 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_test_expectations_parser.cc gpu
  }
  
 -bool GPUTestExpectationsParser::LoadTestExpectations(
--    const base::FilePath& path) {
+-    const base_copy::FilePath& path) {
 +bool GPUTestExpectationsParser::LoadTestExpectationsFromFile(
 +    const std::string& path) {
    entries_.clear();
@@ -843,7 +843,7 @@ diff -u -rupN gpu_test_expectations_reverted/gpu_test_expectations_parser.h gpu_
    // save all the entries. Otherwise, generate error messages.
    // Return true if parsing succeeds.
    bool LoadTestExpectations(const std::string& data);
--  bool LoadTestExpectations(const base::FilePath& path);
+-  bool LoadTestExpectations(const base_copy::FilePath& path);
 +  bool LoadTestExpectationsFromFile(const std::string& path);
  
    // Query error messages from the last LoadTestExpectations() call.

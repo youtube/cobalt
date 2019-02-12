@@ -10,7 +10,9 @@ License: Chromium
 License File: LICENSE in Chromium/src
 
 Description:
-base::numerics is a library for doing some simple safe math and conversions. To update the checkout, simply
-overwrite the base/numerics folder with Chromium's latest. The only modifications are to the base/logging.h
+To avoid namespace collision in Cobalt, we rename the namespace of the copy of
+Chromium base in Angle to base_copy.
+base_copy::numerics is a library for doing some simple safe math and conversions. To update the checkout, simply
+overwrite the base_copy/numerics folder with Chromium's latest. The only modifications are to the base/logging.h
 file which defines CHECK to be ASSERT to be compatible with ANGLE.
 
