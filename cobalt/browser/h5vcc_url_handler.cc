@@ -114,9 +114,10 @@ void H5vccURLHandler::OnNetworkFailureSystemPlatformResponse(
       retry_url.length() > 0) {
     GURL url(retry_url);
     if (url.is_valid()) {
-      browser_module()->Navigate(GURL(retry_url));
+      browser_module()->Navigate(url);
       return;
     }
+    SB_LOG(ERROR) << "Passed invalid retry-url " + retry_url;
   }
   // We were told not to retry, or don't have a retry URL, so leave the app.
   LOG(ERROR) << "Stop after network error";
