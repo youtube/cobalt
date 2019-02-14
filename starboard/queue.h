@@ -135,7 +135,7 @@ class Queue {
     queue_.clear();
   }
 
-  size_t Size() {
+  size_t Size() const {
     ScopedLock lock(mutex_);
     return queue_.size();
   }
