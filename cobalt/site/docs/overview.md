@@ -43,8 +43,8 @@ These are some other benefits that Cobalt provides:
     *   Cobalt precompiles a set of shaders that are sufficient to express all
         graphical effects, thereby accommodating platforms that cannot compile
         shaders at runtime.
-    *   Cobalt requires a compliant C++03 compiler, allowing it to reach
-        platforms with legacy toolchains.
+    *   Cobalt requires a compliant C++11 compiler, allowing it to reach
+        platforms with toolchains that don't support the newest C++17 features.
 
 *   **Small footprint**
     *   Cobalt is optimized for memory. Its surface cache never exceeds a
