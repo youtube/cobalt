@@ -33,7 +33,6 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
-#include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
@@ -291,9 +290,15 @@ class BrowserModule {
   // Error callback for any error that stops the program.
   void OnError(const GURL& url, const std::string& error);
 
-  // OnErrorRetry() runs a retry URL through the URL handlers. It should only be
-  // called by |on_error_retry_timer_|.
+  // OnErrorRetry() shows a platform network error to give the user a chance to
+  // fix broken network settings before retrying. It should only be called by
+  // |on_error_retry_timer_|.
   void OnErrorRetry();
+
+  // Navigates back to the URL that caused an error if the response from the
+  // platform error was positive, otherwise stops the app.
+  void OnNetworkFailureSystemPlatformResponse(
+      SbSystemPlatformErrorResponse response);
 
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
@@ -551,9 +556,6 @@ class BrowserModule {
   LifecycleConsoleCommands lifecycle_console_commands_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-  // Handler object for h5vcc URLs.
-  scoped_ptr<H5vccURLHandler> h5vcc_url_handler_;
-
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
@@ -577,7 +579,7 @@ class BrowserModule {
   // state. This url is set within OnError() and also when a navigation is
   // deferred as a result of Cobalt being suspended; it is cleared when a
   // navigation occurs.
-  std::string pending_navigate_url_;
+  GURL pending_navigate_url_;
 
   // The number of OnErrorRetry() calls that have occurred since the last
   // OnDone() call. This is used to determine the exponential backoff delay
