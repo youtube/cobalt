@@ -69,7 +69,7 @@ These are some other benefits that Cobalt provides:
 
 ### Porters
 
-Porters should begin with the [porting guide](/cobalt/starboard/porting.html),
+Porters should begin with the [porting guide](/starboard/porting.html),
 which explains how to use Starboard, Cobalt's porting layer, to customize the
 platform-specific functionality that Cobalt uses. There are several reference
 documents to help porters customize configuration files and to implement
@@ -80,9 +80,9 @@ Starboard's compliance test suite.
 ### Developers
 
 Developers can follow the setup instructions for
-[Linux](/cobalt/development/setup-linux.html) or
-[RasPi](/cobalt/development/setup-raspi.html) to set up their Cobalt development
+[Linux](/development/setup-linux.html) or
+[RasPi](/development/setup-raspi.html) to set up their Cobalt development
 environment, fetch a copy of the Cobalt code repository, and build a Cobalt
-binary. The [Cobalt support](/cobalt/development/reference/supported-features.html)
+binary. The [Cobalt support](/development/reference/supported-features.html)
 guide lists the HTML elements, CSS properties, CSS selectors, and JavaScript Web
 APIs that developers can use in their Cobalt applications.
