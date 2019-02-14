@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "83effd8b_13f70b1a",
+        "filename": "src/starboard/shared/posix/storage_write_record.cc",
+        "patchSetId": 3
+      },
+      "lineNbr": 87,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2019-02-14T20:37:38Z",
+      "side": 1,
+      "message": "I think the problem here is that we want to ensure that the rename() has actually taken place before we exit this function, and so we want to \"flush\" original_file_path.  It could be that simply calling SbFileOpen() on original_file_path will be enough to ensure that the rename has occurred, but of course, please verify that this is the case.",
+      "range": {
+        "startLine": 87,
+        "startChar": 2,
+        "endLine": 87,
+        "endChar": 13
+      },
+      "revId": "f2e8e128e6e3b84efaf632afc088bb760cf14928",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
