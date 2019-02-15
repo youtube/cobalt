@@ -446,11 +446,20 @@ class ScopeGuard {
 
 const char kNetLogCommandSwitchWait[] = "net_log_wait_for_connection";
 
-void NetLogWaitForClientConnected() {
+void NetLogWaitForClientConnected(SbTime timeout) {
 #if !SB_LOGGING_IS_OFFICIAL_BUILD
   ScopeGuard guard;
   if (guard.IsEnabled()) {
-    while (!NetLogServer::Instance()->HasClientConnected()) {
+    SbTimeMonotonic expire_time = (timeout >= 0) && (timeout < kSbTimeMax)?
+                                  SbTimeGetMonotonicNow() + timeout :
+                                  kSbTimeMax;
+    while (true) {
+      if (NetLogServer::Instance()->HasClientConnected()) {
+        break;
+      }
+      if (SbTimeGetMonotonicNow() > expire_time) {
+        break;
+      }
       SbThreadSleep(kSbTimeMillisecond);
     }
   }

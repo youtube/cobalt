@@ -20,12 +20,14 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <string>
 
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/win32/application_win32.h"
 #include "starboard/shared/win32/thread_private.h"
+#include "starboard/string.h"
 
 using starboard::shared::starboard::CommandLine;
 using starboard::shared::starboard::kNetLogCommandSwitchWait;
@@ -37,7 +39,12 @@ namespace {
 
 void WaitForNetLogIfNecessary(const CommandLine& cmd_line) {
   if (cmd_line.HasSwitch(kNetLogCommandSwitchWait)) {
-    NetLogWaitForClientConnected();
+    SbTime timeout = kSbTimeSecond * 2;
+    std::string val = cmd_line.GetSwitchValue(kNetLogCommandSwitchWait);
+    if (!val.empty()) {
+      timeout = SbStringAToI(val.c_str());
+    }
+    NetLogWaitForClientConnected(timeout);
   }
 }
 

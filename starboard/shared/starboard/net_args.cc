@@ -20,6 +20,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
+#include "starboard/time.h"
 
 #ifndef NET_ARGS_PORT
 #define NET_ARGS_PORT 49355
@@ -78,11 +79,19 @@ void WaitUntilReadableOrConnectionReset(SbSocket sock) {
   SbSocketWaiterDestroy(waiter);
 }
 
-scoped_ptr<Socket> WaitForClientConnection(Socket* listen_sock) {
+scoped_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
+                                           SbTime timeout) {
+  SbTimeMonotonic expire_time =
+      (timeout >= 0) && (timeout < kSbTimeMax)?
+      SbTimeGetMonotonicNow() + timeout :
+      kSbTimeMax;
   while (true) {
     scoped_ptr<Socket> client_connection(listen_sock->Accept());
     if (client_connection) {
       return client_connection.Pass();
+    }
+    if (SbTimeGetMonotonicNow() > expire_time) {
+      return scoped_ptr<Socket>();
     }
     SbThreadSleep(kSbTimeMillisecond);
   }
@@ -106,10 +115,14 @@ std::vector<std::string> SplitStringByLines(const std::string& string_buff) {
 // should be called.
 const char kNetArgsCommandSwitchWait[] = "net_args_wait_for_connection";
 
-// Waits until.
-std::vector<std::string> NetArgsWaitForPayload() {
+std::vector<std::string> NetArgsWaitForPayload(SbTime timeout) {
   scoped_ptr<Socket> listen = CreateListenSocket();
-  scoped_ptr<Socket> client_connection = WaitForClientConnection(listen.get());
+  scoped_ptr<Socket> client_connection =
+      WaitForClientConnection(listen.get(), timeout);
+  if (!client_connection) {
+    SB_LOG(ERROR) << "Timed out waiting for net args.";
+    return std::vector<std::string>();
+  }
 
   std::string str_buff;
 
