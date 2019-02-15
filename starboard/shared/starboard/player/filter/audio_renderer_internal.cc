@@ -292,10 +292,6 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
     *is_playing = !paused_ && !seeking_;
     *is_eos_played = IsEndOfStreamPlayed_Locked();
     *is_underflow = underflow_;
-    if (*is_eos_played && !ended_cb_called_) {
-      ended_cb_called_ = true;
-      Schedule(ended_cb_);
-    }
 
     if (seeking_ || !decoder_sample_rate_) {
       return seeking_to_time_;
@@ -478,6 +474,11 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
   offset_in_frames_on_sink_thread_ = (total_frames_consumed_by_sink_ +
                                       silence_frames_consumed_on_sink_thread_) %
                                      max_cached_frames_;
+
+  if (IsEndOfStreamPlayed_Locked() && !ended_cb_called_) {
+    ended_cb_called_ = true;
+    Schedule(ended_cb_);
+  }
 }
 
 void AudioRenderer::OnFirstOutput() {
