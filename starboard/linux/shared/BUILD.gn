@@ -527,6 +527,8 @@ source_set("starboard_platform") {
     "//starboard/shared/starboard/player/input_buffer_internal.h",
     "//starboard/shared/starboard/player/job_queue.cc",
     "//starboard/shared/starboard/player/job_queue.h",
+    "//starboard/shared/starboard/player/job_thread.cc",
+    "//starboard/shared/starboard/player/job_thread.h",
     "//starboard/shared/starboard/player/player_create.cc",
     "//starboard/shared/starboard/player/player_destroy.cc",
     "//starboard/shared/starboard/player/player_get_current_frame.cc",
