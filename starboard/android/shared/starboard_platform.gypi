@@ -417,8 +417,6 @@
         '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
         '<(DEPTH)/starboard/shared/starboard/player/job_queue.h',
-        '<(DEPTH)/starboard/shared/starboard/player/job_thread.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/job_thread.h',
         '<(DEPTH)/starboard/shared/starboard/player/player_get_current_frame.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_get_info.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_get_info2.cc',
