@@ -204,7 +204,9 @@
         }]
       ],
       'variables': {
-        'starboard_platform_dependencies%': '',
+        'starboard_platform_dependencies%': [
+          '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        ],
       },
       'sources': [
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
