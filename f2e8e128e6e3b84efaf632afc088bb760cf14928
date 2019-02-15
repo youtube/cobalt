@@ -22,6 +22,30 @@
       "revId": "f2e8e128e6e3b84efaf632afc088bb760cf14928",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "57e94305_a3736512",
+        "filename": "src/starboard/shared/posix/storage_write_record.cc",
+        "patchSetId": 3
+      },
+      "lineNbr": 87,
+      "author": {
+        "id": 5490
+      },
+      "writtenOn": "2019-02-15T01:18:48Z",
+      "side": 1,
+      "message": "Firstly, I use the SbFileOpen and SbFileFlush on original_file_path, it works.\nAnd later, we find that the FD of temp_file could point to the original_file_path after rename, so I make this kind of change, and do test again, it works!",
+      "parentUuid": "83effd8b_13f70b1a",
+      "range": {
+        "startLine": 87,
+        "startChar": 2,
+        "endLine": 87,
+        "endChar": 13
+      },
+      "revId": "f2e8e128e6e3b84efaf632afc088bb760cf14928",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
     }
   ]
 }
