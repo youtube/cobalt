@@ -4,9 +4,9 @@
 
 // Defines an in-memory private key store, primarily used for testing.
 
-#include "net/base/openssl_private_key_store.h"
-
 #include <openssl/evp.h>
+
+#include "net/base/openssl_private_key_store.h"
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -34,12 +34,7 @@ class OpenSSLMemoryKeyStore : public OpenSSLPrivateKeyStore {
   }
 
   virtual bool StorePrivateKey(const GURL& url, EVP_PKEY* pkey) {
-#if defined(OPENSSL_IS_BORINGSSL)
-    EVP_PKEY_up_ref(pkey);
-#else
     CRYPTO_add(&pkey->references, 1, CRYPTO_LOCK_EVP_PKEY);
-#endif  // defined(OPENSSL_IS_BORINGSSL)
-
     base::AutoLock lock(lock_);
     keys_.push_back(pkey);
     return true;
