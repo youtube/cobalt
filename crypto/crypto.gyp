@@ -10,8 +10,8 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+        '../third_party/openssl/openssl.gyp:openssl',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
       ],
       'defines': [
         'CRYPTO_IMPLEMENTATION',

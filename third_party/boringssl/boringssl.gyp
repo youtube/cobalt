@@ -97,7 +97,6 @@
           'OPENSSL_NO_STATIC_ENGINE',
           'OPENSSL_NO_STORE',
           'OPENSSL_NO_SOCK',  # Added by Cobalt to remove unused socket code.
-          'OPENSSL_NO_THREADS',  # Added by Cobalt to reduce overall threads count.
           'OPENSSL_NO_UI',  # Added by Cobalt to remove unused "UI" code.
           'OPENSSL_NO_UNIT_TEST',
           'OPENSSL_NO_WHIRLPOOL',
@@ -241,22 +240,14 @@
           ],
         }, {  # asm_target_arch!="none"
           'conditions': [
-            ['starboard_platform_name in ["linux-x86x11", "linux-x64x11", "linux-x64x11-evergreen", "linux-x64x11-clang-3-6", "nxswitch"]', {
-              'sources!': [
-                '<(boringssl_root)/crypto/rand_extra/deterministic.c',
-                '<(boringssl_root)/crypto/rand_extra/fuchsia.c',
-                '<(boringssl_root)/crypto/rand_extra/windows.c',
-              ],
-              'sources': [
-                '<(boringssl_root)/crypto/rand_extra/starboard.c',
-              ],
+            ['OS=="linux" or OS=="android" or OS=="starboard"', {
               'conditions': [
                 ['asm_target_arch=="x86"', {
                   'sources': [
                     '<@(boringssl_linux_x86_files)',
                   ],
                 }],
-                ['asm_target_arch in ["x86-64", "x86_64", "x64"]', {
+                ['asm_target_arch=="x86-64"', {
                   'sources': [
                     '<@(boringssl_linux_x86_64_files)',
                   ],
@@ -278,66 +269,21 @@
                 }],
               ],
             }],
-            ['OS=="starboard" and starboard_platform_name=="xb1"', {
-              'sources!': [
-                '<(boringssl_root)/crypto/rand_extra/deterministic.c',
-                '<(boringssl_root)/crypto/rand_extra/fuchsia.c',
-                '<(boringssl_root)/crypto/rand_extra/windows.c',
-              ],
-              # can't use ml.exe (aka MS Macro Assembler) with GNU format
-              'defines': ['OPENSSL_NO_ASM',],
-              'sources': [
-                # uncomment <@(boringssl_win_x86_64_files) and remove OPENSSL_NO_ASM
-                # for starboard_platform_name=="xb1" as soon as ASM rule will be
-                # fixed to compile by GNU Assembler
-                #'<@(boringssl_win_x86_64_files)',
-                '<(boringssl_root)/crypto/rand_extra/starboard.c',
-              ],
-            }],
-            ['OS=="linux" or OS=="android"', {
-              'conditions': [
-                ['asm_target_arch=="x86"', {
-                  'sources': [
-                    '<@(boringssl_linux_x86_files)',
-                  ],
-                }],
-                ['asm_target_arch in ["x86-64", "x86_64", "x64"]', {
-                  'sources': [
-                    '<@(boringssl_linux_x86_64_files)',
-                  ],
-                }],
-                ['asm_target_arch=="arm"', {
-                  'sources': [
-                    '<@(boringssl_linux_arm_files)',
-                  ],
-                }],
-                ['asm_target_arch=="arm64"', {
-                  'sources': [
-                    '<@(boringssl_linux_aarch64_files)',
-                  ],
-                }],
-                ['asm_target_arch=="ppc64"', {
-                  'sources': [
-                    '<@(boringssl_linux_ppc64le_files)',
-                  ],
-                }],
-              ],
-            }],
-            ['target_os=="win" and starboard_platform_name!="xb1"', {
+            ['OS=="win"', {
               'conditions': [
                 ['asm_target_arch=="x86"', {
                   'sources': [
                     '<@(boringssl_win_x86_files)',
                   ],
                 }],
-                ['asm_target_arch in ["x86-64", "x86_64", "x64"]', {
+                ['asm_target_arch=="x86-64"', {
                   'sources': [
                     '<@(boringssl_win_x86_64_files)',
                   ],
                 }],
               ],
             }],
-            ['target_os=="mac"', {
+            ['OS=="mac"', {
               'conditions': [
                 ['asm_target_arch=="x86"', {
                   'sources': [
@@ -351,7 +297,7 @@
                 }],
               ],
             }],
-            ['target_os=="ios"', {
+            ['OS=="ios"', {
               'conditions': [
                 ['asm_target_arch=="arm"', {
                   'sources': [
