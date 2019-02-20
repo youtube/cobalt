@@ -178,6 +178,7 @@ def _CreateReparsePoint(from_folder, link_folder):
     FastCreateReparseLink(from_folder, link_folder)
   except Exception as err:
     print(__file__ + ' error: ' + str(err) + \
+          ', from='+from_folder+', link='+link_folder+ \
           ', falling back to command line version.')
     par_dir = os.path.dirname(link_folder)
     if not os.path.isdir(par_dir):
