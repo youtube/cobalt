@@ -94,9 +94,9 @@ void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
 
   DES_key_schedule ks;
   DES_set_key_unchecked(
-      reinterpret_cast<const DES_cblock*>(const_cast<uint8*>(key)), &ks);
+      reinterpret_cast<const_DES_cblock*>(const_cast<uint8*>(key)), &ks);
 
-  DES_ecb_encrypt(reinterpret_cast<const DES_cblock*>(const_cast<uint8*>(src)),
+  DES_ecb_encrypt(reinterpret_cast<const_DES_cblock*>(const_cast<uint8*>(src)),
                   reinterpret_cast<DES_cblock*>(hash), &ks, DES_ENCRYPT);
 }
 
