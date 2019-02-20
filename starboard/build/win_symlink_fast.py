@@ -36,7 +36,7 @@ def FastCreateReparseLink(from_folder, link_folder):
 
 
 from ctypes import \
-    POINTER, c_buffer, byref, addressof, c_ubyte, Structure, Union
+    POINTER, c_buffer, byref, addressof, c_ubyte, Structure, Union, windll
 from ctypes.wintypes import \
     DWORD, LPCWSTR, HANDLE, LPVOID, BOOL, USHORT, ULONG, WCHAR, WinError, WinDLL
 
@@ -146,14 +146,23 @@ def _ToUnicode(s):
   return s.decode('utf-8')
 
 
+__kdll = None
+def _GetKernel32Dll():
+  global __kdll
+  if __kdll:
+    return __kdll
+  __kdll = windll.LoadLibrary('kernel32.dll')
+  return __kdll
+
+
 def _FastCreateReparseLink(from_folder, link_folder):
   from_folder = _ToUnicode(from_folder)
   link_folder = _ToUnicode(link_folder)
-  from win32file import CreateSymbolicLink
+  kdll = _GetKernel32Dll()
   # Only supported from Windows 10 Insiders build 14972
   flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | \
           SYMBOLIC_LINK_FLAG_DIRECTORY
-  CreateSymbolicLink(link_folder,from_folder, flags)
+  kdll.CreateSymbolicLinkW(link_folder, from_folder, flags)
 
 
 def _FastIsReparseLink(path):
