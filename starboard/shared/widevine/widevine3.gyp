@@ -42,7 +42,9 @@
       '<(DEPTH)/third_party/protobuf/src',
     ],
     'dependencies': [
-      '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
+      '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
+      # Depend on the locally-built protoc.
+      #'<(DEPTH)/third_party/protobuf/protobuf.gyp:protoc#host',
     ],
   },
   'targets': [
@@ -50,6 +52,7 @@
       'target_name': 'oemcrypto',
       'type': 'static_library',
       'defines': [
+        'USE_BUILT_OPENSSL',
         'COBALT_WIDEVINE_KEYBOX_TRANSFORM_FUNCTION=<(sb_widevine_platform)_client',
         'COBALT_WIDEVINE_KEYBOX_TRANSFORM_INCLUDE="starboard/keyboxes/<(sb_widevine_platform)/<(sb_widevine_platform).h"',
         'COBALT_WIDEVINE_KEYBOX_INCLUDE="<(DEPTH)/starboard/keyboxes/<(sb_widevine_platform)_widevine_keybox.h"',
