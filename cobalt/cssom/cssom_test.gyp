@@ -54,6 +54,7 @@
         'transform_function_visitor_test.cc',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
