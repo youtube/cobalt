@@ -111,7 +111,6 @@
       '<(boringssl_root)/crypto/cipher_extra/e_null.c',
       '<(boringssl_root)/crypto/cipher_extra/e_rc2.c',
       '<(boringssl_root)/crypto/cipher_extra/e_rc4.c',
-#      '<(boringssl_root)/crypto/cipher_extra/e_ssl3.c',
       '<(boringssl_root)/crypto/cipher_extra/e_tls.c',
       '<(boringssl_root)/crypto/cipher_extra/internal.h',
       '<(boringssl_root)/crypto/cipher_extra/tls_cbc.c',
@@ -119,8 +118,6 @@
       '<(boringssl_root)/crypto/conf/conf.c',
       '<(boringssl_root)/crypto/conf/conf_def.h',
       '<(boringssl_root)/crypto/conf/internal.h',
-      '<(boringssl_root)/crypto/cpu-aarch64-linux.c',
-      '<(boringssl_root)/crypto/cpu-arm-linux.c',
       '<(boringssl_root)/crypto/cpu-arm.c',
       '<(boringssl_root)/crypto/cpu-intel.c',
       '<(boringssl_root)/crypto/cpu-ppc64le.c',
@@ -128,7 +125,6 @@
       '<(boringssl_root)/third_party/fiat/curve25519.c',
       '<(boringssl_root)/crypto/curve25519/internal.h',
       '<(boringssl_root)/crypto/curve25519/spake25519.c',
-#     '<(boringssl_root)/crypto/curve25519/x25519-x86_64.c',
       '<(boringssl_root)/crypto/dh/check.c',
       '<(boringssl_root)/crypto/dh/dh.c',
       '<(boringssl_root)/crypto/dh/dh_asn1.c',
@@ -137,7 +133,6 @@
       '<(boringssl_root)/crypto/dsa/dsa.c',
       '<(boringssl_root)/crypto/dsa/dsa_asn1.c',
       '<(boringssl_root)/crypto/ec_extra/ec_asn1.c',
-#     '<(boringssl_root)/crypto/ecdh/ecdh.c',
       '<(boringssl_root)/crypto/ecdh_extra/ecdh_extra.c',
       '<(boringssl_root)/crypto/ecdsa_extra/ecdsa_asn1.c',
       '<(boringssl_root)/crypto/engine/engine.c',
@@ -397,6 +392,7 @@
       'ios-arm/crypto/fipsmodule/sha512-armv4.S',
     ],
     'boringssl_linux_aarch64_files': [
+      '<(boringssl_root)/crypto/cpu-aarch64-linux.c', # Linux arm64 only file
       'linux-aarch64/crypto/chacha/chacha-armv8.S',
       'linux-aarch64/crypto/fipsmodule/aesv8-armx64.S',
       'linux-aarch64/crypto/fipsmodule/armv8-mont.S',
@@ -406,6 +402,7 @@
       'linux-aarch64/crypto/fipsmodule/sha512-armv8.S',
     ],
     'boringssl_linux_arm_files': [
+      '<(boringssl_root)/crypto/cpu-arm-linux.c', # Linux arm only file
       'linux-arm/crypto/chacha/chacha-armv4.S',
       'linux-arm/crypto/fipsmodule/aes-armv4.S',
       'linux-arm/crypto/fipsmodule/aesv8-armx32.S',
