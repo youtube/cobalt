@@ -111,19 +111,6 @@ TEST(SignatureVerifierTest, BasicTest) {
     0x74, 0x2e, 0x6f, 0x72, 0x67
   };
 
-  // The signature algorithm is specified as the following ASN.1 structure:
-  //    AlgorithmIdentifier  ::=  SEQUENCE  {
-  //        algorithm               OBJECT IDENTIFIER,
-  //        parameters              ANY DEFINED BY algorithm OPTIONAL  }
-  //
-  const uint8 signature_algorithm[15] = {
-    0x30, 0x0d,  // a SEQUENCE of length 13 (0xd)
-      0x06, 0x09,  // an OBJECT IDENTIFIER of length 9
-        // 1.2.840.113549.1.1.5 - sha1WithRSAEncryption
-        0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x05,
-      0x05, 0x00,  // a NULL of length 0
-  };
-
   // RSA signature, a big integer in the big-endian byte order.
   const uint8 signature[256] = {
     0x1e, 0x6a, 0xe7, 0xe0, 0x4f, 0xe7, 0x4d, 0xd0, 0x69, 0x7c, 0xf8, 0x8f,
@@ -205,10 +192,9 @@ TEST(SignatureVerifierTest, BasicTest) {
 
   // Test 1: feed all of the data to the verifier at once (a single
   // VerifyUpdate call).
-  ok = verifier.VerifyInit(signature_algorithm,
-                           sizeof(signature_algorithm),
-                           signature, sizeof(signature),
-                           public_key_info, sizeof(public_key_info));
+  ok = verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1, signature,
+                           sizeof(signature), public_key_info,
+                           sizeof(public_key_info));
   EXPECT_TRUE(ok);
   verifier.VerifyUpdate(tbs_certificate, sizeof(tbs_certificate));
   ok = verifier.VerifyFinal();
@@ -216,10 +202,9 @@ TEST(SignatureVerifierTest, BasicTest) {
 
   // Test 2: feed the data to the verifier in three parts (three VerifyUpdate
   // calls).
-  ok = verifier.VerifyInit(signature_algorithm,
-                           sizeof(signature_algorithm),
-                           signature, sizeof(signature),
-                           public_key_info, sizeof(public_key_info));
+  ok = verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1, signature,
+                           sizeof(signature), public_key_info,
+                           sizeof(public_key_info));
   EXPECT_TRUE(ok);
   verifier.VerifyUpdate(tbs_certificate,       256);
   verifier.VerifyUpdate(tbs_certificate + 256, 256);
@@ -231,10 +216,9 @@ TEST(SignatureVerifierTest, BasicTest) {
   uint8 bad_tbs_certificate[sizeof(tbs_certificate)];
   memcpy(bad_tbs_certificate, tbs_certificate, sizeof(tbs_certificate));
   bad_tbs_certificate[10] += 1;  // Corrupt one byte of the data.
-  ok = verifier.VerifyInit(signature_algorithm,
-                           sizeof(signature_algorithm),
-                           signature, sizeof(signature),
-                           public_key_info, sizeof(public_key_info));
+  ok = verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1, signature,
+                           sizeof(signature), public_key_info,
+                           sizeof(public_key_info));
   EXPECT_TRUE(ok);
   verifier.VerifyUpdate(bad_tbs_certificate, sizeof(bad_tbs_certificate));
   ok = verifier.VerifyFinal();
@@ -244,8 +228,7 @@ TEST(SignatureVerifierTest, BasicTest) {
   uint8 bad_signature[sizeof(signature)];
   memcpy(bad_signature, signature, sizeof(signature));
   bad_signature[10] += 1;  // Corrupt one byte of the signature.
-  ok = verifier.VerifyInit(signature_algorithm,
-                           sizeof(signature_algorithm),
+  ok = verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                            bad_signature, sizeof(bad_signature),
                            public_key_info, sizeof(public_key_info));
 

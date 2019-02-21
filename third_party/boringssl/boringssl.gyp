@@ -34,8 +34,7 @@
       '-fPIC',
     ],
 
-    'type': 'static_library',
-    'standalone_static_library': 1,
+    'type': '<(library)',
 
     'conditions': [
       ['OS=="starboard"', {
@@ -45,6 +44,14 @@
         'dependencies': [
           '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
           '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
+        ],
+        'sources': [
+          '<(boringssl_root)/crypto/rand_extra/starboard.c',
+        ],
+        'sources!': [
+          '<(boringssl_root)/crypto/rand_extra/deterministic.c',
+          '<(boringssl_root)/crypto/rand_extra/fuchsia.c',
+          '<(boringssl_root)/crypto/rand_extra/windows.c',
         ],
       }],
       ['OS=="lb_shell"', {
@@ -97,6 +104,7 @@
           'OPENSSL_NO_STATIC_ENGINE',
           'OPENSSL_NO_STORE',
           'OPENSSL_NO_SOCK',  # Added by Cobalt to remove unused socket code.
+          'OPENSSL_NO_THREADS',  # Added by Cobalt to reduce overall threads count.
           'OPENSSL_NO_UI',  # Added by Cobalt to remove unused "UI" code.
           'OPENSSL_NO_UNIT_TEST',
           'OPENSSL_NO_WHIRLPOOL',
@@ -234,20 +242,22 @@
         # of assembly language files for the current OS and CPU architecture, or
         # it will turn off assembly language files entirely if the
         # |asm_target_arch| has been set to "none".
-        ['asm_target_arch=="none"', {
+
+        ['target_os not in ["linux", "android", "tvos"] or asm_target_arch not in ["x86", "x64", "arm", "arm64"]', {
+          # please read comments for |target_os=="win"| condition below
           'defines': [
             'OPENSSL_NO_ASM',
           ],
-        }, {  # asm_target_arch!="none"
+        }, {  # target_os in ["linux", "android", "tvos"] and asm_target_arch in ["none", "mips", "ia32"]
           'conditions': [
-            ['OS=="linux" or OS=="android" or OS=="starboard"', {
+            ['target_os=="linux" or target_os=="android"', {
               'conditions': [
                 ['asm_target_arch=="x86"', {
                   'sources': [
                     '<@(boringssl_linux_x86_files)',
                   ],
                 }],
-                ['asm_target_arch=="x86-64"', {
+                ['asm_target_arch=="x64"', {
                   'sources': [
                     '<@(boringssl_linux_x86_64_files)',
                   ],
@@ -262,55 +272,45 @@
                     '<@(boringssl_linux_aarch64_files)',
                   ],
                 }],
-                ['asm_target_arch=="ppc64"', {
-                  'sources': [
-                    '<@(boringssl_linux_ppc64le_files)',
-                  ],
-                }],
               ],
             }],
-            ['OS=="win"', {
+            ['target_os=="win"', {
+
+            # For |target_os=="win"| an ASM rule uses ml.exe (aka MS Macro Assembler)
+            # which we can't use with GNU format. As soon as ASM rule will be fixed
+            # for using GNU Assembler, to accelerate "crypto" with assembler 
+            # implementations just remove target_os=="win" from abowe condition 
+            # |'asm_target_arch=="none" or target_os=="win"'| which currently
+            # sets OPENSSL_NO_ASM for "win" too
+
               'conditions': [
                 ['asm_target_arch=="x86"', {
                   'sources': [
                     '<@(boringssl_win_x86_files)',
                   ],
                 }],
-                ['asm_target_arch=="x86-64"', {
+                ['asm_target_arch=="x64"', {
                   'sources': [
                     '<@(boringssl_win_x86_64_files)',
                   ],
                 }],
               ],
             }],
-            ['OS=="mac"', {
+            ['target_os=="tvos"', {
               'conditions': [
-                ['asm_target_arch=="x86"', {
-                  'sources': [
-                    '<@(boringssl_mac_x86_files)',
-                  ],
-                }],
-                ['asm_target_arch=="x86-64"', {
-                  'sources': [
-                    '<@(boringssl_mac_x86_64_files)',
-                  ],
-                }],
-              ],
-            }],
-            ['OS=="ios"', {
-              'conditions': [
-                ['asm_target_arch=="arm"', {
-                  'sources': [
-                    '<@(boringssl_ios_arm_files)',
-                  ],
-                }],
                 ['asm_target_arch=="arm64"', {
                   'sources': [
                     '<@(boringssl_ios_aarch64_files)',
                   ],
                 }],
+                # Simulator
+                ['asm_target_arch=="x64"', {
+                  'defines': [
+                    'OPENSSL_NO_ASM',
+                  ],
+                }],
               ],
-            }],
+            }]
           ],
         }],
       ],

@@ -25,21 +25,17 @@ class CRYPTO_EXPORT SignatureVerifier {
   SignatureVerifier();
   ~SignatureVerifier();
 
+  enum SignatureAlgorithm {
+    RSA_PKCS1_SHA1,
+    RSA_PKCS1_SHA256,
+    ECDSA_SHA256,
+  };
+
   // Streaming interface:
 
   // Initiates a signature verification operation.  This should be followed
   // by one or more VerifyUpdate calls and a VerifyFinal call.
-  //
-  // The signature algorithm is specified as a DER encoded ASN.1
-  // AlgorithmIdentifier structure:
-  //   AlgorithmIdentifier  ::=  SEQUENCE  {
-  //       algorithm               OBJECT IDENTIFIER,
-  //       parameters              ANY DEFINED BY algorithm OPTIONAL  }
-  //
-  // The signature is encoded according to the signature algorithm, but it
-  // must not be further encoded in an ASN.1 BIT STRING.
-  // Note: An RSA signatures is actually a big integer.  It must be in the
-  // big-endian byte order.
+  // The signature is encoded according to the signature algorithm.
   //
   // The public key is specified as a DER encoded ASN.1 SubjectPublicKeyInfo
   // structure, which contains not only the public key but also its type
@@ -47,8 +43,7 @@ class CRYPTO_EXPORT SignatureVerifier {
   //   SubjectPublicKeyInfo  ::=  SEQUENCE  {
   //       algorithm            AlgorithmIdentifier,
   //       subjectPublicKey     BIT STRING  }
-  bool VerifyInit(const uint8* signature_algorithm,
-                  int signature_algorithm_len,
+  bool VerifyInit(SignatureAlgorithm signature_algorithm,
                   const uint8* signature,
                   int signature_len,
                   const uint8* public_key_info,
