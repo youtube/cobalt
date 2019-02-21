@@ -167,6 +167,10 @@
 // headers. It may be removed at some point in favor of a different solution.
 #undef SB_HAS_QUIRK_SOCKET_BSD_HEADERS
 
+// Some platforms don't support gmtime_r. Platforms where this is the case
+// should define the following quirk.
+#undef SB_HAS_QUIRK_NO_GMTIME_R
+
 // --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
