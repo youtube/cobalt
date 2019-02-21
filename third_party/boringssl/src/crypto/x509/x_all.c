@@ -453,6 +453,7 @@ EVP_PKEY *d2i_PUBKEY_fp(FILE *fp, EVP_PKEY **a)
 {
     return ASN1_d2i_fp_of(EVP_PKEY, EVP_PKEY_new, d2i_PUBKEY, fp, a);
 }
+#endif
 
 int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, EVP_PKEY *key)
 {
@@ -465,7 +466,6 @@ int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, EVP_PKEY *key)
     PKCS8_PRIV_KEY_INFO_free(p8inf);
     return ret;
 }
-#endif
 
 int i2d_PKCS8_PRIV_KEY_INFO_bio(BIO *bp, PKCS8_PRIV_KEY_INFO *p8inf)
 {
