@@ -264,7 +264,7 @@ void OPENSSL_cpuid_setup(void) {
   OPENSSL_ia32cap_P[3] = extended_features[1];
 
   const char *env1, *env2;
-  env1 = getenv("OPENSSL_ia32cap");
+  env1 = OPENSSL_port_getenv("OPENSSL_ia32cap");
   if (env1 == NULL) {
     return;
   }
