@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/base/x509_util.h"
 #include "net/base/x509_util_openssl.h"
+
+#include <openssl/mem.h>
 
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "net/base/x509_cert_types.h"
+#include "net/base/x509_util.h"
 
 namespace net {
 

@@ -126,11 +126,11 @@ RSAPrivateKey::~RSAPrivateKey() {
 
 RSAPrivateKey* RSAPrivateKey::Copy() const {
   scoped_ptr<RSAPrivateKey> copy(new RSAPrivateKey());
-  RSA* rsa = EVP_PKEY_get1_RSA(key_);
+  bssl::UniquePtr<RSA> rsa(EVP_PKEY_get1_RSA(key_));
   if (!rsa)
     return NULL;
   copy->key_ = EVP_PKEY_new();
-  if (!EVP_PKEY_set1_RSA(copy->key_, rsa))
+  if (!EVP_PKEY_set1_RSA(copy->key_, rsa.get()))
     return NULL;
   return copy.release();
 }
