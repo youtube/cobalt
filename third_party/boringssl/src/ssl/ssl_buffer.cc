@@ -37,7 +37,7 @@ static_assert((SSL3_ALIGN_PAYLOAD & (SSL3_ALIGN_PAYLOAD - 1)) == 0,
               "SSL3_ALIGN_PAYLOAD must be a power of 2");
 
 void SSLBuffer::Clear() {
-  free(buf_);  // Allocated with malloc().
+  SbMemoryDeallocate(buf_);  // Allocated with malloc().
   buf_ = nullptr;
   offset_ = 0;
   size_ = 0;
@@ -59,7 +59,10 @@ bool SSLBuffer::EnsureCap(size_t header_len, size_t new_cap) {
   // Since this buffer gets allocated quite frequently and doesn't contain any
   // sensitive data, we allocate with malloc rather than |OPENSSL_malloc| and
   // avoid zeroing on free.
-  uint8_t *new_buf = (uint8_t *)malloc(new_cap + SSL3_ALIGN_PAYLOAD - 1);
+  //
+  // We need to use SbMemoryAllocate in starboard.
+  uint8_t *new_buf =
+      (uint8_t *)SbMemoryAllocate(new_cap + SSL3_ALIGN_PAYLOAD - 1);
   if (new_buf == NULL) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
     return false;
@@ -71,7 +74,7 @@ bool SSLBuffer::EnsureCap(size_t header_len, size_t new_cap) {
 
   if (buf_ != NULL) {
     OPENSSL_memcpy(new_buf + new_offset, buf_ + offset_, size_);
-    free(buf_);  // Allocated with malloc().
+    SbMemoryDeallocate(buf_);  // Allocated with malloc().
   }
 
   buf_ = new_buf;

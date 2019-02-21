@@ -55,9 +55,13 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
+#include <openssl/opensslconf.h>
+
+#if !SB_HAS_QUIRK(NO_GMTIME_R)
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
 #endif
+#endif  // !SB_HAS_QUIRK(NO_GMTIME_R)
 
 #include "asn1_locl.h"
 
@@ -73,8 +77,13 @@ struct tm *OPENSSL_gmtime(const time_t *time, struct tm *result) {
   }
   return result;
 #else
+#if SB_HAS_QUIRK(NO_GMTIME_R)
+  result = gmtime(time);
+  return result;
+#else // SB_HAS_QUIRK(NO_GMTIME_R)
   return gmtime_r(time, result);
 #endif
+#endif  // SB_HAS_QUIRK(NO_GMTIME_R)
 }
 
 /* Convert date to and from julian day Uses Fliegel & Van Flandern algorithm */

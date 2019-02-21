@@ -140,7 +140,7 @@ static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
             // We don't expect to use the default certs dir.
             OPENSSL_PUT_ERROR(X509, X509_R_LOADING_CERT_DIR);
 #else
-            dir = (char *)getenv(X509_get_default_cert_dir_env());
+            dir = (char *)OPENSSL_port_getenv(X509_get_default_cert_dir_env());
             if (dir)
                 ret = add_cert_dir(ld, dir, X509_FILETYPE_PEM);
             else
