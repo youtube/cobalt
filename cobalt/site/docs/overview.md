@@ -74,7 +74,7 @@ which explains how to use Starboard, Cobalt's porting layer, to customize the
 platform-specific functionality that Cobalt uses. There are several reference
 documents to help porters customize configuration files and to implement
 module-specific functionality. The [Testing with
-NPLB](/cobalt/starboard/testing.html) document provides an overview of
+NPLB](/starboard/testing.html) document provides an overview of
 Starboard's compliance test suite.
 
 ### Developers
