@@ -121,7 +121,7 @@ def _RmtreeShallow(root_dir):
         shutil.rmtree(d)
     except Exception as err:
       traceback.print_exc()
-      print('Error while deleting: ' + err)
+      print('Error while deleting: ' + str(err))
 
 
 def _ReadReparsePointShell(path):
@@ -167,8 +167,6 @@ def _IsReparsePoint(path):
 
 
 def _CreateReparsePoint(from_folder, link_folder):
-  from_folder = os.path.abspath(from_folder)
-  link_folder = os.path.abspath(link_folder)
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
