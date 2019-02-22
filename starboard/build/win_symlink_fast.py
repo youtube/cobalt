@@ -158,6 +158,7 @@ def _GetKernel32Dll():
 
 
 def _FastCreateReparseLink(from_folder, link_folder):
+  link_folder = os.path.abspath(link_folder)
   from_folder = _ToUnicode(from_folder)
   link_folder = _ToUnicode(link_folder)
   par_dir = os.path.dirname(link_folder)
