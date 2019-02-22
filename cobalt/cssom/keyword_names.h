@@ -96,6 +96,7 @@ extern const char kRepeatYKeywordName[];
 extern const char kReverseKeywordName[];
 extern const char kRightKeywordName[];
 extern const char kSansSerifKeywordName[];
+extern const char kScrollKeywordName[];
 extern const char kSerifKeywordName[];
 extern const char kSilverKeywordName[];
 extern const char kSolidKeywordName[];
