@@ -168,6 +168,7 @@ def _IsReparsePoint(path):
 
 
 def _CreateReparsePoint(from_folder, link_folder):
+  link_folder = os.path.abspath(link_folder)
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
