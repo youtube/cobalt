@@ -69,6 +69,7 @@ struct KeywordValue::NonTrivialStaticFields {
         reverse_value(new KeywordValue(KeywordValue::kReverse)),
         right_value(new KeywordValue(KeywordValue::kRight)),
         sans_serif_value(new KeywordValue(KeywordValue::kSansSerif)),
+        scroll_value(new KeywordValue(KeywordValue::kScroll)),
         serif_value(new KeywordValue(KeywordValue::kSerif)),
         solid_value(new KeywordValue(KeywordValue::kSolid)),
         start_value(new KeywordValue(KeywordValue::kStart)),
@@ -126,6 +127,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> reverse_value;
   const scoped_refptr<KeywordValue> right_value;
   const scoped_refptr<KeywordValue> sans_serif_value;
+  const scoped_refptr<KeywordValue> scroll_value;
   const scoped_refptr<KeywordValue> serif_value;
   const scoped_refptr<KeywordValue> solid_value;
   const scoped_refptr<KeywordValue> start_value;
@@ -327,6 +329,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetSansSerif() {
   return non_trivial_static_fields.Get().sans_serif_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetScroll() {
+  return non_trivial_static_fields.Get().scroll_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetSerif() {
   return non_trivial_static_fields.Get().serif_value;
 }
@@ -457,6 +463,8 @@ std::string KeywordValue::ToString() const {
       return kReverseKeywordName;
     case kRight:
       return kRightKeywordName;
+    case kScroll:
+      return kScrollKeywordName;
     case kSansSerif:
       return kSansSerifKeywordName;
     case kSerif:
