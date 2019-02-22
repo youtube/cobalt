@@ -49,6 +49,10 @@ class KeywordValue : public PropertyValue {
     // properties.
     //   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
     //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
+    // "auto" is a value of the "overflow" property whose behavior is dependent
+    // on the user agent; it generally should provide a scrolling mechanism for
+    // overflowing boxes.
+    //   https://www.w3.org/TR/CSS21/visufx.html#overflow
     kAuto,
 
     // "backwards" is a value of "animation-fill-mode" property which causes the
@@ -277,6 +281,11 @@ class KeywordValue : public PropertyValue {
     //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kSansSerif,
 
+    // "scroll" is a value of the "overflow" property which indicates that
+    // content is clipped and a scrolling mechanism should be provided.
+    //   https://www.w3.org/TR/CSS21/visufx.html#overflow
+    kScroll,
+
     // "serif" is a value of "font_family" property which indicates a generic
     // font family representing the formal text style for script.
     //   https://www.w3.org/TR/css3-fonts/#generic-font-families
@@ -376,6 +385,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetReverse();
   static const scoped_refptr<KeywordValue>& GetRight();
   static const scoped_refptr<KeywordValue>& GetSansSerif();
+  static const scoped_refptr<KeywordValue>& GetScroll();
   static const scoped_refptr<KeywordValue>& GetSerif();
   static const scoped_refptr<KeywordValue>& GetSolid();
   static const scoped_refptr<KeywordValue>& GetStart();

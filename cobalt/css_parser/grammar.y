@@ -252,6 +252,7 @@
 %token kReverseToken                    // reverse
 // %token kRightToken                   // right - also property name token
 %token kSansSerifToken                  // sans-serif
+%token kScrollToken                     // scroll
 %token kSerifToken                      // serif
 %token kSilverToken                     // silver
 %token kSolidToken                      // solid
@@ -1880,6 +1881,9 @@ identifier_token:
   }
   | kSansSerifToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSansSerifKeywordName);
+  }
+  | kScrollToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kScrollKeywordName);
   }
   | kSerifToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSerifKeywordName);
@@ -4158,11 +4162,18 @@ opacity_property_value:
   ;
 
 // Specifies whether content of a block container element is clipped when it
-// overflows the element's box.
+// overflows the element's box and whether a scrolling mechanism should be
+// provided.
 //   https://www.w3.org/TR/CSS2/visufx.html#overflow
 overflow_property_value:
-    kHiddenToken maybe_whitespace {
+    kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  | kHiddenToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetHidden().get());
+  }
+  | kScrollToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetScroll().get());
   }
   | kVisibleToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetVisible().get());

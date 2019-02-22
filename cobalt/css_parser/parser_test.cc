@@ -5575,11 +5575,27 @@ TEST_F(ParserTest, ParsesNormalOverflowWrap) {
             style->GetPropertyValue(cssom::kOverflowWrapProperty));
 }
 
+TEST_F(ParserTest, ParsesAutoOverflow) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("overflow: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            style->GetPropertyValue(cssom::kOverflowProperty));
+}
+
 TEST_F(ParserTest, ParsesHiddenOverflow) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("overflow: hidden;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetHidden(),
+            style->GetPropertyValue(cssom::kOverflowProperty));
+}
+
+TEST_F(ParserTest, ParsesScrollOverflow) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("overflow: scroll;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetScroll(),
             style->GetPropertyValue(cssom::kOverflowProperty));
 }
 

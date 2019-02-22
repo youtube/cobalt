@@ -152,8 +152,7 @@ void ContainerBox::MoveDirectChildrenToSplitSibling(
   //   2. Stacking context children contained within this overflow hidden
   //      container are potentially moving to the split sibling overflow hidden
   //      container.
-  if (HasStackingContextChildren() ||
-      computed_style()->overflow() == cssom::KeywordValue::GetHidden()) {
+  if (HasStackingContextChildren() || IsOverflowHidden()) {
     // Walk up the tree until the nearest stacking context is found. If this box
     // is a stacking context, then it will be used.
     ContainerBox* nearest_stacking_context = this;
@@ -574,8 +573,7 @@ void RenderAndAnimateStackingContextChildrenCoordinator::
   OverflowHiddenInfo& overflow_hidden_info = overflow_hidden_stack_.back();
 
   ContainerBox* containing_block = overflow_hidden_info.containing_block;
-  DCHECK_EQ(containing_block->computed_style()->overflow(),
-            cssom::KeywordValue::GetHidden());
+  DCHECK(containing_block->IsOverflowHidden());
 
   // Determine the offset from the child container to this containing block's
   // border box.
@@ -762,8 +760,7 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
 
     bool has_absolute_position =
         computed_style()->position() == cssom::KeywordValue::GetAbsolute();
-    bool has_overflow_hidden =
-        computed_style()->overflow() == cssom::KeywordValue::GetHidden();
+    bool has_overflow_hidden = IsOverflowHidden();
 
     stacking_context_container_box_stack->push_back(
         StackingContextContainerBoxInfo(
