@@ -34,7 +34,7 @@ def FastCreateReparseLink(from_folder, link_folder):
 #                                 IMPL                                         #
 ################################################################################
 
-
+import os
 from ctypes import \
     POINTER, c_buffer, byref, addressof, c_ubyte, Structure, Union, windll
 from ctypes.wintypes import \
