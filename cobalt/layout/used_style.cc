@@ -282,6 +282,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
@@ -372,6 +373,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
@@ -1182,6 +1184,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
@@ -1367,6 +1370,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:
@@ -1439,6 +1443,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:

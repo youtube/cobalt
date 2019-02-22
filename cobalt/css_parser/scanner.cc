@@ -2139,6 +2139,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kRepeatToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kScrollKeywordName)) {
+        *property_value_token = kScrollToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kSilverKeywordName)) {
         *property_value_token = kSilverToken;
         return true;

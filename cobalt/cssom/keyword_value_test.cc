@@ -50,6 +50,7 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kRepeat, KeywordValue::GetRepeat()->value());
   EXPECT_EQ(KeywordValue::kRight, KeywordValue::GetRight()->value());
   EXPECT_EQ(KeywordValue::kSansSerif, KeywordValue::GetSansSerif()->value());
+  EXPECT_EQ(KeywordValue::kScroll, KeywordValue::GetScroll()->value());
   EXPECT_EQ(KeywordValue::kSerif, KeywordValue::GetSerif()->value());
   EXPECT_EQ(KeywordValue::kStart, KeywordValue::GetStart()->value());
   EXPECT_EQ(KeywordValue::kStatic, KeywordValue::GetStatic()->value());
