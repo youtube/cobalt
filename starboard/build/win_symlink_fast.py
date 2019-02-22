@@ -27,6 +27,8 @@ def FastReadReparseLink(path):
 
 
 def FastCreateReparseLink(from_folder, link_folder):
+  """Creates a reparse link. If the operation fails to create the link due to
+  to the operating system not supporting it then an OSError is raised."""
   return _FastCreateReparseLink(from_folder, link_folder)
 
 
@@ -165,7 +167,10 @@ def _FastCreateReparseLink(from_folder, link_folder):
   # Only supported from Windows 10 Insiders build 14972
   flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | \
           SYMBOLIC_LINK_FLAG_DIRECTORY
-  kdll.CreateSymbolicLinkW(link_folder, from_folder, flags)
+  ok = kdll.CreateSymbolicLinkW(link_folder, from_folder, flags)
+  if not ok or not _FastIsReparseLink(link_folder):
+    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
+                  from_folder)
 
 
 def _FastIsReparseLink(path):

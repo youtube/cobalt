@@ -36,7 +36,8 @@ build 14972, which is not widely available yet.
 
 
 def CreateReparsePoint(from_folder, link_folder):
-  """ Mimics os.symlink for usage. """
+  """ Mimics os.symlink for usage. If link cannot be created then an OSError
+  is raised."""
   return _CreateReparsePoint(from_folder, link_folder)
 
 
@@ -174,16 +175,22 @@ def _CreateReparsePoint(from_folder, link_folder):
   try:
     from win_symlink_fast import FastCreateReparseLink
     FastCreateReparseLink(from_folder, link_folder)
+    return
+  except OSError as os_err:
+    # The operating system doesn't support the call.
+    pass
   except Exception as err:
-    print(__file__ + ' error: ' + str(err) + \
+    print(__file__ + ' unexpected error: ' + str(err) + \
           ', from='+from_folder+', link='+link_folder+ \
           ', falling back to command line version.')
-    par_dir = os.path.dirname(link_folder)
-    if not os.path.isdir(par_dir):
-      os.makedirs(par_dir)
-    cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
-    subprocess.check_output(cmd_parts)
-
+  par_dir = os.path.dirname(link_folder)
+  if not os.path.isdir(par_dir):
+    os.makedirs(par_dir)
+  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+  subprocess.check_output(cmd_parts)
+  if not _IsReparsePoint(link_folder):
+    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
+                  from_folder)
 
 
 def _UnlinkReparsePoint(link_dir):
