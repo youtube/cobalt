@@ -94,6 +94,7 @@ const char kRepeatYKeywordName[] = "repeat-y";
 const char kReverseKeywordName[] = "reverse";
 const char kRightKeywordName[] = "right";
 const char kSansSerifKeywordName[] = "sans-serif";
+const char kScrollKeywordName[] = "scroll";
 const char kSerifKeywordName[] = "serif";
 const char kSilverKeywordName[] = "silver";
 const char kSolidKeywordName[] = "solid";

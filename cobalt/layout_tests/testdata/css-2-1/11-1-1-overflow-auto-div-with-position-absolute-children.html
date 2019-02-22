@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | Overflow auto div with position absolute children.
+ | Only partial of text in the first 'red' class displayed and a green rectangle
+ | box is also displayed if this test passed.
+ | Results should be similar to overflow hidden.
+ |   https://www.w3.org/TR/CSS21/visufx.html
+ -->
+<head>
+  <style>
+    body {
+      font-family: Roboto;
+      font-size: 16px;
+    }
+
+    .red {
+      background-color: #FF0000;
+    }
+
+    .overflow {
+      width: 200px;
+      height: 20px;
+      overflow: auto;
+    }
+
+    .positioned {
+      position: absolute;
+      left: 150px;
+      top: 100px;
+      width: 100px;
+      height: 100px;
+      background-color: #00CC00;
+    }
+  </style>
+</head>
+<body>
+  <div class="overflow">
+    <div class="red"> Demonstrate overflow auto property value.</div>
+    <div class='red'> This line is invisible. </div>
+    <div class='positioned'></div>
+  </div>
+</body>
+</html>

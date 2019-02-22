@@ -169,6 +169,7 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
