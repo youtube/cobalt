@@ -158,6 +158,9 @@ def _GetKernel32Dll():
 def _FastCreateReparseLink(from_folder, link_folder):
   from_folder = _ToUnicode(from_folder)
   link_folder = _ToUnicode(link_folder)
+  par_dir = os.path.dirname(link_folder)
+  if not os.path.isdir(par_dir):
+    os.makedirs(par_dir)
   kdll = _GetKernel32Dll()
   # Only supported from Windows 10 Insiders build 14972
   flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | \
