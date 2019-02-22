@@ -80,6 +80,8 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     return false;
   }
 
+  SbFileFlush(temp_file);
+
   record->file = temp_file;
 
   return true;
