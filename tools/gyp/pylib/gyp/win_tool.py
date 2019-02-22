@@ -187,6 +187,8 @@ class WinTool(object):
     # twice then the error will be written out to the command line.
     err_code, stdout, stderr = RunCmd()
     if err_code == 0:
+      sys.stdout.write(stdout)
+      sys.stderr.write(stderr)
       return err_code
     sys.stdout.write(
         BuildErrorMessage(err_code, stdout, stderr) + ' retrying...\n')
