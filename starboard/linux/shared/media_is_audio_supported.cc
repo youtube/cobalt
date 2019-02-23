@@ -19,13 +19,22 @@
 
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                                        int64_t bitrate) {
-  if (audio_codec != kSbMediaAudioCodecAac &&
-#if SB_HAS(AC3_AUDIO)
-      audio_codec != kSbMediaAudioCodecAc3 &&
-      audio_codec != kSbMediaAudioCodecEac3 &&
-#endif  // SB_HAS(AC3_AUDIO)
-      audio_codec != kSbMediaAudioCodecOpus) {
-    return false;
+  if (audio_codec == kSbMediaAudioCodecAac) {
+    return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
   }
-  return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
+
+#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+  if (audio_codec == kSbMediaAudioCodecOpus) {
+    return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
+  }
+
+#if SB_HAS(AC3_AUDIO)
+  if (audio_codec == kSbMediaAudioCodecAc3 ||
+      audio_codec == kSbMediaAudioCodecEac3) {
+    return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
+  }
+#endif  // SB_HAS(AC3_AUDIO)
+#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+
+  return false;
 }
