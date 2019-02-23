@@ -328,7 +328,7 @@ class Application {
   void AppendData(const std::string& id, ScopedFile* file, int64* offset) {
     const float kLowWaterMarkInSeconds = 5.f;
     const int64 kMaxBytesToAppend = 1024 * 1024;
-    char buffer[kMaxBytesToAppend];
+    std::vector<uint8_t> buffer(kMaxBytesToAppend);
 
     while (*offset < file->GetSize()) {
       Ranges<TimeDelta> ranges = chunk_demuxer_->GetBufferedRanges(id);
@@ -339,14 +339,14 @@ class Application {
       }
       int64 bytes_to_append =
           std::min(kMaxBytesToAppend, file->GetSize() - *offset);
-      file->Read(buffer, bytes_to_append);
+      file->Read(reinterpret_cast<char*>(buffer.data()), bytes_to_append);
 #if defined(COBALT_MEDIA_SOURCE_2016)
       base::TimeDelta timestamp_offset;
-      chunk_demuxer_->AppendData(id, reinterpret_cast<uint8*>(buffer),
+      chunk_demuxer_->AppendData(id, buffer.data(),
                                  bytes_to_append, base::TimeDelta(),
                                  media::kInfiniteDuration, &timestamp_offset);
 #else   //  defined(COBALT_MEDIA_SOURCE_2016)
-      chunk_demuxer_->AppendData(id, reinterpret_cast<uint8*>(buffer),
+      chunk_demuxer_->AppendData(id, buffer.data(),
                                  bytes_to_append);
 #endif  //  defined(COBALT_MEDIA_SOURCE_2016)
 
