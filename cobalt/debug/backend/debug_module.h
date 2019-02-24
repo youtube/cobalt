@@ -20,6 +20,7 @@
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/debug/backend/console_agent.h"
+#include "cobalt/debug/backend/css_agent.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/dom_agent.h"
 #include "cobalt/debug/backend/log_agent.h"
@@ -110,6 +111,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   scoped_ptr<ConsoleAgent> console_agent_;
   scoped_ptr<LogAgent> log_agent_;
   scoped_ptr<DOMAgent> dom_agent_;
+  scoped_ptr<CSSAgent> css_agent_;
   scoped_ptr<PageAgent> page_agent_;
   scoped_ptr<ScriptDebuggerAgent> script_debugger_agent_;
   scoped_ptr<TracingAgent> tracing_agent_;

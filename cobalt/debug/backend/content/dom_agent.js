@@ -34,7 +34,7 @@ commands.getDocument = function(params) {
 // specified, the default is 1, a single level.
 // https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-requestChildNodes
 commands.requestChildNodes = function(params) {
-  var node = _findNode(params);
+  var node = commands._findNode(params);
   var depth = params.depth || 1;
   var result = {};
   result.parentId = params.nodeId;
@@ -50,7 +50,7 @@ commands.requestChildNodes = function(params) {
 // events.
 // https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-requestNode
 commands.requestNode = function(params) {
-  var node = _findNode(params);
+  var node = commands._findNode(params);
   var nodeInfo = new devtools.Node(node);
   var result = {};
   result.nodeId = nodeInfo.nodeId;
@@ -74,7 +74,7 @@ commands.requestNode = function(params) {
 // Returns a Runtime.RemoteObject corresponding to a node.
 // https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-resolveNode
 commands.resolveNode = function(params) {
-  var node = _findNode(params);
+  var node = commands._findNode(params);
   var result = {};
   result.object =
       debugScriptRunner.createRemoteObject(node, params.objectGroup);
@@ -85,7 +85,7 @@ commands.resolveNode = function(params) {
 // Returns the bounding box of a node. This pseudo-command in the DOM domain is
 // a helper for the C++ |DOMAgent::HighlightNode|.
 commands._getBoundingClientRect = function(params) {
-  var node = _findNode(params);
+  var node = commands._findNode(params);
   return JSON.stringify(node.getBoundingClientRect());
 }
 
@@ -117,9 +117,10 @@ var _getChildNodes = function(node, depth) {
   return children;
 }
 
-// Finds a node specified by either nodeId or objectId (to get a node
-// from its corresponding remote object).
-var _findNode = function(params) {
+// Finds a node specified by either nodeId or objectId (to get a node from its
+// corresponding remote object). This is "exported" as a pseudo-command in the
+// DOM domain for other agents to use.
+commands._findNode = function(params) {
   if (params.nodeId != null) {
     return _nodeStore[params.nodeId];
   }
