@@ -24,6 +24,8 @@
         'backend/command_map.h',
         'backend/console_agent.cc',
         'backend/console_agent.h',
+        'backend/css_agent.cc',
+        'backend/css_agent.h',
         'backend/debug_dispatcher.cc',
         'backend/debug_dispatcher.h',
         'backend/debug_module.cc',
