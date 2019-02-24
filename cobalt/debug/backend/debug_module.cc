@@ -106,6 +106,8 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   dom_agent_.reset(
       new DOMAgent(debug_dispatcher_.get(), dom_render_layer.Pass()));
 
+  css_agent_.reset(new CSSAgent(debug_dispatcher_.get()));
+
   page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
                                   page_render_layer.Pass(),
                                   data.resource_provider));
