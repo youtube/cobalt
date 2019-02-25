@@ -134,8 +134,19 @@ String to_string(double value) {
     std::stringstream buffer;
     buffer.imbue(std::locale::classic());
     buffer.precision(17);
-    buffer.setf(std::ios::showpoint);
     buffer << value;
+    bool needsDotZero = true;
+    const std::string str = buffer.str();
+    for (int i = str.size() - 1; i >= 0; --i) {
+        char c = str[i];
+        if (c == '.' || c == 'e') {
+            needsDotZero = false;
+            break;
+        }
+    }
+    if (needsDotZero) {
+        buffer << ".0";
+    }
     return String(buffer.str().c_str());
 }
 
