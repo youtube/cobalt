@@ -28,7 +28,7 @@ namespace backend {
 
 namespace {
 const char kContentDir[] = "cobalt/debug/backend";
-const char kObjectIdentifier[] = "devtoolsBackend";
+const char kObjectIdentifier[] = "debugScriptRunner";
 }  // namespace
 
 DebugScriptRunner::DebugScriptRunner(

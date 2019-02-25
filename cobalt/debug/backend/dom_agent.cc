@@ -33,7 +33,7 @@ namespace {
 constexpr char kInspectorDomain[] = "DOM";
 
 // File to load JavaScript DOM debugging domain implementation from.
-constexpr char kScriptFile[] = "dom.js";
+constexpr char kScriptFile[] = "dom_agent.js";
 }  // namespace
 
 DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
@@ -73,7 +73,7 @@ void DOMAgent::Disable(const Command& command) { command.SendResponse(); }
 void DOMAgent::HighlightNode(const Command& command) {
   // Get the bounding rectangle of the specified node.
   JSONObject json_dom_rect = dispatcher_->RunScriptCommand(
-      "dom.getBoundingClientRect", command.GetParams());
+      "dom._getBoundingClientRect", command.GetParams());
   double x = 0.0;
   double y = 0.0;
   double width = 0.0;
