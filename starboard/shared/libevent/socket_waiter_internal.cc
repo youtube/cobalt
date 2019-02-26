@@ -70,6 +70,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
   return kSbSocketInvalid;
 }
 
+#if !SB_HAS(PIPE)
 void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
   int result;
   SbSocketError sb_socket_result;
@@ -106,6 +107,7 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
   result = SbSocketDestroy(listen_socket);
   SB_DCHECK(result);
 }
+#endif
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()

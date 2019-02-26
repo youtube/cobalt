@@ -40,8 +40,10 @@
       # Suppress some warnings that will be hard to fix.
       '-Wno-unused-local-typedefs',
       '-Wno-unused-result',
+      '-Wno-unused-function',
       '-Wno-deprecated-declarations',
       '-Wno-missing-field-initializers',
+      '-Wno-extra',
       '-Wno-comment',  # Talk to my lawyer.
       '-Wno-narrowing',
       '-Wno-unknown-pragmas',
