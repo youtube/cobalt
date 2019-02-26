@@ -144,8 +144,11 @@ void URLFetcherCore::SetUploadData(const std::string& upload_content_type,
   DCHECK(!is_chunked_upload_);
   DCHECK(upload_content_type_.empty());
 
+// Cobalt manages the content type header itself.
+#if !defined(STARBOARD)
   // Empty |upload_content_type| is allowed iff the |upload_content| is empty.
   DCHECK(upload_content.empty() || !upload_content_type.empty());
+#endif
 
   upload_content_type_ = upload_content_type;
   upload_content_ = upload_content;
@@ -410,6 +413,10 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
     stopped_on_redirect_ = true;
     url_ = redirect_info.new_url;
     response_code_ = request_->GetResponseCode();
+#if defined(COBALT)
+    // Cobalt needs header information for CORS check between redirects.
+    response_headers_ = request_->response_headers();
+#endif
     proxy_server_ = request_->proxy_server();
     was_fetched_via_proxy_ = request_->was_fetched_via_proxy();
     was_cached_ = request_->was_cached();
@@ -437,6 +444,14 @@ void URLFetcherCore::OnResponseStarted(URLRequest* request, int net_error) {
   DCHECK(!buffer_);
   if (request_type_ != URLFetcher::HEAD)
     buffer_ = base::MakeRefCounted<IOBuffer>(kBufferSize);
+#if defined(STARBOARD)
+  // We update this earlier than OnReadCompleted(), so that the delegate
+  // can know about it if they call GetURL() in any callback.
+  if (!stopped_on_redirect_) {
+    url_ = request_->url();
+  }
+  InformDelegateResponseStarted();
+#endif  // defined(STARBOARD)
   ReadResponse();
 }
 
@@ -597,8 +612,11 @@ void URLFetcherCore::StartURLRequest() {
     case URLFetcher::POST:
     case URLFetcher::PUT:
     case URLFetcher::PATCH: {
+// Cobalt sometimes does not have a request body for post request.
+#if !defined(STARBOARD)
       // Upload content must be set.
       DCHECK(is_chunked_upload_ || upload_content_set_);
+#endif
 
       request_->set_method(
           request_type_ == URLFetcher::POST ? "POST" :
@@ -644,6 +662,13 @@ void URLFetcherCore::StartURLRequest() {
     case URLFetcher::DELETE_REQUEST:
       request_->set_method("DELETE");
       break;
+
+#if defined(COBALT)
+    // Cobalt needs OPTIONS method to send CORS-Preflight requests.
+    case URLFetcher::OPTIONS:
+      request_->set_method("OPTIONS");
+      break;
+#endif
 
     default:
       NOTREACHED();
@@ -913,6 +938,26 @@ void URLFetcherCore::ReadResponse() {
 
   OnReadCompleted(request_.get(), bytes_read);
 }
+
+#if defined(STARBOARD)
+
+void URLFetcherCore::InformDelegateResponseStarted() {
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(request_);
+
+  delegate_task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&URLFetcherCore::InformDelegateResponseStartedInDelegateThread,
+                 this));
+}
+
+void URLFetcherCore::InformDelegateResponseStartedInDelegateThread() {
+  if (delegate_) {
+    delegate_->OnURLFetchResponseStarted(fetcher_);
+  }
+}
+
+#endif  // defined(STARBOARD)
 
 void URLFetcherCore::InformDelegateUploadProgress() {
   DCHECK(network_task_runner_->BelongsToCurrentThread());

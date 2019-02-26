@@ -172,7 +172,9 @@ LoadState HttpStreamFactory::JobController::GetLoadState() const {
 void HttpStreamFactory::JobController::OnRequestComplete() {
   DCHECK(request_);
 
+#if !defined(COBALT_DISABLE_SPDY)
   RemoveRequestFromSpdySessionRequestMap();
+#endif
   CancelJobs();
   request_ = nullptr;
   if (bound_job_) {
@@ -472,6 +474,7 @@ bool HttpStreamFactory::JobController::OnInitConnection(
                                     request_info_.privacy_mode);
 }
 
+#if !defined(COBALT_DISABLE_SPDY)
 void HttpStreamFactory::JobController::OnNewSpdySessionReady(
     Job* job,
     const base::WeakPtr<SpdySession>& spdy_session) {
@@ -534,6 +537,7 @@ void HttpStreamFactory::JobController::OnNewSpdySessionReady(
     OnOrphanedJobComplete(job);
   }
 }
+#endif
 
 void HttpStreamFactory::JobController::OnPreconnectsComplete(Job* job) {
   DCHECK_EQ(main_job_.get(), job);
@@ -645,6 +649,7 @@ bool HttpStreamFactory::JobController::ShouldWait(Job* job) {
   return true;
 }
 
+#if !defined(COBALT_DISABLE_SPDY)
 void HttpStreamFactory::JobController::SetSpdySessionKey(
     Job* job,
     const SpdySessionKey& spdy_session_key) {
@@ -673,6 +678,7 @@ void HttpStreamFactory::JobController::
   session_->spdy_session_pool()->RemoveRequestFromSpdySessionRequestMap(
       request_);
 }
+#endif
 
 const NetLogWithSource* HttpStreamFactory::JobController::GetNetLog() const {
   return &net_log_;
@@ -925,7 +931,9 @@ void HttpStreamFactory::JobController::CancelJobs() {
 void HttpStreamFactory::JobController::OrphanUnboundJob() {
   DCHECK(request_);
   DCHECK(bound_job_);
+#if !defined(COBALT_DISABLE_SPDY)
   RemoveRequestFromSpdySessionRequestMap();
+#endif
 
   if (bound_job_->job_type() == MAIN && alternative_job_) {
     DCHECK(!is_websocket_);
@@ -1189,6 +1197,7 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
         quic::QUIC_VERSION_UNSUPPORTED)
       continue;
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
     // Check whether there is an existing QUIC session to use for this origin.
     HostPortPair mapped_origin(origin.host(), origin.port());
     ignore_result(ApplyHostMappingRules(original_url, &mapped_origin));
@@ -1208,6 +1217,7 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
 
     if (!IsQuicWhitelistedForHost(destination.host()))
       continue;
+#endif
 
     // Cache this entry if we don't have a non-broken Alt-Svc yet.
     if (first_alternative_service_info.protocol() == kProtoUnknown)
@@ -1343,8 +1353,10 @@ int HttpStreamFactory::JobController::ReconsiderProxyAfterError(Job* job,
     return error;
   }
 
+#if !defined(COBALT_DISABLE_SPDY)
   if (!job->using_quic())
     RemoveRequestFromSpdySessionRequestMap();
+#endif
   // Abandon all Jobs and start over.
   job_bound_ = false;
   bound_job_ = nullptr;

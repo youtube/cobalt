@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
 
 #if defined(STARBOARD)
+  base::AtExitManager exit_manager;
   return test_suite.Run();
 #else
   return base::LaunchUnitTests(

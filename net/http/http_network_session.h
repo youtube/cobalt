@@ -57,9 +57,11 @@ class NetLog;
 class NetworkQualityProvider;
 class ProxyResolutionService;
 }  // namespace net
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 namespace quic {
 class QuicClock;
 }  // namespace quic
+#endif
 namespace net {
 class QuicCryptoClientStreamFactory;
 class SocketPerformanceWatcherFactory;
@@ -304,8 +306,18 @@ class NET_EXPORT HttpNetworkSession {
   WebSocketEndpointLockManager* websocket_endpoint_lock_manager() {
     return websocket_endpoint_lock_manager_.get();
   }
-  SpdySessionPool* spdy_session_pool() { return &spdy_session_pool_; }
+  SpdySessionPool* spdy_session_pool() {
+#if defined(COBALT_DISABLE_SPDY)
+    return NULL;
+#else
+    return &spdy_session_pool_;
+#endif  // defined(COBALT_DISABLE_SPDY)
+  }
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamFactory* quic_stream_factory() { return &quic_stream_factory_; }
+#else
+  QuicStreamFactory* quic_stream_factory() { return NULL; }
+#endif
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
   }
@@ -385,8 +397,12 @@ class NET_EXPORT HttpNetworkSession {
   std::unique_ptr<ClientSocketPoolManager> normal_socket_pool_manager_;
   std::unique_ptr<ClientSocketPoolManager> websocket_socket_pool_manager_;
   std::unique_ptr<ServerPushDelegate> push_delegate_;
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamFactory quic_stream_factory_;
+#endif
+#if !defined(COBALT_DISABLE_SPDY)
   SpdySessionPool spdy_session_pool_;
+#endif  // !defined(COBALT_DISABLE_SPDY)
   std::unique_ptr<HttpStreamFactory> http_stream_factory_;
   std::map<HttpResponseBodyDrainer*, std::unique_ptr<HttpResponseBodyDrainer>>
       response_drainers_;

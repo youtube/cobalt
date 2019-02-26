@@ -2,27 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <utility>
+
 #include "dial_http_server.h"
 #include "dial_service_handler.h"
 
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
+#include "net/cert/ct_policy_enforcer.h"
+#include "net/cert/multi_log_ct_verifier.h"
 #include "net/dial/dial_service.h"
 #include "net/dial/dial_test_helpers.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_server_properties_impl.h"
-#include "net/proxy/proxy_service.h"
+#include "net/http/transport_security_state.h"
+#include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/server/http_server_request_info.h"
 #include "net/socket/client_socket_factory.h"
+#include "net/ssl/ssl_config_service_defaults.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -39,7 +44,7 @@ struct ResponseData {
   ResponseData() : response_code_(0), succeeded_(false) {}
   std::string response_body_;
   std::string mime_type_;
-  std::vector<std::string> headers_;
+  std::vector<std::pair<std::string, std::string>> headers_;
   int response_code_;
   bool succeeded_;
 };
@@ -49,28 +54,36 @@ class DialHttpServerTest : public testing::Test {
  public:
   std::unique_ptr<DialService> dial_service_;
   IPEndPoint addr_;
-  scoped_refptr<HttpNetworkSession> session_;
+  std::unique_ptr<HttpNetworkSession> session_;
   std::unique_ptr<HttpNetworkTransaction> client_;
   scoped_refptr<MockServiceHandler> handler_;
   std::unique_ptr<ResponseData> test_response_;
+  // We need an IO message loop for TCP connection.
+  base::MessageLoopForIO message_loop_for_io_;
 
   DialHttpServerTest() { handler_ = new MockServiceHandler("Foo"); }
 
   void InitHttpClientLibrary() {
     HttpNetworkSession::Params params;
-    params.proxy_service = ProxyService::CreateDirect();
-    params.ssl_config_service = new SSLConfigServiceDefaults();
-    params.http_server_properties = new HttpServerPropertiesImpl();
-    params.host_resolver = new MockHostResolver();
-    session_ = new HttpNetworkSession(params);
-    client_.reset(new HttpNetworkTransaction(session_));
+    HttpNetworkSession::Context context;
+    context.proxy_resolution_service =
+        ProxyResolutionService::CreateDirect().release();
+    context.http_server_properties = new HttpServerPropertiesImpl();
+    context.ssl_config_service = new SSLConfigServiceDefaults();
+    context.http_server_properties = new HttpServerPropertiesImpl();
+    context.transport_security_state = new TransportSecurityState();
+    context.cert_transparency_verifier = new MultiLogCTVerifier();
+    context.ct_policy_enforcer = new DefaultCTPolicyEnforcer();
+    context.host_resolver = new MockHostResolver();
+    session_.reset(new HttpNetworkSession(params, context));
+    client_.reset(new HttpNetworkTransaction(net::RequestPriority::MEDIUM,
+                                             session_.get()));
   }
 
   virtual void SetUp() override {
     dial_service_.reset(new DialService());
     dial_service_->Register(handler_);
     EXPECT_EQ(OK, dial_service_->http_server()->GetLocalAddress(&addr_));
-    EXPECT_NE(0, addr_.port());
     InitHttpClientLibrary();
   }
 
@@ -78,15 +91,16 @@ class DialHttpServerTest : public testing::Test {
     dial_service_->Deregister(handler_);
     dial_service_.reset(NULL);
 
-    const HttpNetworkSession::Params& params = session_->params();
-    delete params.proxy_service;
-    delete params.http_server_properties;
-    delete params.host_resolver;
+    const HttpNetworkSession::Context& context = session_->context();
+    delete context.proxy_resolution_service;
+    delete context.http_server_properties;
+    delete context.host_resolver;
+    delete context.ssl_config_service;
   }
 
   const HttpResponseInfo* GetResponse(const HttpRequestInfo& req) {
     TestCompletionCallback callback;
-    int rv = client_->Start(&req, callback.callback(), BoundNetLog());
+    int rv = client_->Start(&req, callback.callback(), NetLogWithSource());
 
     if (rv == ERR_IO_PENDING) {
       // FIXME: This call can be flaky: It may wait forever.
@@ -114,26 +128,23 @@ class DialHttpServerTest : public testing::Test {
       return;
     }
     // This function simulates a DialServiceHandler response.
-    std::unique_ptr<HttpServerResponseInfo> response(
-        new HttpServerResponseInfo);
-    response->body = test_response_->response_body_;
-    response->mime_type = test_response_->mime_type_;
-    response->response_code = test_response_->response_code_;
-    response->headers = test_response_->headers_;
+    std::unique_ptr<HttpServerResponseInfo> response(new HttpServerResponseInfo(
+        net::HttpStatusCode(test_response_->response_code_)));
+    response->SetBody(test_response_->response_body_,
+                      test_response_->mime_type_);
+    for (auto i : test_response_->headers_) {
+      response->AddHeader(i.first, i.second);
+    }
 
-    on_completion.Run(response.Pass());
+    on_completion.Run(std::move(response));
   }
 
   void DoResponseCheck(const HttpResponseInfo* resp, bool has_contents) {
     EXPECT_EQ(test_response_->response_code_, resp->headers->response_code());
 
-    for (std::vector<std::string>::const_iterator it =
-             test_response_->headers_.begin();
+    for (auto it = test_response_->headers_.begin();
          it != test_response_->headers_.end(); ++it) {
-      std::vector<std::string> result;
-      base::SplitString(*it, ':', &result);
-      ASSERT_EQ(2, result.size());
-      EXPECT_TRUE(resp->headers->HasHeaderValue(result[0], result[1]));
+      EXPECT_TRUE(resp->headers->HasHeaderValue(it->first, it->second));
     }
 
     int64 content_length = resp->headers->GetContentLength();
@@ -144,7 +155,8 @@ class DialHttpServerTest : public testing::Test {
 
     ASSERT_NE(0, content_length);  // if failed, no point continuing.
 
-    scoped_refptr<IOBuffer> buffer(new IOBuffer(content_length));
+    scoped_refptr<IOBuffer> buffer(
+        new IOBuffer(static_cast<size_t>(content_length)));
     TestCompletionCallback callback;
     int rv = client_->Read(buffer, content_length, callback.callback());
     if (rv == net::ERR_IO_PENDING) {
@@ -176,7 +188,8 @@ TEST_F(DialHttpServerTest, SendManifest) {
   int64 content_length = resp->headers->GetContentLength();
   ASSERT_NE(0, content_length);  // if failed, no point continuing.
 
-  scoped_refptr<IOBuffer> buffer(new IOBuffer(content_length));
+  scoped_refptr<IOBuffer> buffer(
+      new IOBuffer(static_cast<size_t>(content_length)));
   TestCompletionCallback callback;
   int rv = client_->Read(buffer, content_length, callback.callback());
   if (rv == net::ERR_IO_PENDING) {
@@ -230,7 +243,8 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
   test_response_->response_body_ = "App Test";
   test_response_->mime_type_ = "text/plain; charset=\"utf-8\"";
   test_response_->response_code_ = HTTP_OK;
-  test_response_->headers_.push_back("X-Test-Header: Baz");
+  test_response_->headers_.push_back(
+      std::make_pair<std::string, std::string>("X-Test-Header", "Baz"));
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/bar");
   EXPECT_CALL(*handler_, HandleRequest(Eq("/bar"), _, _))

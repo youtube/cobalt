@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread.h"
 #include "net/base/net_export.h"
+#include "net/socket/udp_socket.h"
 
 namespace net {
 
@@ -25,13 +26,9 @@ class NET_EXPORT DialUdpServer {
                 const std::string& server_agent);
   virtual ~DialUdpServer();
 
-  // UDPSocket::Delegate
-  // virtual void DidRead(UDPSocket* server,
-  //                      const char* data,
-  //                      int len,
-  //                      const IPEndPoint* address) override;
+  virtual void DidRead(int rv);
 
-  // virtual void DidClose(UDPSocket* sock) override;
+  virtual void DidClose(UDPSocket* sock);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialUdpServerTest, ParseSearchRequest);
@@ -52,7 +49,7 @@ class NET_EXPORT DialUdpServer {
   // Is the valid SSDP request a valid M-Search request too ?
   static bool IsValidMSearchRequest(const HttpServerRequestInfo& info);
 
-  scoped_refptr<UDPSocket> socket_;
+  std::unique_ptr<UDPSocket> socket_;
   std::unique_ptr<UdpSocketFactory> factory_;
 
   // Value to pass in LOCATION: header
@@ -64,6 +61,10 @@ class NET_EXPORT DialUdpServer {
   base::Thread thread_;
 
   bool is_running_;
+
+  // For UDPSocket read.
+  IPEndPoint connection_address_;
+  scoped_refptr<IOBuffer> read_buf_;
 };
 
 }  // namespace net

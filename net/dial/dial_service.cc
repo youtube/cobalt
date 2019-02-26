@@ -17,8 +17,8 @@
 #include "net/dial/dial_service.h"
 
 #include "base/bind.h"
-#include "base/string_piece.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "net/base/net_errors.h"
 #include "net/server/http_server_request_info.h"
@@ -61,7 +61,7 @@ void DialService::Terminate() {
   if (http_server_) {
     http_server_->Stop();
   }
-  http_server_ = NULL;
+  http_server_.reset();
   udp_server_.reset();
 }
 
@@ -141,7 +141,7 @@ DialServiceProxy::DialServiceProxy(
   host_address_ = dial_service_->http_host_address();
   // Remember the message loop we were constructed on. We'll post all our tasks
   // there, to ensure thread safety when accessing dial_service_.
-  task_runner_ = base::MessageLoopProxy::current();
+  task_runner_ = base::MessageLoop::current()->task_runner();
 }
 
 DialServiceProxy::~DialServiceProxy() {}

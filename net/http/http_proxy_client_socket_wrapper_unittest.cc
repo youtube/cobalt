@@ -192,6 +192,7 @@ class HttpProxyClientSocketWrapperTest
         largest_received, smallest_received, least_unacked, kSendFeedback);
   }
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   static ProofVerifyDetailsChromium DefaultProofVerifyDetails() {
     // Load a certificate that is valid for *.example.org
     scoped_refptr<X509Certificate> test_cert(
@@ -202,6 +203,7 @@ class HttpProxyClientSocketWrapperTest
     verify_details.cert_verify_result.is_issued_by_known_root = true;
     return verify_details;
   }
+#endif
 
   HostPortPair proxy_host_port_;
   HostPortPair endpoint_host_port_;
@@ -250,6 +252,7 @@ class HttpProxyClientSocketWrapperTest
   std::unique_ptr<HttpProxyClientSocketWrapper> client_socket_wrapper_;
 };
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 TEST_P(HttpProxyClientSocketWrapperTest, QuicProxy) {
   Initialize();
   ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
@@ -365,6 +368,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::ValuesIn(quic::AllSupportedTransportVersions()),
         ::testing::Bool()));
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 };  // namespace test
 };  // namespace net

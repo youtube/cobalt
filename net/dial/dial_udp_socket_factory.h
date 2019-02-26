@@ -13,12 +13,11 @@ class IPEndPoint;
 
 class UdpSocketFactory {
  public:
-  scoped_refptr<UDPSocket> CreateAndBind(const IPEndPoint& address);
+  std::unique_ptr<UDPSocket> CreateAndBind(const IPEndPoint& address);
   virtual ~UdpSocketFactory() {}
 
  protected:
-  virtual void SetupSocketAfterCreate(SocketDescriptor) {}
-  virtual void SetupSocketAfterBind(SocketDescriptor) {}
+  virtual void SetupSocketAfterBind(UDPSocket* sock) {}
 };
 
 class DialUdpSocketFactory : public UdpSocketFactory {
@@ -27,8 +26,7 @@ class DialUdpSocketFactory : public UdpSocketFactory {
 
  protected:
   // UdpSocketFactory implementation
-  virtual void SetupSocketAfterCreate(SocketDescriptor) override;
-  virtual void SetupSocketAfterBind(SocketDescriptor) override;
+  virtual void SetupSocketAfterBind(UDPSocket* sock) override;
 };
 
 }  // namespace net

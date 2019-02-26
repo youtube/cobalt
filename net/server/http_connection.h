@@ -72,7 +72,13 @@ class HttpConnection {
   // std::string stored.
   class QueuedWriteIOBuffer : public IOBuffer {
    public:
+#if defined(STARBOARD)
+    // Starboard needs bigger buffer at least for shipping JS to debug web
+    // server.
+    static const int kDefaultMaxBufferSize = 2 * 1024 * 1024;  // 2 Mbytes.
+#else
     static const int kDefaultMaxBufferSize = 1 * 1024 * 1024;  // 1 Mbytes.
+#endif
 
     QueuedWriteIOBuffer();
 

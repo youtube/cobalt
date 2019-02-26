@@ -753,6 +753,7 @@ TEST_F(HttpStreamFactoryTest, NoProxyFallbackOnTunnelFail) {
   EXPECT_EQ(0u, retry_info.size());
 }
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 // List of errors that are used in the tests related to QUIC proxy.
 const int quic_proxy_test_mock_errors[] = {
     ERR_PROXY_CONNECTION_FAILED,
@@ -942,7 +943,9 @@ void SetupForQuicAlternativeProxyTest(
   proxy_resolution_service->SetProxyDelegate(test_proxy_delegate);
 }
 
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 }  // namespace
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 // Tests that a HTTPS proxy that supports QUIC alternative proxy server is
 // marked as bad if connecting to both the default proxy and the alternative
@@ -1398,6 +1401,7 @@ TEST_F(HttpStreamFactoryTest, ProxyServerPreconnectDifferentPrivacyModes) {
   EXPECT_EQ(-1, ssl_conn_pool->last_num_streams());
   EXPECT_EQ(num_streams, http_proxy_pool->last_num_streams());
 }
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 namespace {
 
@@ -2320,6 +2324,7 @@ TEST_F(HttpStreamFactoryTest, RequestBidirectionalStreamImpl) {
   EXPECT_TRUE(waiter.used_proxy_info().is_direct());
 }
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 class HttpStreamFactoryBidirectionalQuicTest
     : public TestWithScopedTaskEnvironment,
       public ::testing::WithParamInterface<
@@ -2662,6 +2667,7 @@ TEST_P(HttpStreamFactoryBidirectionalQuicTest,
                    HttpNetworkSession::WEBSOCKET_SOCKET_POOL)));
   EXPECT_TRUE(waiter.used_proxy_info().is_direct());
 }
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 TEST_F(HttpStreamFactoryTest, RequestBidirectionalStreamImplFailure) {
   SpdySessionDependencies session_deps(ProxyResolutionService::CreateDirect());
@@ -2853,6 +2859,7 @@ TEST_F(HttpStreamFactoryTest, Tag) {
                    HttpNetworkSession::NORMAL_SOCKET_POOL)));
 }
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 // Verify HttpStreamFactory::Job passes socket tag along properly to QUIC
 // sessions and that QuicSessions have unique socket tags (e.g. one sessions
 // should not be shared amongst streams with different socket tags).
@@ -2980,6 +2987,7 @@ TEST_P(HttpStreamFactoryBidirectionalQuicTest, Tag) {
   EXPECT_EQ(kProtoQUIC, request3->negotiated_protocol());
   EXPECT_EQ(2, GetQuicSessionCount(session()));
 }
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 TEST_F(HttpStreamFactoryTest, ChangeSocketTag) {
   SpdySessionDependencies session_deps;
