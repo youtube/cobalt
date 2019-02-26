@@ -369,6 +369,8 @@
       # Triggers in many legitimate cases, like branching on a constant declared
       # in type traits.
       4127,
+      # Disable anonymous union warnings.
+      4201,
       # 4244 (Level 2) - Implicit conversion from float to int
       # 4244 (Level 3) - Implicit conversion from int to something smaller
       # than int.
