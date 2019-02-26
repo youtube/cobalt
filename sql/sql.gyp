@@ -42,6 +42,7 @@
       'type': '<(gtest_target_type)',
       'dependencies': [
         'sql',
+        '../base/base.gyp:base',
         '../base/base.gyp:test_support_base',
         '../testing/gtest.gyp:gtest',
       ],

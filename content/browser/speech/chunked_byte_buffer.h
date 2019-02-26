@@ -5,12 +5,16 @@
 #ifndef CONTENT_BROWSER_SPEECH_CHUNKED_BYTE_BUFFER_H_
 #define CONTENT_BROWSER_SPEECH_CHUNKED_BYTE_BUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
+#include "base/macros.h"
+#include "base/strings/string_piece.h"
+#include "content/common/content_export.h"
 
 namespace content {
 
@@ -24,7 +28,7 @@ namespace content {
 //
 // E.g. 00 00 00 04 xx xx xx xx 00 00 00 02 yy yy 00 00 00 04 zz zz zz zz
 //      [----- CHUNK 1 -------] [--- CHUNK 2 ---] [------ CHUNK 3 ------]
-class ChunkedByteBuffer {
+class CONTENT_EXPORT ChunkedByteBuffer {
  public:
   ChunkedByteBuffer();
   ~ChunkedByteBuffer();
@@ -33,14 +37,14 @@ class ChunkedByteBuffer {
   void Append(const uint8_t* start, size_t length);
 
   // Appends bytes contained in the |string| to the buffer.
-  void Append(const std::string& string);
+  void Append(base::StringPiece string);
 
   // Checks whether one or more complete chunks are available in the buffer.
   bool HasChunks() const;
 
   // If enough data is available, reads and removes the first complete chunk
   // from the buffer. Returns a NULL pointer if no complete chunk is available.
-  scoped_ptr<std::vector<uint8_t> > PopChunk();
+  std::unique_ptr<std::vector<uint8_t>> PopChunk();
 
   // Clears all the content of the buffer.
   void Clear();
@@ -54,15 +58,15 @@ class ChunkedByteBuffer {
     ~Chunk();
 
     std::vector<uint8_t> header;
-    scoped_ptr<std::vector<uint8_t> > content;
+    std::unique_ptr<std::vector<uint8_t>> content;
     size_t ExpectedContentLength() const;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(Chunk);
   };
 
-  ScopedVector<Chunk> chunks_;
-  scoped_ptr<Chunk> partial_chunk_;
+  std::vector<std::unique_ptr<Chunk>> chunks_;
+  std::unique_ptr<Chunk> partial_chunk_;
   size_t total_bytes_stored_;
 
   DISALLOW_COPY_AND_ASSIGN(ChunkedByteBuffer);

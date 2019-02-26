@@ -7,22 +7,16 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/basictypes.h"
+#include "base/big_endian.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 
 namespace {
 
 static const size_t kHeaderLength = sizeof(uint32_t);
 
-COMPILE_ASSERT(sizeof(size_t) >= kHeaderLength,
-               chunked_byte_buffer_not_supported_on_this_architecture);
-
-uint32_t ReadBigEndian32(const uint8_t* buffer) {
-  return (static_cast<uint32_t>(buffer[3])) |
-         (static_cast<uint32_t>(buffer[2]) << 8) |
-         (static_cast<uint32_t>(buffer[1]) << 16) |
-         (static_cast<uint32_t>(buffer[0]) << 24);
-}
+static_assert(sizeof(size_t) >= kHeaderLength,
+              "chunked byte buffer not supported on this architecture");
 
 }  // namespace
 
@@ -42,7 +36,7 @@ void ChunkedByteBuffer::Append(const uint8_t* start, size_t length) {
   const uint8_t* next_data = start;
 
   while (remaining_bytes > 0) {
-    DCHECK(partial_chunk_ != NULL);
+    DCHECK(partial_chunk_ != nullptr);
     size_t insert_length = 0;
     bool header_completed = false;
     bool content_completed = false;
@@ -78,7 +72,7 @@ void ChunkedByteBuffer::Append(const uint8_t* start, size_t length) {
       DCHECK_EQ(partial_chunk_->header.size(), kHeaderLength);
       if (partial_chunk_->ExpectedContentLength() == 0) {
         // Handle zero-byte chunks.
-        chunks_.push_back(partial_chunk_.release());
+        chunks_.push_back(std::move(partial_chunk_));
         partial_chunk_.reset(new Chunk());
       } else {
         partial_chunk_->content->reserve(
@@ -87,7 +81,7 @@ void ChunkedByteBuffer::Append(const uint8_t* start, size_t length) {
     } else if (content_completed) {
       DCHECK_EQ(partial_chunk_->content->size(),
                 partial_chunk_->ExpectedContentLength());
-      chunks_.push_back(partial_chunk_.release());
+      chunks_.push_back(std::move(partial_chunk_));
       partial_chunk_.reset(new Chunk());
     }
   }
@@ -95,7 +89,7 @@ void ChunkedByteBuffer::Append(const uint8_t* start, size_t length) {
   total_bytes_stored_ += length;
 }
 
-void ChunkedByteBuffer::Append(const std::string& string) {
+void ChunkedByteBuffer::Append(base::StringPiece string) {
   Append(reinterpret_cast<const uint8_t*>(string.data()), string.size());
 }
 
@@ -103,16 +97,16 @@ bool ChunkedByteBuffer::HasChunks() const {
   return !chunks_.empty();
 }
 
-scoped_ptr<std::vector<uint8_t> > ChunkedByteBuffer::PopChunk() {
+std::unique_ptr<std::vector<uint8_t>> ChunkedByteBuffer::PopChunk() {
   if (chunks_.empty())
-    return scoped_ptr<std::vector<uint8_t> >().Pass();
-  scoped_ptr<Chunk> chunk(*chunks_.begin());
-  chunks_.weak_erase(chunks_.begin());
+    return std::unique_ptr<std::vector<uint8_t>>();
+  std::unique_ptr<Chunk> chunk = std::move(*chunks_.begin());
+  chunks_.erase(chunks_.begin());
   DCHECK_EQ(chunk->header.size(), kHeaderLength);
   DCHECK_EQ(chunk->content->size(), chunk->ExpectedContentLength());
   total_bytes_stored_ -= chunk->content->size();
   total_bytes_stored_ -= kHeaderLength;
-  return chunk->content.Pass();
+  return std::move(chunk->content);
 }
 
 void ChunkedByteBuffer::Clear() {
@@ -128,7 +122,10 @@ ChunkedByteBuffer::Chunk::~Chunk() {
 
 size_t ChunkedByteBuffer::Chunk::ExpectedContentLength() const {
   DCHECK_EQ(header.size(), kHeaderLength);
-  return static_cast<size_t>(ReadBigEndian32(&header[0]));
+  uint32_t content_length = 0;
+  base::ReadBigEndian(reinterpret_cast<const char*>(&header[0]),
+                      &content_length);
+  return static_cast<size_t>(content_length);
 }
 
 }  // namespace content

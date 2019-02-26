@@ -1,14 +1,5 @@
 #include "build/build_config.h"
-#if !defined(COMPILER_MSVC)
 #include <stdint.h>
-#else
-// VC8 doesn't have stdint.h.  On the other hand, some compilers don't like
-// the below code, because basictypes.h itself includes stdint.h and the
-// typedefs below can cause conflicts.
-#include "base/basictypes.h"
-typedef uint8 uint8_t;
-typedef uint32 uint32_t;
-#endif
 
 #define CHAR62 '+'
 #define CHAR63 '/'
