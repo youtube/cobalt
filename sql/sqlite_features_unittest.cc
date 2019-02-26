@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
@@ -44,7 +44,7 @@ class SQLiteFeaturesTest : public testing::Test {
 
   void SetUp() {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLStatementTest.db")));
+    ASSERT_TRUE(db_.Open(temp_dir_.GetPath().AppendASCII("SQLStatementTest.db")));
 
     // The error delegate will set |error_| and |sql_text_| when any sqlite
     // statement operation returns an error code.

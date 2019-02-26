@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
@@ -17,7 +17,7 @@ class SQLTransactionTest : public testing::Test {
   void SetUp() {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(db_.Open(
-        temp_dir_.path().AppendASCII("SQLTransactionTest.db")));
+        temp_dir_.GetPath().AppendASCII("SQLTransactionTest.db")));
 
     ASSERT_TRUE(db().Execute("CREATE TABLE foo (a, b)"));
   }

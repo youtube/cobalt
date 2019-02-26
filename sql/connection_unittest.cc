@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "sql/connection.h"
 #include "sql/meta_table.h"
@@ -25,8 +25,8 @@ class SQLConnectionTest : public testing::Test {
 
   sql::Connection& db() { return db_; }
 
-  FilePath db_path() {
-    return temp_dir_.path().AppendASCII("SQLConnectionTest.db");
+  base::FilePath db_path() {
+    return temp_dir_.GetPath().AppendASCII("SQLConnectionTest.db");
   }
 
  private:

@@ -42,8 +42,9 @@
 #include <memory>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/macros.h"
 #include "content/browser/speech/endpointer/energy_endpointer_params.h"
+#include "content/common/content_export.h"
 
 namespace content {
 
@@ -56,7 +57,7 @@ enum EpStatus {
   EP_POST_SPEECH,
 };
 
-class EnergyEndpointer {
+class CONTENT_EXPORT EnergyEndpointer {
  public:
   // The default construction MUST be followed by Init(), before any
   // other use can be made of the instance.
@@ -124,7 +125,7 @@ class EnergyEndpointer {
   float sample_rate_;  // Sampling rate.
 
   // Ring buffers to hold the speech activity history.
-  scoped_ptr<HistoryRing> history_;
+  std::unique_ptr<HistoryRing> history_;
 
   // Configuration parameters.
   EnergyEndpointerParams params_;
