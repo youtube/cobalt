@@ -46,6 +46,7 @@ WebSocketHandshakeStreamCreateHelper::CreateBasicStream(
   return std::move(stream);
 }
 
+#if !defined(COBALT_DISABLE_SPDY)
 std::unique_ptr<WebSocketHandshakeStreamBase>
 WebSocketHandshakeStreamCreateHelper::CreateHttp2Stream(
     base::WeakPtr<SpdySession> session) {
@@ -57,7 +58,12 @@ WebSocketHandshakeStreamCreateHelper::CreateHttp2Stream(
       session, connect_delegate_, requested_subprotocols_, extensions,
       request_);
   request_->OnHttp2HandshakeStreamCreated(stream.get());
+#if defined(STARBOARD)
+  return std::unique_ptr<WebSocketHandshakeStreamBase>(stream.release());
+#else
   return stream;
+#endif
 }
+#endif
 
 }  // namespace net

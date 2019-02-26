@@ -52,9 +52,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
   const std::string& http_host_address() const;
 
   // Expose the DialHttpServer for unit tests.
-  scoped_refptr<net::DialHttpServer> http_server() const {
-    return http_server_;
-  }
+  net::DialHttpServer* http_server() const { return http_server_.get(); }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);

@@ -121,7 +121,11 @@ CookieMonsterChangeDispatcher::AddCallbackForCookie(
       std::move(callback));
 
   LinkSubscription(subscription.get());
+#if defined(STARBOARD)
+  return std::unique_ptr<CookieChangeSubscription>(subscription.release());
+#else
   return subscription;
+#endif
 }
 
 std::unique_ptr<CookieChangeSubscription>
@@ -135,7 +139,11 @@ CookieMonsterChangeDispatcher::AddCallbackForUrl(
       std::string(kGlobalNameKey), url, std::move(callback));
 
   LinkSubscription(subscription.get());
+#if defined(STARBOARD)
+  return std::unique_ptr<CookieChangeSubscription>(subscription.release());
+#else
   return subscription;
+#endif
 }
 
 std::unique_ptr<CookieChangeSubscription>
@@ -148,7 +156,11 @@ CookieMonsterChangeDispatcher::AddCallbackForAllChanges(
       std::string(kGlobalNameKey), GURL(""), std::move(callback));
 
   LinkSubscription(subscription.get());
+#if defined(STARBOARD)
+  return std::unique_ptr<CookieChangeSubscription>(subscription.release());
+#else
   return subscription;
+#endif
 }
 
 void CookieMonsterChangeDispatcher::DispatchChange(

@@ -219,6 +219,10 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   // Read response bytes from the request.
   void ReadResponse();
 
+#if defined(STARBOARD)
+  void InformDelegateResponseStarted();
+  void InformDelegateResponseStartedInDelegateThread();
+#endif  // defined(STARBOARD)
   // Notify Delegate about the progress of upload/download.
   void InformDelegateUploadProgress();
   void InformDelegateUploadProgressInDelegateSequence(int64_t current,

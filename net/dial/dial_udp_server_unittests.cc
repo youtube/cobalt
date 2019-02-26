@@ -7,6 +7,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+namespace {
+#define ARRAYSIZE_UNSAFE(a)     \
+  ((sizeof(a) / sizeof(*(a))) / \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
+}
 
 TEST(DialUdpServerTest, ParseSearchRequest) {
   DialUdpServer server("fake_location", "fake_server_agent");

@@ -13,6 +13,7 @@
 #include "net/dial/dial_service_handler.h"
 #include "net/http/http_status_code.h"
 #include "net/server/http_server.h"
+#include "net/server/http_server_response_info.h"
 
 namespace net {
 
@@ -35,6 +36,7 @@ class NET_EXPORT DialHttpServer
   void Stop();
 
   // HttpServer::Delegate implementation
+  virtual void OnConnect(int /*conn_id*/) override{};
   virtual void OnHttpRequest(int conn_id,
                              const HttpServerRequestInfo& info) override;
 
@@ -80,7 +82,7 @@ class NET_EXPORT DialHttpServer
   void OnReceivedResponse(int conn_id,
                           std::unique_ptr<HttpServerResponseInfo> response);
 
-  scoped_refptr<HttpServer> http_server_;
+  std::unique_ptr<HttpServer> http_server_;
   std::string server_url_;
   // DialService owns this object.
   DialService* dial_service_;

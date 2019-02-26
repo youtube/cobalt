@@ -140,7 +140,11 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
                                   CompletionOnceCallback callback,
                                   const NetLogWithSource& net_log) {
+#if !defined(STARBOARD)
+  // TODO[johnx]: Enable traffic annotation everywhere,
+  // net_unittests::Dial* can hit it.
   DCHECK(request_info->traffic_annotation.is_valid());
+#endif
   net_log_ = net_log;
   request_ = request_info;
   url_ = request_->url;

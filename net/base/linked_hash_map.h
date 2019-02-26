@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "base/containers/hash_tables.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "starboard/types.h"
@@ -31,7 +32,7 @@ namespace net {
 //
 // We also keep a map<Key, list::iterator> for find.  Since std::list is a
 // doubly-linked list, the iterators should remain stable.
-template <class Key, class Value, class Hash = std::hash<Key>>
+template <class Key, class Value, class Hash = BASE_HASH_NAMESPACE::hash<Key>>
 class linked_hash_map {
  private:
   typedef std::list<std::pair<Key, Value> > ListType;

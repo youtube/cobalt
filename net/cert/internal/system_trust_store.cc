@@ -23,6 +23,7 @@
 #include "net/cert/test_root_certs.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
+#include "starboard/types.h"
 
 #if defined(USE_NSS_CERTS)
 #include "crypto/nss_util.h"
@@ -34,7 +35,6 @@
 #include "net/cert/known_roots_mac.h"
 #include "net/cert/x509_util_mac.h"
 #elif defined(OS_FUCHSIA)
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #endif
 

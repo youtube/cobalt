@@ -590,7 +590,9 @@ bool TCPSocketStarboard::SetNoDelay(bool no_delay) {
 bool TCPSocketStarboard::GetEstimatedRoundTripTime(
     base::TimeDelta* out_rtt) const {
   DCHECK(out_rtt);
-  NOTIMPLEMENTED();
+  // Intentionally commented to suppress tons of warnings.
+  // net calls this all the time.
+  // NOTIMPLEMENTED();
   return false;
 }
 

@@ -250,7 +250,11 @@ class HttpStreamFactory::Job {
     return using_existing_quic_session_;
   }
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   bool using_quic() const { return using_quic_; }
+#else
+  bool using_quic() const { return false; }
+#endif
 
   bool should_reconsider_proxy() const { return should_reconsider_proxy_; }
 
@@ -339,11 +343,13 @@ class HttpStreamFactory::Job {
   int DoRestartTunnelAuthComplete(int result);
 
   void ResumeInitConnection();
+#if !defined(COBALT_DISABLE_SPDY)
   // Creates a SpdyHttpStream or a BidirectionalStreamImpl from the given values
   // and sets to |stream_| or |bidirectional_stream_impl_| respectively. Does
   // nothing if |stream_factory_| is for WebSocket.
   int SetSpdyHttpStreamOrBidirectionalStreamImpl(
       base::WeakPtr<SpdySession> session);
+#endif
 
   // Returns to STATE_INIT_CONNECTION and resets some state.
   void ReturnToStateInitConnection(bool close_connection);
@@ -362,12 +368,14 @@ class HttpStreamFactory::Job {
                               const GURL& origin_url,
                               const ProxyInfo& proxy_info);
 
+#if !defined(COBALT_DISABLE_SPDY)
   // Called in Job constructor. Use |spdy_session_key_| after construction.
   static SpdySessionKey GetSpdySessionKey(bool spdy_session_direct,
                                           const ProxyServer& proxy_server,
                                           const GURL& origin_url,
                                           PrivacyMode privacy_mode,
                                           const SocketTag& socket_tag);
+#endif
 
   // Returns true if the current request can use an existing spdy session.
   bool CanUseExistingSpdySession() const;
@@ -395,6 +403,7 @@ class HttpStreamFactory::Job {
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
+#if !defined(COBALT_DISABLE_SPDY)
   // Invoked by the transport socket pool after host resolution is complete
   // to allow the connection to be aborted, if a matching SPDY session can
   // be found.  Will return ERR_SPDY_SESSION_ALREADY_EXISTS if such a
@@ -405,6 +414,7 @@ class HttpStreamFactory::Job {
                               bool is_websocket,
                               const AddressList& addresses,
                               const NetLogWithSource& net_log);
+#endif
 
   const HttpRequestInfo request_info_;
   RequestPriority priority_;
@@ -469,7 +479,9 @@ class HttpStreamFactory::Job {
   // True if this job might succeed with a different proxy config.
   bool should_reconsider_proxy_;
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamRequest quic_request_;
+#endif
 
   // Only valid for a QUIC job. Set when a QUIC connection is started. If true,
   // then OnQuicHostResolution() is expected to be called in the future.
@@ -496,6 +508,7 @@ class HttpStreamFactory::Job {
   // preconnect.
   int num_streams_;
 
+#if !defined(COBALT_DISABLE_SPDY)
   // Initialized when we create a new SpdySession.
   base::WeakPtr<SpdySession> new_spdy_session_;
 
@@ -512,6 +525,7 @@ class HttpStreamFactory::Job {
   const bool spdy_session_direct_;
 
   const SpdySessionKey spdy_session_key_;
+#endif
 
   // Type of stream that is requested.
   HttpStreamRequest::StreamType stream_type_;

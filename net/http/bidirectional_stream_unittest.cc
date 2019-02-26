@@ -1759,6 +1759,7 @@ TEST_F(BidirectionalStreamTest, TestHonorAlternativeServiceHeader) {
   EXPECT_EQ(CountWriteBytes(writes), delegate->GetTotalSentBytes());
   EXPECT_EQ(CountReadBytes(reads), delegate->GetTotalReceivedBytes());
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   AlternativeServiceInfoVector alternative_service_info_vector =
       http_session_->http_server_properties()->GetAlternativeServiceInfos(
           url::SchemeHostPort(default_url_));
@@ -1766,6 +1767,7 @@ TEST_F(BidirectionalStreamTest, TestHonorAlternativeServiceHeader) {
   AlternativeService alternative_service(kProtoQUIC, "www.example.org", 443);
   EXPECT_EQ(alternative_service,
             alternative_service_info_vector[0].alternative_service());
+#endif  // defined(QUIC_DISABLED_FOR_STARBOARD)
 }
 
 // Test that a BidirectionalStream created with a specific tag, tags the
