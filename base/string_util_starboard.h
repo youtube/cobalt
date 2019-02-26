@@ -35,6 +35,10 @@ inline int strncasecmp(const char* string1, const char* string2, size_t count) {
   return SbStringCompareNoCaseN(string1, string2, count);
 }
 
+#if defined(vsnprintf)
+#undef vsnprintf
+#endif
+
 inline int vsnprintf(char* buffer, size_t size,
                      const char* format, va_list arguments) {
   return SbStringFormat(buffer, size, format, arguments);
