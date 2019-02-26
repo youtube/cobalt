@@ -26,6 +26,7 @@
 #include "net/websockets/websocket_handshake_constants.h"
 #include "net/websockets/websocket_handshake_request_info.h"
 
+#if !defined(COBALT_DISABLE_SPDY)
 namespace net {
 
 namespace {
@@ -379,3 +380,4 @@ void WebSocketHttp2HandshakeStream::OnFailure(const std::string& message) {
 }
 
 }  // namespace net
+#endif  // !defined(COBALT_DISABLE_SPDY)

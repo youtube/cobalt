@@ -89,6 +89,14 @@ class HttpServer {
   // Copies the local address to |address|. Returns a network error code.
   int GetLocalAddress(IPEndPoint* address);
 
+#if defined(STARBOARD)
+  bool static ParseHeaders(const std::string& request,
+                           HttpServerRequestInfo* info) {
+    size_t pos;
+    return ParseHeaders(request.c_str(), request.length(), info, &pos);
+  }
+#endif
+
  private:
   friend class HttpServerTest;
 
@@ -112,10 +120,15 @@ class HttpServer {
   // recv data. If all data has been consumed successfully, but the headers are
   // not fully parsed, *pos will be set to zero. Returns false if an error is
   // encountered while parsing, true otherwise.
+#if defined(STARBOARD)
+  // Cobalt at least needs it to be static in dial_udp_server.cc.
+  static bool ParseHeaders(const char* data,
+#else
   bool ParseHeaders(const char* data,
-                    size_t data_len,
-                    HttpServerRequestInfo* info,
-                    size_t* pos);
+#endif
+                           size_t data_len,
+                           HttpServerRequestInfo* info,
+                           size_t* pos);
 
   HttpConnection* FindConnection(int connection_id);
 

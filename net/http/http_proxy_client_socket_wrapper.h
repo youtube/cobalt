@@ -165,12 +165,16 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketWrapper
   int DoHttpProxyConnect();
   int DoHttpProxyConnectComplete(int result);
 
+#if !defined(COBALT_DISABLE_SPDY)
   int DoSpdyProxyCreateStream();
   int DoSpdyProxyCreateStreamComplete(int result);
+#endif
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   int DoQuicProxyCreateSession();
   int DoQuicProxyCreateStream(int result);
   int DoQuicProxyCreateStreamComplete(int result);
+#endif
 
   int DoRestartWithAuth();
   int DoRestartWithAuthComplete(int result);
@@ -217,9 +221,13 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketWrapper
   // if necessary.
   CompletionOnceCallback connect_callback_;
 
+#if !defined(COBALT_DISABLE_SPDY)
   SpdyStreamRequest spdy_stream_request_;
+#endif
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamRequest quic_stream_request_;
+#endif
   std::unique_ptr<QuicChromiumClientSession::Handle> quic_session_;
 
   scoped_refptr<HttpAuthController> http_auth_controller_;
