@@ -99,6 +99,7 @@
           '-Wno-tautological-compare',
           # Suppress "[type1] has C-linkage specified, but returns user-defined type [type2] which is incompatible with C"
           '-Wno-return-type-c-linkage',
+          '-Wno-unused-parameter',
         ],
       }],
       ['cobalt_fastbuild==0', {

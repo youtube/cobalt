@@ -188,8 +188,7 @@
               '--std=gnu++11',
             ],
             'linker_flags_host%': [
-              '-pthread',
-              '-fuse-ld=lld',
+            '-pthread',
             ],
           }],
         ],

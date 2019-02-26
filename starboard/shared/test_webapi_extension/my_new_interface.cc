@@ -18,7 +18,6 @@ namespace cobalt {
 namespace webapi_extension {
 
 MyNewInterface::MyNewInterface(const scoped_refptr<dom::Window>& window) {
-  UNREFERENCED_PARAMETER(window);
   // Provide an initial value for the enum.
   enum_value_ = kMyNewEnumApples;
 }

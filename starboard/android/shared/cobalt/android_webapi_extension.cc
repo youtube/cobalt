@@ -21,14 +21,14 @@
 namespace cobalt {
 namespace browser {
 
-base::optional<std::string> GetWebAPIExtensionObjectPropertyName() {
+base::Optional<std::string> GetWebAPIExtensionObjectPropertyName() {
   return std::string("android");
 }
 
 scoped_refptr<::cobalt::script::Wrappable> CreateWebAPIExtensionObject(
     const scoped_refptr<::cobalt::dom::Window>& window,
     ::cobalt::script::GlobalEnvironment* global_environment) {
-  UNREFERENCED_PARAMETER(global_environment);
+  SB_UNREFERENCED_PARAMETER(global_environment);
 
   return scoped_refptr<::cobalt::script::Wrappable>(
       new webapi_extension::Android(window));

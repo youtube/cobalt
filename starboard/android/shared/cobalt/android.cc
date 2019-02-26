@@ -17,9 +17,7 @@
 namespace cobalt {
 namespace webapi_extension {
 
-Android::Android(const scoped_refptr<::cobalt::dom::Window>& window) {
-  UNREFERENCED_PARAMETER(window);
-
+Android::Android(const scoped_refptr<::cobalt::dom::Window>& /*window*/) {
   feedback_service_ = new FeedbackService();
 }
 

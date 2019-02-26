@@ -14,8 +14,7 @@
 
 #include "starboard/android/shared/cobalt/android_media_session_client.h"
 
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/sequence.h"
@@ -185,7 +184,7 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     if (active_client != NULL) {
       MediaSessionAction cobalt_action =
           PlaybackStateActionToMediaSessionAction(action);
-      active_client->InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
+      active_client->InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
           new MediaSessionActionDetails::Data(cobalt_action,
                                               seek_ms / 1000.0)));
     }
@@ -347,8 +346,8 @@ namespace cobalt {
 namespace media_session {
 
 // static
-scoped_ptr<MediaSessionClient> MediaSessionClient::Create() {
-  return make_scoped_ptr<MediaSessionClient>(new AndroidMediaSessionClient());
+std::unique_ptr<MediaSessionClient> MediaSessionClient::Create() {
+  return std::unique_ptr<MediaSessionClient>(new AndroidMediaSessionClient());
 }
 
 }  // namespace media_session
