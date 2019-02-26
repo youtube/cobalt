@@ -17,6 +17,9 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.h"
 
+#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#include "starboard/format_string.h"
+#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
