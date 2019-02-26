@@ -522,7 +522,7 @@
         {
           'target_name': 'protobuf_lite',
           'type': 'none',
-          'direct_dependent_settings': {
+          'all_dependent_settings': {
             'cflags': [
               # Use full protobuf, because vanilla protobuf doesn't have
               # our custom patch to retain unknown fields in lite mode.

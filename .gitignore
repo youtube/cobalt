@@ -42,6 +42,7 @@ v8.log
 /_out
 /arm-sysroot
 /ash/resources/google_wallpapers/
+/base
 /breakpad/src/
 /build/Debug
 /build/Release
@@ -103,6 +104,7 @@ v8.log
 /chrome/tools/test/reference_build
 /chrome_frame/chrome_frame_ie.xml
 /chrome_frame/tools/test/reference_build
+/crypto
 /cobalt
 /content/test/data/layout_tests/
 /content/test/data/plugin/
@@ -122,9 +124,7 @@ v8.log
 /metro_driver
 /native_client
 /nb
-/net/Debug
-/net/Release
-/net/testserver.log
+/net
 /out
 /out_*
 /pdf
@@ -167,7 +167,7 @@ v8.log
 /third_party/asan
 /third_party/bidichecker
 /third_party/bison
-/third_party/boringssl
+/third_party/boringssl/src
 /third_party/brotli
 /third_party/cacheinvalidation/src
 /third_party/cdm
@@ -312,6 +312,7 @@ v8.log
 /tools/tryserver
 /tools/win/link_limiter/build
 /ui/resources/aura/google_wallpapers
+/url
 /v8
 /webkit/Debug
 /webkit/Release

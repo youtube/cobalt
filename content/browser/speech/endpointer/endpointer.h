@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "content/browser/speech/endpointer/energy_endpointer.h"
+#include "content/common/content_export.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -17,6 +18,8 @@
 class EpStatus;
 
 namespace content {
+
+class AudioChunk;
 
 // A simple interface to the underlying energy-endpointer implementation, this
 // class lets callers provide audio as being recorded and let them poll to find
@@ -46,7 +49,7 @@ namespace content {
 // The timeout length is speech_input_complete_silence_length until
 // long_speech_length, when it changes to
 // long_speech_input_complete_silence_length.
-class Endpointer {
+class CONTENT_EXPORT Endpointer {
  public:
 #if defined(COBALT_MEDIA_SOURCE_2016)
   typedef cobalt::media::ShellAudioBus ShellAudioBus;
@@ -72,7 +75,11 @@ class Endpointer {
 
   // Process a segment of audio, which may be more than one frame.
   // The status of the last frame will be returned.
+#if defined(STARBOARD)
   EpStatus ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out);
+#else
+  EpStatus ProcessAudio(const AudioChunk& raw_audio, float* rms_out);
+#endif
 
   // Get the status of the endpointer.
   EpStatus Status(int64_t* time_us);
@@ -107,7 +114,9 @@ class Endpointer {
     return speech_input_complete_;
   }
 
+#if defined(STARBOARD)
   int sample_rate() const { return sample_rate_; }
+#endif
 
   // RMS background noise level in dB.
   float NoiseLevelDb() const { return energy_endpointer_.GetNoiseLevelDb(); }
@@ -156,8 +165,7 @@ class Endpointer {
   bool speech_input_complete_;
   EnergyEndpointer energy_endpointer_;
   int sample_rate_;
-  // 1 frame = (1 / frame_rate_) second of audio.
-  int frame_rate_;
+  int32_t frame_size_;
 };
 
 }  // namespace content

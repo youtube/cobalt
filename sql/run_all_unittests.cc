@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/test/main_hook.h"
+#include "base/at_exit.h"
+#include "base/command_line.h"
 #include "base/test/test_suite.h"
 #include "sql/test_vfs.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 
 int TestSuiteRun(int argc, char** argv) {
-  MainHook hook(NULL, argc, argv);
+  base::CommandLine::Init(argc, argv);
+  base::AtExitManager exit_manager;
   sql::RegisterTestVfs();
   int error_level = base::TestSuite(argc, argv).Run();
   sql::UnregisterTestVfs();
