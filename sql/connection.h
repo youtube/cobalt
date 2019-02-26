@@ -17,15 +17,16 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #if defined(SQL_CONNECTION_EXTRA_LOCKING)
 #include "base/synchronization/lock.h"
 #endif
 #include "base/threading/thread_restrictions.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "sql/sql_export.h"
 
-class FilePath;
+namespace base{
+  class FilePath;
+}
 struct sqlite3;
 struct sqlite3_stmt;
 
@@ -155,7 +156,7 @@ class SQL_EXPORT Connection {
 
   // Initializes the SQL connection for the given file, returning true if the
   // file could be opened. You can call this or OpenInMemory.
-  bool Open(const FilePath& path) WARN_UNUSED_RESULT;
+  bool Open(const base::FilePath& path) WARN_UNUSED_RESULT;
 
   // Initializes the SQL connection for a temporary in-memory database. There
   // will be no associated file on disk, and the initial database will be
@@ -347,8 +348,15 @@ class SQL_EXPORT Connection {
   // if database wasn't open in memory. Function is inlined to be a no-op in
   // official build.
   void AssertIOAllowed() {
+#ifdef STARBOARD
+    // Note: SetIOAllowed is deprecated, consider deprecating related functions
+    // and use ScopedDisallowBlocking when we upgrade sql.
+    if (!in_memory_)
+      base::AssertBlockingAllowed();
+#else
     if (!in_memory_)
       base::ThreadRestrictions::AssertIOAllowed();
+#endif
   }
 
   // Internal helper for DoesTableExist and DoesIndexExist.
@@ -470,7 +478,7 @@ class SQL_EXPORT Connection {
 
   // This object handles errors resulting from all forms of executing sqlite
   // commands or statements. It can be null which means default handling.
-  scoped_ptr<ErrorDelegate> error_delegate_;
+  std::unique_ptr<ErrorDelegate> error_delegate_;
 
 
 #if defined(SQL_CONNECTION_EXTRA_LOCKING)

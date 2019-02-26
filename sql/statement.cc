@@ -9,8 +9,8 @@
 #include "sql/statement.h"
 
 #include "base/logging.h"
-#include "base/string_util.h"
-#include "base/utf_string_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "third_party/sqlite/sqlite3.h"
 
 namespace sql {
@@ -139,8 +139,8 @@ bool Statement::BindString(int col, const std::string& val) {
                                    SQLITE_TRANSIENT));
 }
 
-bool Statement::BindString16(int col, const string16& value) {
-  return BindString(col, UTF16ToUTF8(value));
+bool Statement::BindString16(int col, const base::string16& value) {
+  return BindString(col, base::UTF16ToUTF8(value));
 }
 
 bool Statement::BindBlob(int col, const void* val, int val_len) {
@@ -171,7 +171,7 @@ ColType Statement::ColumnType(int col) const {
 
 ColType Statement::DeclaredColumnType(int col) const {
   std::string column_type(sqlite3_column_decltype(ref_->stmt(), col));
-  StringToLowerASCII(&column_type);
+  base::ToLowerASCII(base::StringPiece(column_type));
 
   if (column_type == "integer")
     return COLUMN_TYPE_INTEGER;
@@ -232,12 +232,12 @@ std::string Statement::ColumnString(int col) const {
   return result;
 }
 
-string16 Statement::ColumnString16(int col) const {
+base::string16 Statement::ColumnString16(int col) const {
   if (!CheckValid())
-    return string16();
+    return base::string16();
 
   std::string s = ColumnString(col);
-  return !s.empty() ? UTF8ToUTF16(s) : string16();
+  return !s.empty() ? base::UTF8ToUTF16(s) : base::string16();
 }
 
 int Statement::ColumnByteLength(int col) const {
@@ -268,16 +268,16 @@ bool Statement::ColumnBlobAsString(int col, std::string* blob) {
   return true;
 }
 
-bool Statement::ColumnBlobAsString16(int col, string16* val) const {
+bool Statement::ColumnBlobAsString16(int col, base::string16* val) const {
   if (!CheckValid())
     return false;
 
   const void* data = ColumnBlob(col);
-  size_t len = ColumnByteLength(col) / sizeof(char16);
+  size_t len = ColumnByteLength(col) / sizeof(base::char16);
   val->resize(len);
   if (val->size() != len)
     return false;
-  val->assign(reinterpret_cast<const char16*>(data), len);
+  val->assign(reinterpret_cast<const base::char16*>(data), len);
   return true;
 }
 

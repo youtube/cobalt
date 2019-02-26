@@ -5,7 +5,7 @@
 #include "sql/meta_table.h"
 
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"

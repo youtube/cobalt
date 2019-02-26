@@ -25,7 +25,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/rand_util.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "third_party/sqlite/sqlite3.h"
 
@@ -67,7 +67,7 @@ class TestVfs {
   FileMap file_map_;
 };
 
-base::LazyInstance<TestVfs> g_vfs = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<TestVfs>::DestructorAtExit g_vfs = LAZY_INSTANCE_INITIALIZER;
 
 int VfsClose(sqlite3_file* file) {
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
@@ -113,22 +113,16 @@ int VfsWrite(sqlite3_file* file,
 }
 
 int VfsSync(sqlite3_file* pFile, int flags) {
-  UNREFERENCED_PARAMETER(pFile);
-  UNREFERENCED_PARAMETER(flags);
   return SQLITE_OK;
 }
 
 int VfsFileControl(sqlite3_file* pFile, int op, void* pArg) {
-  UNREFERENCED_PARAMETER(pFile);
-  UNREFERENCED_PARAMETER(op);
-  UNREFERENCED_PARAMETER(pArg);
   return SQLITE_OK;
 }
 
 int VfsSectorSize(sqlite3_file* file) {
   // The number of bytes that can be read without disturbing other bytes in the
   // file.
-  UNREFERENCED_PARAMETER(file);
   return 1;
 }
 
@@ -174,6 +168,12 @@ int VfsUnlock(sqlite3_file* file, int mode) {
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
   base::AutoLock lock(*vfile->lock);
 
+#ifdef STARBOARD
+#undef COMPILE_ASSERT
+#define COMPILE_ASSERT static_assert
+#define sqlite_lock_constants_order_has_changed \
+  "sqlite lock constants order has changed!"
+#endif
   COMPILE_ASSERT(SQLITE_LOCK_NONE < SQLITE_LOCK_SHARED,
                  sqlite_lock_constants_order_has_changed);
   COMPILE_ASSERT(SQLITE_LOCK_SHARED < SQLITE_LOCK_RESERVED,
@@ -215,7 +215,6 @@ int VfsTruncate(sqlite3_file* file, sqlite3_int64 size) {
 }
 
 int VfsDeviceCharacteristics(sqlite3_file* file) {
-  UNREFERENCED_PARAMETER(file);
   return 0;
 }
 
@@ -240,8 +239,6 @@ int VfsOpen(sqlite3_vfs* sql_vfs,
             sqlite3_file* file,
             int flags,
             int* out_flags) {
-  UNREFERENCED_PARAMETER(flags);
-  UNREFERENCED_PARAMETER(out_flags);
   DCHECK(path) << "NULL filename not supported.";
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
   vfile->lock = new base::Lock;
@@ -252,7 +249,6 @@ int VfsOpen(sqlite3_vfs* sql_vfs,
 }
 
 int VfsDelete(sqlite3_vfs* sql_vfs, const char* path, int sync_dir) {
-  UNREFERENCED_PARAMETER(sync_dir);
   TestVfs* vfs = reinterpret_cast<TestVfs*>(sql_vfs->pAppData);
   vfs->Delete(path);
   return SQLITE_OK;
@@ -262,7 +258,6 @@ int VfsFullPathname(sqlite3_vfs* sql_vfs,
                     const char* path,
                     int out_size,
                     char* out_path) {
-  UNREFERENCED_PARAMETER(sql_vfs);
   size_t path_size = static_cast<size_t>(out_size);
   if (base::strlcpy(out_path, path, path_size) < path_size) {
     return SQLITE_OK;
@@ -271,16 +266,12 @@ int VfsFullPathname(sqlite3_vfs* sql_vfs,
 }
 
 int VfsAccess(sqlite3_vfs* sql_vfs, const char* name, int flags, int* result) {
-  UNREFERENCED_PARAMETER(name);
-  UNREFERENCED_PARAMETER(sql_vfs);
-  UNREFERENCED_PARAMETER(flags);
   // We should always have a valid, readable/writable file.
   *result |= SQLITE_ACCESS_EXISTS | SQLITE_ACCESS_READWRITE;
   return SQLITE_OK;
 }
 
 int VfsRandomness(sqlite3_vfs* sql_vfs, int bytes, char* out) {
-  UNREFERENCED_PARAMETER(sql_vfs);
   base::RandBytes(out, static_cast<size_t>(bytes));
   return SQLITE_OK;
 }

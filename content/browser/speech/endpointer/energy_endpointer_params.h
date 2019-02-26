@@ -5,10 +5,12 @@
 #ifndef CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
 #define CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
 
+#include "content/common/content_export.h"
+
 namespace content {
 
 // Input parameters for the EnergyEndpointer class.
-class EnergyEndpointerParams {
+class CONTENT_EXPORT EnergyEndpointerParams {
  public:
   EnergyEndpointerParams();
 

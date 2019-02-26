@@ -12,6 +12,7 @@
 #include <stddef.h>
 
 #include "base/logging.h"
+#include "base/macros.h"
 
 namespace {
 
@@ -36,7 +37,7 @@ int64_t Secs2Usecs(float seconds) {
 
 float GetDecibel(float value) {
   if (value > 1.0e-100)
-    return static_cast<float>(20 * log10(value));
+    return 20 * log10(value);
   return -2000.0;
 }
 
@@ -80,21 +81,20 @@ void EnergyEndpointer::HistoryRing::SetRing(int size, bool initial_state) {
   insertion_index_ = 0;
   decision_points_.clear();
   DecisionPoint init = { -1, initial_state };
-  decision_points_.resize(static_cast<size_t>(size), init);
+  decision_points_.resize(size, init);
 }
 
 void EnergyEndpointer::HistoryRing::Insert(int64_t time_us, bool decision) {
-  decision_points_[static_cast<size_t>(insertion_index_)].time_us = time_us;
-  decision_points_[static_cast<size_t>(insertion_index_)].decision = decision;
-  insertion_index_ =
-      static_cast<int>((insertion_index_ + 1) % decision_points_.size());
+  decision_points_[insertion_index_].time_us = time_us;
+  decision_points_[insertion_index_].decision = decision;
+  insertion_index_ = (insertion_index_ + 1) % decision_points_.size();
 }
 
 int64_t EnergyEndpointer::HistoryRing::EndTime() const {
   int ind = insertion_index_ - 1;
   if (ind < 0)
-    ind = static_cast<int>(decision_points_.size() - 1);
-  return decision_points_[static_cast<size_t>(ind)].time_us;
+    ind = decision_points_.size() - 1;
+  return decision_points_[ind].time_us;
 }
 
 float EnergyEndpointer::HistoryRing::RingSum(float duration_sec) {
@@ -104,23 +104,23 @@ float EnergyEndpointer::HistoryRing::RingSum(float duration_sec) {
   int64_t sum_us = 0;
   int ind = insertion_index_ - 1;
   if (ind < 0)
-    ind = static_cast<int>(decision_points_.size() - 1);
-  int64_t end_us = decision_points_[static_cast<size_t>(ind)].time_us;
-  bool is_on = decision_points_[static_cast<size_t>(ind)].decision;
+    ind = decision_points_.size() - 1;
+  int64_t end_us = decision_points_[ind].time_us;
+  bool is_on = decision_points_[ind].decision;
   int64_t start_us =
       end_us - static_cast<int64_t>(0.5 + (1.0e6 * duration_sec));
   if (start_us < 0)
     start_us = 0;
   size_t n_summed = 1;  // n points ==> (n-1) intervals
-  while ((decision_points_[static_cast<size_t>(ind)].time_us > start_us) &&
+  while ((decision_points_[ind].time_us > start_us) &&
          (n_summed < decision_points_.size())) {
     --ind;
     if (ind < 0)
-      ind = static_cast<int>(decision_points_.size() - 1);
+      ind = decision_points_.size() - 1;
     if (is_on)
-      sum_us += end_us - decision_points_[static_cast<size_t>(ind)].time_us;
-    is_on = decision_points_[static_cast<size_t>(ind)].decision;
-    end_us = decision_points_[static_cast<size_t>(ind)].time_us;
+      sum_us += end_us - decision_points_[ind].time_us;
+    is_on = decision_points_[ind].decision;
+    end_us = decision_points_[ind].time_us;
     n_summed++;
   }
 
@@ -298,8 +298,6 @@ void EnergyEndpointer::ProcessAudioFrame(int64_t time_us,
         }
         break;
 
-      case EP_POST_SPEECH:
-        // fall-through
       default:
         LOG(WARNING) << "Invalid case in switch: " << status_;
         break;
@@ -366,7 +364,7 @@ void EnergyEndpointer::UpdateLevels(float rms) {
       noise_level_ = (0.95f * noise_level_) + (0.05f * rms);
   }
   if (estimating_environment_ || (frame_counter_ < fast_update_frames_)) {
-    decision_threshold_ = noise_level_ * 2;  // 6dB above noise level.
+    decision_threshold_ = noise_level_ * 2; // 6dB above noise level.
     // Set a floor
     if (decision_threshold_ < params_.min_decision_threshold())
       decision_threshold_ = params_.min_decision_threshold();

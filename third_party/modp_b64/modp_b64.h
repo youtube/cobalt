@@ -24,6 +24,8 @@
 #ifndef MODP_B64
 #define MODP_B64
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,7 +55,7 @@ extern "C" {
  * \endcode
  *
  */
-int modp_b64_encode(char* dest, const char* str, int len);
+size_t modp_b64_encode(char* dest, const char* str, size_t len);
 
 /**
  * Decode a base64 encoded string
@@ -76,7 +78,7 @@ int modp_b64_encode(char* dest, const char* str, int len);
  * if (len == -1) { error }
  * \endcode
  */
-int modp_b64_decode(char* dest, const char* src, int len);
+size_t modp_b64_decode(char* dest, const char* src, size_t len);
 
 /**
  * Given a source string of length len, this returns the amount of
@@ -126,6 +128,8 @@ int modp_b64_decode(char* dest, const char* src, int len);
  */
 #define modp_b64_encode_strlen(A) ((A + 2)/ 3 * 4)
 
+#define MODP_B64_ERROR ((size_t)-1)
+
 #ifdef __cplusplus
 }
 
@@ -134,8 +138,7 @@ int modp_b64_decode(char* dest, const char* src, int len);
 inline std::string& modp_b64_encode(std::string& s)
 {
     std::string x(modp_b64_encode_len(s.size()), '\0');
-    int d = modp_b64_encode(const_cast<char*>(x.data()), s.data(),
-                            static_cast<int>(s.size()));
+    size_t d = modp_b64_encode(const_cast<char*>(x.data()), s.data(), (int)s.size());
     x.erase(d, std::string::npos);
     s.swap(x);
     return s;
@@ -153,9 +156,8 @@ inline std::string& modp_b64_encode(std::string& s)
 inline std::string& modp_b64_decode(std::string& s)
 {
     std::string x(modp_b64_decode_len(s.size()), '\0');
-    int d = modp_b64_decode(const_cast<char*>(x.data()), s.data(),
-                            static_cast<int>(s.size()));
-    if (d < 0) {
+    size_t d = modp_b64_decode(const_cast<char*>(x.data()), s.data(), (int)s.size());
+    if (d == MODP_B64_ERROR) {
         x.clear();
     } else {
         x.erase(d, std::string::npos);

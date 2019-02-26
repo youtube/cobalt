@@ -215,7 +215,7 @@
       '.',
       '<@(openssl_config_path)',
     ],
-    'direct_dependent_settings': {
+    'all_dependent_settings': {
       'include_dirs': [
         '<@(openssl_config_path)',
       ],
@@ -235,7 +235,7 @@
       'include_dirs': [
         '<(boringssl_root)/include',
       ],
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
           '<(boringssl_root)/include',
         ],
@@ -246,7 +246,6 @@
         # of assembly language files for the current OS and CPU architecture, or
         # it will turn off assembly language files entirely if the
         # |asm_target_arch| has been set to "none".
-
         ['target_os not in ["linux", "android", "tvos"] or asm_target_arch not in ["x86", "x64", "arm", "arm64"]', {
           # please read comments for |target_os=="win"| condition below
           'defines': [
