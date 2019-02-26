@@ -51,6 +51,10 @@ NET_EXPORT bool GetPreferredExtensionForMimeType(
     const std::string& mime_type,
     base::FilePath::StringType* extension);
 
+#if defined(STARBOARD)
+NET_EXPORT bool IsSupportedImageMimeType(const std::string& mime_type);
+#endif
+
 // Returns true if this the mime_type_pattern matches a given mime-type.
 // Checks for absolute matching and wildcards. MIME types are case insensitive.
 NET_EXPORT bool MatchesMimeType(const std::string& mime_type_pattern,

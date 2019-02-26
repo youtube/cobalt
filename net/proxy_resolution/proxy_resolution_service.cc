@@ -665,6 +665,9 @@ class ProxyResolutionService::PacFileDeciderPoller {
         pac_file_fetcher_(pac_file_fetcher),
         dhcp_pac_file_fetcher_(dhcp_pac_file_fetcher),
         last_error_(init_net_error),
+#if defined(STARBOARD)
+        default_poll_policy_(),
+#endif
         last_script_data_(init_script_data),
         last_poll_time_(TimeTicks::Now()),
         weak_factory_(this) {

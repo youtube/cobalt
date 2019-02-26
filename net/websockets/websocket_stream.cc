@@ -158,6 +158,7 @@ class WebSocketStreamRequestImpl : public WebSocketStreamRequestAPI {
     OnHandshakeStreamCreated(handshake_stream);
   }
 
+#if !defined(COBALT_DISABLE_SPDY)
   void OnHttp2HandshakeStreamCreated(
       WebSocketHttp2HandshakeStream* handshake_stream) override {
     if (api_delegate_) {
@@ -165,6 +166,7 @@ class WebSocketStreamRequestImpl : public WebSocketStreamRequestAPI {
     }
     OnHandshakeStreamCreated(handshake_stream);
   }
+#endif
 
   void OnFailure(const std::string& message) override {
     if (api_delegate_)

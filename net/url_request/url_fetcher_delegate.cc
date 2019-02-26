@@ -6,6 +6,10 @@
 
 namespace net {
 
+#if defined(STARBOARD)
+void URLFetcherDelegate::OnURLFetchResponseStarted(const URLFetcher* source) {}
+#endif  // defined(STARBOARD)
+
 void URLFetcherDelegate::OnURLFetchDownloadProgress(
     const URLFetcher* source,
     int64_t current,

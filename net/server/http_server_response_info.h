@@ -36,6 +36,9 @@ class HttpServerResponseInfo {
   std::string Serialize() const;
 
   HttpStatusCode status_code() const;
+#if defined(STARBOARD)
+  void SetStatusCode(const HttpStatusCode code) { status_code_ = code; }
+#endif
   const std::string& body() const;
 
  private:

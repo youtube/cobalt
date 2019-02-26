@@ -90,10 +90,15 @@ class NET_EXPORT URLFetcher {
     GET,
     POST,
     HEAD,
-    DELETE_REQUEST,   // DELETE is already taken on Windows.
-                      // <winnt.h> defines a DELETE macro.
+    DELETE_REQUEST,  // DELETE is already taken on Windows.
+                     // <winnt.h> defines a DELETE macro.
     PUT,
     PATCH,
+#if defined(STARBOARD)
+    // Cobalt uses net for Cross-Origin-Resource-Sharing and requires OPTIONS
+    // method.
+    OPTIONS,
+#endif
   };
 
   // Used by SetURLRequestUserData.  The callback should make a fresh

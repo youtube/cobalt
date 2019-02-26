@@ -830,7 +830,12 @@ SSLServerContextImpl::SSLServerContextImpl(
     const SSLServerConfig& ssl_server_config)
     : ssl_server_config_(ssl_server_config),
       cert_(certificate),
+#if defined(STARBOARD)
+      key_(key.Copy()),
+      private_key_(nullptr) {
+#else
       key_(key.Copy()) {
+#endif
   CHECK(key_);
   Init();
 }

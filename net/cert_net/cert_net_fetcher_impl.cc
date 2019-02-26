@@ -432,7 +432,8 @@ void Job::AttachRequest(scoped_refptr<RequestCore> request) {
 void Job::DetachRequest(RequestCore* request) {
   std::unique_ptr<Job> delete_this;
 
-  auto it = std::find(requests_.begin(), requests_.end(), request);
+  auto it = std::find(requests_.begin(), requests_.end(),
+                      base::WrapRefCounted(request));
   DCHECK(it != requests_.end());
   requests_.erase(it);
 

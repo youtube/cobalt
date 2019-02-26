@@ -73,7 +73,9 @@ HttpProxyClientSocketWrapper::HttpProxyClientSocketWrapper(
       tunnel_(tunnel),
       using_spdy_(false),
       is_trusted_proxy_(is_trusted_proxy),
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_stream_request_(quic_stream_factory),
+#endif
       http_auth_controller_(
           tunnel ? new HttpAuthController(
                        HttpAuth::AUTH_PROXY,
@@ -203,7 +205,9 @@ void HttpProxyClientSocketWrapper::Disconnect() {
   connect_callback_.Reset();
   connect_timer_.Stop();
   next_state_ = STATE_NONE;
+#if !defined(COBALT_DISABLE_SPDY)
   spdy_stream_request_.CancelRequest();
+#endif
   if (transport_socket_handle_) {
     if (transport_socket_handle_->socket())
       transport_socket_handle_->socket()->Disconnect();
@@ -401,20 +405,40 @@ int HttpProxyClientSocketWrapper::DoLoop(int result) {
         break;
       case STATE_SPDY_PROXY_CREATE_STREAM:
         DCHECK_EQ(OK, rv);
+#if !defined(COBALT_DISABLE_SPDY)
         rv = DoSpdyProxyCreateStream();
+#else
+        NOTREACHED();
+#endif
         break;
       case STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE:
+#if !defined(COBALT_DISABLE_SPDY)
         rv = DoSpdyProxyCreateStreamComplete(rv);
+#else
+        NOTREACHED();
+#endif
         break;
       case STATE_QUIC_PROXY_CREATE_SESSION:
         DCHECK_EQ(OK, rv);
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
         rv = DoQuicProxyCreateSession();
+#else
+        NOTREACHED();
+#endif
         break;
       case STATE_QUIC_PROXY_CREATE_STREAM:
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
         rv = DoQuicProxyCreateStream(rv);
+#else
+        NOTREACHED();
+#endif
         break;
       case STATE_QUIC_PROXY_CREATE_STREAM_COMPLETE:
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
         rv = DoQuicProxyCreateStreamComplete(rv);
+#else
+        NOTREACHED();
+#endif
         break;
       case STATE_RESTART_WITH_AUTH:
         DCHECK_EQ(OK, rv);
@@ -436,7 +460,11 @@ int HttpProxyClientSocketWrapper::DoLoop(int result) {
 int HttpProxyClientSocketWrapper::DoBeginConnect() {
   connect_start_time_ = base::TimeTicks::Now();
   SetConnectTimer(connect_timeout_duration_);
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   if (quic_version_ != quic::QUIC_VERSION_UNSUPPORTED) {
+#else
+  if (false) {
+#endif
     next_state_ = STATE_QUIC_PROXY_CREATE_SESSION;
   } else if (transport_params_) {
     next_state_ = STATE_TCP_CONNECT;
@@ -475,6 +503,7 @@ int HttpProxyClientSocketWrapper::DoTransportConnectComplete(int result) {
 
 int HttpProxyClientSocketWrapper::DoSSLConnect() {
   DCHECK(ssl_params_);
+#if !defined(COBALT_DISABLE_SPDY)
   if (tunnel_) {
     SpdySessionKey key(ssl_params_->GetDirectConnectionParams()
                            ->destination()
@@ -489,6 +518,7 @@ int HttpProxyClientSocketWrapper::DoSSLConnect() {
       return OK;
     }
   }
+#endif
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   return transport_socket_handle_->Init(
@@ -552,7 +582,11 @@ int HttpProxyClientSocketWrapper::DoSSLConnectComplete(int result) {
   // need to add a predicate to this if statement so we fall through
   // to the else case. (HttpProxyClientSocket currently acts as
   // a "trusted" SPDY proxy).
+#if !defined(COBALT_DISABLE_SPDY)
   if (using_spdy_ && tunnel_) {
+#else
+  if (false) {
+#endif
     next_state_ = STATE_SPDY_PROXY_CREATE_STREAM;
   } else {
     next_state_ = STATE_HTTP_PROXY_CONNECT;
@@ -589,6 +623,7 @@ int HttpProxyClientSocketWrapper::DoHttpProxyConnectComplete(int result) {
   return result;
 }
 
+#if !defined(COBALT_DISABLE_SPDY)
 int HttpProxyClientSocketWrapper::DoSpdyProxyCreateStream() {
   DCHECK(using_spdy_);
   DCHECK(tunnel_);
@@ -637,7 +672,9 @@ int HttpProxyClientSocketWrapper::DoSpdyProxyCreateStreamComplete(int result) {
   return transport_socket_->Connect(base::Bind(
       &HttpProxyClientSocketWrapper::OnIOComplete, base::Unretained(this)));
 }
+#endif
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 int HttpProxyClientSocketWrapper::DoQuicProxyCreateSession() {
   DCHECK(ssl_params_);
   DCHECK(tunnel_);
@@ -685,6 +722,7 @@ int HttpProxyClientSocketWrapper::DoQuicProxyCreateStreamComplete(int result) {
   return transport_socket_->Connect(base::Bind(
       &HttpProxyClientSocketWrapper::OnIOComplete, base::Unretained(this)));
 }
+#endif
 
 int HttpProxyClientSocketWrapper::DoRestartWithAuth() {
   DCHECK(transport_socket_);

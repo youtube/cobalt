@@ -60,6 +60,7 @@ using ::testing::SizeIs;
 namespace net {
 
 namespace test {
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 namespace {
 
@@ -166,10 +167,12 @@ class HttpStreamFactoryJobPeer {
     job->stream_ = std::move(http_stream);
   }
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   static void SetQuicConnectionFailedOnDefaultNetwork(
       HttpStreamFactory::Job* job) {
     job->quic_request_.OnConnectionFailedOnDefaultNetwork();
   }
+#endif
 };
 
 class JobControllerPeer {
@@ -196,8 +199,10 @@ class JobControllerPeer {
   static void SetAltJobFailedOnDefaultNetwork(
       HttpStreamFactory::JobController* job_controller) {
     DCHECK(job_controller->alternative_job() != nullptr);
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
     HttpStreamFactoryJobPeer::SetQuicConnectionFailedOnDefaultNetwork(
         job_controller->alternative_job_.get());
+#endif
   }
 };
 
@@ -2970,6 +2975,8 @@ TEST_F(HttpStreamFactoryJobControllerTest, QuicHostWhitelist) {
   EXPECT_EQ(kProtoUnknown, alt_svc_info.alternative_service().protocol);
   EXPECT_EQ(0u, alt_svc_info.advertised_versions().size());
 }
+
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 }  // namespace test
 
