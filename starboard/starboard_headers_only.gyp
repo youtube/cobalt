@@ -40,6 +40,7 @@
         'event.h',
         'export.h',
         'file.h',
+        'format_string.h',
         'input.h',
         'key.h',
         'log.h',
