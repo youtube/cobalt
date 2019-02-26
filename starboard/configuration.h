@@ -126,6 +126,10 @@
 // kSbFileErrorIO to match for example "EIO" on posix platforms.
 #define SB_FILE_ERROR_IO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Move the definition of FormatString() from string.h to a new header
+// format_string.h.
+#define SB_MOVE_FORMAT_STRING_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

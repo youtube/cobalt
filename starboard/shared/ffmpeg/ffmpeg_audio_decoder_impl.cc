@@ -18,6 +18,9 @@
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
 #include "starboard/audio_sink.h"
+#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#include "starboard/format_string.h"
+#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"

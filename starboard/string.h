@@ -404,6 +404,7 @@ SB_EXPORT double SbStringParseDouble(const char* start, char** out_end);
 }  // extern "C"
 #endif
 
+#if SB_API_VERSION < SB_MOVE_FORMAT_STRING_VERSION
 #ifdef __cplusplus
 
 extern "C++" {
@@ -438,5 +439,6 @@ SB_EXPORT SB_C_INLINE std::string FormatString(const char* format, ...) {
 }  // extern "C++"
 
 #endif  // __cplusplus
+#endif  // SB_API_VERSION < SB_MOVE_FORMAT_STRING_VERSION
 
 #endif  // STARBOARD_STRING_H_
