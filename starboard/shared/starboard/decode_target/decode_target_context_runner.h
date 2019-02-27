@@ -22,7 +22,7 @@
 namespace starboard {
 namespace shared {
 namespace starboard {
-namespace player {
+namespace decode_target {
 
 class DecodeTargetContextRunner {
  public:
@@ -34,7 +34,7 @@ class DecodeTargetContextRunner {
   SbDecodeTargetGraphicsContextProvider* provider_;
 };
 
-}  // namespace player
+}  // namespace decode_target
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
