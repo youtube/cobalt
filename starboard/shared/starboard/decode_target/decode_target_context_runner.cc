@@ -19,7 +19,7 @@
 namespace starboard {
 namespace shared {
 namespace starboard {
-namespace player {
+namespace decode_target {
 
 namespace {
 
@@ -44,7 +44,7 @@ void DecodeTargetContextRunner::RunOnGlesContext(
   SbDecodeTargetRunInGlesContext(provider_, RunnerTargetHelper, &function);
 }
 
-}  // namespace player
+}  // namespace decode_target
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
