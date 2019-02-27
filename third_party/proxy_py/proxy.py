@@ -133,9 +133,12 @@ class ChunkParser(object):
             self.chunk += data[:remaining]
             data = data[remaining:]
             if len(self.chunk) == self.size:
-                data = data[len(CRLF):]
+                if data[:len(CRLF)] == CRLF:
+                    data = data[len(CRLF):]
                 self.body += self.chunk
                 if self.size == 0:
+                    self.body += data
+                    data = b''
                     self.state = ChunkParser.states.COMPLETE
                 else:
                     self.state = ChunkParser.states.WAITING_FOR_SIZE
@@ -564,6 +567,7 @@ class Proxy(threading.Thread):
             if not data:
                 logger.debug('server closed connection')
                 self.server.close()
+                self.request = HttpParser(HttpParser.types.REQUEST_PARSER)
             else:
                 self._process_response(data)
 
