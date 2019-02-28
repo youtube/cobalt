@@ -310,9 +310,7 @@ void InputDeviceManagerDesktop::HandleInputEvent(
   dom::InputEventInit input_event;
   UpdateEventInit(event, &input_event);
   input_event.set_data(event->input_text());
-  // We do not handle composition sessions currently, so isComposing should
-  // always be false.
-  input_event.set_is_composing(false);
+  input_event.set_is_composing(event->is_composing());
   input_event_callback_.Run(type, input_event);
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
