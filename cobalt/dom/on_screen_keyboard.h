@@ -65,6 +65,11 @@ class OnScreenKeyboard : public EventTarget {
   std::string data() const { return data_; }
   void set_data(const std::string& data) { data_ = data; }
 
+  bool is_composing() const { return is_composing_; }
+  void set_is_composing(const bool is_composing) {
+    is_composing_ = is_composing;
+  }
+
   const EventListenerScriptValue* onshow() const;
   void set_onshow(const EventListenerScriptValue& event_listener);
 
@@ -120,6 +125,7 @@ class OnScreenKeyboard : public EventTarget {
   script::ScriptValueFactory* const script_value_factory_;
 
   std::string data_;
+  bool is_composing_;
 
   int next_ticket_;
 
