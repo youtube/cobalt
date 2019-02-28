@@ -159,13 +159,13 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   scoped_ptr<InputEvent> input_event(
-      new InputEvent(timestamp, type, data.device_id,
-                     key_code, modifiers, is_repeat,
-                     math::PointF(data.position.x, data.position.y),
+      new InputEvent(timestamp, type, data.device_id, key_code, modifiers,
+                     is_repeat, math::PointF(data.position.x, data.position.y),
                      math::PointF(data.delta.x, data.delta.y), pressure,
                      math::PointF(data.size.x, data.size.y),
                      math::PointF(data.tilt.x, data.tilt.y),
-                     data.input_text ? data.input_text : ""));
+                     data.input_text ? data.input_text : "",
+                     data.is_composing ? data.is_composing : false));
 #else   // SB_HAS(ON_SCREEN_KEYBOARD)
   scoped_ptr<InputEvent> input_event(
       new InputEvent(timestamp, type, data.device_id,
