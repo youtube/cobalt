@@ -234,7 +234,6 @@ void MediaDecoder::DecoderThreadFunc() {
         }
       }
     }
-    dequeue_output_results.clear();
 
     while (!pending_tasks.empty() && !input_buffer_indices.empty()) {
       if (!ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices)) {
