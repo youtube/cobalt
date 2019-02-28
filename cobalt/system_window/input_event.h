@@ -59,18 +59,18 @@ class InputEvent : public base::Event {
     kForwardButton = 1 << 8,
   };
 
-  InputEvent(SbTimeMonotonic timestamp, Type type, int device_id,
-             int key_code, uint32 modifiers, bool is_repeat,
+  InputEvent(SbTimeMonotonic timestamp, Type type, int device_id, int key_code,
+             uint32 modifiers, bool is_repeat,
              const math::PointF& position = math::PointF(),
              const math::PointF& delta = math::PointF()
 #if SB_API_VERSION >= 6
-             ,
+                 ,
              float pressure = 0, const math::PointF& size = math::PointF(),
              const math::PointF& tilt = math::PointF()
 #endif
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-             ,
-             const std::string& input_text = ""
+                 ,
+             const std::string& input_text = "", bool is_composing = false
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
              )
       : timestamp_(timestamp),
@@ -89,7 +89,8 @@ class InputEvent : public base::Event {
 #endif
 #if SB_HAS(ON_SCREEN_KEYBOARD)
         ,
-        input_text_(input_text)
+        input_text_(input_text),
+        is_composing_(is_composing)
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
   {
   }
@@ -111,6 +112,7 @@ class InputEvent : public base::Event {
 #endif
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   const std::string& input_text() const { return input_text_; }
+  bool is_composing() const { return is_composing_; }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   BASE_EVENT_SUBCLASS(InputEvent);
@@ -131,6 +133,7 @@ class InputEvent : public base::Event {
 #endif
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   std::string input_text_;
+  bool is_composing_;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 };
 
