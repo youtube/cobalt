@@ -292,15 +292,6 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
-#if SB_HAS(PLAYER_WITH_URL)
-  // TODO: "application/x-mpegURL" is a special type for url player, need to
-  // verify with player team if the check below can filter all special types
-  // for url player.
-  if (SbStringCompare("application/x-mpegURL", mime, 21) == 0) {
-    return kSbMediaSupportTypeProbably;
-  }
-#endif  // SB_HAS(PLAYER_WITH_URL)
-
   MimeType mime_type(mime);
   if (!mime_type.is_valid()) {
     SB_DLOG(WARNING) << mime << " is not a valid mime type";
