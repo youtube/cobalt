@@ -84,7 +84,7 @@ class ApplicationAndroid
       SbWindow window,
       const std::vector<std::string>& suggestions,
       int ticket);
-  void SbWindowSendInputEvent(const char* input_text);
+  void SbWindowSendInputEvent(const char* input_text, bool is_composing);
 
  protected:
   // --- Application overrides ---

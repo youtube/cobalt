@@ -69,8 +69,6 @@ public class KeyboardInputConnection extends BaseInputConnection {
 
     updateEditingState();
     Editable editable = getEditable();
-    // TODO: Implement composition events for composing text.
-    nativeSendText(editable.toString());
     return result;
   }
 
@@ -104,7 +102,14 @@ public class KeyboardInputConnection extends BaseInputConnection {
     int composingEnd = BaseInputConnection.getComposingSpanEnd(editable);
     keyboardEditor.updateSelection(
         keyboardEditor, selectionStart, selectionEnd, composingStart, composingEnd);
-    nativeSendText(editable.toString());
+
+    if (composingStart != -1) {
+      // Send the composing text as an input event with isComposing set to true.
+      nativeSendText(editable.toString().substring(composingStart, composingEnd), true);
+    } else {
+      // Send the committed text as an input event with isComposing set to false.
+      nativeSendText(editable.toString(), false);
+    }
   }
 
   /** Send text to the search bar and set the new cursor position. */
@@ -169,5 +174,5 @@ public class KeyboardInputConnection extends BaseInputConnection {
     return true;
   }
 
-  public static native void nativeSendText(CharSequence text);
+  public static native void nativeSendText(CharSequence text, boolean isComposing);
 }

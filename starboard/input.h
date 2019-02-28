@@ -220,6 +220,9 @@ typedef struct SbInputData {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // The text to input for events of type |Input|.
   const char* input_text;
+
+  // Set to true if the input event is part of a composition event.
+  bool is_composing;
 #endif
 } SbInputData;
 
