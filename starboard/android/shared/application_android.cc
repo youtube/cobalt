@@ -457,10 +457,12 @@ extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_KeyboardInputConnection_nativeSendText(
     JniEnvExt* env,
     jobject unused_clazz,
-    jstring text) {
+    jstring text,
+    jboolean is_composing) {
   if (text) {
     std::string utf_str = env->GetStringStandardUTFOrAbort(text);
-    ApplicationAndroid::Get()->SbWindowSendInputEvent(utf_str.c_str());
+    ApplicationAndroid::Get()->SbWindowSendInputEvent(utf_str.c_str(),
+                                                      is_composing);
   }
 }
 
@@ -472,7 +474,8 @@ void DeleteSbInputDataWithText(void* ptr) {
   ApplicationAndroid::DeleteDestructor<SbInputData>(ptr);
 }
 
-void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text) {
+void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
+                                                bool is_composing) {
   char* text = SbStringDuplicate(input_text);
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
@@ -480,6 +483,7 @@ void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text) {
   data->type = kSbInputEventTypeInput;
   data->device_type = kSbInputDeviceTypeOnScreenKeyboard;
   data->input_text = text;
+  data->is_composing = is_composing;
   Inject(new Event(kSbEventTypeInput, data, &DeleteSbInputDataWithText));
   return;
 }
