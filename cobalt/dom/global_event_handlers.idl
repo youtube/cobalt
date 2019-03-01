@@ -43,6 +43,7 @@ interface GlobalEventHandlers {
   attribute EventHandler onplaying;
 
   attribute EventHandler onresize;
+  attribute EventHandler onscroll;
 
   attribute EventHandler ontransitionend;
 
