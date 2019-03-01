@@ -404,8 +404,10 @@ void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
   jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
       "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
   env->CallVoidMethodOrAbort(j_keyboard_editor, "showKeyboard", "()V");
-  // TODO: Fire kSbEventTypeWindowSizeChange and
-  // kSbEventTypeOnScreenKeyboardShown if necessary.
+  int* data = new int;
+  *data = ticket;
+  Inject(new Event(kSbEventTypeOnScreenKeyboardShown, data,
+                   &DeleteDestructor<int>));
   return;
 }
 
@@ -415,8 +417,10 @@ void ApplicationAndroid::SbWindowHideOnScreenKeyboard(SbWindow window,
   jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
       "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
   env->CallVoidMethodOrAbort(j_keyboard_editor, "hideKeyboard", "()V");
-  // TODO: Fire kSbEventTypeWindowSizeChange and
-  // kSbEventTypeOnScreenKeyboardHidden if necessary.
+  int* data = new int;
+  *data = ticket;
+  Inject(new Event(kSbEventTypeOnScreenKeyboardHidden, data,
+                   &DeleteDestructor<int>));
   return;
 }
 
