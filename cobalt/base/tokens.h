@@ -109,6 +109,7 @@ namespace base {
     MacroOpWithNameOnly(resize)                                      \
     MacroOpWithNameOnly(result)                                      \
     MacroOpWithNameOnly(resume)                                      \
+    MacroOpWithNameOnly(scroll)                                      \
     MacroOpWithNameOnly(securitypolicyviolation)                     \
     MacroOpWithNameOnly(seeked)                                      \
     MacroOpWithNameOnly(seeking)                                     \
