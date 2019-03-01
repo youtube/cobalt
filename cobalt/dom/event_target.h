@@ -273,6 +273,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::resize(), event_listener);
   }
 
+  const EventListenerScriptValue* onscroll() {
+    return GetAttributeEventListener(base::Tokens::scroll());
+  }
+  void set_onscroll(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::scroll(), event_listener);
+  }
+
   const EventListenerScriptValue* ongotpointercapture() {
     return GetAttributeEventListener(base::Tokens::gotpointercapture());
   }
