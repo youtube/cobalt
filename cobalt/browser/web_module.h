@@ -62,6 +62,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 
@@ -346,6 +347,12 @@ class WebModule : public LifecycleObserver {
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
 
+  // This returns the UI navigation root container which contains all active
+  // UI navigation items created by this web module.
+  const scoped_refptr<ui_navigation::NavItem>& GetUiNavRoot() const {
+    return ui_nav_root_;
+  }
+
   // LifecycleObserver implementation
   void Prestart() override;
   void Start(render_tree::ResourceProvider* resource_provider) override;
@@ -383,6 +390,7 @@ class WebModule : public LifecycleObserver {
         const cssom::ViewportSize& window_dimensions, float video_pixel_ratio,
         render_tree::ResourceProvider* resource_provider,
         int dom_max_element_depth, float layout_refresh_rate,
+        const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
         const Options& options)
         : initial_url(initial_url),
           initial_application_state(initial_application_state),
@@ -398,6 +406,7 @@ class WebModule : public LifecycleObserver {
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
           layout_refresh_rate(layout_refresh_rate),
+          ui_nav_root(ui_nav_root),
           options(options) {}
 
     GURL initial_url;
@@ -414,6 +423,7 @@ class WebModule : public LifecycleObserver {
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
     float layout_refresh_rate;
+    scoped_refptr<ui_navigation::NavItem> ui_nav_root;
     Options options;
   };
 
@@ -449,6 +459,10 @@ class WebModule : public LifecycleObserver {
   // All sub-objects of this object are created on this thread, and all public
   // member functions are re-posted to this thread if necessary.
   base::Thread thread_;
+
+  // This is the root UI navigation container which contains all active UI
+  // navigation items created by this web module.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_root_;
 };
 
 }  // namespace browser
