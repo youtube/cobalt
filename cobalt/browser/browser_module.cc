@@ -573,6 +573,11 @@ void BrowserModule::Navigate(const GURL& url) {
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
   }
+
+  if (system_window_) {
+    web_module_->GetUiNavRoot()->RegisterRootContainerWithWindow(
+        system_window_->GetSbWindow());
+  }
 }
 
 void BrowserModule::Reload() {
@@ -1571,6 +1576,8 @@ void BrowserModule::InitializeSystemWindow() {
   if (web_module_) {
     web_module_->SetCamera3D(input_device_manager_->camera_3d());
     web_module_->SetWebMediaPlayerFactory(media_module_.get());
+    web_module_->GetUiNavRoot()->RegisterRootContainerWithWindow(
+        system_window_->GetSbWindow());
   }
 }
 
