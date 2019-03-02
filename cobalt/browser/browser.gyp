@@ -156,6 +156,7 @@
         '<(DEPTH)/cobalt/sso/sso.gyp:sso',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
+        '<(DEPTH)/cobalt/ui_navigation/ui_navigation.gyp:ui_navigation',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/websocket/websocket.gyp:websocket',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',

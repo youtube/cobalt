@@ -42,6 +42,7 @@
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/ui_navigation/nav_item.h"
 
 namespace cobalt {
 namespace dom {
@@ -322,6 +323,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // to 'none'.
   bool IsDisplayed() const;
 
+  // Get the UI navigation item (if any) representing this HTML element.
+  const scoped_refptr<ui_navigation::NavItem>& GetUiNavItem() const {
+    return ui_nav_item_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
@@ -363,6 +369,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // directionality does not invalidate the computed style.
   void SetDirectionality(const std::string& value);
 
+  // Update the cached value of tabindex.
+  void SetTabIndex(const std::string& value);
+
   // Invalidate the matching rules and rule matching state in this element and
   // its descendants. In the case where this is the the initial invalidation,
   // it will also invalidate the rule matching state of its siblings.
@@ -370,6 +379,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Fully clear the rule matching state of this element and optionally
   // invalidate all of its descendants matching rules.
   void ClearRuleMatchingStateInternal(bool invalidate_descendants);
+
+  // Update the UI navigation item type for this element.
+  void UpdateUiNavigationType();
+
+  // Register this element's UI navigation item as a content of its parent
+  // element's UI navigation item.
+  void RegisterUiNavigationParent();
 
   // Clear the list of active background images, and notify the animated image
   // tracker to stop the animations.
@@ -393,6 +409,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // InvalidateLayoutBoxesOfNodeAndDescendants().
   void InvalidateLayoutBoxes();
 
+  // Handle UI navigation events.
+  void OnUiNavBlur();
+  void OnUiNavFocus();
+  void OnUiNavScroll();
+
   bool locked_for_focus_;
 
   // The directionality of the html element is determined by the 'dir'
@@ -404,6 +425,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // determining directionality. Inheritance of directionality occurs via the
   // base direction of the parent element's paragraph.
   Directionality directionality_;
+
+  // Cache the tabindex value.
+  base::optional<int32> tabindex_;
 
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).
@@ -451,6 +475,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
   loader::image::CachedImageReferenceVector cached_background_images_;
+
+  // Elements with specific styles or attributes can be animated by the
+  // platform's UI engine. This is done by attaching special animation nodes to
+  // the boxes generated for the relevant elements; the rendering pipeline will
+  // then query starboard for position data each frame, thus animating the
+  // boxes without requiring a new layout.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
 
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.
