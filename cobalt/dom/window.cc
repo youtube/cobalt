@@ -129,6 +129,7 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
@@ -195,13 +196,16 @@ Window::Window(
       splash_screen_cache_callback_(splash_screen_cache_callback),
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
       on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
-      screenshot_manager_(screenshot_function_callback) {
+      screenshot_manager_(screenshot_function_callback),
+      ui_nav_root_(ui_nav_root) {
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);
   SetCamera3D(camera_3d);
+
+  ui_nav_root_->SetEnabled(true);
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
@@ -714,6 +718,7 @@ const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
 void Window::ReleaseOnScreenKeyboard() { on_screen_keyboard_ = nullptr; }
 
 Window::~Window() {
+  ui_nav_root_->SetEnabled(false);
   html_element_context_->page_visibility_state()->RemoveObserver(this);
 }
 

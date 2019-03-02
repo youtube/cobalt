@@ -661,8 +661,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier,
+      data.ui_nav_root, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
@@ -1350,13 +1350,16 @@ WebModule::WebModule(
     const ViewportSize& window_dimensions, float video_pixel_ratio,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
-    : thread_(options.name.c_str()) {
+    : thread_(options.name.c_str()),
+      ui_nav_root_(new ui_navigation::NavItem(kSbUiNavItemTypeContainer,
+          // Currently, events do not need to be processed for the root item.
+          base::Closure(), base::Closure(), base::Closure())) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
       can_play_type_handler, web_media_player_factory, network_module,
       window_dimensions, video_pixel_ratio, resource_provider,
-      kDOMMaxElementDepth, layout_refresh_rate, options);
+      kDOMMaxElementDepth, layout_refresh_rate, ui_nav_root_, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
