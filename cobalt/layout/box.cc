@@ -20,6 +20,7 @@
 
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -129,12 +130,6 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 }
 
 Box::~Box() { layout_stat_tracker_->OnBoxDestroyed(); }
-
-bool Box::IsOverflowHidden() const {
-  return computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
-         computed_style()->overflow() == cssom::KeywordValue::GetHidden() ||
-         computed_style()->overflow() == cssom::KeywordValue::GetScroll();
-}
 
 bool Box::IsPositioned() const {
   return computed_style()->position() != cssom::KeywordValue::GetStatic();
@@ -455,6 +450,19 @@ Vector2dLayoutUnit Box::GetBorderBoxOffsetFromMarginBox() const {
   return Vector2dLayoutUnit(margin_left(), margin_top());
 }
 
+Vector2dLayoutUnit Box::GetBorderBoxOffsetFromContainingBlock() const {
+  return Vector2dLayoutUnit(GetBorderBoxLeftEdgeOffsetFromContainingBlock(),
+                            GetBorderBoxTopEdgeOffsetFromContainingBlock());
+}
+
+LayoutUnit Box::GetBorderBoxLeftEdgeOffsetFromContainingBlock() const {
+  return left() + GetBorderBoxOffsetFromMarginBox().x();
+}
+
+LayoutUnit Box::GetBorderBoxTopEdgeOffsetFromContainingBlock() const {
+  return top() + GetBorderBoxOffsetFromMarginBox().y();
+}
+
 LayoutUnit Box::GetPaddingBoxWidth() const {
   return padding_left() + width() + padding_right();
 }
@@ -480,6 +488,27 @@ Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromRoot(
 
 Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromBorderBox() const {
   return Vector2dLayoutUnit(border_left_width(), border_top_width());
+}
+
+LayoutUnit Box::GetPaddingBoxLeftEdgeOffsetFromMarginBox() const {
+  return margin_left() + border_left_width();
+}
+
+LayoutUnit Box::GetPaddingBoxTopEdgeOffsetFromMarginBox() const {
+  return margin_top() + border_top_width();
+}
+
+Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromContainingBlock() const {
+  return Vector2dLayoutUnit(GetPaddingBoxLeftEdgeOffsetFromContainingBlock(),
+                            GetPaddingBoxTopEdgeOffsetFromContainingBlock());
+}
+
+LayoutUnit Box::GetPaddingBoxLeftEdgeOffsetFromContainingBlock() const {
+  return left() + GetPaddingBoxLeftEdgeOffsetFromMarginBox();
+}
+
+LayoutUnit Box::GetPaddingBoxTopEdgeOffsetFromContainingBlock() const {
+  return top() + GetPaddingBoxTopEdgeOffsetFromMarginBox();
 }
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromRoot(
@@ -711,7 +740,7 @@ void Box::RenderAndAnimate(
                               &border_node_builder, &animate_node_builder);
   }
 
-  const bool overflow_hidden = IsOverflowHidden();
+  const bool overflow_hidden = IsOverflowCropped(computed_style());
 
   bool overflow_hidden_needs_to_be_applied = overflow_hidden;
 
@@ -1736,7 +1765,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const scoped_refptr<render_tree::Node>& content_node,
     AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
-  DCHECK(IsOverflowHidden());
+  DCHECK(IsOverflowCropped(computed_style()));
 
   // The "overflow" property specifies whether a box is clipped to its padding
   // edge.  Use a render_tree viewport filter to implement it.

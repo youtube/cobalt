@@ -15,6 +15,7 @@
 #include "cobalt/dom/element.h"
 
 #include <algorithm>
+#include <ctime>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_util.h"
@@ -647,6 +648,26 @@ void Element::CollectStyleSheetsOfElementAndDescendants(
        child = child->next_element_sibling()) {
     child->CollectStyleSheetsOfElementAndDescendants(style_sheets);
   }
+}
+
+void Element::RegisterIntersectionObserverTarget(
+    const scoped_refptr<IntersectionObserver>& observer) {
+  if (!intersection_observer_target_) {
+    intersection_observer_target_ = std::unique_ptr<IntersectionObserverTarget>(
+        new IntersectionObserverTarget(this));
+  }
+  intersection_observer_target_->RegisterIntersectionObserver(observer);
+}
+
+void Element::UnregisterIntersectionObserverTarget(
+    const scoped_refptr<IntersectionObserver>& observer) {
+  intersection_observer_target_->UnregisterIntersectionObserver(observer);
+}
+
+void Element::UpdateIntersectionObservationsForTarget(
+    const scoped_refptr<IntersectionObserver>& observer) {
+  intersection_observer_target_->UpdateIntersectionObservationsForTarget(
+      observer);
 }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }

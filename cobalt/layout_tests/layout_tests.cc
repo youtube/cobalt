@@ -293,6 +293,12 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateLayoutTests("cluster-fuzz")),
     GetTestName());
 
+// Intersection Observer API (https://www.w3.org/TR/intersection-observer/) test
+// cases
+INSTANTIATE_TEST_CASE_P(
+    IntersectionObserverLayoutTests, Layout,
+    ::testing::ValuesIn(EnumerateLayoutTests("intersection-observer")));
+
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)
 // Content Security Policy test cases.

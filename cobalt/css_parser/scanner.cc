@@ -1997,6 +1997,15 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         return true;
       }
       return false;
+
+    case 33:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(
+                  cssom::kIntersectionObserverRootMarginProperty))) {
+        *property_name_token = kIntersectionObserverRootMarginToken;
+        return true;
+      }
   }
 
   return false;

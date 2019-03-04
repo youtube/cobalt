@@ -692,7 +692,7 @@ float HTMLElement::offset_top() {
 
   DCHECK(offset_parent_html_element->layout_boxes());
   return layout_boxes_->GetBorderEdgeTop() -
-         offset_parent_html_element->layout_boxes()->GetPaddingEdgeTop();
+         offset_parent_html_element->layout_boxes()->GetPaddingEdgeOffset().y();
 }
 
 // Algorithm for offset_left:
@@ -731,7 +731,7 @@ float HTMLElement::offset_left() {
 
   DCHECK(offset_parent_html_element->layout_boxes());
   return layout_boxes_->GetBorderEdgeLeft() -
-         offset_parent_html_element->layout_boxes()->GetPaddingEdgeLeft();
+         offset_parent_html_element->layout_boxes()->GetPaddingEdgeOffset().x();
 }
 
 // Algorithm for offset_width:
@@ -1064,6 +1064,12 @@ void HTMLElement::PurgeCachedBackgroundImages() {
 bool HTMLElement::IsDisplayed() const {
   return ancestors_are_displayed_ == kAncestorsAreDisplayed &&
          computed_style()->display() != cssom::KeywordValue::GetNone();
+}
+
+bool HTMLElement::IsRootElement() {
+  // The html element represents the root of an HTML document.
+  //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
+  return AsHTMLHtmlElement().get() != NULL;
 }
 
 void HTMLElement::InvalidateComputedStylesOfNodeAndDescendants() {
@@ -1900,12 +1906,6 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 void HTMLElement::OnBackgroundImageLoaded() {
   node_document()->RecordMutation();
   InvalidateLayoutBoxRenderTreeNodes();
-}
-
-bool HTMLElement::IsRootElement() {
-  // The html element represents the root of an HTML document.
-  //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
-  return AsHTMLHtmlElement().get() != NULL;
 }
 
 }  // namespace dom

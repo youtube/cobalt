@@ -19,6 +19,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
@@ -99,7 +100,9 @@ Document::Document(HTMLElementContext* html_element_context,
           new cssom::CSSComputedStyleDeclaration()),
       ready_state_(kDocumentReadyStateComplete),
       dom_max_element_depth_(options.dom_max_element_depth),
-      render_postponed_(false) {
+      render_postponed_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(intersection_observer_task_manager_(
+          new IntersectionObserverTaskManager())) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
   page_visibility_state_->AddObserver(this);
