@@ -134,6 +134,7 @@
 %token kFontStyleToken                        // font-style
 %token kFontWeightToken                       // font-weight
 %token kHeightToken                           // height
+%token kIntersectionObserverRootMarginToken   // intersection-observer-root-margin
 %token kJustifyContentToken                   // justify-content
 %token kLeftToken                             // left
 %token kLineHeightToken                       // line-height
@@ -603,6 +604,7 @@
                        font_weight_exclusive_property_value
                        font_weight_property_value
                        height_property_value
+                       intersection_observer_root_margin_property_value
                        justify_content_property_value
                        length_percent_property_value
                        line_height_property_value
@@ -829,6 +831,7 @@
                       comma_separated_font_family_name_list
                       comma_separated_text_shadow_list
                       comma_separated_unicode_range_list
+                      intersection_observer_root_margin_property_list
                       validated_two_position_list_elements
 %destructor { delete $$; } <property_list>
 
@@ -1584,6 +1587,10 @@ identifier_token:
   | kHeightToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kHeightProperty));
+  }
+  | kIntersectionObserverRootMarginToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kIntersectionObserverRootMarginProperty));
   }
   | kJustifyContentToken {
     $$ = TrivialStringPiece::FromCString(
@@ -4232,6 +4239,69 @@ height_property_value:
   | common_values
   ;
 
+intersection_observer_root_margin_property_list:
+    // If there is only one component value, it applies to all sides.
+    length_percent_property_value {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(4);
+    auto all_margins = MakeScopedRefPtrAndRelease($1);
+    $$->push_back(all_margins);
+    $$->push_back(all_margins);
+    $$->push_back(all_margins);
+    $$->push_back(all_margins);
+  }
+    // If there are two values, the top and bottom margins are set to the first
+    // value and the right and left margins are set to the second.
+  | length_percent_property_value
+    length_percent_property_value {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(4);
+    auto top_and_bottom_margins = MakeScopedRefPtrAndRelease($1);
+    auto right_and_left_margins = MakeScopedRefPtrAndRelease($2);
+    $$->push_back(top_and_bottom_margins);
+    $$->push_back(right_and_left_margins);
+    $$->push_back(top_and_bottom_margins);
+    $$->push_back(right_and_left_margins);
+  }
+    // If there are three values, the top is set to the first value, the left
+    // and right are set to the second, and the bottom is set to the third.
+  | length_percent_property_value
+    length_percent_property_value
+    length_percent_property_value {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(4);
+    auto right_and_left_margins = MakeScopedRefPtrAndRelease($2);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+    $$->push_back(right_and_left_margins);
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+    $$->push_back(right_and_left_margins);
+  }
+    // If there are four values, they apply to the top, right, bottom, and left,
+    // respectively.
+  | length_percent_property_value
+    length_percent_property_value
+    length_percent_property_value
+    length_percent_property_value {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(4);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+    $$->push_back(MakeScopedRefPtrAndRelease($2));
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+    $$->push_back(MakeScopedRefPtrAndRelease($4));
+  }
+  ;
+
+// Specifies the margin of the root element of Intersection Observer.
+//   https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-rootmargin-slot
+intersection_observer_root_margin_property_value:
+  intersection_observer_root_margin_property_list {
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
+         : NULL;
+  }
+  ;
+
 // Specifies the minimum content height of boxes.
 //   https://www.w3.org/TR/CSS21/visudet.html#propdef-min-height
 min_height_property_value:
@@ -6834,6 +6904,12 @@ maybe_declaration:
   | kHeightToken maybe_whitespace colon height_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kHeightProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kIntersectionObserverRootMarginToken maybe_whitespace colon
+      intersection_observer_root_margin_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kIntersectionObserverRootMarginProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
