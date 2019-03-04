@@ -192,11 +192,6 @@ class Box : public base::RefCounted<Box> {
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
 
-  // Returns true if "overflow" should be treated as hidden. This is true for
-  // overflow "auto", "hidden", and "scroll".
-  //   https://www.w3.org/TR/CSS21/visufx.html#overflow
-  bool IsOverflowHidden() const;
-
   // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
   // not follow standard layout flow rules for determining its position.
@@ -315,6 +310,9 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetBorderBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetBorderBoxOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetBorderBoxOffsetFromContainingBlock() const;
+  LayoutUnit GetBorderBoxLeftEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetBorderBoxTopEdgeOffsetFromContainingBlock() const;
 
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
@@ -324,6 +322,11 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetPaddingBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetPaddingBoxOffsetFromBorderBox() const;
+  LayoutUnit GetPaddingBoxLeftEdgeOffsetFromMarginBox() const;
+  LayoutUnit GetPaddingBoxTopEdgeOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetPaddingBoxOffsetFromContainingBlock() const;
+  LayoutUnit GetPaddingBoxLeftEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetPaddingBoxTopEdgeOffsetFromContainingBlock() const;
 
   // Content box.
   LayoutUnit width() const { return content_size_.width(); }

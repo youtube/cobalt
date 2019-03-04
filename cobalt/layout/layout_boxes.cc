@@ -14,11 +14,13 @@
 
 #include "cobalt/layout/layout_boxes.h"
 
+#include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
@@ -87,6 +89,11 @@ float LayoutBoxes::GetBorderEdgeHeight() const {
   return GetBoundingBorderRectangle().height();
 }
 
+math::Vector2dF LayoutBoxes::GetBorderEdgeOffsetFromContainingBlock() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetBorderBoxOffsetFromContainingBlock();
+}
+
 float LayoutBoxes::GetBorderLeftWidth() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()->border_left_width().toFloat();
@@ -107,20 +114,10 @@ float LayoutBoxes::GetMarginEdgeHeight() const {
   return boxes_.front()->GetMarginBoxHeight().toFloat();
 }
 
-float LayoutBoxes::GetPaddingEdgeLeft() const {
+math::Vector2dF LayoutBoxes::GetPaddingEdgeOffset() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()
-      ->GetPaddingBoxOffsetFromRoot(false /*transform_forms_root*/)
-      .x()
-      .toFloat();
-}
-
-float LayoutBoxes::GetPaddingEdgeTop() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()
-      ->GetPaddingBoxOffsetFromRoot(false /*transform_forms_root*/)
-      .y()
-      .toFloat();
+  return boxes_.front()->GetPaddingBoxOffsetFromRoot(
+      false /*transform_forms_root*/);
 }
 
 float LayoutBoxes::GetPaddingEdgeWidth() const {
@@ -131,6 +128,33 @@ float LayoutBoxes::GetPaddingEdgeWidth() const {
 float LayoutBoxes::GetPaddingEdgeHeight() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()->GetPaddingBoxHeight().toFloat();
+}
+
+math::Vector2dF LayoutBoxes::GetPaddingEdgeOffsetFromContainingBlock() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetPaddingBoxOffsetFromContainingBlock();
+}
+
+math::Vector2dF LayoutBoxes::GetContentEdgeOffset() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetContentBoxOffsetFromRoot(
+      false /*transform_forms_root*/);
+}
+
+float LayoutBoxes::GetContentEdgeWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->width().toFloat();
+}
+
+float LayoutBoxes::GetContentEdgeHeight() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->height().toFloat();
+}
+
+math::Vector2dF LayoutBoxes::GetContentEdgeOffsetFromContainingBlock() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetContentBoxOffsetFromContainingBlockContentBox(
+      boxes_.front()->GetContainingBlock());
 }
 
 math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
@@ -197,7 +221,8 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
 
             // Include the scrollable overflow regions of the contents provided
             // they are visible (i.e. container has overflow: visible).
-            if (box->AsContainerBox() && !box->IsOverflowHidden()) {
+            if (box->AsContainerBox() &&
+                !IsOverflowCropped(box->computed_style())) {
               child_boxes_list.push_back(&box->AsContainerBox()->child_boxes());
             }
             break;

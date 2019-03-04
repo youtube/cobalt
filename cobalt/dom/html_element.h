@@ -331,6 +331,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return ui_nav_item_;
   }
 
+  // Returns true if the element is the root element as defined in
+  // https://www.w3.org/TR/html5/semantics.html#the-root-element.
+  bool IsRootElement();
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
@@ -395,10 +399,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // This will be called when the image data associated with this element's
   // computed style's background-image property is loaded.
   void OnBackgroundImageLoaded();
-
-  // Returns true if the element is the root element as defined in
-  // https://www.w3.org/TR/html5/semantics.html#the-root-element.
-  bool IsRootElement();
 
   // Purge the cached background images on only this node.
   void PurgeCachedBackgroundImages();
