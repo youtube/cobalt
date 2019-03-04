@@ -45,6 +45,9 @@ class DOMRectReadOnly : public script::Wrappable {
   }
   float left() const { return std::min(rect_.x(), rect_.x() + rect_.width()); }
 
+  // Custom, not in any spec
+  const math::RectF& rect() const { return rect_; }
+
   DEFINE_WRAPPABLE_TYPE(DOMRectReadOnly);
 
  protected:

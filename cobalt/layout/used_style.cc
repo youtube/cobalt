@@ -38,6 +38,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/used_style.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/animations/animate_node.h"
@@ -577,54 +578,10 @@ LayoutUnit GetUsedNonNegativeLength(
   return layout_unit;
 }
 
-class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
- public:
-  explicit UsedLengthValueProvider(LayoutUnit percentage_base,
-                                   bool calc_permitted = false)
-      : percentage_base_(percentage_base), calc_permitted_(calc_permitted) {}
-
-  void VisitLength(cssom::LengthValue* length) override {
-    depends_on_containing_block_ = false;
-
-    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-    used_length_ = LayoutUnit(length->value());
-  }
-
-  void VisitPercentage(cssom::PercentageValue* percentage) override {
-    depends_on_containing_block_ = true;
-    used_length_ = percentage->value() * percentage_base_;
-  }
-
-  void VisitCalc(cssom::CalcValue* calc) override {
-    if (!calc_permitted_) {
-      NOTREACHED();
-    }
-    depends_on_containing_block_ = true;
-    used_length_ = LayoutUnit(calc->length_value()->value()) +
-                   calc->percentage_value()->value() * percentage_base_;
-  }
-
-  bool depends_on_containing_block() const {
-    return depends_on_containing_block_;
-  }
-  const base::Optional<LayoutUnit>& used_length() const { return used_length_; }
-
- protected:
-  bool depends_on_containing_block_;
-
- private:
-  const LayoutUnit percentage_base_;
-  const bool calc_permitted_;
-
-  base::Optional<LayoutUnit> used_length_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
-};
-
 namespace {
 float GetUsedLengthPercentageOrCalcValue(cssom::PropertyValue* property_value,
                                          float percentage_base) {
-  UsedLengthValueProvider used_length_value_provider(
+  cssom::UsedLengthValueProvider<LayoutUnit> used_length_value_provider(
       LayoutUnit(percentage_base), true);
   property_value->Accept(&used_length_value_provider);
   return used_length_value_provider.used_length()->toFloat();
@@ -1344,10 +1301,10 @@ math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
 
 namespace {
 
-class UsedLengthProvider : public UsedLengthValueProvider {
+class UsedLengthProvider : public cssom::UsedLengthValueProvider<LayoutUnit> {
  public:
   explicit UsedLengthProvider(LayoutUnit percentage_base)
-      : UsedLengthValueProvider(percentage_base) {}
+      : cssom::UsedLengthValueProvider<LayoutUnit>(percentage_base) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) override {
     switch (keyword->value()) {
@@ -1432,10 +1389,11 @@ class UsedLengthProvider : public UsedLengthValueProvider {
   }
 };
 
-class UsedMaxLengthProvider : public UsedLengthValueProvider {
+class UsedMaxLengthProvider
+    : public cssom::UsedLengthValueProvider<LayoutUnit> {
  public:
   explicit UsedMaxLengthProvider(LayoutUnit percentage_base)
-      : UsedLengthValueProvider(percentage_base) {}
+      : cssom::UsedLengthValueProvider<LayoutUnit>(percentage_base) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) override {
     switch (keyword->value()) {
@@ -1633,7 +1591,8 @@ LayoutUnit GetUsedMinHeight(
     bool* height_depends_on_containing_block) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
-  UsedLengthValueProvider used_length_provider(containing_block_size.height());
+  cssom::UsedLengthValueProvider<LayoutUnit> used_length_provider(
+      containing_block_size.height());
   computed_style->min_height()->Accept(&used_length_provider);
   if (height_depends_on_containing_block != NULL) {
     *height_depends_on_containing_block =
@@ -1648,7 +1607,8 @@ LayoutUnit GetUsedMinWidth(
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-min-width
-  UsedLengthValueProvider used_length_provider(containing_block_size.width());
+  cssom::UsedLengthValueProvider<LayoutUnit> used_length_provider(
+      containing_block_size.width());
   computed_style->min_width()->Accept(&used_length_provider);
   if (width_depends_on_containing_block != NULL) {
     *width_depends_on_containing_block =
