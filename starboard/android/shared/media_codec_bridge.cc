@@ -404,7 +404,7 @@ void MediaCodecBridge::OnMediaCodecOutputBufferAvailable(
     int buffer_index,
     int flags,
     int offset,
-    long presentation_time_us,
+    int64_t presentation_time_us,
     int size) {
   handler_->OnMediaCodecOutputBufferAvailable(buffer_index, flags, offset,
                                               presentation_time_us, size);

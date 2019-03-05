@@ -142,7 +142,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                          int flags,
                                          int offset,
-                                         long presentation_time_us,
+                                         int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
 
