@@ -88,6 +88,10 @@ public class StarboardBridge {
 
   private volatile boolean starboardStopped = false;
 
+  private HashMap<String, CobaltService.Factory> cobaltServiceFactories =
+      new HashMap<String, CobaltService.Factory>();
+  private HashMap<String, CobaltService> cobaltServices = new HashMap<String, CobaltService>();
+
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
@@ -149,6 +153,9 @@ public class StarboardBridge {
     // whatever the web app wants to do with them as part of its start/resume logic.
     cobaltMediaSession.resume();
     feedbackService.connect();
+    for (CobaltService service : cobaltServices.values()) {
+      service.beforeStartOrResume();
+    }
   }
 
   @SuppressWarnings("unused")
@@ -160,6 +167,9 @@ public class StarboardBridge {
     // can take their time suspending after that.
     cobaltMediaSession.suspend();
     feedbackService.disconnect();
+    for (CobaltService service : cobaltServices.values()) {
+      service.beforeSuspend();
+    }
   }
 
   @SuppressWarnings("unused")
@@ -168,6 +178,9 @@ public class StarboardBridge {
     starboardStopped = true;
     ttsHelper.shutdown();
     userAuthorizer.shutdown();
+    for (CobaltService service : cobaltServices.values()) {
+      service.afterStopped();
+    }
     Activity activity = activityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
@@ -510,5 +523,33 @@ public class StarboardBridge {
       }
     }
     return false;
+  }
+
+  public void registerCobaltService(String serviceName, CobaltService.Factory factory) {
+    cobaltServiceFactories.put(serviceName, factory);
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  boolean hasCobaltService(String serviceName) {
+    return cobaltServiceFactories.get(serviceName) != null;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  CobaltService openCobaltService(long nativeService, String serviceName) {
+    if (cobaltServices.get(serviceName) != null) {
+      // Attempting to re-open an already open service fails.
+      Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
+      return null;
+    }
+    final CobaltService.Factory factory = cobaltServiceFactories.get(serviceName);
+    if (factory == null) {
+      Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
+      return null;
+    }
+    CobaltService service = factory.createCobaltService(nativeService);
+    cobaltServices.put(serviceName, service);
+    return service;
   }
 }
