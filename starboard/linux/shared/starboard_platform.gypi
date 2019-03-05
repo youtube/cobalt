@@ -311,6 +311,7 @@
       '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
+      '<(DEPTH)/starboard/shared/stub/system_get_extensions.cc',
       '<(DEPTH)/starboard/shared/stub/image_decode.cc',
       '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_close.cc',

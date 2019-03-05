@@ -24,9 +24,9 @@
         'feedback_service.cc',
       ],
       'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/script/script.gyp:script',
-        '<(DEPTH)/base/base.gyp:base',
       ],
     },
   ],

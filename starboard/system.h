@@ -599,4 +599,10 @@ SB_EXPORT bool SbSystemSupportsResume();
 }  // extern "C"
 #endif
 
+#if SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+// Returns pointer to a constant global struct implementing the extension named
+// |name|, if it is implemented. Otherwise return NULL.
+void* SbSystemGetExtension(const char* name);
+#endif  // SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+
 #endif  // STARBOARD_SYSTEM_H_
