@@ -432,11 +432,12 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   }
 }
 
-void MediaDecoder::OnMediaCodecOutputBufferAvailable(int buffer_index,
-                                                     int flags,
-                                                     int offset,
-                                                     long presentation_time_us,
-                                                     int size) {
+void MediaDecoder::OnMediaCodecOutputBufferAvailable(
+    int buffer_index,
+    int flags,
+    int offset,
+    int64_t presentation_time_us,
+    int size) {
   SB_DCHECK(media_codec_bridge_);
   SB_DCHECK(buffer_index >= 0);
 
