@@ -239,7 +239,7 @@ typedef void (*SbSystemPlatformErrorCallback)(
 // Private structure used to represent a raised platform error.
 typedef struct SbSystemPlatformErrorPrivate SbSystemPlatformErrorPrivate;
 
-#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
+#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 // Opaque handle returned by |SbSystemRaisePlatformError| that can be passed
 // to |SbSystemClearPlatformError|.
 typedef SbSystemPlatformErrorPrivate* SbSystemPlatformError;
@@ -283,7 +283,7 @@ SB_EXPORT SbSystemPlatformError
 SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                            SbSystemPlatformErrorCallback callback,
                            void* user_data);
-#else   // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
+#else   // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 // Cobalt calls this function to notify the platform that an error has occurred
 // in the application that the platform may need to handle. The platform is
 // expected to then notify the user of the error and to provide a means for
@@ -308,16 +308,16 @@ SB_EXPORT bool SbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
     void* user_data);
-#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
+#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 
-#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
+#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 // Clears a platform error that was previously raised by a call to
 // |SbSystemRaisePlatformError|. The platform may use this, for example,
 // to close a dialog that was opened in response to the error.
 //
 // |handle|: The platform error to be cleared.
 SB_EXPORT void SbSystemClearPlatformError(SbSystemPlatformError handle);
-#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR
+#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 
 // Pointer to a function to compare two items. The return value uses standard
 // |*cmp| semantics:
