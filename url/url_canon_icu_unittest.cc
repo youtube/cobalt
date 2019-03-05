@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
+#include "url/url_canon_icu.h"
 #include "base/macros.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "url/url_canon.h"
-#include "url/url_canon_icu.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_test_utils.h"
 
@@ -124,7 +124,7 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
     ICUCharsetConverter converter(conv.converter());
 
     if (query_cases[i].input8) {
-      int len = static_cast<int>(strlen(query_cases[i].input8));
+      int len = static_cast<int>(SbStringGetLength(query_cases[i].input8));
       Component in_comp(0, len);
       std::string out_str;
 

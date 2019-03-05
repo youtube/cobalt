@@ -5,8 +5,6 @@
 #ifndef URL_GURL_H_
 #define URL_GURL_H_
 
-#include <stddef.h>
-
 #include <iosfwd>
 #include <memory>
 #include <string>
@@ -14,6 +12,7 @@
 #include "base/debug/alias.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"

@@ -4,11 +4,12 @@
 
 // ICU-based character set converter.
 
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "base/logging.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "third_party/icu/source/common/unicode/ucnv_cb.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
@@ -40,7 +41,7 @@ void appendURLEscapedChar(const void* context,
     DCHECK(code_point < 0x110000);
     char number[8];  // Max Unicode code point is 7 digits.
     _itoa_s(code_point, number, 10);
-    int number_len = static_cast<int>(strlen(number));
+    int number_len = static_cast<int>(SbStringGetLength(number));
     ucnv_cbFromUWriteBytes(from_args, number, number_len, 0, err);
 
     const static int postfix_len = 3;

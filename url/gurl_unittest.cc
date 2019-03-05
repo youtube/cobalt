@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
+#include "url/gurl.h"
 #include "base/macros.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "url/gurl.h"
 #include "url/url_canon.h"
 #include "url/url_test_utils.h"
 
@@ -23,7 +23,7 @@ void SetupReplacement(
   if (str) {
     Component comp;
     if (str[0])
-      comp.len = static_cast<int>(strlen(str));
+      comp.len = static_cast<int>(SbStringGetLength(str));
     (replacements->*func)(str, comp);
   }
 }

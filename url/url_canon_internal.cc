@@ -12,7 +12,6 @@
 #define snprintf SbStringFormatF
 #else
 #include <errno.h>
-#include <stddef.h>
 #include <stdlib.h>
 
 #include <cstdio>
@@ -21,6 +20,7 @@
 #include <string>
 
 #include "base/strings/utf_string_conversion_utils.h"
+#include "starboard/types.h"
 
 namespace url {
 
