@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 #include <errno.h>
-#include <stddef.h>
 
 #include "base/macros.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
@@ -95,7 +97,7 @@ void SetupReplComp(
   if (str && str[0] == kDeleteComp[0]) {
     (rep->*clear)();
   } else if (str) {
-    (rep->*set)(str, Component(0, static_cast<int>(strlen(str))));
+    (rep->*set)(str, Component(0, static_cast<int>(SbStringGetLength(str))));
   }
 }
 
@@ -182,7 +184,7 @@ TEST(URLCanonTest, UTF) {
       out_str.clear();
       StdStringCanonOutput output(&out_str);
 
-      int input_len = static_cast<int>(strlen(utf_cases[i].input8));
+      int input_len = static_cast<int>(SbStringGetLength(utf_cases[i].input8));
       bool success = true;
       for (int ch = 0; ch < input_len; ch++) {
         success &= AppendUTF8EscapedChar(utf_cases[i].input8, &ch, input_len,
@@ -249,7 +251,7 @@ TEST(URLCanonTest, Scheme) {
   std::string out_str;
 
   for (size_t i = 0; i < arraysize(scheme_cases); i++) {
-    int url_len = static_cast<int>(strlen(scheme_cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(scheme_cases[i].input));
     Component in_comp(0, url_len);
     Component out_comp;
 
@@ -516,7 +518,7 @@ TEST(URLCanonTest, Host) {
   for (size_t i = 0; i < arraysize(host_cases); i++) {
     // Narrow version.
     if (host_cases[i].input8) {
-      int host_len = static_cast<int>(strlen(host_cases[i].input8));
+      int host_len = static_cast<int>(SbStringGetLength(host_cases[i].input8));
       Component in_comp(0, host_len);
       Component out_comp;
 
@@ -564,7 +566,7 @@ TEST(URLCanonTest, Host) {
   for (size_t i = 0; i < arraysize(host_cases); i++) {
     // Narrow version.
     if (host_cases[i].input8) {
-      int host_len = static_cast<int>(strlen(host_cases[i].input8));
+      int host_len = static_cast<int>(SbStringGetLength(host_cases[i].input8));
       Component in_comp(0, host_len);
 
       out_str.clear();
@@ -693,7 +695,8 @@ TEST(URLCanonTest, IPv4) {
 
   for (size_t i = 0; i < arraysize(cases); i++) {
     // 8-bit version.
-    Component component(0, static_cast<int>(strlen(cases[i].input8)));
+    Component component(0,
+                        static_cast<int>(SbStringGetLength(cases[i].input8)));
 
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
@@ -847,7 +850,8 @@ TEST(URLCanonTest, IPv6) {
 
   for (size_t i = 0; i < arraysize(cases); i++) {
     // 8-bit version.
-    Component component(0, static_cast<int>(strlen(cases[i].input8)));
+    Component component(0,
+                        static_cast<int>(SbStringGetLength(cases[i].input8)));
 
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
@@ -972,7 +976,7 @@ TEST(URLCanonTest, UserInfo) {
   };
 
   for (size_t i = 0; i < arraysize(user_info_cases); i++) {
-    int url_len = static_cast<int>(strlen(user_info_cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(user_info_cases[i].input));
     Parsed parsed;
     ParseStandardURL(user_info_cases[i].input, url_len, &parsed);
     Component out_user, out_pass;
@@ -1041,7 +1045,7 @@ TEST(URLCanonTest, Port) {
   };
 
   for (size_t i = 0; i < arraysize(port_cases); i++) {
-    int url_len = static_cast<int>(strlen(port_cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(port_cases[i].input));
     Component in_comp(0, url_len);
     Component out_comp;
     std::string out_str;
@@ -1165,7 +1169,7 @@ TEST(URLCanonTest, Path) {
 
   for (size_t i = 0; i < arraysize(path_cases); i++) {
     if (path_cases[i].input8) {
-      int len = static_cast<int>(strlen(path_cases[i].input8));
+      int len = static_cast<int>(SbStringGetLength(path_cases[i].input8));
       Component in_comp(0, len);
       Component out_comp;
       std::string out_str;
@@ -1244,7 +1248,7 @@ TEST(URLCanonTest, Query) {
     Component out_comp;
 
     if (query_cases[i].input8) {
-      int len = static_cast<int>(strlen(query_cases[i].input8));
+      int len = static_cast<int>(SbStringGetLength(query_cases[i].input8));
       Component in_comp(0, len);
       std::string out_str;
 
@@ -1315,7 +1319,7 @@ TEST(URLCanonTest, Ref) {
   for (size_t i = 0; i < arraysize(ref_cases); i++) {
     // 8-bit input
     if (ref_cases[i].input8) {
-      int len = static_cast<int>(strlen(ref_cases[i].input8));
+      int len = static_cast<int>(SbStringGetLength(ref_cases[i].input8));
       Component in_comp(0, len);
       Component out_comp;
 
@@ -1425,7 +1429,7 @@ TEST(URLCanonTest, CanonicalizeStandardURL) {
   };
 
   for (size_t i = 0; i < arraysize(cases); i++) {
-    int url_len = static_cast<int>(strlen(cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(cases[i].input));
     Parsed parsed;
     ParseStandardURL(cases[i].input, url_len, &parsed);
 
@@ -1459,7 +1463,7 @@ TEST(URLCanonTest, ReplaceStandardURL) {
 
   for (size_t i = 0; i < arraysize(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
-    int base_len = static_cast<int>(strlen(cur.base));
+    int base_len = static_cast<int>(SbStringGetLength(cur.base));
     Parsed parsed;
     ParseStandardURL(cur.base, base_len, &parsed);
 
@@ -1491,7 +1495,7 @@ TEST(URLCanonTest, ReplaceStandardURL) {
   // The path pointer should be ignored if the address is invalid.
   {
     const char src[] = "http://www.google.com/here_is_the_path";
-    int src_len = static_cast<int>(strlen(src));
+    int src_len = static_cast<int>(SbStringGetLength(src));
 
     Parsed parsed;
     ParseStandardURL(src, src_len, &parsed);
@@ -1542,7 +1546,7 @@ TEST(URLCanonTest, ReplaceFileURL) {
 
   for (size_t i = 0; i < arraysize(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
-    int base_len = static_cast<int>(strlen(cur.base));
+    int base_len = static_cast<int>(SbStringGetLength(cur.base));
     Parsed parsed;
     ParseFileURL(cur.base, base_len, &parsed);
 
@@ -1607,7 +1611,7 @@ TEST(URLCanonTest, ReplaceFileSystemURL) {
 
   for (size_t i = 0; i < arraysize(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
-    int base_len = static_cast<int>(strlen(cur.base));
+    int base_len = static_cast<int>(SbStringGetLength(cur.base));
     Parsed parsed;
     ParseFileSystemURL(cur.base, base_len, &parsed);
 
@@ -1646,7 +1650,7 @@ TEST(URLCanonTest, ReplacePathURL) {
 
   for (size_t i = 0; i < arraysize(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
-    int base_len = static_cast<int>(strlen(cur.base));
+    int base_len = static_cast<int>(SbStringGetLength(cur.base));
     Parsed parsed;
     ParsePathURL(cur.base, base_len, false, &parsed);
 
@@ -1697,7 +1701,7 @@ TEST(URLCanonTest, ReplaceMailtoURL) {
 
   for (size_t i = 0; i < arraysize(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
-    int base_len = static_cast<int>(strlen(cur.base));
+    int base_len = static_cast<int>(SbStringGetLength(cur.base));
     Parsed parsed;
     ParseMailtoURL(cur.base, base_len, &parsed);
 
@@ -1801,7 +1805,7 @@ TEST(URLCanonTest, CanonicalizeFileURL) {
   };
 
   for (size_t i = 0; i < arraysize(cases); i++) {
-    int url_len = static_cast<int>(strlen(cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(cases[i].input));
     Parsed parsed;
     ParseFileURL(cases[i].input, url_len, &parsed);
 
@@ -1844,7 +1848,7 @@ TEST(URLCanonTest, CanonicalizeFileSystemURL) {
   };
 
   for (size_t i = 0; i < arraysize(cases); i++) {
-    int url_len = static_cast<int>(strlen(cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(cases[i].input));
     Parsed parsed;
     ParseFileSystemURL(cases[i].input, url_len, &parsed);
 
@@ -1879,7 +1883,7 @@ TEST(URLCanonTest, CanonicalizePathURL) {
   };
 
   for (size_t i = 0; i < arraysize(path_cases); i++) {
-    int url_len = static_cast<int>(strlen(path_cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(path_cases[i].input));
     Parsed parsed;
     ParsePathURL(path_cases[i].input, url_len, true, &parsed);
 
@@ -1964,7 +1968,7 @@ TEST(URLCanonTest, CanonicalizeMailtoURL) {
   Parsed out_parsed;
 
   for (size_t i = 0; i < arraysize(cases); i++) {
-    int url_len = static_cast<int>(strlen(cases[i].input));
+    int url_len = static_cast<int>(SbStringGetLength(cases[i].input));
     if (i == 0) {
       // The first test case purposely has a '\0' in it -- don't count it
       // as the string terminator.
@@ -2000,35 +2004,35 @@ TEST(URLCanonTest, _itoa_s) {
   // null-terminated. We also allocate one byte more than what we tell
   // _itoa_s about, and ensure that the extra byte is untouched.
   char buf[6];
-  memset(buf, 0xff, sizeof(buf));
+  SbMemorySet(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(12, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
   // Test the edge cases - exactly the buffer size and one over
-  memset(buf, 0xff, sizeof(buf));
+  SbMemorySet(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("1234", buf);
   EXPECT_EQ('\xFF', buf[5]);
 
-  memset(buf, 0xff, sizeof(buf));
+  SbMemorySet(buf, 0xff, sizeof(buf));
   EXPECT_EQ(EINVAL, _itoa_s(12345, buf, sizeof(buf) - 1, 10));
   EXPECT_EQ('\xFF', buf[5]);  // should never write to this location
 
   // Test the template overload (note that this will see the full buffer)
-  memset(buf, 0xff, sizeof(buf));
+  SbMemorySet(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(12, buf, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
-  memset(buf, 0xff, sizeof(buf));
+  SbMemorySet(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(12345, buf, 10));
   EXPECT_STREQ("12345", buf);
 
   EXPECT_EQ(EINVAL, _itoa_s(123456, buf, 10));
 
   // Test that radix 16 is supported.
-  memset(buf, 0xff, sizeof(buf));
+  SbMemorySet(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 16));
   EXPECT_STREQ("4d2", buf);
   EXPECT_EQ('\xFF', buf[5]);
@@ -2041,7 +2045,7 @@ TEST(URLCanonTest, _itow_s) {
   base::char16 buf[6];
   const char fill_mem = 0xff;
   const base::char16 fill_char = 0xffff;
-  memset(buf, fill_mem, sizeof(buf));
+  SbMemorySet(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12, buf, sizeof(buf) / 2 - 1, 10));
   EXPECT_EQ(base::UTF8ToUTF16("12"), base::string16(buf));
   EXPECT_EQ(fill_char, buf[3]);
@@ -2051,18 +2055,18 @@ TEST(URLCanonTest, _itow_s) {
   EXPECT_EQ(base::UTF8ToUTF16("1234"), base::string16(buf));
   EXPECT_EQ(fill_char, buf[5]);
 
-  memset(buf, fill_mem, sizeof(buf));
+  SbMemorySet(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(EINVAL, _itow_s(12345, buf, sizeof(buf) / 2 - 1, 10));
   EXPECT_EQ(fill_char, buf[5]);  // should never write to this location
 
   // Test the template overload (note that this will see the full buffer)
-  memset(buf, fill_mem, sizeof(buf));
+  SbMemorySet(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12, buf, 10));
   EXPECT_EQ(base::UTF8ToUTF16("12"),
             base::string16(buf));
   EXPECT_EQ(fill_char, buf[3]);
 
-  memset(buf, fill_mem, sizeof(buf));
+  SbMemorySet(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12345, buf, 10));
   EXPECT_EQ(base::UTF8ToUTF16("12345"), base::string16(buf));
 
@@ -2233,7 +2237,7 @@ TEST(URLCanonTest, ResolveRelativeURL) {
     const RelativeCase& cur_case = rel_cases[i];
 
     Parsed parsed;
-    int base_len = static_cast<int>(strlen(cur_case.base));
+    int base_len = static_cast<int>(SbStringGetLength(cur_case.base));
     if (cur_case.is_base_file)
       ParseFileURL(cur_case.base, base_len, &parsed);
     else if (cur_case.is_base_hier)
@@ -2242,7 +2246,7 @@ TEST(URLCanonTest, ResolveRelativeURL) {
       ParsePathURL(cur_case.base, base_len, false, &parsed);
 
     // First see if it is relative.
-    int test_len = static_cast<int>(strlen(cur_case.test));
+    int test_len = static_cast<int>(SbStringGetLength(cur_case.test));
     bool is_relative;
     Component relative_component;
     bool succeed_is_rel = IsRelativeURL(
@@ -2289,7 +2293,7 @@ TEST(URLCanonTest, ResolveRelativeURL) {
 // were still kept to the old buffer that was removed.
 TEST(URLCanonTest, ReplacementOverflow) {
   const char src[] = "file:///C:/foo/bar";
-  int src_len = static_cast<int>(strlen(src));
+  int src_len = static_cast<int>(SbStringGetLength(src));
   Parsed parsed;
   ParseFileURL(src, src_len, &parsed);
 
@@ -2344,7 +2348,8 @@ TEST(URLCanonTest, DefaultPortForScheme) {
   for (auto& test_case : cases) {
     SCOPED_TRACE(test_case.scheme);
     EXPECT_EQ(test_case.expected_port,
-              DefaultPortForScheme(test_case.scheme, strlen(test_case.scheme)));
+              DefaultPortForScheme(test_case.scheme,
+                                   SbStringGetLength(test_case.scheme)));
   }
 }
 

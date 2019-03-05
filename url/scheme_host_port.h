@@ -5,11 +5,10 @@
 #ifndef URL_SCHEME_HOST_PORT_H_
 #define URL_SCHEME_HOST_PORT_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 #include "url/url_export.h"
 
 class GURL;
