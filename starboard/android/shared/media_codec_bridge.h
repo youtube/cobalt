@@ -85,7 +85,7 @@ class MediaCodecBridge {
     virtual void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                                    int flags,
                                                    int offset,
-                                                   long presentation_time_us,
+                                                   int64_t presentation_time_us,
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
 
@@ -142,7 +142,7 @@ class MediaCodecBridge {
   void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                          int flags,
                                          int offset,
-                                         long presentation_time_us,
+                                         int64_t presentation_time_us,
                                          int size);
   void OnMediaCodecOutputFormatChanged();
 
