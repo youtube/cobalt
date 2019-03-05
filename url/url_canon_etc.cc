@@ -6,6 +6,7 @@
 
 #include <string.h>
 
+#include "starboard/types.h"
 #include "url/url_canon.h"
 #include "url/url_canon_internal.h"
 
@@ -202,7 +203,11 @@ bool DoUserInfo(const CHAR* username_spec,
 
 // Helper functions for converting port integers to strings.
 inline void WritePortInt(char* output, int output_len, int port) {
+#if defined(STARBOARD)
+  SbStringFormatF(output, output_len, "%d", port);
+#else
   _itoa_s(port, output, output_len, 10);
+#endif
 }
 
 // This function will prepend the colon if there will be a port.

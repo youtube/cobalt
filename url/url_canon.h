@@ -10,6 +10,8 @@
 
 #include "base/export_template.h"
 #include "base/strings/string16.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_export.h"
 
@@ -163,8 +165,8 @@ class RawCanonOutputT : public CanonOutputT<T> {
 
   void Resize(int sz) override {
     T* new_buf = new T[sz];
-    memcpy(new_buf, this->buffer_,
-           sizeof(T) * (this->cur_len_ < sz ? this->cur_len_ : sz));
+    SbMemoryCopy(new_buf, this->buffer_,
+                 sizeof(T) * (this->cur_len_ < sz ? this->cur_len_ : sz));
     if (this->buffer_ != fixed_buffer_)
       delete[] this->buffer_;
     this->buffer_ = new_buf;
