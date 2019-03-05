@@ -187,7 +187,7 @@ struct TaskTraitsExtension {
   template <class... ArgTypes,
             class CheckCanMakeExtension =
                 decltype(MakeTaskTraitsExtension(std::declval<ArgTypes>()...))>
-  constexpr TaskTraitsExtension(ArgTypes... args) {}
+  constexpr TaskTraitsExtension(ArgTypes... /*args*/) {}
 };
 
 // Tests that that a trait extension accepts all |ArgsTypes...|.
@@ -203,14 +203,14 @@ struct AreValidTraitsForExtension
 // otherwise.
 template <class... ArgTypes>
 constexpr TaskTraitsExtensionStorage GetTaskTraitsExtension(
-    std::true_type base_traits,
-    ArgTypes... args) {
+    std::true_type /*base_traits*/,
+    ArgTypes... /*args*/) {
   return TaskTraitsExtensionStorage();
 }
 
 template <class... ArgTypes>
 constexpr TaskTraitsExtensionStorage GetTaskTraitsExtension(
-    std::false_type base_traits,
+    std::false_type /*base_traits*/,
     ArgTypes... args) {
   return MakeTaskTraitsExtension(args...);
 }

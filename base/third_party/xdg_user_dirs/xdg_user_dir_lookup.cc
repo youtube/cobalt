@@ -47,7 +47,7 @@
  * type the value returned is @fallback.
  *
  * The return value is newly allocated and must be freed with
- * SbMemoryFree(). The return value is never NULL if @fallback != NULL, unless
+ * SbMemoryDeallocate(). The return value is never NULL if @fallback != NULL, unless
  * out of memory.
  **/
 static char *
@@ -190,7 +190,7 @@ error2:
  * to ~/Desktop.
  *
  * The return value is newly allocated and must be freed with
- * SbMemoryFree().
+ * SbMemoryDeallocate().
  **/
 char *
 xdg_user_dir_lookup (const char *type)

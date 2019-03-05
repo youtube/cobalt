@@ -197,6 +197,14 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
   // Runs the specified PendingTask.
   void RunTask(PendingTask* pending_task);
 
+#if defined(STARBOARD)
+  // Starboard main requires the ability to force shut down.
+  void Quit() override;
+
+  // For testing purpose only.
+  void RunUntilIdleForTesting();
+#endif
+
   //----------------------------------------------------------------------------
  protected:
   std::unique_ptr<MessagePump> pump_;
@@ -246,7 +254,9 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
 
   // RunLoop::Delegate:
   void Run(bool application_tasks_allowed) override;
+#if !defined(STARBOARD)
   void Quit() override;
+#endif
   void EnsureWorkScheduled() override;
 
   // Called to process any delayed non-nestable tasks.
@@ -370,6 +380,11 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   // TODO(gab): Mass migrate callers to MessageLoopCurrentForUI::Get()/IsSet().
   static MessageLoopCurrentForUI current();
   static bool IsCurrent();
+
+#if defined(STARBOARD)
+  // Starboard needs this function to register message loop to pump.
+  void Start();
+#endif
 
 #if defined(OS_IOS)
   // On iOS, the main message loop cannot be Run().  Instead call Attach(),

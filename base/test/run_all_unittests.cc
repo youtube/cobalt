@@ -11,6 +11,7 @@
 
 
 int TestSuiteRun(int argc, char** argv) {
+  base::AtExitManager exit_manager;
   return base::TestSuite(argc, argv).Run();
 }
 

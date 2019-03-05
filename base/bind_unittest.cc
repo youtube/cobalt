@@ -27,8 +27,22 @@ using ::testing::StrictMock;
 using ::testing::_;
 
 namespace base {
-namespace {
+// Reason to remove anonymous namespace for Starboard:
+// SupportsAddRefAndRelease<base::`anonymous-namespace'::NoRef> produces
+// an error with the new MSVC 14.15.26726 compiler.
 
+// The issue is the fact that the bind_unittest.cc is under an anonymous
+// namespace. This means that there is internal linkage and this apparently
+// causes a problem with a template instantiation
+
+// This is the specific error:
+// warning C5046: 'base::internal::SupportsAddRefAndRelease<
+//    base::`anonymous-namespace'::NoRef
+// >::BaseMixin::AddRef': Symbol involving type with
+//                        internal linkage not defined
+
+// The fix is to move everything in the unit test into a non-anonymous
+// namespace, which allows non-internal linkage.
 class IncompleteType;
 
 class NoRef {
@@ -1370,12 +1384,16 @@ TEST_F(BindTest, OnceCallback) {
   static_assert(!std::is_assignable<RepeatingClosure, OnceClosure&&>::value,
                 "OnceClosure should not be convertible to RepeatingClosure.");
 
+// Cobalt currently still requires the ability to copy OnceCallback in some
+// unit tests.
+#if !defined(STARBOARD)
   // Copy constructor and assignment of OnceCallback.
   static_assert(!std::is_constructible<
       OnceClosure, const OnceClosure&>::value,
       "OnceClosure should not be copyable.");
   static_assert(!std::is_assignable<OnceClosure, const OnceClosure&>::value,
                 "OnceClosure should not be copy-assignable");
+#endif
 
   // Move constructor and assignment of OnceCallback.
   static_assert(std::is_constructible<
@@ -1508,5 +1526,4 @@ TEST(BindDeathTest, BanFirstOwnerOfRefCountedType) {
   });
 }
 
-}  // namespace
 }  // namespace base

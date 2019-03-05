@@ -21,6 +21,10 @@ bool QueryCancellationTraitsForNonCancellables(
       return true;
   }
   NOTREACHED();
+#if defined(STARBOARD)
+  // MSVC does not allow missing return type.
+  return false;
+#endif
 }
 
 }  // namespace

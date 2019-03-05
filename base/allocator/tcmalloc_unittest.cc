@@ -27,7 +27,7 @@ NOINLINE void* TCMallocDoMallocForTest(size_t size) {
 }
 
 NOINLINE void TCMallocDoFreeForTest(void* ptr) {
-  SbMemoryFree(ptr);
+  SbMemoryDeallocate(ptr);
 }
 #endif
 
@@ -83,7 +83,7 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
     for (size_t i = 0; i < n * s; i++) {
       EXPECT_EQ('\0', p[i]);
     }
-    SbMemoryFree(p);
+    SbMemoryDeallocate(p);
   }
 }
 
@@ -102,7 +102,7 @@ TEST(TCMallocTest, Malloc) {
     EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & 1);
     Fill(ptr, size);
     EXPECT_TRUE(Valid(ptr, size));
-    SbMemoryFree(ptr);
+    SbMemoryDeallocate(ptr);
   }
 }
 
@@ -140,7 +140,7 @@ TEST(TCMallocTest, ReallocSmallDelta) {
       void* new_p = SbMemoryReallocate(p, start_sizes[s] - deltas[d]);
       ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
     }
-    SbMemoryFree(p);
+    SbMemoryDeallocate(p);
   }
 }
 #endif
@@ -157,7 +157,7 @@ TEST(TCMallocTest, Realloc) {
       Fill(dst, dst_size);
       EXPECT_TRUE(Valid(dst, dst_size));
       if (dst != nullptr)
-        SbMemoryFree(dst);
+        SbMemoryDeallocate(dst);
     }
   }
 
@@ -183,10 +183,10 @@ TEST(TCMallocTest, Realloc) {
   }
   for (int i = 0; i < kNumEntries; i++) {
     sum += p[i][1000];
-    SbMemoryFree(p[i]);
+    SbMemoryDeallocate(p[i]);
   }
   EXPECT_EQ(kNumEntries / 2 * (kNumEntries - 1), sum);  // assume kNE is even
-  SbMemoryFree(p);
+  SbMemoryDeallocate(p);
 }
 
 #ifdef NDEBUG

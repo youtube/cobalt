@@ -314,7 +314,7 @@ ALWAYS_INLINE size_t PartitionAllocGetSize(void* ptr) {
 
 ALWAYS_INLINE void PartitionFree(void* ptr) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  SbMemoryFree(ptr);
+  SbMemoryDeallocate(ptr);
 #else
   void* original_ptr = ptr;
   // TODO(palmer): Check ptr alignment before continuing. Shall we do the check
@@ -386,7 +386,7 @@ ALWAYS_INLINE void* PartitionRootGeneric::AllocFlags(int flags,
 
 ALWAYS_INLINE void PartitionRootGeneric::Free(void* ptr) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  SbMemoryFree(ptr);
+  SbMemoryDeallocate(ptr);
 #else
   DCHECK(this->initialized);
 

@@ -22,7 +22,7 @@ SHIM_ALWAYS_EXPORT void* SbMemoryAllocate(size_t size) __THROW {
   return ShimMalloc(size, nullptr);
 }
 
-SHIM_ALWAYS_EXPORT void SbMemoryFree(void* ptr) __THROW {
+SHIM_ALWAYS_EXPORT void SbMemoryDeallocate(void* ptr) __THROW {
   ShimFree(ptr, nullptr);
 }
 

@@ -56,7 +56,7 @@ __declspec(restrict) void* SbMemoryAllocate(size_t size) {
   return ShimMalloc(size, nullptr);
 }
 
-void SbMemoryFree(void* ptr) {
+void SbMemoryDeallocate(void* ptr) {
   ShimFree(ptr, nullptr);
 }
 

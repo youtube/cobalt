@@ -462,18 +462,22 @@ class BASE_EXPORT ThreadRestrictions {
   //
   // DEPRECATED. Use DisallowBaseSyncPrimitives.
   static void DisallowWaiting();
-#else
-  // Inline the empty definitions of these functions so that they can be
-  // compiled out.
-  static bool SetIOAllowed(bool allowed) { return true; }
-  static bool SetSingletonAllowed(bool allowed) { return true; }
-  static void AssertSingletonAllowed() {}
-  static void DisallowWaiting() {}
-#endif
 #if defined(STARBOARD)
   // Get whether the current thread can use singletons.
   static bool GetSingletonAllowed();
 #endif  // defined(STARBOARD)
+#else
+  // Inline the empty definitions of these functions so that they can be
+  // compiled out.
+  static bool SetIOAllowed(bool /*allowed*/) { return true; }
+  static bool SetSingletonAllowed(bool /*allowed*/) { return true; }
+  static void AssertSingletonAllowed() {}
+  static void DisallowWaiting() {}
+#if defined(STARBOARD)
+  // Get whether the current thread can use singletons.
+  static bool GetSingletonAllowed() {return true;}
+#endif  // defined(STARBOARD)
+#endif
 
  private:
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS.
@@ -530,7 +534,7 @@ class BASE_EXPORT ThreadRestrictions {
   // DEPRECATED. Use ScopedAllowBaseSyncPrimitives.
   static bool SetWaitAllowed(bool allowed);
 #else
-  static bool SetWaitAllowed(bool allowed) { return true; }
+  static bool SetWaitAllowed(bool /*allowed*/) { return true; }
 #endif
 
   // Constructing a ScopedAllowWait temporarily allows waiting on the current

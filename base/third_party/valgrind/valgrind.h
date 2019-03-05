@@ -4571,7 +4571,7 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
    when heap blocks are allocated in order to give accurate results.  This
    happens automatically for the standard allocator functions such as
    SbMemoryAllocate(), calloc(), SbMemoryReallocate(), memalign(), new, new[],
-   SbMemoryFree(), delete, delete[], etc.
+   SbMemoryDeallocate(), delete, delete[], etc.
 
    But if your program uses a custom allocator, this doesn't automatically
    happen, and Valgrind will not do as well.  For example, if you allocate
