@@ -7,6 +7,8 @@
 
 #include <memory>
 
+#include "starboard/configuration.h"
+
 #if defined(STARBOARD)
 
 // This file contains a collection of implementations of C++14 std classes
@@ -20,9 +22,13 @@
 // This type of STATIC_ASSERT is only used in unit tests so far for convenience
 // purpose.
 #define STATIC_ASSERT(value, message) EXPECT_TRUE(value)
+// In classes like base::span constexpr is desired while CHECK() is the only
+// obstacle, disabling CHECK in C++11 version is preferred.
+#define CHECK14(expr)
 #else
 #define CONSTEXPR constexpr
 #define STATIC_ASSERT(value, message) static_assert(value, message)
+#define CHECK14(expr) CHECK(expr)
 #endif
 
 #if __cplusplus < 201402L
@@ -45,6 +51,7 @@ struct get_internal<Index, TargetType, TargetType, Types...> {
 
 namespace std {
 
+#if !defined(SB_IS_COMPILER_MSVC)
 template <class TargetType, class... Types>
 TargetType get(std::tuple<Types...> tuple) {
   return std::get<get_internal<0, TargetType, Types...>::type::index>(tuple);
@@ -52,6 +59,7 @@ TargetType get(std::tuple<Types...> tuple) {
 
 template <size_t... Ints>
 class index_sequence {};
+#endif
 
 namespace detail {
 template <size_t N>
@@ -86,6 +94,7 @@ struct type_teller<T[]> {
   typedef std::unique_ptr<T[]> array_type;
 };
 
+#if !defined(SB_IS_COMPILER_MSVC)
 template <typename T, typename... Args>
 typename type_teller<T>::object_type make_unique(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
@@ -113,6 +122,7 @@ using make_index_sequence = typename detail::GetSequenceHelper<N>::type;
 
 template<typename T>
 using decay_t = typename decay<T>::type;
+#endif
 
 template<bool B, typename T, typename F>
 using conditional_t = typename conditional<B,T,F>::type;
@@ -138,6 +148,7 @@ using remove_const_t = typename remove_const<T>::type;
 template<typename T>
 using remove_volatile_t = typename remove_volatile<T>::type;
 
+#if !defined(SB_IS_COMPILER_MSVC)
 template<typename T>
 using add_cv_t = typename add_cv<T>::type;
 
@@ -161,12 +172,14 @@ template< class T, size_t N >
 reverse_iterator<T*> rbegin( T (&array)[N] ) {
   return reverse_iterator<T*>(array + N);
 }
+#endif
 
 template< class C > 
 auto crbegin( const C& c ) -> decltype(std::rbegin(c)) {
   return std::rbegin(c);
 }
 
+#if !defined(SB_IS_COMPILER_MSVC)
 template< class C > 
 auto rend( C& c ) -> decltype(c.rend()) {
   return c.rend();
@@ -181,6 +194,7 @@ template< class T, size_t N >
 reverse_iterator<T*> rend( T (&array)[N] ) {
   return reverse_iterator<T*>(array);
 }
+#endif
 
 template< class C > 
 auto crend( const C& c ) -> decltype(std::rend(c)) {

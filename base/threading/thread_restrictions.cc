@@ -148,7 +148,7 @@ bool ThreadRestrictions::SetIOAllowed(bool allowed) {
   return !previous_disallowed;
 }
 
-#if defined STARBOARD
+#if defined(STARBOARD)
 // static
 bool ThreadRestrictions::GetSingletonAllowed() {
   return !g_singleton_disallowed.Get().Get();

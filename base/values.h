@@ -131,9 +131,15 @@ class BASE_EXPORT Value {
   explicit Value(std::string&& in_string) noexcept;
   explicit Value(const char16* in_string16);
   explicit Value(StringPiece16 in_string16);
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+  explicit Value(const std::string& in_string) : Value(in_string.c_str()) {}
+#endif
 
   explicit Value(const std::vector<char>& in_blob);
   explicit Value(base::span<const uint8_t> in_blob);
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+  Value::Value(const BlobStorage& in_blob);
+#endif
   explicit Value(BlobStorage&& in_blob) noexcept;
 
   explicit Value(const DictStorage& in_dict);

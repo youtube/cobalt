@@ -230,11 +230,21 @@ bool WaitableEvent::TimedWaitUntil(const TimeTicks& end_time) {
 // -----------------------------------------------------------------------------
 // Synchronous waiting on multiple objects.
 
+#if defined(STARBOARD)
+struct EventComparator
+{
+  bool operator()(const std::pair<WaitableEvent*, size_t> &a,
+             const std::pair<WaitableEvent*, size_t> &b) {
+    return a.first < b.first;
+  }
+};
+#else
 static bool  // StrictWeakOrdering
 cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
              const std::pair<WaitableEvent*, unsigned> &b) {
   return a.first < b.first;
 }
+#endif
 
 // static
 size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
@@ -258,7 +268,11 @@ size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
 
   DCHECK_EQ(count, waitables.size());
 
+#if defined(STARBOARD)
+  sort(waitables.begin(), waitables.end(), EventComparator());
+#else
   sort(waitables.begin(), waitables.end(), cmp_fst_addr);
+#endif
 
   // The set of waitables must be distinct. Since we have just sorted by
   // address, we can check this cheaply by comparing pairs of consecutive

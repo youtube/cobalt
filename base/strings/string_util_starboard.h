@@ -18,6 +18,7 @@
 #include <stdarg.h>
 
 #include "base/logging.h"
+#include "base/strings/string_util.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/types.h"
@@ -36,6 +37,10 @@ inline int strncasecmp(const char* string1, const char* string2, size_t count) {
   return SbStringCompareNoCaseN(string1, string2, count);
 }
 
+#if defined(vsnprintf)
+#undef vsnprintf
+#endif
+
 inline int vsnprintf(char* buffer, size_t size,
                      const char* format, va_list arguments) {
   return SbStringFormat(buffer, size, format, arguments);
@@ -51,7 +56,7 @@ inline int strncmp16(const char16* s1, const char16* s2, size_t count) {
 
 inline int vswprintf(wchar_t* buffer, size_t size,
                      const wchar_t* format, va_list arguments) {
-  DCHECK(IsWprintfFormatPortable(format));
+  DCHECK(base::IsWprintfFormatPortable(format));
   return SbStringFormatWide(buffer, size, format, arguments);
 }
 

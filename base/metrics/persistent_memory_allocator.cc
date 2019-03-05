@@ -1006,7 +1006,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
                                                            size_t size,
                                                            MemoryType type) {
   if (type == MEM_MALLOC) {
-    SbMemoryFree(memory);
+    SbMemoryDeallocate(memory);
     return;
   }
 

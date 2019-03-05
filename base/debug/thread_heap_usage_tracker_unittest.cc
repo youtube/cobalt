@@ -184,7 +184,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
     EXPECT_EQ(&g_mock_dispatch, self);
 
     g_self->DeleteAlloc(address);
-    SbMemoryFree(address);
+    SbMemoryDeallocate(address);
   }
 
   static size_t OnGetSizeEstimateFn(const AllocatorDispatch* self,
@@ -581,7 +581,7 @@ TEST_F(ThreadHeapUsageShimTest, HooksIntoMallocWhenShimAvailable) {
   ASSERT_NE(nullptr, ptr);
 
   ThreadHeapUsage u2 = ThreadHeapUsageTracker::GetUsageSnapshot();
-  SbMemoryFree(ptr);
+  SbMemoryDeallocate(ptr);
 
   usage_tracker.Stop(false);
   ThreadHeapUsage u3 = usage_tracker.usage();

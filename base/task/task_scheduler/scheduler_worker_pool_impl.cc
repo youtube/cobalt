@@ -612,8 +612,8 @@ void SchedulerWorkerPoolImpl::SchedulerWorkerDelegateImpl::CleanupLockRequired(
   outer_->RemoveFromIdleWorkersStackLockRequired(worker);
 
   // Remove the worker from |workers_|.
-  auto worker_iter =
-      std::find(outer_->workers_.begin(), outer_->workers_.end(), worker);
+  auto worker_iter = std::find(outer_->workers_.begin(), outer_->workers_.end(),
+                               base::WrapRefCounted(worker));
   DCHECK(worker_iter != outer_->workers_.end());
   outer_->workers_.erase(worker_iter);
 

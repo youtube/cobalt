@@ -51,6 +51,10 @@
 // malloc() and other unsafe operations.  It should be both
 // thread-safe and async-signal-safe.
 
+// Note for Cobalt: Cobalt Starboard depends on the old version of Symbolize so
+// this file is from m27 Chromium. There are no Cobalt-introduced changes in
+// this file.
+
 #ifndef BASE_SYMBOLIZE_H_
 #define BASE_SYMBOLIZE_H_
 
@@ -69,8 +73,6 @@
 
 #if !defined(ANDROID)
 #include <link.h>  // For ElfW() macro.
-
-#include "starboard/types.h"
 #endif
 
 // For systems where SIZEOF_VOID_P is not defined, determine it
@@ -107,10 +109,6 @@ _END_GOOGLE_NAMESPACE_
 
 _START_GOOGLE_NAMESPACE_
 
-// Restrictions on the callbacks that follow:
-//  - The callbacks must not use heaps but only use stacks.
-//  - The callbacks must be async-signal-safe.
-
 // Installs a callback function, which will be called right before a symbol name
 // is printed. The callback is intended to be used for showing a file name and a
 // line number preceding a symbol name.
@@ -118,27 +116,12 @@ _START_GOOGLE_NAMESPACE_
 // counter "pc". The callback function should write output to "out"
 // and return the size of the output written. On error, the callback
 // function should return -1.
-typedef int (*SymbolizeCallback)(int fd, void *pc, char *out, size_t out_size,
-                                 uint64_t relocation);
+typedef int (*SymbolizeCallback)(int fd,
+                                 void* pc,
+                                 char* out,
+                                 size_t out_size,
+                                 uint64 relocation);
 void InstallSymbolizeCallback(SymbolizeCallback callback);
-
-// Installs a callback function, which will be called instead of
-// OpenObjectFileContainingPcAndGetStartAddress.  The callback is expected
-// to searches for the object file (from /proc/self/maps) that contains
-// the specified pc.  If found, sets |start_address| to the start address
-// of where this object file is mapped in memory, sets the module base
-// address into |base_address|, copies the object file name into
-// |out_file_name|, and attempts to open the object file.  If the object
-// file is opened successfully, returns the file descriptor.  Otherwise,
-// returns -1.  |out_file_name_size| is the size of the file name buffer
-// (including the null-terminator).
-typedef int (*SymbolizeOpenObjectFileCallback)(uint64_t pc,
-                                               uint64_t &start_address,
-                                               uint64_t &base_address,
-                                               char *out_file_name,
-                                               int out_file_name_size);
-void InstallSymbolizeOpenObjectFileCallback(
-    SymbolizeOpenObjectFileCallback callback);
 
 _END_GOOGLE_NAMESPACE_
 

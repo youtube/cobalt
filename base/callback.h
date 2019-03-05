@@ -80,7 +80,7 @@ class OnceCallback<R(Args...)> : public internal::CallbackBase {
 
   bool Equals(const OnceCallback& other) const { return EqualsInternal(other); }
 
-  R Run(Args... ) const & {
+  R Run(Args...) const & {
     static_assert(!sizeof(*this),
                   "OnceCallback::Run() may only be invoked on a non-const "
                   "rvalue, i.e. std::move(callback).Run().");

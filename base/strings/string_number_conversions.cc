@@ -404,6 +404,16 @@ bool StringToInt64(StringPiece16 input, int64_t* output) {
   return String16ToIntImpl(input, output);
 }
 
+#if defined(STARBOARD)
+bool StringToInt32(StringPiece input, int32_t* output) {
+  return StringToIntImpl(input, output);
+}
+
+bool StringToUint32(StringPiece input, uint32_t* output) {
+  return StringToIntImpl(input, output);
+}
+#endif
+
 bool StringToUint64(StringPiece input, uint64_t* output) {
   return StringToIntImpl(input, output);
 }

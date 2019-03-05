@@ -67,7 +67,7 @@ TEST_F(SamplingHeapProfilerTest, SampleObserver) {
   sampler->Start();
   sampler->AddSamplesObserver(&collector);
   void* volatile p = SbMemoryAllocate(10000);
-  SbMemoryFree(p);
+  SbMemoryDeallocate(p);
   sampler->Stop();
   sampler->RemoveSamplesObserver(&collector);
   EXPECT_TRUE(collector.sample_added);
@@ -84,7 +84,7 @@ TEST_F(SamplingHeapProfilerTest, SampleObserverMuted) {
   {
     PoissonAllocationSampler::ScopedMuteThreadSamples muted_scope;
     void* volatile p = SbMemoryAllocate(10000);
-    SbMemoryFree(p);
+    SbMemoryDeallocate(p);
   }
   sampler->Stop();
   sampler->RemoveSamplesObserver(&collector);

@@ -2368,7 +2368,7 @@ TEST_F(FileUtilTest, GetTempDirTest) {
   // Restore the original $TMP.
   if (original_tmp) {
     ::_tputenv_s(kTmpKey, original_tmp);
-    SbMemoryFree(original_tmp);
+    SbMemoryDeallocate(original_tmp);
   } else {
     ::_tputenv_s(kTmpKey, _T(""));
   }

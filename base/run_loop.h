@@ -74,6 +74,13 @@ class BASE_EXPORT RunLoop {
   // RunLoop::Delegate asynchronously.
   void Run();
 
+#if defined(STARBOARD)
+  // Starboard has its own for loop so it does not call RunLoop::Run and
+  // therefore requires these two functions public.
+  bool BeforeRun();
+  void AfterRun();
+#endif
+
   // Run the current RunLoop::Delegate until it doesn't find any tasks or
   // messages in its queue (it goes idle). WARNING: This may never return! Only
   // use this when repeating tasks such as animated web pages have been shut
@@ -262,9 +269,13 @@ class BASE_EXPORT RunLoop {
   friend class base::MessagePumpUIApplication;
 #endif
 
+#if !defined(STARBOARD)
+  // Starboard has its own for loop so it does not call RunLoop::Run and
+  // therefore requires these two functions public.
   // Return false to abort the Run.
   bool BeforeRun();
   void AfterRun();
+#endif
 
   // A copy of RunLoop::Delegate for the thread driven by tis RunLoop for quick
   // access without using TLS (also allows access to state from another sequence

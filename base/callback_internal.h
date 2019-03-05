@@ -32,7 +32,12 @@ struct BindStateBaseRefCountTraits {
 };
 
 template <typename T>
+#if defined(STARBOARD) && defined(SB_IS_COMPILER_MSVC)
+// On MSVC, std::conditional_t does not return true with some equal types.
+using PassingType = T&&;
+#else
 using PassingType = std::conditional_t<std::is_scalar<T>::value, T, T&&>;
+#endif
 
 // BindStateBase is used to provide an opaque handle that the Callback
 // class can use to represent a function object with bound arguments.  It

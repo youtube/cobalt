@@ -76,12 +76,19 @@ void MessagePumpUIStarboard::Run(Delegate* delegate) {
 void MessagePumpUIStarboard::Start(Delegate* delegate) {
   run_loop_.reset(new base::RunLoop());
   delegate_ = delegate;
+
+  // Since the RunLoop was just created above, BeforeRun should be guaranteed to
+  // return true (it only returns false if the RunLoop has been Quit already).
+  // Note that Cobalt does not actually call RunLoop::Start() because
+  // Starboard manages its own pump.
+  run_loop_->BeforeRun();
 }
 
 void MessagePumpUIStarboard::Quit() {
   delegate_ = NULL;
   CancelAll();
   if (run_loop_) {
+    run_loop_->AfterRun();
     run_loop_.reset();
   }
 }

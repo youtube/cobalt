@@ -7,6 +7,9 @@
 
 #include <type_traits>
 #include <utility>
+#if defined(STARBOARD)
+#include <new>
+#endif
 
 #include "base/cpp14oncpp11.h"
 #include "base/logging.h"
@@ -150,7 +153,11 @@ struct OptionalStorage : OptionalStorageBase<T> {
   // Define it explicitly.
   OptionalStorage() = default;
 
+#if defined(STARBOARD) && defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
+  OptionalStorage(const OptionalStorage& other) : OptionalStorageBase<T>() {
+#else
   OptionalStorage(const OptionalStorage& other) {
+#endif
     if (other.is_populated_)
       Init(other.value_);
   }
@@ -443,8 +450,14 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
   using value_type = T;
 
   // Defer default/copy/move constructor implementation to OptionalBase.
+#if defined(STARBOARD) && defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
+  // Raspi specialization.
+  constexpr Optional() : internal::OptionalBase<T>() {}
+  CONSTEXPR Optional(const Optional& other) : internal::OptionalBase<T>(other) {}
+#else
   constexpr Optional() = default;
   constexpr Optional(const Optional& other) = default;
+#endif
   constexpr Optional(Optional&& other) noexcept(
       std::is_nothrow_move_constructible<T>::value) = default;
 

@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
+#if !defined(STARBOARD) || SB_IS(WCHAR_T_UTF32)
+
 #include "base/strings/string16.h"
 
 #if defined(WCHAR_T_IS_UTF16) && !defined(_AIX)
@@ -86,3 +92,5 @@ template class std::
     basic_string<base::char16, base::string16_internals::string16_char_traits>;
 
 #endif  // WCHAR_T_IS_UTF32
+
+#endif  // !STARBOARD || WCHAR_T_IS_UTF32
