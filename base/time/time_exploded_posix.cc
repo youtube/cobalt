@@ -76,7 +76,7 @@ time_t aix_timegm(struct tm* tm) {
   ret = mktime(tm);
   if (tz) {
     setenv("TZ", tz, 1);
-    SbMemoryFree(tz);
+    SbMemoryDeallocate(tz);
   } else {
     unsetenv("TZ");
   }

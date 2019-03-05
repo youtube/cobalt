@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "starboard/types.h"
-
+typedef uint64_t uint64;
 #define HAVE_SYMBOLIZE 1
 #define ATTRIBUTE_NOINLINE __attribute__ ((noinline))

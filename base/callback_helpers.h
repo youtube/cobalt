@@ -37,17 +37,19 @@ bool ResetAndRunIfNotNull(CallbackType* cb) {
   }
   CallbackType ret(std::move(*cb));
   DCHECK(!*cb);
+  ret.Run();
   return true;
 }
 
 template <typename Sig, typename... ParamTypes>
 bool ResetAndRunIfNotNull(base::Callback<Sig>* cb,
-                          const ParamTypes&... /*params*/) {
+                          const ParamTypes&... params) {
   if (cb->is_null()) {
     return false;
   }
   base::Callback<Sig> ret(std::move(*cb));
   DCHECK(!*cb);
+  ret.Run(params...);
   return true;
 }
 #endif

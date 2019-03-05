@@ -194,7 +194,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
     ctx->evcon = NULL;                                                        \
     ctx->name = strdup(#rpcname);                                             \
     if (ctx->name == NULL) {                                                  \
-      SbMemoryFree(ctx);                                                      \
+      SbMemoryDeallocate(ctx);                                                      \
       goto error;                                                             \
     }                                                                         \
     ctx->cb = (void (*)(struct evrpc_status*, void*, void*, void*))cb;        \

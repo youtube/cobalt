@@ -47,6 +47,16 @@ void MessageLoopTaskRunner::BindToCurrentThread() {
 void MessageLoopTaskRunner::Shutdown() {
   AutoLock lock(incoming_queue_lock_);
   accept_new_tasks_ = false;
+#if defined(STARBOARD)
+  // Bug: base MessageLoopTaskRunner does not clear its pending task queues at
+  // exit.
+  while (!outgoing_queue_.empty()) {
+    outgoing_queue_.pop();
+  }
+  while (!incoming_queue_.empty()) {
+    incoming_queue_.pop();
+  }
+#endif
 }
 
 bool MessageLoopTaskRunner::PostDelayedTask(const Location& from_here,

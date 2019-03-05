@@ -218,28 +218,28 @@ class BASE_EXPORT TaskTraits {
   }
 
   // Returns true if the priority was set explicitly.
-  constexpr bool priority_set_explicitly() const {
+  CONSTEXPR bool priority_set_explicitly() const {
     return priority_set_explicitly_;
   }
 
   // Returns the priority of tasks with these traits.
-  constexpr TaskPriority priority() const { return priority_; }
+  CONSTEXPR TaskPriority priority() const { return priority_; }
 
   // Returns true if the shutdown behavior was set explicitly.
-  constexpr bool shutdown_behavior_set_explicitly() const {
+  CONSTEXPR bool shutdown_behavior_set_explicitly() const {
     return shutdown_behavior_set_explicitly_;
   }
 
   // Returns the shutdown behavior of tasks with these traits.
-  constexpr TaskShutdownBehavior shutdown_behavior() const {
+  CONSTEXPR TaskShutdownBehavior shutdown_behavior() const {
     return shutdown_behavior_;
   }
 
   // Returns true if tasks with these traits may block.
-  constexpr bool may_block() const { return may_block_; }
+  CONSTEXPR bool may_block() const { return may_block_; }
 
   // Returns true if tasks with these traits may use base/ sync primitives.
-  constexpr bool with_base_sync_primitives() const {
+  CONSTEXPR bool with_base_sync_primitives() const {
     return with_base_sync_primitives_;
   }
 

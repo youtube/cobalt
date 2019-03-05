@@ -752,6 +752,10 @@ bool QueryCancellationTraitsImpl(BindStateBase::CancellationQueryMode mode,
           functor, std::get<indices>(bound_args)...);
   }
   NOTREACHED();
+#if defined(STARBOARD)
+  // Some compiler, at least MSVC does not allow missing return type.
+  return false;
+#endif
 }
 
 // Relays |base| to corresponding CallbackCancellationTraits<>::Run(). Returns

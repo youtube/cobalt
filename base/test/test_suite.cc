@@ -116,7 +116,8 @@ class CheckForLeakedGlobals : public testing::EmptyTestEventListener {
     scheduler_set_before_test_ = TaskScheduler::GetInstance();
   }
   void OnTestEnd(const testing::TestInfo& test) override {
-    DCHECK_EQ(scheduler_set_before_test_, TaskScheduler::GetInstance())
+    auto* task_scheduler = TaskScheduler::GetInstance();
+    DCHECK_EQ(scheduler_set_before_test_, task_scheduler)
         << " in test " << test.test_case_name() << "." << test.name();
   }
 
@@ -234,9 +235,11 @@ void TestSuite::PreInitialize() {
   setlocale(LC_ALL, "");
 #endif  // defined(OS_LINUX) && defined(USE_AURA)
 
-  // On Android, AtExitManager is created in
-  // testing/android/native_test_wrapper.cc before main() is called.
-#if !defined(OS_ANDROID)
+// On Android, AtExitManager is created in
+// testing/android/native_test_wrapper.cc before main() is called.
+// For Cobalt, at_exit_manager some times need to be created earlier than the
+// start of test case.
+#if !defined(OS_ANDROID) && !defined(STARBOARD)
   at_exit_manager_.reset(new AtExitManager);
 #endif
 

@@ -70,6 +70,14 @@ inline std::string UintToString(unsigned value) {
 inline string16 UintToString16(unsigned value) {
   return NumberToString16(value);
 }
+#if defined(STARBOARD)
+inline std::string Int32ToString(int32_t value) {
+  return NumberToString(value);
+}
+inline std::string Uint64ToString(int64_t value) {
+  return NumberToString(value);
+}
+#endif
 inline std::string Int64ToString(int64_t value) {
   return NumberToString(value);
 }
@@ -103,6 +111,11 @@ BASE_EXPORT bool StringToUint(StringPiece16 input, unsigned* output);
 
 BASE_EXPORT bool StringToInt64(StringPiece input, int64_t* output);
 BASE_EXPORT bool StringToInt64(StringPiece16 input, int64_t* output);
+
+#if defined(STARBOARD)
+BASE_EXPORT bool StringToInt32(StringPiece input, int32_t* output);
+BASE_EXPORT bool StringToUint32(StringPiece input, uint32_t* output);
+#endif
 
 BASE_EXPORT bool StringToUint64(StringPiece input, uint64_t* output);
 BASE_EXPORT bool StringToUint64(StringPiece16 input, uint64_t* output);

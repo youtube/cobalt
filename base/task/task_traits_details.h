@@ -82,7 +82,7 @@ constexpr TraitFilterType GetTraitFromArg(CallFirstTag, ArgType arg) {
 }
 
 template <class TraitFilterType, class ArgType>
-constexpr InvalidTrait GetTraitFromArg(CallSecondTag, ArgType arg) {
+constexpr InvalidTrait GetTraitFromArg(CallSecondTag, ArgType /*arg*/) {
   return InvalidTrait();
 }
 
@@ -167,7 +167,7 @@ constexpr TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
 
 template <class TraitFilterType, class... ArgTypes>
 constexpr TraitFilterType GetTraitFromArgListImpl(CallSecondTag,
-                                                  ArgTypes... args) {
+                                                  ArgTypes... /*args*/) {
   static_assert(std::is_constructible<TraitFilterType>::value,
                 "TaskTraits contains a Trait that must be explicity "
                 "initialized in its constructor.");
@@ -200,18 +200,20 @@ constexpr bool TraitIsDefined() {
 }
 
 template <class TraitFilterType, class ArgType1>
-constexpr bool TraitIsDefined(ArgType1 arg1) {
+constexpr bool TraitIsDefined(ArgType1 /*arg1*/) {
   return std::is_constructible<TraitFilterType, ArgType1>::value;
 }
 
 template <class TraitFilterType, class ArgType1, class ArgType2>
-constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2) {
+constexpr bool TraitIsDefined(ArgType1 /*arg1*/, ArgType2 /*arg2*/) {
   return std::is_constructible<TraitFilterType, ArgType1>::value ||
          std::is_constructible<TraitFilterType, ArgType2>::value;
 }
 
 template <class TraitFilterType, class ArgType1, class ArgType2, class ArgType3>
-constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2, ArgType3 arg3) {
+constexpr bool TraitIsDefined(ArgType1 /*arg1*/,
+                              ArgType2 /*arg2*/,
+                              ArgType3 /*arg3*/) {
   return std::is_constructible<TraitFilterType, ArgType1>::value ||
          std::is_constructible<TraitFilterType, ArgType2>::value ||
          std::is_constructible<TraitFilterType, ArgType3>::value;
@@ -222,10 +224,10 @@ template <class TraitFilterType,
           class ArgType2,
           class ArgType3,
           class ArgType4>
-constexpr bool TraitIsDefined(ArgType1 arg1,
-                              ArgType2 arg2,
-                              ArgType3 arg3,
-                              ArgType4 arg4) {
+constexpr bool TraitIsDefined(ArgType1 /*arg1*/,
+                              ArgType2 /*arg2*/,
+                              ArgType3 /*arg3*/,
+                              ArgType4 /*arg4*/) {
   return std::is_constructible<TraitFilterType, ArgType1>::value ||
          std::is_constructible<TraitFilterType, ArgType2>::value ||
          std::is_constructible<TraitFilterType, ArgType3>::value ||

@@ -5,6 +5,7 @@
 #ifndef BASE_TEMPLATE_UTIL_H_
 #define BASE_TEMPLATE_UTIL_H_
 
+#include <stddef.h>
 #include <iosfwd>
 #include <iterator>
 #include <type_traits>
@@ -12,7 +13,6 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 // Some versions of libstdc++ have partial support for type_traits, but misses
 // a smaller subset while removing some of the older non-standard stuff. Assume

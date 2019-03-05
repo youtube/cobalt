@@ -48,8 +48,8 @@ class BASE_EXPORT ConvertableToTraceFormat {
   // appended.
   virtual void AppendAsTraceFormat(std::string* out) const = 0;
 
-  virtual void EstimateTraceMemoryOverhead(TraceEventMemoryOverhead* /*overhead*/) {
-  };
+  virtual void EstimateTraceMemoryOverhead(
+      TraceEventMemoryOverhead* /*overhead*/){};
 
   std::string ToString() const {
     std::string result;
