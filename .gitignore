@@ -271,6 +271,7 @@ v8.log
 /third_party/syzygy
 /third_party/syzygy/binaries
 /third_party/trace-viewer
+/third_party/ukey2
 /third_party/undoview
 /third_party/usb_ids
 /third_party/v8-i18n
