@@ -683,9 +683,18 @@ class CheckOpResult {
 #else  // _PREFAST_
 
 // Do as much work as possible out of line to reduce inline code size.
+#if defined(STARBOARD)
+// Chromium default CHECKs can not crash Cobalt.
+#define CHECK(condition)                                                  \
+  UNLIKELY(!(condition))                                                  \
+      ? ::logging::LogMessage(__FILE__, __LINE__, #condition).stream() && \
+            IMMEDIATE_CRASH()                                             \
+      : EAT_STREAM_PARAMETERS
+#else
 #define CHECK(condition)                                                      \
   LAZY_STREAM(::logging::LogMessage(__FILE__, __LINE__, #condition).stream(), \
-              !ANALYZER_ASSUME_TRUE(condition))
+              !ANALYZER_ASSUME_TRUE(condition));
+#endif
 
 #define PCHECK(condition)                                           \
   LAZY_STREAM(PLOG_STREAM(FATAL), !ANALYZER_ASSUME_TRUE(condition)) \
@@ -888,11 +897,7 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 // DCHECK_IS_ON() is true. When DCHECK_IS_ON() is false, the macros use
 // EAT_STREAM_PARAMETERS to avoid expressions that would create temporaries.
 
-#if defined(STARBOARD)
-#define DCHECK(condition) SB_DCHECK(condition)
-#define DPCHECK(condition) SB_DCHECK(condition)
-#else
-#if defined(_PREFAST_) && defined(OS_WIN)
+#if defined(_PREFAST_) && (defined(OS_WIN) || defined(STARBOARD))
 // See comments on the previous use of __analysis_assume.
 
 #define DCHECK(condition)                    \
@@ -924,7 +929,6 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 #endif  // DCHECK_IS_ON()
 
 #endif  // defined(_PREFAST_) && defined(OS_WIN)
-#endif  // defined(STARBOARD)
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use DCHECK_EQ et al below.

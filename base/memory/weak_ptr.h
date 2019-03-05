@@ -247,6 +247,11 @@ class WeakPtr : public internal::WeakPtrBase {
     return ref_.IsValid() ? reinterpret_cast<T*>(ptr_) : nullptr;
   }
 
+#if defined(STARBOARD)
+  // TODO[johnx]: Remove the implicit convertor.
+  operator T*() const { return get(); }
+#endif
+
   T& operator*() const {
     DCHECK(get() != nullptr);
     return *get();
@@ -283,6 +288,7 @@ class WeakPtr : public internal::WeakPtrBase {
       : WeakPtrBase(ref, reinterpret_cast<uintptr_t>(ptr)) {}
 };
 
+#if !defined(STARBOARD)
 // Allow callers to compare WeakPtrs against nullptr to test validity.
 template <class T>
 bool operator!=(const WeakPtr<T>& weak_ptr, std::nullptr_t) {
@@ -300,6 +306,7 @@ template <class T>
 bool operator==(std::nullptr_t, const WeakPtr<T>& weak_ptr) {
   return weak_ptr == nullptr;
 }
+#endif
 
 namespace internal {
 class BASE_EXPORT WeakPtrFactoryBase {
@@ -358,6 +365,13 @@ class SupportsWeakPtr : public internal::SupportsWeakPtrBase {
   WeakPtr<T> AsWeakPtr() {
     return WeakPtr<T>(weak_reference_owner_.GetRef(), static_cast<T*>(this));
   }
+
+#if defined(STARBOARD)
+  // Call this method to invalidate all existing weak pointers.
+  // This may be useful to call explicitly in a destructor of a derived class,
+  // as the SupportsWeakPtr destructor won't run until late in destruction.
+  void InvalidateWeakPtrs() { weak_reference_owner_.Invalidate(); }
+#endif
 
  protected:
   ~SupportsWeakPtr() = default;

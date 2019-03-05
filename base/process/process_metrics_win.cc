@@ -203,7 +203,7 @@ class WorkingSetInformationBuffer {
 
  private:
   void Clear() {
-    SbMemoryFree(buffer_);
+    SbMemoryDeallocate(buffer_);
     buffer_ = nullptr;
   }
 

@@ -27,7 +27,12 @@ NullableString16& NullableString16::operator=(NullableString16&& other) =
     default;
 
 std::ostream& operator<<(std::ostream& out, const NullableString16& value) {
+#if defined(STARBOARD)
+  // MSVC can not output wstring.
+  return value.is_null() ? out << "(null)" : out << value.string().c_str();
+#else
   return value.is_null() ? out << "(null)" : out << value.string();
+#endif
 }
 
 }  // namespace base

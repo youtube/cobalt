@@ -994,7 +994,7 @@ class ThreadTicksOverride {
 ThreadTicks ThreadTicksOverride::now_ticks_;
 
 // IOS doesn't support ThreadTicks::Now().
-#if defined(OS_IOS)
+#if defined(OS_IOS) || SB_HAS(TIME_THREAD_NOW)
 #define MAYBE_NowOverride DISABLED_NowOverride
 #else
 #define MAYBE_NowOverride NowOverride

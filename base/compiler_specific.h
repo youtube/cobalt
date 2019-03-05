@@ -48,9 +48,9 @@
 //
 // Compiler warning C4355: 'this': used in base member initializer list:
 // http://msdn.microsoft.com/en-us/library/3c594ae3(VS.80).aspx
-#define ALLOW_THIS_IN_INITIALIZER_LIST(code) MSVC_PUSH_DISABLE_WARNING(4355) \
-                                             code \
-                                             MSVC_POP_WARNING()
+#define ALLOW_THIS_IN_INITIALIZER_LIST(code) \
+  MSVC_PUSH_DISABLE_WARNING(4355)            \
+  code MSVC_POP_WARNING()
 #endif
 
 #else  // Not MSVC
@@ -211,6 +211,11 @@
 #endif  // !defined(CDECL)
 
 // Macro for hinting that an expression is likely to be false.
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#define LIKELY SB_LIKELY
+#define UNLIKELY SB_UNLIKELY
+#else
 #if !defined(UNLIKELY)
 #if defined(COMPILER_GCC) || defined(__clang__)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
@@ -226,6 +231,7 @@
 #define LIKELY(x) (x)
 #endif  // defined(COMPILER_GCC)
 #endif  // !defined(LIKELY)
+#endif  // defined(STARBOARD)
 
 // Compiler feature-detection.
 // clang.llvm.org/docs/LanguageExtensions.html#has-feature-and-has-extension

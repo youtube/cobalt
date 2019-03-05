@@ -162,6 +162,11 @@ Value::Value(const std::vector<char>& in_blob)
 Value::Value(base::span<const uint8_t> in_blob)
     : type_(Type::BINARY), binary_value_(in_blob.begin(), in_blob.end()) {}
 
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+Value::Value(const BlobStorage& in_blob)
+    : type_(Type::BINARY), binary_value_(in_blob.begin(), in_blob.end()) {}
+#endif
+
 Value::Value(BlobStorage&& in_blob) noexcept
     : type_(Type::BINARY), binary_value_(std::move(in_blob)) {}
 

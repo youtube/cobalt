@@ -268,7 +268,7 @@ Pickle::Pickle(const Pickle& other)
 
 Pickle::~Pickle() {
   if (capacity_after_header_ != kCapacityReadOnly)
-    SbMemoryFree(header_);
+    SbMemoryDeallocate(header_);
 }
 
 Pickle& Pickle::operator=(const Pickle& other) {
@@ -280,7 +280,7 @@ Pickle& Pickle::operator=(const Pickle& other) {
     capacity_after_header_ = 0;
   }
   if (header_size_ != other.header_size_) {
-    SbMemoryFree(header_);
+    SbMemoryDeallocate(header_);
     header_ = nullptr;
     header_size_ = other.header_size_;
   }

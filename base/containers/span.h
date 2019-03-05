@@ -104,7 +104,7 @@ using EnableIfSpanCompatibleContainerAndSpanIsStatic =
 template <size_t Extent>
 class ExtentStorage {
  public:
-  constexpr explicit ExtentStorage(size_t ) noexcept {}
+  constexpr explicit ExtentStorage(size_t) noexcept {}
   constexpr size_t size() const noexcept { return Extent; }
 };
 
@@ -233,16 +233,18 @@ class span : public internal::ExtentStorage<Extent> {
     static_assert(Extent == dynamic_extent || Extent == 0, "Invalid Extent");
   }
 
-  CONSTEXPR span(T* data, size_t size) noexcept
+  constexpr span(T* data, size_t size) noexcept
       : ExtentStorage(size), data_(data) {
-    CHECK(Extent == dynamic_extent || Extent == size);
+    // span has to be a constexpr evaluated class but C++11 does not allow
+    // these CHECKs in constexpr yet.
+    CHECK14(Extent == dynamic_extent || Extent == size);
   }
 
   // Artificially templatized to break ambiguity for span(ptr, 0).
   template <typename = void>
-  CONSTEXPR span(T* begin, T* end) noexcept : span(begin, end - begin) {
+  constexpr span(T* begin, T* end) noexcept : span(begin, end - begin) {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    CHECK(begin <= end);
+    CHECK14(begin <= end);
   }
 
   template <
@@ -318,23 +320,23 @@ class span : public internal::ExtentStorage<Extent> {
 
   // [span.sub], span subviews
   template <size_t Count>
-  CONSTEXPR span<T, Count> first() const noexcept {
+  constexpr span<T, Count> first() const noexcept {
     static_assert(Extent == dynamic_extent || Count <= Extent,
                   "Count must not exceed Extent");
-    CHECK(Extent != dynamic_extent || Count <= size());
+    CHECK14(Extent != dynamic_extent || Count <= size());
     return {data(), Count};
   }
 
   template <size_t Count>
-  CONSTEXPR span<T, Count> last() const noexcept {
+  constexpr span<T, Count> last() const noexcept {
     static_assert(Extent == dynamic_extent || Count <= Extent,
                   "Count must not exceed Extent");
-    CHECK(Extent != dynamic_extent || Count <= size());
+    CHECK14(Extent != dynamic_extent || Count <= size());
     return {data() + (size() - Count), Count};
   }
 
   template <size_t Offset, size_t Count = dynamic_extent>
-  CONSTEXPR span<T,
+  constexpr span<T,
                  (Count != dynamic_extent
                       ? Count
                       : (Extent != dynamic_extent ? Extent - Offset
@@ -345,30 +347,30 @@ class span : public internal::ExtentStorage<Extent> {
     static_assert(Extent == dynamic_extent || Count == dynamic_extent ||
                       Count <= Extent - Offset,
                   "Count must not exceed Extent - Offset");
-    CHECK(Extent != dynamic_extent || Offset <= size());
-    CHECK(Extent != dynamic_extent || Count == dynamic_extent ||
-          Count <= size() - Offset);
+    CHECK14(Extent != dynamic_extent || Offset <= size());
+    CHECK14(Extent != dynamic_extent || Count == dynamic_extent ||
+            Count <= size() - Offset);
     return {data() + Offset, Count != dynamic_extent ? Count : size() - Offset};
   }
 
-  CONSTEXPR span<T, dynamic_extent> first(size_t count) const noexcept {
+  constexpr span<T, dynamic_extent> first(size_t count) const noexcept {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    CHECK(count <= size());
+    CHECK14(count <= size());
     return {data(), count};
   }
 
-  CONSTEXPR span<T, dynamic_extent> last(size_t count) const noexcept {
+  constexpr span<T, dynamic_extent> last(size_t count) const noexcept {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    CHECK(count <= size());
+    CHECK14(count <= size());
     return {data() + (size() - count), count};
   }
 
-  CONSTEXPR span<T, dynamic_extent> subspan(size_t offset,
+  constexpr span<T, dynamic_extent> subspan(size_t offset,
                                             size_t count = dynamic_extent) const
       noexcept {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    CHECK(offset <= size());
-    CHECK(count == dynamic_extent || count <= size() - offset);
+    CHECK14(offset <= size());
+    CHECK14(count == dynamic_extent || count <= size() - offset);
     return {data() + offset, count != dynamic_extent ? count : size() - offset};
   }
 
@@ -378,15 +380,15 @@ class span : public internal::ExtentStorage<Extent> {
   constexpr bool empty() const noexcept { return size() == 0; }
 
   // [span.elem], span element access
-  CONSTEXPR T& operator[](size_t idx) const noexcept {
+  constexpr T& operator[](size_t idx) const noexcept {
     // Note: CHECK_LT is not constexpr, hence regular CHECK must be used.
-    CHECK(idx < size());
+    CHECK14(idx < size());
     return *(data() + idx);
   }
 
-  CONSTEXPR T& operator()(size_t idx) const noexcept {
+  constexpr T& operator()(size_t idx) const noexcept {
     // Note: CHECK_LT is not constexpr, hence regular CHECK must be used.
-    CHECK(idx < size());
+    CHECK14(idx < size());
     return *(data() + idx);
   }
 
@@ -502,7 +504,12 @@ constexpr span<T> make_span(T* begin, T* end) noexcept {
 
 template <typename T, size_t N>
 constexpr span<T, N> make_span(T (&array)[N]) noexcept {
+#if defined(STARBOARD)
+  // Raspi toolchain issue.
+  return span<T, N>(array);
+#else
   return array;
+#endif
 }
 
 template <typename T, size_t N>

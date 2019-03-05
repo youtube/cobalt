@@ -323,29 +323,29 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
   ASSERT_GE(reallocs_intercepted_by_addr[Hash(old_realloc_ptr)], 1u);
   ASSERT_EQ(0, strcmp(realloc_ptr, "foobar"));
 
-  SbMemoryFree(alloc_ptr);
+  SbMemoryDeallocate(alloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(alloc_ptr)], 1u);
 
-  SbMemoryFree(zero_alloc_ptr);
+  SbMemoryDeallocate(zero_alloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(zero_alloc_ptr)], 1u);
 
 #if !defined(OS_WIN) && !defined(OS_MACOSX)
-  SbMemoryFree(memalign_ptr);
+  SbMemoryDeallocate(memalign_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(memalign_ptr)], 1u);
 
-  SbMemoryFree(pvalloc_ptr);
+  SbMemoryDeallocate(pvalloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(pvalloc_ptr)], 1u);
 #endif  // !OS_WIN && !OS_MACOSX
 
 #if !defined(OS_WIN)
-  SbMemoryFree(posix_memalign_ptr);
+  SbMemoryDeallocate(posix_memalign_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(posix_memalign_ptr)], 1u);
 
-  SbMemoryFree(valloc_ptr);
+  SbMemoryDeallocate(valloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(valloc_ptr)], 1u);
 #endif  // !OS_WIN
 
-  SbMemoryFree(realloc_ptr);
+  SbMemoryDeallocate(realloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(realloc_ptr)], 1u);
 
   RemoveAllocatorDispatchForTesting(&g_mock_dispatch);
@@ -353,7 +353,7 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
   void* non_hooked_ptr = SbMemoryAllocate(4095);
   ASSERT_NE(nullptr, non_hooked_ptr);
   ASSERT_EQ(0u, allocs_intercepted_by_size[4095]);
-  SbMemoryFree(non_hooked_ptr);
+  SbMemoryDeallocate(non_hooked_ptr);
 }
 
 #if defined(OS_MACOSX)
