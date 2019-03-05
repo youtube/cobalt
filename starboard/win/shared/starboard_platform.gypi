@@ -151,6 +151,7 @@
       '<(DEPTH)/starboard/shared/starboard/net_log.cc',
       '<(DEPTH)/starboard/shared/starboard/net_log.h',
       '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
+      '<(DEPTH)/starboard/shared/stub/system_get_extensions.cc',
       '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
     ],
 
