@@ -39,6 +39,8 @@
 #include <stdlib.h>
 
 #include "base/logging.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "url/url_parse_internal.h"
 #include "url/url_util.h"
 #include "url/url_util_internal.h"
@@ -615,7 +617,7 @@ int DoParsePort(const CHAR* spec, const Component& component) {
   // Null-terminate the string and convert to integer. Since we guarantee
   // only digits, atoi's lack of error handling is OK.
   digits[digits_comp.len] = 0;
-  int port = atoi(digits);
+  int port = SbStringAToI(digits);
   if (port > 65535)
     return PORT_INVALID;  // Out of range.
   return port;
