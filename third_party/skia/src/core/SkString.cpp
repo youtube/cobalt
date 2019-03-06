@@ -12,6 +12,10 @@
 #include <stdarg.h>
 
 #if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
+#if defined(STARBOARD)
 #include "starboard/string.h"
 #else
 #include <stdio.h>
