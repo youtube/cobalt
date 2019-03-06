@@ -59,6 +59,9 @@ class NoDestructor {
   // construction from an initializer list, e.g. for std::vector.
   explicit NoDestructor(const T& x) { new (storage_) T(x); }
   explicit NoDestructor(T&& x) { new (storage_) T(std::move(x)); }
+#if defined(STARBOARD)
+  NoDestructor() { new (storage_) T(); }
+#endif
 
   NoDestructor(const NoDestructor&) = delete;
   NoDestructor& operator=(const NoDestructor&) = delete;
