@@ -691,6 +691,9 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   if (number_of_session_updates_sent_ > maximum_number_of_session_updates_) {
+    SB_LOG(INFO) << "Number of drm sessions exceeds maximum allowed session"
+                 << " (" << maximum_number_of_session_updates_ << "), fail the"
+                 << " current update request with quota exceeded error";
     session_update_request_callback_(
         this, context_, ticket, kSbDrmStatusQuotaExceededError, type, "", NULL,
         0, message.c_str(), static_cast<int>(message.size()), NULL);
