@@ -248,8 +248,13 @@ class flat_tree {
   // idiom when deleting multiple non-consecutive elements.
 
   iterator erase(iterator position);
+#if !defined(STARBOARD)
+  // Raspbian gcc 4.8 does not provide std::vector::erase(const_iterator).
   iterator erase(const_iterator position);
   iterator erase(const_iterator first, const_iterator last);
+#else
+  iterator erase(iterator first, iterator last);
+#endif
   template <typename K>
   size_type erase(const K& key);
 
@@ -799,11 +804,13 @@ auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(
   return impl_.body_.erase(position);
 }
 
+#if !defined(STARBOARD)
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(
     const_iterator position) -> iterator {
   return impl_.body_.erase(position);
 }
+#endif
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 template <typename K>
@@ -817,8 +824,13 @@ auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(const K& val)
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>
 auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::erase(
+#if defined(STARBOARD)
+    iterator first,
+    iterator last) -> iterator {
+#else
     const_iterator first,
     const_iterator last) -> iterator {
+#endif
   return impl_.body_.erase(first, last);
 }
 
