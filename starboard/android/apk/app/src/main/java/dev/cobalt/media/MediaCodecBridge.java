@@ -549,7 +549,6 @@ class MediaCodecBridge {
     try {
       mFlushed = true;
       mMediaCodec.flush();
-      mMediaCodec.setCallback(null);
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MEDIA_CODEC_ERROR;
