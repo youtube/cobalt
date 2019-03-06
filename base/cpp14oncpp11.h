@@ -51,6 +51,16 @@ struct get_internal<Index, TargetType, TargetType, Types...> {
 
 namespace std {
 
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
+// Cobalt Raspi compiler does not have some std::is_trivially* implementations
+// like std::is_trivially_copy_constructible yet.
+template <typename T>
+struct is_trivially_copy_constructible : std::is_trivially_destructible<T> {};
+
+template <typename T>
+struct is_trivially_move_constructible : std::is_trivially_destructible<T> {};
+#endif
+
 #if !defined(SB_IS_COMPILER_MSVC)
 template <class TargetType, class... Types>
 TargetType get(std::tuple<Types...> tuple) {

@@ -153,7 +153,9 @@ struct OptionalStorage : OptionalStorageBase<T> {
   // Define it explicitly.
   OptionalStorage() = default;
 
-#if defined(STARBOARD) && defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
+#if defined(STARBOARD)
+  // Raspbian gcc 4.8 does not provide parent class initialization in implicit
+  // copy constructor.
   OptionalStorage(const OptionalStorage& other) : OptionalStorageBase<T>() {
 #else
   OptionalStorage(const OptionalStorage& other) {
@@ -180,7 +182,14 @@ struct OptionalStorage<T,
   using OptionalStorageBase<T>::OptionalStorageBase;
 
   OptionalStorage() = default;
+#if defined(STARBOARD)
+  OptionalStorage(const OptionalStorage& other) : OptionalStorageBase<T>() {
+    if (other.is_populated_)
+      Init(other.value_);
+  }
+#else
   OptionalStorage(const OptionalStorage& other) = default;
+#endif
 
   OptionalStorage(OptionalStorage&& other) noexcept(
       std::is_nothrow_move_constructible<T>::value) {
@@ -202,9 +211,13 @@ struct OptionalStorage<T,
   OptionalStorage() = default;
   OptionalStorage(OptionalStorage&& other) = default;
 
+#if defined(STARBOARD)
+  OptionalStorage(const OptionalStorage& other)
+      : OptionalStorageBase<T>(){
+#else
   OptionalStorage(const OptionalStorage& other) {
-    if (other.is_populated_)
-      Init(other.value_);
+#endif
+            if (other.is_populated_) Init(other.value_);
   }
 };
 
@@ -228,7 +241,13 @@ class OptionalBase {
   // because of C++ language restriction.
  protected:
   constexpr OptionalBase() = default;
+#if defined(STARBOARD)
+   OptionalBase(const OptionalBase& other) {
+    storage_.Init(other.storage_.value_);
+  }
+#else
   constexpr OptionalBase(const OptionalBase& other) = default;
+#endif
   constexpr OptionalBase(OptionalBase&& other) = default;
 
   template <class... Args>
@@ -450,16 +469,17 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
   using value_type = T;
 
   // Defer default/copy/move constructor implementation to OptionalBase.
-#if defined(STARBOARD) && defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
+#if defined(STARBOARD)
   // Raspi specialization.
   constexpr Optional() : internal::OptionalBase<T>() {}
   CONSTEXPR Optional(const Optional& other) : internal::OptionalBase<T>(other) {}
+  constexpr Optional(Optional&& other) = default;
 #else
   constexpr Optional() = default;
   constexpr Optional(const Optional& other) = default;
-#endif
   constexpr Optional(Optional&& other) noexcept(
       std::is_nothrow_move_constructible<T>::value) = default;
+#endif
 
   constexpr Optional(nullopt_t) {}  // NOLINT(runtime/explicit)
 
@@ -546,9 +566,12 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 
   // Defer copy-/move- assign operator implementation to OptionalBase.
   Optional& operator=(const Optional& other) = default;
+#if !defined(STARBOARD)
+  // Raspbian compiler does not like the noexcept specifier.
   Optional& operator=(Optional&& other) noexcept(
       std::is_nothrow_move_assignable<T>::value&&
           std::is_nothrow_move_constructible<T>::value) = default;
+#endif
 
   Optional& operator=(nullopt_t) {
     FreeIfNeeded();
