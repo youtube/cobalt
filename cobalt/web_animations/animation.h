@@ -29,6 +29,8 @@
 namespace cobalt {
 namespace web_animations {
 
+class AnimationSet;
+
 // Animations are represented in the Web Animations API by the Animation
 // interface.
 //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animation-interface
@@ -169,8 +171,21 @@ class Animation : public script::Wrappable {
   // Called when the animation's effect enters its after phase.
   void OnEnterAfterPhase();
 
+  // It is possible for an Animation to be inserted into a AnimationSet, such
+  // that is not discoverable by Web APIs, so we track all our references from
+  // all AnimationSets so that we can remove ourselves from them when the
+  // animation is ready to destroy itself.
+  void OnAddedToAnimationSet(const scoped_refptr<AnimationSet>& set);
+
+  // Called by AnimationSet when removed from an AnimationSet.
+  void OnRemovedFromAnimationSet(const scoped_refptr<AnimationSet>& set);
+
   scoped_refptr<AnimationEffectReadOnly> effect_;
   scoped_refptr<AnimationTimeline> timeline_;
+
+  // A list of animation sets that contain this animation.
+  std::set<scoped_refptr<AnimationSet>> contained_in_animation_sets_;
+
   Data data_;
 
   // A list of event handlers that are interested in receiving callbacks when
@@ -186,6 +201,9 @@ class Animation : public script::Wrappable {
   scoped_ptr<TimedTaskQueue::Task> on_enter_after_phase_;
 
   friend class EventHandler;
+
+  // So that we can track which AnimationSets this animation is added to.
+  friend class AnimationSet;
 
   DISALLOW_COPY_AND_ASSIGN(Animation);
 };
