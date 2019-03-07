@@ -23,10 +23,12 @@ AnimationSet::AnimationSet() {}
 
 void AnimationSet::AddAnimation(Animation* animation) {
   animations_.insert(animation);
+  animation->OnAddedToAnimationSet(this);
 }
 
 void AnimationSet::RemoveAnimation(Animation* animation) {
   animations_.erase(animation);
+  animation->OnRemovedFromAnimationSet(this);
 }
 
 bool AnimationSet::IsPropertyAnimated(cssom::PropertyKey property_name) const {
