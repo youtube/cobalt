@@ -60,7 +60,6 @@ class PseudoElement {
   cssom::RulesWithCascadePrecedence* matching_rules() {
     return &matching_rules_;
   }
-  void ClearMatchingRules() { matching_rules_.clear(); }
 
   bool computed_style_invalid() const { return computed_style_invalid_; }
   void set_computed_style_invalid() { computed_style_invalid_ = true; }
