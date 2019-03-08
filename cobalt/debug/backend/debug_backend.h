@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/optional.h"
+#include "cobalt/debug/backend/css_agent.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_debugger.h"
 #include "cobalt/script/wrappable.h"
@@ -43,6 +44,7 @@ class DebugBackend : public script::Wrappable {
                script::ScriptDebugger* script_debugger,
                const OnEventCallback& on_event_callback);
 
+  void BindAgents(scoped_refptr<CSSAgent> css_agent) { css_agent_ = css_agent; }
 
   // Sends a protocol event to the debugger frontend.
   void SendEvent(const std::string& method,
@@ -54,6 +56,8 @@ class DebugBackend : public script::Wrappable {
   std::string CreateRemoteObject(const script::ValueHandleHolder& object,
                                  const std::string& group);
 
+  scoped_refptr<CSSAgent> native_css_agent() { return css_agent_; }
+
   DEFINE_WRAPPABLE_TYPE(DebugBackend);
 
  private:
@@ -62,6 +66,8 @@ class DebugBackend : public script::Wrappable {
 
   // Callback to send events.
   OnEventCallback on_event_callback_;
+
+  scoped_refptr<CSSAgent> css_agent_;
 };
 
 }  // namespace backend

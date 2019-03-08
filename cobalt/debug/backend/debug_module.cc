@@ -103,13 +103,15 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
   dom_agent_.reset(
       new DOMAgent(debug_dispatcher_.get(), dom_render_layer.Pass()));
-  css_agent_.reset(new CSSAgent(debug_dispatcher_.get()));
+  css_agent_ = make_scoped_refptr(new CSSAgent(debug_dispatcher_.get()));
   page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
                                   page_render_layer.Pass(),
                                   data.resource_provider));
   tracing_agent_.reset(
       new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
 
+  // Hook up the backend objects after the agents have been created.
+  debug_backend_->BindAgents(css_agent_);
   script_debugger_->Attach();
 
   if (created) {
