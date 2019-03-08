@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/debug/backend/css_agent.h"
+#include "cobalt/dom/html_element.h"
 
 namespace cobalt {
 namespace debug {
@@ -51,6 +52,19 @@ void CSSAgent::Enable(const Command& command) {
 }
 
 void CSSAgent::Disable(const Command& command) { command.SendResponse(); }
+
+CSSAgent::CSSStyleRuleSequence CSSAgent::GetMatchingCSSRules(
+    const scoped_refptr<dom::Element>& element) {
+  CSSStyleRuleSequence css_rules;
+  auto html_element = element->AsHTMLElement();
+  if (html_element) {
+    html_element->UpdateMatchingRules();
+    for (const auto& matching_rule : *html_element->matching_rules()) {
+      css_rules.push_back(matching_rule.first);
+    }
+  }
+  return css_rules;
+}
 
 }  // namespace backend
 }  // namespace debug

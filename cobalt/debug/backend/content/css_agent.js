@@ -43,34 +43,8 @@ commands.getMatchedStylesForNode = function(params) {
 }
 
 var _matchedRules = function(node) {
-  // TODO: Use debugBackend to get the matches cached in C++.
-  return _allRules().reduce(
-      function(accum, cssRule) {
-        // TODO: Report other rule types
-        if (cssRule.type === CSSRule.STYLE_RULE
-            && node.matches(cssRule.selectorText)) {
-          accum.push(new devtools.RuleMatch(cssRule, node));
-        }
-        return accum;
-      }, []);
-}
-
-// Returns an array of all CSSRule objects from all stylesheets in the document.
-var _allRules = function() {
-  // Array.slice() converts document.styleSheets to a proper array, which we can
-  // iterate with reduce().
-  return [].slice.call(document.styleSheets).reduce(
-      function(accum, styleSheet) {
-        try {
-          // Do the slice() trick to get the cssRules from each styleSheet as an
-          // array that we concat() into a single reduced array with all rules.
-          return accum.concat([].slice.call(styleSheet.cssRules));
-        } catch (e) {
-          // CSP blocks reading some rules, but the debugger should be allowed.
-          console.error(styleSheet.href, '\n', e);
-          return accum;
-        }
-      }, []);
+  return [].slice.apply(debugBackend.nativeCssAgent.getMatchingCSSRules(node)).map(
+      cssRule => new devtools.RuleMatch(cssRule, node));
 }
 
 // Namespace for constructors of types defined in the Devtools protocol.

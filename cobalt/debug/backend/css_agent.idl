@@ -15,12 +15,6 @@
 [
   Conditional=ENABLE_DEBUG_CONSOLE
 ]
-interface DebugBackend {
-  void sendEvent(DOMString method, DOMString? params);
-
-  // TODO: Move into a RuntimeAgent wrappable.
-  DOMString createRemoteObject(any obj, DOMString group);
-
-  // Expose the native C++ part of hybrid agents for their JS part to use.
-  readonly attribute CSSAgent nativeCssAgent;
+interface CSSAgent {
+  sequence<CSSStyleRule> getMatchingCSSRules(Element element);
 };
