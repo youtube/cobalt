@@ -807,7 +807,7 @@ void UpdateElementMatchingRulesFromRuleMatchingState(HTMLElement* element) {
   // they can be compared to the new matching rules after they are generated.
   cssom::RulesWithCascadePrecedence* element_old_matching_rules =
       element_document->scratchpad_html_element_matching_rules();
-  *element_old_matching_rules = *element->matching_rules();
+  *element_old_matching_rules = std::move(*element->matching_rules());
   element->matching_rules()->clear();
 
   for (int type = 0; type < kMaxPseudoElementType; ++type) {
@@ -817,8 +817,9 @@ void UpdateElementMatchingRulesFromRuleMatchingState(HTMLElement* element) {
       cssom::RulesWithCascadePrecedence* old_pseudo_element_matching_rules =
           element_document->scratchpad_pseudo_element_matching_rules(
               PseudoElementType(type));
-      *old_pseudo_element_matching_rules = *pseudo_element->matching_rules();
-      pseudo_element->ClearMatchingRules();
+      *old_pseudo_element_matching_rules =
+          std::move(*pseudo_element->matching_rules());
+      pseudo_element->matching_rules()->clear();
     }
   }
 
