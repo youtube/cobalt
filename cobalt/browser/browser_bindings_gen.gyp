@@ -52,6 +52,7 @@
         '../cssom/style_sheet.idl',
         '../cssom/style_sheet_list.idl',
 
+        '../debug/backend/css_agent.idl',
         '../debug/backend/debug_backend.idl',
         '../debug/console/debug_hub.idl',
         '../debug/console/debugger_event_target.idl',

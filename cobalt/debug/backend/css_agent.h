@@ -14,18 +14,31 @@
 #ifndef COBALT_DEBUG_BACKEND_CSS_AGENT_H_
 #define COBALT_DEBUG_BACKEND_CSS_AGENT_H_
 
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"
+#include "cobalt/dom/element.h"
+#include "cobalt/script/sequence.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-class CSSAgent {
+class CSSAgent : public script::Wrappable {
  public:
+  typedef script::Sequence<scoped_refptr<cssom::CSSStyleRule>>
+      CSSStyleRuleSequence;
+
   explicit CSSAgent(DebugDispatcher* dispatcher);
   ~CSSAgent();
+
+  // IDL: Returns a sequence of CSSStyleRules that match the element.
+  CSSStyleRuleSequence GetMatchingCSSRules(
+      const scoped_refptr<dom::Element>& element);
+
+  DEFINE_WRAPPABLE_TYPE(CSSAgent);
 
  private:
   void Enable(const Command& command);
