@@ -21,13 +21,19 @@ var commands = debugBackend.CSS = {};
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS#method-getComputedStyleForNode
 commands.getComputedStyleForNode = function(params) {
   var node = debugBackend.DOM._findNode(params);
-  return '{}';
+  var result = {};
+  var nodeStyle = window.getComputedStyle(node);
+  result.computedStyle = _asArray(nodeStyle).map(
+      property => new devtools.CSSComputedStyleProperty(nodeStyle, property));
+  return JSON.stringify(result);
 }
 
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS#method-getInlineStylesForNode
 commands.getInlineStylesForNode = function(params) {
   var node = debugBackend.DOM._findNode(params);
-  return '{}';
+  var result = {};
+  result.inlineStyle = new devtools.CSSStyle(node.style);
+  return JSON.stringify(result);
 }
 
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS#method-getMatchedStylesForNode
@@ -39,13 +45,25 @@ commands.getMatchedStylesForNode = function(params) {
 
   var result = {};
   result.matchedCSSRules = _matchedRules(node);
+  result.inlineStyle = new devtools.CSSStyle(node.style);
+
+  result.inherited = [];
+  node = node.parentElement;
+  while (node) {
+    result.inherited.push(new devtools.InheritedStyleEntry(node));
+    node = node.parentElement;
+  }
+
   return JSON.stringify(result);
 }
 
 var _matchedRules = function(node) {
-  return [].slice.apply(debugBackend.nativeCssAgent.getMatchingCSSRules(node)).map(
+  return _asArray(debugBackend.nativeCssAgent.getMatchingCSSRules(node)).map(
       cssRule => new devtools.RuleMatch(cssRule, node));
 }
+
+// Copy an array-like sequence into a proper JavaScript Array.
+var _asArray = sequence => Array.prototype.slice.call(sequence);
 
 // Namespace for constructors of types defined in the Devtools protocol.
 var devtools = {};
@@ -90,7 +108,7 @@ devtools.Value = function(value) {
 devtools.CSSStyle = function(cssStyleDecl) {
   this.shorthandEntries = [];  // TODO
   this.text = cssStyleDecl.cssText;
-  this.cssProperties = [].slice.apply(cssStyleDecl).map(
+  this.cssProperties = _asArray(cssStyleDecl).map(
       property => new devtools.CSSProperty(cssStyleDecl, property));
 }
 
@@ -99,6 +117,18 @@ devtools.CSSProperty = function(cssStyleDecl, property) {
   this.name = property;
   this.value = cssStyleDecl.getPropertyValue(property);
   // this.important = cssStyleDecl.getPropertyPriority(property) === 'important';
+}
+
+// https://chromedevtools.github.io/devtools-protocol/tot/CSS#type-CSSComputedStyleProperty
+devtools.CSSComputedStyleProperty = function(cssStyleDecl, property) {
+  this.name = property;
+  this.value = cssStyleDecl.getPropertyValue(property);
+}
+
+// https://chromedevtools.github.io/devtools-protocol/tot/CSS#type-InheritedStyleEntry
+devtools.InheritedStyleEntry = function(node) {
+  this.inlineStyle = new devtools.CSSStyle(node.style);
+  this.matchedCSSRules = _matchedRules(node);
 }
 
 // Polyfill Element.matches()
