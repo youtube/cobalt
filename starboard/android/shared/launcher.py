@@ -287,7 +287,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Send the wakeup key to ensure daydream isn't running, otherwise Activity
     # Manager may get in a loop running the test over and over again.
-    self._CheckCallAdb('shell', 'input', 'keyevent', 'KEY_WAKEUP')
+    self._CheckCallAdb('shell', 'input', 'keyevent', 'KEYCODE_WAKEUP')
 
     # Grant runtime permissions to avoid prompts during testing.
     for permission in _RUNTIME_PERMISSIONS:
