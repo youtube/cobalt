@@ -20,6 +20,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "base/logging.h"
+#include "starboard/string.h"
 
 namespace base {
 namespace {
@@ -52,6 +53,50 @@ TEST(TokenTest, CompareUnqual) {
   Token empty;
   Token non_empty(kTestString);
   EXPECT_NE(empty, non_empty);
+}
+
+TEST(TokenTest, CompareSorted) {
+  std::vector<Token> tokens;
+
+  // Tokens constructed in no particular order so the storage isn't in order.
+  tokens.push_back(Token("Cobalt"));
+  tokens.push_back(Token("Chrome"));
+  tokens.push_back(Token("Firefox"));
+  tokens.push_back(Token("Mozilla"));
+  tokens.push_back(Token("Navigator"));
+  tokens.push_back(Token("Safari"));
+  tokens.push_back(Token("Explorer"));
+  tokens.push_back(Token("Opera"));
+
+  // Sort the vector so we iterate it alphabetically.
+  std::sort(tokens.begin(), tokens.end(),
+            [](const Token& l, const Token& r) -> bool {
+              return SbStringCompareAll(l.c_str(), r.c_str()) < 0;
+            });
+
+  // The natural order of the tokens is not alphabetical.
+  Token prev_token;
+  bool first = true;
+  bool in_order = true;
+  for (const auto token : tokens) {
+    if (!first) {
+      in_order &= (prev_token < token);
+    }
+    prev_token = token;
+    first = false;
+  }
+  EXPECT_FALSE(in_order);
+
+  // The order of the tokens should be alphabetical using a sort scope.
+  Token::ScopedAlphabeticalSorting sort_scope;
+  first = true;
+  for (const auto token : tokens) {
+    if (!first) {
+      EXPECT_LT(prev_token, token);
+    }
+    prev_token = token;
+    first = false;
+  }
 }
 
 TEST(TokenTest, Collision) {
