@@ -202,7 +202,16 @@ not changing, which consumes CPU resources.  This behavior is defined by the
 value of `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER` in your platform's
 `configuration_public.h` file.  Unless your platform is restricted in this
 aspect, you should ensure that `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER`
-is set to `0`.
+is set to `0`.  If the platform needs a new frame submitted periodically,
+an alternative to setting `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER` to `1`
+for OpenGL ES platforms is to have `eglGetProcAddress()` return a function
+when queried for `eglGetMinimumFramesPerSecondCOBALT`:
+
+`EGLint eglGetMinimumFramesPerSecondCOBALT(EGLDisplay display)`
+
+Every `cobalt_minimum_frame_time_in_milliseconds`, this function will be queried
+to determine if a new frame should be presented even if the scene has not
+changed.
 
 **Tags:** *configuration_public.h, startup, browse-to-watch, input latency,
            framerate.*
