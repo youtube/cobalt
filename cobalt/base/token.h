@@ -20,6 +20,8 @@
 
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
+#include "base/logging.h"
+#include "starboard/string.h"
 
 namespace base {
 
@@ -46,14 +48,39 @@ class Token {
   void Initialize(const char* str);
 
   const char* str_;
+
+#ifdef ENABLE_TOKEN_ALPHABETICAL_SORTING
+
+ public:
+  // For unit tests to sort in a predictable order at the cost of efficiency.
+  // This is not thread safe!
+  class ScopedAlphabeticalSorting {
+   public:
+    ScopedAlphabeticalSorting() {
+      DLOG(WARNING)
+          << "ScopedAlphabeticalSorting should only be used for testing.";
+      DCHECK(!Token::sort_alphabetically_);
+      Token::sort_alphabetically_ = true;
+    }
+    ~ScopedAlphabeticalSorting() {
+      DCHECK(Token::sort_alphabetically_);
+      Token::sort_alphabetically_ = false;
+    }
+  };
+
+  static bool sort_alphabetically() { return sort_alphabetically_; }
+
+ private:
+  static bool sort_alphabetically_;
+#endif  // ENABLE_TOKEN_ALPHABETICAL_SORTING
 };
 
 inline bool operator==(const Token& lhs, const std::string& rhs) {
-  return strcmp(lhs.c_str(), rhs.c_str()) == 0;
+  return SbStringCompareAll(lhs.c_str(), rhs.c_str()) == 0;
 }
 
 inline bool operator==(const std::string& lhs, const Token& rhs) {
-  return strcmp(lhs.c_str(), rhs.c_str()) == 0;
+  return SbStringCompareAll(lhs.c_str(), rhs.c_str()) == 0;
 }
 
 inline bool operator!=(const Token& lhs, const Token& rhs) {
@@ -69,10 +96,20 @@ inline bool operator!=(const std::string& lhs, const Token& rhs) {
 }
 
 inline bool operator<(const Token& lhs, const Token& rhs) {
+#ifdef ENABLE_TOKEN_ALPHABETICAL_SORTING
+  if (Token::sort_alphabetically()) {
+    return SbStringCompareAll(lhs.c_str(), rhs.c_str()) < 0;
+  }
+#endif  // ENABLE_TOKEN_ALPHABETICAL_SORTING
   return lhs.c_str() < rhs.c_str();
 }
 
 inline bool operator>(const Token& lhs, const Token& rhs) {
+#ifdef ENABLE_TOKEN_ALPHABETICAL_SORTING
+  if (Token::sort_alphabetically()) {
+    return SbStringCompareAll(lhs.c_str(), rhs.c_str()) > 0;
+  }
+#endif  // ENABLE_TOKEN_ALPHABETICAL_SORTING
   return lhs.c_str() > rhs.c_str();
 }
 
