@@ -132,7 +132,8 @@ class Pipeline {
   // Returns true only if a rasterization actually took place.
   bool RasterizeSubmissionToRenderTarget(
       const Submission& render_tree_submission,
-      const scoped_refptr<backend::RenderTarget>& render_target);
+      const scoped_refptr<backend::RenderTarget>& render_target,
+      bool force_rasterize);
 
   // Updates the rasterizer timer stats according to the |start_time| and
   // |end_time| of the most recent rasterize call.
@@ -311,6 +312,12 @@ class Pipeline {
   // a discontinuity in animations and reset our submission queue, possibly
   // with new configuration parameters specified in the new |TimelineInfo|.
   Submission::TimelineInfo current_timeline_info_;
+
+  // This timestamp represents the last time the pipeline rasterized a
+  // render tree to render_target_. This is different from last_render_time_
+  // which is specific to the current submission and is reset whenever a new
+  // render tree is submitted.
+  base::TimeTicks last_rasterize_time_;
 };
 
 }  // namespace renderer

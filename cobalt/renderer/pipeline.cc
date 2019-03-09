@@ -228,7 +228,7 @@ void Pipeline::RasterizeToRGBAPixels(
 
   Submission submission = Submission(animate_node);
   // Rasterize this submission into the newly created target.
-  RasterizeSubmissionToRenderTarget(submission, offscreen_target);
+  RasterizeSubmissionToRenderTarget(submission, offscreen_target, true);
 
   // Load the texture's pixel data into a CPU memory buffer and return it.
   complete.Run(graphics_context_->DownloadPixelDataAsRGBA(offscreen_target),
@@ -309,12 +309,23 @@ void Pipeline::RasterizeCurrentTree() {
   bool is_new_render_tree = submission.render_tree != last_render_tree_;
   bool has_render_tree_changed =
       !last_animations_expired_ || is_new_render_tree;
+  bool force_rasterize = submit_even_if_render_tree_is_unchanged_ ||
+      fps_overlay_update_pending_;
+
+  float minimum_fps = graphics_context_->GetMinimumFramesPerSecond();
+  if (minimum_fps > 0) {
+    base::TimeDelta max_time_between_rasterize =
+        base::TimeDelta::FromSecondsD(1.0 / minimum_fps);
+    if (start_rasterize_time - last_rasterize_time_ >
+        max_time_between_rasterize) {
+      force_rasterize = true;
+    }
+  }
 
   // If our render tree hasn't changed from the one that was previously
   // rendered and it's okay on this system to not flip the display buffer
   // frequently, then we can just not do anything here.
-  if (fps_overlay_update_pending_ || submit_even_if_render_tree_is_unchanged_ ||
-      has_render_tree_changed) {
+  if (force_rasterize || has_render_tree_changed) {
     // Check whether the animations in the render tree that is being rasterized
     // are active.
     render_tree::animations::AnimateNode* animate_node =
@@ -322,8 +333,11 @@ void Pipeline::RasterizeCurrentTree() {
             submission.render_tree.get());
 
     // Rasterize the last submitted render tree.
-    bool did_rasterize =
-        RasterizeSubmissionToRenderTarget(submission, render_target_);
+    bool did_rasterize = RasterizeSubmissionToRenderTarget(
+        submission, render_target_, force_rasterize);
+    if (did_rasterize) {
+      last_rasterize_time_ = start_rasterize_time;
+    }
 
     bool animations_expired = animate_node->expiry() <= submission.time_offset;
     bool stat_tracked_animations_expired =
@@ -412,7 +426,8 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
 
 bool Pipeline::RasterizeSubmissionToRenderTarget(
     const Submission& submission,
-    const scoped_refptr<backend::RenderTarget>& render_target) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    bool force_rasterize) {
   TRACE_EVENT0("cobalt::renderer",
                "Pipeline::RasterizeSubmissionToRenderTarget()");
 
@@ -442,9 +457,7 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
   render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
 
-  if (results.animated == last_animated_render_tree_ &&
-      !submit_even_if_render_tree_is_unchanged_ &&
-      !fps_overlay_update_pending_) {
+  if (results.animated == last_animated_render_tree_ && !force_rasterize) {
     return false;
   }
   last_animated_render_tree_ = results.animated;
