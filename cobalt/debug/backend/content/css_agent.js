@@ -12,27 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-(function(debugScriptRunner) {
+(function(debugBackend) {
 
 // Attach methods to handle commands in the 'CSS' devtools domain.
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS
-var commands = debugScriptRunner.CSS = {};
+var commands = debugBackend.CSS = {};
 
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS#method-getComputedStyleForNode
 commands.getComputedStyleForNode = function(params) {
-  var node = debugScriptRunner.DOM._findNode(params);
+  var node = debugBackend.DOM._findNode(params);
   return '{}';
 }
 
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS#method-getInlineStylesForNode
 commands.getInlineStylesForNode = function(params) {
-  var node = debugScriptRunner.DOM._findNode(params);
+  var node = debugBackend.DOM._findNode(params);
   return '{}';
 }
 
 // https://chromedevtools.github.io/devtools-protocol/tot/CSS#method-getMatchedStylesForNode
 commands.getMatchedStylesForNode = function(params) {
-  var node = debugScriptRunner.DOM._findNode(params);
+  var node = debugBackend.DOM._findNode(params);
   if (!node) {
     return JSON.stringify({error: {message: 'Invalid Node'}});
   }
@@ -43,7 +43,7 @@ commands.getMatchedStylesForNode = function(params) {
 }
 
 var _matchedRules = function(node) {
-  // TODO: Use debugScriptRunner to get the matches cached in C++.
+  // TODO: Use debugBackend to get the matches cached in C++.
   return _allRules().reduce(
       function(accum, cssRule) {
         // TODO: Report other rule types
@@ -135,5 +135,5 @@ Element.prototype.matches = Element.prototype.matches || function(s) {
   return i > -1;
 };
 
-// TODO: Pass debugScriptRunner from C++ instead of getting it from the window.
-})(window.debugScriptRunner);
+// TODO: Pass debugBackend from C++ instead of getting it from the window.
+})(window.debugBackend);

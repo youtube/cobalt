@@ -84,9 +84,8 @@ class DebugDispatcher {
   // A command execution function stored in the domain registry.
   typedef base::Callback<bool(const Command& command)> CommandHandler;
 
-  DebugDispatcher(script::GlobalEnvironment* global_environment,
-                  const dom::CspDelegate* csp_delegate,
-                  script::ScriptDebugger* script_debugger);
+  DebugDispatcher(script::ScriptDebugger* script_debugger,
+                  DebugScriptRunner* script_runner);
 
   // Adds a client to this object. This object does not own the client, but
   // notifies it when debugging events occur, or when this object is destroyed.
@@ -103,10 +102,12 @@ class DebugDispatcher {
   // agents providing the protocol command implementations.
   void RemoveDomain(const std::string& domain);
 
-  // Called by the debug agents when an event occurs.
-  // Serializes the method and params object to a JSON string and
-  // calls |SendEventInternal|.
+  // Sends a protocol event to the frontend.
   void SendEvent(const std::string& method, const JSONObject& params);
+
+  // Sends a protocol event to the frontend.
+  void SendEvent(const std::string& method,
+                 const base::optional<std::string>& params);
 
   // Calls |method| in |script_runner_| and creates a response object from
   // the result.
@@ -141,10 +142,6 @@ class DebugDispatcher {
   // Destructor should only be called by |scoped_ptr<DebugDispatcher>|.
   ~DebugDispatcher();
 
-  // Called by |script_runner_| and |SendEvent|. Notifies the clients.
-  void SendEventInternal(const std::string& method,
-                         const base::optional<std::string>& params);
-
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
   // The response callback will be run on the message loop specified in the
@@ -163,9 +160,8 @@ class DebugDispatcher {
   // Engine-specific debugger implementation.
   script::ScriptDebugger* script_debugger_;
 
-  // Used to run JavaScript commands with persistent state and receive events
-  // from JS.
-  scoped_refptr<DebugScriptRunner> script_runner_;
+  // Runs backend JavaScript.
+  DebugScriptRunner* script_runner_;
 
   // Clients connected to this dispatcher.
   std::set<DebugClient*> clients_;

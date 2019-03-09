@@ -26,14 +26,10 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-DebugDispatcher::DebugDispatcher(script::GlobalEnvironment* global_environment,
-                                 const dom::CspDelegate* csp_delegate,
-                                 script::ScriptDebugger* script_debugger)
+DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
+                                 DebugScriptRunner* script_runner)
     : script_debugger_(script_debugger),
-      ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
-          global_environment, script_debugger, csp_delegate,
-          base::Bind(&DebugDispatcher::SendEventInternal,
-                     base::Unretained(this))))),
+      script_runner_(script_runner),
       message_loop_(MessageLoop::current()),
       is_paused_(false),
       // No manual reset, not initially signaled.
@@ -146,10 +142,10 @@ void DebugDispatcher::SendEvent(const std::string& method,
                                 const JSONObject& params) {
   base::optional<std::string> json_params;
   if (params) json_params = JSONStringify(params);
-  SendEventInternal(method, json_params);
+  SendEvent(method, json_params);
 }
 
-void DebugDispatcher::SendEventInternal(
+void DebugDispatcher::SendEvent(
     const std::string& method, const base::optional<std::string>& json_params) {
   for (std::set<DebugClient*>::iterator it = clients_.begin();
        it != clients_.end(); ++it) {
