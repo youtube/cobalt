@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-(function(debugScriptRunner) {
+(function(debugBackend) {
 
 // Attach methods to handle commands in the 'DOM' devtools domain.
 // https://chromedevtools.github.io/devtools-protocol/1-3/DOM
-var commands = debugScriptRunner.DOM = {};
+var commands = debugBackend.DOM = {};
 
 // Creates and returns a new Node object corresponding to the document node,
 // including its children up to a default depth.
@@ -41,7 +41,7 @@ commands.requestChildNodes = function(params) {
   result.nodes = _getChildNodes(node, depth);
 
   // Send the result via an event, and an empty response.
-  debugScriptRunner.sendEvent('DOM.setChildNodes', JSON.stringify(result));
+  debugBackend.sendEvent('DOM.setChildNodes', JSON.stringify(result));
   return '{}';
 }
 
@@ -62,7 +62,7 @@ commands.requestNode = function(params) {
     params.parentId = parentInfo.nodeId;
     params.nodes = [];
     params.nodes.push(nodeInfo);
-    debugScriptRunner.sendEvent('DOM.setChildNodes', JSON.stringify(params));
+    debugBackend.sendEvent('DOM.setChildNodes', JSON.stringify(params));
     node = parent;
     nodeInfo = parentInfo;
     parent = parent.parentNode;
@@ -77,7 +77,7 @@ commands.resolveNode = function(params) {
   var node = commands._findNode(params);
   var result = {};
   result.object =
-      debugScriptRunner.createRemoteObject(node, params.objectGroup);
+      debugBackend.createRemoteObject(node, params.objectGroup);
 
   return JSON.stringify(result);
 }
@@ -126,8 +126,8 @@ commands._findNode = function(params) {
   }
 
   if (params.objectId != null) {
-    // TODO: Add an IDL method to debugScriptRunner.
-    return debugScriptRunner.runtime.getObject(params.objectId);
+    // TODO: Add an IDL method to debugBackend.
+    return debugBackend.runtime.getObject(params.objectId);
   }
 
   // Either nodeId or objectId must be specified.
@@ -183,5 +183,5 @@ devtools.Node = function(node) {
   }
 }
 
-// TODO: Pass debugScriptRunner from C++ instead of getting it from the window.
-})(window.debugScriptRunner);
+// TODO: Pass debugBackend from C++ instead of getting it from the window.
+})(window.debugBackend);
