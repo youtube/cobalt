@@ -31,12 +31,6 @@ bool SimpleSelectorsLessThan(const SimpleSelector* lhs,
   if (rhs->type() < lhs->type()) {
     return false;
   }
-  if (lhs->prefix() < rhs->prefix()) {
-    return true;
-  }
-  if (rhs->prefix() < lhs->prefix()) {
-    return false;
-  }
   if (lhs->text() < rhs->text()) {
     return true;
   }
@@ -121,14 +115,12 @@ void CompoundSelector::AppendSelector(
       !simple_selectors_.empty() ||
       simple_selector->AlwaysRequiresRuleMatchingVerificationVisit();
 
-  bool should_sort =
-      !simple_selectors_.empty() &&
-      SimpleSelectorsLessThan(simple_selector.get(), simple_selectors_.back());
-  simple_selectors_.push_back(simple_selector.release());
-  if (should_sort) {
-    std::sort(simple_selectors_.begin(), simple_selectors_.end(),
-              SimpleSelectorsLessThan);
-  }
+  // Insert the new selector in sorted order.
+  SimpleSelector* new_selector = simple_selector.release();
+  auto pos =
+      std::lower_bound(simple_selectors_.begin(), simple_selectors_.end(),
+                       new_selector, SimpleSelectorsLessThan);
+  simple_selectors_.insert(pos, new_selector);
 }
 
 void CompoundSelector::set_right_combinator(scoped_ptr<Combinator> combinator) {
