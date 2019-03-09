@@ -17,42 +17,22 @@
 
 #include <string>
 
-#include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/dom/csp_delegate.h"
-#include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_debugger.h"
-#include "cobalt/script/script_value.h"
-#include "cobalt/script/value_handle.h"
-#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-// Used by the various debugger agents to run JavaScript and persist state. An
-// object of this class creates a persistent JavaScript object bound to the
-// global object, and executes methods on this object, passing in the JSON
-// parameters as a parameter object, and returning the result as a serialized
-// JSON object. Other classes may run scripts that attach additional data to the
-// JavaScript object created by this class.
-class DebugScriptRunner : public script::Wrappable {
+// Runs JavaScript code that is part of the backend implementation.
+class DebugScriptRunner {
  public:
-  // Event callback. A callback of this type is specified in the constructor,
-  // and used to send asynchronous debugging events that are not a direct
-  // response to a command.
-  // See: https://chromedevtools.github.io/devtools-protocol/
-  typedef base::Callback<void(const std::string& method,
-                              const base::optional<std::string>& params)>
-      OnEventCallback;
-
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
                     script::ScriptDebugger* script_debugger,
-                    const dom::CspDelegate* csp_delegate,
-                    const OnEventCallback& on_event_callback);
+                    const dom::CspDelegate* csp_delegate);
 
-  // Runs |method| on the JavaScript |devtoolsBackend| object, passing in
+  // Runs |method| on the JavaScript |debugBackend| object, passing in
   // |json_params|. If |json_result| is non-NULL it receives the result.
   // Returns |true| if the method was executed; |json_result| is the value
   // returned by the method.
@@ -62,20 +42,8 @@ class DebugScriptRunner : public script::Wrappable {
                   std::string* json_result);
 
   // Loads JavaScript from file and executes the contents. Used to add
-  // functionality to the JS object wrapped by this class.
+  // the JavaScript part of hybrid JS/C++ agent implementations.
   bool RunScriptFile(const std::string& filename);
-
-  // IDL: Sends a protocol event to the debugger frontend.
-  void SendEvent(const std::string& method,
-                 const base::optional<std::string>& params);
-
-  // IDL: Returns the RemoteObject JSON representation of the given object for
-  // the debugger frontend.
-  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
-  std::string CreateRemoteObject(const script::ValueHandleHolder& object,
-                                 const std::string& group);
-
-  DEFINE_WRAPPABLE_TYPE(DebugScriptRunner);
 
  private:
   bool EvaluateDebuggerScript(const std::string& script,
@@ -94,9 +62,6 @@ class DebugScriptRunner : public script::Wrappable {
 
   // Non-owned reference to let this object query whether CSP allows eval.
   const dom::CspDelegate* csp_delegate_;
-
-  // Callback to send events.
-  OnEventCallback on_event_callback_;
 };
 
 }  // namespace backend

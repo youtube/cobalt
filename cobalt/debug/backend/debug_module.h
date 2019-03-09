@@ -21,7 +21,9 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/debug/backend/console_agent.h"
 #include "cobalt/debug/backend/css_agent.h"
+#include "cobalt/debug/backend/debug_backend.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debug_script_runner.h"
 #include "cobalt/debug/backend/dom_agent.h"
 #include "cobalt/debug/backend/log_agent.h"
 #include "cobalt/debug/backend/page_agent.h"
@@ -95,17 +97,27 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   void BuildInternal(const ConstructionData& data,
                      base::WaitableEvent* created);
 
+  // Sends a protocol event to the frontend through |DebugDispatcher|.
+  void SendEvent(const std::string& method,
+                 const base::optional<std::string>& params);
+
   // script::ScriptDebugger::Delegate implementation.
   void OnScriptDebuggerPause() override;
   void OnScriptDebuggerResume() override;
   void OnScriptDebuggerResponse(const std::string& response) override;
   void OnScriptDebuggerEvent(const std::string& event) override;
 
+  // Handles all debugging interaction with the JavaScript engine.
+  scoped_ptr<script::ScriptDebugger> script_debugger_;
+
+  // Runs backend JavaScript.
+  scoped_ptr<DebugScriptRunner> script_runner_;
+
   // Handles routing of commands, responses and event notifications.
   scoped_ptr<DebugDispatcher> debug_dispatcher_;
 
-  // Handles all debugging interaction with the JavaScript engine.
-  scoped_ptr<script::ScriptDebugger> script_debugger_;
+  // Wrappable object providing native helpers for backend JavaScript.
+  scoped_refptr<DebugBackend> debug_backend_;
 
   // Debug agents implement the debugging protocol.
   scoped_ptr<ConsoleAgent> console_agent_;

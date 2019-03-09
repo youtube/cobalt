@@ -28,22 +28,15 @@ namespace backend {
 
 namespace {
 const char kContentDir[] = "cobalt/debug/backend";
-const char kObjectIdentifier[] = "debugScriptRunner";
 }  // namespace
 
 DebugScriptRunner::DebugScriptRunner(
     script::GlobalEnvironment* global_environment,
     script::ScriptDebugger* script_debugger,
-    const dom::CspDelegate* csp_delegate,
-    const OnEventCallback& on_event_callback)
+    const dom::CspDelegate* csp_delegate)
     : global_environment_(global_environment),
       script_debugger_(script_debugger),
-      csp_delegate_(csp_delegate),
-      on_event_callback_(on_event_callback) {
-  // Bind this object to the global object so it can persist state and be
-  // accessed from any of the debug agents.
-  global_environment_->Bind(kObjectIdentifier, make_scoped_refptr(this));
-}
+      csp_delegate_(csp_delegate) {}
 
 bool DebugScriptRunner::RunCommand(const std::string& method,
                                    const std::string& json_params,
@@ -53,10 +46,9 @@ bool DebugScriptRunner::RunCommand(const std::string& method,
   // run the method, letting it fail if there's any exception.
   std::string domain(method, 0, method.find('.'));
   std::string script = base::StringPrintf(
-      "(typeof %s.%s === 'undefined' || typeof %s.%s === 'undefined')"
-      "    ? '' : %s.%s(%s);",
-      kObjectIdentifier, domain.c_str(), kObjectIdentifier, method.c_str(),
-      kObjectIdentifier, method.c_str(), json_params.c_str());
+      "(typeof debugBackend.%s === 'undefined' ||"
+      " typeof debugBackend.%s === 'undefined') ? '' : debugBackend.%s(%s);",
+      domain.c_str(), method.c_str(), method.c_str(), json_params.c_str());
   return EvaluateDebuggerScript(script, json_result) && !json_result->empty();
 }
 
@@ -88,16 +80,6 @@ bool DebugScriptRunner::EvaluateDebuggerScript(const std::string& script,
       script_debugger_->EvaluateDebuggerScript(script, out_result_utf8);
   SetEvalAllowedFromCsp();
   return success;
-}
-
-void DebugScriptRunner::SendEvent(const std::string& method,
-                                  const base::optional<std::string>& params) {
-  on_event_callback_.Run(method, params);
-}
-
-std::string DebugScriptRunner::CreateRemoteObject(
-    const script::ValueHandleHolder& object, const std::string& group) {
-  return script_debugger_->CreateRemoteObject(object, group);
 }
 
 void DebugScriptRunner::ForceEnableEval() {
