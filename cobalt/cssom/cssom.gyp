@@ -198,6 +198,8 @@
         'simple_selector.h',
         'specificity.cc',
         'specificity.h',
+        'serializer.cc',
+        'serializer.h',
         'string_value.cc',
         'string_value.h',
         'style_sheet.cc',

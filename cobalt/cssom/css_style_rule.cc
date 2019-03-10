@@ -17,6 +17,7 @@
 #include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/serializer.h"
 
 namespace cobalt {
 namespace cssom {
@@ -31,6 +32,13 @@ CSSStyleRule::CSSStyleRule(Selectors selectors,
   if (style_) {
     style_->set_parent_rule(this);
   }
+}
+
+std::string CSSStyleRule::selector_text() const {
+  std::string output;
+  Serializer serializer(&output);
+  serializer.SerializeSelectors(selectors_);
+  return output;
 }
 
 const scoped_refptr<CSSStyleDeclaration> CSSStyleRule::style() const {

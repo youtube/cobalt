@@ -42,6 +42,7 @@ class UniversalSelector : public SimpleSelector {
   Specificity GetSpecificity() const override { return Specificity(0, 0, 0); }
 
   // From SimpleSelector.
+  UniversalSelector* AsUniversalSelector() override { return this; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) override;
