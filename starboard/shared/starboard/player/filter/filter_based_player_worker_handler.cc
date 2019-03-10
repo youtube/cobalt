@@ -121,6 +121,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
     // resample the decoded audio.
     const int audio_channels = audio_header_.number_of_channels;
     if (audio_channels > SbAudioSinkGetMaxChannels()) {
+      SB_LOG(ERROR) << "Invalid audio channels: " << audio_channels
+                    << ", it should be less than or equal to "
+                    << SbAudioSinkGetMaxChannels();
       return false;
     }
 
