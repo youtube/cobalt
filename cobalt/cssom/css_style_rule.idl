@@ -15,5 +15,6 @@
 // https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylerule-interface
 
 interface CSSStyleRule : CSSRule {
+  readonly attribute DOMString selectorText;  // TODO: remove readonly
   [SameObject] readonly attribute CSSStyleDeclaration style;
 };
