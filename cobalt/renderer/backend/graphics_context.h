@@ -74,14 +74,6 @@ class GraphicsContext {
   // Waits until all drawing is finished.
   virtual void Finish() = 0;
 
-  // Get the minimum number of frames that should be rendered per second. This
-  // value can be dynamic and must be queried periodically. This can be used
-  // to force the rasterizer to present a new frame even if nothing has changed
-  // visually. Due to the imprecision of thread scheduling, it may be necessary
-  // to specify a higher minimum fps to ensure frames aren't skipped when the
-  // throttling logic is executed a little too early.
-  virtual float GetMinimumFramesPerSecond() = 0;
-
  private:
   GraphicsSystem* system_;
 };
