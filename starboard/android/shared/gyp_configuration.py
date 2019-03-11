@@ -250,10 +250,13 @@ class AndroidConfiguration(PlatformConfiguration):
   __FILTERED_TESTS = {
       'player_filter_tests': [
           'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'AudioDecoderTests/AudioDecoderTest.MultipleInputs/0',
           'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
           'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/1',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/2',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/3',
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/1',
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/2',
@@ -264,6 +267,16 @@ class AndroidConfiguration(PlatformConfiguration):
           '.GetCurrentDecodeTargetBeforeWriteInputBuffer/2',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/1',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/0',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/1',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/2',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/3',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/0',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/2',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/3',
 
           # On some platforms, and for some decoders (such as AVC), Android
           # returns MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER for the test's
