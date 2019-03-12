@@ -34,7 +34,7 @@ namespace cssom {
 namespace {
 // Used to replace an unknown, unrecognized or unrepresentable character.
 constexpr int kUnicodeReplacementCharacter = 0xFFFD;
-constexpr char kUnicodeReplacementCharacterUtf8[] = "\uFFFD";
+constexpr char kUnicodeReplacementCharacterUtf8[] = u8"\uFFFD";
 }  // namespace
 
 Serializer::Serializer(std::string* output) : output_(output) {}
@@ -46,7 +46,7 @@ void Serializer::SerializeIdentifier(base::Token identifier) {
   // concatenation of, for each character of the identifier: For each character
   // of the identifier:
   int char_num = 0;
-  uint32_t first_char;
+  uint32_t first_char = 0;
   const uint8_t* next_p = reinterpret_cast<const uint8_t*>(identifier.c_str());
   while (*next_p) {
     uint32_t c;  // code point
