@@ -22,22 +22,22 @@
 namespace cobalt {
 namespace cssom {
 
-struct SelectorPair {
-  // Non-normalized selector source, so the expected serialized output will
-  // differ from the source that is parsed.
-  SelectorPair(const char* serialized, const char* source)
+namespace {
+struct TestPair {
+  // Non-normalized source: the expected serialized output differs.
+  TestPair(const char* serialized, const char* source)
       : serialized(serialized), source(source) {}
-  // Selector already in normalized form, so the expected serialized output is
-  // identical to the source that is parsed.
-  SelectorPair(const char* serialized)  // NOLINT(runtime/explicit)
-      : serialized(serialized), source(serialized) {}
+  // Normalized source: the expected serialized output is identical.
+  TestPair(const char* normalized)  // NOLINT(runtime/explicit)
+      : serialized(normalized), source(normalized) {}
   const char* serialized;
   const char* source;
 };
+}  // namespace
 
 TEST(SerializerTest, SerializeSelectorsTest) {
   // clang-format off
-  const SelectorPair selectors[] = {
+  const TestPair selectors[] = {
       // Simple selectors
       "*",
       "tag",
@@ -141,6 +141,12 @@ TEST(SerializerTest, SerializeSelectorsTest) {
       // Each compound selector in a group is individually sorted.
       {".cow.pig, .horse, .goat.sheep", ".pig.cow, .horse, .sheep.goat"},
 
+      // Unnecessarily escaped identifier is normalized.
+      {"X_y-1", "\\X\\_\\y\\-\\31"},
+
+      // Attribute values are quoted.
+      {"[quotes=\"value\"]", "[quotes=value]"},
+
       // Attributes with un-escaped string values.
       "[empty=\"\"]",
       "[alpha=\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\"]",
@@ -154,66 +160,83 @@ TEST(SerializerTest, SerializeSelectorsTest) {
       "[low=\"\\18 \\19 \\1a \\1b \\1c \\1d \\1e \\1f \"]",
       {"[quote_backslash=\"-\\\"-\\\\-\"]",
        "[quote_backslash=\"-\\22 -\\5c -\"]"},
-
-      //
-      // Various identifiers with and without escaping.
-      //
-
-      // Non-escaped ASCII.
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-012346789",
-      {"X_y-1", "\\X\\_\\y\\-\\31"},
-
-      // Escaped ASCII.
-      "low\\1 \\2 \\3 \\4 \\5 \\6 \\7 \\8 \\9 \\a \\b \\c \\d \\e \\f ",
-      "low\\10 \\11 \\12 \\13 \\14 \\15 \\16 \\17 ",
-      "low\\18 \\19 \\1a \\1b \\1c \\1d \\1e \\1f ",
-      "del\\7f ",
-      "vis\\ \\!\\\"\\#\\$\\%\\&\\'\\(\\)\\*\\+\\,\\.\\/",
-      "vis\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^\\`\\{\\|\\}\\~",
-
-      // Initial hyphen is escaped if it's the only character.
-      "\\-",
-
-      // Initial hyphen is not escaped if there's more after it.
-      {"-xyz", "\\-\\xyz"},
-
-      // Leading numeric is escaped, with or without initial hyphen.
-      "\\30 0",
-      "\\31 0",
-      "\\32 0",
-      "\\33 0",
-      "\\34 0",
-      "\\35 0",
-      "\\36 0",
-      "\\37 0",
-      "\\38 0",
-      "\\39 0",
-      {"-\\30 0", "\\-00"},
-      {"-\\31 0", "\\-10"},
-      {"-\\32 0", "\\-20"},
-      {"-\\33 0", "\\-30"},
-      {"-\\34 0", "\\-40"},
-      {"-\\35 0", "\\-50"},
-      {"-\\36 0", "\\-60"},
-      {"-\\37 0", "\\-70"},
-      {"-\\38 0", "\\-80"},
-      {"-\\39 0", "\\-90"},
-
-      // 2-, 3-, and 4-byte UTF-8 (i.e. >= U+0080) is not escaped.
-      {u8"utf8_2byte-\u00a3",     "utf8_2byte-\\A3"},
-      {u8"utf8_3byte-\u1d01",     "utf8_3byte-\\1D01"},
-      {u8"utf8_4byte-\U0002070e", "utf8_4byte-\\2070E"},
   };
   // clang-format on
   base::Token::ScopedAlphabeticalSorting sort_scope;
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   base::SourceLocation loc("[object SelectorTest]", 1, 1);
-  for (unsigned int i = 0; i < sizeof(selectors) / sizeof(selectors[0]); ++i) {
+  for (const TestPair& selector : selectors) {
     scoped_refptr<CSSStyleRule> css_style_rule =
-        css_parser->ParseRule(std::string(selectors[i].source) + " {}", loc)
+        css_parser->ParseRule(std::string(selector.source) + " {}", loc)
             ->AsCSSStyleRule();
-    EXPECT_EQ(selectors[i].serialized, css_style_rule->selector_text())
-        << "  Source: \"" << selectors[i].source << '"';
+    EXPECT_EQ(selector.serialized, css_style_rule->selector_text())
+        << "  Source: \"" << selector.source << '"';
+  }
+}
+
+TEST(SerializerTest, SerializeIdentifierTest) {
+  // clang-format off
+  const TestPair identifiers[] = {
+      // Non-escaped ASCII.
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-012346789",
+
+      // Escaped ASCII.
+      {"low\\1 \\2 \\3 \\4 \\5 \\6 \\7 \\8 \\9 \\a \\b \\c \\d \\e \\f ",
+       "low\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"},
+      {"low\\10 \\11 \\12 \\13 \\14 \\15 \\16 \\17 ",
+       "low\x10\x11\x12\x13\x14\x15\x16\x17"},
+      {"low\\18 \\19 \\1a \\1b \\1c \\1d \\1e \\1f ",
+       "low\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"},
+      {"del\\7f ",
+       "del\x7f"},
+      {"vis\\ \\!\\\"\\#\\$\\%\\&\\'\\(\\)\\*\\+\\,\\.\\/",
+       "vis !\"#$%&'()*+,./"},
+      {"vis\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^\\`\\{\\|\\}\\~",
+       "vis:;<=>?@[\\]^`{|}~"},
+
+      // Initial hyphen is escaped if it's the only character.
+      {"\\-", "-"},
+
+      // Initial hyphen is not escaped if there's more after it.
+      "-xyz",
+
+      // Leading numeric is escaped, with or without initial hyphen.
+      {"\\30 0", "00"},
+      {"\\31 0", "10"},
+      {"\\32 0", "20"},
+      {"\\33 0", "30"},
+      {"\\34 0", "40"},
+      {"\\35 0", "50"},
+      {"\\36 0", "60"},
+      {"\\37 0", "70"},
+      {"\\38 0", "80"},
+      {"\\39 0", "90"},
+      {"-\\30 0", "-00"},
+      {"-\\31 0", "-10"},
+      {"-\\32 0", "-20"},
+      {"-\\33 0", "-30"},
+      {"-\\34 0", "-40"},
+      {"-\\35 0", "-50"},
+      {"-\\36 0", "-60"},
+      {"-\\37 0", "-70"},
+      {"-\\38 0", "-80"},
+      {"-\\39 0", "-90"},
+
+      // 2-, 3-, and 4-byte UTF-8 (i.e. >= U+0080) is not escaped.
+      u8"utf8_2byte-\u00a3",
+      u8"utf8_3byte-\u1d01",
+      u8"utf8_4byte-\U0002070e",
+
+      // Embedded NUL character is changed to the replacement character.
+      {u8"XX\uFFFDYY", "XX\xc0\x80YY"}
+  };
+  // clang-format on
+  for (const TestPair& identifier : identifiers) {
+    std::string serialized_identifier;
+    Serializer serializer(&serialized_identifier);
+    serializer.SerializeIdentifier(base::Token(identifier.source));
+    EXPECT_EQ(identifier.serialized, serialized_identifier)
+        << "  Source: \"" << identifier.source << '"';
   }
 }
 
