@@ -146,7 +146,7 @@ TEST(SerializerTest, SerializeSelectorsTest) {
       "[alpha=\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\"]",
       "[numeric=\"0123456789\"]",
       "[ascii=\" !#$%&'()*+,-./:;<=>?@[]^_`{|}~\"]",
-      "[unicode=\"2-\u00a3 3-\u1d01 4-\U0002070e\"]",
+      u8"[unicode=\"2-\u00a3 3-\u1d01 4-\U0002070e\"]",
 
       // Attributes with escaped string values.
       "[low=\"\\1 \\2 \\3 \\4 \\5 \\6 \\7 \\8 \\9 \\a \\b \\c \\d \\e \\f \"]",
@@ -200,9 +200,9 @@ TEST(SerializerTest, SerializeSelectorsTest) {
       {"-\\39 0", "\\-90"},
 
       // 2-, 3-, and 4-byte UTF-8 (i.e. >= U+0080) is not escaped.
-      {"utf8_2byte-\u00a3",     "utf8_2byte-\\A3"},
-      {"utf8_3byte-\u1d01",     "utf8_3byte-\\1D01"},
-      {"utf8_4byte-\U0002070e", "utf8_4byte-\\2070E"},
+      {u8"utf8_2byte-\u00a3",     "utf8_2byte-\\A3"},
+      {u8"utf8_3byte-\u1d01",     "utf8_3byte-\\1D01"},
+      {u8"utf8_4byte-\U0002070e", "utf8_4byte-\\2070E"},
   };
   // clang-format on
   base::Token::ScopedAlphabeticalSorting sort_scope;
