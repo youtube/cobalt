@@ -81,7 +81,6 @@
   'dependencies': [
     '<(DEPTH)/glimp/tracing/tracing.gyp:tracing',
     '<(DEPTH)/nb/nb.gyp:nb',
-    '<(DEPTH)/starboard/starboard.gyp:starboard',
   ],
 
   'includes': [
