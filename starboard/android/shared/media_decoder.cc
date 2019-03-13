@@ -204,7 +204,8 @@ void MediaDecoder::DecoderThreadFunc() {
       bool has_input = !pending_tasks.empty() || !pending_tasks_.empty();
       bool has_input_buffer =
           !input_buffer_indices.empty() || !input_buffer_indices_.empty();
-      bool can_process_input = has_input && has_input_buffer;
+      bool can_process_input =
+          pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
       if (dequeue_output_results.empty() && !can_process_input) {
         const SbTime start = SbTimeGetMonotonicNow();
         if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
@@ -238,7 +239,13 @@ void MediaDecoder::DecoderThreadFunc() {
       }
     }
 
-    while (!pending_tasks.empty() && !input_buffer_indices.empty()) {
+    for (;;) {
+      bool can_process_input =
+          pending_queue_input_buffer_task_ ||
+          (!pending_tasks.empty() && !input_buffer_indices.empty());
+      if (!can_process_input) {
+        break;
+      }
       if (!ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices)) {
         break;
       }
