@@ -58,6 +58,7 @@ public class StarboardBridge {
     StarboardBridge getStarboardBridge();
   }
 
+  private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
   private UserAuthorizer userAuthorizer;
   private FeedbackService feedbackService;
@@ -103,6 +104,7 @@ public class StarboardBridge {
     this.activityHolder = activityHolder;
     this.args = args;
     this.startDeepLink = startDeepLink;
+    this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext, stopRequester);
     this.userAuthorizer = userAuthorizer;
     this.feedbackService = feedbackService;
@@ -119,12 +121,14 @@ public class StarboardBridge {
   protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
     this.keyboardEditor = keyboardEditor;
+    sysConfigChangeReceiver.setForeground(true);
   }
 
   protected void onActivityStop(Activity activity) {
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
+    sysConfigChangeReceiver.setForeground(false);
   }
 
   protected void onActivityDestroy(Activity activity) {
