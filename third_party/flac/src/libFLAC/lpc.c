@@ -41,6 +41,10 @@
 #if defined DEBUG || defined FLAC__OVERFLOW_DETECT || defined FLAC__OVERFLOW_DETECT_VERBOSE
 #include <stdio.h>
 #endif
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define fprintf(stderr, format, ...) SbLogFormatF(format, __VA_ARGS__)
+#endif
 
 #ifndef FLAC__INTEGER_ONLY_LIBRARY
 
