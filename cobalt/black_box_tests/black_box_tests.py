@@ -34,6 +34,8 @@ _TESTS_NO_SIGNAL = [
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 # Platform dependent device parameters.
 _device_params = None
+# Binding address used to create the test server.
+_binding_address = None
 
 
 def GetDeviceParams():
@@ -65,8 +67,11 @@ class BlackBoxTestCase(unittest.TestCase):
         device_params=_device_params, url=url, target_params=all_target_params)
     return new_runner
 
+  def GetBindingAddress(self):
+    return _binding_address
 
-def LoadTests(platform, config, device_id):
+
+def LoadTests(platform, config, device_id, out_directory):
 
   launcher = abstract_launcher.LauncherFactory(
       platform,
@@ -75,7 +80,7 @@ def LoadTests(platform, config, device_id):
       device_id=device_id,
       target_params=None,
       output_file=None,
-      out_directory=None)
+      out_directory=out_directory)
 
   if launcher.SupportsSuspendResume():
     test_targets = _TESTS_NEEDING_SYSTEM_SIGNAL + _TESTS_NO_SIGNAL
@@ -105,7 +110,7 @@ class BlackBoxTests(object):
           importlib.import_module(_TEST_DIR_PATH + self.test_name))
     else:
       suite = LoadTests(_device_params.platform, _device_params.config,
-                        _device_params.device_id)
+                        _device_params.device_id, _device_params.out_directory)
     return_code = not unittest.TextTestRunner(
         verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
     return return_code
@@ -114,8 +119,11 @@ class BlackBoxTests(object):
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--test_name')
+  parser.add_argument('--server_binding_address')
   args, _ = parser.parse_known_args()
 
+  global _binding_address
+  _binding_address = args.server_binding_address
   test_object = BlackBoxTests(args.test_name)
   sys.exit(test_object.Run())
 
