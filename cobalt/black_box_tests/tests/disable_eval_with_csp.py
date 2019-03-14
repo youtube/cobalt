@@ -14,7 +14,7 @@ class DisableEvalWithCSPTest(black_box_tests.BlackBoxTestCase):
 
   def test_simple(self):
 
-    with ThreadedWebServer() as server:
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/disable_eval_with_csp.html')
 
       with self.CreateCobaltRunner(url=url) as runner:
