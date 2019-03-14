@@ -94,36 +94,36 @@ class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
 
     # Step 2. Start Cobalt, and point it to the socket created in Step 1.
     try:
-      with ThreadedWebServer(
-          JavascriptRequestDetector) as server, self.CreateCobaltRunner(
-              url='about:blank') as runner:
-        target_url = server.GetURL(file_name='../testdata/' +
-                                   _CANCEL_SYNC_LOADS_WHEN_SUSPENDED_HTML)
-        cobalt_launcher_thread = threading.Thread(
-            target=CancelSyncLoadsWhenSuspended._LoadPage,
-            args=(self, runner.webdriver, target_url))
-        cobalt_launcher_thread.start()
+      with ThreadedWebServer(JavascriptRequestDetector,
+                             self.GetBindingAddress()) as server:
+        with self.CreateCobaltRunner(url='about:blank') as runner:
+          target_url = server.GetURL(file_name='../testdata/' +
+                                     _CANCEL_SYNC_LOADS_WHEN_SUSPENDED_HTML)
+          cobalt_launcher_thread = threading.Thread(
+              target=CancelSyncLoadsWhenSuspended._LoadPage,
+              args=(self, runner.webdriver, target_url))
+          cobalt_launcher_thread.start()
 
-        # Step 3. Wait HTTP request for html resource.
-        print('Waiting for script resource request')
-        request_received = _received_script_resource_request.wait(
-            _MAX_ALLOTTED_TIME_SECONDS)
-        print('Request received: {}'.format(request_received))
-        # Step 5. Wait for a request for javascript resource.
-        self.assertTrue(request_received)
+          # Step 3. Wait HTTP request for html resource.
+          print('Waiting for script resource request')
+          request_received = _received_script_resource_request.wait(
+              _MAX_ALLOTTED_TIME_SECONDS)
+          print('Request received: {}'.format(request_received))
+          # Step 5. Wait for a request for javascript resource.
+          self.assertTrue(request_received)
 
-        # Step 6. Suspend Cobalt process.
-        print('Suspending Cobalt.')
-        runner.SendSuspend()
-        # Step 7. Cobalt disconnects from the socket.
-        # Step 8. Resume Cobalt process, which enables the JS test to pass.
-        print('Resuming Cobalt.')
-        runner.SendResume()
+          # Step 6. Suspend Cobalt process.
+          print('Suspending Cobalt.')
+          runner.SendSuspend()
+          # Step 7. Cobalt disconnects from the socket.
+          # Step 8. Resume Cobalt process, which enables the JS test to pass.
+          print('Resuming Cobalt.')
+          runner.SendResume()
 
-        # Step 9. Check to see if JSTestsSucceeded().
-        # Note that this call will check the DOM multiple times for a period of
-        # time (current default is 30 seconds).
-        self.assertTrue(runner.JSTestsSucceeded())
+          # Step 9. Check to see if JSTestsSucceeded().
+          # Note that this call will check the DOM multiple times for a period
+          # of time (current default is 30 seconds).
+          self.assertTrue(runner.JSTestsSucceeded())
     except:  # pylint: disable=bare-except
       traceback.print_exc()
       # Consider an exception being thrown as a test failure.
