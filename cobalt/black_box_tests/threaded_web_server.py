@@ -60,36 +60,22 @@ class ThreadedWebServer(object):
   """A HTTP WebServer that serves requests in a separate thread."""
 
   def __init__(self,
-               handler=MakeRequestHandlerClass(os.path.dirname(__file__))):
+               handler=MakeRequestHandlerClass(os.path.dirname(__file__)),
+               binding_address=None):
     _ThreadedTCPServer.allow_reuse_address = True
 
-    try:
-      self._server = _ThreadedTCPServer(('0.0.0.0', 8000), handler)
-    except socket.error:
-      # Get the socket address for the ANY interface.  Doing it this way
-      # has it so that it will work for IPv4. IPv6 is not supported yet because
-      # SocketServer.TCPServer can not take '::' as the hostname at this time.
-      # (see https://bugs.python.org/issue20215).  Instead, the following code
-      # was inspired by https://docs.python.org/2/library/socket.html.
-      for result in socket.getaddrinfo(None, 0, socket.AF_UNSPEC,
-                                       socket.SOCK_STREAM, 0, socket.AI_PASSIVE
-                                       ):
-        if len(result[4]) == 2:
-          # This is (0.0.0.0, 0).
-          socket_address = result[4]
-          break
-      self._server = _ThreadedTCPServer(socket_address, handler)
+    if not binding_address:
+      # No specific binding address specified. Bind to any interfaces instead.
+      binding_address = '0.0.0.0'
+    self._server = _ThreadedTCPServer((binding_address, 0), handler)
 
     self._server_thread = None
 
     self._bound_port = self._server.server_address[1]
-    address_pack_list = socket.getaddrinfo(socket.gethostname(),
-                                           self._bound_port)
-    for address_pack in address_pack_list:
-      if len(address_pack[4]) == 2:
-        self._bound_ip, _ = address_pack[4]
-        self._bound_host, _ = address_pack[4]
-        break
+    self._bound_host = self._server.server_address[0]
+    if self._bound_host == '0.0.0.0':
+      # When listening to any interfaces, get the IPv4 address of the hostname.
+      self._bound_host = socket.gethostbyname(socket.gethostname())
 
   def GetURL(self, file_name):
     """Given a |file_name|, return a HTTP URI that can be fetched.
