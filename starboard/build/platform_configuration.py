@@ -299,7 +299,7 @@ class PlatformConfiguration(object):
     """Gets directories that need to be deployed to the device.
 
        Returns:
-         A list of paths within the PLATFORM_DIR (i.e. src/out/<PLATFORM>_<CONFIG>)
+         A list of paths within the PRODUCT_DIR (src/out/<PLATFORM>_<CONFIG>)
          that need to be deployed in order for the platform launcher to run the
          target executable(s).
     """
