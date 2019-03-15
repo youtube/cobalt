@@ -12,6 +12,10 @@
 #include <limits>
 #include <vector>
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 namespace angle
 {
 const uintptr_t DirtyPointer = std::numeric_limits<uintptr_t>::max();
