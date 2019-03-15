@@ -152,11 +152,6 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   Host* host_;
   ErrorCB error_cb_;
 
-  // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_ = kSbThreadInvalid;
-  SbThread tick_thread_ = kSbThreadInvalid;
-  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
-
   atomic_bool stream_ended_;
 
   DrmSystem* drm_system_;
@@ -175,6 +170,11 @@ class MediaDecoder : private MediaCodecBridge::Handler {
 
   Mutex tick_mutex_;
   ConditionVariable tick_condition_variable_;
+
+  // Working thread to avoid lengthy decoding work block the player thread.
+  SbThread decoder_thread_ = kSbThreadInvalid;
+  SbThread tick_thread_ = kSbThreadInvalid;
+  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
 }  // namespace shared
