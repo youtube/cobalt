@@ -65,7 +65,7 @@ void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
         GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
     size_t size = diff * GetSamplesPerSecond() * sample_size *
                   audio_header_.number_of_channels / kSbTimeSecond;
-    size += size % (sample_size * audio_header_.number_of_channels);
+    size -= size % (sample_size * audio_header_.number_of_channels);
 
     decoded_audios_.push(new DecodedAudio(audio_header_.number_of_channels,
                                           GetSampleType(), GetStorageType(),

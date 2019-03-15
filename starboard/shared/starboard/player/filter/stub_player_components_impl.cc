@@ -70,6 +70,13 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create() {
   return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  return output_mode == kSbPlayerOutputModePunchOut;
+}
+
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard
