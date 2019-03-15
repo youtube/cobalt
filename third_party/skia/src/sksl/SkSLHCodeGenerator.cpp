@@ -13,6 +13,10 @@
 #include "ir/SkSLSection.h"
 #include "ir/SkSLVarDeclarations.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 namespace SkSL {
 
 HCodeGenerator::HCodeGenerator(const Program* program, ErrorReporter* errors, String name,

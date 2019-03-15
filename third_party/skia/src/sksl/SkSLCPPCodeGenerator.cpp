@@ -10,6 +10,10 @@
 #include "SkSLCompiler.h"
 #include "SkSLHCodeGenerator.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 namespace SkSL {
 
 static bool needs_uniform_var(const Variable& var) {
