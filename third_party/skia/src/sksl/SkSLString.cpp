@@ -14,6 +14,10 @@
 #include <sstream>
 #include <string>
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 namespace SkSL {
 
 String String::printf(const char* fmt, ...) {
