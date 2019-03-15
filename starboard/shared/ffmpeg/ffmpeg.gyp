@@ -31,7 +31,6 @@
         '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_dispatch.cc',
         '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_dispatch.h',
         '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_video_decoder.h',
-        '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_video_decoder_internal.cc',
     ],
   },
   'targets': [

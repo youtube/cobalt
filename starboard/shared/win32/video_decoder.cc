@@ -653,24 +653,3 @@ void* VideoDecoder::DecoderThreadEntry(void* context) {
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard
-
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-
-// static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(drm_system);
-  return output_mode == kSbPlayerOutputModeDecodeToTexture;
-}
-
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard

@@ -102,6 +102,21 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create() {
   return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  if (output_mode == kSbPlayerOutputModePunchOut) {
+    return true;
+  }
+
+  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    return !SbDrmSystemIsValid(drm_system);
+  }
+
+  return false;
+}
+
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard
