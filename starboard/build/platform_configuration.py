@@ -295,6 +295,16 @@ class PlatformConfiguration(object):
     """
     return []
 
+  def GetDeployDirs(self):
+    """Gets directories that need to be deployed to the device.
+
+       Returns:
+         A list of paths within the PLATFORM_DIR (i.e. src/out/<PLATFORM>_<CONFIG>)
+         that need to be deployed in order for the platform launcher to run the
+         target executable(s).
+    """
+    raise NotImplementedError()
+
   def GetTestTargets(self):
     """Gets all tests to be run in a unit test run.
 
