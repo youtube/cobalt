@@ -232,6 +232,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 MediaCodecBridge::~MediaCodecBridge() {
   JniEnvExt* env = JniEnvExt::Get();
 
+  env->CallVoidMethodOrAbort(j_media_codec_bridge_, "stop", "()V");
+
   SB_DCHECK(j_media_codec_bridge_);
   env->CallVoidMethodOrAbort(j_media_codec_bridge_, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge_);
