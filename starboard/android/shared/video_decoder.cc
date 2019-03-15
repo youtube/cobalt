@@ -494,30 +494,3 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-
-// static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
-  if (output_mode == kSbPlayerOutputModePunchOut) {
-    return true;
-  }
-
-  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    return !SbDrmSystemIsValid(drm_system);
-  }
-
-  return false;
-}
-
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard

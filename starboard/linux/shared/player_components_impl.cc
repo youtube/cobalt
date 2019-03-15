@@ -123,6 +123,30 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create() {
   return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  SB_UNREFERENCED_PARAMETER(codec);
+  SB_UNREFERENCED_PARAMETER(drm_system);
+#if SB_HAS(BLITTER)
+  return output_mode == kSbPlayerOutputModePunchOut;
+#endif
+
+#if defined(SB_FORCE_DECODE_TO_TEXTURE_ONLY)
+  // Starboard lib targets may not draw directly to the window, so punch through
+  // video is not made available.
+  return output_mode == kSbPlayerOutputModeDecodeToTexture;
+#endif  // defined(SB_FORCE_DECODE_TO_TEXTURE_ONLY)
+
+  if (output_mode == kSbPlayerOutputModePunchOut ||
+      output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard
