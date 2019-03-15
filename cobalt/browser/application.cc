@@ -629,12 +629,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kProxy)) {
     options.network_module_options.custom_proxy =
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
   }
 
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   if (command_line->HasSwitch(browser::switches::kIgnoreCertificateErrors)) {
     options.network_module_options.ignore_certificate_errors = true;

@@ -128,15 +128,6 @@ const char kProdHelp[] =
     "Several checks are not enabled by default in non-production(gold) build. "
     "Use this flag to simulate production build behavior.";
 
-const char kProxy[] = "proxy";
-const char kProxyHelp[] =
-    "Specifies a proxy to use for network connections. "
-    "See comments in net::ProxyRules::ParseFromString() for more information. "
-    "If you do not explicitly provide a scheme when providing the proxy server "
-    "URL, it will default to HTTP.  So for example, for a HTTPS proxy you "
-    "would want to specify '--proxy=\"https=https://localhost:443\"' instead "
-    "of '--proxy=\"https=localhost:443\"'.";
-
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 const char kRemoteDebuggingPortHelp[] =
     "Creates a remote debugging server and listens on the specified port.";
@@ -296,6 +287,15 @@ const char kOffscreenTargetCacheSizeInBytesHelp[] =
     "limit allows. It is recommended that enough memory be reserved for two "
     "RGBA atlases about a quarter of the frame size.";
 
+const char kProxy[] = "proxy";
+const char kProxyHelp[] =
+    "Specifies a proxy to use for network connections. "
+    "See comments in net::ProxyRules::ParseFromString() for more information. "
+    "If you do not explicitly provide a scheme when providing the proxy server "
+    "URL, it will default to HTTP.  So for example, for a HTTPS proxy you "
+    "would want to specify '--proxy=\"https=https://localhost:443\"' instead "
+    "of '--proxy=\"https=localhost:443\"'.";
+
 const char kQrCodeOverlay[] = "qr_code_overlay";
 const char kQrCodeOverlayHelp[] =
     "Display QrCode based overlay information. These information can be used"
@@ -404,7 +404,7 @@ std::string HelpMessage() {
         {kNullAudioStreamer, kNullAudioStreamerHelp},
         {kNullSavegame, kNullSavegameHelp},
         {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
-        {kProxy, kProxyHelp}, {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
+        {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
         {kRequireCSP, kRequireCSPHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
         {kShutdownAfter, kShutdownAfterHelp},
@@ -412,8 +412,7 @@ std::string HelpMessage() {
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
         {kUserAgent, kUserAgentHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
-        {kUseTTS, kUseTTSHelp},
-        {kVideoDecoderStub, kVideoDecoderStubHelp},
+        {kUseTTS, kUseTTSHelp}, {kVideoDecoderStub, kVideoDecoderStubHelp},
         {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},
 #if SB_HAS(ON_SCREEN_KEYBOARD)
@@ -436,7 +435,7 @@ std::string HelpMessage() {
         {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
         {kOffscreenTargetCacheSizeInBytes,
          kOffscreenTargetCacheSizeInBytesHelp},
-        {kQrCodeOverlay, kQrCodeOverlayHelp},
+        {kProxy, kProxyHelp}, {kQrCodeOverlay, kQrCodeOverlayHelp},
         {kReduceCpuMemoryBy, kReduceCpuMemoryByHelp},
         {kReduceGpuMemoryBy, kReduceGpuMemoryByHelp},
         {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},
