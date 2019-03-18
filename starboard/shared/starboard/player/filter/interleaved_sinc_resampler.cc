@@ -1,6 +1,20 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+// Modifications Copyright 2019 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //
 // Input buffer layout, dividing the total buffer into regions (r0_ - r5_):
 //
@@ -31,96 +45,60 @@
 // Note: we're glossing over how the sub-sample handling works with
 // |virtual_source_idx_|, etc.
 
-#include "media/base/interleaved_sinc_resampler.h"
+#include "starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h"
 
 #include <algorithm>
-#include <cmath>
 
-#include "base/logging.h"
+#include "starboard/memory.h"
 
-namespace media {
-
-namespace {
-
-// The kernel size can be adjusted for quality (higher is better) at the
-// expense of performance.  Must be a multiple of 32.
-const int kKernelSize = 32;
-
-// The number of destination frames generated per processing pass.  Affects
-// how often and for how much InterleavedSincResampler calls back for input.
-// Must be greater than kKernelSize.
-const int kBlockSize = 512;
-
-// The kernel offset count is used for interpolation and is the number of
-// sub-sample kernel shifts.  Can be adjusted for quality (higher is better)
-// at the expense of allocating more memory.
-const int kKernelOffsetCount = 32;
-const int kKernelStorageSize = kKernelSize * (kKernelOffsetCount + 1);
-
-// The size (in samples) of the internal buffer used by the resampler.
-const int kBufferSize = kBlockSize + kKernelSize;
-
-// The maximum numbers of buffer can be queued.
-const int kMaximumPendingBuffers = 8;
-
-}  // namespace
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace player {
+namespace filter {
 
 InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
                                                    int channel_count)
     : io_sample_rate_ratio_(io_sample_rate_ratio),
-      virtual_source_idx_(0),
-      buffer_primed_(false),
       channel_count_(channel_count),
-      frame_size_in_bytes_(sizeof(float) * channel_count_),
-      // Create buffers with a 16-byte alignment for possible optimizations.
-      kernel_storage_(static_cast<float*>(
-          base::AlignedAlloc(sizeof(float) * kKernelStorageSize, 16))),
-      input_buffer_(static_cast<float*>(
-          base::AlignedAlloc(frame_size_in_bytes_ * kBufferSize, 16))),
-      offset_in_frames_(0),
-      frames_resampled_(0),
-      frames_queued_(0),
-      // Setup various region pointers in the buffer (see diagram above).
-      r0_(input_buffer_.get() + kKernelSize / 2 * channel_count_),
-      r1_(input_buffer_.get()),
-      r2_(r0_),
-      r3_(r0_ + (kBlockSize - kKernelSize / 2) * channel_count_),
-      r4_(r0_ + kBlockSize * channel_count_),
-      r5_(r0_ + kKernelSize / 2 * channel_count_) {
+      frame_size_in_bytes_(sizeof(float) * channel_count_) {
+  // Setup various region pointers in the buffer (see diagram above).
+  r0_ = input_buffer_ + kKernelSize / 2 * channel_count_;
+  r1_ = input_buffer_;
+  r2_ = r0_;
+  r3_ = r0_ + (kBlockSize - kKernelSize / 2) * channel_count_;
+  r4_ = r0_ + kBlockSize * channel_count_;
+  r5_ = r0_ + kKernelSize / 2 * channel_count_;
   // Ensure kKernelSize is a multiple of 32 for easy SSE optimizations; causes
   // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
   // input_buffer_ being 16-byte aligned.
-  DCHECK_EQ(kKernelSize % 32, 0) << "kKernelSize must be a multiple of 32!";
-  DCHECK_GT(kBlockSize, kKernelSize)
+  SB_DCHECK(kKernelSize % 32 == 0) << "kKernelSize must be a multiple of 32!";
+  SB_DCHECK(kBlockSize > kKernelSize)
       << "kBlockSize must be greater than kKernelSize!";
   // Basic sanity checks to ensure buffer regions are laid out correctly:
   // r0_ and r2_ should always be the same position.
-  DCHECK_EQ(r0_, r2_);
+  SB_DCHECK(r0_ == r2_);
   // r1_ at the beginning of the buffer.
-  DCHECK_EQ(r1_, input_buffer_.get());
+  SB_DCHECK(r1_ == input_buffer_);
   // r1_ left of r2_, r2_ left of r5_ and r1_, r2_ size correct.
-  DCHECK_EQ(r2_ - r1_, r5_ - r2_);
+  SB_DCHECK(r2_ - r1_ == r5_ - r2_);
   // r3_ left of r4_, r5_ left of r0_ and r3_ size correct.
-  DCHECK_EQ(r4_ - r3_, r5_ - r0_);
+  SB_DCHECK(r4_ - r3_ == r5_ - r0_);
   // r3_, r4_ size correct and r4_ at the end of the buffer.
-  DCHECK_EQ(r4_ + (r4_ - r3_), r1_ + kBufferSize * channel_count_);
+  SB_DCHECK(r4_ + (r4_ - r3_) == r1_ + kBufferSize * channel_count_);
   // r5_ size correct and at the end of the buffer.
-  DCHECK_EQ(r5_ + kBlockSize * channel_count_,
+  SB_DCHECK(r5_ + kBlockSize * channel_count_ ==
             r1_ + kBufferSize * channel_count_);
-
-  memset(kernel_storage_.get(), 0,
-         sizeof(*kernel_storage_.get()) * kKernelStorageSize);
-  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
 
   InitializeKernel();
 }
 
 void InterleavedSincResampler::InitializeKernel() {
   // Blackman window parameters.
-  static const double kAlpha = 0.16;
-  static const double kA0 = 0.5 * (1.0 - kAlpha);
-  static const double kA1 = 0.5;
-  static const double kA2 = 0.5 * kAlpha;
+  const double kAlpha = 0.16;
+  const double kA0 = 0.5 * (1.0 - kAlpha);
+  const double kA1 = 0.5;
+  const double kA2 = 0.5 * kAlpha;
 
   // |sinc_scale_factor| is basically the normalized cutoff frequency of the
   // low-pass filter.
@@ -131,8 +109,8 @@ void InterleavedSincResampler::InitializeKernel() {
   // windowing it the transition from pass to stop does not happen right away.
   // So we should adjust the low pass filter cutoff slightly downward to avoid
   // some aliasing at the very high-end.
-  // TODO(crogers): this value is empirical and to be more exact should vary
-  // depending on kKernelSize.
+  // TODO: this value is empirical and to be more exact should vary depending
+  // on kKernelSize.
   sinc_scale_factor *= 0.9;
 
   // Generates a set of windowed sinc() kernels.
@@ -153,33 +131,39 @@ void InterleavedSincResampler::InitializeKernel() {
           kA0 - kA1 * cos(2.0 * M_PI * x) + kA2 * cos(4.0 * M_PI * x);
 
       // Window the sinc() function and store at the correct offset.
-      kernel_storage_.get()[i + offset_idx * kKernelSize] = sinc * window;
+      kernel_storage_[i + offset_idx * kKernelSize] = sinc * window;
     }
   }
 }
 
-void InterleavedSincResampler::QueueBuffer(
-    const scoped_refptr<Buffer>& buffer) {
-  DCHECK(buffer);
-  DCHECK(CanQueueBuffer());
+int InterleavedSincResampler::GetNumberOfCashedFrames() const {
+  if (pending_buffers_.empty()) {
+    return 0;
+  }
+
+  SB_DCHECK(frames_queued_ - kBufferSize >
+            frames_resampled_ * io_sample_rate_ratio_);
+  return frames_queued_ - kBufferSize -
+         frames_resampled_ * io_sample_rate_ratio_;
+}
+
+void InterleavedSincResampler::QueueBuffer(const float* data, int frames) {
+  SB_DCHECK(CanQueueBuffer());
 
   if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
-    DCHECK(buffer->IsEndOfStream());
+    SB_DCHECK(!data);
     return;
   }
 
-  if (!buffer->IsEndOfStream()) {
-    frames_queued_ += buffer->GetDataSize() / frame_size_in_bytes_;
+  if (data) {
+    frames_queued_ += frames;
+    pending_buffers_.push(new Buffer(data, frames, channel_count_));
+  } else {
+    pending_buffers_.push(new Buffer);
   }
-
-  pending_buffers_.push(buffer);
 }
 
-bool InterleavedSincResampler::Resample(float* destination, int frames) {
-  if (!HasEnoughData(frames)) {
-    return false;
-  }
-
+void InterleavedSincResampler::Resample(float* destination, int frames) {
   int remaining_frames = frames;
 
   // Step (1) -- Prime the input buffer at the start of the input stream.
@@ -201,7 +185,7 @@ bool InterleavedSincResampler::Resample(float* destination, int frames) {
 
       // We'll compute "convolutions" for the two kernels which straddle
       // |virtual_source_idx_|.
-      float* k1 = kernel_storage_.get() + offset_idx * kKernelSize;
+      float* k1 = kernel_storage_ + offset_idx * kKernelSize;
       float* k2 = k1 + kKernelSize;
 
       // Initialize input pointer based on quantized |virtual_source_idx_|.
@@ -219,7 +203,7 @@ bool InterleavedSincResampler::Resample(float* destination, int frames) {
 
       if (!--remaining_frames) {
         frames_resampled_ += frames;
-        return true;
+        return;
       }
     }
 
@@ -228,22 +212,20 @@ bool InterleavedSincResampler::Resample(float* destination, int frames) {
 
     // Step (3) Copy r3_ to r1_ and r4_ to r2_.
     // This wraps the last input frames back to the start of the buffer.
-    memcpy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
-    memcpy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
+    SbMemoryCopy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
+    SbMemoryCopy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
 
     // Step (4)
     // Refresh the buffer with more input.
     Read(r5_, kBlockSize);
   }
 
-  NOTREACHED();
-  return false;
+  SB_NOTREACHED();
 }
 
 void InterleavedSincResampler::Flush() {
   virtual_source_idx_ = 0;
   buffer_primed_ = false;
-  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
   while (!pending_buffers_.empty()) {
     pending_buffers_.pop();
   }
@@ -260,13 +242,6 @@ bool InterleavedSincResampler::CanQueueBuffer() const {
     return false;
   }
   return pending_buffers_.size() < kMaximumPendingBuffers;
-}
-
-bool InterleavedSincResampler::ReachedEOS() const {
-  if (pending_buffers_.empty() || !pending_buffers_.back()->IsEndOfStream()) {
-    return false;
-  }
-  return frames_resampled_ * io_sample_rate_ratio_ >= frames_queued_;
 }
 
 bool InterleavedSincResampler::HasEnoughData(int frames_to_resample) const {
@@ -287,15 +262,15 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
     scoped_refptr<Buffer> buffer = pending_buffers_.front();
     if (buffer->IsEndOfStream()) {
       // Zero fill the buffer after EOS has reached.
-      memset(destination, 0, frame_size_in_bytes_ * frames);
+      SbMemorySet(destination, 0, frame_size_in_bytes_ * frames);
       return;
     }
     // Copy the data over.
-    int frames_in_buffer = buffer->GetDataSize() / frame_size_in_bytes_;
+    int frames_in_buffer = buffer->GetNumFrames();
     int frames_to_copy = std::min(frames_in_buffer - offset_in_frames_, frames);
-    const uint8* source = buffer->GetData();
-    source += frame_size_in_bytes_ * offset_in_frames_;
-    memcpy(destination, source, frame_size_in_bytes_ * frames_to_copy);
+    const float* source = buffer->GetData();
+    source += offset_in_frames_ * channel_count_;
+    SbMemoryCopy(destination, source, frame_size_in_bytes_ * frames_to_copy);
     offset_in_frames_ += frames_to_copy;
     // Pop the first buffer if all its content has been read.
     if (offset_in_frames_ == frames_in_buffer) {
@@ -308,7 +283,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
 
   // Read should always be satisfied as otherwise Resample should return false
   // to the caller directly.
-  DCHECK_EQ(frames, 0);
+  SB_DCHECK(frames == 0);
 }
 
 float InterleavedSincResampler::Convolve(const float* input_ptr,
@@ -332,4 +307,8 @@ float InterleavedSincResampler::Convolve(const float* input_ptr,
          kernel_interpolation_factor * sum2;
 }
 
-}  // namespace media
+}  // namespace filter
+}  // namespace player
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
