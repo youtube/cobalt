@@ -610,7 +610,7 @@ void AudioRenderer::ProcessAudioData() {
       resampled_audio = resampler_->Resample(decoded_audio);
     }
 
-    if (resampled_audio->size() > 0) {
+    if (resampled_audio && resampled_audio->size() > 0) {
       time_stretcher_.EnqueueBuffer(resampled_audio);
     }
 

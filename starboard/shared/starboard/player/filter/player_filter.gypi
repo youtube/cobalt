@@ -33,6 +33,8 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/interleaved_sinc_resampler.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.h',
