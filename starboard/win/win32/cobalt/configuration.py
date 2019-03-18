@@ -47,6 +47,13 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltWinWin32Configuration, self).GetWebPlatformTestFilters()
+    filters += [
+      '*WebPlatformTest.Run*',
+    ]
+    return filters
+
   __FILTERED_TESTS = {
       'base_unittests': [
           'PathServiceTest.Get',
@@ -63,8 +70,5 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
           'UDPListenSocketTest.DoRead',
           'UDPListenSocketTest.DoReadReturnsNullAtEnd',
           'UDPListenSocketTest.SendTo',
-      ],
-      'web_platform_tests': [
-          '*WebPlatformTest.Run*',
       ],
   }
