@@ -140,7 +140,5 @@ class CreatorConfiguration(platform_configuration.PlatformConfiguration):
         # test fails on x64 also
         test_filter.TestFilter('net_unittests',
                                'HostResolverImplDnsTest.DnsTaskUnspec'),
-        # we don't have proper procedure for running this test
-        test_filter.TestFilter('web_platform_tests', test_filter.FILTER_ALL),
     ])
     return filters

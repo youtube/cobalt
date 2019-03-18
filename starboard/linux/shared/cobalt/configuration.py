@@ -48,14 +48,17 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
     filters = super(CobaltLinuxConfiguration, self).GetTestFilters()
     filters.extend([
         test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'cors/WebPlatformTest.Run/7', 'devel')
+            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec')
     ])
+    return filters
+
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltLinuxConfiguration, self).GetWebPlatformTestFilters()
+    filters += [
+        'xhr/WebPlatformTest.Run/130',
+        'streams/WebPlatformTest.Run/11',
+        'cors/WebPlatformTest.Run/7',
+    ]
     return filters
 
   def GetTestEnvVariables(self):
