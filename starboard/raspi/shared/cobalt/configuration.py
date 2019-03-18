@@ -55,12 +55,15 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
         test_filter.TestFilter('renderer_test',
                                'PixelTest.CircularSubPixelBorder'),
         test_filter.TestFilter('renderer_test',
-                               'PixelTest.FilterBlurred100PxText'),
-
-        # This test currently crashes.
-        test_filter.TestFilter('web_platform_tests',
-                               'csp/WebPlatformTest.Run/63')
+                               'PixelTest.FilterBlurred100PxText')
     ])
+    return filters
+
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltRaspiConfiguration, self).GetWebPlatformTestFilters()
+    filters += [
+        'csp/WebPlatformTest.Run/63',
+    ]
     return filters
 
   def GetTestEnvVariables(self):
