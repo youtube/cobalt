@@ -20,16 +20,29 @@
 ################################################################################
 
 
-def MakeCobaltArchive(output_archive_path,
-                      input_file_list,
-                      platform_name,
-                      platform_sdk_version,
-                      additional_buildinfo_dict={}):
+def MakeCobaltArchiveFromFileList(output_archive_path,
+                                  input_file_list,  # class FileList
+                                  platform_name,
+                                  platform_sdk_version,
+                                  additional_buildinfo_dict={}):
   b = Bundler(archive_zip_path=output_archive_path)
   b.MakeArchive(platform_name=platform_name,
                 platform_sdk_version=platform_sdk_version,
                 file_list=input_file_list,
                 additional_buildinfo_dict=additional_buildinfo_dict)
+
+
+def MakeCobaltArchiveFromSource(output_archive_path,
+                                platform_name,
+                                config,
+                                platform_sdk_version,
+                                additional_buildinfo_dict={}):
+  _MakeCobaltArchiveFromSource(
+      output_archive_path=output_archive_path,
+      platform_name=platform_name,
+      config=config,
+      platform_sdk_version=platform_sdk_version,
+      additional_buildinfo_dict=additional_buildinfo_dict)
 
 
 def ExtractCobaltArchive(input_zip_path, output_directory_path, outstream=None):
@@ -68,9 +81,15 @@ import _env
 from starboard.build.port_symlink \
     import IsSymLink, IsWindows, MakeSymLink, ReadSymLink, Rmtree, OsWalk
 
+from starboard.tools.app_launcher_packager import CopyAppLauncherTools
+from starboard.tools.paths import BuildOutputDirectory, REPOSITORY_ROOT
+
 from starboard.build.filelist import \
     FileList, GetFileType, TempFileSystem, \
     TYPE_NONE, TYPE_SYMLINK_DIR, TYPE_DIRECTORY, TYPE_FILE
+
+from starboard.build.port_symlink import Rmtree
+from starboard.tools.build import GetPlatformConfig
 
 
 class Bundler:
@@ -103,11 +122,15 @@ class Bundler:
                          compression=zipfile.ZIP_DEFLATED,
                          allowZip64=True) as zf:
       zf.writestr('deploy_info.json', build_info_str)
+      if file_list.file_list:
+        print('  Compressing ' + str(len(file_list.file_list)) + ' files')
       for file_path, archive_path in file_list.file_list:
         # TODO: Use and implement _FoldIdenticalFiles() to reduce duplicate
         # files. This will help platforms like nxswitch which include a lot
         # of duplicate files for the sdk.
         zf.write(file_path, arcname=archive_path)
+      if file_list.symlink_dir_list:
+        print('  Compressing ' + str(len(file_list.symlink_dir_list)) + ' symlinks')
       for root_dir, link_path, physical_path in file_list.symlink_dir_list:
         zinfo = zipfile.ZipInfo(physical_path)
         zinfo.filename = link_path
@@ -128,6 +151,54 @@ def _CheckChildPathIsUnderParentPath(child_path, parent_path):
 def _MakeDirs(path):
   if not os.path.isdir(path):
     os.makedirs(path)
+
+
+def _GetDeployDirs(platform_name):
+  gyp_config = GetPlatformConfig(platform_name)
+  return gyp_config.GetDeployDirs()
+
+
+def _MakeCobaltArchiveFromSource(output_archive_path,
+                                 platform_name,
+                                 config,
+                                 platform_sdk_version,
+                                 additional_buildinfo_dict):
+  _MakeDirs(os.path.dirname(output_archive_path))
+  out_directory = BuildOutputDirectory(platform_name, config)
+  root_dir = os.path.abspath(os.path.join(out_directory, '..', '..'))
+  flist = FileList()
+  print 'Adding binary files to bundle...'
+  for path in _GetDeployDirs(platform_name):
+    path = os.path.join(out_directory, path)
+    if not os.path.exists(path):
+      raise IOError('Expected path ' + path + ' but it does not exist.')
+    assert(os.path.exists(path))
+    print '  adding ' + os.path.abspath(path)
+    flist.AddAllFilesInPath(root_dir=root_dir, sub_dir=path)
+  print '...done'
+  launcher_tools_path = os.path.join(
+      os.path.dirname(output_archive_path),
+      '____app_launcher')
+  if os.path.exists(launcher_tools_path):
+    Rmtree(launcher_tools_path)
+  print ('Adding app_launcher_files to bundle in ' +
+         os.path.abspath(launcher_tools_path))
+
+  try:
+    CopyAppLauncherTools(REPOSITORY_ROOT, launcher_tools_path)
+    flist.AddAllFilesInPath(root_dir=launcher_tools_path,
+                            sub_dir=launcher_tools_path)
+    print '...done'
+    print 'Making cobalt archive...'
+    MakeCobaltArchiveFromFileList(output_archive_path,
+                                  input_file_list=flist,
+                                  platform_name=platform_name,
+                                  platform_sdk_version=platform_sdk_version,
+                                  additional_buildinfo_dict={})
+    print '...done'
+  finally:
+    Rmtree(launcher_tools_path)
+
 
 # TODO: Implement into bundler. This is unit tested at this time.
 # Returns files_list, copy_list, where file_list is a list of physical
@@ -349,16 +420,33 @@ def MakeBundleTest():
   b.ExtractTo(unzip_dir)
 
 
+def SourceArchiveTest():
+  platform = raw_input('platform: ')
+  config = raw_input('config: ')
+  output_zip = raw_input('output_zip: ')
+  MakeCobaltArchiveFromSource(output_zip,
+                              platform,
+                              config,
+                              platform_sdk_version='TEST',
+                              additional_buildinfo_dict={})
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--make_bundle_test',
-      help='Make a bundle from a filder',
+      help='Make a bundle from a folder',
+      action='store_true')
+  parser.add_argument(
+      '--source_archive_test',
+      help='Make an archive from source directory',
       action='store_true')
   args = parser.parse_args()
 
   if args.make_bundle_test:
     MakeBundleTest()
+  elif args.source_archive_test:
+    SourceArchiveTest()
   else:
     sys.exit(UnitTest())
 
