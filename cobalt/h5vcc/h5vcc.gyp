@@ -40,6 +40,8 @@
         'h5vcc_deep_link_event_target.cc',
         'h5vcc_deep_link_event_target.h',
         'h5vcc_event_listener_container.h',
+        'h5vcc_platform_service.cc',
+        'h5vcc_platform_service.h',
         'h5vcc_runtime.cc',
         'h5vcc_runtime.h',
         'h5vcc_runtime_event_target.cc',
