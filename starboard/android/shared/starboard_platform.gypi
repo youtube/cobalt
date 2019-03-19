@@ -440,6 +440,7 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_freeze.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
+        '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
       ],
       'conditions': [
