@@ -237,14 +237,11 @@
              'EnableCOMDATFolding' : '2',  # OPT:ICF
            },
          },
-         'msvs_disabled_warnings': [
-           # Unreferenced argument.
-           # Often variables are only referenced in DCHECKs.
-           4100,
+        'msvs_disabled_warnings': [
            # Unreferenced variable.
            # Often variables are only referenced in DCHECKs.
            4189,
-         ],
+        ],
          'target_conditions': [
            ['_toolset=="host"', {
              'cflags_host': [
@@ -269,14 +266,11 @@
              'EnableCOMDATFolding' : '2',  # OPT:ICF
            },
          },
-         'msvs_disabled_warnings': [
-           # Unreferenced argument.
-           # Often variables are only referenced in DCHECKs.
-           4100,
-           # Unreferenced variable.
-           # Often variables are only referenced in DCHECKs.
-           4189,
-         ],
+        'msvs_disabled_warnings': [
+          # Unreferenced variable.
+          # Often variables are only referenced in DCHECKs.
+          4189,
+        ],
          'target_conditions': [
            ['_toolset=="host"', {
              'cflags_host': [
@@ -369,6 +363,8 @@
       },
     },
     'msvs_disabled_warnings': [
+      # Allow unused function input parameter.
+      4100,
       # Conditional expression is constant.
       # Triggers in many legitimate cases, like branching on a constant declared
       # in type traits.
