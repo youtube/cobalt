@@ -30,6 +30,8 @@ class FileList:
   def AddAllFilesInPath(self, root_dir, sub_dir):
     all_files = []
     all_symlinks = []
+    if not os.path.isdir(sub_dir):
+      raise IOError('Expected root directory to exist: ' + str(sub_dir))
     for root, dirs, files in OsWalk(sub_dir):
       for f in files:
         full_path = os.path.abspath(os.path.join(root, f))
@@ -42,6 +44,8 @@ class FileList:
       self.AddFile(root_dir, f)
 
   def AddAllFilesInPaths(self, root_dir, sub_dirs):
+    if not os.path.isdir(root_dir):
+      raise IOError('Expected root directory to exist: ' + str(root_dir))
     for sub_d in sub_dirs:
       self.AddAllFilesInPath(root_dir=root_dir, sub_dir=sub_d)
 
