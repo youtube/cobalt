@@ -86,6 +86,10 @@
           # TODO: Rebase base and use static_assert instead of COMPILE_ASSERT
           '-Wno-unused-local-typedef',  # COMPILE_ASSERT
           '-Wno-missing-field-initializers',  # LAZY_INSTANCE_INITIALIZER
+          # It's OK to not used some input parameters. Note that the order
+          # matters: Wall implies Wunused-parameter and Wno-unused-parameter
+          # has no effect if specified before Wall.
+          '-Wno-unused-parameter',
         ],
       }],
       ['_type=="executable"', {
