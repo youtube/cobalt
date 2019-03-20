@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/attribute_selector.h"
@@ -349,6 +350,69 @@ TEST_F(ParserTest, ParsesClassSelector) {
           compound_selector->simple_selectors()[0]));
   ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
+}
+
+TEST_F(ParserTest, ParsesPropertyKeyAsClassSelector) {
+  for (int i = 0; i < 1 + cssom::kMaxEveryPropertyKey; i++) {
+    cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
+    std::string property_name = cssom::GetPropertyName(property_key);
+    std::string declaration = StringPrintf(".%s {}", property_name.c_str());
+
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        parser_.ParseStyleSheet(declaration, source_location_);
+
+    ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
+    ASSERT_EQ(cssom::CSSRule::kStyleRule,
+              style_sheet->css_rules_same_origin()->Item(0)->type());
+    cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+        style_sheet->css_rules_same_origin()->Item(0).get());
+    ASSERT_EQ(1, style_rule->selectors().size());
+    cssom::ComplexSelector* complex_selector =
+        dynamic_cast<cssom::ComplexSelector*>(
+            const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+    ASSERT_TRUE(complex_selector);
+    cssom::CompoundSelector* compound_selector =
+        complex_selector->first_selector();
+    ASSERT_TRUE(compound_selector);
+    ASSERT_EQ(1, compound_selector->simple_selectors().size());
+    cssom::ClassSelector* class_selector =
+        dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
+            compound_selector->simple_selectors()[0]));
+    ASSERT_TRUE(class_selector);
+    EXPECT_EQ(property_name, class_selector->class_name());
+  }
+}
+
+TEST_F(ParserTest, ParsesKeywordAsClassSelector) {
+  for (int i = 0; i < 1 + cssom::KeywordValue::kMaxKeywordValue; i++) {
+    cssom::KeywordValue::Value keyword_value =
+        static_cast<cssom::KeywordValue::Value>(i);
+    std::string keyword_name = cssom::KeywordValue::GetName(keyword_value);
+    std::string declaration = StringPrintf(".%s {}", keyword_name.c_str());
+
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        parser_.ParseStyleSheet(declaration, source_location_);
+
+    ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
+    ASSERT_EQ(cssom::CSSRule::kStyleRule,
+              style_sheet->css_rules_same_origin()->Item(0)->type());
+    cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+        style_sheet->css_rules_same_origin()->Item(0).get());
+    ASSERT_EQ(1, style_rule->selectors().size());
+    cssom::ComplexSelector* complex_selector =
+        dynamic_cast<cssom::ComplexSelector*>(
+            const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+    ASSERT_TRUE(complex_selector);
+    cssom::CompoundSelector* compound_selector =
+        complex_selector->first_selector();
+    ASSERT_TRUE(compound_selector);
+    ASSERT_EQ(1, compound_selector->simple_selectors().size());
+    cssom::ClassSelector* class_selector =
+        dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
+            compound_selector->simple_selectors()[0]));
+    ASSERT_TRUE(class_selector);
+    EXPECT_EQ(keyword_name, class_selector->class_name());
+  }
 }
 
 TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
@@ -805,7 +869,9 @@ TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {
           "font-size: 100px;\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kColorProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kFontSizeProperty));
 }
 
@@ -816,7 +882,9 @@ TEST_F(ParserTest, ParsesDeclarationListWithoutTrailingSemicolon) {
           "font-size: 100px\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kColorProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kFontSizeProperty));
 }
 
@@ -828,7 +896,9 @@ TEST_F(ParserTest, ParsesDeclarationListWithEmptyDeclaration) {
           "font-size: 100px;\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kColorProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kFontSizeProperty));
 }
 
@@ -844,7 +914,9 @@ TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
           "font-size: 100px;\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kColorProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kFontSizeProperty));
 }
 
@@ -872,6 +944,7 @@ TEST_F(ParserTest,
 
   EXPECT_EQ(style->length(), 1);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kWidthProperty));
   scoped_refptr<cssom::LengthValue> width = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kWidthProperty).get());
   ASSERT_TRUE(width);
@@ -888,6 +961,7 @@ TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
           "transform: scale(2);\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kTransformProperty));
 }
 
@@ -902,6 +976,7 @@ TEST_F(ParserTest, WarnsAboutInvalidDeclaration) {
           "color: #9edbf9;\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kColorProperty).get());
@@ -928,7 +1003,9 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
           "color: #fff;\n",
           source_location_);
 
+  ASSERT_FALSE(style->IsDeclared(cssom::kBackgroundColorProperty));
   EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kColorProperty));
 }
 
@@ -1013,6 +1090,7 @@ TEST_F(ParserTest, StyleSheetEndsWhileDeclarationIsStillOpen) {
       parser_.ParseStyleDeclarationList("background-color: inherit",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kBackgroundColorProperty));
 }
@@ -1022,6 +1100,7 @@ TEST_F(ParserTest, StyleSheetEndsWhileUrlIsStillOpen) {
       parser_.ParseStyleDeclarationList("background-image: url(foo.png",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1038,6 +1117,7 @@ TEST_F(ParserTest, StyleSheetEndsWhileFunctionIsStillOpen) {
       parser_.ParseStyleDeclarationList("transform: translateX(20%",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -1056,22 +1136,314 @@ TEST_F(ParserTest, StyleSheetEndsWhileFunctionIsStillOpen) {
   EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function->axis());
 }
 
-TEST_F(ParserTest, ParsesInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-color: inherit;",
-                                        source_location_);
+// Test that the keywords supported for a property are parsed into a
+// corresponding KeywordValue, FontStyleValue, or FontWeightValue.
+TEST_F(ParserTest, ParsesLonghandPropertyKeywords) {
+  // List of longhand properties and keywords that are parsed to a KeywordValue,
+  // FontStyleValue, or FontWeightValue that is not computed further during
+  // parsing. Each longhand property in the enum cssom::PropertyKey has to
+  // appear here once, in the same order as the enum.
+  // clang-format off
+  const char* longhand_property_keywords[] = {
+    "align-content",
+      "inherit", "initial", "flex-start", "flex-end", "center", "space-between",
+      "space-around", "stretch", nullptr,
+    "align-items",
+      "inherit", "initial", "flex-start", "flex-end", "center", "baseline",
+      "stretch", nullptr,
+    "align-self",
+      "inherit", "initial", "auto", "flex-start", "flex-end", "center",
+      "baseline", "stretch", nullptr,
+    "animation-delay",
+      "inherit", "initial", nullptr,
+    "animation-direction",
+      "inherit", "initial", nullptr,
+    "animation-duration",
+      "inherit", "initial", nullptr,
+    "animation-fill-mode",
+      "inherit", "initial", nullptr,
+    "animation-iteration-count",
+      "inherit", "initial", nullptr,
+    "animation-name",
+      "inherit", "initial", nullptr,
+    "animation-timing-function",
+      "inherit", "initial", nullptr,
+    "background-color",
+      "inherit", "initial", nullptr,
+    "background-image",
+      "inherit", "initial", nullptr,
+    "background-position",
+      "inherit", "initial", nullptr,
+    "background-repeat",
+      "inherit", "initial", nullptr,
+    "background-size",
+      "inherit", "initial", "cover", "contain", nullptr,
+    "border-bottom-color",
+      "inherit", "initial", nullptr,
+    "border-bottom-left-radius",
+      "inherit", "initial", nullptr,
+    "border-bottom-right-radius",
+      "inherit", "initial", nullptr,
+    "border-bottom-style",
+      "inherit", "initial", "none", "hidden", "solid", nullptr,
+    "border-bottom-width",
+      "inherit", "initial", nullptr,
+    "border-left-color",
+      "inherit", "initial", nullptr,
+    "border-left-style",
+      "inherit", "initial", "none", "hidden", "solid", nullptr,
+    "border-left-width",
+      "inherit", "initial", nullptr,
+    "border-right-color",
+      "inherit", "initial", nullptr,
+    "border-right-style",
+      "inherit", "initial", "none", "hidden", "solid", nullptr,
+    "border-right-width",
+      "inherit", "initial", nullptr,
+    "border-top-color",
+      "inherit", "initial", nullptr,
+    "border-top-left-radius",
+      "inherit", "initial", nullptr,
+    "border-top-right-radius",
+      "inherit", "initial", nullptr,
+    "border-top-style",
+      "inherit", "initial", "none", "hidden", "solid", nullptr,
+    "border-top-width",
+      "inherit", "initial", nullptr,
+    "bottom",
+      "inherit", "initial", "auto", nullptr,
+    "box-shadow",
+      "inherit", "initial", "none", nullptr,
+    "color",
+      "inherit", "initial", nullptr,
+    "content",
+      "inherit", "initial", "none", "normal", nullptr,
+    "display",
+      "inherit", "initial", "block", "flex", "inline", "inline-block",
+      "inline-flex", "none", nullptr,
+    "filter",
+      "inherit", "initial", "none", nullptr,
+    "flex-basis",
+      "inherit", "initial", "auto", "content", nullptr,
+    "flex-direction",
+      "inherit", "initial", "row", "row-reverse", "column", "column-reverse",
+      nullptr,
+    "flex-grow",
+      "inherit", "initial", nullptr,
+    "flex-shrink",
+      "inherit", "initial", nullptr,
+    "flex-wrap",
+      "inherit", "initial", "nowrap", "wrap", "wrap-reverse", nullptr,
+    "font-family",
+      "inherit", "initial", nullptr,
+    "font-size",
+      "inherit", "initial", nullptr,
+    "font-style",
+      "inherit", "initial", "normal", "italic", "oblique", nullptr,
+    "font-weight",
+      "inherit", "initial", "bold", nullptr,
+    "height",
+      "inherit", "initial", "auto", nullptr,
+    "justify-content",
+      "inherit", "initial", "flex-start", "flex-end", "center", "space-between",
+      "space-around", nullptr,
+    "left",
+      "inherit", "initial", "auto", nullptr,
+    "line-height",
+      "inherit", "initial", "normal", nullptr,
+    "margin-bottom",
+      "inherit", "initial", "auto", nullptr,
+    "margin-left",
+      "inherit", "initial", "auto", nullptr,
+    "margin-right",
+      "inherit", "initial", "auto", nullptr,
+    "margin-top",
+      "inherit", "initial", "auto", nullptr,
+    "max-height",
+      "inherit", "initial", "none", nullptr,
+    "max-width",
+      "inherit", "initial", "none", nullptr,
+    "min-height",
+      "inherit", "initial", nullptr,
+    "min-width",
+      "inherit", "initial", nullptr,
+    "opacity",
+      "inherit", "initial", nullptr,
+    "order",
+      "inherit", "initial", nullptr,
+    "outline-color",
+      "inherit", "initial", nullptr,
+    "outline-style",
+      "inherit", "initial", "solid", "hidden", nullptr,
+    "outline-width",
+      "inherit", "initial", nullptr,
+    "overflow",
+      "inherit", "initial", "auto", "hidden", "scroll", "visible", nullptr,
+    "overflow-wrap",
+      "inherit", "initial", "break-word", "normal", nullptr,
+    "padding-bottom",
+      "inherit", "initial", nullptr,
+    "padding-left",
+      "inherit", "initial", nullptr,
+    "padding-right",
+      "inherit", "initial", nullptr,
+    "padding-top",
+      "inherit", "initial", nullptr,
+    "pointer-events",
+      "inherit", "initial", "auto", "none", nullptr,
+    "position",
+      "inherit", "initial", "static", "relative", "absolute", nullptr,
+    "right",
+      "inherit", "initial", "auto", nullptr,
+    "text-align",
+      "inherit", "initial", "start", "end", "left", "center", "right", nullptr,
+    "text-decoration-color",
+      "inherit", "initial", nullptr,
+    "text-decoration-line",
+      "inherit", "initial", "none", "line-through", nullptr,
+    "text-indent",
+      "inherit", "initial", nullptr,
+    "text-overflow",
+      "inherit", "initial", "clip", "ellipsis", nullptr,
+    "text-shadow",
+      "inherit", "initial", "none", nullptr,
+    "text-transform",
+      "inherit", "initial", "none", "uppercase", nullptr,
+    "top",
+      "inherit", "initial", "auto", nullptr,
+    "transform-origin",
+      "inherit", "initial", nullptr,
+    "transform",
+      "inherit", "initial", "none", nullptr,
+    "transition-delay",
+      "inherit", "initial", nullptr,
+    "transition-duration",
+      "inherit", "initial", nullptr,
+    "transition-property",
+      "inherit", "initial", nullptr,
+    "transition-timing-function",
+      "inherit", "initial", nullptr,
+    "vertical-align",
+      "inherit", "initial", "baseline", "bottom", "middle", "top", nullptr,
+    "visibility",
+      "inherit", "initial", "hidden", "visible", nullptr,
+    "white-space",
+      "inherit", "initial", "normal", "nowrap", "pre", "pre-line", "pre-wrap",
+      nullptr,
+    "width",
+      "inherit", "initial", "auto", nullptr,
+    "z-index",
+      "inherit", "initial", "auto", nullptr,
+      nullptr,
+  };
+  // clang-format on
 
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  // Helper class to check if a PropertyValue is a KeywordValue, FontStyleValue,
+  // or FontWeightValue.
+  class KeywordProvider : public cssom::NotReachedPropertyValueVisitor {
+   public:
+    KeywordProvider() : is_keyword_(false) {}
+    bool is_keyword() { return is_keyword_; }
+    void VisitKeyword(cssom::KeywordValue* keyword) override {
+      is_keyword_ = true;
+    }
+    void VisitFontStyle(cssom::FontStyleValue* font_style) override {
+      is_keyword_ = true;
+    }
+    void VisitFontWeight(cssom::FontWeightValue* font_weight_value) override {
+      is_keyword_ = true;
+    }
+
+   private:
+    bool is_keyword_;
+    DISALLOW_COPY_AND_ASSIGN(KeywordProvider);
+  };
+
+  const char** property_keyword = longhand_property_keywords;
+  for (int i = 0; i <= cssom::kMaxLonghandPropertyKey;
+       ++i, ++property_keyword) {
+    const char* property(*property_keyword);
+    cssom::PropertyKey property_key(static_cast<cssom::PropertyKey>(i));
+    ASSERT_NE(property, nullptr);
+    for (++property_keyword; *property_keyword; ++property_keyword) {
+      const char* keyword = *property_keyword;
+      std::string declaration = StringPrintf("%s: %s;", property, keyword);
+      scoped_refptr<cssom::CSSDeclaredStyleData> style =
+          parser_.ParseStyleDeclarationList(declaration, source_location_);
+      ASSERT_TRUE(style->IsDeclared(property_key));
+      scoped_refptr<cssom::PropertyValue> property_value =
+          style->GetPropertyValue(property_key);
+      EXPECT_EQ(keyword, property_value->ToString());
+      KeywordProvider keyword_provider;
+      property_value->Accept(&keyword_provider);
+      EXPECT_EQ(true, keyword_provider.is_keyword());
+    }
+  }
 }
 
-TEST_F(ParserTest, ParsesInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-color: initial;",
-                                        source_location_);
+// Test that shorthand properties are parsed into corresponding KeywordValues
+// for the expanded properties for values 'inherit' and 'initial'.
+TEST_F(ParserTest, ParsesShorthandPropertyInitialAndInherit) {
+  const char* shorthand_property_keywords[] = {
+      "inherit", "initial", nullptr,
+  };
 
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  // Helper class to check if a PropertyValue is a KeywordValue.
+  class KeywordProvider : public cssom::NotReachedPropertyValueVisitor {
+   public:
+    KeywordProvider() : is_keyword_(false) {}
+    bool is_keyword() { return is_keyword_; }
+    void VisitKeyword(cssom::KeywordValue* keyword) override {
+      is_keyword_ = true;
+    }
+
+    // Returns true if the property key is a longhand property with a keyword
+    // value, or is a shorthand property for which all longhand properties have
+    // keyword values, where all keywords serialize to the given keyword;
+    static void VerifyIsLongHandKeywordValue(
+        const scoped_refptr<cssom::CSSDeclaredStyleData>& style,
+        cssom::PropertyKey property_key, const char* keyword) {
+      if (!IsShorthandProperty(property_key)) {
+        // Test that the shorthand property is set and has a keyword value that
+        // serializes to the keyword name.
+        ASSERT_TRUE(style->IsDeclared(property_key));
+        scoped_refptr<cssom::PropertyValue> property_value =
+            style->GetPropertyValue(property_key);
+        EXPECT_EQ(keyword, property_value->ToString());
+
+        KeywordProvider keyword_provider;
+        property_value->Accept(&keyword_provider);
+        EXPECT_EQ(true, keyword_provider.is_keyword());
+        return;
+      }
+
+      for (auto expanded_property :
+           cssom::ExpandShorthandProperty(property_key)) {
+        // Recurse for the longhand properties that this shorthand expands to.
+        VerifyIsLongHandKeywordValue(style, expanded_property, keyword);
+      }
+    }
+
+   private:
+    bool is_keyword_;
+    DISALLOW_COPY_AND_ASSIGN(KeywordProvider);
+  };
+
+  for (int i = cssom::kFirstShorthandPropertyKey;
+       i <= cssom::kMaxShorthandPropertyKey; ++i) {
+    cssom::PropertyKey property_key(static_cast<cssom::PropertyKey>(i));
+    const char* property = cssom::GetPropertyName(property_key);
+    ASSERT_NE(property, nullptr);
+    for (const char** property_keyword = shorthand_property_keywords;
+         *property_keyword; ++property_keyword) {
+      const char* keyword = *property_keyword;
+      std::string declaration = StringPrintf("%s: %s;", property, keyword);
+      scoped_refptr<cssom::CSSDeclaredStyleData> style =
+          parser_.ParseStyleDeclarationList(declaration, source_location_);
+      KeywordProvider::VerifyIsLongHandKeywordValue(style, property_key,
+                                                    keyword);
+    }
+  }
 }
 
 TEST_F(ParserTest, ParsesBackgroundWithOnlyColor) {
@@ -1079,6 +1451,7 @@ TEST_F(ParserTest, ParsesBackgroundWithOnlyColor) {
       parser_.ParseStyleDeclarationList("background: rgba(0, 0, 0, .8);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1091,6 +1464,7 @@ TEST_F(ParserTest, ParsesBackgroundWithOnlyRepeat) {
       parser_.ParseStyleDeclarationList("background: no-repeat;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -1109,12 +1483,14 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndURL) {
       parser_.ParseStyleDeclarationList(
           "background: url(foo.png) rgba(0, 0, 0, .8);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
   ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1131,12 +1507,14 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndURLInDifferentOrder) {
       parser_.ParseStyleDeclarationList(
           "background: rgba(0, 0, 0, .8) url(foo.png);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
   ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1153,12 +1531,14 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPosition) {
       parser_.ParseStyleDeclarationList(
           "background: rgba(0, 0, 0, .8) 70px 45%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
   ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -1181,6 +1561,7 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPositionInDifferentOrder) {
       parser_.ParseStyleDeclarationList(
           "background: 70px 45% rgba(0, 0, 0, .8);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -1197,6 +1578,7 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPositionInDifferentOrder) {
           background_position_list->value()[1].get());
   EXPECT_FLOAT_EQ(0.45f, percentage_value_right->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1209,6 +1591,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
       parser_.ParseStyleDeclarationList(
           "background: url(foo.png) center / 50px 80px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1219,6 +1602,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
   EXPECT_EQ("foo.png", url_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -1228,6 +1612,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -1249,6 +1634,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
       parser_.ParseStyleDeclarationList(
           "background: center/50px 80px url(foo.png);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1259,6 +1645,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
   EXPECT_EQ("foo.png", url_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -1268,6 +1655,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -1289,6 +1677,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLNoRepeat) {
       parser_.ParseStyleDeclarationList("background: url(foo.png) no-repeat",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1299,6 +1688,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLNoRepeat) {
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
   EXPECT_EQ("foo.png", url_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -1313,6 +1703,7 @@ TEST_F(ParserTest, ParsesBackgroundWithNoRepeatAndColor) {
       parser_.ParseStyleDeclarationList(
           "background: no-repeat rgba(0, 0, 0, .8);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -1321,6 +1712,7 @@ TEST_F(ParserTest, ParsesBackgroundWithNoRepeatAndColor) {
   EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(), background_repeat->value()[0]);
   EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(), background_repeat->value()[1]);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1334,6 +1726,7 @@ TEST_F(ParserTest, ParsesBackgroundWithBackgroundRepeatProperty) {
           "background: url(foo.png); background-repeat: no-repeat;",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1344,6 +1737,7 @@ TEST_F(ParserTest, ParsesBackgroundWithBackgroundRepeatProperty) {
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
   EXPECT_EQ("foo.png", url_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -1355,6 +1749,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLNoRepeatAndPosition) {
       parser_.ParseStyleDeclarationList(
           "background: url(foo.png) center no-repeat", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1365,6 +1760,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLNoRepeatAndPosition) {
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
   EXPECT_EQ("foo.png", url_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -1374,6 +1770,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLNoRepeatAndPosition) {
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -1388,6 +1785,7 @@ TEST_F(ParserTest, ParsesBackgroundWithNoRepeatAndCenter) {
       parser_.ParseStyleDeclarationList("background: no-repeat center",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -1397,6 +1795,7 @@ TEST_F(ParserTest, ParsesBackgroundWithNoRepeatAndCenter) {
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -1410,6 +1809,7 @@ TEST_F(ParserTest, ParsesBackgroundWithNone) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background: none;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1424,6 +1824,7 @@ TEST_F(ParserTest, ParsesBackgroundWithTransparent) {
       parser_.ParseStyleDeclarationList("background: transparent;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1541,6 +1942,7 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradient) {
           "background: linear-gradient(rgba(0,0,0,0.56), rgba(0,0,0,0.9));",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1576,6 +1978,7 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradientContainsTransparent) {
           "rgba(0,0,0,0.9), transparent);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1611,6 +2014,7 @@ TEST_F(ParserTest, ParsesBackgroundWithRadialGradient) {
           "rgba(0,0,0,0.56), rgba(0,0,0,0.9));",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1650,6 +2054,7 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
       parser_.ParseStyleDeclarationList("background-color: #fff;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1662,6 +2067,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordAqua) {
       parser_.ParseStyleDeclarationList("background-color: aqua;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1674,6 +2080,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordBlack) {
       parser_.ParseStyleDeclarationList("background-color: black;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1686,6 +2093,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordBlue) {
       parser_.ParseStyleDeclarationList("background-color: blue;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1698,6 +2106,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordFuchsia) {
       parser_.ParseStyleDeclarationList("background-color: fuchsia;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1710,6 +2119,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordGray) {
       parser_.ParseStyleDeclarationList("background-color: gray;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1722,6 +2132,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordGreen) {
       parser_.ParseStyleDeclarationList("background-color: green;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1734,6 +2145,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordLime) {
       parser_.ParseStyleDeclarationList("background-color: lime;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1746,6 +2158,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordMaroon) {
       parser_.ParseStyleDeclarationList("background-color: maroon;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1758,6 +2171,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordNavy) {
       parser_.ParseStyleDeclarationList("background-color: navy;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1770,6 +2184,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordOlive) {
       parser_.ParseStyleDeclarationList("background-color: olive;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1782,6 +2197,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordPurple) {
       parser_.ParseStyleDeclarationList("background-color: purple;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1794,6 +2210,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordRed) {
       parser_.ParseStyleDeclarationList("background-color: red;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1806,6 +2223,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordSilver) {
       parser_.ParseStyleDeclarationList("background-color: silver;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1818,6 +2236,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordTeal) {
       parser_.ParseStyleDeclarationList("background-color: teal;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1830,6 +2249,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordTransparent) {
       parser_.ParseStyleDeclarationList("background-color: transparent;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1842,6 +2262,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordWhite) {
       parser_.ParseStyleDeclarationList("background-color: white;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1854,6 +2275,7 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordYellow) {
       parser_.ParseStyleDeclarationList("background-color: yellow;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
@@ -1861,29 +2283,12 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordYellow) {
   EXPECT_EQ(0xFFFF00FF, background_color->value());
 }
 
-TEST_F(ParserTest, ParsesBackgroundColorWithKeywordInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-color: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kBackgroundColorProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundColorWithKeywordInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-color: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kBackgroundColorProperty));
-}
-
 TEST_F(ParserTest, ParsesBackgroundImageNone) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background-image: none;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1893,29 +2298,12 @@ TEST_F(ParserTest, ParsesBackgroundImageNone) {
   EXPECT_EQ(cssom::KeywordValue::GetNone(), background_image_list->value()[0]);
 }
 
-TEST_F(ParserTest, ParsesBackgroundImageInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-image: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kBackgroundImageProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundImageInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-image: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kBackgroundImageProperty));
-}
-
 TEST_F(ParserTest, ParsesSingleBackgroundImageURL) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background-image: url(foo.png);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1933,6 +2321,7 @@ TEST_F(ParserTest, ParsesMultipleBackgroundImageURLs) {
           "background-image: url(foo.png), url(bar.jpg), url(baz.png);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1958,6 +2347,7 @@ TEST_F(ParserTest, ParsesMultipleBackgroundImagesWithNone) {
           "background-image: url(foo.png), none, url(baz.png);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -1982,6 +2372,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
           "rgba(34, 34, 34, 0) 100px);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2021,6 +2412,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
           "rgba(34, 34, 34, 0) 60%);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2063,6 +2455,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
           "url(bar.jpg);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2117,6 +2510,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithShapeAndSizeKeyword) {
           "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0));",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2168,6 +2562,7 @@ TEST_F(ParserTest,
           "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2227,6 +2622,7 @@ TEST_F(ParserTest,
           "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2285,6 +2681,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithSizeLength) {
           "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2344,6 +2741,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithoutShapeAndSize) {
           "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2393,6 +2791,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientOnlyHasColorStop) {
           "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundImageProperty));
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundImageProperty).get());
@@ -2433,11 +2832,28 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientOnlyHasColorStop) {
   }
 }
 
+TEST_F(ParserTest, ParsesBackgroundPositionLeft) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("background-position: left;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(1, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetLeft(),
+            background_position_list->value()[0]);
+}
+
 TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background-position: center;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2448,11 +2864,60 @@ TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
             background_position_list->value()[0]);
 }
 
+TEST_F(ParserTest, ParsesBackgroundPositionRight) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("background-position: right;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(1, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetRight(),
+            background_position_list->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionTop) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("background-position: top;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(1, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetTop(),
+            background_position_list->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionBottom) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("background-position: bottom;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(1, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetBottom(),
+            background_position_list->value()[0]);
+}
+
 TEST_F(ParserTest, ParsesBackgroundPositionOneValue) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background-position: 20%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2471,6 +2936,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionCenterLeft) {
       parser_.ParseStyleDeclarationList("background-position: center left;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2488,6 +2954,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionRightCenter) {
       parser_.ParseStyleDeclarationList("background-position: right center;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2505,6 +2972,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionCenterCenter) {
       parser_.ParseStyleDeclarationList("background-position: center center;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2522,6 +2990,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionValueCenter) {
       parser_.ParseStyleDeclarationList("background-position: 20px center;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2543,6 +3012,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionBottomRight) {
       parser_.ParseStyleDeclarationList("background-position: bottom right;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2578,6 +3048,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionWithThreeValues) {
       parser_.ParseStyleDeclarationList("background-position: left 10px top;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2629,6 +3100,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionWithFourValues) {
       parser_.ParseStyleDeclarationList(
           "background-position: bottom 20% right 10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2675,6 +3147,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionDoublePercentage) {
       parser_.ParseStyleDeclarationList("background-position: 60% 90%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2697,6 +3170,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionDoubleLength) {
       parser_.ParseStyleDeclarationList("background-position: 60px 90px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2721,6 +3195,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionLengthAndPercentage) {
       parser_.ParseStyleDeclarationList("background-position: 60px 70%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundPositionProperty));
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundPositionProperty).get());
@@ -2739,29 +3214,12 @@ TEST_F(ParserTest, ParsesBackgroundPositionLengthAndPercentage) {
   EXPECT_FLOAT_EQ(0.7f, percentage_value_right->value());
 }
 
-TEST_F(ParserTest, ParsesBackgroundPositionWithKeywordInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-position: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kBackgroundPositionProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundPositionWithKeywordInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-position: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kBackgroundPositionProperty));
-}
-
 TEST_F(ParserTest, ParsesBackgroundRepeatNoRepeat) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background-repeat: no-repeat;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -2780,6 +3238,7 @@ TEST_F(ParserTest, ParsesBackgroundRepeatRepeat) {
       parser_.ParseStyleDeclarationList("background-repeat: repeat;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -2798,6 +3257,7 @@ TEST_F(ParserTest, ParsesBackgroundRepeatNoRepeatSpecifiedTwice) {
       parser_.ParseStyleDeclarationList(
           "background-repeat: no-repeat no-repeat;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -2816,6 +3276,7 @@ TEST_F(ParserTest, ParsesBackgroundRepeatRepeatX) {
       parser_.ParseStyleDeclarationList("background-repeat: repeat-x;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -2834,6 +3295,7 @@ TEST_F(ParserTest, ParsesBackgroundRepeatRepeatY) {
       parser_.ParseStyleDeclarationList("background-repeat: repeat-y;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundRepeatProperty));
   scoped_refptr<cssom::PropertyListValue> background_repeat_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundRepeatProperty).get());
@@ -2847,47 +3309,12 @@ TEST_F(ParserTest, ParsesBackgroundRepeatRepeatY) {
             background_repeat_list->value()[1]);
 }
 
-TEST_F(ParserTest, ParsesBackgroundRepeatWithKeywordInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-repeat: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kBackgroundRepeatProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundRepeatWithKeywordInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-repeat: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kBackgroundRepeatProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundSizeContain) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-size: contain;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetContain(),
-            style->GetPropertyValue(cssom::kBackgroundSizeProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundSizeCover) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-size: cover;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetCover(),
-            style->GetPropertyValue(cssom::kBackgroundSizeProperty));
-}
-
 TEST_F(ParserTest, ParsesBackgroundSizeSingleAuto) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("background-size: auto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -2902,6 +3329,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeDoubleAuto) {
       parser_.ParseStyleDeclarationList("background-size: auto auto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -2916,6 +3344,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeSinglePercentage) {
       parser_.ParseStyleDeclarationList("background-size: 20%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -2934,6 +3363,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeDoublePercentage) {
       parser_.ParseStyleDeclarationList("background-size: 40% 60%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -2956,6 +3386,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeOneAutoOnePercentage) {
       parser_.ParseStyleDeclarationList("background-size: auto 20%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -2976,6 +3407,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeOnePercentageOneAuto) {
       parser_.ParseStyleDeclarationList("background-size: 20% auto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundSizeProperty));
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBackgroundSizeProperty).get());
@@ -3005,29 +3437,12 @@ TEST_F(ParserTest, ParsesBackgroundSizeWithoutUnitIdentifier) {
   EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundSizeProperty));
 }
 
-TEST_F(ParserTest, ParsesBackgroundSizeWithKeywordInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-size: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kBackgroundSizeProperty));
-}
-
-TEST_F(ParserTest, ParsesBackgroundSizeWithKeywordInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("background-size: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kBackgroundSizeProperty));
-}
-
 TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("border: .5em #fff solid;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3035,6 +3450,7 @@ TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   EXPECT_FLOAT_EQ(0.5f, border_left_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_left_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3042,6 +3458,7 @@ TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   EXPECT_FLOAT_EQ(0.5f, border_right_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3049,6 +3466,7 @@ TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   EXPECT_FLOAT_EQ(0.5f, border_top_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3056,36 +3474,44 @@ TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   EXPECT_FLOAT_EQ(0.5f, border_bottom_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
   ASSERT_TRUE(border_left_color);
   EXPECT_EQ(0xffffffff, border_left_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
   ASSERT_TRUE(border_right_color);
   EXPECT_EQ(0xffffffff, border_right_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
   ASSERT_TRUE(border_top_color);
   EXPECT_EQ(0xffffffff, border_top_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
   ASSERT_TRUE(border_bottom_color);
   EXPECT_EQ(0xffffffff, border_bottom_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
 }
@@ -3255,6 +3681,7 @@ TEST_F(ParserTest, ParsesBorderColorWidth) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("border: gray 20px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3262,6 +3689,7 @@ TEST_F(ParserTest, ParsesBorderColorWidth) {
   EXPECT_FLOAT_EQ(20.0f, border_top_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3269,6 +3697,7 @@ TEST_F(ParserTest, ParsesBorderColorWidth) {
   EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3276,6 +3705,7 @@ TEST_F(ParserTest, ParsesBorderColorWidth) {
   EXPECT_FLOAT_EQ(20.0f, border_bottom_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3283,24 +3713,28 @@ TEST_F(ParserTest, ParsesBorderColorWidth) {
   EXPECT_FLOAT_EQ(20.0f, border_left_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_left_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
   ASSERT_TRUE(border_top_color);
   EXPECT_EQ(0x808080FF, border_top_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
   ASSERT_TRUE(border_right_color);
   EXPECT_EQ(0x808080FF, border_right_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
   ASSERT_TRUE(border_bottom_color);
   EXPECT_EQ(0x808080FF, border_bottom_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
@@ -3313,24 +3747,28 @@ TEST_F(ParserTest, ParsesSingleBorderColor) {
       parser_.ParseStyleDeclarationList("border-color: rgba(0, 0, 0, .8);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
   ASSERT_TRUE(border_left_color);
   EXPECT_EQ(0x000000cc, border_left_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
   ASSERT_TRUE(border_right_color);
   EXPECT_EQ(0x000000cc, border_right_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
   ASSERT_TRUE(border_top_color);
   EXPECT_EQ(0x000000cc, border_top_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
@@ -3343,24 +3781,28 @@ TEST_F(ParserTest, ParsesBorderColorWithTwoValues) {
       parser_.ParseStyleDeclarationList("border-color: #fff rgba(0, 0, 0, .8);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
   ASSERT_TRUE(border_top_color);
   EXPECT_EQ(0xFFFFFFFF, border_top_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
   ASSERT_TRUE(border_right_color);
   EXPECT_EQ(0x000000cc, border_right_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
   ASSERT_TRUE(border_bottom_color);
   EXPECT_EQ(0xFFFFFFFF, border_bottom_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
@@ -3374,24 +3816,28 @@ TEST_F(ParserTest, ParsesBorderColorWithThreeValues) {
           "border-color: #fff rgba(0, 0, 0, .8) rgba(0,0,0,0.9);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
   ASSERT_TRUE(border_top_color);
   EXPECT_EQ(0xFFFFFFFF, border_top_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
   ASSERT_TRUE(border_right_color);
   EXPECT_EQ(0x000000cc, border_right_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
   ASSERT_TRUE(border_bottom_color);
   EXPECT_EQ(0x000000E5, border_bottom_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
@@ -3406,24 +3852,28 @@ TEST_F(ParserTest, ParsesBorderColorWithFourValues) {
           "rgba(0,0,0,0.56);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
   ASSERT_TRUE(border_top_color);
   EXPECT_EQ(0xFFFFFFFF, border_top_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
   ASSERT_TRUE(border_right_color);
   EXPECT_EQ(0x000000CC, border_right_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
   ASSERT_TRUE(border_bottom_color);
   EXPECT_EQ(0x000000E5, border_bottom_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
@@ -3436,6 +3886,7 @@ TEST_F(ParserTest, ParsesBorderTopColor) {
       parser_.ParseStyleDeclarationList("border-top-color: rgba(0, 0, 0, .8);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
@@ -3448,6 +3899,7 @@ TEST_F(ParserTest, ParsesBorderRightColor) {
       parser_.ParseStyleDeclarationList(
           "border-right-color: rgba(0, 0, 0, .8);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
@@ -3460,6 +3912,7 @@ TEST_F(ParserTest, ParsesBorderBottomColor) {
       parser_.ParseStyleDeclarationList(
           "border-bottom-color: rgba(0, 0, 0, .8);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
@@ -3472,6 +3925,7 @@ TEST_F(ParserTest, ParsesBorderLeftColor) {
       parser_.ParseStyleDeclarationList("border-left-color: rgba(0, 0, 0, .8);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
@@ -3484,6 +3938,7 @@ TEST_F(ParserTest, ParsesSingleBorderWidth) {
       parser_.ParseStyleDeclarationList("border-width: .8em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3491,6 +3946,7 @@ TEST_F(ParserTest, ParsesSingleBorderWidth) {
   EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3498,6 +3954,7 @@ TEST_F(ParserTest, ParsesSingleBorderWidth) {
   EXPECT_FLOAT_EQ(0.8f, border_right_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3505,6 +3962,7 @@ TEST_F(ParserTest, ParsesSingleBorderWidth) {
   EXPECT_FLOAT_EQ(0.8f, border_bottom_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3518,6 +3976,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithTwoValues) {
       parser_.ParseStyleDeclarationList("border-width: .8em 20px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3525,6 +3984,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithTwoValues) {
   EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3532,6 +3992,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithTwoValues) {
   EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3539,6 +4000,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithTwoValues) {
   EXPECT_FLOAT_EQ(0.8f, border_bottom_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3552,6 +4014,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithThreeValues) {
       parser_.ParseStyleDeclarationList("border-width: .8em 20px 30px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3559,6 +4022,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithThreeValues) {
   EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3566,6 +4030,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithThreeValues) {
   EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3573,6 +4038,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithThreeValues) {
   EXPECT_FLOAT_EQ(30.0f, border_bottom_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3586,6 +4052,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithFourValues) {
       parser_.ParseStyleDeclarationList("border-width: .8em 20px 30px .5em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3593,6 +4060,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithFourValues) {
   EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3600,6 +4068,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithFourValues) {
   EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3607,6 +4076,7 @@ TEST_F(ParserTest, ParsesBorderWidthWithFourValues) {
   EXPECT_FLOAT_EQ(30.0f, border_bottom_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3620,6 +4090,7 @@ TEST_F(ParserTest, ParsesBorderTopWidth) {
       parser_.ParseStyleDeclarationList("border-top-width: .8em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3633,6 +4104,7 @@ TEST_F(ParserTest, ParsesBorderBottomWidth) {
       parser_.ParseStyleDeclarationList("border-bottom-width: 35px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3646,6 +4118,7 @@ TEST_F(ParserTest, ParsesBorderLeftWidth) {
       parser_.ParseStyleDeclarationList("border-left-width: 20px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3659,6 +4132,7 @@ TEST_F(ParserTest, ParsesBorderRightWidth) {
       parser_.ParseStyleDeclarationList("border-right-width: .4em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3672,12 +4146,16 @@ TEST_F(ParserTest, ParsesSingleBorderStyleSolid) {
       parser_.ParseStyleDeclarationList("border-style: solid;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
 }
@@ -3687,12 +4165,16 @@ TEST_F(ParserTest, ParsesSingleBorderStyleHidden) {
       parser_.ParseStyleDeclarationList("border-style: hidden;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetHidden(),
             style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetHidden(),
             style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetHidden(),
             style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetHidden(),
             style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
 }
@@ -3702,6 +4184,7 @@ TEST_F(ParserTest, ParsesBorderTop) {
       parser_.ParseStyleDeclarationList("border-top: 1px solid #777;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopWidthProperty));
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopWidthProperty).get());
@@ -3709,9 +4192,11 @@ TEST_F(ParserTest, ParsesBorderTop) {
   EXPECT_FLOAT_EQ(1.0f, border_top_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_top_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderTopStyleProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_top_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderTopColorProperty).get());
@@ -3726,6 +4211,7 @@ TEST_F(ParserTest, ParsesBorderBottom) {
           "rgba(255, 255, 255, .2);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomWidthProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomWidthProperty).get());
@@ -3733,9 +4219,11 @@ TEST_F(ParserTest, ParsesBorderBottom) {
   EXPECT_FLOAT_EQ(1.0f, border_bottom_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderBottomColorProperty).get());
@@ -3748,6 +4236,7 @@ TEST_F(ParserTest, ParsesBorderLeft) {
       parser_.ParseStyleDeclarationList("border-left: .7em solid transparent;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftWidthProperty));
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderLeftWidthProperty).get());
@@ -3755,9 +4244,11 @@ TEST_F(ParserTest, ParsesBorderLeft) {
   EXPECT_FLOAT_EQ(0.7f, border_left_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_left_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderLeftColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_left_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderLeftColorProperty).get());
@@ -3772,6 +4263,7 @@ TEST_F(ParserTest, ParsesBorderRight) {
           "rgba(255, 255, 255, .2);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightWidthProperty));
   scoped_refptr<cssom::LengthValue> border_right_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderRightWidthProperty).get());
@@ -3779,9 +4271,11 @@ TEST_F(ParserTest, ParsesBorderRight) {
   EXPECT_FLOAT_EQ(0.1f, border_right_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kBorderRightStyleProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderRightColorProperty));
   scoped_refptr<cssom::RGBAColorValue> border_right_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kBorderRightColorProperty).get());
@@ -3876,6 +4370,7 @@ TEST_F(ParserTest, ParsesBorderRadiusSingleLength) {
       parser_.ParseStyleDeclarationList("border-radius: 0.2em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
@@ -3883,6 +4378,7 @@ TEST_F(ParserTest, ParsesBorderRadiusSingleLength) {
   EXPECT_FLOAT_EQ(0.2f, border_top_left_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
@@ -3890,6 +4386,7 @@ TEST_F(ParserTest, ParsesBorderRadiusSingleLength) {
   EXPECT_FLOAT_EQ(0.2f, border_top_right_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -3898,6 +4395,7 @@ TEST_F(ParserTest, ParsesBorderRadiusSingleLength) {
   EXPECT_FLOAT_EQ(0.2f, border_bottom_right_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -3912,18 +4410,21 @@ TEST_F(ParserTest, ParsesBorderRadiusSinglePercentage) {
       parser_.ParseStyleDeclarationList("border-radius: 50%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::PercentageValue> border_top_left_radius =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
   ASSERT_TRUE(border_top_left_radius);
   EXPECT_FLOAT_EQ(0.5f, border_top_left_radius->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::PercentageValue> border_top_right_radius =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
   ASSERT_TRUE(border_top_right_radius);
   EXPECT_FLOAT_EQ(0.5f, border_top_right_radius->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::PercentageValue> border_bottom_right_radius =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -3931,6 +4432,7 @@ TEST_F(ParserTest, ParsesBorderRadiusSinglePercentage) {
   ASSERT_TRUE(border_bottom_right_radius);
   EXPECT_FLOAT_EQ(0.5f, border_bottom_right_radius->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::PercentageValue> border_bottom_left_radius =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -3944,6 +4446,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithTwoLengths) {
       parser_.ParseStyleDeclarationList("border-radius: .8em 20px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
@@ -3951,6 +4454,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithTwoLengths) {
   EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
@@ -3958,6 +4462,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithTwoLengths) {
   EXPECT_FLOAT_EQ(20.0f, border_top_right_radius->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_top_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -3966,6 +4471,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithTwoLengths) {
   EXPECT_FLOAT_EQ(0.8f, border_bottom_right_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -3980,6 +4486,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithLengthAndPercentage) {
       parser_.ParseStyleDeclarationList("border-radius: .8em 20%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
@@ -3987,12 +4494,14 @@ TEST_F(ParserTest, ParsesBorderRadiusWithLengthAndPercentage) {
   EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::PercentageValue> border_top_right_radius =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
   ASSERT_TRUE(border_top_right_radius);
   EXPECT_FLOAT_EQ(0.2f, border_top_right_radius->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -4001,6 +4510,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithLengthAndPercentage) {
   EXPECT_FLOAT_EQ(0.8f, border_bottom_right_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::PercentageValue> border_bottom_left_radius =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -4014,6 +4524,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithThreeLengths) {
       parser_.ParseStyleDeclarationList("border-radius: .8em 20px 10px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
@@ -4021,6 +4532,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithThreeLengths) {
   EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
@@ -4028,6 +4540,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithThreeLengths) {
   EXPECT_FLOAT_EQ(20.0f, border_top_right_radius->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_top_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -4036,6 +4549,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithThreeLengths) {
   EXPECT_FLOAT_EQ(10.0f, border_bottom_right_radius->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_bottom_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -4050,6 +4564,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithFourLengths) {
       parser_.ParseStyleDeclarationList("border-radius: .8em 20px 10px 5px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
@@ -4057,6 +4572,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithFourLengths) {
   EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
@@ -4064,6 +4580,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithFourLengths) {
   EXPECT_FLOAT_EQ(20.0f, border_top_right_radius->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_top_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -4072,6 +4589,7 @@ TEST_F(ParserTest, ParsesBorderRadiusWithFourLengths) {
   EXPECT_FLOAT_EQ(10.0f, border_bottom_right_radius->value());
   EXPECT_EQ(cssom::kPixelsUnit, border_bottom_right_radius->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -4086,6 +4604,7 @@ TEST_F(ParserTest, ParsesBorderTopLeftRadius) {
       parser_.ParseStyleDeclarationList("border-top-left-radius: 20px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
@@ -4099,6 +4618,7 @@ TEST_F(ParserTest, ParsesBorderTopRightRadius) {
       parser_.ParseStyleDeclarationList("border-top-right-radius: .8em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderTopRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_top_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
@@ -4112,6 +4632,7 @@ TEST_F(ParserTest, ParsesBorderBottomRightRadius) {
       parser_.ParseStyleDeclarationList("border-bottom-right-radius: 50px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomRightRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
@@ -4126,6 +4647,7 @@ TEST_F(ParserTest, ParsesBorderBottomLeftRadius) {
       parser_.ParseStyleDeclarationList("border-bottom-left-radius: .2em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBorderBottomLeftRadiusProperty));
   scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
@@ -4133,14 +4655,6 @@ TEST_F(ParserTest, ParsesBorderBottomLeftRadius) {
   ASSERT_TRUE(border_bottom_left_radius);
   EXPECT_FLOAT_EQ(0.2f, border_bottom_left_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_left_radius->unit());
-}
-
-TEST_F(ParserTest, ParsesBoxShadowWithNone) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("box-shadow: none;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kBoxShadowProperty));
 }
 
 TEST_F(ParserTest, InvalidBoxShadowWithTwoColors) {
@@ -4178,6 +4692,7 @@ TEST_F(ParserTest, ParsesBoxShadowWithTwoLengths) {
       parser_.ParseStyleDeclarationList("box-shadow: .2em 20px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBoxShadowProperty));
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBoxShadowProperty).get());
@@ -4206,6 +4721,7 @@ TEST_F(ParserTest, ParsesBoxShadowWithThreeLengthsAndColor) {
       parser_.ParseStyleDeclarationList("box-shadow: gray .2em 20px .3em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBoxShadowProperty));
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBoxShadowProperty).get());
@@ -4240,6 +4756,7 @@ TEST_F(ParserTest, ParsesBoxShadowWithFourLengthsInsetAndColor) {
           "inset rgba(0, 0, 0, .8);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBoxShadowProperty));
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBoxShadowProperty).get());
@@ -4277,6 +4794,7 @@ TEST_F(ParserTest, ParsesBoxShadowWithCommaSeparatedList) {
           "12px 20px .5em 8px inset rgba(0, 0, 0, .8);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBoxShadowProperty));
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kBoxShadowProperty).get());
@@ -4326,6 +4844,7 @@ TEST_F(ParserTest, Parses3DigitColor) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("color: #123;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kColorProperty).get());
@@ -4338,6 +4857,7 @@ TEST_F(ParserTest, Parses6DigitColor) {
       parser_.ParseStyleDeclarationList("color: #0047ab;  /* Cobalt blue */\n",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kColorProperty).get());
@@ -4345,49 +4865,12 @@ TEST_F(ParserTest, Parses6DigitColor) {
   EXPECT_EQ(0x0047abff, color->value());
 }
 
-TEST_F(ParserTest, ParsesNoneContent) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("content: none;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kContentProperty));
-}
-
-TEST_F(ParserTest, ParsesNormalContent) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("content: normal;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNormal(),
-            style->GetPropertyValue(cssom::kContentProperty));
-}
-
-TEST_F(ParserTest, ParsesURLContent) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("content: url(foo.png);",
-                                        source_location_);
-
-  scoped_refptr<cssom::URLValue> content_image = dynamic_cast<cssom::URLValue*>(
-      style->GetPropertyValue(cssom::kContentProperty).get());
-  ASSERT_TRUE(content_image);
-  EXPECT_EQ("foo.png", content_image->value());
-}
-
-TEST_F(ParserTest, ParsesStringContent) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("content: \"cobalt FTW!\";",
-                                        source_location_);
-
-  scoped_refptr<cssom::StringValue> content = dynamic_cast<cssom::StringValue*>(
-      style->GetPropertyValue(cssom::kContentProperty).get());
-  ASSERT_TRUE(content);
-  EXPECT_EQ("cobalt FTW!", content->value());
-}
-
 TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("color: rgb(300, 0, -300);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kColorProperty).get());
@@ -4400,6 +4883,7 @@ TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
       parser_.ParseStyleDeclarationList("color: rgba(255, 128, 1, 0.5);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kColorProperty).get());
@@ -4407,49 +4891,443 @@ TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
   EXPECT_EQ(0xff80017f, color->value());
 }
 
-TEST_F(ParserTest, ParsesBlockDisplay) {
+TEST_F(ParserTest, ParsesURLContent) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("display: block;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetBlock(),
-            style->GetPropertyValue(cssom::kDisplayProperty));
-}
-
-TEST_F(ParserTest, ParsesInlineDisplay) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("display: inline;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInline(),
-            style->GetPropertyValue(cssom::kDisplayProperty));
-}
-
-TEST_F(ParserTest, ParsesInlineBlockDisplay) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("display: inline-block;",
+      parser_.ParseStyleDeclarationList("content: url(foo.png);",
                                         source_location_);
 
-  EXPECT_EQ(cssom::KeywordValue::GetInlineBlock(),
-            style->GetPropertyValue(cssom::kDisplayProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kContentProperty));
+  scoped_refptr<cssom::URLValue> content_image = dynamic_cast<cssom::URLValue*>(
+      style->GetPropertyValue(cssom::kContentProperty).get());
+  ASSERT_TRUE(content_image);
+  EXPECT_EQ("foo.png", content_image->value());
 }
 
-TEST_F(ParserTest, ParsesNoneDisplay) {
+TEST_F(ParserTest, ParsesStringContent) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("display: none;", source_location_);
+      parser_.ParseStyleDeclarationList("content: \"cobalt FTW!\";",
+                                        source_location_);
 
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kDisplayProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kContentProperty));
+  scoped_refptr<cssom::StringValue> content = dynamic_cast<cssom::StringValue*>(
+      style->GetPropertyValue(cssom::kContentProperty).get());
+  ASSERT_TRUE(content);
+  EXPECT_EQ("cobalt FTW!", content->value());
+}
+
+TEST_F(ParserTest, ParsesFlexAuto) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: auto;", source_location_);
+
+  // The keyword 'auto' expands to '1 1 auto'.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-common
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(1, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(1, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            style->GetPropertyValue(cssom::kFlexBasisProperty));
+}
+
+TEST_F(ParserTest, ParsesFlexInitial) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: initial;", source_location_);
+
+  // The keyword 'initial' expands to '0 1 auto'. This is the initial value.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-common
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFlexGrowProperty));
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::NumberValue*>(
+                cssom::GetPropertyInitialValue(cssom::kFlexGrowProperty).get())
+                ->value(),
+            0);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFlexShrinkProperty));
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::NumberValue*>(
+          cssom::GetPropertyInitialValue(cssom::kFlexShrinkProperty).get())
+          ->value(),
+      1);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFlexBasisProperty));
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::KeywordValue*>(
+          cssom::GetPropertyInitialValue(cssom::kFlexBasisProperty).get()),
+      cssom::KeywordValue::GetAuto());
+}
+
+TEST_F(ParserTest, ParsesFlexNone) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: none;", source_location_);
+
+  // The keyword 'none' expands to '0 0 auto'.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(0, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(0, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            style->GetPropertyValue(cssom::kFlexBasisProperty));
+}
+
+TEST_F(ParserTest, ParsesFlexSingleNumber) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 5;", source_location_);
+
+  // Value 'flex: <positive number>' expands to 'flex: <positive-number> 1 0'.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-common
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(5, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(1, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(0, flex_basis->value());
+}
+
+TEST_F(ParserTest, ParsesFlexOneTwo) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 1 2;", source_location_);
+
+  // The keyword none expands to 0 0 auto.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(1, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(2, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFlexBasisProperty));
+}
+
+TEST_F(ParserTest, ParsesFlexOneTwoZero) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 1 2 0;", source_location_);
+
+  // The keyword none expands to 0 0 auto.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(1, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(2, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(0, flex_basis->value());
+}
+
+TEST_F(ParserTest, ParsesFlexZeroBasis) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 0 100px;", source_location_);
+
+  // The keyword none expands to 0 0 auto.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(0, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFlexShrinkProperty));
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(100, flex_basis->value());
+  EXPECT_EQ(cssom::kPixelsUnit, flex_basis->unit());
+}
+
+TEST_F(ParserTest, ParsesFlexOneTwoBasis) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 1 2 100px;", source_location_);
+
+  // The keyword none expands to 0 0 auto.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(1, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(2, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(100, flex_basis->value());
+  EXPECT_EQ(cssom::kPixelsUnit, flex_basis->unit());
+}
+
+TEST_F(ParserTest, ParsesFlexAbsoluteBasisZero) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 100px 0;", source_location_);
+
+  // The keyword none expands to 0 0 auto.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(0, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kFlexShrinkProperty));
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(100, flex_basis->value());
+  EXPECT_EQ(cssom::kPixelsUnit, flex_basis->unit());
+}
+
+TEST_F(ParserTest, ParsesFlexAbsoluteBasisOneTwo) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex: 100px 1 2;", source_location_);
+
+  // The keyword none expands to 0 0 auto.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(1, flex_grow->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(2, flex_shrink->value());
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(100, flex_basis->value());
+  EXPECT_EQ(cssom::kPixelsUnit, flex_basis->unit());
+}
+
+TEST_F(ParserTest, ParsesFlexBasisZero) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-basis: 0;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(0, flex_basis->value());
+}
+
+TEST_F(ParserTest, ParsesFlexBasisAbsoluteLength) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-basis: 100px;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(100, flex_basis->value());
+  EXPECT_EQ(cssom::kPixelsUnit, flex_basis->unit());
+}
+
+TEST_F(ParserTest, ParsesFlexRelativeLength) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-basis: 10em;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(10, flex_basis->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, flex_basis->unit());
+}
+
+TEST_F(ParserTest, ParsesFlexBasisPercent) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-basis: 10%;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::PercentageValue> flex_basis =
+      dynamic_cast<cssom::PercentageValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(0.1f, flex_basis->value());
+}
+
+TEST_F(ParserTest, ParsesFlexGrow) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-grow: 10;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(10, flex_grow->value());
+}
+
+TEST_F(ParserTest, ParsesFlexGrowFraction) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-grow: 0.75;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
+  scoped_refptr<cssom::NumberValue> flex_grow =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexGrowProperty).get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_FLOAT_EQ(0.75f, flex_grow->value());
+}
+
+TEST_F(ParserTest, ParsesFlexFlowWrapDirection) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-flow: wrap-reverse column;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexDirectionProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetColumn(),
+            style->GetPropertyValue(cssom::kFlexDirectionProperty));
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexWrapProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetWrapReverse(),
+            style->GetPropertyValue(cssom::kFlexWrapProperty));
+}
+
+TEST_F(ParserTest, ParsesFlexFlowDirectionWrap) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-flow: row-reverse nowrap;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexDirectionProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetRowReverse(),
+            style->GetPropertyValue(cssom::kFlexDirectionProperty));
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexWrapProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetNowrap(),
+            style->GetPropertyValue(cssom::kFlexWrapProperty));
+}
+
+TEST_F(ParserTest, ParsesFlexShrink) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-shrink: 10;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(10, flex_shrink->value());
+}
+
+TEST_F(ParserTest, ParsesFlexShrinkFraction) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("flex-shrink: 0.75;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kFlexShrinkProperty));
+  scoped_refptr<cssom::NumberValue> flex_shrink =
+      dynamic_cast<cssom::NumberValue*>(
+          style->GetPropertyValue(cssom::kFlexShrinkProperty).get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_FLOAT_EQ(0.75f, flex_shrink->value());
 }
 
 TEST_F(ParserTest, ParsesFontShorthandInherit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font: inherit;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kFontSizeProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kFontFamilyProperty));
 }
@@ -4458,12 +5336,16 @@ TEST_F(ParserTest, ParsesFontShorthandInitial) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font: initial;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontSizeProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontFamilyProperty));
 }
@@ -4473,11 +5355,14 @@ TEST_F(ParserTest, ParsesFontShorthandSizeFamily) {
       parser_.ParseStyleDeclarationList(
           "font: 50px 'Roboto', Noto, sans-serif;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4485,6 +5370,7 @@ TEST_F(ParserTest, ParsesFontShorthandSizeFamily) {
   EXPECT_FLOAT_EQ(50, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4512,11 +5398,14 @@ TEST_F(ParserTest, ParsesFontShorthandStyleSizeFamily) {
       parser_.ParseStyleDeclarationList("font: italic 50em Noto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::FontStyleValue::GetItalic(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4524,6 +5413,7 @@ TEST_F(ParserTest, ParsesFontShorthandStyleSizeFamily) {
   EXPECT_FLOAT_EQ(50, font_size->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4542,11 +5432,14 @@ TEST_F(ParserTest, ParsesFontShorthandWeightSizeFamily) {
       parser_.ParseStyleDeclarationList("font: bold 10em sans-serif;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4554,6 +5447,7 @@ TEST_F(ParserTest, ParsesFontShorthandWeightSizeFamily) {
   EXPECT_FLOAT_EQ(10, font_size->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4569,11 +5463,14 @@ TEST_F(ParserTest, ParsesFontShorthandStyleWeightSizeFamily) {
       parser_.ParseStyleDeclarationList("font: italic 300 50px 'Roboto';",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::FontStyleValue::GetItalic(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetLightAka300(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4581,6 +5478,7 @@ TEST_F(ParserTest, ParsesFontShorthandStyleWeightSizeFamily) {
   EXPECT_FLOAT_EQ(50, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4599,11 +5497,14 @@ TEST_F(ParserTest, ParsesFontShorthandStyleNormal) {
       parser_.ParseStyleDeclarationList("font: normal 600 50px Roboto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::FontStyleValue::GetNormal(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetSemiBoldAka600(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4611,6 +5512,7 @@ TEST_F(ParserTest, ParsesFontShorthandStyleNormal) {
   EXPECT_FLOAT_EQ(50, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4629,11 +5531,14 @@ TEST_F(ParserTest, ParsesFontShorthandWeightNormal) {
       parser_.ParseStyleDeclarationList("font: italic normal 50px Roboto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::FontStyleValue::GetItalic(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4641,6 +5546,7 @@ TEST_F(ParserTest, ParsesFontShorthandWeightNormal) {
   EXPECT_FLOAT_EQ(50, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4659,11 +5565,14 @@ TEST_F(ParserTest, ParsesFontShorthandStyleWeightNormal) {
       parser_.ParseStyleDeclarationList("font: normal normal 50px Roboto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontStyleProperty));
   EXPECT_EQ(cssom::FontStyleValue::GetNormal(),
             style->GetPropertyValue(cssom::kFontStyleProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4671,6 +5580,7 @@ TEST_F(ParserTest, ParsesFontShorthandStyleWeightNormal) {
   EXPECT_FLOAT_EQ(50, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4684,29 +5594,12 @@ TEST_F(ParserTest, ParsesFontShorthandStyleWeightNormal) {
   EXPECT_EQ("Roboto", font_family_name->value());
 }
 
-TEST_F(ParserTest, ParsesFontFamilyInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-family: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kFontFamilyProperty));
-}
-
-TEST_F(ParserTest, ParsesFontFamilyInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-family: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kFontFamilyProperty));
-}
-
 TEST_F(ParserTest, ParsesFontFamilyGenericName) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-family: serif;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4721,6 +5614,7 @@ TEST_F(ParserTest, ParsesFontFamilySingleIdentifierName) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-family: Noto;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4739,6 +5633,7 @@ TEST_F(ParserTest, ParsesFontFamilySingleIdentifierPropertyName) {
       parser_.ParseStyleDeclarationList("font-family: content;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4757,6 +5652,7 @@ TEST_F(ParserTest, ParsesFontFamilyMultipleIdentifierName) {
       parser_.ParseStyleDeclarationList("font-family: Roboto;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4775,6 +5671,7 @@ TEST_F(ParserTest, ParsesFontFamilyIdentifierNameContainingInheritKeyword) {
       parser_.ParseStyleDeclarationList("font-family: Droid inherit droid;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4793,6 +5690,7 @@ TEST_F(ParserTest, ParsesFontFamilyIdentifierNameContainingGenericFont) {
       parser_.ParseStyleDeclarationList("font-family: Droid serif droid;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4811,6 +5709,7 @@ TEST_F(ParserTest, ParsesFontFamilyStringName) {
       parser_.ParseStyleDeclarationList("font-family: \"Roboto\";",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4829,6 +5728,7 @@ TEST_F(ParserTest, ParsesFontFamilyList) {
       parser_.ParseStyleDeclarationList(
           "font-family: 'Roboto', Noto, sans-serif;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontFamilyProperty));
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kFontFamilyProperty).get());
@@ -4857,6 +5757,7 @@ TEST_F(ParserTest, ParsesLengthPxUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-size: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4869,6 +5770,7 @@ TEST_F(ParserTest, ParsesLengthEmUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-size: 10em;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4881,6 +5783,7 @@ TEST_F(ParserTest, ParsesLengthRemUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-size: 10rem;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4893,6 +5796,7 @@ TEST_F(ParserTest, ParsesLengthVwUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-size: 10vw;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4905,6 +5809,7 @@ TEST_F(ParserTest, ParsesLengthVhUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-size: 10vh;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontSizeProperty));
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kFontSizeProperty).get());
@@ -4913,56 +5818,12 @@ TEST_F(ParserTest, ParsesLengthVhUnit) {
   EXPECT_EQ(cssom::kViewportHeightPercentsAkaVhUnit, font_size->unit());
 }
 
-TEST_F(ParserTest, ParsesNormalFontStyle) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-style: normal;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::FontStyleValue::GetNormal(),
-            style->GetPropertyValue(cssom::kFontStyleProperty));
-}
-
-TEST_F(ParserTest, ParsesItalicFontStyle) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-style: italic;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::FontStyleValue::GetItalic(),
-            style->GetPropertyValue(cssom::kFontStyleProperty));
-}
-
-TEST_F(ParserTest, ParsesObliqueFontStyle) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-style: oblique;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::FontStyleValue::GetOblique(),
-            style->GetPropertyValue(cssom::kFontStyleProperty));
-}
-
-TEST_F(ParserTest, ParsesInheritFontStyle) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-style: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kFontStyleProperty));
-}
-
-TEST_F(ParserTest, ParsesInitialFontStyle) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("font-style: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kFontStyleProperty));
-}
-
 TEST_F(ParserTest, ParsesNormalFontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: normal;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -4971,6 +5832,7 @@ TEST_F(ParserTest, ParsesBoldFontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: bold;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -4979,6 +5841,7 @@ TEST_F(ParserTest, Parses100FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 100;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetThinAka100(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -4987,6 +5850,7 @@ TEST_F(ParserTest, Parses200FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 200;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetExtraLightAka200(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -4995,6 +5859,7 @@ TEST_F(ParserTest, Parses300FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 300;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetLightAka300(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5003,6 +5868,7 @@ TEST_F(ParserTest, Parses400FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 400;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5011,6 +5877,7 @@ TEST_F(ParserTest, Parses500FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 500;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetMediumAka500(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5019,6 +5886,7 @@ TEST_F(ParserTest, Parses600FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 600;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetSemiBoldAka600(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5027,6 +5895,7 @@ TEST_F(ParserTest, Parses700FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 700;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5035,6 +5904,7 @@ TEST_F(ParserTest, Parses800FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 800;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetExtraBoldAka800(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5043,6 +5913,7 @@ TEST_F(ParserTest, Parses900FontWeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-weight: 900;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFontWeightProperty));
   EXPECT_EQ(cssom::FontWeightValue::GetBlackAka900(),
             style->GetPropertyValue(cssom::kFontWeightProperty));
 }
@@ -5051,6 +5922,7 @@ TEST_F(ParserTest, ParsesHeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("height: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kHeightProperty));
   scoped_refptr<cssom::LengthValue> height = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kHeightProperty).get());
   ASSERT_TRUE(height);
@@ -5058,20 +5930,12 @@ TEST_F(ParserTest, ParsesHeight) {
   EXPECT_EQ(cssom::kPixelsUnit, height->unit());
 }
 
-TEST_F(ParserTest, ParsesNormalLineHeight) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("line-height: normal;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNormal(),
-            style->GetPropertyValue(cssom::kLineHeightProperty));
-}
-
 TEST_F(ParserTest, ParsesLineHeightInEm) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("line-height: 1.2em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kLineHeightProperty));
   scoped_refptr<cssom::LengthValue> line_height =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kLineHeightProperty).get());
@@ -5084,6 +5948,7 @@ TEST_F(ParserTest, ParsesLineHeightPercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("line-height: 220%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kLineHeightProperty));
   scoped_refptr<cssom::PercentageValue> line_height =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kLineHeightProperty).get());
@@ -5095,12 +5960,16 @@ TEST_F(ParserTest, ParsesMarginWith1Value) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("margin: auto;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginTopProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginTopProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginRightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginRightProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginBottomProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginBottomProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginLeftProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginLeftProperty));
 }
@@ -5109,9 +5978,11 @@ TEST_F(ParserTest, ParsesMarginWith2Values) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("margin: auto 0;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginTopProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginTopProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginRightProperty));
   scoped_refptr<cssom::LengthValue> margin_right =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginRightProperty).get());
@@ -5119,9 +5990,11 @@ TEST_F(ParserTest, ParsesMarginWith2Values) {
   EXPECT_FLOAT_EQ(0, margin_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_right->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginBottomProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginBottomProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginLeftProperty));
   scoped_refptr<cssom::LengthValue> margin_left =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginLeftProperty).get());
@@ -5135,6 +6008,7 @@ TEST_F(ParserTest, ParsesMarginWith3Values) {
       parser_.ParseStyleDeclarationList("margin: 0 auto 10%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginTopProperty));
   scoped_refptr<cssom::LengthValue> margin_top =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginTopProperty).get());
@@ -5142,15 +6016,18 @@ TEST_F(ParserTest, ParsesMarginWith3Values) {
   EXPECT_FLOAT_EQ(0, margin_top->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_top->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginRightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginRightProperty));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginBottomProperty));
   scoped_refptr<cssom::PercentageValue> margin_bottom =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kMarginBottomProperty).get());
   ASSERT_TRUE(margin_bottom);
   EXPECT_FLOAT_EQ(0.1f, margin_bottom->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginLeftProperty));
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             style->GetPropertyValue(cssom::kMarginLeftProperty));
 }
@@ -5175,6 +6052,7 @@ TEST_F(ParserTest, ParsesMarginWith4Values) {
       parser_.ParseStyleDeclarationList("margin: 10px 20px 30px 40px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginTopProperty));
   scoped_refptr<cssom::LengthValue> margin_top =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginTopProperty).get());
@@ -5182,6 +6060,7 @@ TEST_F(ParserTest, ParsesMarginWith4Values) {
   EXPECT_FLOAT_EQ(10, margin_top->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_top->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginRightProperty));
   scoped_refptr<cssom::LengthValue> margin_right =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginRightProperty).get());
@@ -5189,6 +6068,7 @@ TEST_F(ParserTest, ParsesMarginWith4Values) {
   EXPECT_FLOAT_EQ(20, margin_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_right->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginBottomProperty));
   scoped_refptr<cssom::LengthValue> margin_bottom =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginBottomProperty).get());
@@ -5196,6 +6076,7 @@ TEST_F(ParserTest, ParsesMarginWith4Values) {
   EXPECT_FLOAT_EQ(30, margin_bottom->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_bottom->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginLeftProperty));
   scoped_refptr<cssom::LengthValue> margin_left =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginLeftProperty).get());
@@ -5209,6 +6090,7 @@ TEST_F(ParserTest, ParsesMarginBottom) {
       parser_.ParseStyleDeclarationList("margin-bottom: 1em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginBottomProperty));
   scoped_refptr<cssom::LengthValue> margin_bottom =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMarginBottomProperty).get());
@@ -5221,6 +6103,7 @@ TEST_F(ParserTest, ParsesMarginLeft) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("margin-left: 5.5%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMarginLeftProperty));
   scoped_refptr<cssom::PercentageValue> margin_left =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kMarginLeftProperty).get());
@@ -5228,28 +6111,11 @@ TEST_F(ParserTest, ParsesMarginLeft) {
   EXPECT_FLOAT_EQ(0.055f, margin_left->value());
 }
 
-TEST_F(ParserTest, ParsesMarginRight) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("margin-right: auto;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kMarginRightProperty));
-}
-
-TEST_F(ParserTest, ParsesMarginTop) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("margin-top: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kMarginTopProperty));
-}
-
 TEST_F(ParserTest, ParsesMaxHeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("max-height: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMaxHeightProperty));
   scoped_refptr<cssom::LengthValue> max_height =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMaxHeightProperty).get());
@@ -5267,6 +6133,7 @@ TEST_F(ParserTest, ParsesMaxHeightNone) {
       parser_.ParseStyleDeclarationList("max-height: 100px; max-height: none;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMaxHeightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNone(),
             style->GetPropertyValue(cssom::kMaxHeightProperty));
 }
@@ -5275,6 +6142,7 @@ TEST_F(ParserTest, ParsesMaxWidth) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("max-width: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMaxWidthProperty));
   scoped_refptr<cssom::LengthValue> max_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMaxWidthProperty).get());
@@ -5292,6 +6160,7 @@ TEST_F(ParserTest, ParsesMaxWidthNone) {
       parser_.ParseStyleDeclarationList("max-width: 100px; max-width: none;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMaxWidthProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNone(),
             style->GetPropertyValue(cssom::kMaxWidthProperty));
 }
@@ -5300,6 +6169,7 @@ TEST_F(ParserTest, ParsesMinHeight) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("min-height: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMinHeightProperty));
   scoped_refptr<cssom::LengthValue> min_height =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMinHeightProperty).get());
@@ -5312,6 +6182,7 @@ TEST_F(ParserTest, ParsesMinWidth) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("min-width: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kMinWidthProperty));
   scoped_refptr<cssom::LengthValue> min_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kMinWidthProperty).get());
@@ -5324,6 +6195,7 @@ TEST_F(ParserTest, ParsesOpacity) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("opacity: 0.5;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOpacityProperty));
   scoped_refptr<cssom::NumberValue> translucent =
       dynamic_cast<cssom::NumberValue*>(
           style->GetPropertyValue(cssom::kOpacityProperty).get());
@@ -5335,6 +6207,7 @@ TEST_F(ParserTest, ClampsOpacityToZero) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("opacity: -3.14;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOpacityProperty));
   scoped_refptr<cssom::NumberValue> transparent =
       dynamic_cast<cssom::NumberValue*>(
           style->GetPropertyValue(cssom::kOpacityProperty).get());
@@ -5346,10 +6219,22 @@ TEST_F(ParserTest, ClampsOpacityToOne) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("opacity: 2.72;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOpacityProperty));
   scoped_refptr<cssom::NumberValue> opaque = dynamic_cast<cssom::NumberValue*>(
       style->GetPropertyValue(cssom::kOpacityProperty).get());
   ASSERT_TRUE(opaque);
   EXPECT_FLOAT_EQ(1, opaque->value());
+}
+
+TEST_F(ParserTest, ParsesOrder) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("order: -5;", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kOrderProperty));
+  scoped_refptr<cssom::IntegerValue> order = dynamic_cast<cssom::IntegerValue*>(
+      style->GetPropertyValue(cssom::kOrderProperty).get());
+  ASSERT_TRUE(order);
+  EXPECT_FLOAT_EQ(-5, order->value());
 }
 
 TEST_F(ParserTest, ParsesOutlineWithWidthColorAndStyle) {
@@ -5357,6 +6242,7 @@ TEST_F(ParserTest, ParsesOutlineWithWidthColorAndStyle) {
       parser_.ParseStyleDeclarationList("outline: .5em #fff solid;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineWidthProperty));
   scoped_refptr<cssom::LengthValue> outline_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kOutlineWidthProperty).get());
@@ -5364,12 +6250,14 @@ TEST_F(ParserTest, ParsesOutlineWithWidthColorAndStyle) {
   EXPECT_FLOAT_EQ(0.5f, outline_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, outline_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineColorProperty));
   scoped_refptr<cssom::RGBAColorValue> outline_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kOutlineColorProperty).get());
   ASSERT_TRUE(outline_color);
   EXPECT_EQ(0xffffffff, outline_color->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineStyleProperty));
   EXPECT_EQ(cssom::KeywordValue::GetSolid(),
             style->GetPropertyValue(cssom::kOutlineStyleProperty));
 }
@@ -5436,6 +6324,7 @@ TEST_F(ParserTest, ParsesOutlineColorWidth) {
       parser_.ParseStyleDeclarationList("outline: gray 20px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineWidthProperty));
   scoped_refptr<cssom::LengthValue> outline_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kOutlineWidthProperty).get());
@@ -5443,6 +6332,7 @@ TEST_F(ParserTest, ParsesOutlineColorWidth) {
   EXPECT_FLOAT_EQ(20.0f, outline_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, outline_width->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineColorProperty));
   scoped_refptr<cssom::RGBAColorValue> outline_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kOutlineColorProperty).get());
@@ -5455,6 +6345,7 @@ TEST_F(ParserTest, ParsesOutlineColor) {
       parser_.ParseStyleDeclarationList("outline-color: rgba(0, 0, 0, .8);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineColorProperty));
   scoped_refptr<cssom::RGBAColorValue> outline_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kOutlineColorProperty).get());
@@ -5467,30 +6358,13 @@ TEST_F(ParserTest, ParsesOutlineWidth) {
       parser_.ParseStyleDeclarationList("outline-width: .8em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kOutlineWidthProperty));
   scoped_refptr<cssom::LengthValue> outline_width =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kOutlineWidthProperty).get());
   ASSERT_TRUE(outline_width);
   EXPECT_FLOAT_EQ(0.8f, outline_width->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, outline_width->unit());
-}
-
-TEST_F(ParserTest, ParsesOutlineStyleSolid) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("outline-style: solid;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetSolid(),
-            style->GetPropertyValue(cssom::kOutlineStyleProperty));
-}
-
-TEST_F(ParserTest, ParsesOutlineStyleHidden) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("outline-style: hidden;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetHidden(),
-            style->GetPropertyValue(cssom::kOutlineStyleProperty));
 }
 
 TEST_F(ParserTest, ParsesOutlineColorWithInvalidNumberOfValues) {
@@ -5557,66 +6431,20 @@ TEST_F(ParserTest, ParsesOutlineWidthWithZeroValue) {
   EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineWidthProperty));
 }
 
-TEST_F(ParserTest, ParsesBreakWordOverflowWrap) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("overflow-wrap: break-word;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetBreakWord(),
-            style->GetPropertyValue(cssom::kOverflowWrapProperty));
-}
-
-TEST_F(ParserTest, ParsesNormalOverflowWrap) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("overflow-wrap: normal;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNormal(),
-            style->GetPropertyValue(cssom::kOverflowWrapProperty));
-}
-
-TEST_F(ParserTest, ParsesAutoOverflow) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("overflow: auto;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kOverflowProperty));
-}
-
-TEST_F(ParserTest, ParsesHiddenOverflow) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("overflow: hidden;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetHidden(),
-            style->GetPropertyValue(cssom::kOverflowProperty));
-}
-
-TEST_F(ParserTest, ParsesScrollOverflow) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("overflow: scroll;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetScroll(),
-            style->GetPropertyValue(cssom::kOverflowProperty));
-}
-
-TEST_F(ParserTest, ParsesVisibleOverflow) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("overflow: visible;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetVisible(),
-            style->GetPropertyValue(cssom::kOverflowProperty));
-}
-
 TEST_F(ParserTest, ParsesPaddingWith1Value) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("padding: inherit;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingTopProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kPaddingTopProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingRightProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kPaddingRightProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingBottomProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kPaddingBottomProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingLeftProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInherit(),
             style->GetPropertyValue(cssom::kPaddingLeftProperty));
 }
@@ -5626,12 +6454,14 @@ TEST_F(ParserTest, ParsesPaddingWith2Values) {
       parser_.ParseStyleDeclarationList("padding: 10% 1.2em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingTopProperty));
   scoped_refptr<cssom::PercentageValue> padding_top =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kPaddingTopProperty).get());
   ASSERT_TRUE(padding_top);
   EXPECT_FLOAT_EQ(0.1f, padding_top->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingRightProperty));
   scoped_refptr<cssom::LengthValue> padding_right =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingRightProperty).get());
@@ -5639,12 +6469,14 @@ TEST_F(ParserTest, ParsesPaddingWith2Values) {
   EXPECT_FLOAT_EQ(1.2f, padding_right->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_right->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingBottomProperty));
   scoped_refptr<cssom::PercentageValue> padding_bottom =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kPaddingBottomProperty).get());
   ASSERT_TRUE(padding_bottom);
   EXPECT_FLOAT_EQ(0.1f, padding_bottom->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingLeftProperty));
   scoped_refptr<cssom::LengthValue> padding_left =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingLeftProperty).get());
@@ -5658,12 +6490,14 @@ TEST_F(ParserTest, ParsesPaddingWith3Values) {
       parser_.ParseStyleDeclarationList("padding: 10% 1.2em 20%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingTopProperty));
   scoped_refptr<cssom::PercentageValue> padding_top =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kPaddingTopProperty).get());
   ASSERT_TRUE(padding_top);
   EXPECT_FLOAT_EQ(0.1f, padding_top->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingRightProperty));
   scoped_refptr<cssom::LengthValue> padding_right =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingRightProperty).get());
@@ -5671,12 +6505,14 @@ TEST_F(ParserTest, ParsesPaddingWith3Values) {
   EXPECT_FLOAT_EQ(1.2f, padding_right->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_right->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingBottomProperty));
   scoped_refptr<cssom::PercentageValue> padding_bottom =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kPaddingBottomProperty).get());
   ASSERT_TRUE(padding_bottom);
   EXPECT_FLOAT_EQ(0.2f, padding_bottom->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingLeftProperty));
   scoped_refptr<cssom::LengthValue> padding_left =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingLeftProperty).get());
@@ -5690,6 +6526,7 @@ TEST_F(ParserTest, ParsesPaddingWith4Values) {
       parser_.ParseStyleDeclarationList("padding: 10px 20px 30px 40px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingTopProperty));
   scoped_refptr<cssom::LengthValue> padding_top =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingTopProperty).get());
@@ -5697,6 +6534,7 @@ TEST_F(ParserTest, ParsesPaddingWith4Values) {
   EXPECT_FLOAT_EQ(10, padding_top->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_top->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingRightProperty));
   scoped_refptr<cssom::LengthValue> padding_right =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingRightProperty).get());
@@ -5704,6 +6542,7 @@ TEST_F(ParserTest, ParsesPaddingWith4Values) {
   EXPECT_FLOAT_EQ(20, padding_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_right->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingBottomProperty));
   scoped_refptr<cssom::LengthValue> padding_bottom =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingBottomProperty).get());
@@ -5711,6 +6550,7 @@ TEST_F(ParserTest, ParsesPaddingWith4Values) {
   EXPECT_FLOAT_EQ(30, padding_bottom->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_bottom->unit());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingLeftProperty));
   scoped_refptr<cssom::LengthValue> padding_left =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingLeftProperty).get());
@@ -5724,6 +6564,7 @@ TEST_F(ParserTest, ParsesPaddingBottom) {
       parser_.ParseStyleDeclarationList("padding-bottom: 1em;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingBottomProperty));
   scoped_refptr<cssom::LengthValue> padding_bottom =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kPaddingBottomProperty).get());
@@ -5737,6 +6578,7 @@ TEST_F(ParserTest, ParsesPaddingLeft) {
       parser_.ParseStyleDeclarationList("padding-left: 5.5%;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kPaddingLeftProperty));
   scoped_refptr<cssom::PercentageValue> padding_left =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kPaddingLeftProperty).get());
@@ -5744,63 +6586,12 @@ TEST_F(ParserTest, ParsesPaddingLeft) {
   EXPECT_FLOAT_EQ(0.055f, padding_left->value());
 }
 
-TEST_F(ParserTest, ParsesPaddingRight) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("padding-right: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kPaddingRightProperty));
-}
-
-TEST_F(ParserTest, ParsesPaddingTop) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("padding-top: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kPaddingTopProperty));
-}
-
-TEST_F(ParserTest, ParsesStaticPosition) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("position: static;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetStatic(),
-            style->GetPropertyValue(cssom::kPositionProperty));
-}
-
-TEST_F(ParserTest, ParsesRelativePosition) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("position: relative;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetRelative(),
-            style->GetPropertyValue(cssom::kPositionProperty));
-}
-
-TEST_F(ParserTest, ParsesAbsolutePosition) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("position: absolute;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAbsolute(),
-            style->GetPropertyValue(cssom::kPositionProperty));
-}
-
-TEST_F(ParserTest, ParsesNoneTransform) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("transform: none;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kTransformProperty));
-}
-
 TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("transform: rotate(180deg);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5819,6 +6610,7 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
       parser_.ParseStyleDeclarationList("transform: rotate(200grad);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5837,6 +6629,7 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
       parser_.ParseStyleDeclarationList(
           "transform: rotate(3.141592653589793rad);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5855,6 +6648,7 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
       parser_.ParseStyleDeclarationList("transform: rotate(0.5turn);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5873,6 +6667,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
       parser_.ParseStyleDeclarationList("transform: scale(1.5);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5891,6 +6686,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleXTransform) {
       parser_.ParseStyleDeclarationList("transform: scaleX(0.5);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5909,6 +6705,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleYTransform) {
       parser_.ParseStyleDeclarationList("transform: scaleY(20);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5931,6 +6728,7 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
       parser_.ParseStyleDeclarationList("transform: scale(16, 9);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5949,6 +6747,7 @@ TEST_F(ParserTest, Parses2DTranslateTransform) {
       parser_.ParseStyleDeclarationList("transform: translate(-50%, 30px);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -5984,6 +6783,7 @@ TEST_F(ParserTest, Parses2DTranslateTransformYOmitted) {
       parser_.ParseStyleDeclarationList("transform: translate(20%);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6019,6 +6819,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformLength) {
       parser_.ParseStyleDeclarationList("transform: translateX(0);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6043,6 +6844,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformPercentage) {
       parser_.ParseStyleDeclarationList("transform: translateX(20%);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6066,6 +6868,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformLength) {
       parser_.ParseStyleDeclarationList("transform: translateY(30em);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6090,6 +6893,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformPercentage) {
       parser_.ParseStyleDeclarationList("transform: translateY(30%);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6113,6 +6917,7 @@ TEST_F(ParserTest, ParsesTranslateZTransformLength) {
       parser_.ParseStyleDeclarationList("transform: translateZ(-22px);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6137,6 +6942,7 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
       parser_.ParseStyleDeclarationList("transform: matrix(1, 2, 3, 4, 5, 6);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6163,6 +6969,7 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
       parser_.ParseStyleDeclarationList("transform: scale(2) translateZ(10px);",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
@@ -6195,6 +7002,7 @@ TEST_F(ParserTest, ParsesTransformOriginWithOneValue) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("transform-origin: 20%;",
                                         source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformOriginProperty));
   scoped_refptr<cssom::PropertyListValue> transform_origin =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTransformOriginProperty).get());
@@ -6211,6 +7019,7 @@ TEST_F(ParserTest, ParsesTransformOriginWithOneKeywordValue) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("transform-origin: bottom;",
                                         source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformOriginProperty));
   scoped_refptr<cssom::PropertyListValue> transform_origin =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTransformOriginProperty).get());
@@ -6224,6 +7033,7 @@ TEST_F(ParserTest, ParsesTransformOriginWithTwoValues) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("transform-origin: 20% 50%;",
                                         source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformOriginProperty));
   scoped_refptr<cssom::PropertyListValue> transform_origin =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTransformOriginProperty).get());
@@ -6243,6 +7053,7 @@ TEST_F(ParserTest, ParsesTransformOriginWithTwoKeywordValues) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("transform-origin: bottom left;",
                                         source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformOriginProperty));
   scoped_refptr<cssom::PropertyListValue> transform_origin =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTransformOriginProperty).get());
@@ -6257,6 +7068,7 @@ TEST_F(ParserTest, ParsesTransformOriginWithThreeValues) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("transform-origin: left 0.4em 20px;",
                                         source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformOriginProperty));
   scoped_refptr<cssom::PropertyListValue> transform_origin =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTransformOriginProperty).get());
@@ -6300,40 +7112,8 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
           "color: #000;\n",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kColorProperty));
   EXPECT_TRUE(style->GetPropertyValue(cssom::kColorProperty));
-}
-
-TEST_F(ParserTest, ParsesLeftTextAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-align: left;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetLeft(),
-            style->GetPropertyValue(cssom::kTextAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesCenterTextAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-align: center;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            style->GetPropertyValue(cssom::kTextAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesEndTextAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-align: end;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetEnd(),
-            style->GetPropertyValue(cssom::kTextAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesRightTextAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-align: right;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetRight(),
-            style->GetPropertyValue(cssom::kTextAlignProperty));
 }
 
 TEST_F(ParserTest, ParsesTextDecorationColor) {
@@ -6341,6 +7121,7 @@ TEST_F(ParserTest, ParsesTextDecorationColor) {
       parser_.ParseStyleDeclarationList(
           "text-decoration-color: rgba(0, 0, 0, .8);", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationColorProperty));
   scoped_refptr<cssom::RGBAColorValue> text_decoration_color =
       dynamic_cast<cssom::RGBAColorValue*>(
           style->GetPropertyValue(cssom::kTextDecorationColorProperty).get());
@@ -6348,40 +7129,17 @@ TEST_F(ParserTest, ParsesTextDecorationColor) {
   EXPECT_EQ(0x000000cc, text_decoration_color->value());
 }
 
-TEST_F(ParserTest, ParsesTextDecorationLineNone) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-decoration-line: none;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
-}
-
-TEST_F(ParserTest, ParsesTextDecorationLineLineThrough) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-decoration-line: line-through;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetLineThrough(),
-            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
-}
-
-TEST_F(ParserTest, ParsesTextDecorationLineInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-decoration-line: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
-}
-
 TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyNone) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-decoration: none;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationLineProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNone(),
             style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationColorProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kTextDecorationColorProperty));
 }
 
 TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyLineThrough) {
@@ -6389,31 +7147,35 @@ TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyLineThrough) {
       parser_.ParseStyleDeclarationList("text-decoration: line-through;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationLineProperty));
   EXPECT_EQ(cssom::KeywordValue::GetLineThrough(),
             style->GetPropertyValue(cssom::kTextDecorationLineProperty));
-}
-
-TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-decoration: initial;",
-                                        source_location_);
-
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationColorProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+            style->GetPropertyValue(cssom::kTextDecorationColorProperty));
 }
 
-TEST_F(ParserTest, ParsesStartTextAlign) {
+TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyLineThroughColor) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-align: start;", source_location_);
+      parser_.ParseStyleDeclarationList(
+          "text-decoration: line-through rgba(0, 0, 0, .8);", source_location_);
 
-  EXPECT_EQ(cssom::KeywordValue::GetStart(),
-            style->GetPropertyValue(cssom::kTextAlignProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationLineProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetLineThrough(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextDecorationColorProperty));
+  scoped_refptr<cssom::RGBAColorValue> text_decoration_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kTextDecorationColorProperty).get());
+  ASSERT_TRUE(text_decoration_color);
+  EXPECT_EQ(0x000000cc, text_decoration_color->value());
 }
 
 TEST_F(ParserTest, ParseZeroLengthTextIndent) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-indent: 0;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextIndentProperty));
   scoped_refptr<cssom::LengthValue> text_indent =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kTextIndentProperty).get());
@@ -6426,6 +7188,7 @@ TEST_F(ParserTest, ParseRelativeLengthTextIndent) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-indent: 4em", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextIndentProperty));
   scoped_refptr<cssom::LengthValue> text_indent =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kTextIndentProperty).get());
@@ -6439,38 +7202,13 @@ TEST_F(ParserTest, ParseAbsoluteLengthTextIndent) {
       parser_.ParseStyleDeclarationList("text-indent: 100px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextIndentProperty));
   scoped_refptr<cssom::LengthValue> text_indent =
       dynamic_cast<cssom::LengthValue*>(
           style->GetPropertyValue(cssom::kTextIndentProperty).get());
   ASSERT_TRUE(text_indent);
   EXPECT_FLOAT_EQ(100, text_indent->value());
   EXPECT_EQ(cssom::kPixelsUnit, text_indent->unit());
-}
-
-TEST_F(ParserTest, ParsesClipTextOverflow) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-overflow: clip;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetClip(),
-            style->GetPropertyValue(cssom::kTextOverflowProperty));
-}
-
-TEST_F(ParserTest, ParsesEllipsisTextOverflow) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-overflow: ellipsis;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetEllipsis(),
-            style->GetPropertyValue(cssom::kTextOverflowProperty));
-}
-
-TEST_F(ParserTest, ParsesTextShadowWithNone) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-shadow: none;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kTextShadowProperty));
 }
 
 TEST_F(ParserTest, InvalidTextShadowWithTwoColors) {
@@ -6508,6 +7246,7 @@ TEST_F(ParserTest, ParsesTextShadowWithTwoLengths) {
       parser_.ParseStyleDeclarationList("text-shadow: 0.04em 1px;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextShadowProperty));
   scoped_refptr<cssom::PropertyListValue> text_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTextShadowProperty).get());
@@ -6536,6 +7275,7 @@ TEST_F(ParserTest, ParsesTextShadowWithThreeLengthsAndColor) {
       parser_.ParseStyleDeclarationList("text-shadow: 0.04em 1px .2em #123;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextShadowProperty));
   scoped_refptr<cssom::PropertyListValue> text_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTextShadowProperty).get());
@@ -6571,6 +7311,7 @@ TEST_F(ParserTest, ParsesTextShadowWithCommaSeparatedList) {
           "12px 20px .5em rgba(0, 0, 0, .8);",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTextShadowProperty));
   scoped_refptr<cssom::PropertyListValue> text_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kTextShadowProperty).get());
@@ -6621,144 +7362,11 @@ TEST_F(ParserTest, ParsesTextShadowWithWrongFormat) {
           source_location_);
 }
 
-TEST_F(ParserTest, ParsesNoneTextTransform) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-transform: none;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kTextTransformProperty));
-}
-
-TEST_F(ParserTest, ParsesUppercaseTextTransform) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("text-transform: uppercase;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetUppercase(),
-            style->GetPropertyValue(cssom::kTextTransformProperty));
-}
-
-TEST_F(ParserTest, ParsesBaselineVerticalAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("vertical-align: baseline;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetBaseline(),
-            style->GetPropertyValue(cssom::kVerticalAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesBottomVerticalAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("vertical-align: bottom;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetBottom(),
-            style->GetPropertyValue(cssom::kVerticalAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesMiddleVerticalAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("vertical-align: middle;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetMiddle(),
-            style->GetPropertyValue(cssom::kVerticalAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesTopVerticalAlign) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("vertical-align: top;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetTop(),
-            style->GetPropertyValue(cssom::kVerticalAlignProperty));
-}
-
-TEST_F(ParserTest, ParsesHiddenVisibility) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("visibility: hidden;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetHidden(),
-            style->GetPropertyValue(cssom::kVisibilityProperty));
-}
-
-TEST_F(ParserTest, ParsesVisibleVisibility) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("visibility: visible;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetVisible(),
-            style->GetPropertyValue(cssom::kVisibilityProperty));
-}
-
-TEST_F(ParserTest, ParsesNormalWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: normal;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNormal(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
-TEST_F(ParserTest, ParsesNoWrapWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: nowrap;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNoWrap(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
-TEST_F(ParserTest, ParsesPreWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: pre;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetPre(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
-TEST_F(ParserTest, ParsesPreLineWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: pre-line;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetPreLine(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
-TEST_F(ParserTest, ParsesPreWrapWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: pre-wrap;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetPreWrap(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
-TEST_F(ParserTest, ParsesInheritWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
-TEST_F(ParserTest, ParsesInitialWhiteSpace) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("white-space: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
-}
-
 TEST_F(ParserTest, ParsesWidth) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("width: 100px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kWidthProperty));
   scoped_refptr<cssom::LengthValue> width = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kWidthProperty).get());
   ASSERT_TRUE(width);
@@ -6773,6 +7381,7 @@ TEST_F(ParserTest, ParsesBreakWordWordWrap) {
 
   // word-wrap is treated as an alias for overflow-wrap
   //   https://www.w3.org/TR/css-text-3/#overflow-wrap
+  ASSERT_TRUE(style->IsDeclared(cssom::kOverflowWrapProperty));
   EXPECT_EQ(cssom::KeywordValue::GetBreakWord(),
             style->GetPropertyValue(cssom::kOverflowWrapProperty));
 }
@@ -6783,6 +7392,7 @@ TEST_F(ParserTest, ParsesNormalWordWrap) {
 
   // word-wrap is treated as an alias for overflow-wrap
   //   https://www.w3.org/TR/css-text-3/#overflow-wrap
+  ASSERT_TRUE(style->IsDeclared(cssom::kOverflowWrapProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNormal(),
             style->GetPropertyValue(cssom::kOverflowWrapProperty));
 }
@@ -6971,6 +7581,7 @@ TEST_F(ParserTest, ParsesAnimationDurationWithSingleValue) {
       parser_.ParseStyleDeclarationList("animation-duration: 1s;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDurationProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDurationProperty).get());
@@ -6984,6 +7595,7 @@ TEST_F(ParserTest, ParsesAnimationDelayWithSingleValue) {
       parser_.ParseStyleDeclarationList("animation-delay: 1s;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDelayProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDelayProperty).get());
@@ -6997,6 +7609,7 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithNormalValue) {
       parser_.ParseStyleDeclarationList("animation-direction: normal;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7010,6 +7623,7 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithReverseValue) {
       parser_.ParseStyleDeclarationList("animation-direction: reverse;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7023,6 +7637,7 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithAlternateValue) {
       parser_.ParseStyleDeclarationList("animation-direction: alternate;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7037,6 +7652,7 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithAlternateReverseValue) {
       parser_.ParseStyleDeclarationList(
           "animation-direction: alternate-reverse;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7051,6 +7667,7 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithListOfValues) {
       parser_.ParseStyleDeclarationList(
           "animation-direction: normal, alternate;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7077,6 +7694,7 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithForwardsValue) {
       parser_.ParseStyleDeclarationList("animation-fill-mode: forwards;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7091,6 +7709,7 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithBackwardsValue) {
       parser_.ParseStyleDeclarationList("animation-fill-mode: backwards;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7105,6 +7724,7 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithBothValue) {
       parser_.ParseStyleDeclarationList("animation-fill-mode: both;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7119,6 +7739,7 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithListOfValues) {
           "animation-fill-mode: forwards, backwards, both, none;",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7148,6 +7769,7 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithIntegerValue) {
       parser_.ParseStyleDeclarationList("animation-iteration-count: 2;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationIterationCountProperty));
   scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationIterationCountProperty)
@@ -7165,6 +7787,7 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithInfiniteValue) {
       parser_.ParseStyleDeclarationList("animation-iteration-count: infinite;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationIterationCountProperty));
   scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationIterationCountProperty)
@@ -7180,6 +7803,7 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithMultipleValues) {
       parser_.ParseStyleDeclarationList(
           "animation-iteration-count: 1, infinite, 0.5;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationIterationCountProperty));
   scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationIterationCountProperty)
@@ -7245,6 +7869,7 @@ TEST_F(ParserTest, ParsesAnimationNameWithArbitraryName) {
       parser_.ParseStyleDeclarationList("animation-name: foo;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationNameProperty));
   scoped_refptr<cssom::PropertyListValue> animation_name =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationNameProperty).get());
@@ -7261,6 +7886,7 @@ TEST_F(ParserTest, ParsesAnimationNameWithNone) {
       parser_.ParseStyleDeclarationList("animation-name: none;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationNameProperty));
   scoped_refptr<cssom::PropertyListValue> animation_name =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationNameProperty).get());
@@ -7274,6 +7900,7 @@ TEST_F(ParserTest, ParsesAnimationNameWithMultipleItems) {
       parser_.ParseStyleDeclarationList("animation-name: foo, none, bar;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationNameProperty));
   scoped_refptr<cssom::PropertyListValue> animation_name =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationNameProperty).get());
@@ -7327,6 +7954,7 @@ TEST_F(ParserTest, ParsesAnimationTimingFunction) {
       parser_.ParseStyleDeclarationList("animation-timing-function: linear;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> animation_timing_function =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kAnimationTimingFunctionProperty)
@@ -7345,6 +7973,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForName) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("animation: foo;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationNameProperty));
   scoped_refptr<cssom::PropertyListValue> animation_name =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationNameProperty).get());
@@ -7360,6 +7989,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForDuration) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("animation: 1s;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDurationProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDurationProperty).get());
@@ -7373,6 +8003,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForDirection) {
       parser_.ParseStyleDeclarationList("animation: reverse;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7385,6 +8016,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForDurationAndDelay) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("animation: 1s 2s;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDurationProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDurationProperty).get());
@@ -7392,6 +8024,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForDurationAndDelay) {
   ASSERT_EQ(1, animation_duration->value().size());
   EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDelayProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDelayProperty).get());
@@ -7404,6 +8037,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForIterationCount) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("animation: 1.5;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationIterationCountProperty));
   scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationIterationCountProperty)
@@ -7420,6 +8054,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForTimingFunction) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("animation: linear;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> animation_timing_function =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kAnimationTimingFunctionProperty)
@@ -7439,6 +8074,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForFillMode) {
       parser_.ParseStyleDeclarationList("animation: forwards;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7454,6 +8090,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
           "animation: linear foo 1s 2s 1.5 forwards alternate;",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7462,6 +8099,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
   EXPECT_EQ(cssom::KeywordValue::GetForwards(),
             animation_fill_mode->value()[0]);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> animation_timing_function =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kAnimationTimingFunctionProperty)
@@ -7475,6 +8113,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
 
   EXPECT_TRUE(expected_result_list->Equals(*animation_timing_function));
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationIterationCountProperty));
   scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationIterationCountProperty)
@@ -7486,6 +8125,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
           animation_iteration_count->value()[0].get());
   EXPECT_EQ(1.5f, number_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDurationProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDurationProperty).get());
@@ -7493,6 +8133,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
   ASSERT_EQ(1, animation_duration->value().size());
   EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDelayProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDelayProperty).get());
@@ -7500,6 +8141,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
   ASSERT_EQ(1, animation_delay->value().size());
   EXPECT_DOUBLE_EQ(2.0f, animation_delay->value()[0].InSecondsF());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationNameProperty));
   scoped_refptr<cssom::PropertyListValue> animation_name =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationNameProperty).get());
@@ -7510,6 +8152,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
           animation_name->value()[0].get());
   EXPECT_EQ("foo", name_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDirectionProperty));
   scoped_refptr<cssom::PropertyListValue> animation_direction =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationDirectionProperty).get());
@@ -7524,6 +8167,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
       parser_.ParseStyleDeclarationList("animation: foo 1s 2s, bar 3s 4;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDurationProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDurationProperty).get());
@@ -7532,6 +8176,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
   EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
   EXPECT_DOUBLE_EQ(3.0f, animation_duration->value()[1].InSecondsF());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationDelayProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kAnimationDelayProperty).get());
@@ -7540,6 +8185,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
   EXPECT_DOUBLE_EQ(2.0f, animation_delay->value()[0].InSecondsF());
   EXPECT_DOUBLE_EQ(0.0f, animation_delay->value()[1].InSecondsF());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationNameProperty));
   scoped_refptr<cssom::PropertyListValue> animation_name =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationNameProperty).get());
@@ -7554,6 +8200,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
           animation_name->value()[1].get());
   EXPECT_EQ("bar", second_name_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationIterationCountProperty));
   scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationIterationCountProperty)
@@ -7569,6 +8216,7 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
           animation_iteration_count->value()[1].get());
   EXPECT_EQ(4.0f, second_number_value->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kAnimationFillModeProperty));
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
           style->GetPropertyValue(cssom::kAnimationFillModeProperty).get());
@@ -7622,6 +8270,7 @@ TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
       parser_.ParseStyleDeclarationList("transition-property: none;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::KeywordValue> transition_property =
       dynamic_cast<cssom::KeywordValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -7682,6 +8331,7 @@ TEST_F(ParserTest, ParsesTransitionDelayWithSingleValue) {
       parser_.ParseStyleDeclarationList("transition-delay: 1s;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::ListValue<base::TimeDelta> > transition_delay =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -7695,6 +8345,7 @@ TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
       parser_.ParseStyleDeclarationList("transition-duration: 1s;",
                                         source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> transition_duration =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -7717,6 +8368,7 @@ bool TestTransitionTimingFunctionKeyword(
           "transition-timing-function: " + property_declaration_string + ";",
           source_location);
 
+  CHECK_EQ(true, style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> transition_timing_function =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -7801,6 +8453,7 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
           "transition-timing-function: ease, ease-in, step-start;",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> transition_timing_function =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -7879,6 +8532,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
           source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -7888,6 +8542,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
   EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[1]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -7897,6 +8552,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
   EXPECT_DOUBLE_EQ(2, duration_list->value()[1].InSecondsF());
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -7909,6 +8565,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
       *cssom::TimingFunction::GetEaseOut()));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -7925,6 +8582,7 @@ TEST_F(ParserTest,
                                         source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -7933,6 +8591,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -7946,6 +8605,7 @@ TEST_F(ParserTest,
       duration_list->value()[0]);
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -7960,6 +8620,7 @@ TEST_F(ParserTest,
                   ->Equals(*timing_function_list->value()[0]));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -7979,6 +8640,7 @@ TEST_F(ParserTest,
                                         source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -7987,6 +8649,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -7995,6 +8658,7 @@ TEST_F(ParserTest,
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -8009,6 +8673,7 @@ TEST_F(ParserTest,
                   ->Equals(*timing_function_list->value()[0]));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -8028,6 +8693,7 @@ TEST_F(ParserTest,
           "transition: background-color 1s ease-in;", source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -8036,6 +8702,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -8044,6 +8711,7 @@ TEST_F(ParserTest,
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -8054,6 +8722,7 @@ TEST_F(ParserTest,
       *cssom::TimingFunction::GetEaseIn()));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -8074,6 +8743,7 @@ TEST_F(
           "transition: ease-in background-color 1s;", source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -8082,6 +8752,7 @@ TEST_F(
   EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -8090,6 +8761,7 @@ TEST_F(
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -8100,6 +8772,7 @@ TEST_F(
       *cssom::TimingFunction::GetEaseIn()));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -8119,6 +8792,7 @@ TEST_F(ParserTest,
           "transition: background-color 1s, transform 2s;", source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -8128,6 +8802,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[1]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -8137,6 +8812,7 @@ TEST_F(ParserTest,
   EXPECT_DOUBLE_EQ(2, duration_list->value()[1].InSecondsF());
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -8157,6 +8833,7 @@ TEST_F(ParserTest,
                   ->Equals(*timing_function_list->value()[1]));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -8185,6 +8862,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
           "transition: 1s voodoo-magic; display: inline;", source_location_);
 
   // Test transition-property was not set.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNone(),
             style->GetPropertyValue(cssom::kTransitionPropertyProperty));
 
@@ -8199,6 +8877,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
   EXPECT_FALSE(style->GetPropertyValue(cssom::kTransitionDelayProperty));
 
   // Test that despite the error, display inline was still set correctly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kDisplayProperty));
   EXPECT_EQ(cssom::KeywordValue::GetInline(),
             style->GetPropertyValue(cssom::kDisplayProperty));
 }
@@ -8214,6 +8893,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
                                         source_location_);
 
   // Test transition-property was not set.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNone(),
             style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
 
@@ -8241,6 +8921,7 @@ TEST_F(ParserTest,
           "transition: 1s voodoo-magic, transform 2s;", source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           style->GetPropertyValue(cssom::kTransitionPropertyProperty).get());
@@ -8249,6 +8930,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -8257,6 +8939,7 @@ TEST_F(ParserTest,
   EXPECT_DOUBLE_EQ(2, duration_list->value()[0].InSecondsF());
 
   // Test transition-timing-function was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionTimingFunctionProperty));
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransitionTimingFunctionProperty)
@@ -8271,6 +8954,7 @@ TEST_F(ParserTest,
                   ->Equals(*timing_function_list->value()[0]));
 
   // Test transition-delay was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDelayProperty));
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDelayProperty).get());
@@ -8289,10 +8973,12 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithNoneIsValid) {
                                         source_location_);
 
   // Test transition-property was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionPropertyProperty));
   EXPECT_EQ(cssom::KeywordValue::GetNone(),
             style->GetPropertyValue(cssom::kTransitionPropertyProperty));
 
   // Test transition-duration was set properly.
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransitionDurationProperty));
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(
           style->GetPropertyValue(cssom::kTransitionDurationProperty).get());
@@ -8305,6 +8991,7 @@ TEST_F(ParserTest, ParsesLeftWithLength) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("left: 10px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kLeftProperty));
   scoped_refptr<cssom::LengthValue> length = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kLeftProperty).get());
   ASSERT_TRUE(length);
@@ -8316,6 +9003,7 @@ TEST_F(ParserTest, ParsesLeftWithPercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("left: 10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kLeftProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kLeftProperty).get());
@@ -8327,6 +9015,7 @@ TEST_F(ParserTest, ParsesLeftWithNegativePercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("left: -10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kLeftProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kLeftProperty).get());
@@ -8334,18 +9023,11 @@ TEST_F(ParserTest, ParsesLeftWithNegativePercentage) {
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
-TEST_F(ParserTest, ParsesLeftWithAuto) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("left: auto;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kLeftProperty));
-}
-
 TEST_F(ParserTest, ParsesTopWithLength) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("top: 10px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTopProperty));
   scoped_refptr<cssom::LengthValue> length = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kTopProperty).get());
   ASSERT_TRUE(length);
@@ -8357,6 +9039,7 @@ TEST_F(ParserTest, ParsesTopWithPercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("top: 10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTopProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kTopProperty).get());
@@ -8368,6 +9051,7 @@ TEST_F(ParserTest, ParsesTopWithNegativePercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("top: -10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kTopProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kTopProperty).get());
@@ -8375,18 +9059,11 @@ TEST_F(ParserTest, ParsesTopWithNegativePercentage) {
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
-TEST_F(ParserTest, ParsesTopWithAuto) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("top: auto;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kTopProperty));
-}
-
 TEST_F(ParserTest, ParsesRightWithLength) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("right: 10px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kRightProperty));
   scoped_refptr<cssom::LengthValue> length = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kRightProperty).get());
   ASSERT_TRUE(length);
@@ -8398,6 +9075,7 @@ TEST_F(ParserTest, ParsesRightWithPercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("right: 10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kRightProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kRightProperty).get());
@@ -8409,6 +9087,7 @@ TEST_F(ParserTest, ParsesRightWithNegativePercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("right: -10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kRightProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kRightProperty).get());
@@ -8416,18 +9095,11 @@ TEST_F(ParserTest, ParsesRightWithNegativePercentage) {
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
-TEST_F(ParserTest, ParsesRightWithAuto) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("right: auto;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kRightProperty));
-}
-
 TEST_F(ParserTest, ParsesBottomWithLength) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("bottom: 10px;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBottomProperty));
   scoped_refptr<cssom::LengthValue> length = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kBottomProperty).get());
   ASSERT_TRUE(length);
@@ -8439,6 +9111,7 @@ TEST_F(ParserTest, ParsesBottomWithPercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("bottom: 10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBottomProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBottomProperty).get());
@@ -8450,6 +9123,7 @@ TEST_F(ParserTest, ParsesBottomWithNegativePercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("bottom: -10%;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kBottomProperty));
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kBottomProperty).get());
@@ -8457,18 +9131,11 @@ TEST_F(ParserTest, ParsesBottomWithNegativePercentage) {
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
-TEST_F(ParserTest, ParsesBottomWithAuto) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("bottom: auto;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kBottomProperty));
-}
-
 TEST_F(ParserTest, ParsesZIndex) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("z-index: 3;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kZIndexProperty));
   scoped_refptr<cssom::IntegerValue> z_index =
       dynamic_cast<cssom::IntegerValue*>(
           style->GetPropertyValue(cssom::kZIndexProperty).get());
@@ -8480,6 +9147,7 @@ TEST_F(ParserTest, ParsesNegativeZIndex) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("z-index: -2;", source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kZIndexProperty));
   scoped_refptr<cssom::IntegerValue> z_index =
       dynamic_cast<cssom::IntegerValue*>(
           style->GetPropertyValue(cssom::kZIndexProperty).get());
@@ -8495,12 +9163,14 @@ TEST_F(ParserTest, ParsesDeclarationsInSpecifiedOrder) {
           "height:20px; width:150em; height:20%; width:160px;",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kHeightProperty));
   scoped_refptr<cssom::PercentageValue> height =
       dynamic_cast<cssom::PercentageValue*>(
           style->GetPropertyValue(cssom::kHeightProperty).get());
   ASSERT_TRUE(height);
   EXPECT_EQ(0.2f, height->value());
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kWidthProperty));
   scoped_refptr<cssom::LengthValue> width = dynamic_cast<cssom::LengthValue*>(
       style->GetPropertyValue(cssom::kWidthProperty).get());
   ASSERT_TRUE(width);
@@ -8816,30 +9486,6 @@ TEST_F(ParserTest, ParsesValidMediaListWithIntegers) {
   EXPECT_TRUE(media_list->EvaluateConditionValue(size));
 }
 
-TEST_F(ParserTest, ParsesNoneFilter) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("filter: none;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kFilterProperty));
-}
-
-TEST_F(ParserTest, ParsesFilterWithKeywordInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("filter: initial;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kFilterProperty));
-}
-
-TEST_F(ParserTest, ParsesFilterWithKeywordInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("filter: inherit;", source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kFilterProperty));
-}
-
 TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
@@ -8883,6 +9529,7 @@ TEST_F(ParserTest, ParsesMtmEquirectangularFilter) {
           "                             0, 0, 0, 1),"
           "                             monoscopic);",
           source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -8915,6 +9562,7 @@ TEST_F(ParserTest, ParsesMtmWIPFilterName) {
           "                                 0, 0, 1, 0,"
           "                                 0, 0, 0, 1));",
           source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -8947,6 +9595,7 @@ TEST_F(ParserNoMapToMeshTest, DoesNotParseMapToMeshFilter) {
           "                             0, 0, 1, 0,"
           "                             0, 0, 0, 1));",
           source_location_);
+  ASSERT_FALSE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -8967,6 +9616,7 @@ TEST_F(ParserNoMapToMeshTest, DoesNotParseMtmFilter) {
           "                             0, 0, 1, 0,"
           "                             0, 0, 0, 1));",
           source_location_);
+  ASSERT_FALSE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -8988,6 +9638,7 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
           "                             0, 7, 0, 4));",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -9022,6 +9673,7 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
           "                             0, 7, 0, 4));",
           source_location_);
 
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -9055,6 +9707,7 @@ TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
           "                             0, 7, 0, 4),"
           "                    monoscopic);",
           source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -9081,6 +9734,7 @@ TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
           "                             0, 7, 0, 4),"
           "                    stereoscopic-left-right);",
           source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -9107,6 +9761,7 @@ TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
           "                             0, 7, 0, 4),"
           "                    stereoscopic-top-bottom);",
           source_location_);
+  ASSERT_TRUE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -9136,6 +9791,7 @@ TEST_F(ParserTest, HandlesInvalidMtmStereoMode) {
           "                             0, 7, 0, 4),"
           "                    invalid-stereo-mode);",
           source_location_);
+  ASSERT_FALSE(style->IsDeclared(cssom::kFilterProperty));
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
           style->GetPropertyValue(cssom::kFilterProperty).get());
@@ -9152,45 +9808,11 @@ TEST_F(ParserTest, EmptyPropertyValueRemovesProperty) {
   scoped_refptr<cssom::CSSDeclaredStyleDeclaration> style =
       new cssom::CSSDeclaredStyleDeclaration(style_data, &parser_);
 
+  ASSERT_TRUE(style_data->IsDeclared(cssom::kDisplayProperty));
   style->SetPropertyValue(std::string("display"), std::string(), NULL);
+  ASSERT_FALSE(style_data->IsDeclared(cssom::kDisplayProperty));
   EXPECT_EQ(style->GetPropertyValue("display"), "");
   EXPECT_FALSE(style_data->GetPropertyValue(cssom::kDisplayProperty));
-}
-
-TEST_F(ParserTest, ParsesPointerEventsWithKeywordAuto) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("pointer-events: auto;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
-            style->GetPropertyValue(cssom::kPointerEventsProperty));
-}
-
-TEST_F(ParserTest, ParsesPointerEventsWithKeywordInherit) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("pointer-events: inherit;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
-            style->GetPropertyValue(cssom::kPointerEventsProperty));
-}
-
-TEST_F(ParserTest, ParsesPointerEventsWithKeywordInitial) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("pointer-events: initial;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kPointerEventsProperty));
-}
-
-TEST_F(ParserTest, ParsesPointerEventsWithKeywordNone) {
-  scoped_refptr<cssom::CSSDeclaredStyleData> style =
-      parser_.ParseStyleDeclarationList("pointer-events: none;",
-                                        source_location_);
-
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            style->GetPropertyValue(cssom::kPointerEventsProperty));
 }
 
 }  // namespace css_parser

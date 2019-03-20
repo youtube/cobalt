@@ -223,6 +223,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     // Generate a block-level replaced box.
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kFlex:
       replaced_box_ = make_scoped_refptr(new BlockLevelReplacedBox(
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
@@ -236,6 +237,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // way.
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kInlineFlex:
       replaced_box_ = make_scoped_refptr(new InlineLevelReplacedBox(
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
@@ -258,7 +260,11 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kCollapse:
+    case cssom::KeywordValue::kColumn:
+    case cssom::KeywordValue::kColumnReverse:
     case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kContent:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
@@ -266,8 +272,10 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
-    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kFlexEnd:
+    case cssom::KeywordValue::kFlexStart:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
@@ -279,7 +287,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kNowrap:
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kPreLine:
     case cssom::KeywordValue::kPreWrap:
@@ -287,17 +295,24 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kRow:
+    case cssom::KeywordValue::kRowReverse:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kSpaceAround:
+    case cssom::KeywordValue::kSpaceBetween:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kStereoscopicLeftRight:
     case cssom::KeywordValue::kStereoscopicTopBottom:
+    case cssom::KeywordValue::kStretch:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
+    case cssom::KeywordValue::kWrap:
+    case cssom::KeywordValue::kWrapReverse:
       NOTREACHED();
       break;
   }
@@ -484,6 +499,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     // Generate a block-level block container box.
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kFlex:
       // The block ends the current paragraph and begins a new one that ends
       // with the block, so close the current paragraph, and create a new
       // paragraph that will close when the container box generator is
@@ -498,6 +514,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // generated when the original inline box is split due to participation
     // in the formatting context.
     case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineFlex:
       // If the creating HTMLElement had an explicit directionality, then append
       // a directional embedding to the paragraph. This will be popped from the
       // paragraph, when the ContainerBoxGenerator goes out of scope.
@@ -573,16 +590,22 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kCollapse:
+    case cssom::KeywordValue::kColumn:
+    case cssom::KeywordValue::kColumnReverse:
     case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kContent:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
-    case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kFlexEnd:
+    case cssom::KeywordValue::kFlexStart:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
@@ -595,7 +618,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kNowrap:
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kPreLine:
     case cssom::KeywordValue::kPreWrap:
@@ -603,17 +626,24 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kRow:
+    case cssom::KeywordValue::kRowReverse:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kSpaceAround:
+    case cssom::KeywordValue::kSpaceBetween:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kStereoscopicLeftRight:
     case cssom::KeywordValue::kStereoscopicTopBottom:
+    case cssom::KeywordValue::kStretch:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
+    case cssom::KeywordValue::kWrap:
+    case cssom::KeywordValue::kWrapReverse:
       NOTREACHED();
       break;
   }
@@ -723,7 +753,11 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
       case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kCollapse:
+      case cssom::KeywordValue::kColumn:
+      case cssom::KeywordValue::kColumnReverse:
       case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kContent:
       case cssom::KeywordValue::kCover:
       case cssom::KeywordValue::kCurrentColor:
       case cssom::KeywordValue::kCursive:
@@ -732,6 +766,9 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kEquirectangular:
       case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kFlex:
+      case cssom::KeywordValue::kFlexEnd:
+      case cssom::KeywordValue::kFlexStart:
       case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInfinite:
@@ -739,13 +776,14 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kInlineFlex:
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kMonoscopic:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:
-      case cssom::KeywordValue::kNoWrap:
+      case cssom::KeywordValue::kNowrap:
       case cssom::KeywordValue::kPre:
       case cssom::KeywordValue::kPreLine:
       case cssom::KeywordValue::kPreWrap:
@@ -753,17 +791,24 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kRow:
+      case cssom::KeywordValue::kRowReverse:
       case cssom::KeywordValue::kSansSerif:
       case cssom::KeywordValue::kScroll:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
+      case cssom::KeywordValue::kSpaceAround:
+      case cssom::KeywordValue::kSpaceBetween:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kStereoscopicLeftRight:
       case cssom::KeywordValue::kStereoscopicTopBottom:
+      case cssom::KeywordValue::kStretch:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
+      case cssom::KeywordValue::kWrap:
+      case cssom::KeywordValue::kWrapReverse:
         NOTREACHED();
     }
   }

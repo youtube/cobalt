@@ -40,6 +40,18 @@ class CSSStyleDeclaration : public script::Wrappable {
  public:
   // Web API: CSSStyleDeclaration
   //
+  std::string align_content(script::ExceptionState* exception_state) const;
+  void set_align_content(const std::string& align_content,
+                         script::ExceptionState* exception_state);
+
+  std::string align_items(script::ExceptionState* exception_state) const;
+  void set_align_items(const std::string& align_items,
+                       script::ExceptionState* exception_state);
+
+  std::string align_self(script::ExceptionState* exception_state) const;
+  void set_align_self(const std::string& align_self,
+                      script::ExceptionState* exception_state);
+
   std::string animation(script::ExceptionState* exception_state) const;
   void set_animation(const std::string& animation,
                      script::ExceptionState* exception_state);
@@ -236,6 +248,34 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_filter(const std::string& filter,
                   script::ExceptionState* exception_state);
 
+  std::string flex(script::ExceptionState* exception_state) const;
+  void set_flex(const std::string& flex,
+                script::ExceptionState* exception_state);
+
+  std::string flex_basis(script::ExceptionState* exception_state) const;
+  void set_flex_basis(const std::string& flex_basis,
+                      script::ExceptionState* exception_state);
+
+  std::string flex_direction(script::ExceptionState* exception_state) const;
+  void set_flex_direction(const std::string& flex_direction,
+                          script::ExceptionState* exception_state);
+
+  std::string flex_flow(script::ExceptionState* exception_state) const;
+  void set_flex_flow(const std::string& flex_flow,
+                     script::ExceptionState* exception_state);
+
+  std::string flex_grow(script::ExceptionState* exception_state) const;
+  void set_flex_grow(const std::string& flex_grow,
+                     script::ExceptionState* exception_state);
+
+  std::string flex_shrink(script::ExceptionState* exception_state) const;
+  void set_flex_shrink(const std::string& flex_shrink,
+                       script::ExceptionState* exception_state);
+
+  std::string flex_wrap(script::ExceptionState* exception_state) const;
+  void set_flex_wrap(const std::string& flex_wrap,
+                     script::ExceptionState* exception_state);
+
   std::string font(script::ExceptionState* exception_state) const;
   void set_font(const std::string& font,
                 script::ExceptionState* exception_state);
@@ -259,6 +299,10 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string height(script::ExceptionState* exception_state) const;
   void set_height(const std::string& height,
                   script::ExceptionState* exception_state);
+
+  std::string justify_content(script::ExceptionState* exception_state) const;
+  void set_justify_content(const std::string& justify_content,
+                           script::ExceptionState* exception_state);
 
   std::string left(script::ExceptionState* exception_state) const;
   void set_left(const std::string& left,
@@ -307,6 +351,10 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string opacity(script::ExceptionState* exception_state) const;
   void set_opacity(const std::string& opacity,
                    script::ExceptionState* exception_state);
+
+  std::string order(script::ExceptionState* exception_state) const;
+  void set_order(const std::string& order,
+                 script::ExceptionState* exception_state);
 
   std::string outline(script::ExceptionState* exception_state) const;
   void set_outline(const std::string& outline,

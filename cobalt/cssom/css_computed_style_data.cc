@@ -153,6 +153,9 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
       break;
 
     case kAllProperty:
+    case kAlignContentProperty:
+    case kAlignItemsProperty:
+    case kAlignSelfProperty:
     case kAnimationDelayProperty:
     case kAnimationDirectionProperty:
     case kAnimationDurationProperty:
@@ -188,13 +191,21 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kBoxShadowProperty:
     case kColorProperty:
     case kContentProperty:
-    case kFontFamilyProperty:
     case kFilterProperty:
+    case kFlexProperty:
+    case kFlexBasisProperty:
+    case kFlexDirectionProperty:
+    case kFlexFlowProperty:
+    case kFlexGrowProperty:
+    case kFlexShrinkProperty:
+    case kFlexWrapProperty:
     case kFontProperty:
+    case kFontFamilyProperty:
     case kFontStyleProperty:
     case kFontWeightProperty:
     case kFontSizeProperty:
     case kHeightProperty:
+    case kJustifyContentProperty:
     case kLeftProperty:
     case kLineHeightProperty:
     case kMarginBottomProperty:
@@ -208,6 +219,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kMinWidthProperty:
     case kNoneProperty:
     case kOpacityProperty:
+    case kOrderProperty:
     case kOutlineProperty:
     case kOutlineStyleProperty:
     case kOverflowProperty:
