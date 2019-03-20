@@ -32,7 +32,10 @@
 #include "cobalt/webdriver/protocol/button.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
+#include "cobalt/webdriver/protocol/location.h"
+#include "cobalt/webdriver/protocol/rect.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
+#include "cobalt/webdriver/protocol/size.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -66,6 +69,9 @@ class ElementDriver {
   util::CommandResult<std::string> GetTagName();
   util::CommandResult<std::string> GetText();
   util::CommandResult<bool> IsDisplayed();
+  util::CommandResult<protocol::Rect> GetRect();
+  util::CommandResult<protocol::Location> GetLocation();
+  util::CommandResult<protocol::Size> GetSize();
   util::CommandResult<void> SendKeys(const protocol::Keys& keys);
   util::CommandResult<protocol::ElementId> FindElement(
       const protocol::SearchStrategy& strategy);
