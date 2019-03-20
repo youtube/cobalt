@@ -818,6 +818,7 @@ util::CommandResult<std::string> WebDriverModule::RequestScreenshotInternal() {
   get_screenshot_function_.Run(
       // Webdriver spec requires us to encode to PNG format.
       loader::image::EncodedStaticImage::ImageFormat::kPNG,
+      /*clip_rect=*/base::nullopt,
       base::Bind(&OnPNGEncodeComplete, base::Unretained(&context)));
   context.complete_event.Wait();
   DCHECK(context.compressed_file);
