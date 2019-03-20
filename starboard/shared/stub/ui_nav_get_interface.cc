@@ -14,6 +14,10 @@
 
 #include "starboard/ui_navigation.h"
 
+#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+
 bool SbUiNavGetInterface(SbUiNavInterface* /* out_interface */) {
   return false;
 }
+
+#endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
