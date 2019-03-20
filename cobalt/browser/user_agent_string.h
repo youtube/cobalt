@@ -27,7 +27,7 @@ struct UserAgentPlatformInfo {
 
   std::string starboard_version;
   std::string os_name_and_version;
-  base::optional<std::string> network_operator;
+  base::optional<std::string> original_design_manufacturer;
   SbSystemDeviceType device_type;
   base::optional<std::string> chipset_model_number;
   base::optional<std::string> model_year;
