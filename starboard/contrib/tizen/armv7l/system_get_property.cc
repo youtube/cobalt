@@ -60,7 +60,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, kModelName);
     case kSbSystemPropertyModelYear:
       return CopyStringAndTestIfSuccess(out_value, value_length, kModelYear);
+#if SB_API_VERSION >= SB_ODM_VERSION
+    case kSbSystemPropertyOriginalDesignManufacturerName:
+#else
     case kSbSystemPropertyNetworkOperatorName:
+#endif
       return false;
 
     case kSbSystemPropertyFriendlyName:

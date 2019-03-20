@@ -108,9 +108,16 @@ typedef enum SbSystemPropertyId {
   // The year the device was launched, e.g. "2016".
   kSbSystemPropertyModelYear,
 
+#if SB_API_VERSION >= SB_ODM_VERSION
+  // The corporate entity responsible for the manufacturing/assembly of the
+  // device on behalf of the business entity owning the brand.  This is often
+  // abbreviated as ODM.
+  kSbSystemPropertyOriginalDesignManufacturerName,
+#else
   // The name of the network operator that owns the target device, if
   // applicable.
   kSbSystemPropertyNetworkOperatorName,
+#endif
 
   // The name of the operating system and platform, suitable for inclusion in a
   // User-Agent, say.
