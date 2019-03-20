@@ -158,7 +158,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
     // If the parent's effective CSS whitespace style is 'normal' or 'nowrap'
     // replace each newline (\n) in text with a single space character (\x20).
     if (*whitespace_style == cssom::kNormalKeywordName ||
-        *whitespace_style == cssom::kNoWrapKeywordName) {
+        *whitespace_style == cssom::kNowrapKeywordName) {
       ReplaceCharacters(text, U"\n", ' ');
     }
 

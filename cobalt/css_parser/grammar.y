@@ -73,6 +73,9 @@
 // WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAllToken                              // all
+%token kAlignContentToken                     // align-content
+%token kAlignItemsToken                       // align-items
+%token kAlignSelfToken                        // align-self
 %token kAnimationDelayToken                   // animation-delay
 %token kAnimationDirectionToken               // animation-direction
 %token kAnimationDurationToken                // animation-duration
@@ -118,12 +121,20 @@
 %token kContentToken                          // content
 %token kDisplayToken                          // display
 %token kFilterToken                           // filter
+%token kFlexToken                             // flex
+%token kFlexBasisToken                        // flex-basis
+%token kFlexDirectionToken                    // flex-direction
+%token kFlexFlowToken                         // flex-flow
+%token kFlexGrowToken                         // flex-grow
+%token kFlexShrinkToken                       // flex-shrink
+%token kFlexWrapToken                         // flex-wrap
 %token kFontToken                             // font
 %token kFontFamilyToken                       // font-family
 %token kFontSizeToken                         // font-size
 %token kFontStyleToken                        // font-style
 %token kFontWeightToken                       // font-weight
 %token kHeightToken                           // height
+%token kJustifyContentToken                   // justify-content
 %token kLeftToken                             // left
 %token kLineHeightToken                       // line-height
 %token kMarginBottomToken                     // margin-bottom
@@ -136,6 +147,7 @@
 %token kMinHeightToken                        // min-height
 %token kMinWidthToken                         // min-width
 %token kOpacityToken                          // opacity
+%token kOrderToken                            // order
 %token kOutlineToken                          // outline
 %token kOutlineColorToken                     // outline-color
 %token kOutlineStyleToken                     // outline-style
@@ -172,6 +184,7 @@
 %token kVisibilityToken                       // visibility
 %token kWhiteSpacePropertyToken               // white-space
 %token kWidthToken                            // width
+%token kWordWrapToken                         // word-wrap
 %token kZIndexToken                           // z-index
 
 // Property value tokens.
@@ -196,7 +209,11 @@
 %token kClipToken                       // clip
 %token kClosestCornerToken              // closest-corner
 %token kClosestSideToken                // closest-side
+%token kCollapseToken                   // collapse
+%token kColumnToken                     // column
+%token kColumnReverseToken              // column-reverse
 %token kContainToken                    // contain
+// %token kContentToken                 // content - also property name token
 %token kCoverToken                      // cover
 %token kCursiveToken                    // cursive
 %token kEaseInOutToken                  // ease-in-out
@@ -211,6 +228,9 @@
 %token kFarthestCornerToken             // farthest-corner
 %token kFarthestSideToken               // farthest-side
 %token kFixedToken                      // fixed
+// %token kFlexToken                    // flex - also property name token
+%token kFlexEndToken                    // flex-end
+%token kFlexStartToken                  // flex-start
 %token kForwardsToken                   // forwards
 %token kFromToken                       // from
 %token kFuchsiaToken                    // fuchsia
@@ -222,6 +242,7 @@
 %token kInitialToken                    // initial
 %token kInlineBlockToken                // inline-block
 %token kInlineToken                     // inline
+%token kInlineFlexToken                 // inline-flex
 %token kInsetToken                      // inset
 %token kItalicToken                     // italic
 %token kLimeToken                       // lime
@@ -236,7 +257,7 @@
 %token kNoneToken                       // none
 %token kNoRepeatToken                   // no-repeat
 %token kNormalToken                     // normal
-%token kNoWrapToken                     // nowrap
+%token kNowrapToken                     // nowrap
 %token kObliqueToken                    // oblique
 %token kOliveToken                      // olive
 %token kPreToken                        // pre
@@ -251,17 +272,22 @@
 %token kRelativeToken                   // relative
 %token kReverseToken                    // reverse
 // %token kRightToken                   // right - also property name token
+%token kRowToken                        // row
+%token kRowReverseToken                 // row-reverse
 %token kSansSerifToken                  // sans-serif
 %token kScrollToken                     // scroll
 %token kSerifToken                      // serif
 %token kSilverToken                     // silver
 %token kSolidToken                      // solid
+%token kSpaceAroundToken                // space-around
+%token kSpaceBetweenToken               // space-between
 %token kStartToken                      // start
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
 %token kStereoscopicLeftRightToken      // stereoscopic-left-right
 %token kStereoscopicTopBottomToken      // stereoscopic-top-bottom
+%token kStretchToken                    // stretch
 %token kTealToken                       // teal
 %token kToToken                         // to
 // %token kTopToken                     // top - also property name token
@@ -269,6 +295,8 @@
 %token kUppercaseToken                  // uppercase
 %token kVisibleToken                    // visible
 %token kWhiteToken                      // white
+%token kWrapToken                       // wrap
+%token kWrapReverseToken                // wrap-reverse
 %token kYellowToken                     // yellow
 
 // Pseudo-class name tokens.
@@ -470,7 +498,10 @@
 %destructor { SafeRelease($$); } <percentage>
 
 %union { cssom::LengthValue* length; }
-%type <length> length positive_length absolute_or_relative_length
+%type <length> absolute_or_relative_length
+               length
+               positive_length
+               non_negative_absolute_or_relative_length
 %destructor { SafeRelease($$); } <length>
 
 %union { cssom::RatioValue* ratio; }
@@ -507,7 +538,10 @@
 // exposed by cssom::CSSRuleStyleDeclaration (semantics is
 // always preserved).
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> animation_delay_property_value
+%type <property_value> align_content_property_value
+                       align_items_property_value
+                       align_self_property_value
+                       animation_delay_property_value
                        animation_direction_list_element
                        animation_direction_property_value
                        animation_duration_property_value
@@ -529,6 +563,7 @@
                        background_size_property_list_element
                        background_size_property_value
                        background_size_property_value_without_common_values
+                       baseline_stretch_property_value
                        border_color_property_value
                        border_radius_element
                        border_radius_element_with_common_values
@@ -543,6 +578,17 @@
                        common_values_without_errors
                        content_property_value
                        display_property_value
+                       filter_property_value
+                       flex_basis_element
+                       flex_basis_keywords
+                       flex_basis_property_value
+                       flex_direction
+                       flex_direction_property_value
+                       flex_factor_property_value
+                       flex_single_flex_basis_element
+                       flex_start_end_center_property_value
+                       flex_wrap
+                       flex_wrap_property_value
                        font_face_local_src
                        font_face_src_list_element
                        font_face_src_property_value
@@ -555,6 +601,7 @@
                        font_weight_exclusive_property_value
                        font_weight_property_value
                        height_property_value
+                       justify_content_property_value
                        length_percent_property_value
                        line_height_property_value
                        line_style
@@ -569,6 +616,7 @@
                        maybe_background_size_property_value
                        offset_property_value
                        opacity_property_value
+                       order_property_value
                        orientation_media_feature_keyword_value
                        overflow_property_value
                        overflow_wrap_property_value
@@ -579,9 +627,10 @@
                        positive_length_percent_property_value
                        radial_gradient_params
                        scan_media_feature_keyword_value
+                       space_between_around_property_value
                        text_align_property_value
+                       text_decoration_line
                        text_decoration_line_property_value
-                       text_decoration_property_value
                        text_indent_property_value
                        text_overflow_property_value
                        text_shadow_property_value
@@ -603,7 +652,6 @@
                        white_space_property_value
                        width_property_value
                        z_index_property_value
-                       filter_property_value
 %destructor { SafeRelease($$); } <property_value>
 
 %union { std::vector<float>* number_matrix; }
@@ -879,9 +927,25 @@
                                     border_or_outline_property_list
 %destructor { delete $$; } <border_or_outline_shorthand>
 
+%union { FlexShorthand* flex_shorthand; }
+%type <flex_shorthand> flex_property_value
+                       flex_single_property_value
+                       flex_three_property_values
+                       flex_two_property_values
+%destructor { delete $$; } <flex_shorthand>
+
+%union { FlexFlowShorthand* flex_flow_shorthand; }
+%type <flex_flow_shorthand> flex_flow_property_value flex_flow_property_list
+%destructor { delete $$; } <flex_flow_shorthand>
+
 %union { ShadowPropertyInfo* shadow_info; }
 %type <shadow_info> box_shadow_list text_shadow_list
 %destructor { delete $$; } <shadow_info>
+
+%union { TextDecorationShorthand* text_decoration_shorthand; }
+%type <text_decoration_shorthand> text_decoration_property_value text_decoration_property_list
+%destructor { delete $$; } <text_decoration_shorthand>
+
 
 %union { cssom::RadialGradientValue::SizeKeyword size_keyword; }
 %type <size_keyword> circle_with_size_keyword
@@ -1275,6 +1339,18 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kAllProperty));
   }
+  | kAlignContentToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kAlignContentProperty));
+  }
+  | kAlignItemsToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kAlignItemsProperty));
+  }
+  | kAlignSelfToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kAlignSelfProperty));
+  }
   | kAnimationDelayToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kAnimationDelayProperty));
@@ -1455,6 +1531,34 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kFilterProperty));
   }
+  | kFlexToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexProperty));
+  }
+  | kFlexBasisToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexBasisProperty));
+  }
+  | kFlexDirectionToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexDirectionProperty));
+  }
+  | kFlexFlowToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexFlowProperty));
+  }
+  | kFlexGrowToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexGrowProperty));
+  }
+  | kFlexShrinkToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexShrinkProperty));
+  }
+  | kFlexWrapToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFlexWrapProperty));
+  }
   | kFontToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kFontProperty));
@@ -1467,6 +1571,10 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kFontSizeProperty));
   }
+  | kFontStyleToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFontStyleProperty));
+  }
   | kFontWeightToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kFontWeightProperty));
@@ -1474,6 +1582,10 @@ identifier_token:
   | kHeightToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kHeightProperty));
+  }
+  | kJustifyContentToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kJustifyContentProperty));
   }
   | kLeftToken {
     $$ = TrivialStringPiece::FromCString(
@@ -1522,6 +1634,10 @@ identifier_token:
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kOpacityProperty));
+  }
+  | kOrderToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOrderProperty));
   }
   | kOutlineToken {
     $$ = TrivialStringPiece::FromCString(
@@ -1607,6 +1723,10 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kTextOverflowProperty));
   }
+  | kTextShadowToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextShadowProperty));
+  }
   | kTextTransformToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kTextTransformProperty));
@@ -1662,6 +1782,10 @@ identifier_token:
   | kWidthToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kWidthProperty));
+  }
+  | kWordWrapToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kWordWrapProperty));
   }
   | kZIndexToken {
     $$ = TrivialStringPiece::FromCString(
@@ -1726,9 +1850,19 @@ identifier_token:
   | kClosestSideToken {
     $$ = TrivialStringPiece::FromCString(cssom::kClosestSideKeywordName);
   }
+  | kCollapseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kCollapseKeywordName);
+  }
+  | kColumnToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kColumnKeywordName);
+  }
+  | kColumnReverseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kColumnReverseKeywordName);
+  }
   | kContainToken {
     $$ = TrivialStringPiece::FromCString(cssom::kContainKeywordName);
   }
+  // A rule for kContentToken is already defined for the matching property name.
   | kCoverToken {
     $$ = TrivialStringPiece::FromCString(cssom::kCoverKeywordName);
   }
@@ -1756,6 +1890,9 @@ identifier_token:
   | kEndToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEndKeywordName);
   }
+  | kEquirectangularToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEquirectangularKeywordName);
+  }
   | kFantasyToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFantasyKeywordName);
   }
@@ -1767,6 +1904,13 @@ identifier_token:
   }
   | kFixedToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFixedKeywordName);
+  }
+  // A rule for kFlexToken is already defined for the matching property name.
+  | kFlexEndToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFlexEndKeywordName);
+  }
+  | kFlexStartToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFlexStartKeywordName);
   }
   | kForwardsToken {
     $$ = TrivialStringPiece::FromCString(cssom::kForwardsKeywordName);
@@ -1800,6 +1944,9 @@ identifier_token:
   }
   | kInlineToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInlineKeywordName);
+  }
+  | kInlineFlexToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kInlineFlexKeywordName);
   }
   | kInsetToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInsetKeywordName);
@@ -1840,8 +1987,8 @@ identifier_token:
   | kNormalToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
   }
-  | kNoWrapToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kNoWrapKeywordName);
+  | kNowrapToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kNowrapKeywordName);
   }
   | kObliqueToken {
     $$ = TrivialStringPiece::FromCString(cssom::kObliqueKeywordName);
@@ -1879,6 +2026,13 @@ identifier_token:
   | kReverseToken {
     $$ = TrivialStringPiece::FromCString(cssom::kReverseKeywordName);
   }
+  // A rule for kRightToken is already defined for the matching property name.
+  | kRowToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRowKeywordName);
+  }
+  | kRowReverseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRowReverseKeywordName);
+  }
   | kSansSerifToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSansSerifKeywordName);
   }
@@ -1893,6 +2047,12 @@ identifier_token:
   }
   | kSolidToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSolidKeywordName);
+  }
+  | kSpaceAroundToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSpaceAroundKeywordName);
+  }
+  | kSpaceBetweenToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSpaceBetweenKeywordName);
   }
   | kStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStartKeywordName);
@@ -1914,6 +2074,9 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
              cssom::kStereoscopicTopBottomKeywordName);
   }
+  | kStretchToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kStretchKeywordName);
+  }
   | kTealToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTealKeywordName);
   }
@@ -1932,6 +2095,12 @@ identifier_token:
   }
   | kWhiteToken {
     $$ = TrivialStringPiece::FromCString(cssom::kWhiteKeywordName);
+  }
+  | kWrapToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kWrapKeywordName);
+  }
+  | kWrapReverseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kWrapReverseKeywordName);
   }
   | kYellowToken {
     $$ = TrivialStringPiece::FromCString(cssom::kYellowKeywordName);
@@ -2373,6 +2542,20 @@ length:
   | absolute_or_relative_length { $$ = $1; }
   ;
 
+// Any valid non negative length value or number value.
+//   https://www.w3.org/TR/css3-values/#lengths
+non_negative_absolute_or_relative_length:
+    absolute_or_relative_length {
+    scoped_refptr<cssom::LengthValue> length(MakeScopedRefPtrAndRelease($1));
+    DCHECK(length);
+    if (length->value() < 0) {
+      parser_impl->LogError(@1, "length value must not be negative");
+      YYERROR;
+    }
+    $$ = AddRef(length.get());
+  }
+  ;
+
 absolute_or_relative_length:
   // Relative lengths.
   //   https://www.w3.org/TR/css3-values/#relative-lengths
@@ -2402,7 +2585,7 @@ positive_length:
   length {
     scoped_refptr<cssom::LengthValue> length(MakeScopedRefPtrAndRelease($1));
     if (length && length->value() < 0) {
-      parser_impl->LogError(@1, "negative values of length are illegal");
+      parser_impl->LogError(@1, "length value must not be negative");
       YYERROR;
     }
     $$ = AddRef(length.get());
@@ -3474,6 +3657,7 @@ border_or_outline_property_list:
 // various properties define the style ('border-style'), color ('border-color'),
 // and thickness ('border-width') of the border.
 //   https://www.w3.org/TR/css3-background/#borders
+//   https://www.w3.org/TR/CSS21/ui.html#propdef-outline
 border_or_outline_property_value:
     border_or_outline_property_list
   | common_values {
@@ -3647,11 +3831,17 @@ display_property_value:
     kBlockToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetBlock().get());
   }
+  | kFlexToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetFlex().get());
+  }
   | kInlineToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetInline().get());
   }
   | kInlineBlockToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetInlineBlock().get());
+  }
+  | kInlineFlexToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetInlineFlex().get());
   }
   | kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -4337,22 +4527,72 @@ text_align_property_value:
 
 // This property specifies what line decorations.
 //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-line
-text_decoration_line_property_value:
+text_decoration_line:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | kLineThroughToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetLineThrough().get());
   }
+  ;
+
+text_decoration_line_property_value:
+    text_decoration_line
   | common_values
+  ;
+
+// One element of the text-decoration shorthand property.
+//   https://www.w3.org/TR/css-text-decor-3/#text-decoration
+text_decoration_property_element:
+    text_decoration_line {
+    scoped_refptr<cssom::PropertyValue> line(
+        MakeScopedRefPtrAndRelease($1));
+    if (!$<text_decoration_shorthand>0->line) {
+      $<text_decoration_shorthand>0->line = line;
+    } else {
+      parser_impl->LogError(@1,
+          "text-decoration-line value declared twice in text-decoration.");
+      $<text_decoration_shorthand>0->error = true;
+    }
+  }
+  | color {
+    scoped_refptr<cssom::PropertyValue> color(
+        MakeScopedRefPtrAndRelease($1));
+    if (!$<text_decoration_shorthand>0->color) {
+      $<text_decoration_shorthand>0->color = color;
+    } else {
+      parser_impl->LogError(@1,
+          "color value declared twice in text-decoration.");
+      $<text_decoration_shorthand>0->error = true;
+    }
+  }
+  ;
+
+text_decoration_property_list:
+    %empty {
+    $$ = new TextDecorationShorthand();
+  }
+  | text_decoration_property_list text_decoration_property_element {
+    $$ = $1;
+  }
   ;
 
 // Text decoration is a shorthand for setting 'text-decoration-line',
 // 'text-decoration-color', and 'text-decoration-style' in one declaration.
-// TODO: Redirect text decoration to text decoration line for now and
-// change it when fully implement text decoration.
 //   https://www.w3.org/TR/css-text-decor-3/#text-decoration
-text_decoration_property_value: text_decoration_line_property_value;
+text_decoration_property_value:
+    text_decoration_property_list
+  | common_values {
+    // Replicate the common value into each of the properties that flex_ flow is
+    // a shorthand for.
+    scoped_ptr<TextDecorationShorthand> text_decoration(
+        new TextDecorationShorthand());
+    text_decoration->line = $1;
+    text_decoration->color = $1;
+    $$ = text_decoration.release();
+  }
+  ;
+
 
 // This property specifies the indentation applied to lines of inline content in
 // a block.
@@ -5368,8 +5608,8 @@ white_space_property_value:
     kNormalToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
   }
-  | kNoWrapToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetNoWrap().get());
+  | kNowrapToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNowrap().get());
   }
   | kPreToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetPre().get());
@@ -5385,6 +5625,8 @@ white_space_property_value:
 
 // Specifies the content width of boxes.
 //   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
+// The 'width' property.
+//   https://www.w3.org/TR/CSS21/visudet.html#propdef-width
 width_property_value:
     positive_length_percent_property_value
   | auto
@@ -5418,6 +5660,361 @@ z_index_property_value:
     $$ = AddRef(new cssom::IntegerValue($1));
   }
   | auto
+  | common_values
+  ;
+
+// Properties for FlexBox.
+//   https://www.w3.org/TR/css-flexbox-1
+
+// FlexBox property Keyword combinations: flex-start | flex-end | center
+flex_start_end_center_property_value:
+    kFlexStartToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetFlexStart().get());
+  }
+  | kFlexEndToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetFlexEnd().get());
+  }
+  | kCenterToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetCenter().get());
+  }
+  ;
+
+// FlexBox property Keyword combinations: space-between | space-around
+space_between_around_property_value:
+    kSpaceBetweenToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetSpaceBetween().get());
+  }
+  | kSpaceAroundToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetSpaceAround().get());
+  }
+  ;
+
+// FlexBox property Keyword combinations: baseline | stretch
+baseline_stretch_property_value:
+    kBaselineToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBaseline().get());
+  }
+  | kStretchToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStretch().get());
+  }
+  ;
+
+// Flexbox property justify-content.
+// flex-start | flex-end | center | space-between | space-around
+//   https://www.w3.org/TR/css-flexbox-1/#justify-content-property
+justify_content_property_value:
+    flex_start_end_center_property_value
+  | space_between_around_property_value
+  | common_values
+  ;
+
+// Flexbox property align-content.
+// flex-start | flex-end | center | space-between | space-around | stretch
+//   https://www.w3.org/TR/css-flexbox-1/#align-content-property
+align_content_property_value:
+    flex_start_end_center_property_value
+  | space_between_around_property_value
+  | kStretchToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStretch().get());
+  }
+  | common_values
+  ;
+
+// Flexbox property align-items.
+// flex-start | flex-end | center | baseline | stretch
+//   https://www.w3.org/TR/css-flexbox-1/#align-items-property
+align_items_property_value:
+    flex_start_end_center_property_value
+  | baseline_stretch_property_value
+  | common_values
+  ;
+
+// Flexbox property align-self.
+// auto | flex-start | flex-end | center | baseline | stretch
+//   https://www.w3.org/TR/css-flexbox-1/#align-items-property
+align_self_property_value:
+    kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  | flex_start_end_center_property_value
+  | baseline_stretch_property_value
+  | common_values
+  ;
+
+// Keywords for the flex-basis property.
+flex_basis_keywords:
+    kContentToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetContent().get());
+  }
+  | kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  ;
+
+// Flexbox property flex-basis.
+// content | <‘width’>
+//   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+// Or keyword auto
+//   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-basis-auto
+flex_basis_property_value:
+    flex_basis_keywords
+  | positive_length_percent_property_value
+  | common_values
+  ;
+
+// A flex basis element in a flex shortcut, except for the unitless zero width
+// value.
+flex_basis_element:
+    flex_basis_keywords
+  | non_negative_absolute_or_relative_length {
+    $$ = $1;
+  }
+  | positive_percentage {
+    $$ = $1;
+  }
+  ;
+
+// Flex property element that is a flex-basis when it appears alone.
+flex_single_flex_basis_element:
+    kContentToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetContent().get());
+  }
+  | non_negative_absolute_or_relative_length {
+    $$ = $1;
+  }
+  | positive_percentage {
+    $$ = $1;
+  }
+  ;
+
+// Flexbox Shorthand property flex
+//   https://www.w3.org/TR/css-flexbox-1/#flex-property
+flex_single_property_value:
+    flex_single_flex_basis_element {
+    // One single flex property element as a flex-basis value.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = cssom::KeywordValue::GetInitial();
+    flex->shrink = cssom::KeywordValue::GetInitial();
+    flex->basis = MakeScopedRefPtrAndRelease($1);
+    $$ = flex.release();
+  }
+  | non_negative_number {
+    // Shorthand 'flex: <positive number>' expands to
+    // 'flex: <positive-number> 1 0'.
+    //   https://www.w3.org/TR/css-flexbox-1/#flex-common
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($1);
+    flex->shrink = new cssom::NumberValue(1);
+    flex->basis = new cssom::LengthValue(0, cssom::kPixelsUnit);
+    $$ = flex.release();
+  }
+  | kAutoToken maybe_whitespace {
+    // The keyword auto expands to 1 1 auto.
+    //   https://www.w3.org/TR/css-flexbox-1/#flex-common
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue(1);
+    flex->shrink = new cssom::NumberValue(1);
+    flex->basis = cssom::KeywordValue::GetAuto();
+    $$ = flex.release();
+  }
+  | kNoneToken maybe_whitespace {
+    // The keyword none expands to 0 0 auto.
+    //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue(0);
+    flex->shrink = new cssom::NumberValue(0);
+    flex->basis = cssom::KeywordValue::GetAuto();
+    $$ = flex.release();
+  }
+  ;
+
+flex_two_property_values:
+    non_negative_number non_negative_number {
+    // Two flex factors.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($1);
+    flex->shrink = new cssom::NumberValue($2);
+    $$ = flex.release();
+  }
+  | non_negative_number flex_basis_element {
+    // One flex factor and one flex basis.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($1);
+    flex->basis = MakeScopedRefPtrAndRelease($2);
+    $$ = flex.release();
+  }
+  | flex_basis_element non_negative_number {
+    // One flex basis and one flex factor.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($2);
+    flex->basis = MakeScopedRefPtrAndRelease($1);
+    $$ = flex.release();
+  }
+  ;
+
+flex_three_property_values:
+    non_negative_number non_negative_number flex_basis_element {
+    // Two flex factors and a flex basis.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($1);
+    flex->shrink= new cssom::NumberValue($2);
+    flex->basis = MakeScopedRefPtrAndRelease($3);
+    $$ = flex.release();
+  }
+  | flex_basis_element non_negative_number non_negative_number {
+    // One flex basis and two flex factors.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($2);
+    flex->shrink= new cssom::NumberValue($3);
+    flex->basis = MakeScopedRefPtrAndRelease($1);
+    $$ = flex.release();
+  }
+  | non_negative_number non_negative_number non_negative_number {
+    // A unitless zero that is not already preceded by two flex factors must be
+    // interpreted as a flex factor.
+    //   https://www.w3.org/TR/css-flexbox-1/#flex-property
+    if ($3 != 0) {
+      parser_impl->LogError(
+          @1, "non-zero flex basis is not allowed without unit identifier");
+      YYERROR;
+    }
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = new cssom::NumberValue($1);
+    flex->shrink= new cssom::NumberValue($2);
+    flex->basis = new cssom::LengthValue($3, cssom::kPixelsUnit);
+    $$ = flex.release();
+  }
+  ;
+
+flex_property_value:
+    flex_single_property_value {
+    scoped_ptr<FlexShorthand> flex($1);
+    $$ = flex.release();
+  }
+  | flex_two_property_values {
+    $$ = $1;
+  }
+  | flex_three_property_values
+  | common_values {
+    // Replicate the common value into each of the properties that flex is a
+    // shorthand for.
+    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    flex->grow = $1;
+    flex->shrink= $1;
+    flex->basis = $1;
+    $$ = flex.release();
+  }
+  ;
+
+// Flexbox property flex-grow and flex-shrink
+//   https://www.w3.org/TR/css-flexbox-1/#flex-grow-property
+//   https://www.w3.org/TR/css-flexbox-1/#flex-shrink-property
+flex_factor_property_value:
+    non_negative_number {
+    $$ = AddRef(new cssom::NumberValue($1));
+  }
+  | common_values
+  ;
+
+// Flexbox property order
+//   https://www.w3.org/TR/css-flexbox-1/#order-property
+order_property_value:
+    integer {
+    $$ = AddRef(new cssom::IntegerValue($1));
+  }
+  | common_values
+  ;
+
+// Flexbox property flex-direction.
+// row | row-reverse | column | column-reverse
+//   https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+flex_direction:
+    kRowToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetRow().get());
+  }
+  | kRowReverseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetRowReverse().get());
+  }
+  | kColumnToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetColumn().get());
+  }
+  | kColumnReverseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetColumnReverse().get());
+  }
+  ;
+
+// Flexbox property flex-grow and flex-direction
+//  https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+flex_direction_property_value:
+    flex_direction
+  | common_values
+  ;
+
+// One element of the flex-flow shorthand property.
+//   https://www.w3.org/TR/css-flexbox-1/#flex-flow-property
+flex_flow_property_element:
+    flex_direction {
+    scoped_refptr<cssom::PropertyValue> direction(
+        MakeScopedRefPtrAndRelease($1));
+    if (!$<flex_flow_shorthand>0->direction) {
+      $<flex_flow_shorthand>0->direction = direction;
+    } else {
+      parser_impl->LogError(@1, "flex-direction value declared twice in flex.");
+      $<flex_flow_shorthand>0->error = true;
+    }
+  }
+  | flex_wrap {
+    scoped_refptr<cssom::PropertyValue> wrap(
+        MakeScopedRefPtrAndRelease($1));
+    if (!$<flex_flow_shorthand>0->wrap) {
+      $<flex_flow_shorthand>0->wrap = wrap;
+    } else {
+      parser_impl->LogError(@1, "flex-wrap value declared twice in flex.");
+      $<flex_flow_shorthand>0->error = true;
+    }
+  }
+  ;
+
+flex_flow_property_list:
+    %empty {
+    $$ = new FlexFlowShorthand();
+  }
+  | flex_flow_property_list flex_flow_property_element {
+    $$ = $1;
+  }
+  ;
+
+// Flexbox Shorthand property flex-flow
+//   https://www.w3.org/TR/css-flexbox-1/#flex-flow-property
+flex_flow_property_value:
+    flex_flow_property_list
+  | common_values {
+    // Replicate the common value into each of the properties that flex_ flow is
+    // a shorthand for.
+    scoped_ptr<FlexFlowShorthand> flex_flow(new FlexFlowShorthand());
+    flex_flow->direction = $1;
+    flex_flow->wrap = $1;
+    $$ = flex_flow.release();
+  }
+  ;
+
+// Flexbox property flex-wrap.
+// nowrap | wrap | wrap-reverse
+//   https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property
+flex_wrap:
+    kNowrapToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNowrap().get());
+  }
+  | kWrapToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetWrap().get());
+  }
+  | kWrapReverseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetWrapReverse().get());
+  }
+  ;
+
+flex_wrap_property_value:
+    flex_wrap
   | common_values
   ;
 
@@ -5476,6 +6073,24 @@ animatable_property_token:
 //   https://www.w3.org/TR/css3-syntax/#consume-a-declaration0
 maybe_declaration:
     %empty { $$ = NULL; }
+  | kAlignContentToken maybe_whitespace colon align_content_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kAlignContentProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kAlignItemsToken maybe_whitespace colon align_items_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kAlignItemsProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kAlignSelfToken maybe_whitespace colon align_self_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kAlignSelfProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kAnimationDelayToken maybe_whitespace colon
       animation_delay_property_value maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kAnimationDelayProperty,
@@ -6051,6 +6666,85 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kFlexToken maybe_whitespace colon flex_property_value
+      maybe_important {
+    scoped_ptr<FlexShorthand> flex($4);
+    DCHECK(flex);
+    if (!flex->error) {
+      flex->ReplaceNullWithInitialValues();
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      // Unpack flex.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFlexGrowProperty, flex->grow));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFlexShrinkProperty, flex->shrink));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFlexBasisProperty, flex->basis));
+
+      $$ = property_declaration.release();
+    } else {
+      parser_impl->LogWarning(@1, "invalid flex");
+      $$ = NULL;
+    }
+  }
+  | kFlexBasisToken maybe_whitespace colon flex_basis_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFlexBasisProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kFlexDirectionToken maybe_whitespace colon flex_direction_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFlexDirectionProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kFlexFlowToken maybe_whitespace colon flex_flow_property_value
+      maybe_important {
+    scoped_ptr<FlexFlowShorthand> flex_flow($4);
+    DCHECK(flex_flow);
+    if (!flex_flow->error) {
+      flex_flow->ReplaceNullWithInitialValues();
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      // Unpack flex-flow.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFlexDirectionProperty, flex_flow->direction));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFlexWrapProperty, flex_flow->wrap));
+
+      $$ = property_declaration.release();
+    } else {
+      parser_impl->LogWarning(@1, "invalid flex-flow");
+      $$ = NULL;
+    }
+  }
+  | kFlexGrowToken maybe_whitespace colon flex_factor_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFlexGrowProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kFlexShrinkToken maybe_whitespace colon flex_factor_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFlexShrinkProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kFlexWrapToken maybe_whitespace colon flex_wrap_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFlexWrapProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kFontToken maybe_whitespace colon font_property_value maybe_important {
     scoped_ptr<FontShorthand> font($4);
     DCHECK(font);
@@ -6109,6 +6803,12 @@ maybe_declaration:
   | kHeightToken maybe_whitespace colon height_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kHeightProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kJustifyContentToken maybe_whitespace colon justify_content_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kJustifyContentProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -6199,6 +6899,12 @@ maybe_declaration:
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kOpacityProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kOrderToken maybe_whitespace colon order_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOrderProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -6348,9 +7054,26 @@ maybe_declaration:
   }
   | kTextDecorationToken maybe_whitespace colon text_decoration_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTextDecorationLineProperty,
-                                      MakeScopedRefPtrAndRelease($4), $5)
-            : NULL;
+    scoped_ptr<TextDecorationShorthand> text_decoration($4);
+    DCHECK(text_decoration);
+    if (!text_decoration->error) {
+      text_decoration->ReplaceNullWithInitialValues();
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      // Unpack text-decoration.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kTextDecorationLineProperty, text_decoration->line));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kTextDecorationColorProperty, text_decoration->color));
+
+      $$ = property_declaration.release();
+    } else {
+      parser_impl->LogWarning(@1, "invalid text-decoration");
+      $$ = NULL;
+    }
   }
   | kTextDecorationColorToken maybe_whitespace colon
       color_property_value maybe_important {
@@ -6479,6 +7202,13 @@ maybe_declaration:
   | kWidthToken maybe_whitespace colon width_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kWidthProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kWordWrapToken maybe_whitespace colon overflow_wrap_property_value
+      maybe_important {
+    // NOTE: word-wrap is treated as an alias for overflow-wrap
+    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowWrapProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
