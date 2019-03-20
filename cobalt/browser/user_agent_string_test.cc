@@ -69,7 +69,7 @@ TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
   // parentheses in the strings below to ensure they get sanitized.
   UserAgentPlatformInfo platform_info;
   platform_info.os_name_and_version = "GLaDOS 3.11";
-  platform_info.network_operator = "Aperture_Science_Innovators";
+  platform_info.original_design_manufacturer = "Aperture_Science_Innovators";
   platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
   platform_info.chipset_model_number = "P-body/Orange_Atlas/Blue";
   platform_info.model_year = "2013";

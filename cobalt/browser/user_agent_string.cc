@@ -211,11 +211,16 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   // Fill platform info if it is a hardware TV device.
   SbSystemDeviceType device_type = SbSystemGetDeviceType();
 
-  // Network operator
-  result = SbSystemGetProperty(kSbSystemPropertyNetworkOperatorName, value,
-                               kSystemPropertyMaxLength);
+  // Original Design Manufacturer (ODM)
+#if SB_API_VERSION >= SB_ODM_VERSION
+  result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
+                               value, kSystemPropertyMaxLength);
+#else
+  result = SbSystemGetProperty(kSbSystemPropertyNetworkOperatorName,
+                               value, kSystemPropertyMaxLength);
+#endif
   if (result) {
-    platform_info.network_operator = value;
+    platform_info.original_design_manufacturer = value;
   }
 
   platform_info.javascript_engine_version =
@@ -272,7 +277,7 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   }
 
   // Brand
-  result = SbSystemGetProperty(kSbSystemPropertyManufacturerName, value,
+  result = SbSystemGetProperty(kSbSystemPropertyBrandName, value,
                                kSystemPropertyMaxLength);
   if (result) {
     platform_info.brand = value;
@@ -365,7 +370,7 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
   // Device/FirmwareVersion (Brand, Model, ConnectionType)
   base::StringAppendF(
       &user_agent, ", %s_%s_%s_%s/%s (%s, %s, %s)",
-      Sanitize(platform_info.network_operator.value_or("")).c_str(),
+      Sanitize(platform_info.original_design_manufacturer.value_or("")).c_str(),
       CreateDeviceTypeString(platform_info.device_type).c_str(),
       Sanitize(platform_info.chipset_model_number.value_or("")).c_str(),
       Sanitize(platform_info.model_year.value_or("")).c_str(),
