@@ -255,14 +255,14 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
     SB_DCHECK(first_input_written_);
 
     bool frame_too_early = false;
-    if (seeking_.load()) {
-      if (frame->is_end_of_stream()) {
-        seeking_.store(false);
+    if (frame->is_end_of_stream()) {
+      if (seeking_.exchange(false)) {
         Schedule(prerolled_cb_);
-      } else if (frame->timestamp() < seeking_to_time_) {
-        frame_too_early = true;
       }
+    } else if (seeking_.load() && frame->timestamp() < seeking_to_time_) {
+      frame_too_early = true;
     }
+
     if (!frame_too_early) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       if (!frame->is_end_of_stream()) {
@@ -274,10 +274,9 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
       number_of_frames_.increment();
     }
 
-    if (seeking_.load() &&
-        number_of_frames_.load() >=
-            static_cast<int32_t>(decoder_->GetPrerollFrameCount())) {
-      seeking_.store(false);
+    if (number_of_frames_.load() >=
+            static_cast<int32_t>(decoder_->GetPrerollFrameCount()) &&
+        seeking_.exchange(false)) {
       Schedule(prerolled_cb_);
     }
   }
@@ -330,14 +329,13 @@ void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 
 void VideoRenderer::OnSeekTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
-  if (seeking_.load()) {
-    if (number_of_frames_.load() > 0) {
-      seeking_.store(false);
+  if (number_of_frames_.load() > 0) {
+    if (seeking_.exchange(false)) {
       Schedule(prerolled_cb_);
-    } else {
-      Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this),
-               kSeekTimeoutRetryInterval);
     }
+  } else if (seeking_.load()) {
+    Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this),
+             kSeekTimeoutRetryInterval);
   }
 }
 
