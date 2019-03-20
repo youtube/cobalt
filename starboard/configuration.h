@@ -144,6 +144,13 @@
 // with the texture width and height set to 1.
 #define SB_DECODE_TARGET_CONTENT_REGION_FLOATS SB_EXPERIMENTAL_API_VERSION
 
+// Add kSbSystemPropertyOriginalDesignManufacturerName enum value.
+// This change also deprecates kSbSystemPropertyNetworkOperatorName.
+// The kSbSystemPropertyOriginalDesignManufacturerName value will represent
+// the corporate entity responsible for the manufacturing/assembly of the device
+// on behalf of the business entity owning the brand.
+#define SB_ODM_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

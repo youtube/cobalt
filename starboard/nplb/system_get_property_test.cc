@@ -81,7 +81,12 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
 
   BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
+#if SB_API_VERSION >= SB_ODM_VERSION
+  BasicTest(kSbSystemPropertyOriginalDesignManufacturerName,
+            false, true, __LINE__);
+#else
   BasicTest(kSbSystemPropertyNetworkOperatorName, false, true, __LINE__);
+#endif
   BasicTest(kSbSystemPropertySpeechApiKey, false, true, __LINE__);
 
   if (IsCEDevice(SbSystemGetDeviceType())) {
@@ -121,7 +126,12 @@ TEST(SbSystemGetPropertyTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPropertyBrandName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelYear, __LINE__);
+#if SB_API_VERSION >= SB_ODM_VERSION
+  UnmodifiedOnFailureTest(kSbSystemPropertyOriginalDesignManufacturerName,
+                          __LINE__);
+#else
   UnmodifiedOnFailureTest(kSbSystemPropertyNetworkOperatorName, __LINE__);
+#endif
   UnmodifiedOnFailureTest(kSbSystemPropertyPlatformName, __LINE__);
 #if SB_API_VERSION < 10
   UnmodifiedOnFailureTest(kSbSystemPropertyPlatformUuid, __LINE__);
@@ -150,7 +160,11 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
     kSbSystemPropertyManufacturerName,
     kSbSystemPropertyModelName,
     kSbSystemPropertyModelYear,
+#if SB_API_VERSION >= SB_ODM_VERSION
+    kSbSystemPropertyOriginalDesignManufacturerName,
+#else
     kSbSystemPropertyNetworkOperatorName,
+#endif
     kSbSystemPropertyPlatformName,
   };
 
