@@ -78,6 +78,240 @@ class ScannerTest : public ::testing::Test,
 INSTANTIATE_TEST_CASE_P(LocaleNumeric, ScannerTest,
                         ::testing::ValuesIn(kNumericLocales));
 
+namespace {
+// Array of property tokens corresponding to each cssom::PropertyKey.
+const int property_tokens[] = {
+    kAlignContentToken,
+    kAlignItemsToken,
+    kAlignSelfToken,
+    kAnimationDelayToken,
+    kAnimationDirectionToken,
+    kAnimationDurationToken,
+    kAnimationFillModeToken,
+    kAnimationIterationCountToken,
+    kAnimationNameToken,
+    kAnimationTimingFunctionToken,
+    kBackgroundColorToken,
+    kBackgroundImageToken,
+    kBackgroundPositionToken,
+    kBackgroundRepeatToken,
+    kBackgroundSizeToken,
+    kBorderBottomColorToken,
+    kBorderBottomLeftRadiusToken,
+    kBorderBottomRightRadiusToken,
+    kBorderBottomStyleToken,
+    kBorderBottomWidthToken,
+    kBorderLeftColorToken,
+    kBorderLeftStyleToken,
+    kBorderLeftWidthToken,
+    kBorderRightColorToken,
+    kBorderRightStyleToken,
+    kBorderRightWidthToken,
+    kBorderTopColorToken,
+    kBorderTopLeftRadiusToken,
+    kBorderTopRightRadiusToken,
+    kBorderTopStyleToken,
+    kBorderTopWidthToken,
+    kBottomToken,
+    kBoxShadowToken,
+    kColorToken,
+    kContentToken,
+    kDisplayToken,
+    kFilterToken,
+    kFlexBasisToken,
+    kFlexDirectionToken,
+    kFlexGrowToken,
+    kFlexShrinkToken,
+    kFlexWrapToken,
+    kFontFamilyToken,
+    kFontSizeToken,
+    kFontStyleToken,
+    kFontWeightToken,
+    kHeightToken,
+    kJustifyContentToken,
+    kLeftToken,
+    kLineHeightToken,
+    kMarginBottomToken,
+    kMarginLeftToken,
+    kMarginRightToken,
+    kMarginTopToken,
+    kMaxHeightToken,
+    kMaxWidthToken,
+    kMinHeightToken,
+    kMinWidthToken,
+    kOpacityToken,
+    kOrderToken,
+    kOutlineColorToken,
+    kOutlineStyleToken,
+    kOutlineWidthToken,
+    kOverflowToken,
+    kOverflowWrapToken,
+    kPaddingBottomToken,
+    kPaddingLeftToken,
+    kPaddingRightToken,
+    kPaddingTopToken,
+    kPointerEventsToken,
+    kPositionToken,
+    kRightToken,
+    kTextAlignToken,
+    kTextDecorationColorToken,
+    kTextDecorationLineToken,
+    kTextIndentToken,
+    kTextOverflowToken,
+    kTextShadowToken,
+    kTextTransformToken,
+    kTopToken,
+    kTransformOriginToken,
+    kTransformToken,
+    kTransitionDelayToken,
+    kTransitionDurationToken,
+    kTransitionPropertyToken,
+    kTransitionTimingFunctionToken,
+    kVerticalAlignToken,
+    kVisibilityToken,
+    kWhiteSpacePropertyToken,
+    kWidthToken,
+    kZIndexToken,
+    kAllToken,
+    kSrcToken,
+    kUnicodeRangePropertyToken,
+    kWordWrapToken,
+    kAnimationToken,
+    kBackgroundToken,
+    kBorderBottomToken,
+    kBorderColorToken,
+    kBorderLeftToken,
+    kBorderToken,
+    kBorderRadiusToken,
+    kBorderRightToken,
+    kBorderStyleToken,
+    kBorderTopToken,
+    kBorderWidthToken,
+    kFlexToken,
+    kFlexFlowToken,
+    kFontToken,
+    kMarginToken,
+    kOutlineToken,
+    kPaddingToken,
+    kTextDecorationToken,
+    kTransitionToken,
+};
+}  // namespace
+
+TEST_F(ScannerTest, ScansPropertyName) {
+  static_assert(
+      SB_ARRAY_SIZE(property_tokens) == 1 + cssom::kMaxEveryPropertyKey,
+      "property_tokens[] should have a value for each cssom::PropertyKey");
+  // Test that all property names are scanned into tokens correctly.
+  ASSERT_EQ(SB_ARRAY_SIZE(property_tokens), 1 + cssom::kMaxEveryPropertyKey);
+  for (int i = 0; i < 1 + cssom::kMaxEveryPropertyKey; i++) {
+    cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
+    Scanner scanner(cssom::GetPropertyName(property_key), &string_pool_);
+
+    ASSERT_EQ(property_tokens[i],
+              yylex(&token_value_, &token_location_, &scanner));
+    ASSERT_EQ(kEndOfFileToken,
+              yylex(&token_value_, &token_location_, &scanner));
+  }
+}
+
+namespace {
+// Array of keyword tokens corresponding to each cssom::KeywordValue.
+const int keyword_tokens[] = {
+    kAbsoluteToken,
+    kAlternateToken,
+    kAlternateReverseToken,
+    kAutoToken,
+    kBackwardsToken,
+    kBaselineToken,
+    kBlockToken,
+    kBothToken,
+    kBottomToken,
+    kBreakWordToken,
+    kCenterToken,
+    kClipToken,
+    kCollapseToken,
+    kColumnToken,
+    kColumnReverseToken,
+    kContainToken,
+    kContentToken,
+    kCoverToken,
+    kIdentifierToken,  // kCurrentColor
+    kCursiveToken,
+    kEllipsisToken,
+    kEndToken,
+    kEquirectangularToken,
+    kFantasyToken,
+    kFixedToken,
+    kFlexToken,
+    kFlexEndToken,
+    kFlexStartToken,
+    kForwardsToken,
+    kHiddenToken,
+    kInfiniteToken,
+    kInheritToken,
+    kInitialToken,
+    kInlineToken,
+    kInlineBlockToken,
+    kInlineFlexToken,
+    kLeftToken,
+    kLineThroughToken,
+    kMiddleToken,
+    kMonoscopicToken,
+    kMonospaceToken,
+    kNoneToken,
+    kNoRepeatToken,
+    kNormalToken,
+    kNowrapToken,
+    kPreToken,
+    kPreLineToken,
+    kPreWrapToken,
+    kRelativeToken,
+    kRepeatToken,
+    kReverseToken,
+    kRightToken,
+    kRowToken,
+    kRowReverseToken,
+    kSansSerifToken,
+    kScrollToken,
+    kSerifToken,
+    kSolidToken,
+    kSpaceAroundToken,
+    kSpaceBetweenToken,
+    kStartToken,
+    kStaticToken,
+    kStereoscopicLeftRightToken,
+    kStereoscopicTopBottomToken,
+    kStretchToken,
+    kTopToken,
+    kUppercaseToken,
+    kVisibleToken,
+    kWrapToken,
+    kWrapReverseToken,
+};
+}  // namespace
+
+TEST_F(ScannerTest, ScansKeywordValue) {
+  static_assert(SB_ARRAY_SIZE(keyword_tokens) ==
+                    1 + cssom::KeywordValue::kMaxKeywordValue,
+                "keyword_tokens[] should have a value for each "
+                "cssom::KeywordValue::Value");
+  // Test that all keyword values are scanned into tokens correctly.
+  ASSERT_EQ(SB_ARRAY_SIZE(keyword_tokens),
+            1 + cssom::KeywordValue::kMaxKeywordValue);
+  for (int i = 0; i < 1 + cssom::KeywordValue::kMaxKeywordValue; i++) {
+    cssom::KeywordValue::Value keyword_value =
+        static_cast<cssom::KeywordValue::Value>(i);
+    std::string keyword_name = cssom::KeywordValue::GetName(keyword_value);
+    Scanner scanner(keyword_name.c_str(), &string_pool_);
+
+    ASSERT_EQ(keyword_tokens[i],
+              yylex(&token_value_, &token_location_, &scanner));
+    ASSERT_EQ(kEndOfFileToken,
+              yylex(&token_value_, &token_location_, &scanner));
+  }
+}
+
 TEST_F(ScannerTest, ScansSingleCodePointUnicodeRange) {
   Scanner scanner("u+1f4a9 U+1F4A9", &string_pool_);
 

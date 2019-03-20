@@ -16,6 +16,9 @@
 
 interface CSSStyleDeclaration {
   // TODO: Replace this list with __camel_cased_attribute.
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString alignContent;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString alignItems;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString alignSelf;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString animation;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString animationDelay;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString animationDirection;
@@ -61,12 +64,20 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString content;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString display;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString filter;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flex;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flexBasis;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flexDirection;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flexFlow;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flexGrow;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flexShrink;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString flexWrap;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString font;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString fontFamily;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString fontSize;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString fontStyle;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString fontWeight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString height;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString justifyContent;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString left;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString lineHeight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString margin;
@@ -79,6 +90,7 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString minHeight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString minWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString opacity;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString order;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString outline;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineColor;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineStyle;

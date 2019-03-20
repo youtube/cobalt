@@ -85,7 +85,7 @@ bool DoesCollapseWhiteSpace(const scoped_refptr<cssom::PropertyValue>& value) {
 // https://www.w3.org/TR/css-text-3/#white-space
 bool DoesAllowTextWrapping(const scoped_refptr<cssom::PropertyValue>& value) {
   return value != cssom::KeywordValue::GetPre() &&
-         value != cssom::KeywordValue::GetNoWrap();
+         value != cssom::KeywordValue::GetNowrap();
 }
 
 void CollapseWhiteSpace(std::string* text) {

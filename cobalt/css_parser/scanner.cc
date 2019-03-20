@@ -1319,6 +1319,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 4:
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFlexProperty))) {
+        *property_name_token = kFlexToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kFontProperty))) {
         *property_name_token = kFontToken;
         return true;
@@ -1334,6 +1339,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kColorProperty))) {
         *property_name_token = kColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kOrderProperty))) {
+        *property_name_token = kOrderToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -1429,6 +1439,21 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         return true;
       }
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFlexFlowProperty))) {
+        *property_name_token = kFlexFlowToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFlexGrowProperty))) {
+        *property_name_token = kFlexGrowToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFlexWrapProperty))) {
+        *property_name_token = kFlexWrapToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kFontSizeProperty))) {
         *property_name_token = kFontSizeToken;
         return true;
@@ -1448,15 +1473,19 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kTransformToken;
         return true;
       }
-      // NOTE: word-wrap is treated as an alias for overflow-wrap
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kWordWrapProperty))) {
-        *property_name_token = kOverflowWrapToken;
+        *property_name_token = kWordWrapToken;
         return true;
       }
       return false;
 
     case 10:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kAlignSelfProperty))) {
+        *property_name_token = kAlignSelfToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kBackgroundProperty))) {
         *property_name_token = kBackgroundToken;
@@ -1470,6 +1499,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kBoxShadowProperty))) {
         *property_name_token = kBoxShadowToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFlexBasisProperty))) {
+        *property_name_token = kFlexBasisToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -1511,8 +1545,18 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 11:
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kAlignItemsProperty))) {
+        *property_name_token = kAlignItemsToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kBorderLeftProperty))) {
         *property_name_token = kBorderLeftToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFlexShrinkProperty))) {
+        *property_name_token = kFlexShrinkToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -1599,6 +1643,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
     case 13:
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kAlignContentProperty))) {
+        *property_name_token = kAlignContentToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kBorderBottomProperty))) {
         *property_name_token = kBorderBottomToken;
         return true;
@@ -1668,6 +1718,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kFlexDirectionProperty))) {
+        *property_name_token = kFlexDirectionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kPaddingBottomProperty))) {
         *property_name_token = kPaddingBottomToken;
         return true;
@@ -1703,6 +1759,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
               name.begin,
               cssom::GetPropertyName(cssom::kBackgroundSizeProperty))) {
         *property_name_token = kBackgroundSizeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kJustifyContentProperty))) {
+        *property_name_token = kJustifyContentToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -1971,6 +2033,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kRedToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRowKeywordName)) {
+        *property_value_token = kRowToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTopKeywordName)) {
         *property_value_token = kTopToken;
         return true;
@@ -2005,20 +2071,16 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEaseToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFlexKeywordName)) {
+        *property_value_token = kFlexToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kFromKeywordName)) {
         *property_value_token = kFromToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kGrayKeywordName)) {
         *property_value_token = kGrayToken;
-        return true;
-      }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kNavyKeywordName)) {
-        *property_value_token = kNavyToken;
-        return true;
-      }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kNoneKeywordName)) {
-        *property_value_token = kNoneToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kLeftKeywordName)) {
@@ -2029,8 +2091,20 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kLimeToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNavyKeywordName)) {
+        *property_value_token = kNavyToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNoneKeywordName)) {
+        *property_value_token = kNoneToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTealKeywordName)) {
         *property_value_token = kTealToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kWrapKeywordName)) {
+        *property_value_token = kWrapToken;
         return true;
       }
       return false;
@@ -2095,6 +2169,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kCenterToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kColumnKeywordName)) {
+        *property_value_token = kColumnToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kCircleKeywordName)) {
         *property_value_token = kCircleToken;
         return true;
@@ -2127,8 +2205,8 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kNormalToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kNoWrapKeywordName)) {
-        *property_value_token = kNoWrapToken;
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNowrapKeywordName)) {
+        *property_value_token = kNowrapToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kPurpleKeywordName)) {
@@ -2160,6 +2238,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 7:
       if (IsEqualToCssIdentifier(name.begin, cssom::kContainKeywordName)) {
         *property_value_token = kContainToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kContentKeywordName)) {
+        *property_value_token = kContentToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kCursiveKeywordName)) {
@@ -2198,6 +2280,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kReverseToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kStretchKeywordName)) {
+        *property_value_token = kStretchToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kVisibleKeywordName)) {
         *property_value_token = kVisibleToken;
         return true;
@@ -2213,16 +2299,24 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kBaselineToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kCollapseKeywordName)) {
+        *property_value_token = kCollapseToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEaseOutKeywordName)) {
         *property_value_token = kEaseOutToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kForwardsKeywordName)) {
-        *property_value_token = kForwardsToken;
-        return true;
-      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEllipsisKeywordName)) {
         *property_value_token = kEllipsisToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFlexEndKeywordName)) {
+        *property_value_token = kFlexEndToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kForwardsKeywordName)) {
+        *property_value_token = kForwardsToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInfiniteKeywordName)) {
@@ -2283,16 +2377,20 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kBreakWordToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFlexStartKeywordName)) {
+        *property_value_token = kFlexStartToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMonoscopicKeywordName)) {
+        *property_value_token = kMonoscopicToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kSansSerifKeywordName)) {
         *property_value_token = kSansSerifToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStepStartKeywordName)) {
         *property_value_token = kStepStartToken;
-        return true;
-      }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMonoscopicKeywordName)) {
-        *property_value_token = kMonoscopicToken;
         return true;
       }
       return false;
@@ -2302,12 +2400,20 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEaseInOutToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTransparentKeywordName)) {
-        *property_value_token = kTransparentToken;
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInlineFlexKeywordName)) {
+        *property_value_token = kInlineFlexToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRectangularKeywordName)) {
         *property_value_token = kRectangularToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRowReverseKeywordName)) {
+        *property_value_token = kRowReverseToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTransparentKeywordName)) {
+        *property_value_token = kTransparentToken;
         return true;
       }
       return false;
@@ -2317,12 +2423,20 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kClosestSideToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
+        *property_value_token = kInlineBlockToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kLineThroughKeywordName)) {
         *property_value_token = kLineThroughToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
-        *property_value_token = kInlineBlockToken;
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSpaceAroundKeywordName)) {
+        *property_value_token = kSpaceAroundToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kWrapReverseKeywordName)) {
+        *property_value_token = kWrapReverseToken;
         return true;
       }
       return false;
@@ -2332,12 +2446,21 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kFarthestSideToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSpaceBetweenKeywordName)) {
+        *property_value_token = kSpaceBetweenToken;
+        return true;
+      }
       return false;
 
     case 14:
       if (IsEqualToCssIdentifier(name.begin,
                                  cssom::kClosestCornerKeywordName)) {
         *property_value_token = kClosestCornerToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kColumnReverseKeywordName)) {
+        *property_value_token = kColumnReverseToken;
         return true;
       }
       return false;

@@ -154,6 +154,26 @@ scoped_refptr<PropertyListValue> CreateSinglePropertyListWithValue(
 }
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
+  // https://www.w3.org/TR/css-flexbox-1/#align-content-property
+  SetPropertyDefinition(kAlignContentProperty, "align-content", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetStretch());
+
+  // https://www.w3.org/TR/css-flexbox-1/#align-items-property
+  SetPropertyDefinition(kAlignItemsProperty, "align-items", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetStretch());
+
+  // https://www.w3.org/TR/css-flexbox-1/#propdef-align-self
+  SetPropertyDefinition(kAlignSelfProperty, "align-self", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
+
   // https://www.w3.org/TR/css3-animations/#animation-delay-property
   SetPropertyDefinition(
       kAnimationDelayProperty, "animation-delay", kInheritedNo, kAnimatableNo,
@@ -251,7 +271,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // The first value gives the width of the corresponding image, and the second
   // value gives its height. If only one value is given, the second is assumed
   // to be 'auto'.
-  //   https://www.w3.org/TR/css3-background/#background-size
+  //   https://www.w3.org/TR/css-backgrounds-3/#the-background-size
   scoped_ptr<PropertyListValue::Builder> background_size_builder(
       new PropertyListValue::Builder());
   background_size_builder->reserve(2);
@@ -408,6 +428,37 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
 
+  // https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+  SetPropertyDefinition(kFlexBasisProperty, "flex-basis", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+  SetPropertyDefinition(kFlexDirectionProperty, "flex-direction", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetRow());
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-grow-property
+  SetPropertyDefinition(kFlexGrowProperty, "flex-grow", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, new NumberValue(0));
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-shrink-property
+  SetPropertyDefinition(kFlexShrinkProperty, "flex-shrink", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, new NumberValue(1));
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property
+  SetPropertyDefinition(kFlexWrapProperty, "flex-wrap", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetNowrap());
+
   // Varies by platform in Chromium, Roboto in Cobalt.
   //   https://www.w3.org/TR/css3-fonts/#font-family-prop
   SetPropertyDefinition(
@@ -444,6 +495,13 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsChildComputedStyleYes, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
+
+  // https://www.w3.org/TR/css-flexbox-1/#justify-content-property
+  SetPropertyDefinition(kJustifyContentProperty, "justify-content",
+                        kInheritedNo, kAnimatableNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetFlexStart());
 
   // https://www.w3.org/TR/CSS2/visuren.html#propdef-left
   SetPropertyDefinition(kLeftProperty, "left", kInheritedNo, kAnimatableNo,
@@ -517,6 +575,12 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kAnimatableYes, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesYes, new NumberValue(1.0f));
+
+  // https://www.w3.org/TR/css-flexbox-1/#order-property
+  SetPropertyDefinition(kOrderProperty, "order", kInheritedNo, kAnimatableNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
+                        new IntegerValue(0));
 
   // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-color
   SetPropertyDefinition(
@@ -603,7 +667,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
-  //   https://www.w3.org/TR/css-text-3/#text-align
+  //   https://www.w3.org/TR/css-text-3/#text-align-property
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
                         kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
@@ -815,6 +879,8 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderProperty, "border",
                                  border_longhand_properties);
 
+  // Border shorthand properties.
+  //  https://www.w3.org/TR/css-backgrounds-3/#the-border-shorthands
   LonghandPropertySet border_top_longhand_properties;
   border_top_longhand_properties.insert(kBorderTopColorProperty);
   border_top_longhand_properties.insert(kBorderTopStyleProperty);
@@ -842,6 +908,21 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   border_left_longhand_properties.insert(kBorderLeftWidthProperty);
   SetShorthandPropertyDefinition(kBorderLeftProperty, "border-left",
                                  border_left_longhand_properties);
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-property
+  LonghandPropertySet flex_longhand_properties;
+  flex_longhand_properties.insert(kFlexGrowProperty);
+  flex_longhand_properties.insert(kFlexShrinkProperty);
+  flex_longhand_properties.insert(kFlexBasisProperty);
+  SetShorthandPropertyDefinition(kFlexProperty, "flex",
+                                 flex_longhand_properties);
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-flow-property
+  LonghandPropertySet flex_flow_longhand_properties;
+  flex_flow_longhand_properties.insert(kFlexDirectionProperty);
+  flex_flow_longhand_properties.insert(kFlexWrapProperty);
+  SetShorthandPropertyDefinition(kFlexFlowProperty, "flex-flow",
+                                 flex_flow_longhand_properties);
 
   //   https://www.w3.org/TR/css3-fonts/#font-prop
   LonghandPropertySet font_longhand_properties;
@@ -1039,6 +1120,9 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 4:
+      if (LowerCaseEqualsASCII(property_name, GetPropertyName(kFlexProperty))) {
+        return kFlexProperty;
+      }
       if (LowerCaseEqualsASCII(property_name, GetPropertyName(kFontProperty))) {
         return kFontProperty;
       }
@@ -1051,6 +1135,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kColorProperty))) {
         return kColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kOrderProperty))) {
+        return kOrderProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kRightProperty))) {
@@ -1129,6 +1217,18 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kAnimationProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexFlowProperty))) {
+        return kFlexFlowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexGrowProperty))) {
+        return kFlexGrowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexWrapProperty))) {
+        return kFlexWrapProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontSizeProperty))) {
         return kFontSizeProperty;
       }
@@ -1148,6 +1248,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 10:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAlignSelfProperty))) {
+        return kAlignSelfProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundProperty))) {
         return kBackgroundProperty;
       }
@@ -1158,6 +1262,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBoxShadowProperty))) {
         return kBoxShadowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexBasisProperty))) {
+        return kFlexBasisProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontStyleProperty))) {
@@ -1191,8 +1299,16 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 11:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAlignItemsProperty))) {
+        return kAlignItemsProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBorderLeftProperty))) {
         return kBorderLeftProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexShrinkProperty))) {
+        return kFlexShrinkProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontFamilyProperty))) {
@@ -1257,6 +1373,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 13:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAlignContentProperty))) {
+        return kAlignContentProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBorderBottomProperty))) {
         return kBorderBottomProperty;
       }
@@ -1300,6 +1420,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kAnimationNameProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexDirectionProperty))) {
+        return kFlexDirectionProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kPaddingBottomProperty))) {
         return kPaddingBottomProperty;
       }
@@ -1325,6 +1449,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundSizeProperty))) {
         return kBackgroundSizeProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kJustifyContentProperty))) {
+        return kJustifyContentProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextDecorationProperty))) {

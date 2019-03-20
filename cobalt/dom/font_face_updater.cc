@@ -142,18 +142,26 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kCollapse:
+    case cssom::KeywordValue::kColumn:
+    case cssom::KeywordValue::kColumnReverse:
     case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kContent:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kFlex:
+    case cssom::KeywordValue::kFlexEnd:
+    case cssom::KeywordValue::kFlexStart:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kInlineFlex:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
@@ -161,7 +169,7 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kNowrap:
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kPreLine:
     case cssom::KeywordValue::kPreWrap:
@@ -169,15 +177,22 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kRow:
+    case cssom::KeywordValue::kRowReverse:
     case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kSpaceAround:
+    case cssom::KeywordValue::kSpaceBetween:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kStereoscopicLeftRight:
     case cssom::KeywordValue::kStereoscopicTopBottom:
+    case cssom::KeywordValue::kStretch:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
+    case cssom::KeywordValue::kWrap:
+    case cssom::KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
