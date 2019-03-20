@@ -64,6 +64,18 @@ std::string GetCssProperty(const std::string& property_name,
   return "";
 }
 
+math::Rect GetBoundingRect(dom::Element* element) {
+  scoped_refptr<dom::DOMRect> bounding_rect = element->GetBoundingClientRect();
+  return math::Rect::RoundFromRectF(
+      math::RectF(bounding_rect->x(), bounding_rect->y(),
+                  bounding_rect->width(), bounding_rect->height()));
+}
+
+protocol::Rect GetRect(dom::Element* element) {
+  math::Rect rect = GetBoundingRect(element);
+  return protocol::Rect(rect.x(), rect.y(), rect.width(), rect.height());
+}
+
 }  // namespace
 
 ElementDriver::ElementDriver(
@@ -101,6 +113,36 @@ util::CommandResult<bool> ElementDriver::IsDisplayed() {
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&algorithms::IsDisplayed),
       protocol::Response::kStaleElementReference);
+}
+
+util::CommandResult<protocol::Rect> ElementDriver::GetRect() {
+  return util::CallWeakOnMessageLoopAndReturnResult(
+      element_message_loop_,
+      base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetRect),
+      protocol::Response::kStaleElementReference);
+}
+
+util::CommandResult<protocol::Location> ElementDriver::GetLocation() {
+  util::CommandResult<protocol::Rect> rect_result = GetRect();
+  if (!rect_result.is_success()) {
+    return util::CommandResult<protocol::Location>(rect_result.status_code(),
+                                                   rect_result.error_message(),
+                                                   rect_result.can_retry());
+  }
+  return util::CommandResult<protocol::Location>(
+      protocol::Location(rect_result.result().x(), rect_result.result().y()));
+}
+
+util::CommandResult<protocol::Size> ElementDriver::GetSize() {
+  util::CommandResult<protocol::Rect> rect_result = GetRect();
+  if (!rect_result.is_success()) {
+    return util::CommandResult<protocol::Size>(rect_result.status_code(),
+                                               rect_result.error_message(),
+                                               rect_result.can_retry());
+  }
+  return util::CommandResult<protocol::Size>(protocol::Size(
+      rect_result.result().width(), rect_result.result().height()));
 }
 
 util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
