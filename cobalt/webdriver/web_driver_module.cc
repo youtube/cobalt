@@ -393,6 +393,21 @@ WebDriverModule::WebDriverModule(
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::IsDisplayed)));
   webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/rect",
+                                           kSessionIdVariable, kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::GetRect)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/location",
+                                           kSessionIdVariable, kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::GetLocation)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/size",
+                                           kSessionIdVariable, kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::GetSize)));
+  webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost, StringPrintf("/session/%s/element/%s/value",
                                            kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
