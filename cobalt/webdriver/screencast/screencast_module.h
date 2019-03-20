@@ -25,6 +25,7 @@
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/webdriver/dispatcher.h"
+#include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -47,13 +48,7 @@ struct WaitingRequest : public base::RefCounted<WaitingRequest> {
 // the optimal framerate.
 class ScreencastModule {
  public:
-  typedef base::Callback<void(
-      const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
-      ScreenshotCompleteCallback;
-  typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
-                              const base::optional<math::Rect>& clip_rect,
-                              const ScreenshotCompleteCallback&)>
-      GetScreenshotFunction;
+  typedef Screenshot::GetScreenshotFunction GetScreenshotFunction;
 
   ScreencastModule(int server_port, const std::string& listen_ip,
                    const GetScreenshotFunction& screenshot_function);
