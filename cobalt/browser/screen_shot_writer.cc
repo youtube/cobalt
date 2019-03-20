@@ -25,8 +25,7 @@ namespace cobalt {
 namespace browser {
 
 ScreenShotWriter::ScreenShotWriter(renderer::Pipeline* pipeline)
-    : pipeline_(pipeline),
-      screenshot_thread_("Screenshot IO thread") {
+    : pipeline_(pipeline), screenshot_thread_("Screenshot IO thread") {
   DCHECK(pipeline);
   screenshot_thread_.Start();
 }
@@ -35,6 +34,7 @@ void ScreenShotWriter::RequestScreenshotToFile(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     const FilePath& output_path,
     const scoped_refptr<render_tree::Node>& render_tree_root,
+    const base::optional<math::Rect>& clip_rect,
     const base::Closure& complete) {
   base::Callback<void(const scoped_refptr<loader::image::EncodedStaticImage>&)>
       done_encoding_callback =
@@ -44,26 +44,33 @@ void ScreenShotWriter::RequestScreenshotToFile(
   renderer::Pipeline::RasterizationCompleteCallback callback =
       base::Bind(&ScreenShotWriter::EncodeData, base::Unretained(this),
                  desired_format, done_encoding_callback);
-  RequestScreenshotToMemoryUnencoded(render_tree_root, callback);
+  RequestScreenshotToMemoryUnencoded(render_tree_root, clip_rect, callback);
 }
 
 void ScreenShotWriter::RequestScreenshotToMemoryUnencoded(
     const scoped_refptr<render_tree::Node>& render_tree_root,
+    const base::optional<math::Rect>& clip_rect,
     const renderer::Pipeline::RasterizationCompleteCallback& callback) {
   DCHECK(!callback.is_null());
-  pipeline_->RasterizeToRGBAPixels(
-      render_tree_root, base::Bind(&ScreenShotWriter::RunOnScreenshotThread,
-                                   base::Unretained(this), callback));
+  if (clip_rect && clip_rect->IsEmpty()) {
+    callback.Run(scoped_array<uint8>(), math::Size());
+  } else {
+    pipeline_->RasterizeToRGBAPixels(
+        render_tree_root, clip_rect,
+        base::Bind(&ScreenShotWriter::RunOnScreenshotThread,
+                   base::Unretained(this), callback));
+  }
 }
 
 void ScreenShotWriter::RequestScreenshotToMemory(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     const scoped_refptr<render_tree::Node>& render_tree_root,
+    const base::optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   renderer::Pipeline::RasterizationCompleteCallback callback =
       base::Bind(&ScreenShotWriter::EncodeData, base::Unretained(this),
                  desired_format, screenshot_ready);
-  RequestScreenshotToMemoryUnencoded(render_tree_root, callback);
+  RequestScreenshotToMemoryUnencoded(render_tree_root, clip_rect, callback);
 }
 
 void ScreenShotWriter::EncodeData(
@@ -73,9 +80,11 @@ void ScreenShotWriter::EncodeData(
         done_encoding_callback,
     scoped_array<uint8> pixel_data, const math::Size& image_dimensions) {
   TRACE_EVENT0("cobalt::browser", "ScreenshotWriter::EncodeData()");
-  scoped_refptr<loader::image::EncodedStaticImage> image_data =
-      loader::image::CompressRGBAImage(desired_format, pixel_data.get(),
-                                       image_dimensions);
+  scoped_refptr<loader::image::EncodedStaticImage> image_data;
+  if (!image_dimensions.IsEmpty()) {
+    image_data = loader::image::CompressRGBAImage(
+        desired_format, pixel_data.get(), image_dimensions);
+  }
   done_encoding_callback.Run(image_data);
 }
 
