@@ -105,7 +105,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return GetAndroidSystemProperty("ro.board.platform", out_value,
                                       value_length, kUnknownValue);
     case kSbSystemPropertyModelYear:
-    case kSbSystemPropertyNetworkOperatorName:
+    case kSbSystemPropertyOriginalDesignManufacturerName:
       return false;
 
     case kSbSystemPropertyFriendlyName:
