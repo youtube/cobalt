@@ -90,6 +90,8 @@ from starboard.build.filelist import \
 
 from starboard.build.port_symlink import Rmtree
 from starboard.tools.build import GetPlatformConfig
+from starboard.tools.config import GetAll as GetAllConfigs
+from starboard.tools.platform import GetAll as GetAllPlatforms
 
 
 class Bundler:
@@ -317,7 +319,7 @@ def _ExtractFilesAndSymlinks(input_zip_path, output_dir, outstream):
 ################################################################################
 
 
-def UnitTestBundler_ExtractTo():
+def _UnitTestBundler_ExtractTo():
   flist = FileList()
   tf = TempFileSystem()
   tf.Clear()
@@ -335,7 +337,7 @@ def UnitTestBundler_ExtractTo():
   assert(os.path.abspath(out_from_dir) == os.path.abspath(ReadSymLink(out_from_dir_lnk)))
 
 
-def UnitTestBundler_MakesDeployInfo():
+def _UnitTestBundler_MakesDeployInfo():
   flist = FileList()
   tf = TempFileSystem()
   tf.Clear()
@@ -357,7 +359,7 @@ def UnitTestBundler_MakesDeployInfo():
     assert(js['platform'] == 'fake')
 
 
-def UnitTest_FoldIdenticalFiles():
+def _UnitTest_FoldIdenticalFiles():
   tf_root = TempFileSystem('bundler_fold')
   tf_root.Clear()
   tf1 = TempFileSystem(os.path.join('bundler_fold', '1'))
@@ -375,11 +377,11 @@ def UnitTest_FoldIdenticalFiles():
   assert(tf2.test_txt in copy_files[0][1])
 
 
-def UnitTest():
+def _UnitTest():
   tests = [
-    ['UnitTestBundler_ExtractTo', UnitTestBundler_ExtractTo],
-    ['UnitTestBundler_MakesDeployInfo', UnitTestBundler_MakesDeployInfo],
-    ['UnitTest_FoldIdenticalFiles', UnitTest_FoldIdenticalFiles],
+    ['UnitTestBundler_ExtractTo', _UnitTestBundler_ExtractTo],
+    ['UnitTestBundler_MakesDeployInfo', _UnitTestBundler_MakesDeployInfo],
+    ['UnitTest_FoldIdenticalFiles', _UnitTest_FoldIdenticalFiles],
   ]
   failed_tests = []
   for name, test in tests:
@@ -399,54 +401,102 @@ def UnitTest():
     return 0
 
 
-# Interactive test to test the archive/unarchive feature.
-def MakeBundleTest():
-  root_directory = raw_input('root_directory: ')
-  dirs = []
-  while True:
-    d = raw_input('include dir: ')
-    if not d:
-      break
-    dirs.append(d)
-  assert(dirs)
-  output_zip = raw_input('output zip path: ')
-  unzip_dir = raw_input('unzip output: ')
-  assert(os.path.isdir(root_directory))
-  tf = TempFileSystem();
-  flist = FileList()
-  flist.AddAllFilesInPaths(root_directory, dirs)
-  b = Bundler(output_zip)
-  b.MakeArchive('fake', 'fake_sdk', flist)
-  b.ExtractTo(unzip_dir)
+################################################################################
+#                                CMD LINE                                      #
+################################################################################
 
 
-def SourceArchiveTest():
-  platform = raw_input('platform: ')
-  config = raw_input('config: ')
-  output_zip = raw_input('output_zip: ')
+def _MakeCobaltPlatformArchive(platform, config, output_zip):
+  if not platform:
+    platform = raw_input('platform: ')
+  if not platform in GetAllPlatforms():
+    raise ValueError('Platform "%s" not recognized, expected one of: \n%s'
+                     % (platform, GetAllPlatforms()))
+  if not config:
+    config = raw_input('config: ')
+  if not output_zip:
+    output_zip = raw_input('output_zip: ')
+  if not output_zip.endswith('.zip'):
+    output_zip += '.zip'
   MakeCobaltArchiveFromSource(output_zip,
                               platform,
                               config,
                               platform_sdk_version='TEST',
                               additional_buildinfo_dict={})
+  if not os.path.isfile(output_zip):
+    raise ValueError('Expected zip file at ' + output_zip)
+  print '\nGenerated:', output_zip
+
+
+def _DecompressArchive(in_zip, out_path):
+  if not in_zip:
+    in_zip = raw_input('cobalt archive path: ')
+  if not out_path:
+    out_path = raw_input('output path: ')
+  ExtractCobaltArchive(input_zip_path=in_zip, output_directory_path=out_path)
+
+
+def _main():
+  # Create a private parser that will print the full help whenever the command
+  # line fails to fully parse.
+  class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+      sys.stderr.write('error: %s\n' % message)
+      self.print_help()
+      sys.exit(2)
+  help_msg = (
+    'Example 1:\n'
+    '  python cobalt_archive.py --create --platform nxswitch'
+    ' --config devel --out_path <OUT_ZIP>\n\n'
+    'Example 2:\n'
+    '  python cobalt_archive.py --extract --in_path <ARCHIVE_PATH.ZIP>'
+    ' --out_path <OUT_DIR>')
+  # Enables new lines in the description and epilog.
+  formatter_class = argparse.RawDescriptionHelpFormatter
+  parser = MyParser(epilog=help_msg, formatter_class=formatter_class)
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument(
+      '-u',
+      '--unit_test',
+      help='Run cobalt archive UnitTest',
+      action='store_true')
+  group.add_argument(
+      '-c',
+      '--create',
+      help='Creates an archive from source directory, optional arguments'
+           ' include --platform --config and --out_path',
+      action='store_true')
+  group.add_argument(
+      '-x',
+      '--extract',
+      help='Extract archive from IN_PATH to OUT_PATH, optional arguments '
+           'include --in_path and --out_path',
+      action='store_true')
+  parser.add_argument('--platform', type=str,
+                      help='Optional, used for --create',
+                      default=None)
+  parser.add_argument('--config', type=str,
+                      help='Optional, used for --create',
+                      choices=GetAllConfigs(),
+                      default=None)
+  parser.add_argument('--out_path', type=str,
+                      help='Optional, used for --create and --decompress',
+                      default=None)
+  parser.add_argument('--in_path', type=str,
+                      help='Optional, used for decompress',
+                      default=None)
+  args = parser.parse_args()
+  if args.unit_test:
+    sys.exit(_UnitTest())
+  elif args.create:
+    _MakeCobaltPlatformArchive(args.platform, args.config, args.out_path)
+    sys.exit(0)
+  elif args.extract:
+    _DecompressArchive(args.in_path, args.out_path)
+    sys.exit(0)
+  else:
+    parser.print_help()
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--make_bundle_test',
-      help='Make a bundle from a folder',
-      action='store_true')
-  parser.add_argument(
-      '--source_archive_test',
-      help='Make an archive from source directory',
-      action='store_true')
-  args = parser.parse_args()
-
-  if args.make_bundle_test:
-    MakeBundleTest()
-  elif args.source_archive_test:
-    SourceArchiveTest()
-  else:
-    sys.exit(UnitTest())
-
+  _main()
