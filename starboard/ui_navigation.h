@@ -20,19 +20,10 @@
 // render any visual elements; instead, it will be used to guide the app in
 // where these elements should be drawn.
 //
-// The app will start by specifying callbacks via SbUiNavSetCallbacks.
-// These callbacks may be invoked from any thread.
-//
-// When the application creates the user interface, it will create navigation
-// items via SbUiNavCreateItem for interactable elements. Additionally, the app
-// will specify the position, size, content size (if applicable), etc. of these
-// navigation items. As the application changes the user interface, it will
-// create and destroy navigation items as appropriate. It is possible for items
-// to persist between changes in the user interface.
-//
-// NOTE: A SbUiNavItem should not become interactive until it has been
-// enabled via SbUiNavEnableItem. Likewise, an item should become non-
-// interactive as soon as it is disabled via SbUiNavDisableItem.
+// When the application creates the user interface, it will create SbUiNavItems
+// for interactable elements. Additionally, the app must specify the position
+// and size of these navigation items. As the app's user interface changes, it
+// will create and destroy navigation items as appropriate.
 //
 // For each render frame, the app will query the local transform for each
 // SbUiNavItem in case the native UI engine moves individual items in response
@@ -66,7 +57,7 @@ typedef enum SbUiNavItemType {
   kSbUiNavItemTypeFocus,
 
   // This is a container of navigation items which can also be containers
-  // themselves or focusable items.
+  // themselves or focusable items. Containers themselves cannot be focused.
   kSbUiNavItemTypeContainer,
 } SbUiNavItemType;
 
@@ -81,14 +72,14 @@ typedef struct SbUiNavTransform {
 // |callback_context| is the value that was passed on creation of the
 // relevant SbUiNavItem.
 typedef struct SbUiNavCallbacks {
-  // Invoke when an item has lost focus.
+  // Invoke when an item has lost focus. This is only used with focus items.
   void (*onblur)(SbUiNavItem item, void* callback_context);
 
-  // Invoke when an item has gained focus.
+  // Invoke when an item has gained focus. This is only used with focus items.
   void (*onfocus)(SbUiNavItem item, void* callback_context);
 
-  // Invoke when an item's content offset is changed. This is only used on
-  // navigation items which are containers.
+  // Invoke when an item's content offset is changed. This is only used with
+  // container items.
   void (*onscroll)(SbUiNavItem item, void* callback_context);
 } SbUiNavCallbacks;
 
@@ -104,19 +95,26 @@ typedef struct SbUiNavInterface {
                              const SbUiNavCallbacks* callbacks,
                              void* callback_context);
 
-  // This creates a root navigation item container associated with the given
-  // |window|. Only navigation items which are transitively contents of this
-  // root item are interactable. Only one root item will ever be used at any
-  // given time.
-  SbUiNavItem (*create_root_item)(SbWindow window,
-                                  const SbUiNavCallbacks* callbacks,
-                                  void* callback_context);
-
   // Destroy the given navigation item. If this is a content of another item,
   // then it will first be unregistered. Additionally, if this item contains
   // other items, then those will be unregistered as well, but they will not
   // be automatically destroyed.
   void (*destroy_item)(SbUiNavItem item);
+
+  // This attaches the given navigation item container to the specified window.
+  // This also sets the container's position and size to cover the whole
+  // window. Navigation items are only interactable if they are transitively
+  // attached to a window.
+  //
+  // If the container is already registered with a window, then this will
+  // unregister it from the current window and attach it to the given window.
+  // It is an error to register more than one root container with any given
+  // window. If |window| is kSbWindowInvalid, then this will unregister the
+  // root container from its current window if any. Upon destruction of the
+  // root container or window, the container is automatically unregistered
+  // from the window.
+  void (*register_root_container_with_window)(SbUiNavItem container,
+      SbWindow window);
 
   // This is used to manually force focus on a navigation item of type
   // kSbUiNavItemTypeFocus. Any previously focused navigation item should
