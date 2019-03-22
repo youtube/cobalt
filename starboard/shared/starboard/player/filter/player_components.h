@@ -22,12 +22,19 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
+#include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -68,8 +75,14 @@ class PlayerComponents {
     scoped_ptr<AudioDecoder> audio_decoder;
     scoped_ptr<AudioRendererSink> audio_renderer_sink;
 
-    CreateAudioComponents(audio_parameters, &audio_decoder,
-                          &audio_renderer_sink);
+    auto command_line = shared::starboard::Application::Get()->GetCommandLine();
+    if (command_line->HasSwitch("use_stub_audio_decoder")) {
+      CreateStubAudioComponents(audio_parameters, &audio_decoder,
+                                &audio_renderer_sink);
+    } else {
+      CreateAudioComponents(audio_parameters, &audio_decoder,
+                            &audio_renderer_sink);
+    }
     if (!audio_decoder || !audio_renderer_sink) {
       return scoped_ptr<AudioRenderer>();
     }
@@ -86,8 +99,15 @@ class PlayerComponents {
     scoped_ptr<VideoDecoder> video_decoder;
     scoped_ptr<VideoRenderAlgorithm> video_render_algorithm;
     scoped_refptr<VideoRendererSink> video_renderer_sink;
-    CreateVideoComponents(video_parameters, &video_decoder,
-                          &video_render_algorithm, &video_renderer_sink);
+
+    auto command_line = shared::starboard::Application::Get()->GetCommandLine();
+    if (command_line->HasSwitch("use_stub_video_decoder")) {
+      CreateStubVideoComponents(video_parameters, &video_decoder,
+                                &video_render_algorithm, &video_renderer_sink);
+    } else {
+      CreateVideoComponents(video_parameters, &video_decoder,
+                            &video_render_algorithm, &video_renderer_sink);
+    }
     if (!video_decoder || !video_render_algorithm) {
       return scoped_ptr<VideoRenderer>();
     }
@@ -119,6 +139,34 @@ class PlayerComponents {
 
  protected:
   PlayerComponents() {}
+
+  void CreateStubAudioComponents(
+      const AudioParameters& audio_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
+    SB_DCHECK(audio_decoder);
+    SB_DCHECK(audio_renderer_sink);
+
+    audio_decoder->reset(new StubAudioDecoder(audio_parameters.audio_header));
+    audio_renderer_sink->reset(new AudioRendererSinkImpl);
+  }
+
+  void CreateStubVideoComponents(
+      const VideoParameters& video_parameters,
+      scoped_ptr<VideoDecoder>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_refptr<VideoRendererSink>* video_renderer_sink) {
+    const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+
+    SB_DCHECK(video_decoder);
+    SB_DCHECK(video_render_algorithm);
+    SB_DCHECK(video_renderer_sink);
+
+    video_decoder->reset(new StubVideoDecoder);
+    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    *video_renderer_sink = new PunchoutVideoRendererSink(
+        video_parameters.player, kVideoSinkRenderInterval);
+  }
 
  private:
   SB_DISALLOW_COPY_AND_ASSIGN(PlayerComponents);
