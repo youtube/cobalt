@@ -18,25 +18,24 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/ui_navigation/interface.h"
-#include "starboard/ui_navigation.h"
 
 namespace cobalt {
 namespace ui_navigation {
 
-// This wraps a SbUiNavItem to make it refcounted.
+// This wraps a NativeItem to make it ref-counted.
 class NavItem : public base::RefCountedThreadSafe<NavItem> {
  public:
-  NavItem(SbUiNavItemType type,
+  NavItem(NativeItemType type,
           const base::Closure& onblur_callback,
           const base::Closure& onfocus_callback,
           const base::Closure& onscroll_callback);
 
-  SbUiNavItemType GetType() const {
+  NativeItemType GetType() const {
     return nav_item_type_;
   }
 
   bool IsContainer() const {
-    return nav_item_type_ == kSbUiNavItemTypeContainer;
+    return nav_item_type_ == kNativeItemTypeContainer;
   }
 
   void RegisterRootContainerWithWindow(SbWindow window) {
@@ -59,7 +58,7 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     GetInterface().set_item_position(nav_item_, x, y);
   }
 
-  bool GetLocalTransform(SbUiNavTransform* out_transform) {
+  bool GetLocalTransform(NativeTransform* out_transform) {
     return GetInterface().get_item_local_transform(nav_item_, out_transform);
   }
 
@@ -84,18 +83,18 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   friend class base::RefCountedThreadSafe<NavItem>;
   ~NavItem();
 
-  static void OnBlur(SbUiNavItem item, void* callback_context);
-  static void OnFocus(SbUiNavItem item, void* callback_context);
-  static void OnScroll(SbUiNavItem item, void* callback_context);
+  static void OnBlur(NativeItem item, void* callback_context);
+  static void OnFocus(NativeItem item, void* callback_context);
+  static void OnScroll(NativeItem item, void* callback_context);
 
   base::Closure onblur_callback_;
   base::Closure onfocus_callback_;
   base::Closure onscroll_callback_;
 
-  SbUiNavItemType nav_item_type_;
-  SbUiNavItem nav_item_;
+  NativeItemType nav_item_type_;
+  NativeItem nav_item_;
 
-  static SbUiNavCallbacks s_callbacks_;
+  static NativeCallbacks s_callbacks_;
 };
 
 }  // namespace ui_navigation

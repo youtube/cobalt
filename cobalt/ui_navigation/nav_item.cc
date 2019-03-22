@@ -17,13 +17,13 @@
 namespace cobalt {
 namespace ui_navigation {
 
-SbUiNavCallbacks NavItem::s_callbacks_ = {
+NativeCallbacks NavItem::s_callbacks_ = {
   &NavItem::OnBlur,
   &NavItem::OnFocus,
   &NavItem::OnScroll,
 };
 
-NavItem::NavItem(SbUiNavItemType type,
+NavItem::NavItem(NativeItemType type,
                  const base::Closure& onblur_callback,
                  const base::Closure& onfocus_callback,
                  const base::Closure& onscroll_callback)
@@ -38,7 +38,7 @@ NavItem::~NavItem() {
 }
 
 // static
-void NavItem::OnBlur(SbUiNavItem /* item */, void* callback_context) {
+void NavItem::OnBlur(NativeItem /* item */, void* callback_context) {
   NavItem* this_ptr = static_cast<NavItem*>(callback_context);
   if (!this_ptr->onblur_callback_.is_null()) {
     this_ptr->onblur_callback_.Run();
@@ -46,7 +46,7 @@ void NavItem::OnBlur(SbUiNavItem /* item */, void* callback_context) {
 }
 
 // static
-void NavItem::OnFocus(SbUiNavItem /* item */, void* callback_context) {
+void NavItem::OnFocus(NativeItem /* item */, void* callback_context) {
   NavItem* this_ptr = static_cast<NavItem*>(callback_context);
   if (!this_ptr->onfocus_callback_.is_null()) {
     this_ptr->onfocus_callback_.Run();
@@ -54,7 +54,7 @@ void NavItem::OnFocus(SbUiNavItem /* item */, void* callback_context) {
 }
 
 // static
-void NavItem::OnScroll(SbUiNavItem /* item */, void* callback_context) {
+void NavItem::OnScroll(NativeItem /* item */, void* callback_context) {
   NavItem* this_ptr = static_cast<NavItem*>(callback_context);
   if (!this_ptr->onscroll_callback_.is_null()) {
     this_ptr->onscroll_callback_.Run();
