@@ -13,12 +13,7 @@
 // limitations under the License.
 
 #include "starboard/log.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
-#include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
-#include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
-#include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 
 namespace starboard {
 namespace shared {
@@ -31,11 +26,8 @@ class PlayerComponentsImpl : public PlayerComponents {
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
-    SB_DCHECK(audio_decoder);
-    SB_DCHECK(audio_renderer_sink);
-
-    audio_decoder->reset(new StubAudioDecoder(audio_parameters.audio_header));
-    audio_renderer_sink->reset(new AudioRendererSinkImpl);
+    CreateStubAudioComponents(audio_parameters, audio_decoder,
+                              audio_renderer_sink);
   }
 
   void CreateVideoComponents(
@@ -43,16 +35,8 @@ class PlayerComponentsImpl : public PlayerComponents {
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
-    const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
-
-    SB_DCHECK(video_decoder);
-    SB_DCHECK(video_render_algorithm);
-    SB_DCHECK(video_renderer_sink);
-
-    video_decoder->reset(new StubVideoDecoder);
-    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-    *video_renderer_sink = new PunchoutVideoRendererSink(
-        video_parameters.player, kVideoSinkRenderInterval);
+    CreateStubVideoComponents(video_parameters, video_decoder,
+                              video_render_algorithm, video_renderer_sink);
   }
 
   void GetAudioRendererParams(int* max_cached_frames,
