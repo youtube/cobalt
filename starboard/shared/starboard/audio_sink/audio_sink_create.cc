@@ -15,7 +15,13 @@
 #include "starboard/audio_sink.h"
 
 #include "starboard/log.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/command_line.h"
+
+namespace {
+const char kUseStubAudioSinkSwitch[] = "use_stub_audio_sink";
+}  // namespace
 
 SbAudioSink SbAudioSinkCreate(
     int channels,
@@ -70,21 +76,23 @@ SbAudioSink SbAudioSinkCreate(
     return kSbAudioSinkInvalid;
   }
 
-  SbAudioSinkPrivate::Type* type = SbAudioSinkPrivate::GetPrimaryType();
-  if (type) {
-    SbAudioSink audio_sink = type->Create(
-        channels, sampling_frequency_hz, audio_sample_type,
-        audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-        update_source_status_func, consume_frames_func, context);
-    if (type->IsValid(audio_sink)) {
-      return audio_sink;
-    } else {
-      type->Destroy(audio_sink);
+  auto command_line =
+      starboard::shared::starboard::Application::Get()->GetCommandLine();
+  if (!command_line->HasSwitch(kUseStubAudioSinkSwitch)) {
+    if (auto type = SbAudioSinkPrivate::GetPrimaryType()) {
+      SbAudioSink audio_sink = type->Create(
+          channels, sampling_frequency_hz, audio_sample_type,
+          audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
+          update_source_status_func, consume_frames_func, context);
+      if (type->IsValid(audio_sink)) {
+        return audio_sink;
+      } else {
+        type->Destroy(audio_sink);
+      }
     }
   }
 
-  type = SbAudioSinkPrivate::GetFallbackType();
-  if (type) {
+  if (auto type = SbAudioSinkPrivate::GetFallbackType()) {
     return type->Create(channels, sampling_frequency_hz, audio_sample_type,
                         audio_frame_storage_type, frame_buffers,
                         frame_buffers_size_in_frames, update_source_status_func,
