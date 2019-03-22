@@ -19,6 +19,7 @@ import logging
 import argparse
 import datetime
 import threading
+import json
 from collections import namedtuple
 
 if os.name != 'nt':
@@ -380,8 +381,13 @@ class Connection(object):
 class Server(Connection):
     """Establish connection to destination server."""
 
-    def __init__(self, host, port):
+    def __init__(self, host, port, host_resolver=None):
         super(Server, self).__init__(b'server')
+
+        # Hostname IP resolution.
+        if host_resolver and host in host_resolver:
+            host = host_resolver[host]
+
         self.addr = (host, int(port))
 
     def __del__(self):
@@ -426,7 +432,7 @@ class Proxy(threading.Thread):
     Accepts `Client` connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
+    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, host_resolver=None):
         super(Proxy, self).__init__()
 
         self.start_time = self._now()
@@ -437,6 +443,7 @@ class Proxy(threading.Thread):
         self.client_recvbuf_size = client_recvbuf_size
         self.server = None
         self.server_recvbuf_size = server_recvbuf_size
+        self.host_resolver = host_resolver
 
         self.request = HttpParser(HttpParser.types.REQUEST_PARSER)
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
@@ -480,7 +487,7 @@ class Proxy(threading.Thread):
             else:
                 raise Exception('Invalid request\n%s' % self.request.raw)
 
-            self.server = Server(host, port)
+            self.server = Server(host, port, self.host_resolver)
             try:
                 logger.debug('connecting to server %s:%s' % (host, port))
                 self.server.connect()
@@ -657,17 +664,20 @@ class HTTP(TCP):
     """
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
-                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
+                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192,
+                 host_resolver=None):
         super(HTTP, self).__init__(hostname, port, backlog)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
+        self.host_resolver = host_resolver
 
     def handle(self, client):
         proxy = Proxy(client,
                       auth_code=self.auth_code,
                       server_recvbuf_size=self.server_recvbuf_size,
-                      client_recvbuf_size=self.client_recvbuf_size)
+                      client_recvbuf_size=self.client_recvbuf_size,
+                      host_resolver=self.host_resolver)
         proxy.daemon = True
         proxy.start()
 
@@ -708,6 +718,8 @@ def main():
                                                                   'Maximum number of files (TCP connections) '
                                                                   'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+    parser.add_argument('--host_resolver', default=None, help='Default: No host resolution. '
+                                                      'JSON hosts file used for hostname IP resolution.')
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
@@ -720,12 +732,18 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
+        host_resolver = None
+        if args.host_resolver:
+            with open(args.host_resolver) as json_file:
+                host_resolver = json.load(json_file)
+
         proxy = HTTP(hostname=args.hostname,
                      port=int(args.port),
                      backlog=int(args.backlog),
                      auth_code=auth_code,
                      server_recvbuf_size=int(args.server_recvbuf_size),
-                     client_recvbuf_size=int(args.client_recvbuf_size))
+                     client_recvbuf_size=int(args.client_recvbuf_size),
+                     host_resolver=host_resolver)
         proxy.run()
     except KeyboardInterrupt:
         pass
