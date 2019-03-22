@@ -171,7 +171,7 @@ class Window : public EventTarget,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
       base::WaitableEvent* synchronous_loader_interrupt,
-      const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
+      const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
