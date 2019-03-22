@@ -22,80 +22,80 @@ namespace ui_navigation {
 namespace {
 
 struct ItemImpl {
-  explicit ItemImpl(SbUiNavItemType type) : type(type) {}
+  explicit ItemImpl(NativeItemType type) : type(type) {}
 
   starboard::SpinLock lock;
 
-  const SbUiNavItemType type;
+  const NativeItemType type;
   float content_offset_x = 0.0f;
   float content_offset_y = 0.0f;
 };
 
-SbUiNavItem CreateItem(SbUiNavItemType type,
-                       const SbUiNavCallbacks* callbacks,
+NativeItem CreateItem(NativeItemType type,
+                       const NativeCallbacks* callbacks,
                        void* callback_context) {
   SB_UNREFERENCED_PARAMETER(callbacks);
   SB_UNREFERENCED_PARAMETER(callback_context);
-  return reinterpret_cast<SbUiNavItem>(new ItemImpl(type));
+  return reinterpret_cast<NativeItem>(new ItemImpl(type));
 }
 
-void DestroyItem(SbUiNavItem item) {
+void DestroyItem(NativeItem item) {
   delete reinterpret_cast<ItemImpl*>(item);
 }
 
-void RegisterRootContainerWithWindow(SbUiNavItem container, SbWindow window) {
+void RegisterRootContainerWithWindow(NativeItem container, SbWindow window) {
   SB_UNREFERENCED_PARAMETER(container);
   SB_UNREFERENCED_PARAMETER(window);
 }
 
-void SetFocus(SbUiNavItem item) {
+void SetFocus(NativeItem item) {
   SB_UNREFERENCED_PARAMETER(item);
 }
 
-void SetItemEnabled(SbUiNavItem item, bool enabled) {
+void SetItemEnabled(NativeItem item, bool enabled) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(enabled);
 }
 
-void SetItemSize(SbUiNavItem item, float width, float height) {
+void SetItemSize(NativeItem item, float width, float height) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(width);
   SB_UNREFERENCED_PARAMETER(height);
 }
 
-void SetItemPosition(SbUiNavItem item, float x, float y) {
+void SetItemPosition(NativeItem item, float x, float y) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(x);
   SB_UNREFERENCED_PARAMETER(y);
 }
 
-bool GetItemLocalTransform(SbUiNavItem item, SbUiNavTransform* out_transform) {
+bool GetItemLocalTransform(NativeItem item, NativeTransform* out_transform) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(out_transform);
   return false;
 }
 
-bool RegisterItemContent(SbUiNavItem container_item, SbUiNavItem content_item) {
+bool RegisterItemContent(NativeItem container_item, NativeItem content_item) {
   SB_UNREFERENCED_PARAMETER(container_item);
   SB_UNREFERENCED_PARAMETER(content_item);
   return true;
 }
 
-void UnregisterItemAsContent(SbUiNavItem content_item) {
+void UnregisterItemAsContent(NativeItem content_item) {
   SB_UNREFERENCED_PARAMETER(content_item);
 }
 
-void SetItemContentOffset(SbUiNavItem item,
+void SetItemContentOffset(NativeItem item,
     float content_offset_x, float content_offset_y) {
   ItemImpl* stub_item = reinterpret_cast<ItemImpl*>(item);
-  if (stub_item->type == kSbUiNavItemTypeContainer) {
+  if (stub_item->type == kNativeItemTypeContainer) {
     starboard::ScopedSpinLock scoped_lock(stub_item->lock);
     stub_item->content_offset_x = content_offset_x;
     stub_item->content_offset_y = content_offset_y;
   }
 }
 
-void GetItemContentOffset(SbUiNavItem item,
+void GetItemContentOffset(NativeItem item,
     float* out_content_offset_x, float* out_content_offset_y) {
   ItemImpl* stub_item = reinterpret_cast<ItemImpl*>(item);
   starboard::ScopedSpinLock scoped_lock(stub_item->lock);
@@ -103,8 +103,8 @@ void GetItemContentOffset(SbUiNavItem item,
   *out_content_offset_y = stub_item->content_offset_y;
 }
 
-SbUiNavInterface InitializeInterface() {
-  SbUiNavInterface interface = { 0 };
+NativeInterface InitializeInterface() {
+  NativeInterface interface = { 0 };
 #if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
   if (!SbUiNavGetInterface(&interface))
 #endif
@@ -128,8 +128,8 @@ SbUiNavInterface InitializeInterface() {
 
 }  // namespace
 
-const SbUiNavInterface& GetInterface() {
-  static SbUiNavInterface s_interface = InitializeInterface();
+const NativeInterface& GetInterface() {
+  static NativeInterface s_interface = InitializeInterface();
   return s_interface;
 }
 

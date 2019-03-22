@@ -1351,7 +1351,8 @@ WebModule::WebModule(
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
     : thread_(options.name.c_str()),
-      ui_nav_root_(new ui_navigation::NavItem(kSbUiNavItemTypeContainer,
+      ui_nav_root_(new ui_navigation::NavItem(
+          ui_navigation::kNativeItemTypeContainer,
           // Currently, events do not need to be processed for the root item.
           base::Closure(), base::Closure(), base::Closure())) {
   ConstructionData construction_data(
