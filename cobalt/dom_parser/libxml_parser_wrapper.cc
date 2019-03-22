@@ -230,7 +230,8 @@ void LibxmlParserWrapper::OnEndDocument() {
   }
 
   if (IsFullDocument()) {
-    document_->PostToDispatchEvent(FROM_HERE, base::Tokens::domcontentloaded());
+    document_->PostToDispatchEventName(FROM_HERE,
+                                       base::Tokens::domcontentloaded());
   }
 }
 

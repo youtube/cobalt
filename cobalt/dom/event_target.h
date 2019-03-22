@@ -94,21 +94,39 @@ class EventTarget : public script::Wrappable,
   // won't raise any exception.  Any error will be silently ignored.
   virtual bool DispatchEvent(const scoped_refptr<Event>& event);
 
+  // This version of DispatchEvent is intended to be called inside C++ code.  It
+  // won't raise any exception.  Any error will be silently ignored.
+  void DispatchEventAndRunCallback(const scoped_refptr<Event>& event,
+                                   const base::Closure& dispatched_callback);
+
   // Creates a new event with the given name and calls DispatchEvent with it,
   // and runs dispatched_callback after finish.
-  void DispatchEventAndRunCallback(base::Token event_name,
-                                   const base::Closure& dispatched_callback);
+  void DispatchEventNameAndRunCallback(
+      base::Token event_name, const base::Closure& dispatched_callback);
+
+  // Posts a task on the current message loop to dispatch event by name. It
+  // does nothing if there is no current message loop.
+  void PostToDispatchEventName(const tracked_objects::Location& location,
+                               base::Token event_name);
 
   // Posts a task on the current message loop to dispatch event. It does nothing
   // if there is no current message loop.
   void PostToDispatchEvent(const tracked_objects::Location& location,
-                           base::Token event_name);
+                           const scoped_refptr<Event>& event);
+
+  // Posts a task on the current message loop to dispatch event by name, and
+  // runs dispatched_callback after finish. It does nothing if there is no
+  // current message loop.
+  void PostToDispatchEventNameAndRunCallback(
+      const tracked_objects::Location& location, base::Token event_name,
+      const base::Closure& dispatched_callback);
 
   // Posts a task on the current message loop to dispatch event, and runs
   // dispatched_callback after finish.  It does nothing if there is no current
   // message loop.
   void PostToDispatchEventAndRunCallback(
-      const tracked_objects::Location& location, base::Token event_name,
+      const tracked_objects::Location& location,
+      const scoped_refptr<Event>& event,
       const base::Closure& dispatched_callback);
 
   // Check if target has event listener (atrtibute or not attribute).

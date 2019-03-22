@@ -553,7 +553,7 @@ void HTMLElement::SetStyleAttribute(const std::string& value) {
     Element::SetStyleAttribute(value);
   } else {
     // Report a violation.
-    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+    PostToDispatchEventName(FROM_HERE, base::Tokens::error());
   }
 }
 

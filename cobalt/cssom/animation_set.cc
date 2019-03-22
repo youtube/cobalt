@@ -171,7 +171,7 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
                     GetTimingFunction(i, style.animation_timing_function()))))
             .first;
     if (event_handler_) {
-      event_handler_->OnAnimationStarted(inserted->second);
+      event_handler_->OnAnimationStarted(inserted->second, this);
     }
 
     animations_modified = true;
@@ -181,15 +181,26 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
   std::vector<std::string> animations_to_end;
   for (InternalAnimationMap::iterator iter = animations_.begin();
        iter != animations_.end(); ++iter) {
-    if (declared_animation_set.find(iter->first) ==
-        declared_animation_set.end()) {
-      // If the animation used to be playing, but it no longer appears in the
-      // list of declared animations, then it has ended and we should mark it
-      // as such.
-      if (event_handler_) {
-        event_handler_->OnAnimationRemoved(iter->second);
-      }
+    // If the animation used to be playing, but it no longer appears in the
+    // list of declared animations, then it has ended and we should mark it
+    // as such.
+    bool animation_is_removed = declared_animation_set.find(iter->first) ==
+                                declared_animation_set.end();
+    if (animation_is_removed) {
       animations_to_end.push_back(iter->first);
+    }
+
+    if (event_handler_) {
+      // If the animation is playing, but the current time is past the end time,
+      // then we should signal to the event handler that it has ended but is not
+      // canceled.
+      bool animation_has_ended =
+          current_time >= iter->second.start_time() + iter->second.duration();
+      if (animation_is_removed || animation_has_ended) {
+        event_handler_->OnAnimationRemoved(
+            iter->second, animation_has_ended ? cssom::Animation::kIsNotCanceled
+                                              : cssom::Animation::kIsCanceled);
+      }
     }
   }
   if (!animations_to_end.empty()) {
@@ -206,7 +217,8 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
 
 void AnimationSet::Clear() {
   for (auto& animation : animations_) {
-    event_handler_->OnAnimationRemoved(animation.second);
+    event_handler_->OnAnimationRemoved(animation.second,
+                                       cssom::Animation::kIsCanceled);
   }
   animations_.clear();
 }

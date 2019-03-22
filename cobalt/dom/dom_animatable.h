@@ -54,6 +54,10 @@ class DOMAnimatable : public web_animations::Animatable {
   // pseudo elements, it will be the pseudo element's parent element.
   Element* GetEventTarget();
 
+  scoped_refptr<const cssom::CSSComputedStyleData> GetComputedStyle() const;
+
+  const cssom::CSSKeyframesRule::NameMap& GetKeyframesMap() const;
+
  private:
   Element* element_;
   PseudoElement* pseudo_element_;
