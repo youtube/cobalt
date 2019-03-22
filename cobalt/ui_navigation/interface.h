@@ -15,13 +15,69 @@
 #ifndef COBALT_UI_NAVIGATION_INTERFACE_H_
 #define COBALT_UI_NAVIGATION_INTERFACE_H_
 
+#include "starboard/configuration.h"
 #include "starboard/ui_navigation.h"
 
 namespace cobalt {
 namespace ui_navigation {
 
+#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+
+// Alias the starboard interface. See starboard/ui_navigation.h for details.
+using NativeItem = SbUiNavItem;
+using NativeItemType = SbUiNavItemType;
+constexpr NativeItemType kNativeItemTypeFocus = kSbUiNavItemTypeFocus;
+constexpr NativeItemType kNativeItemTypeContainer = kSbUiNavItemTypeContainer;
+using NativeTransform = SbUiNavTransform;
+using NativeCallbacks = SbUiNavCallbacks;
+using NativeInterface = SbUiNavInterface;
+
+#else
+
+// Mimic the starboard interface. See starboard/ui_navigation.h for details.
+typedef void* NativeItem;
+
+enum NativeItemType {
+  kNativeItemTypeFocus,
+  kNativeItemTypeContainer,
+};
+
+struct NativeTransform {
+  float m[16];
+};
+
+struct NativeCallbacks {
+  void (*onblur)(NativeItem item, void* callback_context);
+  void (*onfocus)(NativeItem item, void* callback_context);
+  void (*onscroll)(NativeItem item, void* callback_context);
+};
+
+struct NativeInterface {
+  NativeItem (*create_item)(NativeItemType type,
+                            const NativeCallbacks* callbacks,
+                            void* callback_context);
+  void (*destroy_item)(NativeItem item);
+  void (*register_root_container_with_window)(NativeItem container,
+      SbWindow window);
+  void (*set_focus)(NativeItem item);
+  void (*set_item_enabled)(NativeItem item, bool enabled);
+  void (*set_item_size)(NativeItem item, float width, float height);
+  void (*set_item_position)(NativeItem item, float x, float y);
+  bool (*get_item_local_transform)(NativeItem item,
+      NativeTransform* out_transform);
+  bool (*register_item_content)(NativeItem container_item,
+      NativeItem content_item);
+  void (*unregister_item_as_content)(NativeItem content_item);
+  void (*set_item_content_offset)(NativeItem item,
+      float content_offset_x, float content_offset_y);
+  void (*get_item_content_offset)(NativeItem item,
+      float* out_content_offset_x, float* out_content_offset_y);
+};
+
+#endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+
 // Retrieve the interface to use for UI navigation.
-extern const SbUiNavInterface& GetInterface();
+extern const NativeInterface& GetInterface();
 
 }  // namespace ui_navigation
 }  // namespace cobalt

@@ -214,7 +214,9 @@ int32 HTMLElement::tab_index() const {
     return *tabindex_;
   }
   LOG(WARNING) << "Element's tabindex is not valid.";
-  return -1;
+  // The default value is 0 for focusable elements.
+  // https://html.spec.whatwg.org/multipage/interaction.html#attr-tabindex
+  return 0;
 }
 
 void HTMLElement::set_tab_index(int32 tab_index) {
@@ -1542,12 +1544,12 @@ bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
 }
 
 void HTMLElement::UpdateUiNavigationType() {
-  base::optional<SbUiNavItemType> ui_nav_item_type;
+  base::optional<ui_navigation::NativeItemType> ui_nav_item_type;
   if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
       computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
-    ui_nav_item_type = kSbUiNavItemTypeContainer;
+    ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
   } else if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold) {
-    ui_nav_item_type = kSbUiNavItemTypeFocus;
+    ui_nav_item_type = ui_navigation::kNativeItemTypeFocus;
   }
 
   if (ui_nav_item_type) {

@@ -205,7 +205,9 @@ Window::Window(
   html_element_context_->page_visibility_state()->AddObserver(this);
   SetCamera3D(camera_3d);
 
-  ui_nav_root_->SetEnabled(true);
+  if (ui_nav_root_) {
+    ui_nav_root_->SetEnabled(true);
+  }
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
@@ -718,7 +720,9 @@ const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
 void Window::ReleaseOnScreenKeyboard() { on_screen_keyboard_ = nullptr; }
 
 Window::~Window() {
-  ui_nav_root_->SetEnabled(false);
+  if (ui_nav_root_) {
+    ui_nav_root_->SetEnabled(false);
+  }
   html_element_context_->page_visibility_state()->RemoveObserver(this);
 }
 
