@@ -70,7 +70,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 
   // From DocumentObserver.
   void OnLoad() override {
-    window_->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+    window_->PostToDispatchEventName(FROM_HERE, base::Tokens::load());
   }
   void OnMutation() override {}
   void OnFocusChanged() override {}
@@ -727,7 +727,7 @@ Window::~Window() {
 }
 
 void Window::FireHashChangeEvent() {
-  PostToDispatchEvent(FROM_HERE, base::Tokens::hashchange());
+  PostToDispatchEventName(FROM_HERE, base::Tokens::hashchange());
 }
 
 }  // namespace dom

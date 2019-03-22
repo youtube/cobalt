@@ -39,6 +39,9 @@
 
     window.addEventListener('load', function() {
       if (window.testRunner) {
+        // Do another layout to start the animations.
+        window.testRunner.DoNonMeasuredLayout();
+
         // Run the transition to the half-way point and then measure the result.
         window.testRunner.AdvanceClockByMs(1000);
         window.testRunner.notifyDone();
