@@ -54,6 +54,8 @@ optional arguments:
                         RAM.
   --log-level LOG_LEVEL
                         DEBUG, INFO (default), WARNING, ERROR, CRITICAL
+  --host_resolver       Default: No host resolution. JSON hosts file used for
+                        hostname IP resolution.
 
 Having difficulty using proxy.py? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
