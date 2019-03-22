@@ -145,7 +145,7 @@ ConvertCSSKeyframesToWebAnimationsKeyframes(
 }  // namespace
 
 void CSSAnimationsAdapter::OnAnimationStarted(
-    const cssom::Animation& css_animation) {
+    const cssom::Animation& css_animation, cssom::AnimationSet* animation_set) {
   // The process for constructing web animations from CSS animations is
   // specified here:
   //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-animations
@@ -177,9 +177,9 @@ void CSSAnimationsAdapter::OnAnimationStarted(
   // Setup an event handler on the animation so we can watch for when it enters
   // the after phase, allowing us to then trigger the animation events.
   scoped_ptr<web_animations::Animation::EventHandler> event_handler =
-      web_animation->AttachEventHandler(
-          base::Bind(&CSSAnimationsAdapter::HandleAnimationEnterAfterPhase,
-                     base::Unretained(this), css_animation));
+      web_animation->AttachEventHandler(base::Bind(
+          &CSSAnimationsAdapter::HandleAnimationEnterAfterPhase,
+          base::Unretained(this), css_animation.name(), animation_set));
 
   // Track the animation in our map of all CSS Animations-created animations.
   DCHECK(animation_map_.find(css_animation.name()) == animation_map_.end());
@@ -192,24 +192,41 @@ void CSSAnimationsAdapter::OnAnimationStarted(
 }
 
 void CSSAnimationsAdapter::OnAnimationRemoved(
-    const cssom::Animation& css_animation) {
+    const cssom::Animation& css_animation,
+    cssom::Animation::IsCanceled is_canceled) {
   // If a CSS Animation is removed from an element, its corresponding
   // Web Animations animation should be stopped and removed also.
   AnimationMap::iterator found = animation_map_.find(css_animation.name());
-  DCHECK(animation_map_.end() != found);
+  if (animation_map_.end() != found) {
+    if (is_canceled == cssom::Animation::kIsNotCanceled) {
+      // An animation has entered the "after phase", so we should
+      // correspondingly fire the animationend event.
+      //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-animations-events
+      // Cobalt assumes that the CSSOM does not change during computed style
+      // calculation. Post to dispatch the event asynchronously here to avoid
+      // calling event handlers during computed style calculation, which in turn
+      // may modify CSSOM and require restart of the computed style calculation.
+      animatable_->GetEventTarget()->PostToDispatchEvent(
+          FROM_HERE,
+          new AnimationEvent(
+              base::Tokens::animationend(), css_animation.name(),
+              static_cast<float>(css_animation.duration().InMillisecondsF() *
+                                 css_animation.iteration_count())));
+    }
 
-  found->second->animation->Cancel();
-  delete found->second;
-  animation_map_.erase(found);
+    found->second->animation->Cancel();
+    delete found->second;
+    animation_map_.erase(found);
+  }
 }
 
 void CSSAnimationsAdapter::HandleAnimationEnterAfterPhase(
-    const cssom::Animation& css_animation) {
-  // https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-animations-events
-  animatable_->GetEventTarget()->DispatchEvent(new AnimationEvent(
-      base::Tokens::animationend(), css_animation.name(),
-      static_cast<float>(css_animation.duration().InMillisecondsF() *
-                         css_animation.iteration_count())));
+    const std::string& name, cssom::AnimationSet* animation_set) {
+  DCHECK(animatable_->GetDefaultTimeline()->current_time());
+  base::TimeDelta current_time = base::TimeDelta::FromMillisecondsD(
+      animatable_->GetDefaultTimeline()->current_time().value_or(0));
+  animation_set->Update(current_time, *animatable_->GetComputedStyle(),
+                        animatable_->GetKeyframesMap());
 }
 
 }  // namespace dom

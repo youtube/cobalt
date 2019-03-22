@@ -47,12 +47,14 @@ class TransitionSet {
     virtual ~EventHandler() {}
     // Called when a transition is starting, either freshly introduced or
     // replacing an existing transition.
-    virtual void OnTransitionStarted(const Transition& transition) = 0;
+    virtual void OnTransitionStarted(const Transition& transition,
+                                     TransitionSet* transition_set) = 0;
 
     // Called when a transition is removed, either because it has finished, or
     // because it was replaced (in which case OnTransitionStarted() will be
     // called with the replacement immediately after this).
-    virtual void OnTransitionRemoved(const Transition& transition) = 0;
+    virtual void OnTransitionRemoved(const Transition& transition,
+                                     Transition::IsCanceled is_canceled) = 0;
   };
 
   explicit TransitionSet(EventHandler* event_handler = NULL);
@@ -101,11 +103,12 @@ class TransitionSet {
 
     // Adds or replaces an existing transition in the map.
     void UpdateTransitionForProperty(PropertyKey property,
-                                     const Transition& transition);
+                                     const Transition& transition,
+                                     cssom::TransitionSet* transition_set);
 
-    // Removes an existing transition from the map.  The transition must
-    // already exist in the map.
-    void RemoveTransitionForProperty(PropertyKey property);
+    // Removes an existing transition from the map if it exists.
+    void RemoveTransitionForPropertyIfExists(
+        PropertyKey property, Transition::IsCanceled is_canceled);
 
     // Clears all entries from the map, as if RemoveTransitionForProperty()
     // had been called on each property.

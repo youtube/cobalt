@@ -188,7 +188,7 @@ void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
     base::Token event_name,
     scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
         scoped_prevent_gc) {
-  PostToDispatchEventAndRunCallback(
+  PostToDispatchEventNameAndRunCallback(
       FROM_HERE, event_name,
       base::Bind(&HTMLImageElement::DestroyScopedPreventGC,
                  base::AsWeakPtr<HTMLImageElement>(this), scoped_prevent_gc));

@@ -98,6 +98,15 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
 }
 
 void EventTarget::DispatchEventAndRunCallback(
+    const scoped_refptr<Event>& event,
+    const base::Closure& dispatched_callback) {
+  DispatchEvent(event);
+  if (!dispatched_callback.is_null()) {
+    dispatched_callback.Run();
+  }
+}
+
+void EventTarget::DispatchEventNameAndRunCallback(
     base::Token event_name, const base::Closure& dispatched_callback) {
   DispatchEvent(make_scoped_refptr(new Event(event_name)));
   if (!dispatched_callback.is_null()) {
@@ -105,12 +114,29 @@ void EventTarget::DispatchEventAndRunCallback(
   }
 }
 
+void EventTarget::PostToDispatchEventName(
+    const tracked_objects::Location& location, base::Token event_name) {
+  PostToDispatchEventNameAndRunCallback(location, event_name, base::Closure());
+}
+
 void EventTarget::PostToDispatchEvent(const tracked_objects::Location& location,
-                                      base::Token event_name) {
-  PostToDispatchEventAndRunCallback(location, event_name, base::Closure());
+                                      const scoped_refptr<Event>& event) {
+  PostToDispatchEventAndRunCallback(location, event, base::Closure());
 }
 
 void EventTarget::PostToDispatchEventAndRunCallback(
+    const tracked_objects::Location& location,
+    const scoped_refptr<Event>& event, const base::Closure& callback) {
+  if (!MessageLoop::current()) {
+    return;
+  }
+  MessageLoop::current()->PostTask(
+      location,
+      base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
+                 base::AsWeakPtr<EventTarget>(this), event, callback));
+}
+
+void EventTarget::PostToDispatchEventNameAndRunCallback(
     const tracked_objects::Location& location, base::Token event_name,
     const base::Closure& callback) {
   if (!MessageLoop::current()) {
@@ -118,8 +144,9 @@ void EventTarget::PostToDispatchEventAndRunCallback(
   }
   MessageLoop::current()->PostTask(
       location,
-      base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
-                 base::AsWeakPtr<EventTarget>(this), event_name, callback));
+      base::Bind(
+          base::IgnoreResult(&EventTarget::DispatchEventNameAndRunCallback),
+          base::AsWeakPtr<EventTarget>(this), event_name, callback));
 }
 
 void EventTarget::SetAttributeEventListener(

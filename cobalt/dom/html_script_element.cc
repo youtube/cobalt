@@ -668,7 +668,7 @@ void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
       new script::GlobalEnvironment::ScopedPreventGarbageCollection(
           html_element_context()->script_runner()->GetGlobalEnvironment(),
           this));
-  PostToDispatchEventAndRunCallback(
+  PostToDispatchEventNameAndRunCallback(
       location, token,
       base::Bind(&HTMLScriptElement::AllowGCAfterEventDispatch, this,
                  scoped_prevent_gc));
