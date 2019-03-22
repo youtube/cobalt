@@ -54,5 +54,28 @@ Element* DOMAnimatable::GetEventTarget() {
   return NULL;
 }
 
+scoped_refptr<const cssom::CSSComputedStyleData>
+DOMAnimatable::GetComputedStyle() const {
+  if (pseudo_element_) {
+    return pseudo_element_->computed_style();
+  }
+
+  DCHECK(element_);
+  DCHECK(element_->AsHTMLElement());
+  return element_->AsHTMLElement()->computed_style();
+}
+
+const cssom::CSSKeyframesRule::NameMap& DOMAnimatable::GetKeyframesMap() const {
+  if (pseudo_element_) {
+    DCHECK(pseudo_element_->parent_element());
+    DCHECK(pseudo_element_->parent_element()->node_document());
+    return pseudo_element_->parent_element()->node_document()->keyframes_map();
+  }
+
+  DCHECK(element_);
+  DCHECK(element_->node_document());
+  return element_->node_document()->keyframes_map();
+}
+
 }  // namespace dom
 }  // namespace cobalt

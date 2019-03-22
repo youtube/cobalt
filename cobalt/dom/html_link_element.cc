@@ -216,7 +216,7 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
   // for any reason (e.g. DNS error, HTTP 404 response, a connection being
   // prematurely closed, unsupported Content-Type), queue a task to fire a
   // simple event named error at the link element.
-  PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+  PostToDispatchEventName(FROM_HERE, base::Tokens::load());
 
   if (IsRelContentCriticalResource(rel())) {
     // The element must delay the load event of the element's document until all
@@ -245,7 +245,7 @@ void HTMLLinkElement::OnLoadingComplete(
   // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
   // closed, unsupported Content-Type), queue a task to fire a simple event
   // named error at the link element.
-  PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+  PostToDispatchEventName(FROM_HERE, base::Tokens::error());
 
   if (IsRelContentCriticalResource(rel())) {
     // The element must delay the load event of the element's document until all

@@ -33,6 +33,10 @@ class PropertyValue;
 //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
 class Transition {
  public:
+  // The enum IsCanceled is used as a flag to indicate if a removed transition
+  // is canceled or removed after finishing.
+  enum IsCanceled { kIsNotCanceled, kIsCanceled };
+
   Transition(PropertyKey target_property,
              const scoped_refptr<PropertyValue>& start_value,
              const scoped_refptr<PropertyValue>& end_value,
