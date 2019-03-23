@@ -1608,15 +1608,7 @@ void HTMLElement::RegisterUiNavigationParent() {
     }
   }
 
-  if (parent_item && !parent_item->RegisterContent(ui_nav_item_)) {
-    // The ui_nav_item_ is being moved to a different container. Disable
-    // the item until its position is recalculated.
-    ui_nav_item_->SetEnabled(false);
-    ui_nav_item_->UnregisterAsContent();
-    if (!parent_item->RegisterContent(ui_nav_item_)) {
-      NOTREACHED();
-    }
-  }
+  ui_nav_item_->SetContainerItem(parent_item);
 }
 
 void HTMLElement::ClearActiveBackgroundImages() {
