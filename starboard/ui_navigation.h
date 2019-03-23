@@ -101,21 +101,6 @@ typedef struct SbUiNavInterface {
   // be automatically destroyed.
   void (*destroy_item)(SbUiNavItem item);
 
-  // This attaches the given navigation item container to the specified window.
-  // This also sets the container's position and size to cover the whole
-  // window. Navigation items are only interactable if they are transitively
-  // attached to a window.
-  //
-  // If the container is already registered with a window, then this will
-  // unregister it from the current window and attach it to the given window.
-  // It is an error to register more than one root container with any given
-  // window. If |window| is kSbWindowInvalid, then this will unregister the
-  // root container from its current window if any. Upon destruction of the
-  // root container or window, the container is automatically unregistered
-  // from the window.
-  void (*register_root_container_with_window)(SbUiNavItem container,
-      SbWindow window);
-
   // This is used to manually force focus on a navigation item of type
   // kSbUiNavItemTypeFocus. Any previously focused navigation item should
   // receive the blur event. If the item is not transitively a content of the
@@ -149,33 +134,46 @@ typedef struct SbUiNavInterface {
   bool (*get_item_local_transform)(SbUiNavItem item,
       SbUiNavTransform* out_transform);
 
-  // A container navigation item may contain other navigation items. However,
-  // it is an error to have circular containment or for |container_item| to not
-  // be of type kSbUiNavItemTypeContainer. If |content_item| is already
-  // registered with a different container item, then do nothing and return
-  // false.
+  // This attaches the given navigation item (which must be a container) to
+  // the specified window. This also sets the item's position and size to
+  // cover the whole window. Navigation items are only interactable if they
+  // are transitively attached to a window.
   //
-  // The content items' positions are specified relative to the container
-  // item's position, and those positions can be further modified by the
-  // container's "content offset".
+  // A navigation item may only have a SbUiNavItem or SbWindow as its direct
+  // container. The navigation item hierarchy is established using
+  // set_item_container_item() with the root container attached to a SbWindow
+  // using set_item_container_window() to enable interaction with all enabled
+  // items in the hierarchy.
+  //
+  // If |item| is already registered with a different window, then this will
+  // unregister it from that window then attach it to the given |window|. It
+  // is an error to register more than one navigation item with any given
+  // window. If |window| is kSbWindowInvalid, then this will unregister the
+  // |item| from its current window if any. Upon destruction of |item| or
+  // |window|, the |item| is automatically unregistered from the |window|.
+  void (*set_item_container_window)(SbUiNavItem item, SbWindow window);
+
+  // A container navigation item may contain other navigation items. However,
+  // it is an error to have circular containment or for |container| to not
+  // be of type kSbUiNavItemTypeContainer. If |item| already has a different
+  // container, then this first severs that connection. If |container| is
+  // kSbUiNavItemInvalid, then this removes |item| from its current container.
+  // Upon destruction of |item| or |container|, the |item| is automatically
+  // removed from the |container|.
+  //
+  // The position of items within a container are specified relative to the
+  // container's position. The position of these content items are further
+  // modified by the container's "content offset".
   //
   // For example, consider item A with position (5,5) and content offset (0,0).
   // Given item B with position (10,10) is registered as a content of item A.
-  // 1. Item B should be drawn at position (15,15) even though
-  //    get_item_position() for B still reports (10,10).
+  // 1. Item B should be drawn at position (15,15).
   // 2. If item A's content offset is changed to (10,0), then item B should be
-  //    drawn at position (5,15). get_item_position() for B should still report
-  //    (10,10).
+  //    drawn at position (5,15).
   //
   // Essentially, content items should be drawn at:
   //   [container position] + [content position] - [container content offset]
-  bool (*register_item_content)(SbUiNavItem container_item,
-      SbUiNavItem content_item);
-
-  // Unregister the given |content_item| from its container if any. If a
-  // navigation item is not explicitly unregistered from its container, it
-  // should be automatically unregistered when the item is destroyed.
-  void (*unregister_item_as_content)(SbUiNavItem content_item);
+  void (*set_item_container_item)(SbUiNavItem item, SbUiNavItem container);
 
   // Set the current content offset for the given container. This may be used
   // to force scrolling to make certain content items visible. A container
