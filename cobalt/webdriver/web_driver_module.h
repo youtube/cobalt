@@ -31,7 +31,6 @@
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/protocol/window_id.h"
 #include "cobalt/webdriver/screencast/screencast_module.h"
-#include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -46,7 +45,13 @@ class WebDriverModule {
  public:
   typedef base::Callback<scoped_ptr<SessionDriver>(const protocol::SessionId&)>
       CreateSessionDriverCB;
-  typedef Screenshot::GetScreenshotFunction GetScreenshotFunction;
+  typedef base::Callback<void(
+      const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
+      ScreenshotCompleteCallback;
+  typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
+                              const base::optional<math::Rect>& clip_rect,
+                              const ScreenshotCompleteCallback&)>
+      GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
   // Use this as the default listen_ip. It means "any interface on the local
   // machine" eg INADDR_ANY.
@@ -119,10 +124,6 @@ class WebDriverModule {
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void RequestElementScreenshot(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
   void GetCookieByName(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -137,6 +138,8 @@ class WebDriverModule {
 
   util::CommandResult<protocol::Capabilities> CreateSessionInternal(
       const protocol::RequestedCapabilities& capabilities);
+
+  util::CommandResult<std::string> RequestScreenshotInternal();
 
   base::ThreadChecker thread_checker_;
 

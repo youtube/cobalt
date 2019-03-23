@@ -36,7 +36,6 @@
 #include "cobalt/webdriver/protocol/rect.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
 #include "cobalt/webdriver/protocol/size.h"
-#include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -84,8 +83,6 @@ class ElementDriver {
       const std::string& attribute_name);
   util::CommandResult<std::string> GetCssProperty(
       const std::string& property_name);
-  util::CommandResult<std::string> RequestScreenshot(
-      Screenshot::GetScreenshotFunction);
 
  private:
   typedef std::vector<protocol::ElementId> ElementIdVector;
@@ -98,9 +95,6 @@ class ElementDriver {
       scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
   util::CommandResult<void> SendClickInternal(const protocol::Button& button);
-
-  util::CommandResult<std::string> RequestScreenshotInternal(
-      Screenshot::GetScreenshotFunction get_screenshot_function);
 
   // Shared logic between FindElement and FindElements.
   template <typename T>
