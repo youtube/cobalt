@@ -24,7 +24,6 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/brush.h"
-#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "nb/memory_scope.h"
@@ -208,7 +207,6 @@ void Pipeline::Clear() {
 
 void Pipeline::RasterizeToRGBAPixels(
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::optional<math::Rect>& clip_rect,
     const RasterizationCompleteCallback& complete) {
   TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
@@ -217,27 +215,16 @@ void Pipeline::RasterizeToRGBAPixels(
     rasterizer_thread_.message_loop()->PostTask(
         FROM_HERE,
         base::Bind(&Pipeline::RasterizeToRGBAPixels, base::Unretained(this),
-                   render_tree_root, clip_rect, complete));
+                   render_tree_root, complete));
     return;
   }
-
-  // The default render_rect is the the whole display target.
-  const math::Rect& render_rect =
-      clip_rect ? clip_rect.value() : math::Rect(render_target_->GetSize());
-
-  // Create a new target that is the same dimensions as the render_rect.
+  // Create a new target that is the same dimensions as the display target.
   scoped_refptr<backend::RenderTarget> offscreen_target =
       graphics_context_->CreateDownloadableOffscreenRenderTarget(
-          render_rect.size());
-
-  // Offset the whole render tree to put the render_rect at the origin.
-  scoped_refptr<render_tree::Node> offset_tree_root =
-      new render_tree::CompositionNode(
-          render_tree_root.get(),
-          math::Vector2dF(-render_rect.x(), -render_rect.y()));
+          render_target_->GetSize());
 
   scoped_refptr<render_tree::Node> animate_node =
-      new render_tree::animations::AnimateNode(offset_tree_root);
+      new render_tree::animations::AnimateNode(render_tree_root);
 
   Submission submission = Submission(animate_node);
   // Rasterize this submission into the newly created target.
@@ -245,7 +232,7 @@ void Pipeline::RasterizeToRGBAPixels(
 
   // Load the texture's pixel data into a CPU memory buffer and return it.
   complete.Run(graphics_context_->DownloadPixelDataAsRGBA(offscreen_target),
-               render_rect.size());
+               render_target_->GetSize());
 }
 
 void Pipeline::TimeFence(base::TimeDelta time_fence) {

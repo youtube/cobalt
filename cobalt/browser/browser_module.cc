@@ -173,7 +173,6 @@ void OnScreenshotMessage(BrowserModule* browser_module,
   FilePath output_path = dir.Append(screenshot_file_name);
   browser_module->RequestScreenshotToFile(
       output_path, loader::image::EncodedStaticImage::ImageFormat::kPNG,
-      /*clip_rect=*/base::nullopt,
       base::Bind(&ScreenshotCompleteCallback, output_path));
 }
 
@@ -636,7 +635,6 @@ bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
 void BrowserModule::RequestScreenshotToFile(
     const FilePath& path,
     loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::optional<math::Rect>& clip_rect,
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK(screen_shot_writer_);
@@ -648,14 +646,13 @@ void BrowserModule::RequestScreenshotToFile(
   }
 
   screen_shot_writer_->RequestScreenshotToFile(image_format, path, render_tree,
-                                               clip_rect, done_callback);
+                                               done_callback);
 }
 
-void BrowserModule::RequestScreenshotToMemory(
+void BrowserModule::RequestScreenshotToBuffer(
     loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToBuffer()");
   DCHECK(screen_shot_writer_);
 
   scoped_refptr<render_tree::Node> render_tree = GetLastSubmissionAnimated();
@@ -665,7 +662,7 @@ void BrowserModule::RequestScreenshotToMemory(
   }
 
   screen_shot_writer_->RequestScreenshotToMemory(image_format, render_tree,
-                                                 clip_rect, screenshot_ready);
+                                                 screenshot_ready);
 }
 
 scoped_refptr<render_tree::Node> BrowserModule::GetLastSubmissionAnimated() {
