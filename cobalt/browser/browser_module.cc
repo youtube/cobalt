@@ -576,7 +576,7 @@ void BrowserModule::Navigate(const GURL& url) {
   }
 
   if (system_window_) {
-    web_module_->GetUiNavRoot()->RegisterRootContainerWithWindow(
+    web_module_->GetUiNavRoot()->SetContainerWindow(
         system_window_->GetSbWindow());
   }
 }
@@ -1579,7 +1579,7 @@ void BrowserModule::InitializeSystemWindow() {
   if (web_module_) {
     web_module_->SetCamera3D(input_device_manager_->camera_3d());
     web_module_->SetWebMediaPlayerFactory(media_module_.get());
-    web_module_->GetUiNavRoot()->RegisterRootContainerWithWindow(
+    web_module_->GetUiNavRoot()->SetContainerWindow(
         system_window_->GetSbWindow());
   }
 }
