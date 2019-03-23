@@ -6,7 +6,7 @@
           "https":[8443],
           "ws":["auto"],
           "wss":["auto"]},
- "check_subdomains": true,
+ "check_subdomains": false,
  "log_level":"debug",
  "bind_hostname": false,
  "ssl": {"type": "openssl",
