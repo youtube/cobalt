@@ -720,13 +720,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
-#if defined(SB_HAS_AC3_SUPPORT)
-#if !SB_HAS(AC3_SUPPORT)
-#error "SB_HAS_AC3_SUPPORT is required in this API version."
-#endif  // !SB_HAS(AC3_SUPPORT)
-#else   // defined(SB_HAS_AC3_SUPPORT)
-#define SB_HAS_AC3_SUPPORT 1
-#endif  // defined(SB_HAS_AC3_SUPPORT)
+#if defined(SB_HAS_AC3_AUDIO)
+#if !SB_HAS(AC3_AUDIO)
+#error "SB_HAS_AC3_AUDIO is required in this API version."
+#endif  // !SB_HAS(AC3_AUDIO)
+#else   // defined(SB_HAS_AC3_AUDIO)
+#define SB_HAS_AC3_AUDIO 1
+#endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
 // --- Derived Configuration -------------------------------------------------
 
