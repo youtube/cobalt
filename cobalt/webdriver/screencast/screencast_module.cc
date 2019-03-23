@@ -182,7 +182,6 @@ void ScreencastModule::TakeScreenshot() {
     num_screenshots_processing_++;
     screenshot_function_.Run(
         loader::image::EncodedStaticImage::ImageFormat::kJPEG,
-        /*clip_rect=*/base::nullopt,
         base::Bind(&ScreencastModule::SendScreenshotToNextInQueue,
                    base::Unretained(this)));
   }

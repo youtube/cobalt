@@ -140,13 +140,11 @@ class BrowserModule {
   void RequestScreenshotToFile(
       const FilePath& path,
       loader::image::EncodedStaticImage::ImageFormat image_format,
-      const base::optional<math::Rect>& clip_rect,
       const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
-  void RequestScreenshotToMemory(
+  void RequestScreenshotToBuffer(
       loader::image::EncodedStaticImage::ImageFormat image_format,
-      const base::optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 
 #if defined(ENABLE_WEBDRIVER)

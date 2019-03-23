@@ -49,7 +49,6 @@ class WebDriverModule {
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
       ScreenshotCompleteCallback;
   typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
-                              const base::optional<math::Rect>& clip_rect,
                               const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
