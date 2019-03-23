@@ -31,6 +31,7 @@ constexpr NativeItemType kNativeItemTypeContainer = kSbUiNavItemTypeContainer;
 using NativeTransform = SbUiNavTransform;
 using NativeCallbacks = SbUiNavCallbacks;
 using NativeInterface = SbUiNavInterface;
+#define kNativeItemInvalid kSbUiNavItemInvalid
 
 #else
 
@@ -57,22 +58,21 @@ struct NativeInterface {
                             const NativeCallbacks* callbacks,
                             void* callback_context);
   void (*destroy_item)(NativeItem item);
-  void (*register_root_container_with_window)(NativeItem container,
-      SbWindow window);
   void (*set_focus)(NativeItem item);
   void (*set_item_enabled)(NativeItem item, bool enabled);
   void (*set_item_size)(NativeItem item, float width, float height);
   void (*set_item_position)(NativeItem item, float x, float y);
   bool (*get_item_local_transform)(NativeItem item,
       NativeTransform* out_transform);
-  bool (*register_item_content)(NativeItem container_item,
-      NativeItem content_item);
-  void (*unregister_item_as_content)(NativeItem content_item);
+  void (*set_item_container_window)(NativeItem item, SbWindow window);
+  void (*set_item_container_item)(NativeItem item, NativeItem container);
   void (*set_item_content_offset)(NativeItem item,
       float content_offset_x, float content_offset_y);
   void (*get_item_content_offset)(NativeItem item,
       float* out_content_offset_x, float* out_content_offset_y);
 };
+
+#define kNativeItemInvalid nullptr
 
 #endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
 

@@ -38,10 +38,6 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     return nav_item_type_ == kNativeItemTypeContainer;
   }
 
-  void RegisterRootContainerWithWindow(SbWindow window) {
-    GetInterface().register_root_container_with_window(nav_item_, window);
-  }
-
   void Focus() {
     GetInterface().set_focus(nav_item_);
   }
@@ -62,13 +58,13 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     return GetInterface().get_item_local_transform(nav_item_, out_transform);
   }
 
-  bool RegisterContent(const scoped_refptr<NavItem>& content) {
-    return GetInterface().register_item_content(nav_item_,
-                                                  content->nav_item_);
+  void SetContainerWindow(SbWindow window) {
+    GetInterface().set_item_container_window(nav_item_, window);
   }
 
-  void UnregisterAsContent() {
-    GetInterface().unregister_item_as_content(nav_item_);
+  void SetContainerItem(const scoped_refptr<NavItem>& container) {
+    GetInterface().set_item_container_item(nav_item_,
+        container ? container->nav_item_ : kNativeItemInvalid);
   }
 
   void SetContentOffset(float x, float y) {
