@@ -43,11 +43,6 @@ void DestroyItem(NativeItem item) {
   delete reinterpret_cast<ItemImpl*>(item);
 }
 
-void RegisterRootContainerWithWindow(NativeItem container, SbWindow window) {
-  SB_UNREFERENCED_PARAMETER(container);
-  SB_UNREFERENCED_PARAMETER(window);
-}
-
 void SetFocus(NativeItem item) {
   SB_UNREFERENCED_PARAMETER(item);
 }
@@ -75,14 +70,14 @@ bool GetItemLocalTransform(NativeItem item, NativeTransform* out_transform) {
   return false;
 }
 
-bool RegisterItemContent(NativeItem container_item, NativeItem content_item) {
-  SB_UNREFERENCED_PARAMETER(container_item);
-  SB_UNREFERENCED_PARAMETER(content_item);
-  return true;
+void SetItemContainerWindow(NativeItem item, SbWindow window) {
+  SB_UNREFERENCED_PARAMETER(item);
+  SB_UNREFERENCED_PARAMETER(window);
 }
 
-void UnregisterItemAsContent(NativeItem content_item) {
-  SB_UNREFERENCED_PARAMETER(content_item);
+void SetItemContainerItem(NativeItem item, NativeItem container) {
+  SB_UNREFERENCED_PARAMETER(item);
+  SB_UNREFERENCED_PARAMETER(container);
 }
 
 void SetItemContentOffset(NativeItem item,
@@ -111,15 +106,13 @@ NativeInterface InitializeInterface() {
   {
     interface.create_item = &CreateItem;
     interface.destroy_item = &DestroyItem;
-    interface.register_root_container_with_window =
-        &RegisterRootContainerWithWindow;
     interface.set_focus = &SetFocus;
     interface.set_item_enabled = &SetItemEnabled;
     interface.set_item_size = &SetItemSize;
     interface.set_item_position = &SetItemPosition;
     interface.get_item_local_transform = &GetItemLocalTransform;
-    interface.register_item_content = &RegisterItemContent;
-    interface.unregister_item_as_content = &UnregisterItemAsContent;
+    interface.set_item_container_window = &SetItemContainerWindow;
+    interface.set_item_container_item = &SetItemContainerItem;
     interface.set_item_content_offset = &SetItemContentOffset;
     interface.get_item_content_offset = &GetItemContentOffset;
   }
