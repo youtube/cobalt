@@ -19,11 +19,9 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/loader/image/image_encoder.h"
-#include "cobalt/math/rect.h"
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/util/command_result.h"
 
@@ -51,7 +49,6 @@ class ScreencastModule {
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
       ScreenshotCompleteCallback;
   typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
-                              const base::optional<math::Rect>& clip_rect,
                               const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
 
