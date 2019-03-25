@@ -232,13 +232,13 @@ UniquePtr<T> MakeUnique(Args &&... args) {
 // virtual destructor. This avoids a dependency on |_ZdlPv| and prevents the
 // class from being used with |delete|.
 #define HAS_VIRTUAL_DESTRUCTOR \
-  void operator delete(void *) { abort(); }
+  void operator delete(void *) { OPENSSL_port_abort(); }
 
 // PURE_VIRTUAL should be used instead of = 0 when defining pure-virtual
 // functions. This avoids a dependency on |__cxa_pure_virtual| but loses
 // compile-time checking.
 #define PURE_VIRTUAL \
-  { abort(); }
+  { OPENSSL_port_abort(); }
 #endif
 
 // CONSTEXPR_ARRAY works around a VS 2015 bug where ranged for loops don't work
@@ -343,7 +343,7 @@ class Array {
   // the new size is larger. Note this does not shrink the allocation itself.
   void Shrink(size_t new_size) {
     if (new_size > size_) {
-      abort();
+      OPENSSL_port_abort();
     }
     size_ = new_size;
   }

@@ -850,7 +850,7 @@ ssl_session_st::ssl_session_st(const SSL_X509_METHOD *method)
       ticket_age_add_valid(false),
       is_server(false) {
   CRYPTO_new_ex_data(&ex_data);
-  time = ::time(nullptr);
+  time = OPENSSL_port_time(nullptr);
 }
 
 ssl_session_st::~ssl_session_st() {
@@ -1146,7 +1146,7 @@ int SSL_set_session(SSL *ssl, SSL_SESSION *session) {
   if (ssl->s3->initial_handshake_complete ||
       ssl->s3->hs == NULL ||
       ssl->s3->hs->state != 0) {
-    abort();
+    OPENSSL_port_abort();
   }
 
   ssl_set_session(ssl, session);

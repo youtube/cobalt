@@ -241,6 +241,8 @@
 #define OPENSSL_port_atoi SbStringAToI
 #define OPENSSL_port_free SbMemoryDeallocate
 #define OPENSSL_port_getenv(x) NULL
+#define OPENSSL_port_gettimeofday EzTimeValueGetNow
+#define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
 #define OPENSSL_port_isalnum SbCharacterIsAlphanumeric
 #define OPENSSL_port_isdigit SbCharacterIsDigit
 #define OPENSSL_port_isspace SbCharacterIsSpace
