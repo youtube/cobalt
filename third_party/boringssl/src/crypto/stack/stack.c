@@ -341,7 +341,7 @@ void sk_sort(_STACK *sk) {
 
   // See the comment in sk_find about this cast.
   comp_func = (int (*)(const void *, const void *))(sk->comp);
-  qsort(sk->data, sk->num, sizeof(void *), comp_func);
+  OPENSSL_port_qsort(sk->data, sk->num, sizeof(void *), comp_func);
   sk->sorted = 1;
 }
 

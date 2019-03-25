@@ -576,7 +576,7 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_cbc_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_128_cbc;
   out->block_size = 16;
@@ -589,7 +589,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_cbc_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ctr_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_128_ctr;
   out->block_size = 1;
@@ -602,7 +602,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ctr_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ecb_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_128_ecb;
   out->block_size = 16;
@@ -614,7 +614,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ecb_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ofb_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_128_ofb128;
   out->block_size = 1;
@@ -627,7 +627,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_ofb_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_gcm_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_128_gcm;
   out->block_size = 1;
@@ -644,7 +644,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_gcm_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_cbc_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_192_cbc;
   out->block_size = 16;
@@ -657,7 +657,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_cbc_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ctr_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_192_ctr;
   out->block_size = 1;
@@ -670,7 +670,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ctr_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ecb_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_192_ecb;
   out->block_size = 16;
@@ -682,7 +682,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ecb_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ofb_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_192_ofb128;
   out->block_size = 1;
@@ -695,7 +695,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_ofb_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_gcm_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_192_gcm;
   out->block_size = 1;
@@ -712,7 +712,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_gcm_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_cbc_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_256_cbc;
   out->block_size = 16;
@@ -725,7 +725,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_cbc_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ctr_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_256_ctr;
   out->block_size = 1;
@@ -738,7 +738,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ctr_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ecb_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_256_ecb;
   out->block_size = 16;
@@ -750,7 +750,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ecb_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ofb_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_256_ofb128;
   out->block_size = 1;
@@ -763,7 +763,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_ofb_generic) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_gcm_generic) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_256_gcm;
   out->block_size = 1;
@@ -795,7 +795,7 @@ static int aes_hw_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out,
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_128_ecb) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_128_ecb;
   out->block_size = 16;
@@ -807,7 +807,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_128_ecb) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_192_ecb) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_192_ecb;
   out->block_size = 16;
@@ -819,7 +819,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_192_ecb) {
 }
 
 DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_256_ecb) {
-  memset(out, 0, sizeof(EVP_CIPHER));
+  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
 
   out->nid = NID_aes_256_ecb;
   out->block_size = 16;
@@ -1044,7 +1044,7 @@ static int aead_aes_gcm_open_gather(const EVP_AEAD_CTX *ctx, uint8_t *out,
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm) {
-  memset(out, 0, sizeof(EVP_AEAD));
+  OPENSSL_memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 16;
   out->nonce_len = 12;
@@ -1059,7 +1059,7 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm) {
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm) {
-  memset(out, 0, sizeof(EVP_AEAD));
+  OPENSSL_memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 32;
   out->nonce_len = 12;
@@ -1130,7 +1130,7 @@ static int aead_aes_gcm_tls12_seal_scatter(
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_tls12) {
-  memset(out, 0, sizeof(EVP_AEAD));
+  OPENSSL_memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 16;
   out->nonce_len = 12;
@@ -1145,7 +1145,7 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_tls12) {
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls12) {
-  memset(out, 0, sizeof(EVP_AEAD));
+  OPENSSL_memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 32;
   out->nonce_len = 12;
@@ -1230,7 +1230,7 @@ static int aead_aes_gcm_tls13_seal_scatter(
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_tls13) {
-  memset(out, 0, sizeof(EVP_AEAD));
+  OPENSSL_memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 16;
   out->nonce_len = 12;
@@ -1245,7 +1245,7 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_tls13) {
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls13) {
-  memset(out, 0, sizeof(EVP_AEAD));
+  OPENSSL_memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 32;
   out->nonce_len = 12;
