@@ -150,6 +150,12 @@ void URLFetcherImpl::SaveResponseWithWriter(
   core_->SaveResponseWithWriter(std::move(response_writer));
 }
 
+#if defined(STARBOARD)
+URLFetcherResponseWriter* URLFetcherImpl::GetResponseWriter() const {
+  return core_->GetResponseWriter();
+}
+#endif
+
 HttpResponseHeaders* URLFetcherImpl::GetResponseHeaders() const {
   return core_->GetResponseHeaders();
 }

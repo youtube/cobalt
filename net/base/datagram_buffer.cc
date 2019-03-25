@@ -34,7 +34,11 @@ void DatagramBufferPool::Dequeue(DatagramBuffers* buffers) {
   if (buffers->size() == 0)
     return;
 
+#if defined(STARBOARD)
+  free_list_.splice(free_list_.end(), *buffers);
+#else
   free_list_.splice(free_list_.cend(), *buffers);
+#endif
 }
 
 DatagramBuffer::DatagramBuffer(size_t max_buffer_size)

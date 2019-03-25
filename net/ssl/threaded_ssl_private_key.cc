@@ -37,9 +37,17 @@ class ThreadedSSLPrivateKey::Core
   ThreadedSSLPrivateKey::Delegate* delegate() { return delegate_.get(); }
 
   Error Sign(uint16_t algorithm,
+#if defined(STARBOARD)
+             const std::vector<uint8_t>& input,
+             std::vector<uint8_t>* signature) {
+    return delegate_->Sign(
+        algorithm, base::span<const uint8_t>(input.data(), input.size()),
+        signature);
+#else
              base::span<const uint8_t> input,
              std::vector<uint8_t>* signature) {
     return delegate_->Sign(algorithm, input, signature);
+#endif
   }
 
  private:

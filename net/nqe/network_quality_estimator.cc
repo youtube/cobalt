@@ -1391,6 +1391,9 @@ base::TimeDelta NetworkQualityEstimator::GetRTTEstimateInternal(
       NOTREACHED();
       return base::TimeDelta();
   }
+#if defined(STARBOARD)
+  return base::TimeDelta();
+#endif
 }
 
 int32_t NetworkQualityEstimator::GetDownlinkThroughputKbpsEstimateInternal(

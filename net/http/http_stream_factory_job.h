@@ -24,7 +24,9 @@
 #include "net/http/http_stream_request.h"
 #include "net/log/net_log_with_source.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 #include "net/quic/quic_stream_factory.h"
+#endif
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_manager.h"
 #include "net/socket/next_proto.h"

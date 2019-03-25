@@ -318,6 +318,12 @@ class NET_EXPORT URLFetcher {
   virtual void SaveResponseWithWriter(
       std::unique_ptr<URLFetcherResponseWriter> response_writer) = 0;
 
+#if defined(STARBOARD)
+  // The functionality to provide custom response writer was not well exploited
+  // by Chromium, we do want to use it and need a proper way to retrieve it.
+  virtual URLFetcherResponseWriter* GetResponseWriter() const = 0;
+#endif
+
   // Retrieve the response headers from the request.  Must only be called after
   // the OnURLFetchComplete callback has run.
   virtual HttpResponseHeaders* GetResponseHeaders() const = 0;

@@ -46,6 +46,11 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
+#ifdef STARBOARD
+#include "net/base/completion_repeating_callback.h"
+#include "net/base/io_buffer.h"
+#endif
+
 // Hacky macros to construct the body of a Close message from a code and a
 // string, while ensuring the result is a compile-time constant string.
 // Use like CLOSE_DATA(NORMAL_CLOSURE, "Explanation String")
