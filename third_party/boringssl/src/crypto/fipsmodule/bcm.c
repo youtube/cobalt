@@ -146,7 +146,7 @@ err:
 
 void BORINGSSL_FIPS_abort(void) {
   for (;;) {
-    abort();
+    OPENSSL_port_abort();
     exit(1);
   }
 }

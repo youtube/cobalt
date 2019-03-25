@@ -465,13 +465,13 @@ void bn_to_montgomery_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
 void bn_from_montgomery_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
                               const BN_MONT_CTX *mont) {
   if (num != (size_t)mont->N.width || num > BN_SMALL_MAX_WORDS) {
-    abort();
+    OPENSSL_port_abort();
   }
   BN_ULONG tmp[BN_SMALL_MAX_WORDS * 2];
   OPENSSL_memcpy(tmp, a, num * sizeof(BN_ULONG));
   OPENSSL_memset(tmp + num, 0, num * sizeof(BN_ULONG));
   if (!bn_from_montgomery_in_place(r, num, tmp, 2 * num, mont)) {
-    abort();
+    OPENSSL_port_abort();
   }
   OPENSSL_cleanse(tmp, 2 * num * sizeof(BN_ULONG));
 }
@@ -480,14 +480,14 @@ void bn_mod_mul_montgomery_small(BN_ULONG *r, const BN_ULONG *a,
                                  const BN_ULONG *b, size_t num,
                                  const BN_MONT_CTX *mont) {
   if (num != (size_t)mont->N.width || num > BN_SMALL_MAX_WORDS) {
-    abort();
+    OPENSSL_port_abort();
   }
 
 #if defined(OPENSSL_BN_ASM_MONT)
   // |bn_mul_mont| requires at least 128 bits of limbs, at least for x86.
   if (num >= (128 / BN_BITS2)) {
     if (!bn_mul_mont(r, a, b, mont->N.d, mont->n0, num)) {
-      abort();  // The check above ensures this won't happen.
+      OPENSSL_port_abort();  // The check above ensures this won't happen.
     }
     return;
   }
@@ -503,7 +503,7 @@ void bn_mod_mul_montgomery_small(BN_ULONG *r, const BN_ULONG *a,
 
   // Reduce.
   if (!bn_from_montgomery_in_place(r, num, tmp, 2 * num, mont)) {
-    abort();
+    OPENSSL_port_abort();
   }
   OPENSSL_cleanse(tmp, 2 * num * sizeof(BN_ULONG));
 }

@@ -387,13 +387,13 @@ static int asn1_cb(const char *elem, int len, void *bitstr)
             OPENSSL_PUT_ERROR(ASN1, ASN1_R_UNKNOWN_FORMAT);
             return -1;
         }
-        if (!strncmp(vstart, "ASCII", 5))
+        if (!OPENSSL_port_strncmp(vstart, "ASCII", 5))
             arg->format = ASN1_GEN_FORMAT_ASCII;
-        else if (!strncmp(vstart, "UTF8", 4))
+        else if (!OPENSSL_port_strncmp(vstart, "UTF8", 4))
             arg->format = ASN1_GEN_FORMAT_UTF8;
-        else if (!strncmp(vstart, "HEX", 3))
+        else if (!OPENSSL_port_strncmp(vstart, "HEX", 3))
             arg->format = ASN1_GEN_FORMAT_HEX;
-        else if (!strncmp(vstart, "BITLIST", 7))
+        else if (!OPENSSL_port_strncmp(vstart, "BITLIST", 7))
             arg->format = ASN1_GEN_FORMAT_BITLIST;
         else {
             OPENSSL_PUT_ERROR(ASN1, ASN1_R_UNKNOWN_FORMAT);
@@ -414,7 +414,7 @@ static int parse_tagging(const char *vstart, int vlen, int *ptag, int *pclass)
     char *eptr;
     if (!vstart)
         return 0;
-    tag_num = strtoul(vstart, &eptr, 10);
+    tag_num = OPENSSL_port_strtoul(vstart, &eptr, 10);
     /* Check we haven't gone past max length: should be impossible */
     if (eptr && *eptr && (eptr > vstart + vlen))
         return 0;
@@ -633,11 +633,11 @@ static int asn1_str2tag(const char *tagstr, int len)
     };
 
     if (len == -1)
-        len = strlen(tagstr);
+        len = OPENSSL_port_strlen(tagstr);
 
     tntmp = tnst;
     for (i = 0; i < sizeof(tnst) / sizeof(struct tag_name_st); i++, tntmp++) {
-        if ((len == tntmp->len) && !strncmp(tntmp->strnam, tagstr, len))
+        if ((len == tntmp->len) && !OPENSSL_port_strncmp(tntmp->strnam, tagstr, len))
             return tntmp->tag;
     }
 
@@ -826,7 +826,7 @@ static int bitstr_cb(const char *elem, int len, void *bitstr)
     char *eptr;
     if (!elem)
         return 0;
-    bitnum = strtoul(elem, &eptr, 10);
+    bitnum = OPENSSL_port_strtoul(elem, &eptr, 10);
     if (eptr && *eptr && (eptr != elem + len))
         return 0;
     if (bitnum < 0) {
