@@ -714,7 +714,7 @@ int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *ca_file,
 void SSL_set_verify_result(SSL *ssl, long result) {
   check_ssl_x509_method(ssl);
   if (result != X509_V_OK) {
-    abort();
+    OPENSSL_port_abort();
   }
 }
 

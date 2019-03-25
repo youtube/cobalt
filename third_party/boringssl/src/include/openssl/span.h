@@ -136,20 +136,20 @@ class Span : private internal::SpanBase<const T> {
 
   T &front() const {
     if (size_ == 0) {
-      abort();
+      OPENSSL_port_abort();
     }
     return data_[0];
   }
   T &back() const {
     if (size_ == 0) {
-      abort();
+      OPENSSL_port_abort();
     }
     return data_[size_ - 1];
   }
 
   T &operator[](size_t i) const {
     if (i >= size_) {
-      abort();
+      OPENSSL_port_abort();
     }
     return data_[i];
   }
@@ -157,7 +157,7 @@ class Span : private internal::SpanBase<const T> {
 
   Span subspan(size_t pos = 0, size_t len = npos) const {
     if (pos > size_) {
-      abort();  // absl::Span throws an exception here.
+      OPENSSL_port_abort();  // absl::Span throws an exception here.
     }
     return Span(data_ + pos, std::min(size_ - pos, len));
   }
