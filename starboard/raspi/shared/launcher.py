@@ -116,7 +116,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # has no knowledge of previous runs).
     self.unzip_command = ('find %s -name "*.zip" | while read filename;'
                           'do unzip -o -d "`dirname "$filename"`" "$filename";'
-                          'done;' % test_base_dir)
+                          'done; echo "Unzip Complete."' % test_base_dir)
 
     # escape command line metacharacters in the flags
     flags = ' '.join(self.target_command_line_params)
@@ -243,6 +243,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._PexpectSpawnAndConnect(self.ssh_command)
       if not self.shutdown_initiated.is_set():
         self.pexpect_process.sendline(self.unzip_command)
+        self.pexpect_process.expect('Unzip Complete.', 300)
       if not self.shutdown_initiated.is_set():
         self.pexpect_process.sendline(self.test_command)
         self._PexpectReadLines()
