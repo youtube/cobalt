@@ -415,7 +415,7 @@ void ERR_error_string_n(uint32_t packed_error, char *buf, size_t len) {
   BIO_snprintf(buf, len, "error:%08" PRIx32 ":%s:OPENSSL_internal:%s",
                packed_error, lib_str, reason_str);
 
-  if (strlen(buf) == len - 1) {
+  if (OPENSSL_port_strlen(buf) == len - 1) {
     // output may be truncated; make sure we always have 5 colon-separated
     // fields, i.e. 4 colons.
     static const unsigned num_colons = 4;
@@ -429,7 +429,7 @@ void ERR_error_string_n(uint32_t packed_error, char *buf, size_t len) {
     }
 
     for (i = 0; i < num_colons; i++) {
-      char *colon = strchr(s, ':');
+      char *colon = OPENSSL_port_strchr(s, ':');
       char *last_pos = &buf[len - 1] - num_colons + i;
 
       if (colon == NULL || colon > last_pos) {
@@ -548,7 +548,7 @@ const char *ERR_reason_error_string(uint32_t packed_error) {
 
   if (lib == ERR_LIB_SYS) {
     if (reason < 127) {
-      return strerror(reason);
+      return OPENSSL_port_strerror(reason);
     }
     return NULL;
   }
@@ -598,17 +598,22 @@ void ERR_print_errors_cb(ERR_print_errors_callback_t callback, void *ctx) {
     ERR_error_string_n(packed_error, buf, sizeof(buf));
     BIO_snprintf(buf2, sizeof(buf2), "%lu:%s:%s:%d:%s\n", thread_hash, buf,
                  file, line, (flags & ERR_FLAG_STRING) ? data : "");
-    if (callback(buf2, strlen(buf2), ctx) <= 0) {
+    if (callback(buf2, OPENSSL_port_strlen(buf2), ctx) <= 0) {
       break;
     }
   }
 }
 
 static int print_errors_to_file(const char* msg, size_t msg_len, void* ctx) {
+#if !defined(OPENSSL_SYS_STARBOARD)
   assert(msg[msg_len] == '\0');
   FILE* fp = ctx;
   int res = fputs(msg, fp);
   return res < 0 ? 0 : 1;
+#else // defined(OPENSSL_SYS_STARBOARD)
+  SB_NOTREACHED();
+  return 0;
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 }
 
 void ERR_print_errors_fp(FILE *file) {
@@ -681,7 +686,7 @@ static void err_add_error_vdata(unsigned num, va_list args) {
       continue;
     }
 
-    substr_len = strlen(substr);
+    substr_len = OPENSSL_port_strlen(substr);
     new_len = len + substr_len;
     if (new_len > alloced) {
       char *new_buf;

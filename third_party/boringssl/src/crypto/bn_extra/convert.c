@@ -185,7 +185,12 @@ static int decode_dec(BIGNUM *bn, const char *in, int in_len) {
 }
 
 typedef int (*decode_func) (BIGNUM *bn, const char *in, int in_len);
+
+#if defined(OPENSSL_SYS_STARBOARD)
+typedef bool (*char_test_func) (int c);
+#else
 typedef int (*char_test_func) (int c);
+#endif
 
 static int bn_x2bn(BIGNUM **outp, const char *in, decode_func decode, char_test_func want_char) {
   BIGNUM *ret = NULL;
@@ -240,7 +245,7 @@ err:
 }
 
 int BN_hex2bn(BIGNUM **outp, const char *in) {
-  return bn_x2bn(outp, in, decode_hex, isxdigit);
+  return bn_x2bn(outp, in, decode_hex, OPENSSL_port_isxdigit);
 }
 
 char *BN_bn2dec(const BIGNUM *a) {
@@ -310,7 +315,7 @@ err:
 }
 
 int BN_dec2bn(BIGNUM **outp, const char *in) {
-  return bn_x2bn(outp, in, decode_dec, isdigit);
+  return bn_x2bn(outp, in, decode_dec, OPENSSL_port_isdigit);
 }
 
 int BN_asc2bn(BIGNUM **outp, const char *in) {

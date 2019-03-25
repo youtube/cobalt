@@ -241,7 +241,7 @@ static void rand_state_init(struct rand_state *state) {
   uint8_t seed[CTR_DRBG_ENTROPY_LEN];
   rand_get_seed(state, seed);
   if (!CTR_DRBG_init(&state->drbg, seed, NULL, 0)) {
-    abort();
+    OPENSSL_port_abort();
   }
 }
 
@@ -338,7 +338,7 @@ void RAND_bytes_with_additional_data(uint8_t *out, size_t out_len,
     CRYPTO_STATIC_MUTEX_lock_read(rand_drbg_lock_bss_get());
 #endif
     if (!CTR_DRBG_reseed(&state->drbg, seed, NULL, 0)) {
-      abort();
+      OPENSSL_port_abort();
     }
     state->calls = 0;
   } else {
@@ -356,7 +356,7 @@ void RAND_bytes_with_additional_data(uint8_t *out, size_t out_len,
 
     if (!CTR_DRBG_generate(&state->drbg, out, todo, additional_data,
                            first_call ? sizeof(additional_data) : 0)) {
-      abort();
+      OPENSSL_port_abort();
     }
 
     out += todo;

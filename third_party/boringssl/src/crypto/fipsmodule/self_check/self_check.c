@@ -30,6 +30,11 @@
 #include "../ec/internal.h"
 #include "../rand/internal.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define fprintf(stderr, ...) SbLogFormatF(__VA_ARGS__)
+#endif
+
 
 // MSVC wants to put a NUL byte at the end of non-char arrays and so cannot
 // compile this.
@@ -49,7 +54,9 @@ static int check_test(const void *expected, const void *actual,
     fprintf(stderr, "\nCalculated: ");
     hexdump(actual, expected_len);
     fprintf(stderr, "\n");
+#if !defined(STARBOARD)
     fflush(stderr);
+#endif
     return 0;
   }
   return 1;
@@ -563,7 +570,7 @@ int BORINGSSL_self_test(void) {
   CTR_DRBG_clear(&drbg);
 
   CTR_DRBG_STATE kZeroDRBG;
-  memset(&kZeroDRBG, 0, sizeof(kZeroDRBG));
+  OPENSSL_memset(&kZeroDRBG, 0, sizeof(kZeroDRBG));
   if (!check_test(&kZeroDRBG, &drbg, sizeof(drbg), "DRBG Clear KAT")) {
     goto err;
   }
