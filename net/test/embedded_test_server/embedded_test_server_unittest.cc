@@ -7,6 +7,9 @@
 #include <tuple>
 #include <utility>
 
+#ifdef STARBOARD
+#include "base/bind_helpers.h"
+#endif
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"

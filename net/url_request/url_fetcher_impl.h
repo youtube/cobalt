@@ -81,6 +81,9 @@ class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
   void SaveResponseWithWriter(
       std::unique_ptr<URLFetcherResponseWriter> response_writer) override;
+#if defined(STARBOARD)
+  URLFetcherResponseWriter* GetResponseWriter() const override;
+#endif
   HttpResponseHeaders* GetResponseHeaders() const override;
   HostPortPair GetSocketAddress() const override;
   const ProxyServer& ProxyServerUsed() const override;

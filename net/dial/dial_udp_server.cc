@@ -137,7 +137,9 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) {
     return false;
   }
 
-  std::string st_request = info.GetHeaderValue("ST");
+  // TODO[Starboard]: verify that this st header is present in dial search
+  // request. The header name used to be "ST".
+  std::string st_request = info.GetHeaderValue("st");
   ignore_result(TrimWhitespaceASCII(st_request, base::TRIM_ALL, &st_request));
 
   if (st_request != kDialStRequest) {
@@ -145,11 +147,7 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) {
     return false;
   }
 
-  // The User-Agent header is supposed to be case-insensitive, but
-  // the map that holds it has a case-sensitive search.
-  // I could be more careful, but hey, it's a DVLOG anyway.
-  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("USER-AGENT");
-  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("User-Agent");
+  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("user-agent");
 
   return true;
 }

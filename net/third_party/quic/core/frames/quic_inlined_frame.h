@@ -17,8 +17,13 @@ namespace quic {
 template <typename DerivedT>
 struct QUIC_EXPORT_PRIVATE QuicInlinedFrame {
   QuicInlinedFrame(QuicFrameType type) : type(type) {
+#if !(defined(STARBOARD) && defined(__GNUC__) && !defined(__clang__) && \
+      __GNUC__ <= 7)
+    // Raspi compiler does not allow none-static type in offsetof, but we should
+    // turn on this check on as many platforms as possible.
     static_assert(offsetof(DerivedT, type) == 0,
                   "type must be the first field.");
+#endif
     static_assert(sizeof(DerivedT) <= 24,
                   "Frames larger than 24 bytes should not be inlined.");
   }

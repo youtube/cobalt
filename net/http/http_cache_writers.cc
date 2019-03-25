@@ -8,6 +8,9 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#ifdef QUIC_DISABLED_FOR_STARBOARD
+#include "base/bind_helpers.h"
+#endif
 #include "base/logging.h"
 
 #include "net/base/net_errors.h"

@@ -35,6 +35,10 @@
 #include "net/websockets/websocket_handshake_stream_base.h"
 #include "starboard/types.h"
 
+#ifdef QUIC_DISABLED_FOR_STARBOARD
+#include "net/third_party/quic/core/quic_types.h"
+#endif
+
 namespace base {
 namespace trace_event {
 class ProcessMemoryDump;

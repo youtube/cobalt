@@ -724,7 +724,8 @@ void UDPSocketStarboard::LocalSendBuffers() {
   DVLOG(1) << __func__ << " queue " << pending_writes_.size() << " out of "
            << write_async_outstanding_ << " total";
   SbSocketAddress sb_address;
-  DCHECK(remote_address_.get()->ToSbSocketAddress(&sb_address));
+  int result = remote_address_.get()->ToSbSocketAddress(&sb_address);
+  DCHECK(result);
   DidSendBuffers(
       sender_->SendBuffers(socket_, std::move(pending_writes_), sb_address));
 }
@@ -754,9 +755,9 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
   if (write_count > 0) {
     write_async_outstanding_ -= write_count;
 
-    DatagramBuffers::const_iterator it;
+    DatagramBuffers::iterator it;
     // Generate logs for written buffers
-    it = buffers.cbegin();
+    it = buffers.begin();
     for (int i = 0; i < write_count; i++, it++) {
       auto& buffer = *it;
       LogWrite(buffer->length(), buffer->data(), NULL);
@@ -765,15 +766,14 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
     // Return written buffers to pool
     DatagramBuffers written_buffers;
     if (write_count == num_buffers) {
-      it = buffers.cend();
+      it = buffers.end();
     } else {
-      it = buffers.cbegin();
+      it = buffers.begin();
       for (int i = 0; i < write_count; i++) {
         it++;
       }
     }
-    written_buffers.splice(written_buffers.cend(), buffers, buffers.cbegin(),
-                           it);
+    written_buffers.splice(written_buffers.end(), buffers, buffers.begin(), it);
     DCHECK(datagram_buffer_pool_ != nullptr);
     datagram_buffer_pool_->Dequeue(&written_buffers);
   }

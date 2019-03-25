@@ -9,7 +9,8 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_WIN) || defined(OS_NACL) || defined(OS_STARBOARD)
+#if !defined(STARBOARD)
+#if defined(OS_WIN) || defined(OS_NACL)
 /* Structure for scatter/gather I/O.  */
 struct iovec {
   void* iov_base;  /* Pointer to data.  */
@@ -18,5 +19,6 @@ struct iovec {
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <sys/uio.h>
 #endif  // defined(OS_WIN) || defined(OS_NACL)
+#endif	// !defined(STARBOARD)
 
 #endif  // NET_BASE_IOVEC_H_

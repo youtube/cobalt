@@ -7,6 +7,7 @@
 
 #include <map>
 #include <vector>
+#include <cstdint>
 
 #include "net/third_party/quic/platform/api/quic_export.h"
 #include "net/third_party/quic/platform/api/quic_string.h"

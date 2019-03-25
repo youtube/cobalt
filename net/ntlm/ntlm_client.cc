@@ -226,8 +226,16 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
     GenerateNtlmHashV2(domain, username, password, v2_hash);
     v2_proof_input = GenerateProofInputV2(timestamp, client_challenge);
     GenerateNtlmProofV2(v2_hash, server_challenge,
+#if defined(STARBOARD)
+                        base::span<uint8_t, kProofInputLenV2>(
+                            v2_proof_input.data(), kProofInputLenV2),
+                        base::span<const uint8_t>(updated_target_info.data(),
+                                                  updated_target_info.size()),
+                        v2_proof);
+#else
                         base::make_span<kProofInputLenV2>(v2_proof_input),
                         updated_target_info, v2_proof);
+#endif
     GenerateSessionBaseKeyV2(v2_hash, v2_proof, v2_session_key);
   } else {
     if (!ParseChallengeMessage(server_challenge_message, &challenge_flags,
@@ -289,9 +297,19 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
 
   if (IsNtlmV2()) {
     // Write the response payloads for V2.
+#if defined(STARBOARD)
+    writer_result = WriteResponsePayloadsV2(
+        &authenticate_writer,
+        base::span<const uint8_t, kResponseLenV1>(lm_response, kResponseLenV1),
+        v2_proof,
+        base::span<const uint8_t>(v2_proof_input.data(), v2_proof_input.size()),
+        base::span<const uint8_t>(updated_target_info.data(),
+                                  updated_target_info.size()));
+#else
     writer_result =
         WriteResponsePayloadsV2(&authenticate_writer, lm_response, v2_proof,
                                 v2_proof_input, updated_target_info);
+#endif
   } else {
     // Write the response payloads.
     DCHECK_EQ(kResponseLenV1, lm_info.length);
@@ -319,8 +337,17 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
 
     base::span<uint8_t, kMicLenV2> mic(
         const_cast<uint8_t*>(auth_msg.data()) + kMicOffsetV2, kMicLenV2);
+#if defined(STARBOARD)
+    GenerateMicV2(v2_session_key,
+                  base::span<const uint8_t>(negotiate_message_.data(),
+                                            negotiate_message_.size()),
+                  server_challenge_message,
+                  base::span<const uint8_t>(auth_msg.data(), auth_msg.size()),
+                  mic);
+#else
     GenerateMicV2(v2_session_key, negotiate_message_, server_challenge_message,
                   auth_msg, mic);
+#endif
   }
 
   return auth_msg;

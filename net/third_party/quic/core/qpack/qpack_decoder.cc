@@ -169,6 +169,10 @@ size_t QpackDecoder::ProgressiveDecoder::DoStart(QuicStringPiece data) {
       OnError("Encoded integer too large.");
       return bytes_consumed;
   }
+#if defined(STARBOARD)
+  NOTREACHED();
+  return 0;
+#endif
 }
 
 size_t QpackDecoder::ProgressiveDecoder::DoVarintResume(QuicStringPiece data) {
@@ -190,6 +194,10 @@ size_t QpackDecoder::ProgressiveDecoder::DoVarintResume(QuicStringPiece data) {
       OnError("Encoded integer too large.");
       return bytes_consumed;
   }
+#if defined(STARBOARD)
+  NOTREACHED();
+  return 0;
+#endif
 }
 
 void QpackDecoder::ProgressiveDecoder::DoVarintDone() {
@@ -282,6 +290,10 @@ size_t QpackDecoder::ProgressiveDecoder::DoValueLengthStart(
       OnError("ValueLen too large.");
       return bytes_consumed;
   }
+#if defined(STARBOARD)
+  NOTREACHED();
+  return 0;
+#endif
 }
 
 size_t QpackDecoder::ProgressiveDecoder::DoValueLengthResume(
@@ -304,6 +316,10 @@ size_t QpackDecoder::ProgressiveDecoder::DoValueLengthResume(
       OnError("ValueLen too large.");
       return bytes_consumed;
   }
+#if defined(STARBOARD)
+  NOTREACHED();
+  return 0;
+#endif
 }
 
 void QpackDecoder::ProgressiveDecoder::DoValueLengthDone() {
