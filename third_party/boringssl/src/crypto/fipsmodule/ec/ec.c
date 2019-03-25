@@ -927,7 +927,7 @@ int EC_METHOD_get_field_type(const EC_METHOD *meth) {
 void EC_GROUP_set_point_conversion_form(EC_GROUP *group,
                                         point_conversion_form_t form) {
   if (form != POINT_CONVERSION_UNCOMPRESSED) {
-    abort();
+    OPENSSL_port_abort();
   }
 }
 
