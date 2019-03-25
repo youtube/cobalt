@@ -484,10 +484,11 @@ void URLRequest::set_initiator(const base::Optional<url::Origin>& initiator) {
   // This is not a Cobalt change, but due toa mismatch between src/net and
   // src/url version.
   DCHECK(!initiator.has_value() || initiator.value().unique() ||
+         initiator.value().GetURL().is_valid());
 #else
   DCHECK(!initiator.has_value() || initiator.value().opaque() ||
-#endif
          initiator.value().GetURL().is_valid());
+#endif
   initiator_ = initiator;
 }
 

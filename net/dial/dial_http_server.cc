@@ -215,7 +215,7 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
   std::string handler_path;
   scoped_refptr<DialServiceHandler> handler =
       dial_service_->GetHandler(info.path, &handler_path);
-  if (handler == NULL) {
+  if (handler.get() == NULL) {
     return false;
   }
 

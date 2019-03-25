@@ -25,7 +25,9 @@
 #include "net/dns/host_resolver.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 #include "net/quic/quic_stream_factory.h"
+#endif
 #include "net/socket/next_proto.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/ssl/ssl_client_auth_cache.h"
@@ -61,6 +63,14 @@ class ProxyResolutionService;
 namespace quic {
 class QuicClock;
 }  // namespace quic
+#else
+// These classes have not yet been enabled.
+namespace quic {
+class QuicRandom;
+}
+namespace net {
+class QuicStreamFactory;
+}
 #endif
 namespace net {
 class QuicCryptoClientStreamFactory;

@@ -102,12 +102,22 @@ bool NtlmBufferWriter::WriteAvPair(const AvPair& pair) {
       return false;
     return WriteUInt32(static_cast<uint32_t>(pair.flags));
   } else {
+#if defined(STARBOARD)
+    return WriteBytes(
+        base::span<const uint8_t>(pair.buffer.data(), pair.buffer.size()));
+#else
     return WriteBytes(pair.buffer);
+#endif
   }
 }
 
 bool NtlmBufferWriter::WriteUtf8String(const std::string& str) {
+#if defined(STARBOARD)
+  return WriteBytes(
+      base::as_bytes(base::span<const char>(str.data(), str.size())));
+#else
   return WriteBytes(base::as_bytes(base::make_span(str)));
+#endif
 }
 
 bool NtlmBufferWriter::WriteUtf16AsUtf8String(const base::string16& str) {

@@ -52,6 +52,10 @@
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
 
+#if defined(QUIC_DISABLED_FOR_STARBOARD)
+#include "net/third_party/quic/core/quic_versions.h"
+#endif
+
 namespace net {
 
 namespace test {

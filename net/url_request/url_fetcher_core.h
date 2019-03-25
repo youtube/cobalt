@@ -114,6 +114,11 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
       scoped_refptr<base::SequencedTaskRunner> file_task_runner);
   void SaveResponseWithWriter(
       std::unique_ptr<URLFetcherResponseWriter> response_writer);
+#if defined(STARBOARD)
+  URLFetcherResponseWriter* GetResponseWriter() const {
+    return response_writer_.get();
+  }
+#endif
   HttpResponseHeaders* GetResponseHeaders() const;
   HostPortPair GetSocketAddress() const;
   const ProxyServer& ProxyServerUsed() const;

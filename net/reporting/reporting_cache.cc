@@ -130,9 +130,15 @@ class ReportingCacheImpl : public ReportingCache {
     std::vector<base::Value> report_list;
     for (const ReportingReport* report : sorted_reports) {
       base::Value report_dict(base::Value::Type::DICTIONARY);
+#if defined(STARBOARD)
+      report_dict.SetKey("url", base::Value(report->url.spec().c_str()));
+      report_dict.SetKey("group", base::Value(report->group.c_str()));
+      report_dict.SetKey("type", base::Value(report->type.c_str()));
+#else
       report_dict.SetKey("url", base::Value(report->url.spec()));
       report_dict.SetKey("group", base::Value(report->group));
       report_dict.SetKey("type", base::Value(report->type));
+#endif
       report_dict.SetKey("depth", base::Value(report->depth));
       report_dict.SetKey(
           "queued", base::Value(NetLog::TickCountToString(report->queued)));
@@ -321,7 +327,11 @@ class ReportingCacheImpl : public ReportingCache {
         const std::vector<const ReportingClient*>& clients =
             group_and_clients.second;
         base::Value group_dict(base::Value::Type::DICTIONARY);
+#if defined(STARBOARD)
+        group_dict.SetKey("name", base::Value(group.c_str()));
+#else
         group_dict.SetKey("name", base::Value(group));
+#endif
         std::vector<base::Value> endpoint_list;
         for (const ReportingClient* client : clients) {
           base::Value endpoint_dict(base::Value::Type::DICTIONARY);
@@ -329,7 +339,11 @@ class ReportingCacheImpl : public ReportingCache {
           // and subdomains flag, not the individual endpoints within the group.
           group_dict.SetKey(
               "expires",
+#if defined(STARBOARD)
+              base::Value(NetLog::TickCountToString(client->expires).c_str()));
+#else
               base::Value(NetLog::TickCountToString(client->expires)));
+#endif
           group_dict.SetKey("includeSubdomains",
                             base::Value(client->subdomains ==
                                         ReportingClient::Subdomains::INCLUDE));
