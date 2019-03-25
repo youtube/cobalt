@@ -14,6 +14,9 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
+#ifdef QUIC_DISABLED_FOR_STARBOARD
+#include "net/base/io_buffer.h"
+#endif
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/http/bidirectional_stream_request_info.h"

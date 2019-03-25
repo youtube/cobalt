@@ -28,6 +28,9 @@
 #if !defined(STARBOARD)
 #include "build/buildflag.h"
 #endif
+#ifdef QUIC_DISABLED_FOR_STARBOARD
+#include "net/base/upload_data_stream.h"
+#endif
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"

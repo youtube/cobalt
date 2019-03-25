@@ -204,6 +204,10 @@ void TestURLFetcher::SaveResponseWithWriter(
   }
 }
 
+URLFetcherResponseWriter* TestURLFetcher::GetResponseWriter() const {
+  return response_writer_.get();
+}
+
 HttpResponseHeaders* TestURLFetcher::GetResponseHeaders() const {
   return fake_response_headers_.get();
 }

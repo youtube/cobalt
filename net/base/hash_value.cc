@@ -147,6 +147,21 @@ bool IsSHA256HashInSortedArray(const HashValue& hash,
                             SHA256ToHashValueComparator());
 }
 
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+// MSVC can not implicitly convert HashValueVector to span<HashValue>.
+bool IsAnySHA256HashInSortedArray(const HashValueVector& hashes,
+                                  base::span<const SHA256HashValue> array) {
+  for (const auto& hash : hashes) {
+    if (hash.tag() != HASH_VALUE_SHA256)
+      continue;
+
+    if (IsSHA256HashInSortedArray(hash, array))
+      return true;
+  }
+  return false;
+}
+#endif
+
 bool IsAnySHA256HashInSortedArray(base::span<const HashValue> hashes,
                                   base::span<const SHA256HashValue> array) {
   for (const auto& hash : hashes) {

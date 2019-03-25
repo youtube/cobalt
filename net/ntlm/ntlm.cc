@@ -101,7 +101,8 @@ void UpdateTargetInfoAvPairs(bool is_mic_enabled,
     if (!channel_bindings.empty()) {
       GenerateChannelBindingHashV2(
           channel_bindings,
-          base::make_span<kChannelBindingsHashLen>(channel_bindings_hash));
+          base::span<uint8_t, kChannelBindingsHashLen>(
+              channel_bindings_hash.data(), channel_bindings_hash.size()));
     }
 
     av_pairs->emplace_back(TargetInfoAvId::kChannelBindings,

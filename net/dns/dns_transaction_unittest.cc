@@ -23,6 +23,9 @@
 #include "base/values.h"
 #include "net/base/ip_address.h"
 #include "net/base/port_util.h"
+#ifdef STARBOARD
+#include "net/base/upload_data_stream.h"
+#endif
 #include "net/base/upload_bytes_element_reader.h"
 #include "net/base/url_util.h"
 #include "net/dns/dns_config.h"

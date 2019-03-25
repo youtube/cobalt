@@ -70,6 +70,9 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
+#ifdef QUIC_DISABLED_FOR_STARBOARD
+#include "net/base/io_buffer.h"
+#endif
 #include "net/base/load_flags.h"
 #include "net/cert/cert_net_fetcher.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"

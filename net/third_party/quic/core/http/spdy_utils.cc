@@ -22,7 +22,7 @@
 using spdy::SpdyHeaderBlock;
 
 namespace quic {
-
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
 // static
 bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
                                                 SpdyHeaderBlock* headers) {
@@ -127,6 +127,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
   QUIC_DVLOG(1) << "Successfully parsed Trailers: " << trailers->DebugString();
   return true;
 }
+#endif  // QUIC_DISABLED_FOR_STARBOARD
 
 // static
 QuicString SpdyUtils::GetPromisedUrlFromHeaders(

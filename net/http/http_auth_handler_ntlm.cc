@@ -86,7 +86,12 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
   }
 
   std::vector<uint8_t> next_token =
+#if defined(STARBOARD)
+      GetNextToken(base::as_bytes(base::span<const char>(
+          decoded_auth_data.data(), decoded_auth_data.size())));
+#else
       GetNextToken(base::as_bytes(base::make_span(decoded_auth_data)));
+#endif
   if (next_token.empty())
     return ERR_UNEXPECTED;
 

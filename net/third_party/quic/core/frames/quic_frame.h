@@ -107,8 +107,12 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
 
 static_assert(sizeof(QuicFrame) <= 24,
               "Frames larger than 24 bytes should be referenced by pointer.");
+#if !(defined(STARBOARD) && defined(__GNUC__) && !defined(__clang__) && \
+      __GNUC__ <= 7)
+// Raspi compiler does not allow none-static type in offsetof.
 static_assert(offsetof(QuicStreamFrame, type) == offsetof(QuicFrame, type),
               "Offset of |type| must match in QuicFrame and QuicStreamFrame");
+#endif
 
 // A inline size of 1 is chosen to optimize the typical use case of
 // 1-stream-frame in QuicTransmissionInfo.retransmittable_frames.
