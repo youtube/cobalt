@@ -72,13 +72,25 @@ public class AudioTrackBridge {
     }
     while (audioTrackBufferSize > 0) {
       try {
-        audioTrack =
-            new AudioTrack(
-                attributes,
-                format,
-                audioTrackBufferSize,
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE);
+        if (Build.VERSION.SDK_INT >= 26) {
+          audioTrack =
+              new AudioTrack.Builder()
+                  .setAudioAttributes(attributes)
+                  .setAudioFormat(format)
+                  .setBufferSizeInBytes(audioTrackBufferSize)
+                  .setTransferMode(AudioTrack.MODE_STREAM)
+                  .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
+                  .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+                  .build();
+        } else {
+          audioTrack =
+              new AudioTrack(
+                  attributes,
+                  format,
+                  audioTrackBufferSize,
+                  AudioTrack.MODE_STREAM,
+                  AudioManager.AUDIO_SESSION_ID_GENERATE);
+        }
       } catch (Exception e) {
         audioTrack = null;
       }
