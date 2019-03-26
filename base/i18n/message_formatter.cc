@@ -88,7 +88,7 @@ string16 MessageFormatter::FormatWithNumberedArgs(
   icu::FieldPosition ignore(icu::FieldPosition::DONT_CARE);
   format.format(args, args_count, formatted, ignore, error);
   if (U_FAILURE(error)) {
-#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+#if defined(STARBOARD)
     // MSVC can not output wstring with << directly.
     LOG(ERROR) << "MessageFormat(" << msg.as_string().c_str() << ") failed with "
 #else
@@ -136,7 +136,7 @@ string16 MessageFormatter::FormatWithNamedArgs(
   icu::UnicodeString formatted;
   format.format(names, args, args_count, formatted, error);
   if (U_FAILURE(error)) {
-#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+#if defined(STARBOARD)
     LOG(ERROR) << "MessageFormat(" << msg.as_string().c_str() << ") failed with "
 #else
     LOG(ERROR) << "MessageFormat(" << msg.as_string() << ") failed with "
