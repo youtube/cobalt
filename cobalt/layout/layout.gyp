@@ -94,6 +94,7 @@
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
+        '<(DEPTH)/cobalt/ui_navigation/ui_navigation.gyp:ui_navigation',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
       # Exporting dom so that layout_test gets the transitive include paths to
