@@ -233,6 +233,9 @@ static int GetRunningOnValgrind(void) {
   if (RUNNING_ON_VALGRIND) return 1;
 #endif
 
+#ifdef STARBOARD
+  return 0;
+#else
 #ifndef _MSC_VER
   char *running_on_valgrind_str = getenv("RUNNING_ON_VALGRIND");
   if (running_on_valgrind_str) {
@@ -251,6 +254,7 @@ static int GetRunningOnValgrind(void) {
   if (res > 0 && strcmp(value, "0") != 0)
     return 1;
 #endif
+#endif  // STARBOARD
   return 0;
 }
 
