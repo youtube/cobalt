@@ -27,9 +27,11 @@ ProcessId GetCurrentProcId() {
   return kStarboardFakeProcessId;
 }
 
+#ifndef STARBOARD
 // static
 void Process::TerminateCurrentProcessImmediately(int exit_code) {
   std::_Exit(exit_code);
 }
+#endif  // !STARBOARD
 
 }  // namespace base

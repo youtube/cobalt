@@ -7,6 +7,10 @@
 #include "base/third_party/icu/icu_utf.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
 namespace base {
 
 // ReadUnicodeCharacter --------------------------------------------------------
@@ -123,8 +127,10 @@ void PrepareForUTF8Output(const CHAR* src,
 
 // Instantiate versions we know callers will need.
 #if !defined(OS_WIN)
+#if SB_IS(WCHAR_T_UTF32)
 // wchar_t and char16 are the same thing on Windows.
 template void PrepareForUTF8Output(const wchar_t*, size_t, std::string*);
+#endif
 #endif
 template void PrepareForUTF8Output(const char16*, size_t, std::string*);
 
@@ -148,7 +154,9 @@ void PrepareForUTF16Or32Output(const char* src,
 // Instantiate versions we know callers will need.
 #if !defined(OS_WIN)
 // std::wstring and string16 are the same thing on Windows.
+#if SB_IS(WCHAR_T_UTF32)
 template void PrepareForUTF16Or32Output(const char*, size_t, std::wstring*);
+#endif
 #endif
 template void PrepareForUTF16Or32Output(const char*, size_t, string16*);
 

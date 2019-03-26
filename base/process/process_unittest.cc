@@ -167,6 +167,8 @@ class ThreadLocalObject {
   }
 };
 
+#ifndef STARBOARD
+// TerminateCurrentProcessimmediately not supported
 MULTIPROCESS_TEST_MAIN(TerminateCurrentProcessImmediatelyWithCode0) {
   base::ThreadLocalPointer<ThreadLocalObject> object;
   base::AtExitManager::RegisterCallback(&AtExitHandler, nullptr);
@@ -185,6 +187,7 @@ TEST_F(ProcessTest, TerminateCurrentProcessImmediatelyWithZeroExitCode) {
 MULTIPROCESS_TEST_MAIN(TerminateCurrentProcessImmediatelyWithCode250) {
   Process::TerminateCurrentProcessImmediately(250);
 }
+#endif
 
 TEST_F(ProcessTest, TerminateCurrentProcessImmediatelyWithNonZeroExitCode) {
   Process process(SpawnChild("TerminateCurrentProcessImmediatelyWithCode250"));
