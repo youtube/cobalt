@@ -38,6 +38,7 @@
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
@@ -593,6 +594,10 @@ class Box : public base::RefCounted<Box> {
     blend_background_color_ = value;
   }
 
+  void SetUiNavItem(const scoped_refptr<ui_navigation::NavItem>& item) {
+    ui_nav_item_ = item;
+  }
+
  protected:
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
@@ -785,6 +790,12 @@ class Box : public base::RefCounted<Box> {
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
 
+  // If this box should be controlled by the UI navigation system, then add
+  // an animation to query the UI navigation system for updates.
+  scoped_refptr<render_tree::Node> RenderAndAnimateUiNavigation(
+      const scoped_refptr<render_tree::Node>& node_to_animate,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
+
   // The css_computed_style_declaration_ member references the
   // cssom::CSSComputedStyleDeclaration object owned by the HTML Element from
   // which this box is derived.
@@ -854,6 +865,9 @@ class Box : public base::RefCounted<Box> {
   // blending disabled).  It is expected that this may only be set on the
   // initial containing block.
   bool blend_background_color_ = true;
+
+  // UI navigation items are used to help animate certain elements.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
