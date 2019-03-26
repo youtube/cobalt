@@ -19,6 +19,16 @@ This document records all notable changes made to Cobalt since the last release.
    parameter "allow_image_decoding_to_multi_plane" to Cobalt with value "true"
    or "false".
 
+ - **Cobalt code assumes that no errors are generated for unused parameters**
+
+   There now exists Cobalt code where input parameters may be unused, and it
+   is expected that toolchains will not generate errors in these cases.  You
+   may need to adjust your Starboard configuration so that your compiler no
+   longer emits this error, e.g. build with the `-Wno-unused-parameter`
+   command line flag in GCC.
+   `UNREFERENCED_PARAMETER` has been removed, but `SB_UNREFERENCED_PARAMETER`
+   will continue to be supported.
+
 ## Version 19
  - **Add support for V8 JavaScript Engine**
 
