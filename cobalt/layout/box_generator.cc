@@ -360,6 +360,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   replaced_box->SetGeneratingNode(video_element);
 #endif  // COBALT_BOX_DUMP_ENABLED
 
+  replaced_box->SetUiNavItem(video_element->GetUiNavItem());
   boxes_.push_back(replaced_box);
 
   // The content of replaced elements is not considered in the CSS rendering
@@ -400,6 +401,7 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
   br_text_box->SetGeneratingNode(br_element);
 #endif  // COBALT_BOX_DUMP_ENABLED
 
+  br_text_box->SetUiNavItem(br_element->GetUiNavItem());
   boxes_.push_back(br_text_box);
 }
 
@@ -927,6 +929,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   container_box_before_split->SetGeneratingNode(html_element);
 #endif  // COBALT_BOX_DUMP_ENABLED
 
+  container_box_before_split->SetUiNavItem(html_element->GetUiNavItem());
   boxes_.push_back(container_box_before_split);
 
   AppendPseudoElementToLine(html_element, dom::kBeforePseudoElementType);
