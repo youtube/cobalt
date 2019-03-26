@@ -23,12 +23,15 @@ TEST(SbMemoryGetStackBoundsTest, SanityCheck) {
   const void* const kNull = NULL;
   void* high = NULL;
   void* low = NULL;
+  void* stack_object = reinterpret_cast<void*>(&high);
 
   SbMemoryGetStackBounds(&high, &low);
   EXPECT_NE(kNull, high);
   EXPECT_NE(kNull, low);
   EXPECT_NE(low, high);
   EXPECT_LT(low, high);
+  EXPECT_LE(low, stack_object);
+  EXPECT_GT(high, stack_object);
   intptr_t h = reinterpret_cast<intptr_t>(high);
   intptr_t l = reinterpret_cast<intptr_t>(low);
   EXPECT_LT(4096, h - l);
