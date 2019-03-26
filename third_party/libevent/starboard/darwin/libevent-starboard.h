@@ -83,7 +83,7 @@
 #define _EVENT_HAVE_ISSETUGID 1
 
 /* Define to 1 if you have the `kqueue' function. */
-#define _EVENT_HAVE_KQUEUE 1
+/* #define _EVENT_HAVE_KQUEUE 1 */
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 /* #undef _EVENT_HAVE_LIBNSL */
@@ -104,6 +104,7 @@
 /* #undef _EVENT_HAVE_NETINET_IN6_H */
 
 /* Define to 1 if you have the `poll' function. */
+#define HAVE_POLL 1
 #define _EVENT_HAVE_POLL 1
 
 /* Define to 1 if you have the <poll.h> header file. */
@@ -227,8 +228,8 @@
 #define _EVENT_HAVE_VASPRINTF 1
 
 /* Define if kqueue works correctly with pipes */
-#define HAVE_WORKING_KQUEUE 1
-#define _EVENT_HAVE_WORKING_KQUEUE 1
+/* #define HAVE_WORKING_KQUEUE 1 */
+/* #define _EVENT_HAVE_WORKING_KQUEUE 1 */
 
 /* Name of package */
 #define _EVENT_PACKAGE "libevent"
