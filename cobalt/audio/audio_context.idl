@@ -14,10 +14,7 @@
 
 // https://www.w3.org/TR/webaudio/#AudioContext-section
 
-[
-    Constructor,
-    ConstructorCallWith=EnvironmentSettings,
-]
+[Constructor]
 interface AudioContext : EventTarget {
   readonly attribute AudioDestinationNode destination;
   readonly attribute float sampleRate;
