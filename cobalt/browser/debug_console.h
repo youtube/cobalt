@@ -15,7 +15,9 @@
 #ifndef COBALT_BROWSER_DEBUG_CONSOLE_H_
 #define COBALT_BROWSER_DEBUG_CONSOLE_H_
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if !defined(ENABLE_DEBUGGER)
+#error "Debugger is not enabled in this build."
+#endif  // !ENABLE_DEBUGGER
 
 #include <string>
 
@@ -123,5 +125,4 @@ class DebugConsole : public LifecycleObserver {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // ENABLE_DEBUG_CONSOLE
 #endif  // COBALT_BROWSER_DEBUG_CONSOLE_H_

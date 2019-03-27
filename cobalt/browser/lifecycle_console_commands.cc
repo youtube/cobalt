@@ -20,8 +20,6 @@
 #include "base/logging.h"
 #include "starboard/system.h"
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 namespace cobalt {
 namespace browser {
 
@@ -79,5 +77,3 @@ LifecycleConsoleCommands::LifecycleConsoleCommands()
 
 }  // namespace browser
 }  // namespace cobalt
-
-#endif  // defined(ENABLE_DEBUG_CONSOLE)

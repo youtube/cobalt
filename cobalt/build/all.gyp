@@ -42,7 +42,6 @@
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom_test.gyp:*',
-        '<(DEPTH)/cobalt/debug/debug.gyp:*',
         '<(DEPTH)/cobalt/dom/dom.gyp:*',
         '<(DEPTH)/cobalt/dom/dom_test.gyp:*',
         '<(DEPTH)/cobalt/dom/testing/dom_testing.gyp:*',

@@ -15,6 +15,10 @@
 #ifndef COBALT_DEBUG_CONSOLE_COMMAND_MANAGER_H_
 #define COBALT_DEBUG_CONSOLE_COMMAND_MANAGER_H_
 
+#if !defined(ENABLE_DEBUGGER)
+#error "Debugger is not enabled in this build."
+#endif  // !ENABLE_DEBUGGER
+
 #include <map>
 #include <set>
 #include <string>
@@ -86,7 +90,6 @@ class ConsoleCommandManager {
   ConsoleCommandManager() {}
   ~ConsoleCommandManager() {}
 
-#if defined(ENABLE_DEBUG_CONSOLE)
   // Command handler map type.
   typedef std::map<std::string, const CommandHandler*> CommandHandlerMap;
 
@@ -100,7 +103,6 @@ class ConsoleCommandManager {
 
   // Map of command handlers, one for each command.
   CommandHandlerMap command_command_map_;
-#endif  // ENABLE_DEBUG_CONSOLE
 };
 
 }  // namespace console

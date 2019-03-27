@@ -21,6 +21,7 @@ from cobalt.build import gyp_utils
 from cobalt.tools import paths
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration
+from starboard.tools.config import Config
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
@@ -41,6 +42,10 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     variables = {
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
         'cobalt_version': gyp_utils.GetBuildNumber(),
+
+        # This is here rather than cobalt_configuration.gypi so that it's
+        # available for browser_bindings_gen.gyp.
+        'enable_debugger': 0 if config_name == Config.GOLD else 1,
 
         # Cobalt uses OpenSSL on all platforms.
         'use_openssl': 1,

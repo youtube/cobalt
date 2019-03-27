@@ -15,8 +15,6 @@
 #ifndef COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_
 #define COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 #include <string>
 
 #include "base/callback.h"
@@ -158,5 +156,4 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // ENABLE_DEBUG_CONSOLE
 #endif  // COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_

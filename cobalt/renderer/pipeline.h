@@ -34,9 +34,9 @@
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/console/command_manager.h"
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
 namespace cobalt {
 namespace renderer {
@@ -163,11 +163,11 @@ class Pipeline {
   // needs to be shutdown from there.
   void ShutdownRasterizerThread();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   void OnDumpCurrentRenderTree(const std::string&);
   void OnToggleFpsStdout(const std::string&);
   void OnToggleFpsOverlay(const std::string&);
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
   // Render trees may contain a number of AnimateNodes (or none).  In order
   // to optimize for applying the animations on the rasterizer thread, this
@@ -279,7 +279,7 @@ class Pipeline {
   // The most recent time animations ended playing.
   base::CVal<int64, base::CValPublic> animations_end_time_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Dumps the current render tree to the console.
   debug::console::ConsoleCommandManager::CommandHandler
       dump_current_render_tree_command_handler_;
@@ -288,7 +288,7 @@ class Pipeline {
       toggle_fps_stdout_command_handler_;
   debug::console::ConsoleCommandManager::CommandHandler
       toggle_fps_overlay_command_handler_;
-#endif
+#endif  // defined(ENABLE_DEBUGGER)
 
   // If true, Pipeline's destructor will clear its render target to black on
   // shutdown.
