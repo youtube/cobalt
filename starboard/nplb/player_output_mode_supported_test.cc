@@ -21,11 +21,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER_WITH_URL)
-// This test does not apply. SbPlayerOutputModeWithUrl is defined instead of
-// SbPlayerOutputModeSupported.
-#else  // SB_HAS(PLAYER_WITH_URL)
-
 TEST(SbPlayerOutputModeSupportedTest, SunnyDay) {
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
@@ -50,8 +45,6 @@ TEST(SbPlayerOutputModeSupportedTest, RainyDayInvalid) {
                                             kVideoCodec, kDrmSystem);
   EXPECT_FALSE(result);
 }
-
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
 }  // namespace
 }  // namespace nplb

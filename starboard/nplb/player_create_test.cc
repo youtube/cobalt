@@ -24,10 +24,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER_WITH_URL)
-// This test does not apply. See player_create_with_url_test.cc instead.
-#else  // SB_HAS(PLAYER_WITH_URL)
-
 using ::starboard::testing::FakeGraphicsContextProvider;
 
 class SbPlayerTest : public ::testing::Test {
@@ -384,7 +380,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   }
 }
 #endif  // SB_API_VERSION >= 10
-#endif  // SB_HAS(PLAYER_WITH_URL)
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

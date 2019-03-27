@@ -304,9 +304,6 @@
 // Whether the current platform has a DRM session closed callback.
 #define SB_HAS_DRM_SESSION_CLOSED 1
 
-// Whether the current platform supports player_with_URL.
-#define SB_HAS_PLAYER_WITH_URL 0
-
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the
 // seek time because usually all audio frames are key frames.  On platforms that
