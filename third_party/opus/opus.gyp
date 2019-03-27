@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'sb_disable_opus_sse%': 0,
+  },
   'targets': [
     {
       'target_name': 'opus',
@@ -235,7 +238,10 @@
         ],
       },
       'conditions': [
-        ['target_arch == "x86" or target_arch == "x64"', {
+        # Some x86 or x64 platforms don't support all sse instruction sets, while Opus still tries
+        # to build all sse code in for run time selection and causes build errors.  Exclude all sse
+        # related code on such platforms.
+        ['sb_disable_opus_sse == 0 and (target_arch == "x86" or target_arch == "x64")', {
           'sources': [
             'celt/x86/celt_lpc_sse4_1.c',
             'celt/x86/celt_lpc_sse.h',
