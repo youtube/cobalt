@@ -18,6 +18,7 @@
   'variables': {
     'variables': {
       'has_cdm%': '<!(test -e <(DEPTH)/third_party/ce_cdm/cdm/include/cdm.h && echo 1 || echo 0)',
+      'has_system_libvpx%' : '<!(pkg-config vpx && echo 1 || echo 0)',
     },
     # This has_cdm gets exported to gyp files that include this one.
     'has_cdm%': '<(has_cdm)',
@@ -331,9 +332,11 @@
       '<(DEPTH)/starboard/common/common.gyp:common',
       '<(DEPTH)/starboard/linux/shared/starboard_base_symbolize.gyp:starboard_base_symbolize',
       '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
+      '<(DEPTH)/third_party/aom_includes/aom_includes.gyp:aom',
       '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
       '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+      '<(DEPTH)/third_party/pulseaudio_includes/pulseaudio_includes.gyp:pulseaudio',
     ],
     'conditions': [
       ['use_dlmalloc_allocator==1', {
@@ -393,6 +396,11 @@
           '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
           '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
           '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
+        ],
+      }],
+      ['has_system_libvpx==0', {
+        'starboard_platform_dependencies': [
+          '<(DEPTH)/third_party/vpx_includes/vpx_includes.gyp:vpx',
         ],
       }],
     ],
