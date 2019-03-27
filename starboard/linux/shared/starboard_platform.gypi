@@ -331,9 +331,12 @@
       '<(DEPTH)/starboard/common/common.gyp:common',
       '<(DEPTH)/starboard/linux/shared/starboard_base_symbolize.gyp:starboard_base_symbolize',
       '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
+      '<(DEPTH)/third_party/aom_includes/aom_includes.gyp:aom',
       '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
       '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+      '<(DEPTH)/third_party/pulseaudio_includes/pulseaudio_includes.gyp:pulseaudio',
+      '<(DEPTH)/third_party/vpx_includes/vpx_includes.gyp:vpx',
     ],
     'conditions': [
       ['use_dlmalloc_allocator==1', {
