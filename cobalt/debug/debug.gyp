@@ -57,6 +57,8 @@
         'debug_client.h',
         'json_object.cc',
         'json_object.h',
+        'remote/debug_web_server.cc',
+        'remote/debug_web_server.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -65,28 +67,10 @@
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:http_server',
         'console_command_manager',
-      ],
-      'conditions': [
-        ['enable_remote_debugging==1', {
-          'sources': [
-            'remote/debug_web_server.cc',
-            'remote/debug_web_server.h',
-          ],
-          'dependencies': [
-            'copy_remote_web_files',
-            'remote/devtools/devtools.gyp:devtools',
-          ],
-          'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
-          'all_dependent_settings': {
-            'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
-          },
-        }],
-        ['cobalt_copy_debug_console==1', {
-          'dependencies': [
-            'copy_backend_web_files',
-            'copy_console_web_files',
-          ],
-        }],
+        'copy_backend_web_files',
+        'copy_console_web_files',
+        'copy_remote_web_files',
+        'remote/devtools/devtools.gyp:devtools',
       ],
     },
 
@@ -95,12 +79,18 @@
       # depending on the whole debug module.
       'target_name': 'console_command_manager',
       'type': 'static_library',
-      'sources': [
-        'console/command_manager.cc',
-        'console/command_manager.h',
-      ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
+      'conditions': [
+        # Everything is conditional so implementers of commands can depend on
+        # this unconditionally.
+        ['enable_debugger == 1', {
+          'sources': [
+            'console/command_manager.cc',
+            'console/command_manager.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/base/base.gyp:base',
+          ],
+        }],
       ],
     },
 

@@ -481,7 +481,6 @@
       'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
-      'ENABLE_DEBUG_CONSOLE',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
@@ -501,7 +500,6 @@
       'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
-      'ENABLE_DEBUG_CONSOLE',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
@@ -517,7 +515,6 @@
       'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
-      'ENABLE_DEBUG_CONSOLE',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
@@ -583,6 +580,11 @@
           'COBALT_DISABLE_SPDY',
         ],
       }],
+      ['enable_debugger == 1', {
+        'defines': [
+          'ENABLE_DEBUGGER',
+        ],
+      }],
       ['cobalt_v8_buildtime_snapshot == "true"', {
         'defines': [
           'COBALT_V8_BUILDTIME_SNAPSHOT=1',
@@ -598,21 +600,17 @@
   'conditions': [
     ['cobalt_config != "gold"', {
       'variables' : {
-        'cobalt_copy_debug_console': 1,
         'enable_about_scheme': 1,
         'enable_fake_microphone': 1,
         'enable_network_logging': 1,
-        'enable_remote_debugging%': 1,
         'enable_webdriver%': 1,
       },
     },
     {
       'variables' : {
-        'cobalt_copy_debug_console': 0,
         'enable_about_scheme': 0,
         'enable_fake_microphone': 0,
         'enable_network_logging': 0,
-        'enable_remote_debugging%': 0,
         'enable_webdriver': 0,
       },
     }],

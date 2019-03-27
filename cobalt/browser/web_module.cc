@@ -111,13 +111,13 @@ class WebModule::Impl {
   explicit Impl(const ConstructionData& data);
   ~Impl();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug::backend::DebugDispatcher* debug_dispatcher() {
     // Proceed if |CreateDebugModuleIfNull| already ran, otherwise wait for it.
     debug_module_created_.Wait();
     return debug_module_->debug_dispatcher();
   }
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. Event is
@@ -194,16 +194,13 @@ class WebModule::Impl {
       scoped_ptr<webdriver::WindowDriver>* window_driver_out);
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   void CreateDebugModuleIfNull();
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
-#if defined(ENABLE_REMOTE_DEBUGGING)
   void WaitForWebDebugger();
   bool IsFinishedWaitingForWebDebugger() {
     return wait_for_web_debugger_finished_.IsSignaled();
   }
-#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+#endif  // defined(ENABLE_DEBUGGER)
 
   void SetSize(cssom::ViewportSize window_dimensions, float video_pixel_ratio);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
@@ -406,7 +403,7 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
   scoped_ptr<debug::backend::RenderOverlay> debug_overlay_;
@@ -419,14 +416,12 @@ class WebModule::Impl {
   // |CreateDebugModuleIfNull| task has run.
   base::WaitableEvent debug_module_created_ = {true /* manual_reset */,
                                                false /* initially_signaled */};
-#endif  // ENABLE_DEBUG_CONSOLE
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
   base::WaitableEvent wait_for_web_debugger_finished_ = {
       true /* manual_reset */, false /* initially_signaled */};
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;
@@ -607,7 +602,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   if (data.options.wait_for_web_debugger) {
     // Create the |DebugModule| early since we expect a web debugger to connect
     // and we can't let |GetDebugDispatcher| get blocked when it does. This has
@@ -624,7 +619,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
     // We're not going to wait for the web debugger, so consider it finished.
     wait_for_web_debugger_finished_.Signal();
   }
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+#endif  // defined(ENABLE_DEBUGGER)
 
   bool log_tts = false;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -708,10 +703,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.options.clear_window_with_background_color));
   DCHECK(layout_manager_);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug_overlay_.reset(
       new debug::backend::RenderOverlay(data.render_tree_produced_callback));
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
 #if !defined(COBALT_FORCE_CSP)
   if (data.options.csp_enforcement_mode == dom::kCspEnforcementDisable) {
@@ -754,10 +749,10 @@ WebModule::Impl::~Impl() {
   document_load_observer_.reset();
   media_session_client_.reset();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug_module_.reset();
   debug_overlay_.reset();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
   // Disable callbacks for the resource caches. Otherwise, it is possible for a
   // callback to occur into a DOM object that is being kept alive by a JS engine
@@ -948,11 +943,11 @@ void WebModule::Impl::OnRenderTreeProduced(
                  base::Unretained(this), base::MessageLoopProxy::current(),
                  last_render_tree_produced_time_));
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
-#else   // ENABLE_DEBUG_CONSOLE
+#else   // ENABLE_DEBUGGER
   render_tree_produced_callback_.Run(layout_results_with_callback);
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 }
 
 void WebModule::Impl::OnRenderTreeRasterized(
@@ -1024,7 +1019,7 @@ void WebModule::Impl::CreateWindowDriver(
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
 void WebModule::Impl::CreateDebugModuleIfNull() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
@@ -1041,9 +1036,7 @@ void WebModule::Impl::CreateDebugModuleIfNull() {
       resource_provider_, window_));
   debug_module_created_.Signal();
 }
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
 void WebModule::Impl::WaitForWebDebugger() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(debug_module_);
@@ -1054,7 +1047,7 @@ void WebModule::Impl::WaitForWebDebugger() {
   debug_module_->debug_dispatcher()->SetPaused(true);
   wait_for_web_debugger_finished_.Signal();
 }
-#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+#endif  // defined(ENABLE_DEBUGGER)
 
 void WebModule::Impl::InjectCustomWindowAttributes(
     const Options::InjectedWindowAttributes& attributes) {
@@ -1192,7 +1185,7 @@ void WebModule::Impl::FinishSuspend() {
   // still be referenced and won't be cleared from the cache.
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_suspend_);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // The debug overlay may be holding onto a render tree, clear that out.
   debug_overlay_->ClearInput();
 #endif
@@ -1584,7 +1577,7 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
 // May be called from any thread.
 debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
   DCHECK(message_loop());
@@ -1599,7 +1592,7 @@ debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
   // ran (making the one we just posted a no-op).
   return impl_->debug_dispatcher();
 }
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
 void WebModule::SetSize(const ViewportSize& viewport_size,
                         float video_pixel_ratio) {
@@ -1672,7 +1665,7 @@ void WebModule::Pause() {
   auto impl_pause =
       base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get()));
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   // We normally need to block here so that the call doesn't return until the
   // web application has had a chance to process the whole event. However, our
   // message loop is blocked while waiting for the web debugger to connect, so
@@ -1685,7 +1678,7 @@ void WebModule::Pause() {
     message_loop()->PostTask(FROM_HERE, impl_pause);
     return;
   }
-#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+#endif  // defined(ENABLE_DEBUGGER)
 
   message_loop()->PostBlockingTask(FROM_HERE, impl_pause);
 }

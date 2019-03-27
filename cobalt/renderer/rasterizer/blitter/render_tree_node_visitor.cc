@@ -503,12 +503,12 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   }
 
 // Blit the software rasterized surface to our actual render target.
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   if (render_state_.highlight_software_draws && software_surface.created) {
     SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 255, 0, 255));
     SbBlitterFillRect(context_, output_blitter_rect);
   } else  // NOLINT(readability/braces)
-#endif    // defined(ENABLE_DEBUG_CONSOLE)
+#endif    // defined(ENABLE_DEBUGGER)
   {
     TRACE_EVENT0("cobalt::renderer", "SbBlitterBlitRectToRect()");
     SbBlitterBlitRectToRect(

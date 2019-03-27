@@ -31,7 +31,7 @@ const char kDebugConsoleMode[] = "debug_console";
 const char kDebugConsoleModeHelp[] =
     "Switches different debug console modes: on | hud | off";
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
 const char kWaitForWebDebugger[] = "wait_for_web_debugger";
 const char kWaitForWebDebuggerHelp[] =
     "Waits for remote web debugger to connect before loading the page.  A "
@@ -39,7 +39,7 @@ const char kWaitForWebDebuggerHelp[] =
     "page loads should wait.  For example, if the startup URL is a loader and "
     "that loader changes window.location to the URL of the actual app, then "
     "specify 1 to debug the loader or 2 to debug the app.";
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
 const char kDisableImageAnimations[] = "disable_image_animations";
 const char kDisableImageAnimationsHelp[] =
@@ -385,9 +385,9 @@ std::string HelpMessage() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
     {kAudioDecoderStub, kAudioDecoderStubHelp},
         {kDebugConsoleMode, kDebugConsoleModeHelp},
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
         {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},

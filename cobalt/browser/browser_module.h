@@ -64,15 +64,16 @@
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
-#if defined(ENABLE_DEBUG_CONSOLE)
+#include "starboard/configuration.h"
+#include "starboard/window.h"
+
+#if defined(ENABLE_DEBUGGER)
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/trace_manager.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/console/command_manager.h"
-#endif  // ENABLE_DEBUG_CONSOLE
-#include "starboard/configuration.h"
-#include "starboard/window.h"
+#endif  // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -154,12 +155,12 @@ class BrowserModule {
       const webdriver::protocol::SessionId& session_id);
 #endif
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   scoped_ptr<debug::DebugClient> CreateDebugClient(
       debug::DebugClient::Delegate* delegate);
   void GetDebugDispatcherInternal(
       debug::backend::DebugDispatcher** out_debug_dispatcher);
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
   // Change the network proxy settings while the application is running.
   void SetProxy(const std::string& proxy_rules);
@@ -326,7 +327,7 @@ class BrowserModule {
   // Called when web module has received window.minimize().
   void OnWindowMinimize();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Toggles the input fuzzer on/off.  Ignores the parameter.
   void OnFuzzerToggle(const std::string&);
 
@@ -340,7 +341,7 @@ class BrowserModule {
       const browser::WebModule::LayoutResults& layout_results);
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
@@ -485,9 +486,9 @@ class BrowserModule {
   RenderTreeCombiner render_tree_combiner_;
   scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
   scoped_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
 
   // Helper object to create screen shots of the last layout tree.
@@ -532,7 +533,7 @@ class BrowserModule {
   base::CVal<base::cval::SizeInBytes, base::CValPublic>
       javascript_reserved_memory_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
   scoped_ptr<input::InputDeviceManager> input_device_manager_fuzzer_;
@@ -559,7 +560,7 @@ class BrowserModule {
   // An object that registers and owns console commands for controlling
   // Cobalt's lifecycle.
   LifecycleConsoleCommands lifecycle_console_commands_;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.

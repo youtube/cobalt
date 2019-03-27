@@ -30,7 +30,7 @@
 #include "cobalt/webdriver/web_driver_module.h"
 #endif
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/remote/debug_web_server.h"
 #endif
 
@@ -130,7 +130,7 @@ class Application {
   scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
 #endif
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   // Web server to serve devtools front end. Debugging messages are sent and
   // received via a WebSocket and communicated to an embedded DebugDispatcher.
   scoped_ptr<debug::remote::DebugWebServer> debug_web_server_;

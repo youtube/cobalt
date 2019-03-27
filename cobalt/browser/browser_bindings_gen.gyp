@@ -47,11 +47,6 @@
         '../cssom/style_sheet.idl',
         '../cssom/style_sheet_list.idl',
 
-        '../debug/backend/css_agent.idl',
-        '../debug/backend/debug_backend.idl',
-        '../debug/console/debug_hub.idl',
-        '../debug/console/debugger_event_target.idl',
-
         '../dom/animation_event.idl',
         '../dom/attr.idl',
         '../dom/audio_track.idl',
@@ -351,6 +346,14 @@
         ],
         'dependency_idl_files': [
             '../dom/html_media_element_eme_01b.idl',
+        ],
+      }],
+      ['enable_debugger==1', {
+        'source_idl_files': [
+            '../debug/backend/css_agent.idl',
+            '../debug/backend/debug_backend.idl',
+            '../debug/console/debug_hub.idl',
+            '../debug/console/debugger_event_target.idl',
         ],
       }],
     ],

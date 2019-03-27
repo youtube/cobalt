@@ -28,10 +28,6 @@
         'application.h',
         'browser_module.cc',
         'browser_module.h',
-        'debug_console.cc',
-        'debug_console.h',
-        'lifecycle_console_commands.cc',
-        'lifecycle_console_commands.h',
         'lifecycle_observer.h',
         'memory_settings/auto_mem.cc',
         'memory_settings/auto_mem.h',
@@ -102,8 +98,6 @@
         'switches.h',
         'system_platform_error_handler.cc',
         'system_platform_error_handler.h',
-        'trace_manager.cc',
-        'trace_manager.h',
         'url_handler.cc',
         'url_handler.h',
         'user_agent_string.cc',
@@ -136,7 +130,6 @@
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
-        '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
         '<(DEPTH)/cobalt/fetch/fetch.gyp:fetch',
@@ -195,6 +188,19 @@
         }, {
           'dependencies': [
             '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
+        }],
+        ['enable_debugger == 1', {
+          'sources': [
+            'debug_console.cc',
+            'debug_console.h',
+            'lifecycle_console_commands.cc',
+            'lifecycle_console_commands.h',
+            'trace_manager.cc',
+            'trace_manager.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/debug/debug.gyp:debug',
           ],
         }],
         ['cobalt_enable_lib == 1', {

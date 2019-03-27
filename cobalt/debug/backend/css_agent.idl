@@ -13,7 +13,7 @@
 // limitations under the License.
 
 [
-  Conditional=ENABLE_DEBUG_CONSOLE
+  Conditional=ENABLE_DEBUGGER
 ]
 interface CSSAgent {
   sequence<CSSStyleRule> getMatchingCSSRules(Element element);

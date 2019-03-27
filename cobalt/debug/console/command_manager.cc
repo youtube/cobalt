@@ -25,8 +25,6 @@ ConsoleCommandManager* ConsoleCommandManager::GetInstance() {
                    StaticMemorySingletonTraits<ConsoleCommandManager> >::get();
 }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 ConsoleCommandManager::CommandHandler::CommandHandler(
     const std::string& command,
     const ConsoleCommandManager::CommandCallback& callback,
@@ -101,43 +99,6 @@ void ConsoleCommandManager::UnregisterCommandHandler(
   base::AutoLock auto_lock(lock_);
   command_command_map_.erase(handler->command());
 }
-
-#else   // ENABLE_DEBUG_CONSOLE
-
-ConsoleCommandManager::CommandHandler::CommandHandler(
-    const std::string& command,
-    const ConsoleCommandManager::CommandCallback& callback,
-    const std::string& short_help, const std::string& long_help) {
-  UNREFERENCED_PARAMETER(command);
-  UNREFERENCED_PARAMETER(callback);
-  UNREFERENCED_PARAMETER(short_help);
-  UNREFERENCED_PARAMETER(long_help);
-}
-
-ConsoleCommandManager::CommandHandler::~CommandHandler() {}
-
-void ConsoleCommandManager::HandleCommand(const std::string& command,
-                                          const std::string& message) const {
-  UNREFERENCED_PARAMETER(command);
-  UNREFERENCED_PARAMETER(message);
-}
-
-std::set<std::string> ConsoleCommandManager::GetRegisteredCommands() const {
-  return std::set<std::string>();
-}
-
-std::string ConsoleCommandManager::GetShortHelp(
-    const std::string& command) const {
-  UNREFERENCED_PARAMETER(command);
-  return "";
-}
-
-std::string ConsoleCommandManager::GetLongHelp(
-    const std::string& command) const {
-  UNREFERENCED_PARAMETER(command);
-  return "";
-}
-#endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace console
 }  // namespace debug
