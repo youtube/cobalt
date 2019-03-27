@@ -19,7 +19,7 @@
 #include <string>
 
 #include "base/threading/thread_checker.h"
-#include "cobalt/base/console_commands.h"
+#include "cobalt/debug/console/command_manager.h"
 #include "cobalt/trace_event/event_parser.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
@@ -57,9 +57,10 @@ class TraceManager {
   MessageLoop* const self_message_loop_;
 
   // Command handler object for trace command from the debug console.
-  base::ConsoleCommandManager::CommandHandler trace_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler trace_command_handler_;
   // Command handler object for input trace command from the debug console.
-  base::ConsoleCommandManager::CommandHandler input_trace_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      input_trace_command_handler_;
   // Whether input tracing is enabled.
   bool input_tracing_enabled_;
 
