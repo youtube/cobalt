@@ -44,6 +44,9 @@ DebugModule::~DebugModule() {
   if (script_debugger_) {
     script_debugger_->Detach();
   }
+  if (debug_backend_) {
+    debug_backend_->UnbindAgents();
+  }
 }
 
 void DebugModule::Build(const ConstructionData& data) {
