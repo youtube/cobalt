@@ -288,43 +288,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
-  if (state_ == kSuspended) {
-    if (video_frames_decoded) {
-      *video_frames_decoded = cached_video_frames_decoded_;
-    }
-    if (video_frames_dropped) {
-      *video_frames_dropped = cached_video_frames_dropped_;
-    }
-    if (media_time) {
-      *media_time = preroll_timestamp_;
-    }
-    return;
-  }
-
-  DCHECK(SbPlayerIsValid(player_));
-
-#if SB_API_VERSION < 10
-  SbPlayerInfo info;
-  SbPlayerGetInfo(player_, &info);
-  if (media_time) {
-    *media_time = base::TimeDelta::FromMicroseconds(
-        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
-  }
-#else   // SB_API_VERSION < 10
-  SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player_, &info);
-
-  if (media_time) {
-    *media_time =
-        base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
-  }
-#endif  // SB_API_VERSION < 10
-  if (video_frames_decoded) {
-    *video_frames_decoded = info.total_video_frames;
-  }
-  if (video_frames_dropped) {
-    *video_frames_dropped = info.dropped_video_frames;
-  }
+  GetInfo_Locked(video_frames_dropped, video_frames_decoded, media_time);
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -416,9 +380,8 @@ void StarboardPlayer::Suspend() {
   SbPlayerSetPlaybackRate(player_, 0.0);
 
   base::AutoLock auto_lock(lock_);
-
-  this->GetInfo(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                &preroll_timestamp_);
+  GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
+                 &preroll_timestamp_);
 
   state_ = kSuspended;
 
@@ -654,6 +617,49 @@ SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
 
 SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
   return output_mode_;
+}
+
+void StarboardPlayer::GetInfo_Locked(uint32* video_frames_decoded,
+                                     uint32* video_frames_dropped,
+                                     base::TimeDelta* media_time) {
+  lock_.AssertAcquired();
+  if (state_ == kSuspended) {
+    if (video_frames_decoded) {
+      *video_frames_decoded = cached_video_frames_decoded_;
+    }
+    if (video_frames_dropped) {
+      *video_frames_dropped = cached_video_frames_dropped_;
+    }
+    if (media_time) {
+      *media_time = preroll_timestamp_;
+    }
+    return;
+  }
+
+  DCHECK(SbPlayerIsValid(player_));
+
+#if SB_API_VERSION < 10
+  SbPlayerInfo info;
+  SbPlayerGetInfo(player_, &info);
+  if (media_time) {
+    *media_time = base::TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
+  }
+#else   // SB_API_VERSION < 10
+  SbPlayerInfo2 info;
+  SbPlayerGetInfo2(player_, &info);
+
+  if (media_time) {
+    *media_time =
+        base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
+  }
+#endif  // SB_API_VERSION < 10
+  if (video_frames_decoded) {
+    *video_frames_decoded = info.total_video_frames;
+  }
+  if (video_frames_dropped) {
+    *video_frames_dropped = info.dropped_video_frames;
+  }
 }
 
 void StarboardPlayer::UpdateBounds_Locked() {
