@@ -59,6 +59,10 @@ struct is_trivially_copy_constructible : std::is_trivially_destructible<T> {};
 
 template <typename T>
 struct is_trivially_move_constructible : std::is_trivially_destructible<T> {};
+
+template <typename T>
+struct is_trivially_copyable : std::is_trivially_destructible<T> {};
+
 #endif
 
 #if !defined(SB_IS_COMPILER_MSVC)
@@ -182,14 +186,12 @@ template< class T, size_t N >
 reverse_iterator<T*> rbegin( T (&array)[N] ) {
   return reverse_iterator<T*>(array + N);
 }
-#endif
 
 template< class C > 
 auto crbegin( const C& c ) -> decltype(std::rbegin(c)) {
   return std::rbegin(c);
 }
 
-#if !defined(SB_IS_COMPILER_MSVC)
 template< class C > 
 auto rend( C& c ) -> decltype(c.rend()) {
   return c.rend();
@@ -204,12 +206,12 @@ template< class T, size_t N >
 reverse_iterator<T*> rend( T (&array)[N] ) {
   return reverse_iterator<T*>(array);
 }
-#endif
 
 template< class C > 
 auto crend( const C& c ) -> decltype(std::rend(c)) {
   return std::rend(c);
 }
+#endif
 
 }  // namespace std
 #endif

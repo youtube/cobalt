@@ -811,6 +811,8 @@ class TimeOverride {
 // static
 Time TimeOverride::now_time_;
 
+// GetBuildTime is not supported by Starboard.
+#ifndef STARBOARD
 TEST_F(TimeTest, NowOverride) {
   TimeOverride::now_time_ = Time::UnixEpoch();
 
@@ -864,6 +866,7 @@ TEST_F(TimeTest, NowOverride) {
   EXPECT_LT(build_time, subtle::TimeNowFromSystemTimeIgnoringOverride());
   EXPECT_GT(Time::Max(), subtle::TimeNowFromSystemTimeIgnoringOverride());
 }
+#endif
 
 TEST(TimeTicks, Deltas) {
   for (int index = 0; index < 50; index++) {
@@ -993,6 +996,7 @@ class ThreadTicksOverride {
 // static
 ThreadTicks ThreadTicksOverride::now_ticks_;
 
+#if SB_HAS(TIME_THREAD_NOW)
 // IOS doesn't support ThreadTicks::Now().
 #if defined(OS_IOS) || SB_HAS(TIME_THREAD_NOW)
 #define MAYBE_NowOverride DISABLED_NowOverride
@@ -1035,6 +1039,7 @@ TEST(ThreadTicks, MAYBE_NowOverride) {
   EXPECT_LE(initial_thread_ticks, subtle::ThreadTicksNowIgnoringOverride());
   EXPECT_GT(ThreadTicks::Max(), subtle::ThreadTicksNowIgnoringOverride());
 }
+#endif  // SB_HAS(TIME_THREAD_NOW)
 
 TEST(ThreadTicks, ThreadNow) {
   if (ThreadTicks::IsSupported()) {

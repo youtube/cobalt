@@ -630,7 +630,14 @@ TEST(ValuesTest, SetPath) {
   EXPECT_EQ(inserted, found);
   EXPECT_EQ(123, found->GetInt());
 
+#ifdef STARBOARD
+  auto insert_vec = std::vector<StringPiece>{"foo", "bar"};
+  inserted = root.SetPath(
+      base::span<const StringPiece>(insert_vec.data(), insert_vec.size()),
+      Value(123));
+#else
   inserted = root.SetPath(std::vector<StringPiece>{"foo", "bar"}, Value(123));
+#endif
   found = root.FindPathOfType({"foo", "bar"}, Value::Type::INTEGER);
   ASSERT_TRUE(found);
   EXPECT_EQ(inserted, found);
@@ -638,14 +645,28 @@ TEST(ValuesTest, SetPath) {
 
   // Overwrite with a different value.
   root.SetPath({"foo", "bar"}, Value("hello"));
+#ifdef STARBOARD
+  auto insert_vec2 = std::vector<StringPiece>{"foo", "bar"};
+  found = root.FindPathOfType(
+      base::span<const StringPiece>(insert_vec2.data(), insert_vec2.size()),
+      Value::Type::STRING);
+#else
   found = root.FindPathOfType(std::vector<StringPiece>{"foo", "bar"},
                               Value::Type::STRING);
+#endif
   ASSERT_TRUE(found);
   EXPECT_EQ("hello", found->GetString());
 
   // Can't change existing non-dictionary keys to dictionaries.
+#ifdef STARBOARD
+  auto insert_vec3 = std::vector<StringPiece>{"foo", "bar", "baz"};
+  found = root.SetPath(
+      base::span<const StringPiece>(insert_vec3.data(), insert_vec3.size()),
+      Value(123));
+#else
   found =
       root.SetPath(std::vector<StringPiece>{"foo", "bar", "baz"}, Value(123));
+#endif
   EXPECT_FALSE(found);
 }
 
@@ -682,7 +703,13 @@ TEST(ValuesTest, RemovePath) {
   root.SetPath({"one", "two", "three"}, Value(123));
   root.SetPath({"one", "two", "four"}, Value(124));
 
+#ifdef STARBOARD
+  auto insert_vec = std::vector<StringPiece>{"one", "two", "three"};
+  EXPECT_TRUE(root.RemovePath(
+      base::span<const StringPiece>(insert_vec.data(), insert_vec.size())));
+#else
   EXPECT_TRUE(root.RemovePath(std::vector<StringPiece>{"one", "two", "three"}));
+#endif
   // Intermediate non-empty dictionaries should be kept.
   EXPECT_TRUE(root.FindKey("one"));
   EXPECT_TRUE(root.FindPath({"one", "two"}));

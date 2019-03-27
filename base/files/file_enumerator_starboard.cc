@@ -92,20 +92,32 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     return std::vector<FileEnumerator::FileInfo>();
   }
 
-  std::vector<FileEnumerator::FileInfo> ret;
-  SbDirectoryEntry entry;
-  while (SbDirectoryGetNext(dir, &entry)) {
+  auto GenerateEntry = [source](std::string filename) {
     FileEnumerator::FileInfo info;
-    info.filename_ = FilePath(entry.name);
+    info.filename_ = FilePath(filename);
 
-    FilePath full_name = source.Append(entry.name);
+    FilePath full_name = source.Append(filename);
     // TODO: Make sure this follows symlinks on relevant platforms.
     if (!SbFileGetPathInfo(full_name.value().c_str(), &info.sb_info_)) {
       DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
       SbMemorySet(&info.sb_info_, 0, sizeof(info.sb_info_));
     }
+    return info;
+  };
 
-    ret.push_back(info);
+  std::vector<FileEnumerator::FileInfo> ret;
+  SbDirectoryEntry entry;
+  // We test if SbDirectoryGetNext returns parent directory file descriptor(..)
+  // because the definition of SbDirectoryGetNext does not guarantee that.
+  bool found_dot_dot = false;
+  while (SbDirectoryGetNext(dir, &entry)) {
+    if (entry.name == "..") {
+      found_dot_dot = true;
+    }
+    ret.push_back(GenerateEntry(entry.name));
+  }
+  if (!found_dot_dot) {
+    ret.push_back(GenerateEntry(".."));
   }
 
   ignore_result(SbDirectoryClose(dir));

@@ -244,6 +244,12 @@ class BASE_EXPORT Value {
   // Note: If there is only one component in the path, use FindKey() instead.
   Value* FindPath(std::initializer_list<StringPiece> path);
   Value* FindPath(span<const StringPiece> path);
+#if defined(STARBOARD)
+  // This is a bandage on the inability to implicitly convert to span.
+  Value* FindPath(const std::vector<StringPiece>& path) {
+    return FindPath(span<const StringPiece>(path.data(), path.size()));
+  }
+#endif
   const Value* FindPath(std::initializer_list<StringPiece> path) const;
   const Value* FindPath(span<const StringPiece> path) const;
 

@@ -363,7 +363,10 @@ TEST(FlatMap, UsingTransparentCompare) {
   m.emplace(ExplicitInt(0), 0);
   m.emplace(ExplicitInt(1), 0);
   m.erase(m.begin());
+#if !defined(STARBOARD)
+  // Raspi compiler does not support erasing const iterator.
   m.erase(m.cbegin());
+#endif
 }
 
 }  // namespace base

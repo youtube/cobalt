@@ -13,6 +13,8 @@ namespace base {
 
 namespace {
 
+// GetBuildTime is not supported by Starboard.
+#ifndef STARBOARD
 TEST(ScopedMockClockOverrideTest, Time) {
   // Choose a reference time that we know to be in the past but close to now.
   Time build_time = GetBuildTime();
@@ -40,6 +42,7 @@ TEST(ScopedMockClockOverrideTest, Time) {
   EXPECT_LT(build_time, Time::NowFromSystemTime());
   EXPECT_GT(Time::Max(), Time::NowFromSystemTime());
 }
+#endif
 
 TEST(ScopedMockClockOverrideTest, TimeTicks) {
   // Override is not active. All Now() methods should return a sensible value.

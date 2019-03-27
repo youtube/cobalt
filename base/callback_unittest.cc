@@ -40,6 +40,9 @@ struct FakeBindState : internal::BindStateBase {
         return true;
     }
     NOTREACHED();
+#if defined(STARBOARD)
+    return false;
+#endif
   }
 };
 

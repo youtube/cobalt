@@ -12,6 +12,8 @@
 
 namespace base {
 
+// MSVC does not allow outputing wstring to ostringstream.
+#if !SB_IS(COMPILER_MSVC)
 // We define a custom operator<< for string16 so we can use it with logging.
 // This tests that conversion.
 TEST(String16Test, OutputStream) {
@@ -51,6 +53,7 @@ TEST(String16Test, OutputStream) {
                  stream.str().c_str());
   }
 }
+#endif
 
 TEST(String16Test, Hash) {
   string16 str1 = ASCIIToUTF16("hello");
