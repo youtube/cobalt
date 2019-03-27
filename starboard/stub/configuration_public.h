@@ -338,9 +338,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Whether the current platform uses a media player that relies on a URL.
-#define SB_HAS_PLAYER_WITH_URL 0
-
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the
 // seek time because usually all audio frames are key frames.  On platforms that
