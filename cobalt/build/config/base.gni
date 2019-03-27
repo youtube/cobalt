@@ -553,8 +553,8 @@ if (!defined(cobalt_enable_lib)) {
 # Clients must copy over all content; to avoid having to copy over extra data,
 # we omit the test data
 _copy_test_data = (cobalt_config != "gold" && !cobalt_enable_lib)
-if (!defined(cobalt_copy_debug_console)) {
-  cobalt_copy_debug_console = _copy_test_data
+if (!defined(enable_debugger)) {
+  enable_debugger = _copy_test_data
 }
 if (!defined(cobalt_copy_test_data)) {
   cobalt_copy_test_data = _copy_test_data
@@ -567,9 +567,6 @@ if (!defined(enable_fake_microphone)) {
 }
 if (!defined(enable_network_logging)) {
   enable_network_logging = _copy_test_data
-}
-if (!defined(enable_remote_debugging)) {
-  enable_remote_debugging = _copy_test_data
 }
 if (!defined(enable_webdriver)) {
   enable_webdriver = _copy_test_data

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 #include "cobalt/debug/console/debugger_event_target.h"
 
 #include "cobalt/base/source_location.h"
@@ -62,5 +60,3 @@ void DebuggerEventTarget::NotifyListener(
 }  // namespace console
 }  // namespace debug
 }  // namespace cobalt
-
-#endif  // ENABLE_DEBUG_CONSOLE

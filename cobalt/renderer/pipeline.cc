@@ -112,7 +112,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           "The most recent time animations started playing."),
       animations_end_time_("Time.Renderer.Rasterize.Animations.End", 0,
                            "The most recent time animations ended playing."),
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
       ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
           "dump_render_tree",
           base::Bind(&Pipeline::OnDumpCurrentRenderTree,
@@ -136,7 +136,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           "numbers are updated at the end of each animation (or every time a "
           "maximum number of frames are rendered), framerate statistics are "
           "printed to stdout.")),
-#endif
+#endif  // defined(ENABLE_DEBUGGER)
       clear_on_shutdown_mode_(clear_on_shutdown_mode),
       enable_fps_stdout_(options.enable_fps_stdout),
       enable_fps_overlay_(options.enable_fps_overlay),
@@ -580,7 +580,7 @@ void Pipeline::ShutdownRasterizerThread() {
   rasterizer_.reset();
 }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
 void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
     rasterizer_thread_.message_loop()->PostTask(
@@ -642,7 +642,7 @@ void Pipeline::OnToggleFpsOverlay(const std::string& message) {
   enable_fps_overlay_ = !enable_fps_overlay_;
   fps_overlay_update_pending_ = enable_fps_overlay_;
 }
-#endif  // #if defined(ENABLE_DEBUG_CONSOLE)
+#endif  // #if defined(ENABLE_DEBUGGER)
 
 Submission Pipeline::CollectAnimations(
     const Submission& render_tree_submission) {

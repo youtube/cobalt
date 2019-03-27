@@ -68,9 +68,9 @@ void CachedSoftwareRasterizer::OnStartNewFrame() {
     // If the surface was referenced mark it as being unreferenced for the next
     // frame.
     if (current->second.referenced) {
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
       current->second.created = false;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
       current->second.referenced = false;
     }
   }
@@ -124,9 +124,9 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
 
   Surface software_surface;
   software_surface.referenced = true;
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   software_surface.created = true;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
   software_surface.node = node;
   software_surface.surface = kSbBlitterInvalidSurface;
   software_surface.cached = false;

@@ -49,11 +49,11 @@ class CachedSoftwareRasterizer {
     // OnStartNewFrame() was called.
     bool referenced;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
     // True if OnStartNewFrame() has not been called since this surface was
     // created.
     bool created;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
     // Transform information detailing how the surface should be output to
     // the display such that sub-pixel alignments are respected.

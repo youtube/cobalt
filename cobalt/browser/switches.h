@@ -29,10 +29,10 @@ extern const char kAudioDecoderStubHelp[];
 extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
 extern const char kWaitForWebDebugger[];
 extern const char kWaitForWebDebuggerHelp[];
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
 extern const char kDisableImageAnimations[];
 extern const char kDisableImageAnimationsHelp[];

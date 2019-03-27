@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 #include "cobalt/browser/debug_console.h"
 #include "base/bind.h"
 #include "base/command_line.h"
@@ -266,5 +264,3 @@ int DebugConsole::GetMode() {
 
 }  // namespace browser
 }  // namespace cobalt
-
-#endif  // ENABLE_DEBUG_CONSOLE

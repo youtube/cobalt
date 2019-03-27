@@ -15,8 +15,6 @@
 #ifndef COBALT_DEBUG_CONSOLE_DEBUGGER_EVENT_TARGET_H_
 #define COBALT_DEBUG_CONSOLE_DEBUGGER_EVENT_TARGET_H_
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 #include <set>
 #include <string>
 
@@ -89,5 +87,4 @@ class DebuggerEventTarget : public script::Wrappable {
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // ENABLE_DEBUG_CONSOLE
 #endif  // COBALT_DEBUG_CONSOLE_DEBUGGER_EVENT_TARGET_H_

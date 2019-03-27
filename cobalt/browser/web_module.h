@@ -33,11 +33,6 @@
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
-#if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/backend/render_overlay.h"
-#include "cobalt/debug/console/command_manager.h"
-#endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
@@ -65,6 +60,12 @@
 #include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
+
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/render_overlay.h"
+#include "cobalt/debug/console/command_manager.h"
+#endif  // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -245,10 +246,10 @@ class WebModule : public LifecycleObserver {
     bool enable_partial_layout = true;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
     // Whether the debugger should block until remote devtools connects.
     bool wait_for_web_debugger = false;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+#endif  // defined(ENABLE_DEBUGGER)
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -328,12 +329,12 @@ class WebModule : public LifecycleObserver {
       const webdriver::protocol::WindowId& window_id);
 #endif
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Gets a reference to the debug dispatcher that interacts with this web
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
   debug::backend::DebugDispatcher* GetDebugDispatcher();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
   // Sets the size and pixel ratio of this web module, possibly causing relayout
   // and re-render with the new parameters. Does nothing if the parameters are
