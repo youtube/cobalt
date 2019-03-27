@@ -17,8 +17,6 @@
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
-#include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/typed_arrays.h"
@@ -77,18 +75,7 @@ void FillAudioBusFromOneSource(
     scoped_ptr<ShellAudioBus> src_data,
     const AudioNodeChannelInterpretation& interpretation,
     ShellAudioBus* audio_bus, bool* silence) {
-  scoped_ptr<script::JavaScriptEngine> engine_(
-      script::JavaScriptEngine::CreateEngine());
-  scoped_refptr<script::GlobalEnvironment> global_environment_(
-      engine_->CreateGlobalEnvironment());
-  std::unique_ptr<script::EnvironmentSettings> environment_settings_ =
-      std::unique_ptr<script::EnvironmentSettings>(
-          new dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL,
-                               engine_.get(), global_environment_.get(), NULL));
-  global_environment_->CreateGlobalObject();
-
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings_.get()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_refptr<AudioBufferSourceNode> source(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer(
@@ -109,9 +96,6 @@ class AudioNodeInputOutputTest : public ::testing::Test {
   AudioNodeInputOutputTest()
       : engine_(script::JavaScriptEngine::CreateEngine()),
         global_environment_(engine_->CreateGlobalEnvironment()) {
-    environment_settings_ = std::unique_ptr<script::EnvironmentSettings>(
-        new dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL,
-                             engine_.get(), global_environment_.get(), NULL));
     global_environment_->CreateGlobalObject();
   }
 
@@ -126,14 +110,9 @@ class AudioNodeInputOutputTest : public ::testing::Test {
     return global_environment_.get();
   }
 
-  script::EnvironmentSettings* environment_settings() const {
-    return environment_settings_.get();
-  }
-
  private:
   scoped_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
-  std::unique_ptr<script::EnvironmentSettings> environment_settings_;
 
  protected:
   MessageLoop message_loop_;
@@ -689,8 +668,7 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
 
   constexpr size_t kNumOfSrcChannels = 2;
   constexpr size_t kNumOfDestChannels = 2;
@@ -772,8 +750,7 @@ TEST_F(AudioNodeInputOutputTest, CreateBufferLayoutTest) {
   constexpr size_t kNumOfChannels = 2;
   constexpr size_t kNumOfFrames = 25;
 
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_refptr<AudioBuffer> buffer(audio_context->CreateBuffer(
       kNumOfChannels, kNumOfFrames, audio_context->sample_rate()));
 
@@ -799,8 +776,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32LayoutTest) {
   script::Handle<script::Float32Array> channel1_arr =
       script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
 
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kPlanar));
@@ -839,8 +815,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32LayoutTest) {
   script::Handle<script::Float32Array> channel1_arr =
       script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
 
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
@@ -879,8 +854,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16LayoutTest) {
   script::Handle<script::Float32Array> channel1_arr =
       script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
 
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
@@ -921,8 +895,7 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16LayoutTest) {
   script::Handle<script::Float32Array> channel1_arr =
       script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
 
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings()));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
@@ -986,8 +959,7 @@ TEST_F(AudioNodeInputOutputTest, ResampleBufferSampleRateLayoutTest) {
       buffer->CopyToChannel(channel_0_arr, 0, 0, NULL);
       buffer->CopyToChannel(channel_1_arr, 1, 0, NULL);
 
-      scoped_refptr<AudioContext> audio_context(
-          new AudioContext(environment_settings()));
+      scoped_refptr<AudioContext> audio_context(new AudioContext());
       scoped_refptr<AudioBufferSourceNode> source(
           audio_context->CreateBufferSource());
       source->set_buffer(buffer);
