@@ -620,18 +620,13 @@ void Box::RenderAndAnimate(
        (animations()->IsPropertyAnimated(cssom::kOutlineColorProperty) ||
         GetUsedColor(computed_style()->outline_color()).a() != 0.0f));
 
-  // If this box is associated with a UI navigation container item, then the
-  // contents will be animated by the container's content offset.
-  bool must_animate_contents = ui_nav_item_ && ui_nav_item_->IsContainer();
-
   // In order to avoid the creation of a superfluous CompositionNode, we first
   // check to see if there is a need to distinguish between content and
   // background.
-  if (!must_animate_contents &&
-      (!overflow_hidden ||
+  if (!overflow_hidden ||
       (!outline_is_visible &&
        computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
-       border_insets_.zero()))) {
+       border_insets_.zero())) {
     // If there's no reason to distinguish between content and background,
     // just add them all to the same composition node.
     RenderAndAnimateContent(&border_node_builder, stacking_context);
@@ -643,7 +638,8 @@ void Box::RenderAndAnimate(
     if (!content_node_builder.children().empty()) {
       scoped_refptr<render_tree::Node> content_node =
           new CompositionNode(content_node_builder.Pass());
-      if (must_animate_contents) {
+      if (ui_nav_item_ && ui_nav_item_->IsContainer()) {
+        // UI navigation container items animate their contents.
         content_node = RenderAndAnimateUiNavigation(content_node,
                                                     &animate_node_builder);
       }
