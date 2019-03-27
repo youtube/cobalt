@@ -1237,6 +1237,9 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
                                    const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FilterKeyEvent()");
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
+  // TODO: Let WebModule handle the event first, and let the web app prevent
+  // this default behavior of the user agent.
+  // https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault
   if (!FilterKeyEventForHotkeys(type, event)) {
     return false;
   }
@@ -1267,6 +1270,11 @@ bool BrowserModule::FilterKeyEventForHotkeys(
       debug_console_->CycleMode();
     }
     return false;
+  } else if (event.key_code() == dom::keycode::kF5) {
+    if (type == base::Tokens::keydown()) {
+      // F5 reloads the page.
+      Reload();
+    }
   }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
