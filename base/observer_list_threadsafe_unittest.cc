@@ -100,7 +100,9 @@ class AddRemoveThread : public PlatformThread::Delegate, public Foo {
     quit_loop_ = run_loop.QuitClosure();
     run_loop.Run();
     delete loop_;
+#if !SB_IS(COMPILER_MSVC)
     loop_ = reinterpret_cast<MessageLoop*>(0xdeadbeef);
+#endif
     delete this;
   }
 

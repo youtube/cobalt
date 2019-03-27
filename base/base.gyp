@@ -707,6 +707,9 @@
     {
       'target_name': 'base_unittests',
       'type': '<(gtest_target_type)',
+      'defines': [
+        'GMOCK_NO_MOVE_MOCK',
+      ],
       'sources': [
         'at_exit_unittest.cc',
         'atomicops_unittest.cc',

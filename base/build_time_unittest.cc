@@ -26,7 +26,10 @@ TEST(BuildTime, DateLooksValid) {
   EXPECT_EQ('0', build_date[19]);
 }
 
+// Starboard does not support build time.
+#ifndef STARBOARD
 TEST(BuildTime, InThePast) {
   EXPECT_LT(base::GetBuildTime(), base::Time::Now());
   EXPECT_LT(base::GetBuildTime(), base::Time::NowFromSystemTime());
 }
+#endif

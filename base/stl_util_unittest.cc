@@ -221,8 +221,11 @@ TEST(STLUtilTest, Data) {
     constexpr int array[] = {1, 2, 3};
     static_assert(std::is_same<const int*, decltype(base::data(array))>::value,
                   "base::data(array) should be of type const int*");
+#if !defined(STARBOARD)
+    // Behavior is different on Raspi.
     static_assert(array == base::data(array),
                   "base::data(array) should be array");
+#endif
   }
 
   {

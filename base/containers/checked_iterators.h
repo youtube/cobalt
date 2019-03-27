@@ -167,11 +167,14 @@ class CheckedRandomAccessConstIterator {
   }
   ~CheckedRandomAccessConstIterator() = default;
 
+// MSVC doesn't like these unnecessary default declarations somehow.
+#if !SB_IS(COMPILER_MSVC)
   CheckedRandomAccessConstIterator& operator=(
       const CheckedRandomAccessConstIterator& other) = default;
 
   CheckedRandomAccessConstIterator& operator=(
       CheckedRandomAccessConstIterator& other) = default;
+#endif
 
   bool operator==(const CheckedRandomAccessConstIterator& other) const {
     CHECK_EQ(start_, other.start_);

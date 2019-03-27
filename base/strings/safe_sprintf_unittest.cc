@@ -749,6 +749,8 @@ TEST(SafeSPrintfTest, EmitNULL) {
 #endif
 }
 
+// MSVC emits C4312 error when assigning 32 bit int to 64 pointer.
+#if !SB_IS(COMPILER_MSVC)
 TEST(SafeSPrintfTest, PointerSize) {
   // The internal data representation is a 64bit value, independent of the
   // native word size. We want to perform sign-extension for signed integers,
@@ -763,6 +765,7 @@ TEST(SafeSPrintfTest, PointerSize) {
   EXPECT_EQ(10, SafeSPrintf(buf, "%p", ptr));
   EXPECT_EQ("0x80000000", std::string(buf));
 }
+#endif
 
 }  // namespace strings
 }  // namespace base
