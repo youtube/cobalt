@@ -16,6 +16,11 @@
 
 #include "starboard/configuration.h"
 #include "starboard/media.h"
+#include "starboard/shared/libaom/aom_library_loader.h"
+#include "starboard/shared/libvpx/vpx_library_loader.h"
+
+using starboard::shared::aom::is_aom_supported;
+using starboard::shared::vpx::is_vpx_supported;
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_width,
@@ -50,12 +55,12 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION < SB_HAS_AV1_VERSION
-  return (video_codec == kSbMediaVideoCodecVp10 ||
+  return ((video_codec == kSbMediaVideoCodecVp10 && is_aom_supported()) ||
 #else   // SB_API_VERSION < SB_HAS_AV1_VERSION
-  return (video_codec == kSbMediaVideoCodecAv1 ||
+  return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
 #endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
           video_codec == kSbMediaVideoCodecH264 ||
-          video_codec == kSbMediaVideoCodecVp9) &&
+          (video_codec == kSbMediaVideoCodecVp9 && is_vpx_supported())) &&
          frame_width <= 1920 && frame_height <= 1080 &&
          bitrate <= SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND && fps <= 60;
 }

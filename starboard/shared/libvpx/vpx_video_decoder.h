@@ -15,8 +15,7 @@
 #ifndef STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 
-#include <vpx/vp8dx.h>
-#include <vpx/vpx_decoder.h>
+#include <vpx/vpx_codec.h>
 
 #include <queue>
 #include <string>
