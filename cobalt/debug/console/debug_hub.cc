@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 #include "cobalt/debug/console/debug_hub.h"
 
 #include <set>
@@ -151,5 +149,3 @@ void DebugHub::RunResponseCallback(
 }  // namespace console
 }  // namespace debug
 }  // namespace cobalt
-
-#endif  // ENABLE_DEBUG_CONSOLE

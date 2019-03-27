@@ -86,7 +86,7 @@ bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
 int GetRemoteDebuggingPort() {
 #if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
   const int kDefaultRemoteDebuggingPort =
@@ -110,7 +110,7 @@ int GetRemoteDebuggingPort() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return remote_debugging_port;
 }
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
 #if defined(ENABLE_WEBDRIVER)
 int GetWebDriverPort() {
@@ -790,13 +790,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   }
 #endif  // ENABLE_WEBDRIVER
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   int remote_debugging_port = GetRemoteDebuggingPort();
   debug_web_server_.reset(new debug::remote::DebugWebServer(
       remote_debugging_port,
       base::Bind(&BrowserModule::CreateDebugClient,
                  base::Unretained(browser_module_.get()))));
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   int duration_in_seconds = 0;

@@ -20,7 +20,6 @@
   # Note that we use the old names here!
   "booleans": [
     "abort_on_allocation_failure",
-    "cobalt_copy_debug_console",
     "cobalt_copy_test_data",
     "cobalt_enable_jit",
     "cobalt_fastbuild",
@@ -30,10 +29,10 @@
     "enable_account_manager",
     "enable_configure_request_job_factory",
     "enable_crash_log",
+    "enable_debugger",
     "enable_fake_microphone",
     "enable_file_scheme",
     "enable_network_logging",
-    "enable_remote_debugging",
     "enable_webdriver",
     "enable_spdy",
     "enable_xhr_header_filtering",

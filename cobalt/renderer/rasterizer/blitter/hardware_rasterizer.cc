@@ -19,9 +19,6 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
-#if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/debug/console/command_manager.h"
-#endif
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
@@ -30,6 +27,10 @@
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
+
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/console/command_manager.h"
+#endif
 
 #if SB_HAS(BLITTER)
 
@@ -57,7 +58,7 @@ class HardwareRasterizer::Impl {
   render_tree::ResourceProvider* GetResourceProvider();
 
  private:
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   void OnToggleHighlightSoftwareDraws(const std::string& message);
 #endif
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
@@ -81,7 +82,7 @@ class HardwareRasterizer::Impl {
   CachedSoftwareRasterizer software_surface_cache_;
   LinearGradientCache linear_gradient_cache_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Debug command to toggle cache highlights to help visualize which nodes
   // are being cached.
   bool toggle_highlight_software_draws_;
@@ -106,7 +107,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                               context_->GetSbBlitterContext(),
                               software_surface_cache_size_in_bytes,
                               purge_skia_font_caches_on_destruction)
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
       ,
       toggle_highlight_software_draws_(false),
       toggle_highlight_software_draws_command_handler_(
@@ -117,7 +118,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
           "Toggles whether all software rasterized elements will appear as a "
           "green rectangle or not.  This can be used to identify where in a "
           "scene software rasterization is occurring.")
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 {
   resource_provider_ =
       scoped_ptr<render_tree::ResourceProvider>(new ResourceProvider(
@@ -133,7 +134,7 @@ HardwareRasterizer::Impl::~Impl() {
   }
 }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
 void HardwareRasterizer::Impl::OnToggleHighlightSoftwareDraws(
     const std::string& message) {
   UNREFERENCED_PARAMETER(message);
@@ -201,10 +202,10 @@ void HardwareRasterizer::Impl::Submit(
     RenderState initial_render_state(visitor_render_target, Transform(),
                                      start_bounds);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
     initial_render_state.highlight_software_draws =
         toggle_highlight_software_draws_;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
     RenderTreeNodeVisitor visitor(
         context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
         initial_render_state, &scratch_surface_cache_,
