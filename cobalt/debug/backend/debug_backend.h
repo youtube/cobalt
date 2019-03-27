@@ -46,6 +46,8 @@ class DebugBackend : public script::Wrappable {
 
   void BindAgents(scoped_refptr<CSSAgent> css_agent) { css_agent_ = css_agent; }
 
+  void UnbindAgents() { css_agent_ = nullptr; }
+
   // Sends a protocol event to the debugger frontend.
   void SendEvent(const std::string& method,
                  const base::optional<std::string>& params);
