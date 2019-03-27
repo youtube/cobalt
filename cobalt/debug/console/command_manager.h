@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BASE_CONSOLE_COMMANDS_H_
-#define COBALT_BASE_CONSOLE_COMMANDS_H_
+#ifndef COBALT_DEBUG_CONSOLE_COMMAND_MANAGER_H_
+#define COBALT_DEBUG_CONSOLE_COMMAND_MANAGER_H_
 
 #include <map>
 #include <set>
@@ -23,7 +23,9 @@
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 
-namespace base {
+namespace cobalt {
+namespace debug {
+namespace console {
 
 // The console command system allows the app to register actions that can be
 // triggered by the debug console.
@@ -101,6 +103,8 @@ class ConsoleCommandManager {
 #endif  // ENABLE_DEBUG_CONSOLE
 };
 
-}  // namespace base
+}  // namespace console
+}  // namespace debug
+}  // namespace cobalt
 
-#endif  // COBALT_BASE_CONSOLE_COMMANDS_H_
+#endif  // COBALT_DEBUG_CONSOLE_COMMAND_MANAGER_H_

@@ -64,6 +64,7 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:http_server',
+        'console_command_manager',
       ],
       'conditions': [
         ['enable_remote_debugging==1', {
@@ -86,6 +87,20 @@
             'copy_console_web_files',
           ],
         }],
+      ],
+    },
+
+    {
+      # Anything that implements a console command can depend on this without
+      # depending on the whole debug module.
+      'target_name': 'console_command_manager',
+      'type': 'static_library',
+      'sources': [
+        'console/command_manager.cc',
+        'console/command_manager.h',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
       ],
     },
 

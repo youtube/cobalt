@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/base/console_commands.h"
+#include "cobalt/debug/console/command_manager.h"
 
 #include "base/logging.h"
 
-namespace base {
+namespace cobalt {
+namespace debug {
+namespace console {
 
 ConsoleCommandManager* ConsoleCommandManager::GetInstance() {
   return Singleton<ConsoleCommandManager,
@@ -137,4 +139,6 @@ std::string ConsoleCommandManager::GetLongHelp(
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
-}  // namespace base
+}  // namespace console
+}  // namespace debug
+}  // namespace cobalt

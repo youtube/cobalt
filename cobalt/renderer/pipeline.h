@@ -34,6 +34,10 @@
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+#include "cobalt/debug/console/command_manager.h"
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
 namespace cobalt {
 namespace renderer {
 
@@ -277,12 +281,12 @@ class Pipeline {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.
-  base::ConsoleCommandManager::CommandHandler
+  debug::console::ConsoleCommandManager::CommandHandler
       dump_current_render_tree_command_handler_;
 
-  base::ConsoleCommandManager::CommandHandler
+  debug::console::ConsoleCommandManager::CommandHandler
       toggle_fps_stdout_command_handler_;
-  base::ConsoleCommandManager::CommandHandler
+  debug::console::ConsoleCommandManager::CommandHandler
       toggle_fps_overlay_command_handler_;
 #endif
 
