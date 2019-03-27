@@ -17,11 +17,6 @@
     '../bindings/bindings.gypi',
   ],
   'variables': {
-    'variables': {
-      # By default enable MSE. This can be overriden by the port.
-      'enable_mse%': 1,
-    },
-
     # Base directory into which generated sources and intermediate files should
     # be generated.
     'bindings_output_dir': '<(SHARED_INTERMEDIATE_DIR)/bindings/browser',
@@ -116,6 +111,7 @@
         '../dom/location.idl',
         '../dom/media_error.idl',
         '../dom/media_query_list.idl',
+        '../dom/media_source.idl',
         '../dom/memory_info.idl',
         '../dom/message_event.idl',
         '../dom/mime_type_array.idl',
@@ -136,6 +132,8 @@
         '../dom/screen.idl',
         '../dom/screenshot.idl',
         '../dom/security_policy_violation_event.idl',
+        '../dom/source_buffer.idl',
+        '../dom/source_buffer_list.idl',
         '../dom/storage.idl',
         '../dom/storage_event.idl',
         '../dom/test_runner.idl',
@@ -303,6 +301,7 @@
         '../dom/parent_node.idl',
         '../dom/performance__high_resolution_time.idl',
         '../dom/speech_synthesis_getter.idl',
+        '../dom/url_mse.idl',
         '../dom/url_utils.idl',
         '../dom/window__animation_timing.idl',
         '../dom/window__performance.idl',
@@ -352,16 +351,6 @@
         ],
         'dependency_idl_files': [
             '../dom/html_media_element_eme_01b.idl',
-        ],
-      }],
-      ['enable_mse==1', {
-        'source_idl_files': [
-            '../dom/media_source.idl',
-            '../dom/source_buffer.idl',
-            '../dom/source_buffer_list.idl',
-        ],
-        'dependency_idl_files': [
-            '../dom/url_mse.idl',
         ],
       }],
     ],
