@@ -20,7 +20,7 @@
 #include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/base/console_commands.h"
+#include "cobalt/debug/console/command_manager.h"
 #endif
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
@@ -85,7 +85,7 @@ class HardwareRasterizer::Impl {
   // Debug command to toggle cache highlights to help visualize which nodes
   // are being cached.
   bool toggle_highlight_software_draws_;
-  base::ConsoleCommandManager::CommandHandler
+  debug::console::ConsoleCommandManager::CommandHandler
       toggle_highlight_software_draws_command_handler_;
 #endif
 };

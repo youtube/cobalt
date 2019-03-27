@@ -20,7 +20,6 @@
 
 #include "base/time.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/base/console_commands.h"
 #include "cobalt/renderer/smoothed_value.h"
 #include "cobalt/renderer/submission.h"
 

@@ -21,7 +21,7 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/base/console_commands.h"
+#include "cobalt/debug/console/command_manager.h"
 #include "cobalt/debug/json_object.h"
 
 namespace cobalt {
@@ -87,8 +87,8 @@ void DebugHub::SendCommand(const std::string& method,
 
 const script::Sequence<ConsoleCommand> DebugHub::console_commands() const {
   script::Sequence<ConsoleCommand> result;
-  base::ConsoleCommandManager* command_mananger =
-      base::ConsoleCommandManager::GetInstance();
+  ConsoleCommandManager* command_mananger =
+      ConsoleCommandManager::GetInstance();
   DCHECK(command_mananger);
   if (command_mananger) {
     std::set<std::string> commands = command_mananger->GetRegisteredCommands();
@@ -106,8 +106,8 @@ const script::Sequence<ConsoleCommand> DebugHub::console_commands() const {
 
 void DebugHub::SendConsoleCommand(const std::string& command,
                                   const std::string& message) {
-  base::ConsoleCommandManager* console_command_manager =
-      base::ConsoleCommandManager::GetInstance();
+  ConsoleCommandManager* console_command_manager =
+      ConsoleCommandManager::GetInstance();
   DCHECK(console_command_manager);
   console_command_manager->HandleCommand(command, message);
 }
