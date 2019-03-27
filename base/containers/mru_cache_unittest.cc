@@ -381,6 +381,8 @@ TEST(MRUCacheTest, Swap) {
   }
 }
 
+#if !SB_IS(COMPILER_MSVC)
+// TODO[Starboard]: MRU Cache lacks some Memory Estimator requirements on MSVC.
 TEST(MRUCacheTest, EstimateMemory) {
   base::MRUCache<std::string, int> cache(10);
 
@@ -390,5 +392,6 @@ TEST(MRUCacheTest, EstimateMemory) {
   EXPECT_GT(trace_event::EstimateMemoryUsage(cache),
             trace_event::EstimateMemoryUsage(key));
 }
+#endif
 
 }  // namespace base

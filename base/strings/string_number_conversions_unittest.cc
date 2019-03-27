@@ -268,10 +268,17 @@ TEST(StringNumberConversionsTest, StringToInt64) {
       {"-+123", 0, false},
       {"+-123", 0, false},
       {"-", 0, false},
+#ifdef STARBOARD
+      {"-9223372036854775809", kSbInt64Min, false},
+      {"-99999999999999999999", kSbInt64Min, false},
+      {"9223372036854775808", kSbInt64Max, false},
+      {"99999999999999999999", kSbInt64Max, false},
+#else
       {"-9223372036854775809", std::numeric_limits<int64_t>::min(), false},
       {"-99999999999999999999", std::numeric_limits<int64_t>::min(), false},
       {"9223372036854775808", std::numeric_limits<int64_t>::max(), false},
       {"99999999999999999999", std::numeric_limits<int64_t>::max(), false},
+#endif
   };
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
@@ -314,7 +321,9 @@ TEST(StringNumberConversionsTest, StringToUint64) {
       {"-99999999999", 0, false},
       {"2147483648", UINT64_C(2147483648), true},
       {"99999999999", UINT64_C(99999999999), true},
-      {"9223372036854775807", std::numeric_limits<int64_t>::max(), true},
+#ifdef STARBOARD
+      {"9223372036854775807", kSbInt64Max, true},
+#endif
       {"-9223372036854775808", 0, false},
       {"09", 9, true},
       {"-09", 0, false},
@@ -336,9 +345,15 @@ TEST(StringNumberConversionsTest, StringToUint64) {
       {"-9223372036854775809", 0, false},
       {"-99999999999999999999", 0, false},
       {"9223372036854775808", UINT64_C(9223372036854775808), true},
+#ifdef STARBOARD
+      {"99999999999999999999", kSbUInt64Max, false},
+      {"18446744073709551615", kSbUInt64Max, true},
+      {"18446744073709551616", kSbUInt64Max, false},
+#else
       {"99999999999999999999", std::numeric_limits<uint64_t>::max(), false},
       {"18446744073709551615", std::numeric_limits<uint64_t>::max(), true},
       {"18446744073709551616", std::numeric_limits<uint64_t>::max(), false},
+#endif
   };
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
@@ -635,15 +650,28 @@ TEST(StringNumberConversionsTest, HexStringToUInt64) {
       {"-0x80000000", 0, false},
       {"0xffffffff", 0xffffffff, true},
       {"0XDeadBeef", 0xdeadbeef, true},
+#ifdef STARBOARD
+      {"0x7fffffffffffffff", kSbInt64Max, true},
+#else
       {"0x7fffffffffffffff", std::numeric_limits<int64_t>::max(), true},
+#endif
       {"-0x8000000000000000", 0, false},
       {"0x8000000000000000", UINT64_C(0x8000000000000000), true},
       {"-0x8000000000000001", 0, false},
+#ifdef STARBOARD
+      {"0xFFFFFFFFFFFFFFFF", kSbUInt64Max, true},
+      {"FFFFFFFFFFFFFFFF", kSbUInt64Max, true},
+#else
       {"0xFFFFFFFFFFFFFFFF", std::numeric_limits<uint64_t>::max(), true},
       {"FFFFFFFFFFFFFFFF", std::numeric_limits<uint64_t>::max(), true},
+#endif
       {"0x0000000000000000", 0, true},
       {"0000000000000000", 0, true},
+#ifdef STARBOARD
+      {"1FFFFFFFFFFFFFFFF", kSbUInt64Max,
+#else
       {"1FFFFFFFFFFFFFFFF", std::numeric_limits<uint64_t>::max(),
+#endif
        false},  // Overflow test.
       {"0x0f", 15, true},
       {"0f", 15, true},

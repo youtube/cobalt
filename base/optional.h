@@ -48,6 +48,9 @@ struct OptionalStorageBase {
   // to avoid errors in g++ 4.8.
   constexpr OptionalStorageBase() : empty_('\0') {}
 
+  OptionalStorageBase(const OptionalStorageBase&) = default;
+  OptionalStorageBase(OptionalStorageBase&& other) = default;
+
   template <class... Args>
   constexpr explicit OptionalStorageBase(in_place_t, Args&&... args)
       : is_populated_(true), value_(std::forward<Args>(args)...) {}
@@ -124,6 +127,9 @@ struct OptionalStorageBase<T, true /* trivially destructible */> {
     char empty_;
     T value_;
   };
+
+  OptionalStorageBase(const OptionalStorageBase&) = default;
+  OptionalStorageBase(OptionalStorageBase&& other) = default;
 };
 
 // Implement conditional constexpr copy and move constructors. These are
@@ -243,7 +249,8 @@ class OptionalBase {
   constexpr OptionalBase() = default;
 #if defined(STARBOARD)
    OptionalBase(const OptionalBase& other) {
-    storage_.Init(other.storage_.value_);
+     if (other.storage_.is_populated_)
+       storage_.Init(other.storage_.value_);
   }
 #else
   constexpr OptionalBase(const OptionalBase& other) = default;
@@ -472,7 +479,8 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 #if defined(STARBOARD)
   // Raspi specialization.
   constexpr Optional() : internal::OptionalBase<T>() {}
-  CONSTEXPR Optional(const Optional& other) : internal::OptionalBase<T>(other) {}
+  constexpr Optional(const Optional& other) noexcept
+      : internal::OptionalBase<T>(other) {}
   constexpr Optional(Optional&& other) = default;
 #else
   constexpr Optional() = default;

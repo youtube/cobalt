@@ -118,7 +118,7 @@
 // enabled and disabled independently, to aid testing.  These #defines are
 // here so that the same setting can be used in both the implementation and
 // in the unit test.
-#if defined(OS_WIN)
+#if defined(OS_WIN) || SB_IS(COMPILER_MSVC)
 #define FILE_PATH_USES_DRIVE_LETTERS
 #define FILE_PATH_USES_WIN_SEPARATORS
 #endif  // OS_WIN

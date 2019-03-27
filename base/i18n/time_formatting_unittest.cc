@@ -168,7 +168,13 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayJP) {
   Time time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestDateTimeExploded, &time));
   string16 clock24h(ASCIIToUTF16("15:42"));
+#ifdef STARBOARD
+  // On MSVC, adding "u8" prefix leads to an unnecessary
+  // UTF16->UTF8 conversion on the already utf8 string.
+  string16 clock12h_pm(UTF8ToUTF16("午後3:42"));
+#else
   string16 clock12h_pm(UTF8ToUTF16(u8"午後3:42"));
+#endif
   string16 clock12h(ASCIIToUTF16("3:42"));
 
   // The default is 24h clock.
@@ -295,10 +301,18 @@ TEST(TimeFormattingTest, TimeFormatWithPattern) {
             TimeFormatWithPattern(time, "MMMMdjmmss"));
 
   i18n::SetICUDefaultLocale("ja_JP");
+#ifdef STARBOARD
+  // On MSVC, adding "u8" prefix leads to an unnecessary
+  // UTF16->UTF8 conversion on the already utf8 string.
+  EXPECT_EQ(UTF8ToUTF16("2011年4月30日"), TimeFormatWithPattern(time, "yMMMd"));
+  EXPECT_EQ(UTF8ToUTF16("4月30日 15:42:07"),
+            TimeFormatWithPattern(time, "MMMMdjmmss"));
+#else
   EXPECT_EQ(UTF8ToUTF16(u8"2011年4月30日"),
             TimeFormatWithPattern(time, "yMMMd"));
   EXPECT_EQ(UTF8ToUTF16(u8"4月30日 15:42:07"),
             TimeFormatWithPattern(time, "MMMMdjmmss"));
+#endif
 }
 
 TEST(TimeFormattingTest, TimeDurationFormat) {
@@ -410,9 +424,17 @@ TEST(TimeFormattingTest, TimeIntervalFormat) {
   Time end_time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestIntervalEndTimeExploded, &end_time));
 
+#ifdef STARBOARD
+  // On MSVC, adding "u8" prefix leads to an unnecessary
+  // UTF16->UTF8 conversion on the already utf8 string.
+  EXPECT_EQ(
+      UTF8ToUTF16("Saturday, April 30 – Saturday, May 28"),
+      DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
+#else
   EXPECT_EQ(
       UTF8ToUTF16(u8"Saturday, April 30 – Saturday, May 28"),
       DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
+#endif
 
   const Time::Exploded kTestIntervalBeginTimeExploded = {
       2011, 5,  1, 16,  // Mon, May 16, 2012
@@ -420,6 +442,23 @@ TEST(TimeFormattingTest, TimeIntervalFormat) {
   };
   EXPECT_TRUE(
       Time::FromUTCExploded(kTestIntervalBeginTimeExploded, &begin_time));
+#ifdef STARBOARD
+  // On MSVC, adding "u8" prefix leads to an unnecessary
+  // UTF16->UTF8 conversion on the already utf8 string.
+  EXPECT_EQ(
+      UTF8ToUTF16("Monday, May 16 – Saturday, May 28"),
+      DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
+
+  i18n::SetICUDefaultLocale("en_GB");
+  EXPECT_EQ(
+      UTF8ToUTF16("Monday 16 – Saturday 28 May"),
+      DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
+
+  i18n::SetICUDefaultLocale("ja");
+  EXPECT_EQ(
+      UTF8ToUTF16("5月16日(月曜日)～28日(土曜日)"),
+      DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
+#else
   EXPECT_EQ(
       UTF8ToUTF16(u8"Monday, May 16 – Saturday, May 28"),
       DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
@@ -433,6 +472,7 @@ TEST(TimeFormattingTest, TimeIntervalFormat) {
   EXPECT_EQ(
       UTF8ToUTF16(u8"5月16日(月曜日)～28日(土曜日)"),
       DateIntervalFormat(begin_time, end_time, DATE_FORMAT_MONTH_WEEKDAY_DAY));
+#endif
 }
 
 }  // namespace

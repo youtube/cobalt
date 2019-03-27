@@ -8,7 +8,7 @@
 #include "base/base_export.h"
 #include "base/time/time.h"
 
-#if defined(STARBOARD)
+#if !defined(STARBOARD)
 
 namespace base {
 
@@ -29,5 +29,5 @@ Time BASE_EXPORT GetBuildTime();
 
 }  // namespace base
 
-#endif  // defined(STARBOARD)
+#endif  // !defined(STARBOARD)
 #endif  // BASE_BUILD_TIME_H_

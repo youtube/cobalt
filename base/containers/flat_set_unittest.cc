@@ -115,7 +115,10 @@ TEST(FlatSet, UsingTransparentCompare) {
   s.emplace(0);
   s.emplace(1);
   s.erase(s.begin());
+#if !defined(STARBOARD)
+  // Raspi compiler does not support erasing const iterator.
   s.erase(s.cbegin());
+#endif
 }
 
 }  // namespace base

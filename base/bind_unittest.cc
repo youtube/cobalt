@@ -56,7 +56,9 @@ class NoRef {
   MOCK_CONST_METHOD0(IntConstMethod0, int());
 
   MOCK_METHOD1(VoidMethodWithIntArg, void(int));
+#ifndef GMOCK_NO_MOVE_MOCK
   MOCK_METHOD0(UniquePtrMethod0, std::unique_ptr<int>());
+#endif
 
  private:
   // Particularly important in this test to ensure no copies are made.
@@ -850,6 +852,7 @@ TYPED_TEST(BindVariantsTest, FunctionTypeSupport) {
   EXPECT_EQ(kParentValue, child.value);
 }
 
+#ifndef GMOCK_NO_MOVE_MOCK
 // Return value support.
 //   - Function with return value.
 //   - Method with return value.
@@ -887,6 +890,7 @@ TYPED_TEST(BindVariantsTest, ReturnValues) {
   EXPECT_EQ(51337, std::move(const_method_const_obj_cb).Run());
   EXPECT_EQ(42, *std::move(move_only_rv_cb).Run());
 }
+#endif
 
 // Argument binding tests.
 //   - Argument binding to primitive.

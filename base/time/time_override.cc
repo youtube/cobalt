@@ -26,8 +26,10 @@ ScopedTimeClockOverrides::ScopedTimeClockOverrides(
   }
   if (time_ticks_override)
     internal::g_time_ticks_now_function = time_ticks_override;
+#if SB_HAS(TIME_THREAD_NOW)
   if (thread_ticks_override)
     internal::g_thread_ticks_now_function = thread_ticks_override;
+#endif
 }
 
 ScopedTimeClockOverrides::~ScopedTimeClockOverrides() {
@@ -35,7 +37,9 @@ ScopedTimeClockOverrides::~ScopedTimeClockOverrides() {
   internal::g_time_now_from_system_time_function =
       &TimeNowFromSystemTimeIgnoringOverride;
   internal::g_time_ticks_now_function = &TimeTicksNowIgnoringOverride;
+#if SB_HAS(TIME_THREAD_NOW)
   internal::g_thread_ticks_now_function = &ThreadTicksNowIgnoringOverride;
+#endif
 #if DCHECK_IS_ON()
   overrides_active_ = false;
 #endif

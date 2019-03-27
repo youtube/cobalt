@@ -248,6 +248,8 @@ TEST(ThreadLocalStorageTest, MAYBE_TLSDestructors) {
   }
 }
 
+// MSVC doesn't allow casting 32bit address to pointer.
+#if !SB_IS(COMPILER_MSVC)
 TEST(ThreadLocalStorageTest, TLSReclaim) {
   // Creates and destroys many TLS slots and ensures they all zero-inited.
   for (int i = 0; i < 1000; ++i) {
@@ -257,6 +259,7 @@ TEST(ThreadLocalStorageTest, TLSReclaim) {
     EXPECT_EQ(reinterpret_cast<void*>(0xBAADF00D), slot.Get());
   }
 }
+#endif
 
 #if defined(OS_POSIX)
 // Unlike POSIX, Windows does not iterate through the OS TLS to cleanup any
