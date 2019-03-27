@@ -74,7 +74,7 @@
           '-Wno-undefined-var-template',
           # Do not warn about an implicit exception spec mismatch.
           '-Wno-implicit-exception-spec-mismatch',
-          # It's OK to not used some input parameters.
+          # It's OK not to use some input parameters.
           '-Wno-unused-parameter',
         ],
       }],
