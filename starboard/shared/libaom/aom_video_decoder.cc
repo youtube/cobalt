@@ -14,14 +14,12 @@
 
 #include "starboard/shared/libaom/aom_video_decoder.h"
 
-#include <aom/aom_decoder.h>
-#include <aom/aomdx.h>
-
 #if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/format_string.h"
 #endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/log.h"
+#include "starboard/shared/libaom/aom_library_loader.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -47,6 +45,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 #else   // SB_API_VERSION < SB_HAS_AV1_VERSION
   SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
 #endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+  SB_DCHECK(is_aom_supported());
 }
 
 VideoDecoder::~VideoDecoder() {
