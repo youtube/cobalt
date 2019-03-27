@@ -58,7 +58,6 @@ void AudioDestinationNode::OnInputNodeConnected() {
   if (!audio_device_) {
     audio_device_.reset(
         new AudioDevice(static_cast<int>(channel_count(NULL)), this));
-    context()->PreventGarbageCollection();
   }
   audio_device_to_delete_ = NULL;
 }
@@ -84,7 +83,6 @@ void AudioDestinationNode::FillAudioBus(bool all_consumed,
 void AudioDestinationNode::DestroyAudioDevice() {
   if (audio_device_ == audio_device_to_delete_) {
     audio_device_.reset();
-    context()->AllowGarbageCollection();
   }
 }
 

@@ -15,17 +15,12 @@
 #include "cobalt/audio/audio_context.h"
 
 #include "base/callback.h"
-#include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
 
 namespace cobalt {
 namespace audio {
 
-AudioContext::AudioContext(script::EnvironmentSettings* settings)
-    : global_environment_(
-          base::polymorphic_downcast<dom::DOMSettings*>(settings)
-              ->global_environment()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+AudioContext::AudioContext()
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
       sample_rate_(
@@ -69,28 +64,6 @@ scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource() {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
   return scoped_refptr<AudioBufferSourceNode>(new AudioBufferSourceNode(this));
-}
-
-void AudioContext::PreventGarbageCollection() {
-  prevent_gc_until_playback_complete_.reset(
-      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-          global_environment_, this));
-}
-
-void AudioContext::AllowGarbageCollection() {
-  prevent_gc_until_playback_complete_.reset();
-}
-
-void AudioContext::AddBufferSource(
-    const scoped_refptr<AudioBufferSourceNode>& buffer_source) {
-  buffer_sources_.insert(buffer_source);
-}
-
-void AudioContext::RemoveBufferSource(
-    const scoped_refptr<AudioBufferSourceNode>& buffer_source) {
-  if (buffer_sources_.find(buffer_source) != buffer_sources_.end()) {
-    buffer_sources_.erase(buffer_source);
-  }
 }
 
 void AudioContext::TraceMembers(script::Tracer* tracer) {

@@ -17,7 +17,6 @@
 
 #include <vector>
 
-#include "base/message_loop.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
@@ -93,8 +92,6 @@ class AudioBufferSourceNode : public AudioNode {
   ~AudioBufferSourceNode() override;
 
  private:
-  void RemoveBufferSource();
-
   enum State {
     kNone,
     kStarted,
@@ -102,8 +99,6 @@ class AudioBufferSourceNode : public AudioNode {
   };
 
   scoped_refptr<AudioBuffer> buffer_;
-
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   State state_;
 
