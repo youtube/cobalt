@@ -86,7 +86,7 @@ inline Atomic32 Release_Load(volatile const Atomic32 *ptr) {
   return SbAtomicRelease_Load(ptr);
 }
 
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_ATOMICS)
 inline Atomic64 NoBarrier_CompareAndSwap(volatile Atomic64 *ptr,
                                          Atomic64 old_value,
                                          Atomic64 new_value) {
@@ -143,7 +143,7 @@ inline Atomic64 Acquire_Load(volatile const Atomic64 *ptr) {
 inline Atomic64 Release_Load(volatile const Atomic64 *ptr) {
   return SbAtomicRelease_Load64(ptr);
 }
-#endif  // SB_IS(64_BIT)
+#endif  // SB_HAS(64_BIT_ATOMICS)
 
 }  // namespace base::subtle
 }  // namespace base

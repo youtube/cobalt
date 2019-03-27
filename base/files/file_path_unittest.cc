@@ -1038,10 +1038,17 @@ TEST_F(FilePathTest, CompareIgnoreCase) {
     // However, neither Windows nor Mac OSX converts these.
     // (or even have glyphs for <uppercase eszett>)
     { { FPL("\u00DF"),                       FPL("\u00DF") },               0},
-    { { FPL("\u1E9E"),                       FPL("\u1E9E") },               0},
-    { { FPL("\u00DF"),                       FPL("\u1E9E") },              -1},
-    { { FPL("SS"),                           FPL("\u00DF") },              -1},
-    { { FPL("SS"),                           FPL("\u1E9E") },              -1},
+#if SB_IS_COMPILER_MSVC
+    { {FPL(u8"\u1E9E"),                      FPL(u8"\u1E9E")},              0},
+    { {FPL("\u00DF"),                        FPL(u8"\u1E9E")},             -1},
+    { {FPL("SS"),                            FPL("\u00DF")},               -1},
+    { {FPL("SS"),                            FPL(u8"\u1E9E")},             -1},
+#else
+    { {FPL("\u1E9E"),                        FPL("\u1E9E")},                0},
+    { {FPL("\u00DF"),                        FPL("\u1E9E")},               -1},
+    { {FPL("SS"),                            FPL("\u00DF")},               -1},
+    { {FPL("SS"),                            FPL("\u1E9E")},               -1},
+#endif
 #if defined(OS_WIN) || defined(OS_MACOSX)
     // Umlauts A, O, U: direct comparison, and upper case vs. lower case
     { { FPL("\u00E4\u00F6\u00FC"),           FPL("\u00E4\u00F6\u00FC") },   0},

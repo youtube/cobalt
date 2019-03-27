@@ -2855,7 +2855,7 @@ TEST_F(FileUtilTest, ReadFileToString) {
   EXPECT_EQ(0u, data.length());
 }
 
-#if !defined(OS_WIN)
+#if !defined(OS_WIN) && !SB_IS(COMPILER_MSVC)
 TEST_F(FileUtilTest, ReadFileToStringWithUnknownFileSize) {
   FilePath file_path("/dev/zero");
   std::string data = "temp";

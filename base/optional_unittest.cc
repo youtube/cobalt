@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "base/cpp14oncpp11.h"
+#include "starboard/configuration.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -179,13 +181,15 @@ static_assert(
     !std::is_trivially_destructible<Optional<NonTriviallyDestructible>>::value,
     "OptionalIsTriviallyDestructible");
 
+#if !SB_IS(COMPILER_MSVC)
 static_assert(sizeof(Optional<int>) == sizeof(internal::OptionalBase<int>),
               "internal::{Copy,Move}{Constructible,Assignable} structs "
               "should be 0-sized");
+#endif
 
 TEST(OptionalTest, DefaultConstructor) {
   {
-    constexpr Optional<float> o;
+    CONSTEXPR Optional<float> o;
     EXPECT_FALSE(o);
   }
 
@@ -202,8 +206,8 @@ TEST(OptionalTest, DefaultConstructor) {
 
 TEST(OptionalTest, CopyConstructor) {
   {
-    constexpr Optional<float> first(0.1f);
-    constexpr Optional<float> other(first);
+    CONSTEXPR Optional<float> first(0.1f);
+    CONSTEXPR Optional<float> other(first);
 
     EXPECT_TRUE(other);
     EXPECT_EQ(other.value(), 0.1f);
@@ -240,8 +244,8 @@ TEST(OptionalTest, CopyConstructor) {
 
 TEST(OptionalTest, ValueConstructor) {
   {
-    constexpr float value = 0.1f;
-    constexpr Optional<float> o(value);
+    CONSTEXPR float value = 0.1f;
+    CONSTEXPR Optional<float> o(value);
 
     EXPECT_TRUE(o);
     EXPECT_EQ(value, o.value());
@@ -267,8 +271,8 @@ TEST(OptionalTest, ValueConstructor) {
 
 TEST(OptionalTest, MoveConstructor) {
   {
-    constexpr Optional<float> first(0.1f);
-    constexpr Optional<float> second(std::move(first));
+    CONSTEXPR Optional<float> first(0.1f);
+    CONSTEXPR Optional<float> second(std::move(first));
 
     EXPECT_TRUE(second.has_value());
     EXPECT_EQ(second.value(), 0.1f);
@@ -335,8 +339,8 @@ TEST(OptionalTest, MoveConstructor) {
 
 TEST(OptionalTest, MoveValueConstructor) {
   {
-    constexpr float value = 0.1f;
-    constexpr Optional<float> o(std::move(value));
+    CONSTEXPR float value = 0.1f;
+    CONSTEXPR Optional<float> o(std::move(value));
 
     EXPECT_TRUE(o);
     EXPECT_EQ(0.1f, o.value());
@@ -429,7 +433,7 @@ TEST(OptionalTest, ConvertingMoveConstructor) {
 
 TEST(OptionalTest, ConstructorForwardArguments) {
   {
-    constexpr Optional<float> a(base::in_place, 0.1f);
+    CONSTEXPR Optional<float> a(base::in_place, 0.1f);
     EXPECT_TRUE(a);
     EXPECT_EQ(0.1f, a.value());
   }
@@ -547,7 +551,7 @@ TEST(OptionalTest, ForwardConstructor) {
 }
 
 TEST(OptionalTest, NulloptConstructor) {
-  constexpr Optional<int> a(base::nullopt);
+  CONSTEXPR Optional<int> a(base::nullopt);
   EXPECT_FALSE(a);
 }
 
@@ -1041,15 +1045,15 @@ TEST(OptionalTest, ValueOr) {
     EXPECT_EQ(0.0f, a.value_or(0.0f));
   }
 
-  // value_or() can be constexpr.
+  // value_or() can be CONSTEXPR.
   {
-    constexpr Optional<int> a(in_place, 1);
-    constexpr int value = a.value_or(10);
+    CONSTEXPR Optional<int> a(in_place, 1);
+    CONSTEXPR int value = a.value_or(10);
     EXPECT_EQ(1, value);
   }
   {
-    constexpr Optional<int> a;
-    constexpr int value = a.value_or(10);
+    CONSTEXPR Optional<int> a;
+    CONSTEXPR int value = a.value_or(10);
     EXPECT_EQ(10, value);
   }
 
@@ -2147,10 +2151,13 @@ TEST(OptionalTest, Noexcept) {
       noexcept(Optional<int>(std::declval<Optional<int>>())),
       "move constructor for noexcept move-constructible T must be noexcept "
       "(trivial copy, trivial move)");
+#if !defined(STARBOARD)
+  // Due to issues on Raspi compiler.
   static_assert(
       !noexcept(Optional<Test1>(std::declval<Optional<Test1>>())),
       "move constructor for non-noexcept move-constructible T must not be "
       "noexcept (trivial copy)");
+#endif
   static_assert(
       noexcept(Optional<Test2>(std::declval<Optional<Test2>>())),
       "move constructor for noexcept move-constructible T must be noexcept "
@@ -2159,19 +2166,25 @@ TEST(OptionalTest, Noexcept) {
       noexcept(Optional<Test3>(std::declval<Optional<Test3>>())),
       "move constructor for noexcept move-constructible T must be noexcept "
       "(trivial copy, non-trivial move)");
+#if !defined(STARBOARD)
+  // Due to issues on Raspi compiler.
   static_assert(
       noexcept(Optional<Test4>(std::declval<Optional<Test4>>())),
       "move constructor for noexcept move-constructible T must be noexcept "
       "(non-trivial copy, non-trivial move)");
+#endif
   static_assert(
       !noexcept(Optional<Test5>(std::declval<Optional<Test5>>())),
       "move constructor for non-noexcept move-constructible T must not be "
       "noexcept (non-trivial copy)");
 
+#if !defined(STARBOARD)
+  // Due to issues on Raspi compiler.
   static_assert(
       noexcept(std::declval<Optional<int>>() = std::declval<Optional<int>>()),
       "move assign for noexcept move-constructible/move-assignable T "
       "must be noexcept");
+#endif
   static_assert(
       !noexcept(std::declval<Optional<Test1>>() =
                     std::declval<Optional<Test1>>()),

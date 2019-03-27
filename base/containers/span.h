@@ -526,7 +526,11 @@ template <typename Container,
           typename T = typename Container::value_type,
           typename = internal::EnableIfSpanCompatibleContainer<Container&, T>>
 constexpr span<T> make_span(Container& container) noexcept {
+#ifdef STARBOARD
+  return span<T>(container.data(), container.size());
+#else
   return container;
+#endif
 }
 
 template <
@@ -534,7 +538,11 @@ template <
     typename T = const typename Container::value_type,
     typename = internal::EnableIfSpanCompatibleContainer<const Container&, T>>
 constexpr span<T> make_span(const Container& container) noexcept {
+#ifdef STARBOARD
+  return span<T>(container.data(), container.size());
+#else
   return container;
+#endif
 }
 
 template <size_t N,
@@ -542,7 +550,11 @@ template <size_t N,
           typename T = typename Container::value_type,
           typename = internal::EnableIfSpanCompatibleContainer<Container&, T>>
 constexpr span<T, N> make_span(Container& container) noexcept {
+#ifdef STARBOARD
+  return span<T, N>(container.data(), container.size());
+#else
   return span<T, N>(container);
+#endif
 }
 
 template <
@@ -551,7 +563,11 @@ template <
     typename T = const typename Container::value_type,
     typename = internal::EnableIfSpanCompatibleContainer<const Container&, T>>
 constexpr span<T, N> make_span(const Container& container) noexcept {
+#ifdef STARBOARD
+  return span<T, N>(container.data(), container.size());
+#else
   return span<T, N>(container);
+#endif
 }
 
 template <typename T, size_t X>
