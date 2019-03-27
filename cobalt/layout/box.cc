@@ -1708,7 +1708,7 @@ void AnimateUiNavContainer(
 void AnimateUiNavFocus(
     const scoped_refptr<ui_navigation::NavItem>& focus,
     render_tree::MatrixTransformNode::Builder* node_builder) {
-  SbUiNavTransform matrix;
+  ui_navigation::NativeTransform matrix;
   if (focus->GetLocalTransform(&matrix)) {
     node_builder->transform = math::Matrix3F::FromValues(
         matrix.m[ 0], matrix.m[ 1], matrix.m[ 3],
