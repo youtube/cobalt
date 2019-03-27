@@ -33,7 +33,6 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
-#include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -66,10 +65,11 @@
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
+#include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/trace_manager.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/console/command_manager.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "starboard/configuration.h"
 #include "starboard/window.h"
@@ -543,13 +543,16 @@ class BrowserModule {
   TraceManager trace_manager_;
 
   // Command handler object for toggling the input fuzzer on/off.
-  base::ConsoleCommandManager::CommandHandler fuzzer_toggle_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      fuzzer_toggle_command_handler_;
 
   // Command handler object for setting media module config.
-  base::ConsoleCommandManager::CommandHandler set_media_config_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      set_media_config_command_handler_;
 
   // Command handler object for screenshot command from the debug console.
-  base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      screenshot_command_handler_;
 
   base::optional<SuspendFuzzer> suspend_fuzzer_;
 

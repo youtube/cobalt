@@ -44,6 +44,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/content/fonts/fonts.gyp:copy_font_data',
+        '<(DEPTH)/cobalt/debug/debug.gyp:console_command_manager',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',

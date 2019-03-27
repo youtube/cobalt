@@ -27,7 +27,6 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/address_sanitizer.h"
-#include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/screen_shot_writer.h"
@@ -37,6 +36,7 @@
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/render_overlay.h"
+#include "cobalt/debug/console/command_manager.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
