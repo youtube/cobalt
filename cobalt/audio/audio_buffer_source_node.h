@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "base/message_loop.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
@@ -92,6 +93,8 @@ class AudioBufferSourceNode : public AudioNode {
   ~AudioBufferSourceNode() override;
 
  private:
+  void RemoveBufferSource();
+
   enum State {
     kNone,
     kStarted,
@@ -99,6 +102,8 @@ class AudioBufferSourceNode : public AudioNode {
   };
 
   scoped_refptr<AudioBuffer> buffer_;
+
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   State state_;
 
@@ -109,6 +114,10 @@ class AudioBufferSourceNode : public AudioNode {
   // |interleaved_resampler_| is the InterleavedSincResampler object that will
   // be used if resampling needs to occur.
   std::unique_ptr<InterleavedSincResampler> interleaved_resampler_;
+
+  // |buffer_source_added_| indicates whether this AudioBufferSourceNode object
+  // has been added to AudioContext's |buffer_sources_|
+  bool buffer_source_added_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBufferSourceNode);
 };
