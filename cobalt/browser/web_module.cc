@@ -113,8 +113,7 @@ class WebModule::Impl {
 
 #if defined(ENABLE_DEBUGGER)
   debug::backend::DebugDispatcher* debug_dispatcher() {
-    // Proceed if |CreateDebugModuleIfNull| already ran, otherwise wait for it.
-    debug_module_created_.Wait();
+    DCHECK(debug_module_);
     return debug_module_->debug_dispatcher();
   }
 #endif  // ENABLE_DEBUGGER
@@ -195,7 +194,6 @@ class WebModule::Impl {
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUGGER)
-  void CreateDebugModuleIfNull();
   void WaitForWebDebugger();
   bool IsFinishedWaitingForWebDebugger() {
     return wait_for_web_debugger_finished_.IsSignaled();
@@ -409,13 +407,7 @@ class WebModule::Impl {
   scoped_ptr<debug::backend::RenderOverlay> debug_overlay_;
 
   // The core of the debugging system.
-  // Created lazily when accessed via |GetDebugDispatcher|.
   scoped_ptr<debug::backend::DebugModule> debug_module_;
-
-  // Blocks threads getting the |DebugDispatcher| until it's ready after the
-  // |CreateDebugModuleIfNull| task has run.
-  base::WaitableEvent debug_module_created_ = {true /* manual_reset */,
-                                               false /* initially_signaled */};
 
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
@@ -604,12 +596,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
 #if defined(ENABLE_DEBUGGER)
   if (data.options.wait_for_web_debugger) {
-    // Create the |DebugModule| early since we expect a web debugger to connect
-    // and we can't let |GetDebugDispatcher| get blocked when it does. This has
-    // to be done before we block the message loop in |WaitForWebDebugger|.
-    MessageLoop::current()->PostTask(
-        FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
-                              base::Unretained(this)));
     // Post a task that blocks the message loop and waits for the web debugger.
     // This must be posted before the the window's task to load the document.
     MessageLoop::current()->PostTask(
@@ -703,11 +689,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.options.clear_window_with_background_color));
   DCHECK(layout_manager_);
 
-#if defined(ENABLE_DEBUGGER)
-  debug_overlay_.reset(
-      new debug::backend::RenderOverlay(data.render_tree_produced_callback));
-#endif  // ENABLE_DEBUGGER
-
 #if !defined(COBALT_FORCE_CSP)
   if (data.options.csp_enforcement_mode == dom::kCspEnforcementDisable) {
     // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
@@ -734,6 +715,15 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   window_->document()->SetPartialLayout(data.options.enable_partial_layout);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+#if defined(ENABLE_DEBUGGER)
+  debug_overlay_.reset(
+      new debug::backend::RenderOverlay(render_tree_produced_callback_));
+
+  debug_module_.reset(new debug::backend::DebugModule(
+      window_->console(), global_environment_.get(), debug_overlay_.get(),
+      resource_provider_, window_));
+#endif  // ENABLE_DEBUGGER
 
   is_running_ = true;
 }
@@ -1020,23 +1010,6 @@ void WebModule::Impl::CreateWindowDriver(
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUGGER)
-void WebModule::Impl::CreateDebugModuleIfNull() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(is_running_);
-  DCHECK(window_);
-  DCHECK(global_environment_);
-  DCHECK(resource_provider_);
-
-  if (debug_module_) {
-    return;
-  }
-
-  debug_module_.reset(new debug::backend::DebugModule(
-      window_->console(), global_environment_, debug_overlay_.get(),
-      resource_provider_, window_));
-  debug_module_created_.Signal();
-}
-
 void WebModule::Impl::WaitForWebDebugger() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(debug_module_);
@@ -1580,16 +1553,7 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 #if defined(ENABLE_DEBUGGER)
 // May be called from any thread.
 debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
-  DCHECK(message_loop());
   DCHECK(impl_);
-
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
-                                      base::Unretained(impl_.get())));
-
-  // This blocks until |CreateDebugModuleIfNull| has run, either waiting for
-  // the one we just posted to run or returning immediately if it previously
-  // ran (making the one we just posted a no-op).
   return impl_->debug_dispatcher();
 }
 #endif  // defined(ENABLE_DEBUGGER)
