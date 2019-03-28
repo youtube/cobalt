@@ -30,6 +30,8 @@ extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
 
 #if defined(ENABLE_DEBUGGER)
+extern const char kRemoteDebuggingPort[];
+extern const char kRemoteDebuggingPortHelp[];
 extern const char kWaitForWebDebugger[];
 extern const char kWaitForWebDebuggerHelp[];
 #endif  // ENABLE_DEBUGGER
@@ -68,8 +70,6 @@ extern const char kDisablePartialLayout[];
 extern const char kDisablePartialLayoutHelp[];
 extern const char kProd[];
 extern const char kProdHelp[];
-extern const char kRemoteDebuggingPort[];
-extern const char kRemoteDebuggingPortHelp[];
 extern const char kRequireCSP[];
 extern const char kRequireCSPHelp[];
 extern const char kRequireHTTPSLocation[];

@@ -107,6 +107,10 @@ int GetRemoteDebuggingPort() {
       remote_debugging_port = kDefaultRemoteDebuggingPort;
     }
   }
+  DCHECK(remote_debugging_port != 0 ||
+         !command_line->HasSwitch(switches::kWaitForWebDebugger))
+      << switches::kWaitForWebDebugger << " switch can't be used when "
+      << switches::kRemoteDebuggingPort << " is 0 (disabled).";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return remote_debugging_port;
 }
@@ -792,10 +796,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
 #if defined(ENABLE_DEBUGGER)
   int remote_debugging_port = GetRemoteDebuggingPort();
-  debug_web_server_.reset(new debug::remote::DebugWebServer(
-      remote_debugging_port,
-      base::Bind(&BrowserModule::CreateDebugClient,
-                 base::Unretained(browser_module_.get()))));
+  if (remote_debugging_port == 0) {
+    DLOG(INFO) << "Remote web debugger disabled because "
+               << switches::kRemoteDebuggingPort << " is 0.";
+  } else {
+    debug_web_server_.reset(new debug::remote::DebugWebServer(
+        remote_debugging_port,
+        base::Bind(&BrowserModule::CreateDebugClient,
+                   base::Unretained(browser_module_.get()))));
+  }
 #endif  // ENABLE_DEBUGGER
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -1074,8 +1083,8 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   const auto& size = window_size_change_event->size();
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
-  float diagonal = SbWindowGetDiagonalSizeInInches(
-      window_size_change_event->window());
+  float diagonal =
+      SbWindowGetDiagonalSizeInInches(window_size_change_event->window());
 #else
   float diagonal = 0.0f;  // Special value meaning diagonal size is not known.
 #endif
