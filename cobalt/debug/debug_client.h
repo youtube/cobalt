@@ -85,6 +85,9 @@ class DebugClient {
  private:
   friend class backend::DebugDispatcher;
 
+  // Updates the dispatcher when freezing/thawing for navigation.
+  void SetDispatcher(backend::DebugDispatcher* dispatcher);
+
   // Called by the dispatcher when it is destroyed.
   void OnDetach(const std::string& reason);
 

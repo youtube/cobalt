@@ -36,19 +36,35 @@ DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
       command_added_while_paused_(false, false) {}
 
 DebugDispatcher::~DebugDispatcher() {
-  // Notify all clients.
-  // |detach_reason| argument from set here:
-  // https://developer.chrome.com/extensions/debugger#type-DetachReason
-  const std::string detach_reason = "target_closed";
-  for (std::set<DebugClient*>::iterator it = clients_.begin();
-       it != clients_.end(); ++it) {
-    (*it)->OnDetach(detach_reason);
-  }
   DCHECK(domain_registry_.empty())
       << domain_registry_.begin()->first << " domain still registered.";
   for (DomainRegistry::iterator it = domain_registry_.begin();
        it != domain_registry_.end(); ++it) {
     RemoveDomain(it->first);
+  }
+}
+
+DebugDispatcher::ClientsSet::~ClientsSet() {
+  // Notify all clients.
+  // |detach_reason| argument from set here:
+  // https://developer.chrome.com/extensions/debugger#type-DetachReason
+  const std::string detach_reason = "target_closed";
+  for (auto* client : clients_) {
+    client->OnDetach(detach_reason);
+  }
+}
+
+DebugDispatcher::ClientsSet DebugDispatcher::ReleaseClients() {
+  for (auto* client : clients_) {
+    client->SetDispatcher(nullptr);
+  }
+  return std::move(clients_);
+}
+
+void DebugDispatcher::RestoreClients(ClientsSet clients) {
+  clients_ = std::move(clients);
+  for (auto* client : clients_) {
+    client->SetDispatcher(this);
   }
 }
 
@@ -147,9 +163,8 @@ void DebugDispatcher::SendEvent(const std::string& method,
 
 void DebugDispatcher::SendEvent(
     const std::string& method, const base::optional<std::string>& json_params) {
-  for (std::set<DebugClient*>::iterator it = clients_.begin();
-       it != clients_.end(); ++it) {
-    (*it)->OnEvent(method, json_params);
+  for (auto* client : clients_) {
+    client->OnEvent(method, json_params);
   }
 }
 

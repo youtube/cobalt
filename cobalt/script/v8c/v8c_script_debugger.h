@@ -35,9 +35,8 @@ class V8cScriptDebugger : public ScriptDebugger,
                     Delegate* delegate);
   ~V8cScriptDebugger() override;
 
-  // ScriptDebugger implementation.
-  void Attach() override { attached_ = true; }
-  void Detach() override { attached_ = false; }
+  void Attach(const std::string& state) override;
+  std::string Detach() override;
 
   bool EvaluateDebuggerScript(const std::string& js_code,
                               std::string* out_result_utf8) override;
@@ -83,9 +82,10 @@ class V8cScriptDebugger : public ScriptDebugger,
   Delegate* delegate_;
   const std::set<std::string> supported_domains_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
-  std::unique_ptr<v8_inspector::V8InspectorSession> inspector_session_;
   PauseOnExceptionsState pause_on_exception_state_;
-  bool attached_ = false;
+
+  // The session is NULL when not attached.
+  std::unique_ptr<v8_inspector::V8InspectorSession> inspector_session_;
 };
 
 }  // namespace v8c

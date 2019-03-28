@@ -195,8 +195,14 @@ class WebModule::Impl {
 
 #if defined(ENABLE_DEBUGGER)
   void WaitForWebDebugger();
+
   bool IsFinishedWaitingForWebDebugger() {
     return wait_for_web_debugger_finished_.IsSignaled();
+  }
+
+  void FreezeDebugger(
+      std::unique_ptr<debug::backend::DebuggerState>* debugger_state) {
+    *debugger_state = debug_module_->Freeze();
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -722,7 +728,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   debug_module_.reset(new debug::backend::DebugModule(
       window_->console(), global_environment_.get(), debug_overlay_.get(),
-      resource_provider_, window_));
+      resource_provider_, window_, data.options.debugger_state));
 #endif  // ENABLE_DEBUGGER
 
   is_running_ = true;
@@ -1555,6 +1561,18 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
   DCHECK(impl_);
   return impl_->debug_dispatcher();
+}
+
+std::unique_ptr<debug::backend::DebuggerState> WebModule::FreezeDebugger() {
+  DCHECK(message_loop());
+  DCHECK(impl_);
+
+  std::unique_ptr<debug::backend::DebuggerState> debugger_state;
+  message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::FreezeDebugger,
+                            base::Unretained(impl_.get()),
+                            base::Unretained(&debugger_state)));
+  return debugger_state;
 }
 #endif  // defined(ENABLE_DEBUGGER)
 

@@ -27,8 +27,11 @@ class StubScriptDebugger : public ScriptDebugger {
   }
   ~StubScriptDebugger() override { NOTIMPLEMENTED(); }
 
-  void Attach() override { NOTIMPLEMENTED(); }
-  void Detach() override { NOTIMPLEMENTED(); }
+  void Attach(const std::string& state) override { NOTIMPLEMENTED(); }
+  std::string Detach() override {
+    NOTIMPLEMENTED();
+    return std::string();
+  }
 
   bool EvaluateDebuggerScript(const std::string& js_code,
                               std::string* out_result_utf8) override {

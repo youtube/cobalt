@@ -33,7 +33,9 @@ namespace backend {
 class ConsoleAgent {
  public:
   ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console);
-  ~ConsoleAgent();
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
 
  private:
   class Listener : public dom::Console::Listener {

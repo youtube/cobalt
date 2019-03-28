@@ -54,11 +54,16 @@ PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
   commands_["enable"] = &PageAgent::Enable;
   commands_["getResourceTree"] = &PageAgent::GetResourceTree;
   commands_["setOverlayMessage"] = &PageAgent::SetOverlayMessage;
+}
 
+void PageAgent::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
-PageAgent::~PageAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
+JSONObject PageAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
+}
 
 void PageAgent::Disable(const Command& command) { command.SendResponse(); }
 

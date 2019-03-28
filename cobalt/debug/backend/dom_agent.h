@@ -32,7 +32,9 @@ namespace backend {
 class DOMAgent {
  public:
   DOMAgent(DebugDispatcher* dispatcher, scoped_ptr<RenderLayer> render_layer);
-  ~DOMAgent();
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
 
  private:
   void Enable(const Command& command);

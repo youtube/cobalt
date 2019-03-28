@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/debug/backend/css_agent.h"
+
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -35,21 +36,20 @@ CSSAgent::CSSAgent(DebugDispatcher* dispatcher)
 
   commands_["disable"] = &CSSAgent::Disable;
   commands_["enable"] = &CSSAgent::Enable;
+}
 
+void CSSAgent::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+  bool script_loaded = dispatcher_->RunScriptFile(kScriptFile);
+  DCHECK(script_loaded);
 }
 
-CSSAgent::~CSSAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
-
-void CSSAgent::Enable(const Command& command) {
-  bool initialized = dispatcher_->RunScriptFile(kScriptFile);
-  if (initialized) {
-    command.SendResponse();
-  } else {
-    command.SendErrorResponse(Command::kInternalError,
-                              "Cannot create CSS inspector.");
-  }
+JSONObject CSSAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
 }
+
+void CSSAgent::Enable(const Command& command) { command.SendResponse(); }
 
 void CSSAgent::Disable(const Command& command) { command.SendResponse(); }
 
