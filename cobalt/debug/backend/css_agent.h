@@ -32,7 +32,9 @@ class CSSAgent : public script::Wrappable {
       CSSStyleRuleSequence;
 
   explicit CSSAgent(DebugDispatcher* dispatcher);
-  ~CSSAgent();
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
 
   // IDL: Returns a sequence of CSSStyleRules that match the element.
   CSSStyleRuleSequence GetMatchingCSSRules(

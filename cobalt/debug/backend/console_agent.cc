@@ -45,13 +45,19 @@ ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
       ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
   DCHECK(dispatcher_);
+
   commands_["disable"] = &ConsoleAgent::Disable;
   commands_["enable"] = &ConsoleAgent::Enable;
+}
 
+void ConsoleAgent::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
-ConsoleAgent::~ConsoleAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
+JSONObject ConsoleAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
+}
 
 void ConsoleAgent::Disable(const Command& command) { command.SendResponse(); }
 

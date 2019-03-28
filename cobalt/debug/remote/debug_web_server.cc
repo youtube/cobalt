@@ -247,8 +247,7 @@ void DebugWebServer::OnWebSocketMessage(int connection_id,
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    return SendErrorResponseOverWebSocket(
-        id, "Debugger is not connected - call attach first.");
+    return SendErrorResponseOverWebSocket(id, "Debugger is not connected.");
   }
 
   debug_client_->SendCommand(method, json_params,

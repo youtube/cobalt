@@ -81,11 +81,40 @@ namespace backend {
 
 class DebugDispatcher {
  public:
+  // Move-only set of all attached clients. Allows the set of clients to be
+  // transferred through |DebuggerState| to a new instance of |DebugDispatcher|
+  // when navigating. Attached clients will be notified when the set is finally
+  // destroyed.
+  class ClientsSet {
+   public:
+    ClientsSet() = default;
+    ClientsSet(const ClientsSet&) = delete;
+    ClientsSet(ClientsSet&&) = default;
+    ~ClientsSet();
+
+    ClientsSet& operator=(ClientsSet&) = delete;
+    ClientsSet& operator=(ClientsSet&&) = default;
+
+    // Proxy methods just for what we need to interact with the actual set.
+    void insert(DebugClient* client) { clients_.insert(client); }
+    void erase(DebugClient* client) { clients_.erase(client); }
+    std::set<DebugClient*>::size_type size() { return clients_.size(); }
+    std::set<DebugClient*>::iterator begin() { return clients_.begin(); }
+    std::set<DebugClient*>::iterator end() { return clients_.end(); }
+
+   private:
+    std::set<DebugClient*> clients_;
+  };
+
   // A command execution function stored in the domain registry.
   typedef base::Callback<bool(const Command& command)> CommandHandler;
 
   DebugDispatcher(script::ScriptDebugger* script_debugger,
                   DebugScriptRunner* script_runner);
+
+  // Support moving the clients through |DebuggerState| to a new instance.
+  ClientsSet ReleaseClients();
+  void RestoreClients(ClientsSet clients);
 
   // Adds a client to this object. This object does not own the client, but
   // notifies it when debugging events occur, or when this object is destroyed.
@@ -164,7 +193,7 @@ class DebugDispatcher {
   DebugScriptRunner* script_runner_;
 
   // Clients connected to this dispatcher.
-  std::set<DebugClient*> clients_;
+  ClientsSet clients_;
 
   // Map of commands, indexed by method name.
   DomainRegistry domain_registry_;

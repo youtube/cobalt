@@ -47,11 +47,16 @@ DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
   commands_["enable"] = &DOMAgent::Enable;
   commands_["highlightNode"] = &DOMAgent::HighlightNode;
   commands_["hideHighlight"] = &DOMAgent::HideHighlight;
+}
 
+void DOMAgent::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
-DOMAgent::~DOMAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
+JSONObject DOMAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
+}
 
 void DOMAgent::Enable(const Command& command) {
   bool initialized = dispatcher_->RunScriptFile(kScriptFile);

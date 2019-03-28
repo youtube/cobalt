@@ -43,11 +43,16 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
 
   commands_["end"] = &TracingAgent::End;
   commands_["start"] = &TracingAgent::Start;
+}
 
+void TracingAgent::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
-TracingAgent::~TracingAgent() { dispatcher_->RemoveDomain(kInspectorDomain); }
+JSONObject TracingAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
+}
 
 void TracingAgent::End(const Command& command) {
   DCHECK(thread_checker_.CalledOnValidThread());

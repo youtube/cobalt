@@ -34,10 +34,12 @@ class ScriptDebuggerAgent {
  public:
   ScriptDebuggerAgent(DebugDispatcher* dispatcher,
                       script::ScriptDebugger* script_debugger);
-  ~ScriptDebuggerAgent();
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
 
   bool IsSupportedDomain(const std::string& domain) {
-    return registered_domains_.count(domain) != 0;
+    return supported_domains_.count(domain) != 0;
   }
   bool RunCommand(const Command& command);
   void SendCommandResponse(const std::string& json_response);
@@ -48,7 +50,7 @@ class ScriptDebuggerAgent {
   DebugDispatcher* dispatcher_;
   script::ScriptDebugger* script_debugger_;
 
-  std::set<std::string> registered_domains_;
+  const std::set<std::string> supported_domains_;
 
   int last_command_id_ = 0;
   std::map<int, Command> pending_commands_;

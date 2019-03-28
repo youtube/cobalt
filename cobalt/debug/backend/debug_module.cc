@@ -20,13 +20,56 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
+namespace {
+constexpr char kScriptDebuggerAgent[] = "ScriptDebuggerAgent";
+constexpr char kConsoleAgent[] = "ConsoleAgent";
+constexpr char kLogAgent[] = "LogAgent";
+constexpr char kDomAgent[] = "DomAgent";
+constexpr char kCssAgent[] = "CssAgent";
+constexpr char kPageAgent[] = "PageAgent";
+constexpr char kTracingAgent[] = "TracingAgent";
+
+// Move the state for a particular agent out of the dictionary holding the
+// state for all agents. Returns a NULL JSONObject if either |agents_state| is
+// NULL or it doesn't hold a state for the agent.
+JSONObject RemoveAgentState(const std::string& agent_name,
+                            base::DictionaryValue* state_dict) {
+  if (state_dict == nullptr) {
+    return JSONObject();
+  }
+
+  base::Value* value;
+  if (!state_dict->Remove(agent_name, &value)) {
+    return JSONObject();
+  }
+
+  base::DictionaryValue* dictionary_value;
+  if (!value->GetAsDictionary(&dictionary_value)) {
+    DLOG(ERROR) << "Unexpected state type for " << agent_name;
+    delete value;
+    return JSONObject();
+  }
+
+  return JSONObject(dictionary_value);
+}
+
+void StoreAgentState(base::DictionaryValue* state_dict,
+                     const std::string& agent_name, JSONObject agent_state) {
+  if (agent_state) {
+    state_dict->Set(agent_name, agent_state.release());
+  }
+}
+
+}  // namespace
+
 DebugModule::DebugModule(dom::Console* console,
                          script::GlobalEnvironment* global_environment,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
-                         dom::Window* window) {
+                         dom::Window* window, DebuggerState* debugger_state) {
   ConstructionData data(console, global_environment, MessageLoop::current(),
-                        render_overlay, resource_provider, window);
+                        render_overlay, resource_provider, window,
+                        debugger_state);
   Build(data);
 }
 
@@ -34,15 +77,19 @@ DebugModule::DebugModule(dom::Console* console,
                          script::GlobalEnvironment* global_environment,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
-                         dom::Window* window, MessageLoop* message_loop) {
+                         dom::Window* window, DebuggerState* debugger_state,
+                         MessageLoop* message_loop) {
   ConstructionData data(console, global_environment, message_loop,
-                        render_overlay, resource_provider, window);
+                        render_overlay, resource_provider, window,
+                        debugger_state);
   Build(data);
 }
 
 DebugModule::~DebugModule() {
-  if (script_debugger_) {
-    script_debugger_->Detach();
+  if (!is_frozen_) {
+    // Shutting down without navigating. Give everything a chance to cleanup by
+    // freezing, but throw away the state.
+    Freeze();
   }
   if (debug_backend_) {
     debug_backend_->UnbindAgents();
@@ -113,13 +160,60 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   tracing_agent_.reset(
       new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
 
-  // Hook up the backend objects after the agents have been created.
+  // Hook up hybrid agent JavaScript to the DebugBackend.
   debug_backend_->BindAgents(css_agent_);
-  script_debugger_->Attach();
+
+  // Restore the clients in the dispatcher first so they get events that the
+  // agents might send as part of restoring state.
+  if (data.debugger_state) {
+    debug_dispatcher_->RestoreClients(
+        std::move(data.debugger_state->attached_clients));
+  }
+
+  // Restore the agents with their state from before navigation. Do this
+  // unconditionally to give the agents a place to initialize themselves whether
+  // or not state is being restored.
+  base::DictionaryValue* agents_state =
+      data.debugger_state == nullptr ? nullptr
+                                     : data.debugger_state->agents_state.get();
+  script_debugger_agent_->Thaw(
+      RemoveAgentState(kScriptDebuggerAgent, agents_state));
+  console_agent_->Thaw(RemoveAgentState(kConsoleAgent, agents_state));
+  log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
+  dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
+  css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
+  page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
+  tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
+
+  is_frozen_ = false;
 
   if (created) {
     created->Signal();
   }
+}
+
+std::unique_ptr<DebuggerState> DebugModule::Freeze() {
+  DCHECK(!is_frozen_);
+  is_frozen_ = true;
+
+  std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
+
+  debugger_state->agents_state.reset(new base::DictionaryValue());
+  base::DictionaryValue* agents_state = debugger_state->agents_state.get();
+  StoreAgentState(agents_state, kScriptDebuggerAgent,
+                  script_debugger_agent_->Freeze());
+  StoreAgentState(agents_state, kConsoleAgent, console_agent_->Freeze());
+  StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
+  StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
+  StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
+  StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
+  StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
+
+  // Take the clients from the dispatcher last so they still get events that the
+  // agents might send as part of being frozen.
+  debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
+
+  return debugger_state;
 }
 
 void DebugModule::SendEvent(const std::string& method,
