@@ -173,8 +173,8 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
   for path in _GetDeployDirs(platform_name):
     path = os.path.join(out_directory, path)
     if not os.path.exists(path):
-      raise IOError('Expected path ' + path + ' but it does not exist.')
-    assert(os.path.exists(path))
+      print 'Skipping deploy directory', path, 'because it does not exist.'
+      continue
     print '  adding ' + os.path.abspath(path)
     flist.AddAllFilesInPath(root_dir=root_dir, sub_dir=path)
   print '...done'
