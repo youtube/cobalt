@@ -67,8 +67,7 @@ void DebugHub::SendCommand(const std::string& method,
   last_error_ = base::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
     scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
-    response->SetString("error.message",
-                        "Debugger is not connected - call attach first.");
+    response->SetString("error.message", "Debugger is not connected.");
     std::string json_response;
     base::JSONWriter::Write(response.get(), &json_response);
     ResponseCallbackArg::Reference callback_ref(this, callback);

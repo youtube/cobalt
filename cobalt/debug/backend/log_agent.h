@@ -32,6 +32,9 @@ class LogAgent {
   explicit LogAgent(DebugDispatcher* dispatcher);
   ~LogAgent();
 
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
  private:
   void Enable(const Command& command);
   void Disable(const Command& command);

@@ -91,9 +91,10 @@ class ScriptDebugger {
   static scoped_ptr<ScriptDebugger> CreateDebugger(
       GlobalEnvironment* global_environment, Delegate* delegate);
 
-  // Attach/detach the script debugger.
-  virtual void Attach() = 0;
-  virtual void Detach() = 0;
+  // Attach/detach the script debugger. Saved state can be passed between
+  // instances as an opaque string..
+  virtual void Attach(const std::string& state) = 0;
+  virtual std::string Detach() = 0;
 
   // Evaluate JavaScript code that is part of the debugger implementation, such
   // that it does not get reported as debuggable source. Returns true on

@@ -72,7 +72,9 @@
 #include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/trace_manager.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debugger_state.h"
 #include "cobalt/debug/console/command_manager.h"
+#include "cobalt/debug/debug_client.h"
 #endif  // ENABLE_DEBUGGER
 
 namespace cobalt {
