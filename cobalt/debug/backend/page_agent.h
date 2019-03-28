@@ -37,7 +37,9 @@ class PageAgent {
   PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
             scoped_ptr<RenderLayer> render_layer,
             render_tree::ResourceProvider* resource_provider);
-  ~PageAgent();
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
 
  private:
   void Enable(const Command& command);

@@ -30,6 +30,9 @@ constexpr char kInfoLevel[] = "info";
 constexpr char kWarningLevel[] = "warning";
 constexpr char kErrorLevel[] = "error";
 
+// State keys
+constexpr char kEnabledState[] = "enabled";
+
 const char* GetLogLevelFromSeverity(int severity) {
   switch (severity) {
     // LOG_VERBOSE is a pseudo-severity, which we never get here.
@@ -56,8 +59,6 @@ LogAgent::LogAgent(DebugDispatcher* dispatcher)
   commands_["enable"] = &LogAgent::Enable;
   commands_["disable"] = &LogAgent::Disable;
 
-  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-
   // Get log output while still making it available elsewhere.
   log_message_handler_callback_id_ =
       base::LogMessageHandler::GetInstance()->AddCallback(
@@ -67,8 +68,22 @@ LogAgent::LogAgent(DebugDispatcher* dispatcher)
 LogAgent::~LogAgent() {
   base::LogMessageHandler::GetInstance()->RemoveCallback(
       log_message_handler_callback_id_);
+}
 
+void LogAgent::Thaw(JSONObject agent_state) {
+  if (agent_state) {
+    agent_state->GetBoolean(kEnabledState, &enabled_);
+  }
+
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+JSONObject LogAgent::Freeze() {
   dispatcher_->RemoveDomain(kInspectorDomain);
+
+  JSONObject agent_state(new base::DictionaryValue());
+  agent_state->SetBoolean(kEnabledState, enabled_);
+  return agent_state.Pass();
 }
 
 void LogAgent::Enable(const Command& command) {

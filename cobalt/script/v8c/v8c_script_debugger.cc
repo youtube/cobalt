@@ -79,9 +79,6 @@ V8cScriptDebugger::V8cScriptDebugger(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           inspector_(v8_inspector::V8Inspector::create(
               global_environment_->isolate(), /* client */ this))),
-      // Immediately connect a single long-running inspector session.
-      ALLOW_THIS_IN_INITIALIZER_LIST(inspector_session_(inspector_->connect(
-          kContextGroupId, this, v8_inspector::StringView()))),
       pause_on_exception_state_(kAll) {
   // Register our one-and-only context with the inspector.
   v8::Isolate* isolate = global_environment_->isolate();
@@ -93,11 +90,30 @@ V8cScriptDebugger::V8cScriptDebugger(
                                sizeof(kContextName) - 1)));
 }
 
-V8cScriptDebugger::~V8cScriptDebugger() {
+V8cScriptDebugger::~V8cScriptDebugger() {}
+
+void V8cScriptDebugger::Attach(const std::string& state) {
+  DCHECK(!inspector_session_);
+  inspector_session_ =
+      inspector_->connect(kContextGroupId, this, ToStringView(state));
+}
+
+std::string V8cScriptDebugger::Detach() {
+  // First inform the inspector that the context is destroyed. This will send
+  // an event to inform the DevTools frontend just before we kill the session.
   v8::Isolate* isolate = global_environment_->isolate();
   EntryScope entry_scope(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   inspector_->contextDestroyed(context);
+
+  // After the frontend knows the context is destroyed we can kill the session.
+  // If/when we re-atttach we'll connect a new session and the V8 inspector will
+  // then inform the frontend about the sources, etc. in the new context.
+  DCHECK(inspector_session_);
+  std::unique_ptr<v8_inspector::StringBuffer> state =
+      inspector_session_->stateJSON();
+  inspector_session_.reset();
+  return FromStringView(state->string());
 }
 
 bool V8cScriptDebugger::EvaluateDebuggerScript(const std::string& js_code,
@@ -164,6 +180,7 @@ bool V8cScriptDebugger::DispatchProtocolMessage(const std::string& method,
 
 std::string V8cScriptDebugger::CreateRemoteObject(
     const ValueHandleHolder& object, const std::string& group) {
+  DCHECK(inspector_session_);
   const V8cValueHandleHolder* v8_value_handle_holder =
       base::polymorphic_downcast<const V8cValueHandleHolder*>(&object);
 
@@ -194,23 +211,17 @@ void V8cScriptDebugger::StopTracing() {
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::runMessageLoopOnPause(int contextGroupId) {
   DCHECK(contextGroupId == kContextGroupId);
-  if (attached_) {
-    delegate_->OnScriptDebuggerPause();
-  }
+  delegate_->OnScriptDebuggerPause();
 }
 
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::quitMessageLoopOnPause() {
-  if (attached_) {
-    delegate_->OnScriptDebuggerResume();
-  }
+  delegate_->OnScriptDebuggerResume();
 }
 
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::runIfWaitingForDebugger(int contextGroupId) {
-  if (attached_) {
-    delegate_->OnScriptDebuggerResume();
-  }
+  delegate_->OnScriptDebuggerResume();
 }
 
 // v8_inspector::V8InspectorClient implementation.
@@ -256,19 +267,15 @@ v8::Local<v8::Context> V8cScriptDebugger::ensureDefaultContextInGroup(
 // v8_inspector::V8Inspector::Channel implementation.
 void V8cScriptDebugger::sendResponse(
     int callId, std::unique_ptr<v8_inspector::StringBuffer> message) {
-  if (attached_) {
-    std::string response = FromStringView(message->string());
-    delegate_->OnScriptDebuggerResponse(response);
-  }
+  std::string response = FromStringView(message->string());
+  delegate_->OnScriptDebuggerResponse(response);
 }
 
 // v8_inspector::V8Inspector::Channel implementation.
 void V8cScriptDebugger::sendNotification(
     std::unique_ptr<v8_inspector::StringBuffer> message) {
-  if (attached_) {
-    std::string event = FromStringView(message->string());
-    delegate_->OnScriptDebuggerEvent(event);
-  }
+  std::string event = FromStringView(message->string());
+  delegate_->OnScriptDebuggerEvent(event);
 }
 
 }  // namespace v8c

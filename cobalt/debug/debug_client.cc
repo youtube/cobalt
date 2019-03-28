@@ -47,6 +47,11 @@ void DebugClient::OnEvent(const std::string& method,
   delegate_->OnDebugClientEvent(method, json_params);
 }
 
+void DebugClient::SetDispatcher(backend::DebugDispatcher* dispatcher) {
+  base::AutoLock auto_lock(dispatcher_lock_);
+  dispatcher_ = dispatcher;
+}
+
 void DebugClient::OnDetach(const std::string& reason) {
   DCHECK(delegate_);
   base::AutoLock auto_lock(dispatcher_lock_);

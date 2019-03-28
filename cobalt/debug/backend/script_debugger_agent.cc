@@ -20,6 +20,9 @@
 #include "cobalt/debug/json_object.h"
 
 namespace {
+// State keys
+constexpr char kScriptDebuggerState[] = "script_debugger";
+
 // JSON attribute names
 constexpr char kId[] = "id";
 constexpr char kMethod[] = "method";
@@ -32,18 +35,30 @@ namespace backend {
 
 ScriptDebuggerAgent::ScriptDebuggerAgent(
     DebugDispatcher* dispatcher, script::ScriptDebugger* script_debugger)
-    : dispatcher_(dispatcher), script_debugger_(script_debugger) {
-  for (auto domain : script_debugger->SupportedProtocolDomains()) {
+    : dispatcher_(dispatcher),
+      script_debugger_(script_debugger),
+      supported_domains_(script_debugger->SupportedProtocolDomains()) {}
+
+void ScriptDebuggerAgent::Thaw(JSONObject agent_state) {
+  for (auto domain : supported_domains_) {
     dispatcher_->AddDomain(domain, base::Bind(&ScriptDebuggerAgent::RunCommand,
                                               base::Unretained(this)));
-    registered_domains_.insert(domain);
   }
+  std::string script_debugger_state;
+  if (agent_state) {
+    agent_state->GetString(kScriptDebuggerState, &script_debugger_state);
+  }
+  script_debugger_->Attach(script_debugger_state);
 }
 
-ScriptDebuggerAgent::~ScriptDebuggerAgent() {
-  for (auto domain : registered_domains_) {
+JSONObject ScriptDebuggerAgent::Freeze() {
+  for (auto domain : supported_domains_) {
     dispatcher_->RemoveDomain(domain);
   }
+  JSONObject agent_state(new base::DictionaryValue());
+  std::string script_debugger_state = script_debugger_->Detach();
+  agent_state->SetString(kScriptDebuggerState, script_debugger_state);
+  return agent_state.Pass();
 }
 
 bool ScriptDebuggerAgent::RunCommand(const Command& command) {

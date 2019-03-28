@@ -466,6 +466,14 @@ void BrowserModule::Navigate(const GURL& url) {
   // |pending_navigate_url_|.
   pending_navigate_url_ = GURL::EmptyGURL();
 
+#if defined(ENABLE_DEBUGGER)
+  // Save the debugger state to be restored in the new WebModule.
+  std::unique_ptr<debug::backend::DebuggerState> debugger_state;
+  if (web_module_) {
+    debugger_state = web_module_->FreezeDebugger();
+  }
+#endif  // defined(ENABLE_DEBUGGER)
+
   // Destroy old WebModule first, so we don't get a memory high-watermark after
   // the second WebModule's constructor runs, but before scoped_ptr::reset() is
   // run.
@@ -558,6 +566,8 @@ void BrowserModule::Navigate(const GURL& url) {
     options.wait_for_web_debugger =
         (wait_for_generation == main_web_module_generation_);
   }
+
+  options.debugger_state = debugger_state.get();
 #endif  // ENABLE_DEBUGGER
 
   web_module_.reset(new WebModule(

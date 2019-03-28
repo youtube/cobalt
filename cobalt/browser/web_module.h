@@ -63,6 +63,7 @@
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debugger_state.h"
 #include "cobalt/debug/backend/render_overlay.h"
 #include "cobalt/debug/console/command_manager.h"
 #endif  // ENABLE_DEBUGGER
@@ -249,6 +250,11 @@ class WebModule : public LifecycleObserver {
 #if defined(ENABLE_DEBUGGER)
     // Whether the debugger should block until remote devtools connects.
     bool wait_for_web_debugger = false;
+
+    // The debugger state returned from a previous web module's FreezeDebugger()
+    // that should be restored in the new WebModule after navigation. Null if
+    // there is no state to restore.
+    debug::backend::DebuggerState* debugger_state = nullptr;
 #endif  // defined(ENABLE_DEBUGGER)
   };
 
@@ -334,6 +340,10 @@ class WebModule : public LifecycleObserver {
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
   debug::backend::DebugDispatcher* GetDebugDispatcher();
+
+  // Moves the debugger state out of this WebModule prior to navigating so that
+  // it can be restored in the new WebModule after the navigation.
+  std::unique_ptr<debug::backend::DebuggerState> FreezeDebugger();
 #endif  // ENABLE_DEBUGGER
 
   // Sets the size and pixel ratio of this web module, possibly causing relayout
