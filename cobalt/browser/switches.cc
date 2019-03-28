@@ -32,7 +32,12 @@ const char kDebugConsoleModeHelp[] =
     "Switches different debug console modes: on | hud | off";
 
 #if defined(ENABLE_DEBUGGER)
-const char kWaitForWebDebugger[] = "wait_for_web_debugger";
+const char kRemoteDebuggingPort[] = "remote_debugging_port";
+const char kRemoteDebuggingPortHelp[] =
+    "Remote web debugger is served from the specified port. If 0, then the "
+    "remote web debugger is disabled.";
+
+    const char kWaitForWebDebugger[] = "wait_for_web_debugger";
 const char kWaitForWebDebuggerHelp[] =
     "Waits for remote web debugger to connect before loading the page.  A "
     "number may optionally be specified to indicate which in a sequence of "
@@ -127,10 +132,6 @@ const char kProd[] = "prod";
 const char kProdHelp[] =
     "Several checks are not enabled by default in non-production(gold) build. "
     "Use this flag to simulate production build behavior.";
-
-const char kRemoteDebuggingPort[] = "remote_debugging_port";
-const char kRemoteDebuggingPortHelp[] =
-    "Creates a remote debugging server and listens on the specified port.";
 
 const char kRequireCSP[] = "require_csp";
 const char kRequireCSPHelp[] =
