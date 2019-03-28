@@ -33,6 +33,7 @@ enum PixelFormat {
   kPixelFormatRGB565,
   kPixelFormatBA8,
   kPixelFormatA8,
+  kPixelFormatA16,
   kPixelFormatInvalid,
   kPixelFormatNumFormats = kPixelFormatInvalid
 };
