@@ -36,7 +36,11 @@ typedef ::media::ShellAudioBus ShellAudioBus;
 // numberOfInputs  : 0
 // numberOfOutputs : 1
 AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
-    : AudioNode(context), state_(kNone), read_index_(0) {
+    : AudioNode(context),
+      message_loop_(base::MessageLoopProxy::current()),
+      state_(kNone),
+      read_index_(0),
+      buffer_source_added_(false) {
   AudioLock::AutoLock lock(audio_lock());
 
   AddOutput(new AudioNodeOutput(this));
@@ -61,6 +65,12 @@ void AudioBufferSourceNode::set_buffer(
             buffer_->sample_rate() / context()->sample_rate(),
             static_cast<int32>(buffer_->audio_bus()->channels())));
   }
+
+  // TODO: Find a more optimal way of holding a reference to the
+  // AudioBufferSourceNode. This is not ideal because AudioNodes are organized
+  // as a tree; this puts the ownership of a leaf node to the root of the tree.
+  context()->AddBufferSource(make_scoped_refptr(this));
+  buffer_source_added_ = true;
 }
 
 void AudioBufferSourceNode::Start(double when, double offset,
@@ -125,6 +135,13 @@ scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
       (!interleaved_resampler_ && read_index_ == buffer_->length()) ||
       (interleaved_resampler_ && interleaved_resampler_->ReachedEOS())) {
     *finished = true;
+
+    if (buffer_source_added_) {
+      message_loop_->PostTask(
+          FROM_HERE, base::Bind(&AudioBufferSourceNode::RemoveBufferSource,
+                                base::Unretained(this)));
+      buffer_source_added_ = false;
+    }
     return scoped_ptr<ShellAudioBus>();
   }
 
@@ -228,6 +245,10 @@ void AudioBufferSourceNode::TraceMembers(script::Tracer* tracer) {
   AudioNode::TraceMembers(tracer);
 
   tracer->Trace(buffer_);
+}
+
+void AudioBufferSourceNode::RemoveBufferSource() {
+  context()->RemoveBufferSource(make_scoped_refptr(this));
 }
 
 }  // namespace audio
