@@ -160,6 +160,7 @@ v8.log
 /third_party/adobe/flash/symbols
 /third_party/amd/
 /third_party/angle
+/third_party/android_crazy_linker
 /third_party/android_tools/
 /third_party/aosp
 /third_party/apache-mime4j
@@ -225,6 +226,7 @@ v8.log
 /third_party/llvm
 /third_party/llvm-allocated-type
 /third_party/llvm-build
+/third_party/llvm-project
 /third_party/lss
 /third_party/material-design-lite
 /third_party/mingw-w64
