@@ -72,17 +72,23 @@
 // Cobalt extensions implement app & platform specific functionality.
 #define SB_EXTENSIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Deprecate SbSystemClearPlatformError.
+// Introduce audio write duration
+//   Add a function `SbMediaSetAudioWriteDuration()` to `starboard/media.h`
+//   which communicates to the platform how much audio will be sent to the
+//   platform at a time.
+#define SB_SET_AUDIO_WRITE_DURATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate unused function `SbSystemClearPlatformError()`.
 #define SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Deprecate the events of type kSbEventTypeNetworkDisconnect,
-// kSbEventTypeNetworkConnect.
+// Deprecate the events of type `kSbEventTypeNetworkDisconnect`,
+// `kSbEventTypeNetworkConnect`.
 #define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Add SbMediaTransferId* argument |eotf| to SbMediaIsVideoSupported, so the
+// Add `SbMediaTransferId*` argument |eotf| to `SbMediaIsVideoSupported`, so the
 // platform may indicate support of resolution, bitrate, fps, and codec
 // conditioned on eotf. Also, remove the function
-// SbMediaIsTransferCharacteristicsSupported which is no longer necessary.
+// `SbMediaIsTransferCharacteristicsSupported()` which is no longer necessary.
 #define SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Add support for using C++11 standard unordered maps and sets.
