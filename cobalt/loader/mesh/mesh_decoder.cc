@@ -249,10 +249,8 @@ void MeshDecoder::Finish() {
       MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
           resource_provider_, 0, 0, &raw_data_->at(4), raw_data_->size() - 4);
   if (mesh_projection) {
-    // TODO: Update clients to expect load complete to come last and prevent
-    // destruction of loader until then.
-    load_complete_callback_.Run(base::nullopt);
     mesh_available_callback_.Run(mesh_projection);
+    load_complete_callback_.Run(base::nullopt);
   } else {
     // Error must have occured in MeshDecoderSink::Decode.
     load_complete_callback_.Run(
