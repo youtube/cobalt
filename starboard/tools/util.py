@@ -79,7 +79,8 @@ def SpawnProcess(cmd_line, env=None, cwd=None, shell=None):
                           stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT,
                           env=env,
-                          cwd=cwd)
+                          cwd=cwd,
+                          universal_newlines=True)
 
 
 def Execute(cmd_line, env=None, cwd=None, shell=None):
