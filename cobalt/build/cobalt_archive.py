@@ -25,6 +25,7 @@ def MakeCobaltArchiveFromFileList(output_archive_path,
                                   platform_name,
                                   platform_sdk_version,
                                   additional_buildinfo_dict={}):
+  additional_buildinfo_dict = dict(additional_buildinfo_dict)
   b = Bundler(archive_zip_path=output_archive_path)
   b.MakeArchive(platform_name=platform_name,
                 platform_sdk_version=platform_sdk_version,
@@ -37,6 +38,7 @@ def MakeCobaltArchiveFromSource(output_archive_path,
                                 config,
                                 platform_sdk_version,
                                 additional_buildinfo_dict={}):
+  additional_buildinfo_dict = dict(additional_buildinfo_dict)
   _MakeCobaltArchiveFromSource(
       output_archive_path=output_archive_path,
       platform_name=platform_name,
@@ -52,7 +54,7 @@ def ExtractCobaltArchive(input_zip_path, output_directory_path, outstream=None):
 
 def ReadCobaltArchiveInfo(input_zip_path):
   b = Bundler(archive_zip_path=input_zip_path)
-  return b.ReadDeployInfo()
+  return b.ReadMetaData()
 
 
 ################################################################################
@@ -94,6 +96,21 @@ from starboard.tools.config import GetAll as GetAllConfigs
 from starboard.tools.platform import GetAll as GetAllPlatforms
 
 
+# Source resource paths.
+_SELF_DIR = os.path.abspath(os.path.dirname(__file__))
+_SRC_CONTENT_PATH = os.path.join(_SELF_DIR, 'cobalt_archive_content')
+
+
+# Relative paths from the resulting archive root.
+_OUT_ARCHIVE_ROOT = '__cobalt_archive'
+_OUT_FINALIZE_DECOMPRESSION_PATH = os.path.join(_OUT_ARCHIVE_ROOT,
+                                                'finalize_decompression')
+_OUT_METADATA_PATH = os.path.join(_OUT_ARCHIVE_ROOT, 'metadata.json')
+_OUT_DECOMP_PY = os.path.join(_OUT_FINALIZE_DECOMPRESSION_PATH, 'decompress.py')
+_OUT_DECOMP_JSON = os.path.join(_OUT_FINALIZE_DECOMPRESSION_PATH,
+                                'decompress.json')
+
+
 class Bundler:
   """Bundler is a utility for managing device bundles of codes. It is used
   for creating the zip file and also unzipping."""
@@ -104,18 +121,26 @@ class Bundler:
     outstream = outstream if outstream else sys.stdout
     assert(os.path.exists(self.archive_zip_path))
     print('UNZIPPING ' + self.archive_zip_path + ' -> ' + output_dir)
-    _ExtractFilesAndSymlinks(self.archive_zip_path, output_dir, outstream)
+    _ExtractFiles(self.archive_zip_path, output_dir, outstream)
+    # Now that all files have been extracted, execute the final decompress
+    # step.
+    decomp_py = os.path.abspath(os.path.join(output_dir, _OUT_DECOMP_PY))
+    assert(os.path.isfile(decomp_py)), decomp_py
+    cmd_str = 'python ' + decomp_py
+    outstream.write('Executing: %s\n' % cmd_str)
+    subprocess.call(cmd_str, shell=True, stdout=outstream, stderr=outstream)
 
-  def ReadDeployInfo(self):
+  def ReadMetaData(self):
     with zipfile.ZipFile(self.archive_zip_path, 'r') as zf:
-      deploy_info_str = zf.read('deploy_info.json')
-    return json.loads(deploy_info_str)
+      json_str = zf.read(_OUT_METADATA_PATH)
+    return json.loads(json_str)
 
   def MakeArchive(self,
                   platform_name,
                   platform_sdk_version,
                   file_list,  # class FileList
                   additional_buildinfo_dict={}):
+    additional_buildinfo_dict = dict(additional_buildinfo_dict)
     build_info_str = _GenerateBuildInfoStr(
         platform_name=platform_name,
         platform_sdk_version=platform_sdk_version,
@@ -123,6 +148,17 @@ class Bundler:
     with zipfile.ZipFile(self.archive_zip_path, mode='w',
                          compression=zipfile.ZIP_DEFLATED,
                          allowZip64=True) as zf:
+      # Copy the cobalt_archive_content directory into the root of the archive.
+      content_file_list = FileList()
+      content_file_list.AddAllFilesInPath(root_dir=_SRC_CONTENT_PATH,
+                                          sub_dir=_SRC_CONTENT_PATH)
+      for file_path, archive_path in content_file_list.file_list:
+        print file_path, archive_path
+        zf.write(file_path, arcname=archive_path)
+      # Write out the metadata.
+      zf.writestr(_OUT_METADATA_PATH, build_info_str)
+      # TODO: Remove line below after device server has been updated and
+      # restarted.
       zf.writestr('deploy_info.json', build_info_str)
       if file_list.file_list:
         print('  Compressing ' + str(len(file_list.file_list)) + ' files')
@@ -133,11 +169,19 @@ class Bundler:
         zf.write(file_path, arcname=archive_path)
       if file_list.symlink_dir_list:
         print('  Compressing ' + str(len(file_list.symlink_dir_list)) + ' symlinks')
-      for root_dir, link_path, physical_path in file_list.symlink_dir_list:
-        zinfo = zipfile.ZipInfo(physical_path)
-        zinfo.filename = link_path
-        zinfo.comment = json.dumps({'symlink': physical_path})
-        zf.writestr(zinfo, zinfo.comment, compress_type=zipfile.ZIP_DEFLATED)
+      # Generate the decompress.json file used by decompress.py.
+      # Removes the first element which is the root directory, which is not
+      # important for symlink creation.
+      symlink_dir_list = [l[1:] for l in file_list.symlink_dir_list]
+      decompress_json_str = _JsonDumpPrettyPrint({
+        'symlink_dir': symlink_dir_list,
+        'symlink_dir_doc': '[link_dir_path, target_dir_path]'
+      })
+      zf.writestr(_OUT_DECOMP_JSON, decompress_json_str)
+
+
+def _JsonDumpPrettyPrint(data):
+  return json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
 
 
 def _CheckChildPathIsUnderParentPath(child_path, parent_path):
@@ -291,7 +335,7 @@ def _GenerateBuildInfoStr(platform_name, platform_sdk_version,
   build_info['sdk_version'] = platform_sdk_version
   # Can be used by clients for caching reasons.
   build_info['random_uint64'] = random.randint(0, 0xffffffffffffffff)
-  build_info_str = json.dumps(build_info)
+  build_info_str = _JsonDumpPrettyPrint(build_info)
   return build_info_str
 
 
@@ -310,36 +354,14 @@ def _AddFilesAndSymlinksToZip(open_zipfile, archive_file_list):
     open_zipfile.writestr(zinfo, rel_path, compress_type=zipfile.ZIP_DEFLATED)
 
 
-def _ExtractFilesAndSymlinks(input_zip_path, output_dir, outstream):
+def _ExtractFiles(input_zip_path, output_dir, outstream):
   with zipfile.ZipFile(input_zip_path, 'r') as zf:
     for zinfo in zf.infolist():
-      if not zinfo.comment:
-        # If no comment then this is a regular file or directory so
-        # extract normally.
-        try:
-          zf.extract(zinfo, path=output_dir)
-        except Exception as err:
-          msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
-          outstream.write(msg)
-      else:
-        # Otherwise a dictionary containing the symlink will be stored in the
-        # comment space.
-        try:
-          comment = json.loads(zinfo.comment)
-          target_path = comment.get('symlink')
-          if not target_path:
-            print('Expected symbolic-link for archive member ' + \
-                  zinfo.filename)
-          else:
-            full_path = os.path.join(output_dir, target_path)
-            _MakeDirs(os.path.join(output_dir, target_path))
-            rel_path = os.path.relpath(full_path,
-                                       os.path.join(output_dir, zinfo.filename))
-            MakeSymLink(from_folder=rel_path,
-                        link_folder=os.path.join(output_dir, zinfo.filename))
-        except Exception as err:
-          msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
-          outstream.write(msg)
+      try:
+        zf.extract(zinfo, path=output_dir)
+      except Exception as err:
+        msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
+        outstream.write(msg)
 
 
 ################################################################################
@@ -362,7 +384,9 @@ def _UnitTestBundler_ExtractTo():
   out_from_dir_lnk = os.path.join(out_dir, 'from_dir_lnk')
   assert(GetFileType(out_from_dir) == TYPE_DIRECTORY)
   assert(GetFileType(out_from_dir_lnk) == TYPE_SYMLINK_DIR)
-  assert(os.path.abspath(out_from_dir) == os.path.abspath(ReadSymLink(out_from_dir_lnk)))
+  resolved_from_link_path = os.path.join(out_dir, ReadSymLink(out_from_dir_lnk))
+  assert(os.path.abspath(out_from_dir) ==
+         os.path.abspath(resolved_from_link_path))
 
 
 def _UnitTestBundler_MakesDeployInfo():
@@ -377,9 +401,9 @@ def _UnitTestBundler_MakesDeployInfo():
                 file_list=flist)
   out_dir = os.path.join(tf.root_tmp, 'out')
   b.ExtractTo(out_dir)
-  out_deploy_file = os.path.join(out_dir, 'deploy_info.json')
-  assert(GetFileType(out_deploy_file) == TYPE_FILE)
-  with open(out_deploy_file) as fd:
+  out_metadata_file = os.path.join(out_dir, _OUT_METADATA_PATH)
+  assert(GetFileType(out_metadata_file) == TYPE_FILE)
+  with open(out_metadata_file) as fd:
     text = fd.read()
     js = json.loads(text)
     assert(js)
