@@ -318,6 +318,7 @@
       '<(DEPTH)/starboard/shared/stub/system_get_extensions.cc',
       '<(DEPTH)/starboard/shared/stub/image_decode.cc',
       '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/media_set_audio_write_duration.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_close.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_create.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_destroy.cc',

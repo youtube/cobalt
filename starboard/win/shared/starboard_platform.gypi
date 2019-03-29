@@ -143,6 +143,7 @@
       '<(DEPTH)/starboard/shared/starboard/player/player_write_end_of_stream.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample2.cc',
+      '<(DEPTH)/starboard/shared/stub/media_set_audio_write_duration.cc',
     ],
 
     'win32_shared_misc_files': [
