@@ -218,9 +218,7 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
 
 void AudioTrackAudioSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "play", "()V");
-
-  bool was_playing = true;
+  bool was_playing = false;
 
   while (!quit_) {
     int playback_head_position = 0;
