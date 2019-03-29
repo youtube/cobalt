@@ -42,7 +42,6 @@ class XMLDecoder : public loader::Decoder {
              const scoped_refptr<dom::Node>& reference_node,
              const int dom_max_element_depth,
              const base::SourceLocation& input_location,
-             const base::Closure& done_callback,
              const loader::Decoder::OnCompleteFunction& load_complete_callback);
 
   ~XMLDecoder();
@@ -62,7 +61,7 @@ class XMLDecoder : public loader::Decoder {
   scoped_ptr<LibxmlXMLParserWrapper> libxml_xml_parser_wrapper_;
 
   base::ThreadChecker thread_checker_;
-  const base::Closure done_callback_;
+  const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(XMLDecoder);
 };

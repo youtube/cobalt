@@ -140,9 +140,7 @@ bool Loader::DidFailFromTransientError() const {
 
 void Loader::LoadComplete(const base::optional<std::string>& error) {
   is_load_complete_ = true;
-  if (error) {
-    on_load_complete_.Run(error);
-  }
+  on_load_complete_.Run(error);
 }
 
 void Loader::Start() {
