@@ -77,8 +77,8 @@ class CachedResource
   // This class can be used to attach success or error callbacks to
   // CachedResource objects that are executed when the resource finishes
   // loading.
-  // The callbacks are removed when the object is destroyed. If the resource has
-  // already been loaded, execute the callback immediately.
+  // The callbacks are removed when the object is destroyed. If the resource
+  // has already been loaded, execute the callback immediately.
   class OnLoadedCallbackHandler {
    public:
     OnLoadedCallbackHandler(
@@ -146,9 +146,9 @@ class CachedResource
   // Callbacks for decoders.
   //
   // Notify that the resource is loaded successfully.
-  void OnLoadingSuccess(const scoped_refptr<ResourceType>& resource);
+  void OnContentProduced(const scoped_refptr<ResourceType>& resource);
   // Notify the loading error.
-  void OnLoadingError(const base::optional<std::string>& error);
+  void OnLoadingComplete(const base::optional<std::string>& error);
 
   // Called by |CachedResourceLoadedCallbackHandler|.
   CallbackListIterator AddCallback(CallbackType type,
@@ -318,47 +318,57 @@ void CachedResource<CacheType>::ScheduleLoadingRetry() {
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::OnLoadingSuccess(
+void CachedResource<CacheType>::OnContentProduced(
     const scoped_refptr<ResourceType>& resource) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK(!resource_);
 
   resource_ = resource;
-
-  loader_.reset();
-  retry_timer_.reset();
-
-  completion_callback_ =
-      base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
-                 base::Unretained(resource_cache_), base::Unretained(this),
-                 kOnLoadingSuccessCallbackType);
-  if (are_completion_callbacks_enabled_) {
-    completion_callback_.Run();
-  }
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::OnLoadingError(
+void CachedResource<CacheType>::OnLoadingComplete(
     const base::optional<std::string>& error) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  LOG(WARNING) << " Error while loading '" << url_ << "': " << error;
-
-  bool should_retry = resource_cache_->are_loading_retries_enabled() &&
-                      loader_->DidFailFromTransientError();
-
-  loader_.reset();
-
-  if (should_retry) {
-    ScheduleLoadingRetry();
-  } else {
+  // Success
+  if (!error) {
+    loader_.reset();
     retry_timer_.reset();
 
     completion_callback_ =
         base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
                    base::Unretained(resource_cache_), base::Unretained(this),
-                   kOnLoadingErrorCallbackType);
+                   kOnLoadingSuccessCallbackType);
     if (are_completion_callbacks_enabled_) {
       completion_callback_.Run();
+    }
+  // Error
+  } else {
+    LOG(WARNING) << " Error while loading '" << url_ << "': " << *error;
+
+    if (resource_) {
+      LOG(WARNING) << "A resource was produced but there was still an error.";
+      resource_ = nullptr;
+    }
+
+    bool should_retry = resource_cache_->are_loading_retries_enabled() &&
+                        loader_->DidFailFromTransientError();
+
+    loader_.reset();
+
+    if (should_retry) {
+      ScheduleLoadingRetry();
+    } else {
+      retry_timer_.reset();
+
+      completion_callback_ =
+          base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
+                     base::Unretained(resource_cache_), base::Unretained(this),
+                     kOnLoadingErrorCallbackType);
+      if (are_completion_callbacks_enabled_) {
+        completion_callback_.Run();
+      }
     }
   }
 }
@@ -420,12 +430,13 @@ class CachedResourceReferenceWithCallbacks {
 
   CachedResourceReferenceWithCallbacks(
       const scoped_refptr<CachedResourceType>& cached_resource,
-      const base::Closure& success_callback,
-      const base::Closure& error_callback)
+      const base::Closure& content_produced_callback,
+      const base::Closure& load_complete_callback)
       : cached_resource_(cached_resource),
         cached_resource_loaded_callback_handler_(
             new CachedResourceTypeOnLoadedCallbackHandler(
-                cached_resource, success_callback, error_callback)) {}
+                cached_resource, content_produced_callback,
+                load_complete_callback)) {}
 
   scoped_refptr<CachedResourceType> cached_resource() {
     return cached_resource_;
@@ -776,9 +787,9 @@ scoped_ptr<Loader> ResourceCache<CacheType>::StartLoadingResource(
 
   return create_loader_function_.Run(
       cached_resource->url(), cached_resource->origin(), security_callback_,
-      base::Bind(&CachedResourceType::OnLoadingSuccess,
+      base::Bind(&CachedResourceType::OnContentProduced,
                  base::Unretained(cached_resource)),
-      base::Bind(&CachedResourceType::OnLoadingError,
+      base::Bind(&CachedResourceType::OnLoadingComplete,
                  base::Unretained(cached_resource)));
 }
 

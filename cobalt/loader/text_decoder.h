@@ -76,25 +76,27 @@ class TextDecoder : public Decoder {
 
   void Finish() override {
     DCHECK(thread_checker_.CalledOnValidThread());
-    if (suspended_) {
-      return;
-    }
-    if (!text_) {
-      text_.reset(new std::string);
-    }
+
+    if (suspended_) return;
+
+    if (!text_) text_.reset(new std::string);
+
+    text_available_callback_.Run(last_url_origin_, text_.Pass());
     if (!load_complete_callback_.is_null()) {
       load_complete_callback_.Run(base::nullopt);
     }
-    text_available_callback_.Run(last_url_origin_, text_.Pass());
   }
+
   bool Suspend() override {
     suspended_ = true;
     text_.reset();
     return true;
   }
+
   void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
     suspended_ = false;
   }
+
   void SetLastURLOrigin(const loader::Origin& last_url_origin) override {
     last_url_origin_ = last_url_origin;
   }

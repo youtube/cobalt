@@ -81,8 +81,8 @@ void TypefaceDecoder::Finish() {
                                                     &error_string);
 
   if (decoded_typeface) {
-    load_complete_callback_.Run(base::nullopt);
     typeface_available_callback_.Run(decoded_typeface);
+    load_complete_callback_.Run(base::nullopt);
   } else {
     load_complete_callback_.Run(std::string(error_string));
   }
