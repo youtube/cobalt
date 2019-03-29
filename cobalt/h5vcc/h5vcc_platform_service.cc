@@ -16,6 +16,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
+#include "starboard/configuration.h"
 #include "starboard/string.h"
 
 namespace cobalt {
@@ -25,6 +26,13 @@ namespace h5vcc {
 scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
     script::EnvironmentSettings* settings, const std::string service_name,
     const ReceiveCallbackArg& receive_callback) {
+#if SB_API_VERSION < SB_EXTENSIONS_API_VERSION
+  UNREFERENCED_PARAMETER(settings);
+  UNREFERENCED_PARAMETER(service_name);
+  SB_DLOG(WARNING)
+      << "PlatformService not implemented in this version of Starboard.";
+  return NULL;
+#else   // SB_API_VERSION < SB_EXTENSIONS_API_VERSION
   DCHECK(settings);
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
@@ -50,6 +58,7 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
   }
   service->ext_service_ = platform_service;
   return service;
+#endif  // SB_API_VERSION < SB_EXTENSIONS_API_VERSION
 }
 
 H5vccPlatformService::H5vccPlatformService(
@@ -69,6 +78,12 @@ H5vccPlatformService::H5vccPlatformService(
 
 // static
 bool H5vccPlatformService::Has(const std::string& service_name) {
+#if SB_API_VERSION < SB_EXTENSIONS_API_VERSION
+  UNREFERENCED_PARAMETER(service_name);
+  SB_DLOG(WARNING)
+      << "PlatformService not implemented in this version of Starboard.";
+  return false;
+#else   // SB_API_VERSION < SB_EXTENSIONS_API_VERSION
   ExtPlatformServiceApi* platform_service_api =
       static_cast<ExtPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
@@ -77,6 +92,7 @@ bool H5vccPlatformService::Has(const std::string& service_name) {
     return false;
   }
   return platform_service_api->Has(service_name.c_str());
+#endif  // SB_API_VERSION < SB_EXTENSIONS_API_VERSION
 }
 
 script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
