@@ -155,9 +155,36 @@ def _MakeDirs(path):
     os.makedirs(path)
 
 
-def _GetDeployDirs(platform_name):
-  gyp_config = GetPlatformConfig(platform_name)
-  return gyp_config.GetDeployDirs()
+def _FindPossibleDeployDirs(build_root):
+  out = []
+  root_dirs = os.listdir(build_root)
+  for d in root_dirs:
+    if d in ('gen', 'gypfiles', 'obj', 'obj.host'):
+      continue
+    d = os.path.join(build_root, d)
+    if os.path.isfile(d):
+      continue
+    if IsSymLink(d):
+      continue
+    out.append(os.path.normpath(d))
+  return out
+
+
+def _GetDeployDirs(platform_name, config):
+  try:
+    gyp_config = GetPlatformConfig(platform_name)
+    return gyp_config.GetDeployDirs()
+  except NotImplementedError:
+    # TODO: Investigate why Logging.info(...) eats messages even when
+    # the logging module is set to logging level INFO or DEBUG and when
+    # this is fixed then replace the print functions in this file with logging.
+    print('\n********************************************************\n'
+          '%s: specific deploy directories not found, auto \n'
+          'including possible deploy directories from build root.'
+          '\n********************************************************\n'
+          % __file__)
+    build_root = BuildOutputDirectory(platform_name, config)
+    return _FindPossibleDeployDirs(build_root)
 
 
 def _MakeCobaltArchiveFromSource(output_archive_path,
@@ -169,8 +196,9 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
   out_directory = BuildOutputDirectory(platform_name, config)
   root_dir = os.path.abspath(os.path.join(out_directory, '..', '..'))
   flist = FileList()
+  inc_dirs = _GetDeployDirs(platform_name, config)
   print 'Adding binary files to bundle...'
-  for path in _GetDeployDirs(platform_name):
+  for path in inc_dirs:
     path = os.path.join(out_directory, path)
     if not os.path.exists(path):
       print 'Skipping deploy directory', path, 'because it does not exist.'
