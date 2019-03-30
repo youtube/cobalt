@@ -237,16 +237,16 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
 // Accommodate for the fact that for some image formats, like UYVY, our texture
 // pixel width is actually half the size specified because there are two Y
 // values in each pixel.
-math::Rect AdjustContentRegionForImageType(
+math::RectF AdjustContentRegionForImageType(
     const base::optional<AlternateRgbaFormat>& alternate_rgba_format,
-    const math::Rect& content_region) {
+    const math::RectF& content_region) {
   if (!alternate_rgba_format) {
     return content_region;
   }
 
   switch (*alternate_rgba_format) {
     case AlternateRgbaFormat_UYVY: {
-      math::Rect adjusted_content_region = content_region;
+      math::RectF adjusted_content_region = content_region;
       adjusted_content_region.set_width(content_region.width() / 2);
       return adjusted_content_region;
     } break;
@@ -262,19 +262,19 @@ math::Rect AdjustContentRegionForImageType(
 // This function will adjust the content region rectangle to match only the
 // left eye's video region, since we are ultimately presenting to a monoscopic
 // display.
-math::Rect AdjustContentRegionForStereoMode(render_tree::StereoMode stereo_mode,
-                                            const math::Rect& content_region) {
+math::RectF AdjustContentRegionForStereoMode(
+    render_tree::StereoMode stereo_mode, const math::RectF& content_region) {
   switch (stereo_mode) {
     case render_tree::kLeftRight: {
       // Use the left half (left eye) of the video only.
-      math::Rect adjusted_content_region(content_region);
+      math::RectF adjusted_content_region(content_region);
       adjusted_content_region.set_width(content_region.width() / 2);
       return adjusted_content_region;
     }
 
     case render_tree::kTopBottom: {
       // Use the top half (left eye) of the video only.
-      math::Rect adjusted_content_region(content_region);
+      math::RectF adjusted_content_region(content_region);
       adjusted_content_region.set_height(content_region.height() / 2);
       return adjusted_content_region;
     }
