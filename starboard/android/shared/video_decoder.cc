@@ -450,13 +450,13 @@ void SetDecodeTargetContentRegionFromMatrix(
   origin_y = 1.0f - origin_y;
   extent_y = 1.0f - extent_y;
 
-  content_region->left = RoundToNearInteger(origin_x * width);
-  content_region->right = RoundToNearInteger(extent_x * width);
+  content_region->left = origin_x * width;
+  content_region->right = extent_x * width;
 
   // Note that in GL coordinates, the origin is the bottom and the extent
   // is the top.
-  content_region->top = RoundToNearInteger(extent_y * height);
-  content_region->bottom = RoundToNearInteger(origin_y * height);
+  content_region->top = extent_y * height;
+  content_region->bottom = origin_y * height;
 }
 }  // namespace
 
@@ -473,14 +473,17 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
     float matrix4x4[16];
     getTransformMatrix(decode_target_->data->surface_texture, matrix4x4);
     SetDecodeTargetContentRegionFromMatrix(
-        &decode_target_->data->info.planes[0].content_region, frame_width_,
-        frame_height_, matrix4x4);
+        &decode_target_->data->info.planes[0].content_region, 1, 1, matrix4x4);
 
-    // Take this opportunity to update the decode target's width and height.
-    decode_target_->data->info.planes[0].width = frame_width_;
-    decode_target_->data->info.planes[0].height = frame_height_;
-    decode_target_->data->info.width = frame_width_;
-    decode_target_->data->info.height = frame_height_;
+    // Mark the decode target's width and height as 1, so that the
+    // |content_region|'s coordinates will be interpreted as normalized
+    // coordinates.  This is nice because on Android we're never explicitly
+    // told the texture width/height, and we are only provided the content
+    // region via normalized coordinates.
+    decode_target_->data->info.planes[0].width = 1;
+    decode_target_->data->info.planes[0].height = 1;
+    decode_target_->data->info.width = 1;
+    decode_target_->data->info.height = 1;
 
     SbDecodeTarget out_decode_target = new SbDecodeTargetPrivate;
     out_decode_target->data = decode_target_->data;
