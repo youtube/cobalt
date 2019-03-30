@@ -595,14 +595,32 @@ SB_EXPORT void SbSystemHideSplashScreen();
 SB_EXPORT bool SbSystemSupportsResume();
 #endif  // SB_API_VERSION >= 10
 
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
 #if SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
 // Returns pointer to a constant global struct implementing the extension named
 // |name|, if it is implemented. Otherwise return NULL.
-void* SbSystemGetExtension(const char* name);
+//
+// Extensions are used to implement behavior which is specific to the
+// combination of application & platform. An extension relies on a header file
+// in the "extension" subdirectory of an app, which is used by both the
+// application and the Starboard platform to define an extension API struct.
+// Since the header is used both above and below Starboard, it cannot include
+// any files from above Starboard. It may depend on Starboard headers. That
+// API struct has only 2 required fields which must be first: a const char*
+// |kName|, storing the extension name, and a uint64_t |kVersion| storing the
+// version number of the extension. All other fields may be C types (including
+// custom structs) or function pointers. The application will query for the
+// function by name using SbSystemGetExtension, and the platform returns a
+// pointer to the singleton instance of the extension struct. The singleton
+// struct should be constant after initialization, since the application may
+// only get the extension once, meaning updated values would be ignored. As
+// the version of extensions are incremented, fields may be added to the end
+// of the struct, but never removed (only deprecated).
+
+SB_EXPORT void* SbSystemGetExtension(const char* name);
 #endif  // SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // STARBOARD_SYSTEM_H_
