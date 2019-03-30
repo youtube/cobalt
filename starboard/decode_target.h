@@ -237,10 +237,24 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
 // structure.
 typedef struct SbDecodeTargetInfoContentRegion {
+#if SB_API_VERSION >= SB_DECODE_TARGET_CONTENT_REGION_FLOATS
+  // If the texture (width, height) is set to (1, 1), then these values will
+  // be interpreted as normalized coordinates, and depending on the platform
+  // (for example GLES 2.0 provides no method of obtaining the texture
+  // width/height) this may be more natural than specifying absolute pixel
+  // offsets.
+  float left;
+  float top;
+  float right;
+  float bottom;
+#else
+  // These integer values are assumed to be in units of pixels, within the
+  // texture's width and height.
   int left;
   int top;
   int right;
   int bottom;
+#endif
 } SbDecodeTargetInfoContentRegion;
 
 // Defines an image plane within a SbDecodeTargetInfo object.

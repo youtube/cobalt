@@ -137,6 +137,13 @@
 // Add support for hybrid navigation.
 #define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Make the decode target content region parameters floats instead of ints.
+// The primary motivation for this change is to make it so that on platforms
+// where it is difficult to obtain the width and height of a texture, we can
+// still correctly identify a precise fractional "normalized" content region
+// with the texture width and height set to 1.
+#define SB_DECODE_TARGET_CONTENT_REGION_FLOATS SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
