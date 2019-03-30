@@ -48,7 +48,7 @@ TexturedMeshRenderer::~TexturedMeshRenderer() {
 
 namespace {
 void ConvertContentRegionToScaleTranslateVector(
-    const math::Rect* content_region, const math::Size& texture_size,
+    const math::RectF* content_region, const math::Size& texture_size,
     float* out_vec4) {
   if (!content_region) {
     // If no content region is provided, use the identity matrix.

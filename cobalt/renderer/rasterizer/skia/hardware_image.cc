@@ -329,7 +329,8 @@ HardwareFrontendImage::HardwareFrontendImage(
     scoped_ptr<backend::TextureEGL> texture,
     render_tree::AlphaFormat alpha_format,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_ptr<math::Rect> content_region, MessageLoop* rasterizer_message_loop,
+    scoped_ptr<math::RectF> content_region,
+    MessageLoop* rasterizer_message_loop,
     base::optional<AlternateRgbaFormat> alternate_rgba_format)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
       content_region_(content_region.Pass()),

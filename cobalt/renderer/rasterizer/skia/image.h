@@ -84,7 +84,7 @@ class SinglePlaneImage : public Image {
 
   // If not-null, indicates a rectangle within the image in which the valid
   // pixel data is to be found.
-  virtual const math::Rect* GetContentRegion() const { return NULL; }
+  virtual const math::RectF* GetContentRegion() const { return NULL; }
 };
 
 // A multi-plane image is one where different channels may have different planes
