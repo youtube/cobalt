@@ -68,7 +68,7 @@ class TexturedMeshRenderer {
 
     struct Texture {
       const backend::TextureEGL* texture;
-      math::Rect content_region;
+      math::RectF content_region;
     };
 
     // Returns the number of valid textures in this image, based on its format.
