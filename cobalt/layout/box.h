@@ -740,6 +740,11 @@ class Box : public base::RefCounted<Box> {
   // and background-image would populate.
   math::RectF GetBackgroundRect();
 
+  // Returns whether the overflow is animated by a UI navigation item.
+  bool IsOverflowAnimatedByUiNavigation() const {
+    return ui_nav_item_ && ui_nav_item_->IsContainer();
+  }
+
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,

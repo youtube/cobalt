@@ -623,10 +623,11 @@ void Box::RenderAndAnimate(
   // In order to avoid the creation of a superfluous CompositionNode, we first
   // check to see if there is a need to distinguish between content and
   // background.
-  if (!overflow_hidden ||
+  if (!IsOverflowAnimatedByUiNavigation() &&
+      (!overflow_hidden ||
       (!outline_is_visible &&
        computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
-       border_insets_.zero())) {
+       border_insets_.zero()))) {
     // If there's no reason to distinguish between content and background,
     // just add them all to the same composition node.
     RenderAndAnimateContent(&border_node_builder, stacking_context);
@@ -636,15 +637,9 @@ void Box::RenderAndAnimate(
     // hidden to the content but not the background.
     RenderAndAnimateContent(&content_node_builder, stacking_context);
     if (!content_node_builder.children().empty()) {
-      scoped_refptr<render_tree::Node> content_node =
-          new CompositionNode(content_node_builder.Pass());
-      if (ui_nav_item_ && ui_nav_item_->IsContainer()) {
-        // UI navigation container items animate their contents.
-        content_node = RenderAndAnimateUiNavigation(content_node,
-                                                    &animate_node_builder);
-      }
       border_node_builder.AddChild(RenderAndAnimateOverflow(
-          padding_rounded_corners, content_node,
+          padding_rounded_corners,
+          new CompositionNode(content_node_builder.Pass()),
           &animate_node_builder, math::Vector2dF(0, 0)));
     }
     // We've already applied overflow hidden, no need to apply it again later.
@@ -1621,24 +1616,37 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
   const base::optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
-  return RenderAndAnimateOverflow(padding_rounded_corners, content_node, NULL,
-                                  border_offset);
+  AnimateNode::Builder animate_node_builder;
+  scoped_refptr<render_tree::Node> overflow_node =
+      RenderAndAnimateOverflow(padding_rounded_corners, content_node,
+                               &animate_node_builder, border_offset);
+  if (animate_node_builder.empty()) {
+    return overflow_node;
+  }
+  return new AnimateNode(animate_node_builder, overflow_node);
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node,
-    AnimateNode::Builder* /* animate_node_builder */,
+    AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
   DCHECK(IsOverflowHidden());
 
   // The "overflow" property specifies whether a box is clipped to its padding
   // edge.  Use a render_tree viewport filter to implement it.
+  FilterNode::Builder filter_node_builder(content_node);
+
+  // The filter source node may be animated.
+  if (IsOverflowAnimatedByUiNavigation()) {
+    filter_node_builder.source =
+        RenderAndAnimateUiNavigation(content_node, animate_node_builder);
+  }
+
   // Note that while it is unintuitive that we clip to the padding box and
   // not the content box, this behavior is consistent with Chrome and IE.
   //   https://www.w3.org/TR/CSS21/visufx.html#overflow
   math::SizeF padding_size = GetClampedPaddingBoxSize();
-  FilterNode::Builder filter_node_builder(content_node);
   filter_node_builder.viewport_filter = ViewportFilter(
       math::RectF(border_node_offset.x() + border_left_width().toFloat(),
                   border_node_offset.y() + border_top_width().toFloat(),
