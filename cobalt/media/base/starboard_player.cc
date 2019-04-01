@@ -288,7 +288,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
-  GetInfo_Locked(video_frames_dropped, video_frames_decoded, media_time);
+  GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
