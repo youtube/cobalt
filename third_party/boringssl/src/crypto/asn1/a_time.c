@@ -65,6 +65,7 @@
 #include <openssl/mem.h>
 
 #include "asn1_locl.h"
+#include "asn1_internal.h"
 
 /*
  * This is an implementation of the ASN1 Time structure which is: Time ::=

@@ -64,6 +64,7 @@
 #endif  // !SB_HAS_QUIRK(NO_GMTIME_R)
 
 #include "asn1_locl.h"
+#include "asn1_internal.h"
 
 #include <time.h>
 
@@ -71,19 +72,19 @@
 #define SECS_PER_DAY (24 * 60 * 60)
 
 struct tm *OPENSSL_gmtime(const time_t *time, struct tm *result) {
+#if defined(OPENSSL_SYS_STARBOARD)
+  return OPENSSL_port_gmtime_r(time, result);
+#else  // defined(OPENSSL_SYS_STARBOARD)
 #if defined(OPENSSL_WINDOWS)
   if (gmtime_s(result, time)) {
     return NULL;
   }
   return result;
-#else
-#if SB_HAS_QUIRK(NO_GMTIME_R)
+#else  // !defined(OPENSSL_WINDOWS)
   result = gmtime(time);
   return result;
-#else // SB_HAS_QUIRK(NO_GMTIME_R)
-  return gmtime_r(time, result);
-#endif
-#endif  // SB_HAS_QUIRK(NO_GMTIME_R)
+#endif  // defined(OPENSSL_WINDOWS)
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 }
 
 /* Convert date to and from julian day Uses Fliegel & Van Flandern algorithm */
