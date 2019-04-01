@@ -536,7 +536,7 @@ OPENSSL_EXPORT int ASN1_UTCTIME_check(const ASN1_UTCTIME *a);
 // newly-allocated |ASN1_UTCTIME| instead.
 //
 // Note this function may fail if the time is out of range for UTCTime.
-OPENSSL_EXPORT ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t);
+OPENSSL_EXPORT ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, OPENSSL_port_time_t t);
 
 // ASN1_UTCTIME_adj adds |offset_day| days and |offset_sec| seconds to |t| and
 // writes the result to |s| as a UTCTime. It returns |s| on success and NULL on
@@ -544,7 +544,7 @@ OPENSSL_EXPORT ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t);
 //
 // Note this function may fail if the time overflows or is out of range for
 // UTCTime.
-OPENSSL_EXPORT ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
+OPENSSL_EXPORT ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, OPENSSL_port_time_t t,
                                               int offset_day, long offset_sec);
 
 // ASN1_UTCTIME_set_string sets |s| to a UTCTime whose contents are a copy of
@@ -556,7 +556,7 @@ OPENSSL_EXPORT int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, const char *str);
 
 // ASN1_UTCTIME_cmp_time_t compares |s| to |t|. It returns -1 if |s| < |t|, 0 if
 // they are equal, 1 if |s| > |t|, and -2 on error.
-OPENSSL_EXPORT int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t);
+OPENSSL_EXPORT int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, OPENSSL_port_time_t t);
 
 // ASN1_GENERALIZEDTIME_check returns one if |a| is a valid GeneralizedTime and
 // zero otherwise.
@@ -568,7 +568,7 @@ OPENSSL_EXPORT int ASN1_GENERALIZEDTIME_check(const ASN1_GENERALIZEDTIME *a);
 //
 // Note this function may fail if the time is out of range for GeneralizedTime.
 OPENSSL_EXPORT ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_set(
-    ASN1_GENERALIZEDTIME *s, time_t t);
+    ASN1_GENERALIZEDTIME *s, OPENSSL_port_time_t t);
 
 // ASN1_GENERALIZEDTIME_adj adds |offset_day| days and |offset_sec| seconds to
 // |t| and writes the result to |s| as a GeneralizedTime. It returns |s| on
@@ -578,7 +578,7 @@ OPENSSL_EXPORT ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_set(
 // Note this function may fail if the time overflows or is out of range for
 // GeneralizedTime.
 OPENSSL_EXPORT ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_adj(
-    ASN1_GENERALIZEDTIME *s, time_t t, int offset_day, long offset_sec);
+    ASN1_GENERALIZEDTIME *s, OPENSSL_port_time_t t, int offset_day, long offset_sec);
 
 // ASN1_GENERALIZEDTIME_set_string sets |s| to a GeneralizedTime whose contents
 // are a copy of |str|. It returns one on success and zero on error or if |str|
@@ -607,7 +607,7 @@ OPENSSL_EXPORT int ASN1_TIME_diff(int *out_days, int *out_seconds,
 // on error. If |s| is NULL, it returns a newly-allocated |ASN1_TIME| instead.
 //
 // Note this function may fail if the time is out of range for GeneralizedTime.
-OPENSSL_EXPORT ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, time_t t);
+OPENSSL_EXPORT ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, OPENSSL_port_time_t t);
 
 // ASN1_TIME_adj adds |offset_day| days and |offset_sec| seconds to
 // |t| and writes the result to |s|. As in RFC 5280, section 4.1.2.5, it uses
@@ -617,7 +617,7 @@ OPENSSL_EXPORT ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, time_t t);
 //
 // Note this function may fail if the time overflows or is out of range for
 // GeneralizedTime.
-OPENSSL_EXPORT ASN1_TIME *ASN1_TIME_adj(ASN1_TIME *s, time_t t, int offset_day,
+OPENSSL_EXPORT ASN1_TIME *ASN1_TIME_adj(ASN1_TIME *s, OPENSSL_port_time_t t, int offset_day,
                                         long offset_sec);
 
 // ASN1_TIME_check returns one if |t| is a valid UTCTime or GeneralizedTime, and
