@@ -14,12 +14,16 @@
 
 #include "starboard/log.h"
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 void SbLog(SbLogPriority priority, const char* message) {
   SB_UNREFERENCED_PARAMETER(priority);
+#if defined(STARBOARD)
+  SbLog(priority, message);
+#else
   fprintf(stderr, "%s", message);
   fflush(stderr);
+#endif
 }
