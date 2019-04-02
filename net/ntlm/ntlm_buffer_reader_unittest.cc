@@ -35,7 +35,11 @@ TEST(NtlmBufferReaderTest, Initialization) {
 
 TEST(NtlmBufferReaderTest, EmptyBuffer) {
   std::vector<uint8_t> b;
+#ifdef STARBOARD
+  NtlmBufferReader reader(base::span<const uint8_t>(b.data(), b.size()));
+#else
   NtlmBufferReader reader(b);
+#endif
 
   ASSERT_EQ(0u, reader.GetCursor());
   ASSERT_EQ(0u, reader.GetLength());
@@ -46,17 +50,29 @@ TEST(NtlmBufferReaderTest, EmptyBuffer) {
   // A read from an empty (zero-byte) source into an empty (zero-byte)
   // destination buffer should succeed as a no-op.
   std::vector<uint8_t> dest;
+#ifdef STARBOARD
+  ASSERT_TRUE(reader.ReadBytes(base::span<uint8_t>(dest.data(), dest.size())));
+#else
   ASSERT_TRUE(reader.ReadBytes(dest));
+#endif
 
   // A read from a non-empty source into an empty (zero-byte) destination
   // buffer should succeed as a no-op.
   std::vector<uint8_t> b2{0x01};
+#ifdef STARBOARD
+  NtlmBufferReader reader2(base::span<const uint8_t>(b2.data(), b2.size()));
+#else
   NtlmBufferReader reader2(b2);
+#endif
   ASSERT_EQ(0u, reader2.GetCursor());
   ASSERT_EQ(1u, reader2.GetLength());
 
   ASSERT_TRUE(reader2.CanRead(0));
+#ifdef STARBOARD
+  ASSERT_TRUE(reader2.ReadBytes(base::span<uint8_t>(dest.data(), dest.size())));
+#else
   ASSERT_TRUE(reader2.ReadBytes(dest));
+#endif
 
   ASSERT_EQ(0u, reader2.GetCursor());
   ASSERT_EQ(1u, reader2.GetLength());
@@ -74,7 +90,11 @@ TEST(NtlmBufferReaderTest, NullBuffer) {
   // A read from a null source into an empty (zero-byte) destination buffer
   // should succeed as a no-op.
   std::vector<uint8_t> dest;
+#ifdef STARBOARD
+  ASSERT_TRUE(reader.ReadBytes(base::span<uint8_t>(dest.data(), dest.size())));
+#else
   ASSERT_TRUE(reader.ReadBytes(dest));
+#endif
 }
 
 TEST(NtlmBufferReaderTest, Read16) {
@@ -122,10 +142,18 @@ TEST(NtlmBufferReaderTest, ReadBytes) {
 
   NtlmBufferReader reader(expected);
 
+#ifdef STARBOARD
+  ASSERT_TRUE(reader.ReadBytes(base::span<uint8_t>(actual, sizeof(actual))));
+#else
   ASSERT_TRUE(reader.ReadBytes(actual));
+#endif
   ASSERT_EQ(0, SbMemoryCompare(actual, expected, base::size(actual)));
   ASSERT_TRUE(reader.IsEndOfBuffer());
+#ifdef STARBOARD
+  ASSERT_FALSE(reader.ReadBytes(base::span<uint8_t>(actual, 1)));
+#else
   ASSERT_FALSE(reader.ReadBytes(base::make_span(actual, 1)));
+#endif
 }
 
 TEST(NtlmBufferReaderTest, ReadSecurityBuffer) {

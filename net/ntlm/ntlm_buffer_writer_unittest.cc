@@ -50,7 +50,11 @@ TEST(NtlmBufferWriterTest, EmptyWrite) {
   // no-op.
   std::vector<uint8_t> b;
   ASSERT_TRUE(writer.CanWrite(0));
+#ifdef STARBOARD
+  ASSERT_TRUE(writer.WriteBytes(base::span<const uint8_t>(b.data(), b.size())));
+#else
   ASSERT_TRUE(writer.WriteBytes(b));
+#endif
 
   ASSERT_EQ(0u, writer.GetLength());
   ASSERT_EQ(0u, writer.GetBuffer().size());
@@ -66,7 +70,12 @@ TEST(NtlmBufferWriterTest, EmptyWrite) {
   ASSERT_NE(nullptr, GetBufferPtr(writer2));
 
   ASSERT_TRUE(writer2.CanWrite(0));
+#ifdef STARBOARD
+  ASSERT_TRUE(
+      writer2.WriteBytes(base::span<const uint8_t>(b.data(), b.size())));
+#else
   ASSERT_TRUE(writer2.WriteBytes(b));
+#endif
 
   ASSERT_EQ(1u, writer2.GetLength());
   ASSERT_EQ(1u, writer2.GetBuffer().size());
@@ -143,11 +152,20 @@ TEST(NtlmBufferWriterTest, WriteBytes) {
 
   NtlmBufferWriter writer(base::size(expected));
 
+#ifdef STARBOARD
+  ASSERT_TRUE(
+      writer.WriteBytes(base::span<const uint8_t>(expected, sizeof(expected))));
+#else
   ASSERT_TRUE(writer.WriteBytes(expected));
+#endif
   ASSERT_EQ(
       0, SbMemoryCompare(GetBufferPtr(writer), expected, base::size(expected)));
   ASSERT_TRUE(writer.IsEndOfBuffer());
+#ifdef STARBOARD
+  ASSERT_FALSE(writer.WriteBytes(base::span<const uint8_t>(expected, 1)));
+#else
   ASSERT_FALSE(writer.WriteBytes(base::make_span(expected, 1)));
+#endif
 
   ASSERT_EQ(
       0, SbMemoryCompare(expected, GetBufferPtr(writer), base::size(expected)));
@@ -158,7 +176,12 @@ TEST(NtlmBufferWriterTest, WriteBytesPastEob) {
 
   NtlmBufferWriter writer(base::size(buffer) - 1);
 
+#ifdef STARBOARD
+  ASSERT_FALSE(
+      writer.WriteBytes(base::span<const uint8_t>(buffer, sizeof(buffer))));
+#else
   ASSERT_FALSE(writer.WriteBytes(buffer));
+#endif
 }
 
 TEST(NtlmBufferWriterTest, WriteSecurityBuffer) {

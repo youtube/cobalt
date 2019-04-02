@@ -112,8 +112,17 @@ class SpdyStreamTest : public TestWithScopedTaskEnvironment {
     reads_.push_back(MockRead(ASYNC, ERR_IO_PENDING, offset_++));
   }
 
+#ifdef STARBOARD
+  base::span<const MockRead> GetReads() {
+    return base::span<const MockRead>(reads_.data(), reads_.size());
+  }
+  base::span<const MockWrite> GetWrites() {
+    return base::span<const MockWrite>(writes_.data(), writes_.size());
+  }
+#else
   base::span<const MockRead> GetReads() { return reads_; }
   base::span<const MockWrite> GetWrites() { return writes_; }
+#endif
 
   void ActivatePushStream(SpdySession* session, SpdyStream* stream) {
     std::unique_ptr<SpdyStream> activated =

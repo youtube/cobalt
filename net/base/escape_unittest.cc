@@ -518,8 +518,15 @@ TEST(EscapeTest, ContainsEncodedBytes) {
   EXPECT_TRUE(ContainsEncodedBytes("abc%2fdef", {'/', '\\'}));
 
   // Should be looking for byte values, not UTF-8 character values.
+#if SB_IS(COMPILER_MSVC)
+  EXPECT_TRUE(
+      ContainsEncodedBytes("caf%C3%A9", {static_cast<unsigned char>('\xc3')}));
+  EXPECT_FALSE(
+      ContainsEncodedBytes("caf%C3%A9", {static_cast<unsigned char>('\xe9')}));
+#else
   EXPECT_TRUE(ContainsEncodedBytes("caf%C3%A9", {'\xc3'}));
   EXPECT_FALSE(ContainsEncodedBytes("caf%C3%A9", {'\xe9'}));
+#endif
 }
 
 }  // namespace

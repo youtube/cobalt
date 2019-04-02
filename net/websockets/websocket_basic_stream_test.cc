@@ -206,7 +206,12 @@ class WebSocketBasicStreamSocketChunkedReadTest
       reads_.push_back(MockRead(mode, start, len));
       start += len;
     }
+#ifdef STARBOARD
+    CreateStream(base::span<MockRead>(reads_.data(), reads_.size()),
+                 base::span<MockWrite>());
+#else
     CreateStream(reads_, base::span<MockWrite>());
+#endif
   }
 
   std::vector<MockRead> reads_;
