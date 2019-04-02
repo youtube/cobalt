@@ -5162,6 +5162,7 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
   }
 }
 
+#if !SB_IS(COMPILER_MSVC)
 // This test has the server send a large number of cookies to the client.
 // To ensure that no number of cookies causes a crash, a galloping binary
 // search is used to estimate that maximum number of cookies that are accepted
@@ -5203,6 +5204,7 @@ TEST_F(URLRequestTestHTTP, MAYBE_GetTest_ManyCookies) {
   }
   // Success: the test did not crash.
 }
+#endif  // !SB_IS(COMPILER_MSVC)
 
 TEST_F(URLRequestTestHTTP, GetTest) {
   ASSERT_TRUE(http_test_server()->Start());

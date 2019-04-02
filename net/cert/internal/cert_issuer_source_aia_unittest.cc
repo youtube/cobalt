@@ -15,6 +15,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#ifndef GMOCK_NO_MOVE_MOCK
+
 namespace net {
 
 namespace {
@@ -499,3 +501,4 @@ TEST(CertIssuerSourceAiaTest, MaxFetchesPerCert) {
 }  // namespace
 
 }  // namespace net
+#endif  // GMOCK_NO_MOVE_MOCK

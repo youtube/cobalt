@@ -14,6 +14,12 @@
 #include "base/values.h"
 #include "net/base/net_errors.h"
 
+#ifdef STARBOARD
+#include "base/message_loop/message_loop.h"
+#include "base/single_thread_task_runner.h"
+#include "nb/polymorphic_downcast.h"
+#endif
+
 #if defined(OS_ANDROID)
 #include "base/android/content_uri_utils.h"
 #endif
@@ -211,6 +217,7 @@ FileStream::Context::IOResult FileStream::Context::GetFileInfoImpl(
 }
 
 FileStream::Context::IOResult FileStream::Context::CloseFileImpl() {
+  DLOG(INFO)<<"callback closed file";
   file_.Close();
   return IOResult(OK, 0);
 }
@@ -235,10 +242,25 @@ void FileStream::Context::CloseAndDelete() {
   DCHECK(!async_in_progress_);
 
   if (file_.IsValid()) {
+#ifdef STARBOARD
+    // On Windows, holding file_ will prevent re-creation immediately after
+    // CloseAndDelete is called, failing some tests. Let's close file
+    // synchronously.
+    if (base::MessageLoop::current()->task_runner() == task_runner_.get()) {
+      file_.Close();
+    } else {
+      nb::polymorphic_downcast<base::SingleThreadTaskRunner*>(
+          task_runner_.get())
+          ->PostBlockingTask(
+              FROM_HERE, base::Bind(base::IgnoreResult(&Context::CloseFileImpl),
+                                    base::Owned(this)));
+    }
+#else
     bool posted = task_runner_.get()->PostTask(
         FROM_HERE, base::BindOnce(base::IgnoreResult(&Context::CloseFileImpl),
                                   base::Owned(this)));
     DCHECK(posted);
+#endif
   } else {
     delete this;
   }

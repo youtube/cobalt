@@ -1607,12 +1607,12 @@ TEST_F(URLFetcherTest, FileTestTryToOverwriteDirectory) {
   delegate.StartFetcherAndWait();
 
   EXPECT_FALSE(delegate.fetcher()->GetStatus().is_success());
-  EXPECT_THAT(delegate.fetcher()->GetStatus().error(),
 #if defined(STARBOARD)
-              // Starboard does not define net error code specifically, all
-              // failures return ERR_FAILED.
-              IsError(ERR_FAILED));
+  // Starboard does not define net error code specifically, all
+  // failures return ERR_FAILED.
+  EXPECT_THAT(delegate.fetcher()->GetStatus().error(), IsError(ERR_FAILED));
 #else
+  EXPECT_THAT(delegate.fetcher()->GetStatus().error(),
               IsError(ERR_ACCESS_DENIED));
 #endif
 }

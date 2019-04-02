@@ -395,6 +395,11 @@ class StaticSocketDataProvider : public SocketDataProvider {
   StaticSocketDataProvider();
   StaticSocketDataProvider(base::span<const MockRead> reads,
                            base::span<const MockWrite> writes);
+#ifdef STARBOARD
+  StaticSocketDataProvider::StaticSocketDataProvider(
+      const std::vector<MockRead>& reads,
+      const std::vector<MockWrite>& writes);
+#endif
   ~StaticSocketDataProvider() override;
 
   // Pause/resume reads from this provider.
@@ -474,6 +479,20 @@ class SequencedSocketData : public SocketDataProvider {
   // |writes| is the list of MockWrite completions.
   SequencedSocketData(base::span<const MockRead> reads,
                       base::span<const MockWrite> writes);
+
+#ifdef STARBOARD
+  SequencedSocketData(const std::vector<MockRead>& reads,
+                      base::span<const MockWrite> writes)
+      : SequencedSocketData(
+            base::span<const MockRead>(reads.data(), reads.size()),
+            writes) {}
+
+  SequencedSocketData(const std::vector<MockRead>& reads,
+                      const std::vector<MockWrite>& writes)
+      : SequencedSocketData(
+            base::span<const MockRead>(reads.data(), reads.size()),
+            base::span<const MockWrite>(writes.data(), writes.size())) {}
+#endif
 
   // |connect| is the result for the connect phase.
   // |reads| is the list of MockRead completions.

@@ -28,6 +28,7 @@ class MockMDnsClient : public MDnsClient {
   MockMDnsClient();
   ~MockMDnsClient();
 
+#ifndef GMOCK_NO_MOVE_MOCK
   MOCK_METHOD3(CreateListener,
                std::unique_ptr<MDnsListener>(uint16_t,
                                              const std::string&,
@@ -38,6 +39,7 @@ class MockMDnsClient : public MDnsClient {
                                        const std::string&,
                                        int,
                                        const MDnsTransaction::ResultCallback&));
+#endif
   MOCK_METHOD1(StartListening, bool(MDnsSocketFactory*));
   MOCK_METHOD0(StopListening, void());
   MOCK_CONST_METHOD0(IsListening, bool());
