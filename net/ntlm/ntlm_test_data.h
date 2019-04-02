@@ -18,6 +18,11 @@
 
 #include "net/ntlm/ntlm_constants.h"
 
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4309)
+#endif
+
 namespace net {
 namespace ntlm {
 namespace test {

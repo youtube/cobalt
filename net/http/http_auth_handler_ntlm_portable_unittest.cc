@@ -119,7 +119,12 @@ class HttpAuthHandlerNtlmPortableTest : public PlatformTest {
     EXPECT_EQ(0, sec_buf.length % 2);
 
     std::vector<uint8_t> raw(sec_buf.length);
+#ifdef STARBOARD
+    EXPECT_TRUE(reader->ReadBytesFrom(
+        sec_buf, base::span<uint8_t>(raw.data(), raw.size())));
+#else
     EXPECT_TRUE(reader->ReadBytesFrom(sec_buf, raw));
+#endif
 
 #if defined(ARCH_CPU_BIG_ENDIAN)
     for (size_t i = 0; i < raw.size(); i += 2) {

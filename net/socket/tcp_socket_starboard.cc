@@ -267,7 +267,6 @@ void TCPSocketStarboard::OnSocketReadyToRead(SbSocket socket) {
       accept_socket_ = nullptr;
       CompletionOnceCallback callback = std::move(accept_callback_);
       accept_callback_.Reset();
-      ClearWatcherIfOperationsNotPending();
       std::move(callback).Run(result);
     }
   } else if (read_pending()) {

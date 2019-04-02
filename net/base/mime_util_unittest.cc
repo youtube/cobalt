@@ -164,7 +164,7 @@ TEST(MimeUtilTest, MatchesMimeType) {
 TEST(MimeUtilTest, TestParseMimeTypeWithoutParameter) {
   std::string nonAscii("application/nonutf8");
   EXPECT_TRUE(ParseMimeTypeWithoutParameter(nonAscii, NULL, NULL));
-#if defined(OS_WIN)
+#if defined(OS_WIN) || SB_IS(COMPILER_MSVC)
   nonAscii.append(base::WideToUTF8(L"\u2603"));
 #else
   nonAscii.append("\u2603");  // unicode snowman

@@ -236,6 +236,8 @@ TEST_F(PrioritizedTaskRunnerTest, PostTaskAndReplyTestReplyPriority) {
             ReplyOrder());
 }
 
+// MSVC does not allow numerical limit overflow.
+#if !SB_IS(COMPILER_MSVC)
 TEST_F(PrioritizedTaskRunnerTest, PriorityOverflow) {
   auto task_runner =
       base::CreateSequencedTaskRunnerWithTraits(base::TaskTraits());
@@ -279,6 +281,7 @@ TEST_F(PrioritizedTaskRunnerTest, PriorityOverflow) {
       (std::vector<std::string>{"ReplyMaxPlus1", "ReplyMinus1", "ReplyMax"}),
       ReplyOrder());
 }
+#endif
 
 TEST_F(PrioritizedTaskRunnerTest, PostTaskAndReplyWithResultRunsBothTasks) {
   auto task_runner =

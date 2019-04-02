@@ -113,10 +113,21 @@ void TestSSLPrivateKeyMatches(SSLPrivateKey* key, const std::string& pkcs8) {
     // Test the key generates valid signatures.
     std::vector<uint8_t> input(100, 'a');
     std::vector<uint8_t> signature;
+#ifdef STARBOARD
+    base::span<const uint8_t> input_span(input.data(), input.size());
+    base::span<const uint8_t> signature_span(signature.data(),
+                                             signature.size());
+    Error error =
+        DoKeySigningWithWrapper(key, algorithm, input_span, &signature);
+    EXPECT_THAT(error, IsOk());
+    EXPECT_TRUE(VerifyWithOpenSSL(algorithm, input_span, openssl_key.get(),
+                                  signature_span));
+#else
     Error error = DoKeySigningWithWrapper(key, algorithm, input, &signature);
     EXPECT_THAT(error, IsOk());
     EXPECT_TRUE(
         VerifyWithOpenSSL(algorithm, input, openssl_key.get(), signature));
+#endif
   }
 }
 

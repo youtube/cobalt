@@ -789,7 +789,11 @@ TEST_F(FileStreamTest, WriteError) {
   int rv = stream->Write(buf.get(), 1, callback.callback());
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
+#ifndef STARBOARD
+  // Starboard does not guarantee that file with read access returns error on
+  // write.
   EXPECT_LT(rv, 0);
+#endif
 
   stream.reset();
   base::RunLoop().RunUntilIdle();
@@ -812,7 +816,11 @@ TEST_F(FileStreamTest, ReadError) {
   int rv = stream->Read(buf.get(), 1, callback.callback());
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
+#ifndef STARBOARD
+  // Starboard does not guarantee that file with write access returns error on
+  // read.
   EXPECT_LT(rv, 0);
+#endif
 
   stream.reset();
   base::RunLoop().RunUntilIdle();

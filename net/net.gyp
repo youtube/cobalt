@@ -2483,7 +2483,8 @@
         'http_server',  # This is needed by dial_http_server in net
         'net',
         'test_support',
-        'quic_test_support',
+        # QUIC not enabled yet.
+        # 'quic_test_support',
         'net_nqe_proto',
         'net_quic_proto',
       ],
@@ -2493,6 +2494,7 @@
       'defines': [
         # To be removed in the future when want to enable HTTP cache.
         'HTTP_CACHE_DISABLED_FOR_STARBOARD',
+        'GMOCK_NO_MOVE_MOCK',
       ],
       'conditions': [
         ['cobalt_copy_test_data == 1', {
@@ -2510,6 +2512,9 @@
     {
       'target_name': 'test_support',
       'type': 'static_library',
+      'defines': [
+        'GMOCK_NO_MOVE_MOCK',
+      ],
       'sources': [
         # 'disk_cache/disk_cache_test_base.cc',
         # 'disk_cache/disk_cache_test_base.h',

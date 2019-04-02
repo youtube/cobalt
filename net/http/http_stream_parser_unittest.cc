@@ -42,6 +42,11 @@
 using net::test::IsError;
 using net::test::IsOk;
 
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4838)
+#endif
+
 namespace net {
 
 namespace {

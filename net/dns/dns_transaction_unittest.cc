@@ -169,7 +169,13 @@ class DnsSocketData {
       reads_.push_back(MockRead(SYNCHRONOUS, ERR_IO_PENDING,
                                 writes_.size() + reads_.size()));
     }
+#ifdef STARBOARD
+    provider_.reset(new SequencedSocketData(
+        base::span<MockRead>(reads_.data(), reads_.size()),
+        base::span<MockWrite>(writes_.data(), writes_.size())));
+#else
     provider_.reset(new SequencedSocketData(reads_, writes_));
+#endif
     if (Transport::TCP == transport_ || Transport::HTTPS == transport_) {
       provider_->set_connect_data(MockConnect(reads_[0].mode, OK));
     }
