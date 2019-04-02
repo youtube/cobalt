@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <vector>
 
 #include "base/basictypes.h"  // For COMPILE_ASSERT
@@ -161,10 +162,19 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
+  // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
+  // true. If |audio_read_delayed_| is false, that means the delayed call has
+  // been cancelled due to a seek.
+  void DelayedNeedData();
+
   void UpdateDecoderConfig(DemuxerStream* stream);
 
   void SuspendTask(base::WaitableEvent* done_event);
   void ResumeTask(base::WaitableEvent* done_event);
+
+  // Store the media time retrieved by GetMediaTime so we can cache it as an
+  // estimate and avoid calling SbPlayerGetInfo too frequently.
+  void StoreMediaTime(TimeDelta media_time);
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -231,6 +241,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Demuxer reference used for setting the preload value.
   Demuxer* demuxer_;
   bool audio_read_in_progress_;
+  bool audio_read_delayed_ = false;
   bool video_read_in_progress_;
   TimeDelta duration_;
 
@@ -257,6 +268,19 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   VideoFrameProvider* video_frame_provider_;
 
+  // Don't read audio from the stream more than |kAudioLimit| ahead of the
+  // current media time.
+  static const SbTime kAudioLimit = kSbTimeSecond;
+  // Only call GetMediaTime() from OnNeedData if it has been
+  // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
+  static const SbTime kMediaTimeCheckInterval = 0.1 * kSbTimeSecond;
+  // Timestamp for the last written audio.
+  SbTime timestamp_of_last_written_audio_ = 0;
+  // Last media time reported by GetMediaTime().
+  SbTime last_media_time_;
+  // Time when we last checked the media time.
+  SbTime last_time_media_time_retrieved_ = 0;
+
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
 
@@ -280,7 +304,11 @@ SbPlayerPipeline::SbPlayerPipeline(
       suspended_(false),
       stopped_(false),
       ended_(false),
-      video_frame_provider_(video_frame_provider) {}
+      video_frame_provider_(video_frame_provider) {
+#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+  SbMediaSetAudioWriteDuration(kAudioLimit);
+#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+}
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
 
@@ -486,6 +514,13 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
     seek_cb_ = seek_cb;
     seek_time_ = time;
   }
+
+  // Ignore pending delayed calls to OnNeedData, and update variables used to
+  // decide when to delay.
+  audio_read_delayed_ = false;
+  StoreMediaTime(seek_time_);
+  timestamp_of_last_written_audio_ = 0;
+
 #if SB_HAS(PLAYER_WITH_URL)
   if (is_url_based_) {
     player_->Seek(seek_time_);
@@ -533,16 +568,24 @@ void SbPlayerPipeline::SetVolume(float volume) {
       FROM_HERE, base::Bind(&SbPlayerPipeline::SetVolumeTask, this, volume));
 }
 
+void SbPlayerPipeline::StoreMediaTime(TimeDelta media_time) {
+  last_media_time_ = media_time.ToSbTime();
+  last_time_media_time_retrieved_ = SbTimeGetNow();
+}
+
 TimeDelta SbPlayerPipeline::GetMediaTime() {
   base::AutoLock auto_lock(lock_);
 
   if (!seek_cb_.is_null()) {
+    StoreMediaTime(seek_time_);
     return seek_time_;
   }
   if (!player_) {
+    StoreMediaTime(TimeDelta());
     return TimeDelta();
   }
   if (ended_) {
+    StoreMediaTime(duration_);
     return duration_;
   }
   base::TimeDelta media_time;
@@ -560,6 +603,7 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   player_->GetInfo(&statistics_.video_frames_decoded,
                    &statistics_.video_frames_dropped, &media_time);
+  StoreMediaTime(media_time);
   return media_time;
 }
 
@@ -1070,6 +1114,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   if (type == DemuxerStream::AUDIO) {
     audio_read_in_progress_ = false;
+    if (!buffer->end_of_stream()) {
+      timestamp_of_last_written_audio_ = buffer->timestamp().ToSbTime();
+    }
   } else {
     video_read_in_progress_ = false;
   }
@@ -1097,6 +1144,30 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
     if (audio_read_in_progress_) {
       return;
     }
+#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+    // If we haven't checked the media time recently, update it now.
+    if (SbTimeGetNow() - last_time_media_time_retrieved_ >
+        kMediaTimeCheckInterval) {
+      GetMediaTime();
+    }
+    // The estimated time ahead of playback may be negative if no audio has been
+    // written.
+    SbTime time_ahead_of_playback =
+        timestamp_of_last_written_audio_ - last_media_time_;
+    // Delay reading audio more than |kAudioLimit| ahead of playback, taking
+    // into account that our estimate of playback time might be behind by
+    // |kMediaTimeCheckInterval|.
+    if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
+      SbTime delay_time = (time_ahead_of_playback - kAudioLimit) /
+                          std::max(playback_rate_, 1.0f);
+      message_loop_->PostDelayedTask(
+          FROM_HERE, base::Bind(&SbPlayerPipeline::DelayedNeedData, this),
+          base::TimeDelta::FromMicroseconds(delay_time));
+      audio_read_delayed_ = true;
+      return;
+    }
+    audio_read_delayed_ = false;
+#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
     audio_read_in_progress_ = true;
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
@@ -1215,6 +1286,13 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
   }
 }
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+
+void SbPlayerPipeline::DelayedNeedData() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (audio_read_delayed_) {
+    OnNeedData(DemuxerStream::AUDIO);
+  }
+}
 
 void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(message_loop_->BelongsToCurrentThread());
