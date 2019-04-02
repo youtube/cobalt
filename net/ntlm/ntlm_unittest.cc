@@ -280,7 +280,14 @@ TEST(NtlmTest, GenerateMicV2Simple) {
                                      0x6b, 0x02, 0x47, 0x20};
 
   uint8_t mic[kMicLenV2];
+#ifdef STARBOARD
+  GenerateMicV2(test::kExpectedSessionBaseKeyFromSpecV2,
+                base::span<const uint8_t>(a.data(), a.size()),
+                base::span<const uint8_t>(b.data(), b.size()),
+                base::span<const uint8_t>(c.data(), c.size()), mic);
+#else
   GenerateMicV2(test::kExpectedSessionBaseKeyFromSpecV2, a, b, c, mic);
+#endif
   ASSERT_EQ(0, SbMemoryCompare(expected_mic, mic, kMicLenV2));
 }
 
@@ -291,9 +298,21 @@ TEST(NtlmTest, GenerateMicSpecResponseV2) {
   SbMemorySet(&authenticate_msg[kMicOffsetV2], 0x00, kMicLenV2);
 
   uint8_t mic[kMicLenV2];
+#ifdef STARBOARD
+  GenerateMicV2(
+      test::kExpectedSessionBaseKeyWithClientTimestampV2,
+      base::span<const uint8_t>(test::kExpectedNegotiateMsg,
+                                sizeof(test::kExpectedNegotiateMsg)),
+      base::span<const uint8_t>(test::kChallengeMsgFromSpecV2,
+                                sizeof(test::kChallengeMsgFromSpecV2)),
+      base::span<const uint8_t>(authenticate_msg.data(),
+                                authenticate_msg.size()),
+      mic);
+#else
   GenerateMicV2(test::kExpectedSessionBaseKeyWithClientTimestampV2,
                 test::kExpectedNegotiateMsg, test::kChallengeMsgFromSpecV2,
                 authenticate_msg, mic);
+#endif
   ASSERT_EQ(0, SbMemoryCompare(test::kExpectedMicV2, mic, kMicLenV2));
 }
 

@@ -17,6 +17,12 @@
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4309)
+#pragma warning(disable : 4838)
+#endif
+
 namespace net {
 
 namespace {

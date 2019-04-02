@@ -167,11 +167,17 @@ TEST_F(TcpSocketProxyTest, MAYBE_DisconnectClient) {
   ExpectClosed(server_socket.get());
 }
 
+// Starboard does not explicitly disable listening on the same port and win32
+// actually does allow two sockets used by the same application to listen on
+// the same port under some circumstances even though expected behavior in
+// documentation is "undetermined".
+#ifndef STARBOARD
 // Initialize() must fail if the port is in use.
 TEST_F(TcpSocketProxyTest, PortInUse) {
   // Try initializing second proxy on the same port.
   auto proxy2 = std::make_unique<TcpSocketProxy>(io_thread_.task_runner());
   EXPECT_FALSE(proxy2->Initialize(proxy_->local_port()));
 }
+#endif
 
 }  // namespace net

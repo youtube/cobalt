@@ -3254,6 +3254,7 @@ TEST_F(HostResolverImplTest, Mdns_Cancel) {
   EXPECT_FALSE(response.complete());
 }
 
+#ifndef GMOCK_NO_MOVE_MOCK
 // Test for a two-transaction query where the first fails to start. The second
 // should be cancelled.
 TEST_F(HostResolverImplTest, Mdns_PartialFailure) {
@@ -3283,6 +3284,7 @@ TEST_F(HostResolverImplTest, Mdns_PartialFailure) {
   EXPECT_THAT(response.result_error(), IsError(ERR_FAILED));
   EXPECT_FALSE(response.request()->GetAddressResults());
 }
+#endif
 #endif  // BUILDFLAG(ENABLE_MDNS)
 
 DnsConfig CreateValidDnsConfig() {

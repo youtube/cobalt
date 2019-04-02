@@ -57,12 +57,14 @@
 #endif
 
 #define BUILDFLAG_INTERNAL_POSIX_AVOID_MMAP() (0)
-#define BUILDFLAG_INTERNAL_DISABLE_FILE_SUPPORT() (0)
 #if defined(STARBOARD)
+// Cobalt fetches file URLs with its own implementation.
+#define BUILDFLAG_INTERNAL_DISABLE_FILE_SUPPORT() (1)
 #define BUILDFLAG_INTERNAL_DISABLE_FTP_SUPPORT() (1)
 // Cobalt does not use Kerberos(gssapi) yet.
 #define BUILDFLAG_INTERNAL_USE_KERBEROS() (0)
 #else
+#define BUILDFLAG_INTERNAL_DISABLE_FILE_SUPPORT() (0)
 #define BUILDFLAG_INTERNAL_DISABLE_FTP_SUPPORT() (0)
 #define BUILDFLAG_INTERNAL_USE_KERBEROS() (1)
 #endif

@@ -73,7 +73,12 @@ bool ReadString16Payload(NtlmBufferReader* reader, base::string16* str) {
     return false;
 
   std::vector<uint8_t> raw(sec_buf.length);
+#ifdef STARBOARD
+  if (!reader->ReadBytesFrom(sec_buf,
+                             base::span<uint8_t>(raw.data(), raw.size())))
+#else
   if (!reader->ReadBytesFrom(sec_buf, raw))
+#endif
     return false;
 
 #if defined(ARCH_CPU_BIG_ENDIAN)
@@ -289,11 +294,21 @@ TEST(NtlmClientTest, Type3WithoutUnicode) {
   NtlmClient client(NtlmFeatures(false));
 
   std::vector<uint8_t> result = GenerateAuthMsg(
+#ifdef STARBOARD
+      client,
+      base::span<const uint8_t>(test::kMinChallengeMessageNoUnicode,
+                                sizeof(test::kMinChallengeMessageNoUnicode))
+#else
       client, base::make_span(test::kMinChallengeMessageNoUnicode)
-                  .subspan<0, kMinChallengeHeaderLen>());
+#endif
+          .subspan<0, kMinChallengeHeaderLen>());
   ASSERT_FALSE(result.empty());
 
+#ifdef STARBOARD
+  NtlmBufferReader reader(base::span<uint8_t>(result.data(), result.size()));
+#else
   NtlmBufferReader reader(result);
+#endif
   ASSERT_TRUE(reader.MatchMessageHeader(MessageType::kAuthenticate));
 
   // Read the LM and NTLM Response Payloads.
@@ -333,11 +348,21 @@ TEST(NtlmClientTest, ClientDoesNotDowngradeSessionSecurity) {
   NtlmClient client(NtlmFeatures(false));
 
   std::vector<uint8_t> result =
+#ifdef STARBOARD
+      GenerateAuthMsg(client, base::span<const uint8_t>(
+                                  test::kMinChallengeMessageNoSS,
+                                  sizeof(test::kMinChallengeMessageNoSS))
+#else
       GenerateAuthMsg(client, base::make_span(test::kMinChallengeMessageNoSS)
+#endif
                                   .subspan<0, kMinChallengeHeaderLen>());
   ASSERT_FALSE(result.empty());
 
+#ifdef STARBOARD
+  NtlmBufferReader reader(base::span<uint8_t>(result.data(), result.size()));
+#else
   NtlmBufferReader reader(result);
+#endif
   ASSERT_TRUE(reader.MatchMessageHeader(MessageType::kAuthenticate));
 
   // Read the LM and NTLM Response Payloads.
