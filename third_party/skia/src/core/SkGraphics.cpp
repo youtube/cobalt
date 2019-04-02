@@ -31,6 +31,10 @@
 
 #include <stdlib.h>
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 void SkGraphics::GetVersion(int32_t* major, int32_t* minor, int32_t* patch) {
     if (major) {
         *major = SKIA_VERSION_MAJOR;
