@@ -49,6 +49,10 @@
           '<(boringssl_root)/crypto/rand_extra/starboard.c',
         ],
         'sources!': [
+          '<(boringssl_root)/crypto/bio/connect.c',
+          '<(boringssl_root)/crypto/bio/fd.c',
+          '<(boringssl_root)/crypto/bio/socket.c',
+          '<(boringssl_root)/crypto/bio/socket_helper.c',
           '<(boringssl_root)/crypto/rand_extra/deterministic.c',
           '<(boringssl_root)/crypto/rand_extra/fuchsia.c',
           '<(boringssl_root)/crypto/rand_extra/windows.c',
