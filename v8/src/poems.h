@@ -16,8 +16,8 @@
 // nice to have been able to use the shared poems, however they are too
 // aggressive for V8 (such as grabbing identifiers that will come after std::).
 
-#ifndef V8_POEMS_H_
-#define V8_POEMS_H_
+#ifndef V8_SRC_POEMS_H_
+#define V8_SRC_POEMS_H_
 
 #if !defined(STARBOARD)
 #error "Including V8 poems without STARBOARD defined."
@@ -30,6 +30,40 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
+#ifdef __cplusplus
+
+// Declaring the following functions static inline is not necessary in C++. See:
+// http://stackoverflow.com/questions/10847176/should-i-define-static-inline-methods-in-header-file
+
+// Finds the first occurrence of |character| in |str|, returning a pointer to
+// the found character in the given string, or NULL if not found.
+// Meant to be a drop-in replacement for strchr
+inline char* PoemFindCharacterInString(char* str, int character) {
+  const char* const_str = static_cast<const char*>(str);
+  const char c = static_cast<char>(character);
+  return const_cast<char*>(SbStringFindCharacter(const_str, c));
+}
+
+// Finds the first occurrence of |character| in |str|, returning a pointer to
+// the found character in the given string, or NULL if not found.
+// Meant to be a drop-in replacement for strchr
+inline const char* PoemFindCharacterInString(const char* str, int character) {
+  const char c = static_cast<char>(character);
+  return SbStringFindCharacter(str, c);
+}
+
+#else
+
+// Finds the first occurrence of |character| in |str|, returning a pointer to
+// the found character in the given string, or NULL if not found.
+// Meant to be a drop-in replacement for strchr
+static SB_C_INLINE char* PoemFindCharacterInString(const char* str,
+                                                   int character) {
+  // C-style cast used for C code
+  return (char*)(SbStringFindCharacter(str, character));
+}
+#endif
+
 #define malloc(x) SbMemoryAllocate(x)
 #define realloc(x, y) SbMemoryReallocate(x, y)
 #define free(x) SbMemoryDeallocate(x)
@@ -37,5 +71,6 @@
 #define calloc(x, y) SbMemoryCalloc(x, y)
 #define strdup(s) SbStringDuplicate(s)
 #define snprintf(a, b, c, ...) SbStringFormatF(a, b, c, __VA_ARGS__)
+#define strchr(s, c) PoemFindCharacterInString(s, c)
 
-#endif  // V8_POEMS_H_
+#endif  // V8_SRC_POEMS_H_
