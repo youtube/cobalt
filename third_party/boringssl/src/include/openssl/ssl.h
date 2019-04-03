@@ -287,6 +287,7 @@ OPENSSL_EXPORT BIO *SSL_get_rbio(const SSL *ssl);
 // SSL_get_wbio returns the |BIO| that |ssl| writes to.
 OPENSSL_EXPORT BIO *SSL_get_wbio(const SSL *ssl);
 
+#if !defined(OPENSSL_SYS_STARBOARD)
 // SSL_get_fd calls |SSL_get_rfd|.
 OPENSSL_EXPORT int SSL_get_fd(const SSL *ssl);
 
@@ -326,6 +327,7 @@ OPENSSL_EXPORT int SSL_set_rfd(SSL *ssl, int fd);
 //
 // On Windows, |fd| is cast to a |SOCKET| and used with Winsock APIs.
 OPENSSL_EXPORT int SSL_set_wfd(SSL *ssl, int fd);
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 // SSL_do_handshake continues the current handshake. If there is none or the
 // handshake has completed or False Started, it returns one. Otherwise, it
