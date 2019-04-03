@@ -107,13 +107,17 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         # Disabled because of: Timeout.
         'fetch/WebPlatformTest.Run/16',
 
-        # Test Name (XMLHttpRequest/cobalt_trunk_send-authentication-cors-basic-setrequestheader.htm):
-        # XMLHttpRequest: send() - Basic authenticated CORS request using setRequestHeader().
+        # Test Name (XMLHttpRequest/cobalt_trunk_send-authentication-cors-basic
+        # -setrequestheader.htm):
+        # XMLHttpRequest: send() - Basic authenticated CORS request using
+        # setRequestHeader().
         # Disabled because of: Timeout. Buildbot only failure.
         'xhr/WebPlatformTest.Run/17',
 
-        # Test Name (XMLHttpRequest/cobalt_trunk_send-authentication-cors-setrequestheader-no-cred.htm):
-        # XMLHttpRequest: send() - CORS request with setRequestHeader auth to URL accepting Authorization header.
+        # Test Name (XMLHttpRequest/cobalt_trunk_send-authentication-cors-
+        # setrequestheader-no-cred.htm):
+        # XMLHttpRequest: send() - CORS request with setRequestHeader auth to
+        # URL accepting Authorization header.
         # Disabled because of: False user and password. Buildbot only failure.
         'xhr/WebPlatformTest.Run/18',
 

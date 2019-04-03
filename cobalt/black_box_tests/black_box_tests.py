@@ -127,7 +127,7 @@ class BlackBoxTests(object):
     if proxy_port_number is None:
       proxy_port_number = str(self.GetUnusedPort(_binding_address))
       _device_params.target_params.append('--proxy=%s:%s' % (_binding_address,
-                                          proxy_port_number))
+                                                             proxy_port_number))
 
     self.test_name = test_name
     self.proxy_port_number = proxy_port_number
@@ -149,13 +149,15 @@ class BlackBoxTests(object):
       return 1
     logging.info('Using proxy port number: %s' % self.proxy_port_number)
 
-    with ProxyServer(port=self.proxy_port_number, host_resolve_map=self.host_resolve_map):
+    with ProxyServer(port=self.proxy_port_number,
+                     host_resolve_map=self.host_resolve_map):
       if self.test_name:
         suite = unittest.TestLoader().loadTestsFromModule(
             importlib.import_module(_TEST_DIR_PATH + self.test_name))
       else:
         suite = LoadTests(_device_params.platform, _device_params.config,
-                          _device_params.device_id, _device_params.out_directory)
+                          _device_params.device_id,
+                          _device_params.out_directory)
       return_code = not unittest.TextTestRunner(
           verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
       return return_code
@@ -183,13 +185,13 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--test_name',
                       help=('Name of test to be run. If not specified, all '
-                      'tests are run.'))
+                            'tests are run.'))
   parser.add_argument('--server_binding_address',
                       help='Binding address used to create the test server.')
   parser.add_argument('--proxy_port_number',
                       help=('Port number used to create the proxy http server'
-                      'that all black box tests are run through. If not'
-                      'specified, a random free port is used.'))
+                            'that all black box tests are run through. If not'
+                            'specified, a random free port is used.'))
   args, _ = parser.parse_known_args()
 
   global _binding_address
