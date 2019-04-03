@@ -102,6 +102,11 @@ std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
     std::vector<TestInfo> test_info_list;
     for (std::vector<std::string>::const_iterator iter = line_tokens.begin();
          iter != line_tokens.end(); ++iter) {
+      const char kCommentChar = '#';
+      if (!iter->empty() && iter->front() == kCommentChar) {
+        // Skip comment lines.
+        continue;
+      }
       base::optional<TestInfo> parsed_test_info =
           ParseLayoutTestCaseLine(FilePath(top_level), *iter);
       if (!parsed_test_info) {
