@@ -101,19 +101,21 @@ _SELF_DIR = os.path.abspath(os.path.dirname(__file__))
 _SRC_CONTENT_PATH = os.path.join(_SELF_DIR, 'cobalt_archive_content')
 
 
-# Relative paths from the resulting archive root.
+# Relative paths from the resulting archive root. The path seperator
+# is normalized to '/'.
 _OUT_ARCHIVE_ROOT = '__cobalt_archive'
-_OUT_FINALIZE_DECOMPRESSION_PATH = os.path.join(_OUT_ARCHIVE_ROOT,
-                                                'finalize_decompression')
-_OUT_METADATA_PATH = os.path.join(_OUT_ARCHIVE_ROOT, 'metadata.json')
-_OUT_DECOMP_PY = os.path.join(_OUT_FINALIZE_DECOMPRESSION_PATH, 'decompress.py')
-_OUT_DECOMP_JSON = os.path.join(_OUT_FINALIZE_DECOMPRESSION_PATH,
-                                'decompress.json')
+_OUT_FINALIZE_DECOMPRESSION_PATH = '%s/%s' % (_OUT_ARCHIVE_ROOT,
+                                             'finalize_decompression')
+_OUT_METADATA_PATH = '%s/%s' % (_OUT_ARCHIVE_ROOT, 'metadata.json')
+_OUT_DECOMP_PY = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
+                           'decompress.py')
+_OUT_DECOMP_JSON = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
+                             'decompress.json')
 
 
 class Bundler:
-  """Bundler is a utility for managing device bundles of codes. It is used
-  for creating the zip file and also unzipping."""
+  """Bundler is a utility for managing device bundles of codes. It is
+  used for creating the zip file and also unzipping."""
   def __init__(self, archive_zip_path):
     self.archive_zip_path = archive_zip_path
 
