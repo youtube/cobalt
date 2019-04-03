@@ -33,10 +33,10 @@ _DATA_JSON_PATH = os.path.abspath(os.path.join(_SELF_DIR, 'decompress.json'))
 def _DefineOsSymlinkForWin32():
   """When invoked, this will define the missing os.symlink for Win32."""
   def _CreateWin32Symlink(source, link_name):
-    cmd = 'mklink /D %s %s' % (link_name, source)
+    cmd = 'mklink /J %s %s' % (link_name, source)
     rc = subprocess.call(cmd, shell=True)
     if rc != 0:
-      logging.critical('Error using %s during %s, cwd=%s' % (rc,cmd,cwd))
+      logging.critical('Error using %s during %s, cwd=%s' % (rc,cmd,os.getcwd()))
   os.symlink = _CreateWin32Symlink
 
 
