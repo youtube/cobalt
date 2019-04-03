@@ -63,8 +63,13 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   }
 
   void SetContainerItem(const scoped_refptr<NavItem>& container) {
+    container_ = container;
     GetInterface().set_item_container_item(nav_item_,
         container ? container->nav_item_ : kNativeItemInvalid);
+  }
+
+  const scoped_refptr<NavItem>& GetContainerItem() const {
+    return container_;
   }
 
   void SetContentOffset(float x, float y) {
@@ -86,6 +91,8 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   base::Closure onblur_callback_;
   base::Closure onfocus_callback_;
   base::Closure onscroll_callback_;
+
+  scoped_refptr<NavItem> container_;
 
   NativeItemType nav_item_type_;
   NativeItem nav_item_;
