@@ -26,12 +26,20 @@ from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools.testing import test_filter
 
+# Configs web_platform_tests can run on.
+_WEB_PLATFORM_TESTS_CONFIGS = ['debug', 'devel']
+
 class WebPlatformTests(black_box_tests.BlackBoxTestCase):
 
   def test_simple(self):
+    device_params = black_box_tests._device_params
+
+    if device_params.config not in _WEB_PLATFORM_TESTS_CONFIGS:
+      logging.warning('Can only run web platform tests on debug or devel '
+                      'configs.')
+      return
 
     with WebPlatformTestServer(binding_address=self.GetBindingAddress()):
-      device_params = black_box_tests._device_params
       target_params = []
 
       platform_config = build.GetPlatformConfig(device_params.platform)
