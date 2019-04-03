@@ -1380,6 +1380,7 @@ void SSL_certs_clear(SSL *ssl) {
   ssl_cert_clear_certs(ssl->config->cert.get());
 }
 
+#if !defined(OPENSSL_SYS_STARBOARD)
 int SSL_get_fd(const SSL *ssl) { return SSL_get_rfd(ssl); }
 
 int SSL_get_rfd(const SSL *ssl) {
@@ -1449,6 +1450,7 @@ int SSL_set_rfd(SSL *ssl, int fd) {
   }
   return 1;
 }
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 static size_t copy_finished(void *out, size_t out_len, const uint8_t *in,
                             size_t in_len) {
