@@ -31,7 +31,7 @@ SbSocketError SbSocketListen(SbSocket socket) {
 
   SB_DCHECK(socket->socket_fd >= 0);
   // We set the backlog to SOMAXCONN to ensure that it is above 1, and high
-  // enough that all tests are able to pass.  Some tests will fail on this
+  // enough that all tests are able to pass. Some tests will fail if backlog==1
   // because they expect to be able to successfully initiate multiple connects
   // at once, and then after all connects have been initiated to subsequently
   // initiate corresponding accepts.
