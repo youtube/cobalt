@@ -1742,7 +1742,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
   // parent.
   auto layout_rect = GetTransformedBorderBoxFromRoot();
   for (auto parent = parent_; parent != nullptr; parent = parent->parent_) {
-    if (parent->ui_nav_item_ && parent->ui_nav_item_->IsContainer()) {
+    if (ui_nav_item_->GetContainerItem() == parent->ui_nav_item_) {
       auto origin = parent->GetTransformedBorderBoxFromRoot().origin();
       layout_rect.Offset(-origin.x(), -origin.y());
       break;
