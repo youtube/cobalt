@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+
 #include "starboard/client_porting/icu_init/icu_init.h"
 
 #include <unicode/putil.h>
