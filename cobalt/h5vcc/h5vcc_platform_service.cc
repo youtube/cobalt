@@ -27,8 +27,6 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
     script::EnvironmentSettings* settings, const std::string service_name,
     const ReceiveCallbackArg& receive_callback) {
 #if SB_API_VERSION < SB_EXTENSIONS_API_VERSION
-  UNREFERENCED_PARAMETER(settings);
-  UNREFERENCED_PARAMETER(service_name);
   SB_DLOG(WARNING)
       << "PlatformService not implemented in this version of Starboard.";
   return NULL;
@@ -76,11 +74,17 @@ H5vccPlatformService::H5vccPlatformService(
   DCHECK(main_message_loop_);
 }
 
+H5vccPlatformService::~H5vccPlatformService() {
+  if (IsOpen()) {
+    LOG(WARNING) << "Closing service due to destruction";
+    Close();
+  }
+}
+
 // static
 bool H5vccPlatformService::Has(const std::string& service_name) {
 #if SB_API_VERSION < SB_EXTENSIONS_API_VERSION
-  UNREFERENCED_PARAMETER(service_name);
-  SB_DLOG(WARNING)
+  DLOG(WARNING)
       << "PlatformService not implemented in this version of Starboard.";
   return false;
 #else   // SB_API_VERSION < SB_EXTENSIONS_API_VERSION
@@ -88,7 +92,7 @@ bool H5vccPlatformService::Has(const std::string& service_name) {
       static_cast<ExtPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
   if (!platform_service_api) {
-    SB_DLOG(WARNING) << "PlatformService is not implemented on this platform.";
+    DLOG(WARNING) << "PlatformService is not implemented on this platform.";
     return false;
   }
   return platform_service_api->Has(service_name.c_str());
@@ -98,8 +102,8 @@ bool H5vccPlatformService::Has(const std::string& service_name) {
 script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
     const script::Handle<script::ArrayBuffer>& data,
     script::ExceptionState* exception_state) {
-  if (closed_) {
-    SB_LOG(ERROR) << "Closed service should not Send.";
+  if (!IsOpen()) {
+    LOG(ERROR) << "Closed service should not Send.";
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
                              exception_state);
     return script::ArrayBuffer::New(environment_, 0);
@@ -116,7 +120,7 @@ script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
 
 // static
 void H5vccPlatformService::Receive(void* context, void* data, uint64_t length) {
-  SB_DCHECK(context) << "Platform should not call Receive with NULL context";
+  DCHECK(context) << "Platform should not call Receive with NULL context";
   static_cast<H5vccPlatformService*>(context)->ReceiveInternal(data, length);
 }
 
@@ -129,8 +133,8 @@ void H5vccPlatformService::ReceiveInternal(void* data, uint64_t length) {
     return;
   }
   DCHECK(main_message_loop_->BelongsToCurrentThread());
-  if (closed_) {
-    SB_LOG(ERROR) << "Closed service cannot Receive.";
+  if (!IsOpen()) {
+    LOG(ERROR) << "Closed service cannot Receive.";
     return;
   }
   script::Handle<script::ArrayBuffer> data_array_buffer;
@@ -146,8 +150,18 @@ void H5vccPlatformService::ReceiveInternal(void* data, uint64_t length) {
 
 void H5vccPlatformService::Close() {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
+
+  if (!IsOpen()) {
+    LOG(ERROR) << "Cannot close service that is not open.";
+    return;
+  }
+
   platform_service_api_->Close(ext_service_);
-  closed_ = true;
+  ext_service_ = kCobaltExtensionPlatformServiceInvalid;
+}
+
+bool H5vccPlatformService::IsOpen() {
+  return CobaltExtensionPlatformServiceIsValid(ext_service_);
 }
 
 }  // namespace h5vcc
