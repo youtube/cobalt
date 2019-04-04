@@ -611,6 +611,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
       SbSystemBreakIntoDebugger(); \
     } while(false)
 #define CRASH() ABORT
+#define fprintf(stderr, format, ...) SbLogFormatF(format, __VA_ARGS__)
 #elif defined(__LB_SHELL__)
 #include "dlmalloc_config.h"
 #include "lb_memory_debug_platform.h"
@@ -1476,9 +1477,9 @@ DLMALLOC_EXPORT int mspace_mallopt(int, int);
 #ifdef _MSC_VER
 #pragma warning( disable : 4146 ) /* no "unsigned" warnings */
 #endif /* _MSC_VER */
-#if !NO_MALLOC_STATS
+#if !NO_MALLOC_STATS && !defined(STARBOARD)
 #include <stdio.h>       /* for printing in malloc_stats */
-#endif /* NO_MALLOC_STATS */
+#endif /* NO_MALLOC_STATS && STARBOARD */
 #ifndef LACKS_ERRNO_H
 #include <errno.h>       /* for MALLOC_FAILURE_ACTION */
 #endif /* LACKS_ERRNO_H */
