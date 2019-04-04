@@ -206,7 +206,7 @@ class BASE_EXPORT TimeDelta {
   int64_t InMillisecondsRoundedUp() const;
   constexpr int64_t InMicroseconds() const;
   constexpr double InMicrosecondsF() const;
-  CONSTEXPR int64_t InNanoseconds() const;
+  int64_t InNanoseconds() const;
 
   // Computations with other deltas. Can easily be made constexpr with C++17 but
   // hard to do until then per limitations around

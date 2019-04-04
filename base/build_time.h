@@ -8,8 +8,6 @@
 #include "base/base_export.h"
 #include "base/time/time.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 // GetBuildTime returns the time at which the current binary was built,
@@ -29,5 +27,4 @@ Time BASE_EXPORT GetBuildTime();
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_BUILD_TIME_H_

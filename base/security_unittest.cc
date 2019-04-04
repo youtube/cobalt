@@ -75,8 +75,9 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
   }
 }
 
-#if !defined(SB_IS_COMPILER_MSVC)
-// MSVC emits overflow compiler error when using kArraySize2 below.
+// This test expects to not throw when allocating exessive amount of memory.
+// But Starboard aborts program if allocation request is too big to fullfill.
+#if !defined(STARBOARD)
 #if defined(OS_IOS) || defined(OS_FUCHSIA) || defined(ADDRESS_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER)
 #define MAYBE_NewOverflow DISABLED_NewOverflow
@@ -118,7 +119,7 @@ TEST(SecurityTest, MAYBE_NewOverflow) {
   }
 #endif  // !defined(OS_WIN) || !defined(ARCH_CPU_64_BITS)
 }
-#endif  // SB_IS_COMPILER_MSVC
+#endif  // STARBOARD
 
 #if defined(OS_LINUX) && defined(__x86_64__)
 // Check if ptr1 and ptr2 are separated by less than size chars.

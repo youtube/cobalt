@@ -141,7 +141,11 @@ struct OptionalStorageBase<T, true /* trivially destructible */> {
 // placement-new is prohibited in constexpr.
 template <typename T,
           bool = is_trivially_copy_constructible<T>::value,
+#ifdef STARBOARD
+          bool = std::is_trivially_destructible<T>::value>
+#else
           bool = std::is_trivially_move_constructible<T>::value>
+#endif
 struct OptionalStorage : OptionalStorageBase<T> {
   // This is no trivially {copy,move} constructible case. Other cases are
   // defined below as specializations.
@@ -248,9 +252,9 @@ class OptionalBase {
  protected:
   constexpr OptionalBase() = default;
 #if defined(STARBOARD)
-   OptionalBase(const OptionalBase& other) {
-     if (other.storage_.is_populated_)
-       storage_.Init(other.storage_.value_);
+  CONSTEXPR OptionalBase(const OptionalBase& other) {
+    if (other.storage_.is_populated_)
+      storage_.Init(other.storage_.value_);
   }
 #else
   constexpr OptionalBase(const OptionalBase& other) = default;
@@ -574,7 +578,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 
   // Defer copy-/move- assign operator implementation to OptionalBase.
   Optional& operator=(const Optional& other) = default;
-#if !defined(STARBOARD)
+#if !defined(STARBOARD) && __cplusplus < 201402L
   // Raspbian compiler does not like the noexcept specifier.
   Optional& operator=(Optional&& other) noexcept(
       std::is_nothrow_move_assignable<T>::value&&

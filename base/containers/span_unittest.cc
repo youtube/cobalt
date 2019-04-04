@@ -145,8 +145,6 @@ TEST(SpanTest, ConstructFromStdArray) {
     EXPECT_EQ(array[i], static_span[i]);
 }
 
-#if !defined(STARBOARD)
-// Implicit conversion not supported by Starboard due to difficulty with MSVC.
 TEST(SpanTest, ConstructFromInitializerList) {
   std::initializer_list<int> il = {1, 1, 2, 3, 5, 8};
 
@@ -232,7 +230,6 @@ TEST(SpanTest, ConstructFromContainer) {
   for (size_t i = 0; i < static_span.size(); ++i)
     EXPECT_EQ(vector[i], static_span[i]);
 }
-#endif
 
 TEST(SpanTest, ConvertNonConstIntegralToConst) {
   std::vector<int> vector = {1, 1, 2, 3, 5, 8};
@@ -254,11 +251,7 @@ TEST(SpanTest, ConvertNonConstPointerToConst) {
   auto c = std::make_unique<int>(33);
   std::vector<int*> vector = {a.get(), b.get(), c.get()};
 
-#ifdef STARBOARD
-  span<int*> non_const_pointer_span(vector.data(), vector.size());
-#else
   span<int*> non_const_pointer_span(vector);
-#endif
   EXPECT_THAT(non_const_pointer_span, Pointwise(Eq(), vector));
   span<int* const> const_pointer_span(non_const_pointer_span);
   EXPECT_THAT(const_pointer_span, Pointwise(Eq(), non_const_pointer_span));
@@ -269,11 +262,7 @@ TEST(SpanTest, ConvertNonConstPointerToConst) {
   // due to CWG Defect 330:
   // http://open-std.org/JTC1/SC22/WG21/docs/cwg_defects.html#330
 
-#ifdef STARBOARD
-  span<int*, 3> static_non_const_pointer_span(vector.data(), vector.size());
-#else
   span<int*, 3> static_non_const_pointer_span(vector);
-#endif
   EXPECT_THAT(static_non_const_pointer_span, Pointwise(Eq(), vector));
   span<int* const, 3> static_const_pointer_span(static_non_const_pointer_span);
   EXPECT_THAT(static_const_pointer_span,
@@ -283,19 +272,11 @@ TEST(SpanTest, ConvertNonConstPointerToConst) {
 TEST(SpanTest, ConvertBetweenEquivalentTypes) {
   std::vector<int32_t> vector = {2, 4, 8, 16, 32};
 
-#ifdef STARBOARD
-  span<int32_t> int32_t_span(vector.data(), vector.size());
-#else
   span<int32_t> int32_t_span(vector);
-#endif
   span<int> converted_span(int32_t_span);
   EXPECT_EQ(int32_t_span, converted_span);
 
-#ifdef STARBOARD
-  span<int32_t, 5> static_int32_t_span(vector.data(), vector.size());
-#else
   span<int32_t, 5> static_int32_t_span(vector);
-#endif
   span<int, 5> static_converted_span(static_int32_t_span);
   EXPECT_EQ(static_int32_t_span, static_converted_span);
 }
@@ -934,8 +915,6 @@ TEST(SpanTest, ReverseIterator) {
     EXPECT_EQ(span.rend(), b);
   }
 
-// span.crbegin() below is ambiguous on MSVC.
-#if !SB_IS(COMPILER_MSVC)
   {
     auto a = std::crbegin(kArray);
     auto b = span.crbegin();
@@ -947,7 +926,6 @@ TEST(SpanTest, ReverseIterator) {
     EXPECT_EQ(std::crend(kArray), a);
     EXPECT_EQ(span.crend(), b);
   }
-#endif
 #else
   EXPECT_TRUE(std::equal(std::rbegin(kArray), std::rend(kArray), span.rbegin(),
                          span.rend()));
@@ -956,8 +934,6 @@ TEST(SpanTest, ReverseIterator) {
 #endif
 }
 
-// Unable to implicitly convert span on MSVC.
-#ifndef STARBOARD
 TEST(SpanTest, Equality) {
   static constexpr int kArray1[] = {3, 1, 4, 1, 5};
   static constexpr int kArray2[] = {3, 1, 4, 1, 5};
@@ -1073,7 +1049,6 @@ TEST(SpanTest, GreaterEqual) {
 
   EXPECT_GE(span3, span4);
 }
-#endif
 
 TEST(SpanTest, AsBytes) {
   {
@@ -1087,11 +1062,7 @@ TEST(SpanTest, AsBytes) {
 
   {
     std::vector<int> vec = {1, 1, 2, 3, 5, 8};
-#ifdef STARBOARD
-    span<int> mutable_span(vec.data(), vec.size());
-#else
     span<int> mutable_span(vec);
-#endif
     span<const uint8_t> bytes_span = as_bytes(mutable_span);
     EXPECT_EQ(reinterpret_cast<const uint8_t*>(vec.data()), bytes_span.data());
     EXPECT_EQ(sizeof(int) * vec.size(), bytes_span.size());
@@ -1101,11 +1072,7 @@ TEST(SpanTest, AsBytes) {
 
 TEST(SpanTest, AsWritableBytes) {
   std::vector<int> vec = {1, 1, 2, 3, 5, 8};
-#ifdef STARBOARD
-  span<int> mutable_span(vec.data(), vec.size());
-#else
   span<int> mutable_span(vec);
-#endif
   span<uint8_t> writable_bytes_span = as_writable_bytes(mutable_span);
   EXPECT_EQ(reinterpret_cast<uint8_t*>(vec.data()), writable_bytes_span.data());
   EXPECT_EQ(sizeof(int) * vec.size(), writable_bytes_span.size());
@@ -1143,8 +1110,6 @@ TEST(SpanTest, MakeSpanFromPointerPair) {
   static_assert(decltype(made_span)::extent == dynamic_extent, "");
 }
 
-// Unable to implicitly convert span on MSVC.
-#ifndef STARBOARD
 TEST(SpanTest, MakeSpanFromConstexprArray) {
   static constexpr int kArray[] = {1, 2, 3, 4, 5};
   CONSTEXPR span<const int> span(kArray);
@@ -1166,12 +1131,15 @@ TEST(SpanTest, MakeSpanFromConstContainer) {
   static_assert(decltype(make_span(vector))::extent == dynamic_extent, "");
 }
 
+#ifndef STARBOARD
+// Unable to do these conversions.
 TEST(SpanTest, MakeStaticSpanFromConstContainer) {
   const std::vector<int> vector = {-1, -2, -3, -4, -5};
   span<const int, 5> span(vector);
   EXPECT_EQ(span, make_span<5>(vector));
   static_assert(decltype(make_span<5>(vector))::extent == 5, "");
 }
+#endif
 
 TEST(SpanTest, MakeSpanFromContainer) {
   std::vector<int> vector = {-1, -2, -3, -4, -5};
@@ -1180,6 +1148,8 @@ TEST(SpanTest, MakeSpanFromContainer) {
   static_assert(decltype(make_span(vector))::extent == dynamic_extent, "");
 }
 
+#ifndef STARBOARD
+// Unable to do these conversions.
 TEST(SpanTest, MakeStaticSpanFromContainer) {
   std::vector<int> vector = {-1, -2, -3, -4, -5};
   span<int, 5> span(vector);

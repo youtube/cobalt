@@ -16,6 +16,10 @@
 namespace base {
 namespace i18n {
 
+// BreakIterator module fails the initialization of BreakIterator due to
+// ICU version dependency on Raspi.
+#ifndef STARBOARD_OLD_ICU
+
 TEST(BreakIteratorTest, BreakWordEmpty) {
   string16 empty;
   BreakIterator iter(empty, BreakIterator::BREAK_WORD);
@@ -580,6 +584,7 @@ TEST(BreakIteratorTest, GetWordBreakStatusBreakWord) {
   EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
   EXPECT_FALSE(iter.Advance());
 }
+#endif  // STARBOARD_OLD_ICU
 
 }  // namespace i18n
 }  // namespace base

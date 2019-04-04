@@ -56,6 +56,26 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
   // doing anything smart with text formatting.
+#ifdef STARBOARD
+  // std::ifstream doesn't work on all our platforms.
+  starboard::ScopedFile file1(filename1.value().c_str(),
+                              kSbFileOpenOnly | kSbFileRead);
+  starboard::ScopedFile file2(filename2.value().c_str(),
+                              kSbFileOpenOnly | kSbFileRead);
+  auto file1_length = file1.GetSize();
+  if (file1_length != file2.GetSize()) {
+    return false;
+  }
+  std::unique_ptr<char[]> file1_content(new char[file1_length]());
+  std::unique_ptr<char[]> file2_content(new char[file1_length]());
+  if (file1.ReadAll(file1_content.get(), file1_length) != file1_length ||
+      file2.ReadAll(file2_content.get(), file1_length) != file1_length) {
+    return false;
+  }
+
+  return SbMemoryCompare(file1_content.get(), file2_content.get(),
+                         file1_length) == 0;
+#else
   std::ifstream file1(filename1.value().c_str(),
                       std::ios::in | std::ios::binary);
   std::ifstream file2(filename2.value().c_str(),
@@ -84,6 +104,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   file1.close();
   file2.close();
   return true;
+#endif
 }
 
 #if !defined(STARBOARD)
@@ -228,7 +249,7 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
   }
 
   return read_status;
-#endif
+#endif  // STARBOARD
 }
 
 bool ReadFileToString(const FilePath& path, std::string* contents) {
@@ -288,11 +309,13 @@ bool TouchFile(const FilePath& path,
 #endif  // !defined(STARBOARD)
 #endif  // !defined(OS_NACL_NONSFI)
 
+#ifndef STARBOARD
 bool CloseFile(FILE* file) {
   if (file == nullptr)
     return true;
   return fclose(file) == 0;
 }
+#endif  // !defined(STARBOARD)
 
 #if !defined(OS_NACL_NONSFI)
 #if !defined(STARBOARD)

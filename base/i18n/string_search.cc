@@ -29,10 +29,12 @@ FixedPatternStringSearchIgnoringCaseAndAccents(const string16& find_this)
     ucol_setStrength(collator, UCOL_PRIMARY);
     usearch_reset(search_);
   }
+#endif
 }
 
 FixedPatternStringSearchIgnoringCaseAndAccents::
 ~FixedPatternStringSearchIgnoringCaseAndAccents() {
+#if !defined(UCONFIG_NO_COLLATION)
   if (search_)
     usearch_close(search_);
 #endif  // !defined(UCONFIG_NO_COLLATION)
