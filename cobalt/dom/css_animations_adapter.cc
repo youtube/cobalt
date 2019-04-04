@@ -177,9 +177,9 @@ void CSSAnimationsAdapter::OnAnimationStarted(
   // Setup an event handler on the animation so we can watch for when it enters
   // the after phase, allowing us to then trigger the animation events.
   scoped_ptr<web_animations::Animation::EventHandler> event_handler =
-      web_animation->AttachEventHandler(base::Bind(
-          &CSSAnimationsAdapter::HandleAnimationEnterAfterPhase,
-          base::Unretained(this), css_animation.name(), animation_set));
+      web_animation->AttachEventHandler(
+          base::Bind(&CSSAnimationsAdapter::HandleAnimationEnterAfterPhase,
+                     base::Unretained(this), animation_set));
 
   // Track the animation in our map of all CSS Animations-created animations.
   DCHECK(animation_map_.find(css_animation.name()) == animation_map_.end());
@@ -221,7 +221,7 @@ void CSSAnimationsAdapter::OnAnimationRemoved(
 }
 
 void CSSAnimationsAdapter::HandleAnimationEnterAfterPhase(
-    const std::string& name, cssom::AnimationSet* animation_set) {
+    cssom::AnimationSet* animation_set) {
   DCHECK(animatable_->GetDefaultTimeline()->current_time());
   base::TimeDelta current_time = base::TimeDelta::FromMillisecondsD(
       animatable_->GetDefaultTimeline()->current_time().value_or(0));
