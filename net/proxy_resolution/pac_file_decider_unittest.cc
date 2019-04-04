@@ -96,7 +96,7 @@ class Rules {
       if (it->text() == text)
         return *it;
     }
-#if !SB_IS(COMPILER_MSVC)
+#if SB_IS(WCHAR_T_IS_UTF32)
     LOG(FATAL) << "Rule not found for " << text;
 #endif
     return rules_[0];

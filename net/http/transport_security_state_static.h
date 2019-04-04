@@ -11,6 +11,10 @@
 
 #include <stdint.h>
 
+#ifdef STARBOARD
+#error "do not compile this big file as Cobalt does not need it."
+#endif
+
 #include "base/stl_util.h"
 #include "net/http/transport_security_state_source.h"
 

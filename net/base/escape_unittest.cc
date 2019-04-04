@@ -518,7 +518,7 @@ TEST(EscapeTest, ContainsEncodedBytes) {
   EXPECT_TRUE(ContainsEncodedBytes("abc%2fdef", {'/', '\\'}));
 
   // Should be looking for byte values, not UTF-8 character values.
-#if SB_IS(COMPILER_MSVC)
+#ifdef STARBOARD
   EXPECT_TRUE(
       ContainsEncodedBytes("caf%C3%A9", {static_cast<unsigned char>('\xc3')}));
   EXPECT_FALSE(

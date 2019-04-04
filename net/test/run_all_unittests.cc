@@ -23,6 +23,9 @@ using net::internal::ClientSocketPoolBaseHelper;
 namespace {
 
 bool VerifyBuildIsTimely() {
+#ifdef STARBOARD
+  return true;
+#else
   // This lines up with various //net security features, like Certificate
   // Transparency or HPKP, in that they require the build time be less than 70
   // days old. Moreover, operating on the assumption that tests are run against
@@ -48,6 +51,7 @@ bool VerifyBuildIsTimely() {
       << build_time.ToInternalValue() << ")\n";
 
   return false;
+#endif
 }
 
 }  // namespace
