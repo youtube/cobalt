@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STRING_SEARCH_H_
-#define V8_STRING_SEARCH_H_
+#ifndef V8_SRC_STRING_SEARCH_H_
+#define V8_SRC_STRING_SEARCH_H_
 
 #include "src/isolate.h"
 #include "src/vector.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
-
 
 //---------------------------------------------------------------------
 // String Search object.
@@ -51,7 +54,6 @@ class StringSearchBase {
 
   friend class Isolate;
 };
-
 
 template <typename PatternChar, typename SubjectChar>
 class StringSearch : private StringSearchBase {
@@ -189,22 +191,18 @@ class StringSearch : private StringSearchBase {
   int start_;
 };
 
-
 template <typename T, typename U>
 inline T AlignDown(T value, U alignment) {
   return reinterpret_cast<T>(
       (reinterpret_cast<uintptr_t>(value) & ~(alignment - 1)));
 }
 
-
 inline uint8_t GetHighestValueByte(uc16 character) {
   return Max(static_cast<uint8_t>(character & 0xFF),
              static_cast<uint8_t>(character >> 8));
 }
 
-
 inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
-
 
 template <typename PatternChar, typename SubjectChar>
 inline int FindFirstCharacter(Vector<const PatternChar> pattern,
@@ -229,7 +227,6 @@ inline int FindFirstCharacter(Vector<const PatternChar> pattern,
   return -1;
 }
 
-
 //---------------------------------------------------------------------
 // Single Character Pattern Search Strategy
 //---------------------------------------------------------------------
@@ -253,7 +250,6 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
 // Linear Search Strategy
 //---------------------------------------------------------------------
 
-
 template <typename PatternChar, typename SubjectChar>
 inline bool CharCompare(const PatternChar* pattern,
                         const SubjectChar* subject,
@@ -268,7 +264,6 @@ inline bool CharCompare(const PatternChar* pattern,
   } while (pos < length);
   return true;
 }
-
 
 // Simple linear search for short patterns. Never bails out.
 template <typename PatternChar, typename SubjectChar>
@@ -352,7 +347,6 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
 
   return -1;
 }
-
 
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreTable() {
@@ -474,7 +468,6 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
   return -1;
 }
 
-
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreHorspoolTable() {
   int pattern_length = pattern_.length();
@@ -549,7 +542,6 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
   return -1;
 }
 
-
 // Perform a a single stand-alone search.
 // If searching multiple times for the same pattern, a search
 // object should be constructed once and the Search function then called
@@ -579,4 +571,4 @@ int SearchStringRaw(Isolate* isolate, const SubjectChar* subject_ptr,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRING_SEARCH_H_
+#endif  // V8_SRC_STRING_SEARCH_H_

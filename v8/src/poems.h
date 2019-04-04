@@ -72,5 +72,6 @@ static SB_C_INLINE char* PoemFindCharacterInString(const char* str,
 #define strdup(s) SbStringDuplicate(s)
 #define snprintf(a, b, c, ...) SbStringFormatF(a, b, c, __VA_ARGS__)
 #define strchr(s, c) PoemFindCharacterInString(s, c)
+#define memchr(s, c, n) SbMemoryFindByte(s, c, n)
 
 #endif  // V8_SRC_POEMS_H_
