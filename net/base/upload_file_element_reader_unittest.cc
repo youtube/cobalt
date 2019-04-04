@@ -332,8 +332,15 @@ TEST_P(UploadFileElementReaderTest, WrongPath) {
 #endif
 }
 
+#ifdef STARBOARD
+bool values[] = {false, true};
+INSTANTIATE_TEST_CASE_P(,
+                        UploadFileElementReaderTest,
+                        testing::ValuesIn(values));
+#else
 INSTANTIATE_TEST_CASE_P(,
                         UploadFileElementReaderTest,
                         testing::ValuesIn({false, true}));
+#endif
 
 }  // namespace net

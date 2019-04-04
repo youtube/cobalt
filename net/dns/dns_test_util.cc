@@ -199,7 +199,11 @@ class MockTransactionFactory : public DnsTransactionFactory {
                                           std::move(callback));
     if (transaction->delayed())
       delayed_transactions_.push_back(transaction->AsWeakPtr());
+#if defined(STARBOARD)
+    return std::move(transaction);
+#else
     return transaction;
+#endif
   }
 
   void AddEDNSOption(const OptRecordRdata::Opt& opt) override {

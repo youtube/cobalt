@@ -415,8 +415,10 @@ TEST_F(TransportSecurityStateTest, DomainNameOddities) {
 
   // Now do the same for preloaded entries
   TransportSecurityState state5;
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   EXPECT_TRUE(state5.ShouldUpgradeToSSL("hsts-preloaded.test"));
   EXPECT_TRUE(state5.ShouldUpgradeToSSL("hsts-preloaded.test."));
+#endif
   EXPECT_FALSE(state5.ShouldUpgradeToSSL("hsts-preloaded..test"));
   EXPECT_FALSE(state5.ShouldUpgradeToSSL("hsts-preloaded..test."));
 }
@@ -457,10 +459,12 @@ TEST_F(TransportSecurityStateTest, MatchesCase2) {
   state.AddHSTS("example.com", expiry, include_subdomains);
   EXPECT_TRUE(state.ShouldUpgradeToSSL("EXample.coM"));
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   // Check static entries
   EXPECT_TRUE(state.ShouldUpgradeToSSL("hStS-prelOAded.tEsT"));
   EXPECT_TRUE(
       state.ShouldUpgradeToSSL("inClude-subDOmaIns-hsts-prEloaDed.TesT"));
+#endif
 }
 
 TEST_F(TransportSecurityStateTest, SubdomainMatches) {
@@ -814,6 +818,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
   TransportSecurityState state;
   EnableStaticPins(&state);
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   TransportSecurityState::STSState sts_state;
   TransportSecurityState::PKPState pkp_state;
   EXPECT_TRUE(state.GetStaticDomainState("no-rejected-pins-pkp.preloaded.test",
@@ -823,8 +828,10 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
   std::string failure_log;
   EXPECT_TRUE(pkp_state.CheckPublicKeyPins(good_hashes, &failure_log));
   EXPECT_FALSE(pkp_state.CheckPublicKeyPins(bad_hashes, &failure_log));
+#endif
 }
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 // Tests that pinning violations on preloaded pins trigger reports when
 // the preloaded pin contains a report URI.
 TEST_F(TransportSecurityStateTest, PreloadedPKPReportUri) {
@@ -879,6 +886,7 @@ TEST_F(TransportSecurityStateTest, PreloadedPKPReportUri) {
       report, host_port_pair, pkp_state.include_subdomains, pkp_state.domain,
       cert1.get(), cert2.get(), pkp_state.spki_hashes));
 }
+#endif
 
 // Tests that report URIs are thrown out if they point to the same host,
 // over HTTPS, for which a pin was violated.
@@ -931,6 +939,7 @@ TEST_F(TransportSecurityStateTest, HPKPReportUriToSameHost) {
   EXPECT_EQ(http_report_uri, mock_report_sender.latest_report_uri());
 }
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 // Tests that static (preloaded) expect CT state is read correctly.
 TEST_F(TransportSecurityStateTest, PreloadedExpectCT) {
   TransportSecurityState state;
@@ -943,6 +952,7 @@ TEST_F(TransportSecurityStateTest, PreloadedExpectCT) {
   EXPECT_FALSE(
       GetExpectCTState(&state, "hsts-preloaded.test", &expect_ct_state));
 }
+#endif
 
 // Tests that the Expect CT reporter is not notified for invalid or absent
 // header values.
@@ -961,9 +971,11 @@ TEST_F(TransportSecurityStateTest, InvalidExpectCTHeader) {
   ssl_info.unverified_cert = cert1;
   ssl_info.cert = cert2;
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   TransportSecurityState state;
   TransportSecurityStateTest::EnableStaticExpectCT(&state);
   MockExpectCTReporter reporter;
+
   state.SetExpectCTReporter(&reporter);
   state.ProcessExpectCTHeader("", host_port, ssl_info);
   EXPECT_EQ(0u, reporter.num_failures());
@@ -973,8 +985,10 @@ TEST_F(TransportSecurityStateTest, InvalidExpectCTHeader) {
 
   state.ProcessExpectCTHeader("preload", host_port, ssl_info);
   EXPECT_EQ(1u, reporter.num_failures());
+#endif
 }
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 // Tests that the Expect CT reporter is only notified about certificates
 // chaining to public roots.
 TEST_F(TransportSecurityStateTest, ExpectCTNonPublicRoot) {
@@ -1095,6 +1109,7 @@ TEST_F(TransportSecurityStateTest, PreloadedExpectCTBuildNotTimely) {
   state.ProcessExpectCTHeader("preload", host_port, ssl_info);
   EXPECT_EQ(1u, reporter.num_failures());
 }
+#endif
 
 // Tests that the Expect CT reporter is not notified for dynamic Expect-CT when
 // the build is not timely.
@@ -1132,6 +1147,7 @@ TEST_F(TransportSecurityStateTest, DynamicExpectCTBuildNotTimely) {
   EXPECT_EQ(1u, reporter.num_failures());
 }
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 // Tests that the Expect CT reporter is not notified for a site that
 // isn't preloaded.
 TEST_F(TransportSecurityStateTest, ExpectCTNotPreloaded) {
@@ -1431,6 +1447,7 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedMultipleMix) {
   EXPECT_TRUE(pkp_state == TransportSecurityState::PKPState());
   EXPECT_FALSE(GetExpectCTState(&state, "simple-entry.example.com", &ct_state));
 }
+#endif
 
 // Tests that TransportSecurityState always consults the RequireCTDelegate,
 // if supplied.
