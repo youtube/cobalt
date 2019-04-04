@@ -13,6 +13,9 @@
 #include "net/http/transport_security_state.h"
 #include "net/ssl/ssl_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#ifdef STARBOARD
+#include "net/net_buildflags.h"
+#endif
 
 namespace net {
 
@@ -660,6 +663,7 @@ TEST_F(HttpSecurityHeadersTest, ValidPKPHeadersSHA256) {
   TestValidPKPHeaders(HASH_VALUE_SHA256);
 }
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 TEST_F(HttpSecurityHeadersTest, UpdateDynamicPKPOnly) {
   SetTransportSecurityStateSourceForTesting(&test_default::kHSTSSource);
 
@@ -866,6 +870,7 @@ TEST_F(HttpSecurityHeadersTest, NoClobberPins) {
           domain_port, is_issued_by_known_root, saved_hashes, nullptr, nullptr,
           TransportSecurityState::DISABLE_PIN_REPORTS, &failure_log));
 }
+#endif
 
 // Tests that seeing an invalid HPKP header leaves the existing one alone.
 TEST_F(HttpSecurityHeadersTest, IgnoreInvalidHeaders) {
