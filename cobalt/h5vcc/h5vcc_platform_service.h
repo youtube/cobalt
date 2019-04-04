@@ -45,6 +45,8 @@ class H5vccPlatformService : public script::Wrappable {
                        ExtPlatformServiceApi* platform_service_api,
                        const ReceiveCallbackArg& receive_callback);
 
+  ~H5vccPlatformService();
+
   static bool Has(const std::string& service_name);
 
   static scoped_refptr<H5vccPlatformService> Open(
@@ -66,7 +68,7 @@ class H5vccPlatformService : public script::Wrappable {
 
   static void Receive(void* context, void* data, uint64_t length);
 
-  bool closed_ = false;
+  bool IsOpen();
 
   script::GlobalEnvironment* environment_;
   ExtPlatformServiceApi* platform_service_api_;
@@ -79,7 +81,7 @@ class H5vccPlatformService : public script::Wrappable {
   // associate the WeakPtr with the constructing thread.
   base::WeakPtr<H5vccPlatformService> weak_this_;
 
-  ExtPlatformService ext_service_;
+  ExtPlatformService ext_service_ = kCobaltExtensionPlatformServiceInvalid;
 };
 
 }  // namespace h5vcc
