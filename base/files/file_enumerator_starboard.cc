@@ -19,6 +19,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 
 namespace base {
 
@@ -111,7 +112,8 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   // because the definition of SbDirectoryGetNext does not guarantee that.
   bool found_dot_dot = false;
   while (SbDirectoryGetNext(dir, &entry)) {
-    if (entry.name == "..") {
+    const char dot_dot_str[] = "..";
+    if (!SbStringCompare(entry.name, dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
     }
     ret.push_back(GenerateEntry(entry.name));

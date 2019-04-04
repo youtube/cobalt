@@ -4,7 +4,9 @@
 
 #include "base/test/test_suite.h"
 
+#ifndef STARBOARD
 #include <signal.h>
+#endif
 
 #include <memory>
 

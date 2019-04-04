@@ -205,9 +205,9 @@ template <typename STRING_TYPE> class BasicStringPiece {
   // returned buffer may or may not be null terminated.  Therefore it is
   // typically a mistake to pass data() to a routine that expects a NUL
   // terminated string.
-  constexpr const value_type* data() const { return ptr_; }
-  constexpr size_type size() const { return length_; }
-  constexpr size_type length() const { return length_; }
+  CONSTEXPR const value_type* data() const { return ptr_; }
+  CONSTEXPR size_type size() const { return length_; }
+  CONSTEXPR size_type length() const { return length_; }
   bool empty() const { return length_ == 0; }
 
   void clear() {

@@ -348,6 +348,11 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 
 #endif  // defined(__clang_analyzer__)
 
+#ifdef STARBOARD
+// Roku defined some macros that have the same names.
+#undef LOG_INFO
+#undef LOG_WARNING
+#endif
 typedef int LogSeverity;
 const LogSeverity LOG_VERBOSE = -1;  // This is level 1 verbosity
 // Note: the log severities are used to index into the array of names,

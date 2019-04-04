@@ -7,6 +7,9 @@
 
 #include <atomic>
 
+#ifdef STARBOARD
+#include "base/atomicops.h"
+#endif
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "starboard/types.h"
@@ -42,12 +45,25 @@ class EnqueueOrder {
 
     // Can be called from any thread.
     EnqueueOrder GenerateNext() {
+#ifdef STARBOARD
+      // subtle::NoBarrier_AtomicIncrement returns the new value
+      // while std::atomic_fetch_add_explicit returns the old one, so let's
+      // subtract 1 back.
+      return EnqueueOrder(
+          subtle::NoBarrier_AtomicIncrement(&counter_, subtle::Atomic32(1)) -
+          1);
+    }
+
+   private:
+    subtle::Atomic32 counter_;
+#else
       return EnqueueOrder(std::atomic_fetch_add_explicit(
           &counter_, uint64_t(1), std::memory_order_relaxed));
     }
 
    private:
     std::atomic<uint64_t> counter_;
+#endif
     DISALLOW_COPY_AND_ASSIGN(Generator);
   };
 

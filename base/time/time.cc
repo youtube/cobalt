@@ -39,7 +39,7 @@ ThreadTicksNowFunction g_thread_ticks_now_function =
 
 // TimeDelta ------------------------------------------------------------------
 
-CONSTEXPR int64_t TimeDelta::InNanoseconds() const {
+int64_t TimeDelta::InNanoseconds() const {
   if (is_max()) {
     // Preserve max to prevent overflow.
     return std::numeric_limits<int64_t>::max();

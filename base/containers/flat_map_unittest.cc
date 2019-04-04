@@ -20,6 +20,8 @@ using ::testing::ElementsAre;
 
 namespace base {
 
+// At least PS4 compiler does not allow this test at compiler time.
+#ifndef STARBOARD
 TEST(FlatMap, IncompleteType) {
   struct A {
     using Map = flat_map<A, A>;
@@ -33,6 +35,7 @@ TEST(FlatMap, IncompleteType) {
 
   A a;
 }
+#endif
 
 TEST(FlatMap, RangeConstructor) {
   flat_map<int, int>::value_type input_vals[] = {

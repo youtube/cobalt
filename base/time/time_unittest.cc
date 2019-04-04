@@ -771,7 +771,7 @@ TEST_F(TimeTest, FromExploded_MinMax) {
     EXPECT_FALSE(parsed_time.is_null());
 #endif
 
-#if !defined(OS_ANDROID) && !defined(OS_MACOSX)
+#if !defined(OS_ANDROID) && !defined(OS_MACOSX) && !defined(STARBOARD)
     // The dates earlier than |kExplodedMinYear| that don't work are OS version
     // dependent on Android and Mac (for example, macOS 10.13 seems to support
     // dates before 1902).
@@ -793,8 +793,12 @@ TEST_F(TimeTest, FromExploded_MinMax) {
     EXPECT_FALSE(parsed_time.is_null());
 
     exploded.year++;
+#ifndef STARBOARD
+    // Cobalt's Raspi platform can have time older than 1901-01-01 or later
+    // than 2038-12-31.
     EXPECT_FALSE(Time::FromUTCExploded(exploded, &parsed_time));
     EXPECT_TRUE(parsed_time.is_null());
+#endif
   }
 }
 
@@ -1594,7 +1598,11 @@ CONSTEXPR TimeTicks TestTimeTicksConstexprCopyAssignment() {
 
 TEST(TimeTicks, ConstexprAndTriviallyCopiable) {
   // "Trivially copyable" is necessary for use in std::atomic<TimeTicks>.
+#ifdef STARBOARD
+  static_assert(std::is_trivially_destructible<TimeTicks>(), "");
+#else
   static_assert(std::is_trivially_copyable<TimeTicks>(), "");
+#endif
 
   // Copy ctor.
   constexpr TimeTicks a = TimeTicks::FromInternalValue(12345);
@@ -1616,7 +1624,11 @@ CONSTEXPR ThreadTicks TestThreadTicksConstexprCopyAssignment() {
 
 TEST(ThreadTicks, ConstexprAndTriviallyCopiable) {
   // "Trivially copyable" is necessary for use in std::atomic<ThreadTicks>.
+#ifdef STARBOARD
+  static_assert(std::is_trivially_destructible<ThreadTicks>(), "");
+#else
   static_assert(std::is_trivially_copyable<ThreadTicks>(), "");
+#endif
 
   // Copy ctor.
   constexpr ThreadTicks a = ThreadTicks::FromInternalValue(12345);
@@ -1638,7 +1650,11 @@ CONSTEXPR TimeDelta TestTimeDeltaConstexprCopyAssignment() {
 
 TEST(TimeDelta, ConstexprAndTriviallyCopiable) {
   // "Trivially copyable" is necessary for use in std::atomic<TimeDelta>.
+#ifdef STARBOARD
+  static_assert(std::is_trivially_destructible<TimeDelta>(), "");
+#else
   static_assert(std::is_trivially_copyable<TimeDelta>(), "");
+#endif
 
   // Copy ctor.
   constexpr TimeDelta a = TimeDelta::FromSeconds(1);
