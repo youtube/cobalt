@@ -64,8 +64,7 @@ class CSSAnimationsAdapter : public cssom::AnimationSet::EventHandler {
 
   // Called to handle Animation events.  When a CSS animation's corresponding
   // web animation enters the after phase, we fire the animationend event.
-  void HandleAnimationEnterAfterPhase(const std::string& name,
-                                      cssom::AnimationSet* animation_set);
+  void HandleAnimationEnterAfterPhase(cssom::AnimationSet* animation_set);
 
   scoped_refptr<dom::DOMAnimatable> animatable_;
 
