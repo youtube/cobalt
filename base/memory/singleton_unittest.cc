@@ -283,15 +283,22 @@ TEST_F(SingletonTest, Alignment) {
       AlignedTestSingleton<int32_t>::GetInstance();
   AlignedTestSingleton<AlignedData<32>>* align32 =
       AlignedTestSingleton<AlignedData<32>>::GetInstance();
+#if !defined(STARBOARD)
   AlignedTestSingleton<AlignedData<128>>* align128 =
       AlignedTestSingleton<AlignedData<128>>::GetInstance();
   AlignedTestSingleton<AlignedData<4096>>* align4096 =
       AlignedTestSingleton<AlignedData<4096>>::GetInstance();
+#endif
 
   EXPECT_ALIGNED(align4, 4);
   EXPECT_ALIGNED(align32, 32);
+// At least on Raspi, alignas with big alignment numbers does not work and
+// that is compliant with C++ standard as the alignment is larger than
+// std::max_align_t.
+#if !defined(STARBOARD)
   EXPECT_ALIGNED(align128, 128);
   EXPECT_ALIGNED(align4096, 4096);
+#endif
 }
 
 }  // namespace

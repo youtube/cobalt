@@ -54,7 +54,9 @@ CONSTEXPR size_t CharTraits<T>::length(const T* s) noexcept {
 #if defined(STARBOARD)
 template <>
 struct CharTraits<char> {
-  static int compare(const char* s1, const char* s2, size_t n) noexcept {
+  CONSTEXPR static int compare(const char* s1,
+                               const char* s2,
+                               size_t n) noexcept {
     for (; n; --n, ++s1, ++s2) {
       if (*s1 < *s2)
         return -1;
@@ -64,7 +66,7 @@ struct CharTraits<char> {
     return 0;
   }
 
-  static size_t length(const char* s) noexcept {
+  CONSTEXPR static size_t length(const char* s) noexcept {
     size_t i = 0;
     for (; *s; ++s)
       ++i;

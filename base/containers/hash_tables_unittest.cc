@@ -13,7 +13,7 @@ namespace {
 
 // MSVC does not support using hash pair as key. std containers also fail
 // these tests.
-#ifndef SB_IS_COMPILER_MSVC
+#ifndef STARBOARD
 class HashPairTest : public testing::Test {
 };
 

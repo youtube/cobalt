@@ -65,6 +65,9 @@ class ThreadPostingTasks : public SimpleThread {
                      PostNestedTask post_nested_task)
       : SimpleThread("ThreadPostingTasks"),
         worker_pool_(worker_pool),
+#ifdef STARBOARD
+        task_runner_(nullptr),
+#endif
         post_nested_task_(post_nested_task),
         factory_(test::CreateTaskRunnerWithExecutionMode(worker_pool,
                                                          execution_mode),

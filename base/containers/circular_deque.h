@@ -491,8 +491,14 @@ class circular_deque {
 
   // This variant should be enabled only when InputIterator is an iterator.
   template <typename InputIterator>
+#ifdef STARBOARD
+  typename std::enable_if<::base::internal::is_iterator<InputIterator>::value &&
+                              !std::is_same<InputIterator, int>::value,
+                          void>::type
+#else
   typename std::enable_if<::base::internal::is_iterator<InputIterator>::value,
                           void>::type
+#endif
   assign(InputIterator first, InputIterator last) {
     // Possible future enhancement, dispatch on iterator tag type. For forward
     // iterators we can use std::difference to preallocate the space required
@@ -707,8 +713,14 @@ class circular_deque {
   // This enable_if keeps this call from getting confused with the (pos, count,
   // value) version when value is an integer.
   template <class InputIterator>
+#ifdef STARBOARD
+  typename std::enable_if<::base::internal::is_iterator<InputIterator>::value &&
+                              !std::is_same<InputIterator, int>::value,
+                          void>::type
+#else
   typename std::enable_if<::base::internal::is_iterator<InputIterator>::value,
                           void>::type
+#endif
   insert(const_iterator pos, InputIterator first, InputIterator last) {
     ValidateIterator(pos);
 

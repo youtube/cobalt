@@ -269,18 +269,15 @@ struct RequiredEnumTraitFilter : public BasicTraitFilter<ArgType> {
   CONSTEXPR RequiredEnumTraitFilter(ArgType arg) { this->value = arg; }
 };
 
-#if __cplusplus < 201402L
+#ifdef STARBOARD
 // Allows instantiation of multiple types in one statement. Used to prevent
 // instantiation of the constructor of TaskTraits with inappropriate argument
 // types.
 template <class...>
 struct InitTypes {};
+#endif
 
-// template <class ValidTraits, class... ArgTypes>
-// bool AreValidTraits(){
-//   return all_of({std::is_convertible<ArgTypes, ValidTraits>::value...});
-// }
-#else
+#if __cplusplus >= 201402L
 // Tests whether a given trait type is valid or invalid by testing whether it is
 // convertible to the provided ValidTraits type. To use, define a ValidTraits
 // type like this:

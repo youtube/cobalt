@@ -50,20 +50,9 @@ struct get_internal<Index, TargetType, TargetType, Types...> {
 }  // namespace
 
 namespace std {
-
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
-// Cobalt Raspi compiler does not have some std::is_trivially* implementations
-// like std::is_trivially_copy_constructible yet.
-template <typename T>
-struct is_trivially_copy_constructible : std::is_trivially_destructible<T> {};
-
-template <typename T>
-struct is_trivially_move_constructible : std::is_trivially_destructible<T> {};
-
-template <typename T>
-struct is_trivially_copyable : std::is_trivially_destructible<T> {};
-
-#endif
+// 201402L is the official C++14 standard version. But some platforms are
+// capable of some C++14 features, has 201300 as their C++ version.
+#if __cplusplus < 201300L
 
 #if !defined(SB_IS_COMPILER_MSVC)
 template <class TargetType, class... Types>
@@ -161,6 +150,7 @@ using remove_const_t = typename remove_const<T>::type;
 
 template<typename T>
 using remove_volatile_t = typename remove_volatile<T>::type;
+#endif  // __cplusplus < 201300L
 
 #if !defined(SB_IS_COMPILER_MSVC)
 template<typename T>
