@@ -740,6 +740,71 @@ TEST(X509UtilTest, SignatureVerifierInitWithCertificate) {
     bool ok;
   } kTests[] = {
       // The certificate must support the digitalSignature key usage.
+#ifdef STARBOARD
+      {"key_usage_p256_digitalsignature.pem",
+       crypto::SignatureVerifier::ECDSA_SHA256,
+       base::span<const uint8_t>(kP256Signature, sizeof(kP256Signature)), true},
+      {"key_usage_p256_both.pem", crypto::SignatureVerifier::ECDSA_SHA256,
+       base::span<const uint8_t>(kP256Signature, sizeof(kP256Signature)), true},
+      {"key_usage_rsa_digitalsignature.pem",
+       crypto::SignatureVerifier::RSA_PKCS1_SHA256,
+       base::span<const uint8_t>(kRSASignaturePKCS1,
+                                 sizeof(kRSASignaturePKCS1)),
+       true},
+      {"key_usage_rsa_digitalsignature.pem",
+       crypto::SignatureVerifier::RSA_PSS_SHA256,
+       base::span<const uint8_t>(kRSASignaturePSS, sizeof(kRSASignaturePSS)),
+       true},
+      {"key_usage_rsa_both.pem", crypto::SignatureVerifier::RSA_PKCS1_SHA256,
+       base::span<const uint8_t>(kRSASignaturePKCS1,
+                                 sizeof(kRSASignaturePKCS1)),
+       true},
+      {"key_usage_rsa_both.pem", crypto::SignatureVerifier::RSA_PSS_SHA256,
+       base::span<const uint8_t>(kRSASignaturePSS, sizeof(kRSASignaturePSS)),
+       true},
+
+      // Omitting the extension entirely is also accepted.
+      {"key_usage_p256_no_extension.pem",
+       crypto::SignatureVerifier::ECDSA_SHA256,
+       base::span<const uint8_t>(kP256Signature, sizeof(kP256Signature)), true},
+      {"key_usage_rsa_no_extension.pem",
+       crypto::SignatureVerifier::RSA_PKCS1_SHA256,
+       base::span<const uint8_t>(kRSASignaturePKCS1,
+                                 sizeof(kRSASignaturePKCS1)),
+       true},
+      {"key_usage_rsa_no_extension.pem",
+       crypto::SignatureVerifier::RSA_PSS_SHA256,
+       base::span<const uint8_t>(kRSASignaturePSS, sizeof(kRSASignaturePSS)),
+       true},
+
+      // If the extension is present but digitalSignature is missing, the
+      // signature is rejected.
+      {"key_usage_p256_keyagreement.pem",
+       crypto::SignatureVerifier::ECDSA_SHA256,
+       base::span<const uint8_t>(kP256Signature, sizeof(kP256Signature)),
+       false},
+      {"key_usage_rsa_keyencipherment.pem",
+       crypto::SignatureVerifier::RSA_PKCS1_SHA256,
+       base::span<const uint8_t>(kRSASignaturePKCS1,
+                                 sizeof(kRSASignaturePKCS1)),
+       false},
+      {"key_usage_rsa_keyencipherment.pem",
+       crypto::SignatureVerifier::RSA_PSS_SHA256,
+       base::span<const uint8_t>(kRSASignaturePSS, sizeof(kRSASignaturePSS)),
+       false},
+
+      // The key and signature must match, rather than only extracting the hash
+      // function.
+      {"key_usage_p256_digitalsignature.pem",
+       crypto::SignatureVerifier::RSA_PKCS1_SHA256,
+       base::span<const uint8_t>(kP256Signature, sizeof(kP256Signature)),
+       false},
+      {"key_usage_rsa_digitalsignature.pem",
+       crypto::SignatureVerifier::ECDSA_SHA256,
+       base::span<const uint8_t>(kRSASignaturePKCS1,
+                                 sizeof(kRSASignaturePKCS1)),
+       false},
+#else
       {"key_usage_p256_digitalsignature.pem",
        crypto::SignatureVerifier::ECDSA_SHA256, kP256Signature, true},
       {"key_usage_p256_both.pem", crypto::SignatureVerifier::ECDSA_SHA256,
@@ -776,6 +841,7 @@ TEST(X509UtilTest, SignatureVerifierInitWithCertificate) {
        crypto::SignatureVerifier::RSA_PKCS1_SHA256, kP256Signature, false},
       {"key_usage_rsa_digitalsignature.pem",
        crypto::SignatureVerifier::ECDSA_SHA256, kRSASignaturePKCS1, false},
+#endif
   };
 
   for (const auto& test : kTests) {

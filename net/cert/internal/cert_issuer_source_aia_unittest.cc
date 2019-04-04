@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef GMOCK_NO_MOVE_MOCK
 #include "net/cert/internal/cert_issuer_source_aia.h"
 
 #include <memory>
@@ -15,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-#ifndef GMOCK_NO_MOVE_MOCK
 
 namespace net {
 

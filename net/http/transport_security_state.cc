@@ -46,7 +46,6 @@ namespace {
 
 #include "net/http/transport_security_state_ct_policies.inc"
 
-// #if !defined(STARBOARD)
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 #include "net/http/transport_security_state_static.h"  // nogncheck
 #include "starboard/memory.h"
@@ -55,9 +54,6 @@ const TransportSecurityStateSource* const kDefaultHSTSSource = &kHSTSSource;
 #else
 const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
 #endif
-// #else
-// const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
-// #endif
 
 const TransportSecurityStateSource* g_hsts_source = kDefaultHSTSSource;
 
@@ -1168,9 +1164,15 @@ void TransportSecurityState::ClearReportCachesForTesting() {
 
 // static
 bool TransportSecurityState::IsBuildTimely() {
+#ifdef STARBOARD
+  // Cobalt does not need static TransportSecurityState data and does not
+  // support getting build time.
+  return false;
+#else
   const base::Time build_time = base::GetBuildTime();
   // We consider built-in information to be timely for 10 weeks.
   return (base::Time::Now() - build_time).InDays() < 70 /* 10 weeks */;
+#endif
 }
 
 TransportSecurityState::PKPStatus

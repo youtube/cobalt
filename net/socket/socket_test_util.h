@@ -396,9 +396,8 @@ class StaticSocketDataProvider : public SocketDataProvider {
   StaticSocketDataProvider(base::span<const MockRead> reads,
                            base::span<const MockWrite> writes);
 #ifdef STARBOARD
-  StaticSocketDataProvider::StaticSocketDataProvider(
-      const std::vector<MockRead>& reads,
-      const std::vector<MockWrite>& writes);
+  StaticSocketDataProvider(const std::vector<MockRead>& reads,
+                           const std::vector<MockWrite>& writes);
 #endif
   ~StaticSocketDataProvider() override;
 

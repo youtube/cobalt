@@ -156,7 +156,11 @@ class TestDelegate : public URLRequest::Delegate {
 
   // Sets the closure to be run on completion, for tests which need more fine-
   // grained control than RunUntilComplete().
+#ifdef STARBOARD
+  void set_on_complete(base::Closure on_complete) {
+#else
   void set_on_complete(base::OnceClosure on_complete) {
+#endif
     use_legacy_on_complete_ = false;
     on_complete_ = std::move(on_complete);
   }
@@ -232,9 +236,18 @@ class TestDelegate : public URLRequest::Delegate {
   bool use_legacy_on_complete_ = true;
 
   // Used to register RunLoop quit closures, to implement the Until*() closures.
+#ifdef STARBOARD
+  // Some Cobalt platform, at least PS4, triggers copy constructor of
+  // TestDelegate when instantiating std::vector<TestDelegate>(#container_size).
+  // And the copy constructor is deleted if there are move-only members.
+  base::Closure on_complete_;
+  base::Closure on_redirect_;
+  base::Closure on_auth_required_;
+#else
   base::OnceClosure on_complete_;
   base::OnceClosure on_redirect_;
   base::OnceClosure on_auth_required_;
+#endif
 
   // tracks status of callbacks
   int response_started_count_ = 0;
