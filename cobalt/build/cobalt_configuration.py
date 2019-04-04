@@ -69,6 +69,11 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     # the proxy has problems sending and terminating a single complete
     # response. It may end up sending multiple empty responses.
     filters = [
+        # Test Name (cors/late-upload-events.htm):
+        # "Late listeners: Preflight".
+        # Disabled because of: Flaky. Buildbot only failure.
+        'cors/WebPlatformTest.Run/4',
+
         # Test Name (cors/response-headers.htm):
         # getResponseHeader: Combined testing of cors response headers.
         # Disabled because of: Timeout.
@@ -89,6 +94,12 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         # happening after resolving fetch promise.
         # Disabled because of: Timeout.
         'fetch/WebPlatformTest.Run/0',
+
+        # Test Name (fetch/api/request/request-cache-no-store.html):
+        # "RequestCache "no-store" mode does not store the response in the
+        # cache with Last-Modified and fresh response".
+        # Disabled because of: Timeout. Buildbot only failure.
+        'fetch/WebPlatformTest.Run/9',
 
         # Test Name (fetch/api/response/response-clone.html):
         # Check response clone use structureClone for teed ReadableStreams
