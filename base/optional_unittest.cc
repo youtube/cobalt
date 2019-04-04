@@ -207,7 +207,11 @@ TEST(OptionalTest, DefaultConstructor) {
 TEST(OptionalTest, CopyConstructor) {
   {
     CONSTEXPR Optional<float> first(0.1f);
-    CONSTEXPR Optional<float> other(first);
+#ifdef STARBOARD
+    Optional<float> other(first);
+#else
+    constexpr Optional<float> other(first);
+#endif
 
     EXPECT_TRUE(other);
     EXPECT_EQ(other.value(), 0.1f);
@@ -272,7 +276,11 @@ TEST(OptionalTest, ValueConstructor) {
 TEST(OptionalTest, MoveConstructor) {
   {
     CONSTEXPR Optional<float> first(0.1f);
-    CONSTEXPR Optional<float> second(std::move(first));
+#ifdef STARBOARD
+    Optional<float> second(std::move(first));
+#else
+    constexpr Optional<float> second(std::move(first));
+#endif
 
     EXPECT_TRUE(second.has_value());
     EXPECT_EQ(second.value(), 0.1f);

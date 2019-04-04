@@ -12,8 +12,9 @@
 
 namespace base {
 
-// MSVC does not allow outputing wstring to ostringstream.
-#if !SB_IS(COMPILER_MSVC)
+// Some WCHAR_T_IS_UTF16 platforms do not allow writing wstring to output
+// stream.
+#if SB_IS(WCHAR_T_IS_UTF32)
 // We define a custom operator<< for string16 so we can use it with logging.
 // This tests that conversion.
 TEST(String16Test, OutputStream) {

@@ -1013,7 +1013,11 @@ struct TestNumericConversion<Dst, Src, SIGN_PRESERVING_NARROW> {
 
     TestStrictComparison<Dst, Src>(dst, src, line);
 
+#ifdef STARBOARD
+    const CheckedNumeric<Dst> checked_dst{};
+#else
     const CheckedNumeric<Dst> checked_dst;
+#endif
     TEST_EXPECTED_FAILURE(checked_dst + SrcLimits::max());
     TEST_EXPECTED_VALUE(1, checked_dst + Src(1));
     TEST_EXPECTED_FAILURE(checked_dst - SrcLimits::max());
@@ -1079,7 +1083,11 @@ struct TestNumericConversion<Dst, Src, SIGN_TO_UNSIGN_WIDEN_OR_EQUAL> {
 
     TestStrictComparison<Dst, Src>(dst, src, line);
 
+#ifdef STARBOARD
+    const CheckedNumeric<Dst> checked_dst{};
+#else
     const CheckedNumeric<Dst> checked_dst;
+#endif
     TEST_EXPECTED_VALUE(SrcLimits::max(), checked_dst + SrcLimits::max());
     TEST_EXPECTED_FAILURE(checked_dst + static_cast<Src>(-1));
     TEST_EXPECTED_SUCCESS(checked_dst * static_cast<Src>(-1));
@@ -1113,7 +1121,11 @@ struct TestNumericConversion<Dst, Src, SIGN_TO_UNSIGN_NARROW> {
 
     TestStrictComparison<Dst, Src>(dst, src, line);
 
+#ifdef STARBOARD
+    const CheckedNumeric<Dst> checked_dst{};
+#else
     const CheckedNumeric<Dst> checked_dst;
+#endif
     TEST_EXPECTED_VALUE(1, checked_dst + static_cast<Src>(1));
     TEST_EXPECTED_FAILURE(checked_dst + SrcLimits::max());
     TEST_EXPECTED_FAILURE(checked_dst + static_cast<Src>(-1));
@@ -1181,12 +1193,20 @@ struct TestNumericConversion<Dst, Src, UNSIGN_TO_SIGN_NARROW_OR_EQUAL> {
 
     TestStrictComparison<Dst, Src>(dst, src, line);
 
+#ifdef STARBOARD
+    const CheckedNumeric<Dst> checked_dst{};
+#else
     const CheckedNumeric<Dst> checked_dst;
+#endif
     TEST_EXPECTED_VALUE(1, checked_dst + static_cast<Src>(1));
     TEST_EXPECTED_FAILURE(checked_dst + SrcLimits::max());
     TEST_EXPECTED_VALUE(SrcLimits::lowest(), checked_dst + SrcLimits::lowest());
 
+#ifdef STARBOARD
+    const ClampedNumeric<Dst> clamped_dst{};
+#else
     const ClampedNumeric<Dst> clamped_dst;
+#endif
     TEST_EXPECTED_VALUE(1, clamped_dst + static_cast<Src>(1));
     TEST_EXPECTED_VALUE(DstLimits::Overflow(), clamped_dst + SrcLimits::max());
     TEST_EXPECTED_VALUE(SrcLimits::lowest(), clamped_dst + SrcLimits::lowest());

@@ -24,7 +24,9 @@
         'allocator/allocator_check.h',
         'allocator/allocator_extension.cc',
         'allocator/allocator_extension.h',
-        'allocator/allocator_shim.h',
+        # No usage found for Cobalt yet.
+        # 'allocator/allocator_shim.cc',
+        # 'allocator/allocator_shim.h',
         'at_exit.cc',
         'at_exit.h',
         'atomic_ref_count.h',
@@ -81,8 +83,9 @@
         'containers/stack.h',
         'containers/stack_container.h',
         'containers/vector_buffer.h',
-        'cpu.cc',
-        'cpu.h',
+        # No usage are found for these files yet and they create API leaks.
+        # 'cpu.cc',
+        # 'cpu.h',
         'critical_closure.h',
 
         # This file depends on files from the 'debug/allocator' target,
@@ -109,8 +112,9 @@
         'debug/stack_trace_starboard.cc',
         'debug/task_annotator.cc',
         'debug/task_annotator.h',
-        'debug/thread_heap_usage_tracker.cc',
-        'debug/thread_heap_usage_tracker.h',
+        # No usage found for Cobalt yet.
+        # 'debug/thread_heap_usage_tracker.cc',
+        # 'debug/thread_heap_usage_tracker.h',
         'deferred_sequenced_task_runner.cc',
         'deferred_sequenced_task_runner.h',
         'environment.cc',
@@ -275,6 +279,7 @@
         'post_task_and_reply_with_result_internal.h',
         'power_monitor/power_monitor.cc',
         'power_monitor/power_monitor.h',
+        'power_monitor/power_monitor_device_source_stub.cc',
         'power_monitor/power_monitor_device_source.cc',
         'power_monitor/power_monitor_device_source.h',
         'power_monitor/power_monitor_source.cc',
@@ -475,7 +480,6 @@
         'task/task_traits_details.h',
         'task/task_traits_extension.h',
         'template_util.h',
-        'test/malloc_wrapper.h',
         'third_party/dmg_fp/dmg_fp.h',
         'third_party/dmg_fp/dtoa_wrapper.cc',
         'third_party/dmg_fp/g_fmt.cc',
@@ -537,8 +541,6 @@
         'timer/elapsed_timer.cc',
         'timer/elapsed_timer.h',
         'timer/hi_res_timer_manager.h',
-        'timer/mock_timer.cc',
-        'timer/mock_timer.h',
         'timer/timer.cc',
         'timer/timer.h',
         'trace_event/auto_open_close_event.cc',
@@ -709,6 +711,7 @@
       'type': '<(gtest_target_type)',
       'defines': [
         'GMOCK_NO_MOVE_MOCK',
+        'STARBOARD_OLD_ICU',
       ],
       'sources': [
         'at_exit_unittest.cc',
@@ -757,7 +760,8 @@
         'containers/span_unittest.cc',
         'containers/stack_container_unittest.cc',
         'containers/vector_buffer_unittest.cc',
-        'cpu_unittest.cc',
+        # cpu.cc is not compiled due to lack of usage.
+        # 'cpu_unittest.cc',
         'debug/debugger_unittest.cc',
         'debug/leak_tracker_unittest.cc',
         'debug/task_annotator_unittest.cc',
@@ -998,6 +1002,8 @@
         'task/task_scheduler/test_utils.cc',
         'task/task_scheduler/test_utils.h',
         'test/bind_test_util.h',
+        "test/fuzzed_data_provider.cc",
+        "test/fuzzed_data_provider.h",
         'test/gtest_util.h',
         'test/icu_test_util.cc',
         'test/icu_test_util.h',
@@ -1006,6 +1012,7 @@
         # update/fix the libxml reader/writer.
         # 'test/metrics/histogram_enum_reader.cc',
         # 'test/metrics/histogram_enum_reader.h',
+        'test/malloc_wrapper.h',
         'test/metrics/histogram_tester.cc',
         'test/metrics/histogram_tester.h',
         'test/metrics/user_action_tester.cc',
@@ -1056,6 +1063,8 @@
         'test/trace_to_file.h',
         'test/values_test_util.cc',
         'test/values_test_util.h',
+        'timer/mock_timer.cc',
+        'timer/mock_timer.h',
       ],
     },
     {

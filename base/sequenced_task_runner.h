@@ -160,6 +160,9 @@ struct BASE_EXPORT OnTaskRunnerDeleter {
 
   OnTaskRunnerDeleter(OnTaskRunnerDeleter&&);
   OnTaskRunnerDeleter& operator=(OnTaskRunnerDeleter&&);
+#ifdef STARBOARD
+  OnTaskRunnerDeleter(const OnTaskRunnerDeleter&) = default;
+#endif
 
   // For compatibility with std:: deleters.
   template <typename T>

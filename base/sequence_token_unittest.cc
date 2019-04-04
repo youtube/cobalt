@@ -14,8 +14,13 @@ TEST(SequenceTokenTest, IsValid) {
 }
 
 TEST(SequenceTokenTest, OperatorEquals) {
+#ifdef STARBOARD
+  const SequenceToken invalid_a{};
+  const SequenceToken invalid_b{};
+#else
   const SequenceToken invalid_a;
   const SequenceToken invalid_b;
+#endif
   const SequenceToken valid_a = SequenceToken::Create();
   const SequenceToken valid_b = SequenceToken::Create();
 
@@ -31,8 +36,13 @@ TEST(SequenceTokenTest, OperatorEquals) {
 }
 
 TEST(SequenceTokenTest, OperatorNotEquals) {
+#ifdef STARBOARD
+  const SequenceToken invalid_a{};
+  const SequenceToken invalid_b{};
+#else
   const SequenceToken invalid_a;
   const SequenceToken invalid_b;
+#endif
   const SequenceToken valid_a = SequenceToken::Create();
   const SequenceToken valid_b = SequenceToken::Create();
 

@@ -37,10 +37,19 @@ struct BASE_EXPORT Feature {
   // for enabling/disabling features via command line flags and experiments.
   // It is strongly recommended to use CamelCase style for feature names, e.g.
   // "MyGreatFeature".
+#ifdef STARBOARD
+  // At least PS4 compiler does not allow copy assignment operator on Feature
+  // because of const variables.
+  const char* name;
+
+  // The default state (i.e. enabled or disabled) for this feature.
+  FeatureState default_state;
+#else
   const char* const name;
 
   // The default state (i.e. enabled or disabled) for this feature.
   const FeatureState default_state;
+#endif
 };
 
 #if DCHECK_IS_CONFIGURABLE

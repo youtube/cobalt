@@ -171,6 +171,9 @@ class ThreadPostingTasksWaitIdle : public SimpleThread {
                              test::ExecutionMode execution_mode)
       : SimpleThread("ThreadPostingTasksWaitIdle"),
         worker_pool_(worker_pool),
+#ifdef STARBOARD
+        task_runner_(nullptr),
+#endif
         factory_(CreateTaskRunnerWithExecutionMode(worker_pool, execution_mode),
                  execution_mode) {
     DCHECK(worker_pool_);
@@ -1411,7 +1414,12 @@ TEST(TaskSchedulerWorkerPoolOverCapacityTest, VerifyCleanup) {
 // Verify that the maximum number of workers is 256 and that hitting the max
 // leaves the pool in a valid state with regards to max tasks.
 TEST_F(TaskSchedulerWorkerPoolBlockingTest, MaximumWorkersTest) {
+#ifdef STARBOARDD
+  // Devices like Raspberry Pi is unalbe to create 256 threads at once.
+  constexpr size_t kMaxNumberOfWorkers = 128;
+#else
   constexpr size_t kMaxNumberOfWorkers = 256;
+#endif
   constexpr size_t kNumExtraTasks = 10;
 
   WaitableEvent early_blocking_threads_running;
@@ -1657,6 +1665,10 @@ INSTANTIATE_TEST_CASE_P(
 // Verify that worker detachement doesn't race with worker cleanup, regression
 // test for https://crbug.com/810464.
 TEST_F(TaskSchedulerWorkerPoolImplStartInBodyTest, RacyCleanup) {
+#ifdef STARBOARDD
+  // Devices like Raspberry Pi is unalbe to create 256 threads at once.
+  constexpr size_t kLocalMaxTasks = 128;
+#else
 #if defined(OS_FUCHSIA)
   // Fuchsia + QEMU doesn't deal well with *many* threads being
   // created/destroyed at once: https://crbug.com/816575.
@@ -1664,6 +1676,7 @@ TEST_F(TaskSchedulerWorkerPoolImplStartInBodyTest, RacyCleanup) {
 #else   // defined(OS_FUCHSIA)
   constexpr size_t kLocalMaxTasks = 256;
 #endif  // defined(OS_FUCHSIA)
+#endif  // STARBOARD
   constexpr TimeDelta kReclaimTimeForRacyCleanupTest =
       TimeDelta::FromMilliseconds(10);
 

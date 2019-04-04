@@ -38,6 +38,7 @@
 
 #include "base/base_export.h"
 #include "build/build_config.h"
+#include "starboard/atomic.h"
 
 #if defined(OS_WIN) && defined(ARCH_CPU_64_BITS)
 // windows.h #defines this (only on x64). This causes problems because the
@@ -51,6 +52,13 @@
 namespace base {
 namespace subtle {
 
+#ifdef STARBOARD
+typedef SbAtomic32 Atomic32;
+#if SB_HAS(64_BIT_ATOMICS)
+typedef SbAtomic64 Atomic64;
+#endif
+typedef SbAtomicPtr AtomicWord;
+#else  // STARBOARD
 typedef int32_t Atomic32;
 #ifdef ARCH_CPU_64_BITS
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
@@ -67,6 +75,7 @@ typedef intptr_t Atomic64;
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
 typedef intptr_t AtomicWord;
+#endif  // STARBOARD
 
 // Atomically execute:
 //      result = *ptr;
