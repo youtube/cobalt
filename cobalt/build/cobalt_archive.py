@@ -38,6 +38,7 @@ def MakeCobaltArchiveFromSource(output_archive_path,
                                 config,
                                 platform_sdk_version,
                                 additional_buildinfo_dict={}):
+  """ Returns None, failure is signaled via exception. """
   additional_buildinfo_dict = dict(additional_buildinfo_dict)
   _MakeCobaltArchiveFromSource(
       output_archive_path=output_archive_path,
@@ -48,8 +49,9 @@ def MakeCobaltArchiveFromSource(output_archive_path,
 
 
 def ExtractCobaltArchive(input_zip_path, output_directory_path, outstream=None):
+  """Returns True if the extract operation was successfull."""
   b = Bundler(archive_zip_path=input_zip_path)
-  b.ExtractTo(output_dir=output_directory_path, outstream=outstream)
+  return b.ExtractTo(output_dir=output_directory_path, outstream=outstream)
 
 
 def ReadCobaltArchiveInfo(input_zip_path):
@@ -120,17 +122,21 @@ class Bundler:
     self.archive_zip_path = archive_zip_path
 
   def ExtractTo(self, output_dir, outstream=None):
+    """Returns True if all files were extracted, False otherwise."""
     outstream = outstream if outstream else sys.stdout
     assert(os.path.exists(self.archive_zip_path))
     print('UNZIPPING ' + self.archive_zip_path + ' -> ' + output_dir)
-    _ExtractFiles(self.archive_zip_path, output_dir, outstream)
+    ok = _ExtractFiles(self.archive_zip_path, output_dir, outstream)
     # Now that all files have been extracted, execute the final decompress
     # step.
     decomp_py = os.path.abspath(os.path.join(output_dir, _OUT_DECOMP_PY))
     assert(os.path.isfile(decomp_py)), decomp_py
     cmd_str = 'python ' + decomp_py
     outstream.write('Executing: %s\n' % cmd_str)
-    subprocess.call(cmd_str, shell=True, stdout=outstream, stderr=outstream)
+    rc = subprocess.call(cmd_str, shell=True, stdout=outstream,
+                         stderr=outstream)
+    ok &= rc is 0
+    return ok
 
   def ReadMetaData(self):
     with zipfile.ZipFile(self.archive_zip_path, 'r') as zf:
@@ -356,7 +362,9 @@ def _AddFilesAndSymlinksToZip(open_zipfile, archive_file_list):
     open_zipfile.writestr(zinfo, rel_path, compress_type=zipfile.ZIP_DEFLATED)
 
 
+# Returns True if all files were extracted, else False.
 def _ExtractFiles(input_zip_path, output_dir, outstream):
+  all_ok = True
   with zipfile.ZipFile(input_zip_path, 'r') as zf:
     for zinfo in zf.infolist():
       try:
@@ -364,6 +372,8 @@ def _ExtractFiles(input_zip_path, output_dir, outstream):
       except Exception as err:
         msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
         outstream.write(msg)
+        all_ok = False
+  return all_ok
 
 
 ################################################################################
@@ -481,13 +491,14 @@ def _MakeCobaltPlatformArchive(platform, config, output_zip):
     raise ValueError('Expected zip file at ' + output_zip)
   print '\nGenerated:', output_zip
 
-
+# Returns True/False
 def _DecompressArchive(in_zip, out_path):
   if not in_zip:
     in_zip = raw_input('cobalt archive path: ')
   if not out_path:
     out_path = raw_input('output path: ')
-  ExtractCobaltArchive(input_zip_path=in_zip, output_directory_path=out_path)
+  return ExtractCobaltArchive(input_zip_path=in_zip,
+                              output_directory_path=out_path)
 
 
 def _main():
@@ -546,8 +557,9 @@ def _main():
     _MakeCobaltPlatformArchive(args.platform, args.config, args.out_path)
     sys.exit(0)
   elif args.extract:
-    _DecompressArchive(args.in_path, args.out_path)
-    sys.exit(0)
+    ok = _DecompressArchive(args.in_path, args.out_path)
+    rc = 0 if ok else 1
+    sys.exit(rc)
   else:
     parser.print_help()
 
