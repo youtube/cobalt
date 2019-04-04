@@ -1390,7 +1390,7 @@ ExternalReference ExternalReference::ieee754_tanh_function(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
 }
 
-void* libc_memchr(void* string, int character, size_t search_length) {
+const void* libc_memchr(void* string, int character, size_t search_length) {
   return memchr(string, character, search_length);
 }
 
