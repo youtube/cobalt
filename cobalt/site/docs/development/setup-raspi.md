@@ -14,6 +14,15 @@ an error, like `DRI2 not supported` or `DRI2 failed to authenticate` if MesaGL
 is installed.
 </aside>
 
+<aside class="note">
+<b>Note:</b> The current builds of Cobalt currently are verified to work only
+with a fairly old version of Raspbian Lite from 2017-07-05 (
+<a href="http://downloads.raspberrypi.org/raspbian_lite/images/raspbian_lite-2017-07-05/2017-07-05-raspbian-jessie-lite.zip">download link</a>
+).  If you have a newer version, you may encounter linker errors when building
+Cobalt as the sysroot system libraries will differ in the latest version of
+Raspbian.
+</aside>
+
 The following commands update the package configuration on your Raspberry Pi
 so that Cobalt can run properly:
 
