@@ -12,7 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This header plugs in the leaks of stdio functions called as std::<function>.
+// This header plugs in the leaks of stdio functions called as std::<function>
+// and __builtin_<function>.
+
+// IMPORTANT: This header has to be included as the very first header in a file,
+// because the order of the included headers and redefininitions matter.
+
+// In this header, it includes <cstdio> at the very beginning, so that the
+// attempts to include <cstdio> afterward are omitted. Then we define a function
+// in the std namespace that has the name of the Starboard counterpart of the
+// function to be plugged, and redirect it to the Starboard counterpart in the
+// global namespace. In this way, the calls to std::<function> will be replaced
+// with std::<SbConterpart>, and redirected to ::<SbCounterpart>. With this
+// specific order of included headers and redefininitions, it's guaranteed that
+// the calls of the functions afterward are cleanly plugged.
 
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STDIO_LEAKS_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STDIO_LEAKS_POEM_H_
