@@ -19,6 +19,10 @@
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
+
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 
 #ifdef PNG_bKGD_SUPPORTED
