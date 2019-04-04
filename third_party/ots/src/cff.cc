@@ -11,6 +11,13 @@
 #include "maxp.h"
 #include "cff_type2_charstring.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#define STRCHR_OTS strchr
+#else
+#define STRCHR_OTS std::strchr
+#endif
+
 // CFF - PostScript font program (Compact Font Format) table
 // http://www.microsoft.com/typography/otspec/cff.htm
 // http://www.microsoft.com/typography/otspec/cffspec.htm
@@ -150,7 +157,7 @@ bool ParseNameData(
         return OTS_FAILURE();
       }
       // [, ], ... are not allowed.
-      if (std::strchr("[](){}<>/% ", name[j])) {
+      if (STRCHR_OTS("[](){}<>/% ", name[j])) {
         return OTS_FAILURE();
       }
     }
@@ -1039,4 +1046,5 @@ OpenTypeCFF::~OpenTypeCFF() {
 
 }  // namespace ots
 
+#undef STRCHR_OTS
 #undef TABLE_NAME
