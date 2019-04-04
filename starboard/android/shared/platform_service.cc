@@ -82,6 +82,10 @@ CobaltExtensionPlatformService Open(void* context,
 void Close(CobaltExtensionPlatformService service) {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(service->cobalt_service, "close", "()V");
+  ScopedLocalJavaRef<jstring> j_name(
+      env->NewStringStandardUTFOrAbort(service->name));
+  env->CallStarboardVoidMethodOrAbort("closeCobaltService",
+                                      "(Ljava/lang/String;)V", j_name.Get());
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -117,7 +121,7 @@ Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JniEnvExt* env,
                                                       jbyteArray j_data) {
   CobaltExtensionPlatformService service =
       reinterpret_cast<CobaltExtensionPlatformService>(nativeService);
-  SB_DCHECK(service);
+  SB_DCHECK(CobaltExtensionPlatformServiceIsValid(service));
 
   jsize length = env->GetArrayLength(j_data);
   char* data = new char[length];

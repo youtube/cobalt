@@ -552,4 +552,10 @@ public class StarboardBridge {
     cobaltServices.put(serviceName, service);
     return service;
   }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  void closeCobaltService(String serviceName) {
+    cobaltServices.remove(serviceName);
+  }
 }
