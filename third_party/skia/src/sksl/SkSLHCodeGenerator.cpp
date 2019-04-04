@@ -60,7 +60,7 @@ void HCodeGenerator::writef(const char* s, va_list va) {
         fOut->write(buffer, length);
     } else {
         std::unique_ptr<char[]> heap(new char[length + 1]);
-        vsprintf(heap.get(), s, copy);
+        vsnprintf(heap.get(), length + 1, s, copy);
         fOut->write(heap.get(), length);
     }
 }
