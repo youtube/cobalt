@@ -51,6 +51,16 @@
 
 #else  // STARBOARD
 
+#include <string.h>
+
+#include "starboard/memory.h"
+#include "starboard/string.h"
+
+#undef __builtin_strlen
+#define __builtin_strlen SbStringGetLength
+#undef strlen
+#define strlen SbStringGetLength
+
 // We avoid using poems here because a subsequent #include of math.h may
 // result, on some platforms, of the indirect inclusion of stdlib.h, which
 // will then conflict with our poem includes.
@@ -58,9 +68,6 @@
 // For access to PoemFindCharacterInString() as a replacement for strchr().
 #include "starboard/client_porting/poem/string_poem.h"
 #undef POEM_NO_EMULATION
-
-#include "starboard/memory.h"
-#include "starboard/string.h"
 
 #endif  // STARBOARD
 

@@ -30,6 +30,15 @@
 
 // Author: kenton@google.com (Kenton Varda)
 
+#ifdef STARBOARD
+#include <string.h>
+#include "starboard/string.h"
+#undef __builtin_strlen
+#define __builtin_strlen SbStringGetLength
+#undef strlen
+#define strlen SbStringGetLength
+#endif  // STARBOARD
+
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/once.h>
 #include <google/protobuf/stubs/status.h>
@@ -40,7 +49,6 @@
 #ifdef STARBOARD
 #include "starboard/log.h"
 #include "starboard/mutex.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #define abort SbSystemBreakIntoDebugger
 #define fflush(stderr) SbLogFlush()
