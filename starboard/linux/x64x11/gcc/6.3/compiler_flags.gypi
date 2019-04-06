@@ -72,6 +72,8 @@
       '-Wno-narrowing',
       # Do not remove null this checks.
       '-fno-delete-null-pointer-checks',
+      # Do not warn about unused function params.
+      '-Wno-unused-parameter',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
@@ -112,8 +114,6 @@
       },{
         'cflags': [
           '<@(common_compiler_flags)',
-          # Do not warn about unused function params.
-          '-Wno-unused-parameter',
         ],
       }],
     ],
