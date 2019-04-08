@@ -483,9 +483,9 @@ bool IsDisplayed(dom::Element* element) {
   }
 
   // Any element with hidden/collapsed visibility is not shown.
-  base::optional<std::string> visiblity_style =
+  base::optional<std::string> visibility_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::visibility);
-  if (visiblity_style && *visiblity_style == cssom::kHiddenKeywordName) {
+  if (visibility_style && *visibility_style == cssom::kHiddenKeywordName) {
     return false;
   }
 
