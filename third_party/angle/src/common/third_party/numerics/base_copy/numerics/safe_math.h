@@ -242,6 +242,11 @@ class CheckedNumeric
     CheckedNumericState<T> state_;
 };
 
+#if defined(STARBOARD) && defined(BASE_NUMERIC_ARITHMETIC_OPERATORS)
+// Some file can include Chromium base's definition already.
+#undef BASE_NUMERIC_ARITHMETIC_OPERATORS
+#endif
+
 // This is the boilerplate for the standard arithmetic operator overloads. A
 // macro isn't the prettiest solution, but it beats rewriting these five times.
 // Some details worth noting are:
