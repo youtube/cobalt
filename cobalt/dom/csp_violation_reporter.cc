@@ -146,7 +146,7 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   // directive that was violated. The document's URL is safe to send because
   // it's the document itself that's requesting that it be sent. You could
   // make an argument that we shouldn't send HTTPS document URLs to HTTP
-  // report-uris (for the same reasons that we supress the Referer in that
+  // report-uris (for the same reasons that we suppress the Referer in that
   // case), but the Referer is sent implicitly whereas this request is only
   // sent explicitly. As for which directive was violated, that's pretty
   // harmless information.
