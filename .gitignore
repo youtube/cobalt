@@ -263,7 +263,6 @@ v8.log
 /third_party/ruby
 /third_party/repo-publishing-toolkit
 /third_party/safe_browsing/testing
-/third_party/securemessage
 /third_party/scons-2.0.1
 /third_party/sfntly
 /third_party/skia
