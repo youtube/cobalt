@@ -116,7 +116,7 @@ def _RmtreeShallow(root_dir):
         del_dirs.append(path)
   # At this point, all files should be deleted and all symlinks should be
   # unlinked.
-  for d in dirs + [root_dir]:
+  for d in del_dirs + [root_dir]:
     try:
       if os.path.isdir(d):
         shutil.rmtree(d)
