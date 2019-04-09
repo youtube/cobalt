@@ -58,6 +58,7 @@ def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
 
 
 import os
+import shutil
 import sys
 
 import _env
@@ -80,7 +81,7 @@ def _MakeSymLink(from_folder, link_folder):
     from starboard.build.win_symlink import CreateReparsePoint
     return CreateReparsePoint(from_folder, link_folder)
   else:
-    os.link(from_folder, link_folder)
+    os.symlink(from_folder, link_folder)
 
 
 def _ReadSymLink(link_path):
