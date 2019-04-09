@@ -25,31 +25,24 @@ import sys
 import traceback
 
 import _env # pylint: disable=unused-import
+import starboard.build.port_symlink as port_symlink
+
 
 # The name of an environment variable that when set to |'1'|, signals to us that
 # we should log all output directories that we have populated.
 _SHOULD_LOG_ENV_KEY = 'STARBOARD_GYP_SHOULD_LOG_COPIES'
-_USE_WINDOWS_SYMLINK = sys.platform in ['win32', 'cygwin']
-
-if _USE_WINDOWS_SYMLINK:
-  import starboard.build.win_symlink as win_symlink
 
 
 def EscapePath(path):
   """Returns a path with spaces escaped."""
   return path.replace(' ', '\\ ')
 
+
 def _ClearDir(path):
   path = os.path.normpath(path)
   if not os.path.exists(path): # Works for symlinks for both *nix and Windows.
     return
-  if _USE_WINDOWS_SYMLINK:
-    win_symlink.RmtreeShallow(path)
-  else:
-    # Note that shutil.rmtree() has undocumented behavior on *nix systems
-    # for subitems which are symlink directories. The symlink is deleted
-    # but the subitems in the referenced directory are NOT deleted.
-    shutil.rmtree(path)
+  port_symlink.Rmtree(path)
 
 
 def main(argv):
@@ -104,10 +97,7 @@ def main(argv):
           msg += ' path points to an unknown type'
         logging.error(msg)
 
-    if _USE_WINDOWS_SYMLINK:
-      win_symlink.CreateReparsePoint(src_path, dst_path)
-    else:
-      os.symlink(rel_path, dst_path)
+    port_symlink.MakeSymLink(rel_path, dst_path)
 
   if options.stamp_file:
     with open(options.stamp_file, 'w') as stamp_file:
