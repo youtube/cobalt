@@ -52,6 +52,16 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
         'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
     }
 
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltAndroidConfiguration, self).GetWebPlatformTestFilters()
+    filters += [
+      # Test Name (content-security-policy/media-src/media-src-allowed.html):
+      # Allowed media src
+      # Disabled because of: Fail (Tests do not account for player with url?).
+      'csp/WebPlatformTest.Run/63',
+    ]
+    return filters
+
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {
       'net_unittests': [
