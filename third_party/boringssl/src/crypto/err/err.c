@@ -109,7 +109,6 @@
 #include <openssl/err.h>
 
 #include <assert.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <string.h>
 
@@ -124,6 +123,12 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 
 #include "../internal.h"
 #include "./internal.h"
+
+#if defined(OPENSSL_SYS_STARBOARD)
+#include "starboard/system.h"
+#else  // !defined(OPENSSL_SYS_STARBOARD)
+#include <errno.h>
+#endif  // defined(OPENSSL_SYS_STARBOARD
 
 
 struct err_error_st {
@@ -365,7 +370,11 @@ void ERR_remove_state(unsigned long pid) {
 }
 
 void ERR_clear_system_error(void) {
+#if defined(OPENSSL_SYS_STARBOARD)
+  SbSystemClearLastError();
+#else  // !defined(OPENSSL_SYS_STARBOARD)
   errno = 0;
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 }
 
 char *ERR_error_string(uint32_t packed_error, char *ret) {
@@ -646,11 +655,15 @@ void ERR_put_error(int library, int unused, int reason, const char *file,
   }
 
   if (library == ERR_LIB_SYS && reason == 0) {
+#if defined(OPENSSL_SYS_STARBOARD)
+    reason = SbSystemGetLastError();
+#else  // !defined(OPENSSL_SYS_STARBOARD)
 #if defined(OPENSSL_WINDOWS)
     reason = GetLastError();
-#else
+#else  // !defined(OPENSSL_WINDOWS)
     reason = errno;
-#endif
+#endif  // defined(OPENSSL_WINDOWS)
+#endif  // defined(OPENSSL_SYS_STARBOARD)
   }
 
   state->top = (state->top + 1) % ERR_NUM_ERRORS;
