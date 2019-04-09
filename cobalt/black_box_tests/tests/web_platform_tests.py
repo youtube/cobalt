@@ -20,6 +20,8 @@ from __future__ import print_function
 
 import _env  # pylint: disable=unused-import
 
+import logging
+
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.web_platform_test_server import WebPlatformTestServer
 from starboard.tools import abstract_launcher
