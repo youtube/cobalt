@@ -88,9 +88,8 @@ public class StarboardBridge {
 
   private volatile boolean starboardStopped = false;
 
-  private HashMap<String, CobaltService.Factory> cobaltServiceFactories =
-      new HashMap<String, CobaltService.Factory>();
-  private HashMap<String, CobaltService> cobaltServices = new HashMap<String, CobaltService>();
+  private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
+  private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
 
   public StarboardBridge(
       Context appContext,
