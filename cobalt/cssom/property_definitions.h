@@ -165,12 +165,13 @@ enum Animatable {
   kAnimatableYes,
 };
 
-// Any property that is referenced when calculating the declared property values
+// Any property that is referenced when calculating the computed property values
 // of children should have this set to true.
-// NOTE: This currently occurs within CalculateComputedStyleContext.
-enum ImpactsChildDeclaredStyle {
-  kImpactsChildDeclaredStyleNo,
-  kImpactsChildDeclaredStyleYes,
+// NOTE: This currently occurs within
+// CalculateComputedStyleContext::HandleSpecifiedValue.
+enum ImpactsChildComputedStyle {
+  kImpactsChildComputedStyleNo,
+  kImpactsChildComputedStyleYes,
 };
 
 // Any property that is referenced during box generation should have this set to
@@ -208,7 +209,7 @@ const scoped_refptr<PropertyValue>& GetPropertyInitialValue(PropertyKey key);
 
 Inherited GetPropertyInheritance(PropertyKey key);
 Animatable GetPropertyAnimatable(PropertyKey key);
-ImpactsChildDeclaredStyle GetPropertyImpactsChildDeclaredStyle(PropertyKey key);
+ImpactsChildComputedStyle GetPropertyImpactsChildComputedStyle(PropertyKey key);
 ImpactsBoxGeneration GetPropertyImpactsBoxGeneration(PropertyKey key);
 ImpactsBoxSizes GetPropertyImpactsBoxSizes(PropertyKey key);
 ImpactsBoxCrossReferences GetPropertyImpactsBoxCrossReferences(PropertyKey key);
