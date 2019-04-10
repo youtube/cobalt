@@ -15,8 +15,6 @@
 #ifndef COBALT_DOM_TEXT_H_
 #define COBALT_DOM_TEXT_H_
 
-#include <string>
-
 #include "base/string_piece.h"
 #include "cobalt/dom/character_data.h"
 #include "cobalt/dom/document.h"
