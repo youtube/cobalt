@@ -241,12 +241,16 @@ void VideoDecoder::WriteInputBuffer(
     // because we need to change the color metadata.
     if (media_decoder_ == NULL) {
       if (!InitializeCodec()) {
-        // TODO: Communicate this failure to our clients somehow.
         SB_LOG(ERROR) << "Failed to reinitialize codec.";
+        TeardownCodec();
+        error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
       }
     }
   }
 
+  if (!is_valid()) {
+    return;
+  }
   media_decoder_->WriteInputBuffer(input_buffer);
   if (number_of_frames_being_decoded_.increment() < kMaxPendingWorkSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
@@ -261,6 +265,9 @@ void VideoDecoder::WriteEndOfStream() {
     first_buffer_timestamp_ = 0;
   }
 
+  if (!is_valid()) {
+    return;
+  }
   media_decoder_->WriteEndOfStream();
 }
 
