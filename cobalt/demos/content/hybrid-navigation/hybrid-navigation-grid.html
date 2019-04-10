@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+ | Hybrid navigation (SbUiNavigation) demo web page.
+ |
+ | This demonstrates basic use of focus items and scroll containers. On
+ | platforms which implement SbUiNavGetInterface, the user can change focus
+ | with a platform-appropriate input device.
+ |
+ | HTMLElements using "overflow: auto" or "overflow: scroll" are treated as
+ | scroll containers. HTMLElements with "tabindex" <= -2 are treated as focus
+ | items.
+ -->
+<html>
+  <head>
+    <style>
+      body {
+        background-color: rgb(25,25,25);
+        color: rgb(150,150,150);
+        width: 1280px;
+        height: 720px;
+      }
+
+      .vscroll {
+        overflow: auto;
+        position: absolute;
+        transform: translate(100px,100px);
+        background-color: rgb(50,50,50);
+        width: 1080px;
+        height: 520px;
+      }
+
+      .hscroll {
+        overflow: auto;
+        position: relative;
+        background-color: rgb(75, 75, 75);
+        width: 1060px;
+        height: 325px;
+      }
+
+      .item {
+        overflow: hidden;
+        position: absolute;
+        margin: 25px;
+        border: 5px solid rgb(0,0,0);
+        width: 250px;
+        height: 250px;
+        line-height: 250px;
+        text-align: center;
+        vertical-align: middle;
+        font-size: 100px;
+        transition: background-color 0.5s;
+      }
+
+      div.item:focus {
+        background-color: rgb(240,240,240);
+        color: rgb(0,0,0);
+        margin: 5px;
+        width: 290px;
+        height: 290px;
+        line-height: 290px;
+        outline: none;
+      }
+    </style>
+  </head>
+
+  <body class="body">
+    <div class="vscroll">
+      <div class="hscroll">
+        <div class="item" tabindex="-2" style="transform: translateX(0px)">A0</div>
+        <div class="item" tabindex="-2" style="transform: translateX(300px)">A1</div>
+        <div class="item" tabindex="-2" style="transform: translateX(600px)">A2</div>
+        <div class="item" tabindex="-2" style="transform: translateX(900px)">A3</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1200px)">A4</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1500px)">A5</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1800px)">A6</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2100px)">A7</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2400px)">A8</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2700px)">A9</div>
+      </div>
+      <div class="hscroll">
+        <div class="item" tabindex="-2" style="transform: translateX(0px)">B0</div>
+        <div class="item" tabindex="-2" style="transform: translateX(300px)">B1</div>
+        <div class="item" tabindex="-2" style="transform: translateX(600px)">B2</div>
+        <div class="item" tabindex="-2" style="transform: translateX(900px)">B3</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1200px)">B4</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1500px)">B5</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1800px)">B6</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2100px)">B7</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2400px)">B8</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2700px)">B9</div>
+      </div>
+      <div class="hscroll">
+        <div class="item" tabindex="-2" style="transform: translateX(0px)">C0</div>
+        <div class="item" tabindex="-2" style="transform: translateX(300px)">C1</div>
+        <div class="item" tabindex="-2" style="transform: translateX(600px)">C2</div>
+        <div class="item" tabindex="-2" style="transform: translateX(900px)">C3</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1200px)">C4</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1500px)">C5</div>
+        <div class="item" tabindex="-2" style="transform: translateX(1800px)">C6</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2100px)">C7</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2400px)">C8</div>
+        <div class="item" tabindex="-2" style="transform: translateX(2700px)">C9</div>
+      </div>
+    </div>
+  </body>
+</html>
