@@ -95,8 +95,8 @@ struct NonTrivialStaticFields {
     for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
       cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
 
-      if (cssom::GetPropertyImpactsChildDeclaredStyle(property_key) ==
-          cssom::kImpactsChildDeclaredStyleYes) {
+      if (cssom::GetPropertyImpactsChildComputedStyle(property_key) ==
+          cssom::kImpactsChildComputedStyleYes) {
         computed_style_invalidation_properties.push_back(property_key);
       }
 
