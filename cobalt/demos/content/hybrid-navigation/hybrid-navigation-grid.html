@@ -15,7 +15,7 @@
     <style>
       body {
         background-color: rgb(25,25,25);
-        color: rgb(150,150,150);
+        color: rgb(200,200,200);
         width: 1280px;
         height: 720px;
       }
@@ -33,14 +33,41 @@
         overflow: auto;
         position: relative;
         background-color: rgb(75, 75, 75);
+        /*
+         * Leave a slight margin on the right for vscroll's scrollbar (only
+         * needed for non-Cobalt browsers). Cobalt does not show scrollbars,
+         * so this can be the same width as vscroll.
+         */
         width: 1060px;
-        height: 325px;
+        /*
+         * Also make the height big enough to show a horizontal scrollbar
+         * (for non-Cobalt browsers) in addition to the contents.
+         */
+        height: 320px;
       }
 
-      .item {
+      /*
+       * focusItem is used as the actual focusable item. Its dimensions are
+       * static so that the underlying SbUiNavigation system knows how much to
+       * scroll to ensure it is fully visible. The scroll animation is usually
+       * calculated to bring the to-be-focused item into view, but if that item
+       * is resized after the animation starts, then the animation may no
+       * longer end with the larger item in full view.
+       */
+      .focusItem {
         overflow: hidden;
         position: absolute;
-        margin: 25px;
+        width: 300px;
+        height: 300px;
+        outline: none;
+      }
+
+      /*
+       * focusContent will react to focus changes. Its size will grow when
+       * its parent receives focus.
+       */
+      .focusContent {
+        margin: 20px;
         border: 5px solid rgb(0,0,0);
         width: 250px;
         height: 250px;
@@ -48,17 +75,20 @@
         text-align: center;
         vertical-align: middle;
         font-size: 100px;
-        transition: background-color 0.5s;
+
+        /*
+         * The user may be scrolling through items quickly. Use a transition
+         * delay so that the transition is shown once the user settles on a
+         * focus item.
+         */
+        transition: transform 0.5s;
+        transition-delay: 0.1s;
       }
 
-      div.item:focus {
+      div.focusItem:focus .focusContent {
         background-color: rgb(240,240,240);
         color: rgb(0,0,0);
-        margin: 5px;
-        width: 290px;
-        height: 290px;
-        line-height: 290px;
-        outline: none;
+        transform: scale(1.1);
       }
     </style>
   </head>
@@ -66,40 +96,100 @@
   <body class="body">
     <div class="vscroll">
       <div class="hscroll">
-        <div class="item" tabindex="-2" style="transform: translateX(0px)">A0</div>
-        <div class="item" tabindex="-2" style="transform: translateX(300px)">A1</div>
-        <div class="item" tabindex="-2" style="transform: translateX(600px)">A2</div>
-        <div class="item" tabindex="-2" style="transform: translateX(900px)">A3</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1200px)">A4</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1500px)">A5</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1800px)">A6</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2100px)">A7</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2400px)">A8</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2700px)">A9</div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(0px)">
+          <div class="focusContent">A0</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(300px)">
+          <div class="focusContent">A1</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(600px)">
+          <div class="focusContent">A2</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(900px)">
+          <div class="focusContent">A3</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1200px)">
+          <div class="focusContent">A4</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1500px)">
+          <div class="focusContent">A5</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1800px)">
+          <div class="focusContent">A6</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2100px)">
+          <div class="focusContent">A7</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2400px)">
+          <div class="focusContent">A8</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2700px)">
+          <div class="focusContent">A9</div>
+        </div>
       </div>
       <div class="hscroll">
-        <div class="item" tabindex="-2" style="transform: translateX(0px)">B0</div>
-        <div class="item" tabindex="-2" style="transform: translateX(300px)">B1</div>
-        <div class="item" tabindex="-2" style="transform: translateX(600px)">B2</div>
-        <div class="item" tabindex="-2" style="transform: translateX(900px)">B3</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1200px)">B4</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1500px)">B5</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1800px)">B6</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2100px)">B7</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2400px)">B8</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2700px)">B9</div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(0px)">
+          <div class="focusContent">B0</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(300px)">
+          <div class="focusContent">B1</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(600px)">
+          <div class="focusContent">B2</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(900px)">
+          <div class="focusContent">B3</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1200px)">
+          <div class="focusContent">B4</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1500px)">
+          <div class="focusContent">B5</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1800px)">
+          <div class="focusContent">B6</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2100px)">
+          <div class="focusContent">B7</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2400px)">
+          <div class="focusContent">B8</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2700px)">
+          <div class="focusContent">B9</div>
+        </div>
       </div>
       <div class="hscroll">
-        <div class="item" tabindex="-2" style="transform: translateX(0px)">C0</div>
-        <div class="item" tabindex="-2" style="transform: translateX(300px)">C1</div>
-        <div class="item" tabindex="-2" style="transform: translateX(600px)">C2</div>
-        <div class="item" tabindex="-2" style="transform: translateX(900px)">C3</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1200px)">C4</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1500px)">C5</div>
-        <div class="item" tabindex="-2" style="transform: translateX(1800px)">C6</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2100px)">C7</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2400px)">C8</div>
-        <div class="item" tabindex="-2" style="transform: translateX(2700px)">C9</div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(0px)">
+          <div class="focusContent">C0</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(300px)">
+          <div class="focusContent">C1</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(600px)">
+          <div class="focusContent">C2</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(900px)">
+          <div class="focusContent">C3</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1200px)">
+          <div class="focusContent">C4</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1500px)">
+          <div class="focusContent">C5</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(1800px)">
+          <div class="focusContent">C6</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2100px)">
+          <div class="focusContent">C7</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2400px)">
+          <div class="focusContent">C8</div>
+        </div>
+        <div class="focusItem" tabindex="-2" style="transform: translateX(2700px)">
+          <div class="focusContent">C9</div>
+        </div>
       </div>
     </div>
   </body>
