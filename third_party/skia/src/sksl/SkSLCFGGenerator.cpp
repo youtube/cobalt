@@ -25,6 +25,15 @@
 #include "ir/SkSLVarDeclarationsStatement.h"
 #include "ir/SkSLWhileStatement.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define PRINTF_SKSL(format) SbLogRaw(format)
+#define PRINTFF_SKSL(format, ...) SbLogFormatF(format, __VA_ARGS__)
+#else
+#define PRINTF_SKSL printf
+#define PRINTFF_SKSL printf
+#endif
+
 namespace SkSL {
 
 BlockId CFG::newBlock() {
@@ -52,33 +61,34 @@ void CFG::addExit(BlockId from, BlockId to) {
 
 void CFG::dump() {
     for (size_t i = 0; i < fBlocks.size(); i++) {
-        printf("Block %d\n-------\nBefore: ", (int) i);
+        PRINTFF_SKSL("Block %d\n-------\nBefore: ", (int)i);
         const char* separator = "";
         for (auto iter = fBlocks[i].fBefore.begin(); iter != fBlocks[i].fBefore.end(); iter++) {
-            printf("%s%s = %s", separator, iter->first->description().c_str(),
-                   iter->second ? (*iter->second)->description().c_str() : "<undefined>");
+            PRINTFF_SKSL("%s%s = %s", separator, iter->first->description().c_str(),
+                         iter->second ? (*iter->second)->description().c_str() : "<undefined>");
             separator = ", ";
         }
-        printf("\nEntrances: ");
+        PRINTF_SKSL("\nEntrances: ");
         separator = "";
         for (BlockId b : fBlocks[i].fEntrances) {
-            printf("%s%d", separator, (int) b);
+            PRINTFF_SKSL("%s%d", separator, (int)b);
             separator = ", ";
         }
-        printf("\n");
+        PRINTF_SKSL("\n");
         for (size_t j = 0; j < fBlocks[i].fNodes.size(); j++) {
             BasicBlock::Node& n = fBlocks[i].fNodes[j];
-            printf("Node %d (%p): %s\n", (int) j, &n, n.fKind == BasicBlock::Node::kExpression_Kind
-                                                         ? (*n.expression())->description().c_str()
-                                                         : (*n.statement())->description().c_str());
+            PRINTFF_SKSL("Node %d (%p): %s\n", (int)j, &n,
+                         n.fKind == BasicBlock::Node::kExpression_Kind
+                                 ? (*n.expression())->description().c_str()
+                                 : (*n.statement())->description().c_str());
         }
-        printf("Exits: ");
+        PRINTF_SKSL("Exits: ");
         separator = "";
         for (BlockId b : fBlocks[i].fExits) {
-            printf("%s%d", separator, (int) b);
+            PRINTFF_SKSL("%s%d", separator, (int)b);
             separator = ", ";
         }
-        printf("\n\n");
+        PRINTF_SKSL("\n\n");
     }
 }
 
@@ -608,7 +618,7 @@ void CFGGenerator::addStatement(CFG& cfg, std::unique_ptr<Statement>* s) {
         case Statement::kNop_Kind:
             break;
         default:
-            printf("statement: %s\n", (*s)->description().c_str());
+            PRINTFF_SKSL("statement: %s\n", (*s)->description().c_str());
             ABORT("unsupported statement kind");
     }
 }
