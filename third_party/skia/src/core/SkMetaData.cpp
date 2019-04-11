@@ -11,6 +11,10 @@
 #include "SkMalloc.h"
 #include "SkRefCnt.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
+
 struct PtrPair {
     void*               fPtr;
     SkMetaData::PtrProc fProc;
