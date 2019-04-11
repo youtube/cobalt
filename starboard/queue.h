@@ -18,8 +18,8 @@
 // of Starboard synchronization primitives. It can be safely used by both
 // clients and implementations.
 
-#ifndef STARBOARD_COMMON_QUEUE_H_
-#define STARBOARD_COMMON_QUEUE_H_
+#ifndef STARBOARD_QUEUE_H_
+#define STARBOARD_QUEUE_H_
 
 #include <algorithm>
 #include <deque>
@@ -149,4 +149,4 @@ class Queue {
 
 }  // namespace starboard
 
-#endif  // STARBOARD_COMMON_QUEUE_H_
+#endif  // STARBOARD_QUEUE_H_
