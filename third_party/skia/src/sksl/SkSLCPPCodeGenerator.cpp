@@ -12,6 +12,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#include "starboard/log.h"
 #endif
 
 namespace SkSL {
@@ -153,7 +154,11 @@ void CPPCodeGenerator::writeRuntimeValue(const Type& type, const String& cppCode
         fFormatArgs.push_back(cppCode + ".fX");
         fFormatArgs.push_back(cppCode + ".fY");
     } else {
+#if defined(STARBOARD)
+        SbLogFormatF("%s\n", type.name().c_str());
+#else
         printf("%s\n", type.name().c_str());
+#endif
         ABORT("unsupported runtime value type\n");
     }
 }
