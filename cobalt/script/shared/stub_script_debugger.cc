@@ -35,12 +35,14 @@ class StubScriptDebugger : public ScriptDebugger {
     return false;
   }
 
-  bool CanDispatchProtocolMethod(const std::string& method) override {
+  std::set<std::string> SupportedProtocolDomains() override {
+    NOTIMPLEMENTED();
+    return std::set<std::string>();
+  }
+  bool DispatchProtocolMessage(const std::string& method,
+                               const std::string& message) override {
     NOTIMPLEMENTED();
     return false;
-  }
-  void DispatchProtocolMessage(const std::string& message) override {
-    NOTIMPLEMENTED();
   }
 
   std::string CreateRemoteObject(const ValueHandleHolder& object,
