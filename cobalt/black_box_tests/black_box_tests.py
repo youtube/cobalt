@@ -55,8 +55,8 @@ _TESTS_NO_SIGNAL = [
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 # Platform dependent device parameters.
 _device_params = None
-# Default binding address used to create the test server.
-_binding_address = '127.0.0.1'
+# Binding address used to create the test server.
+_binding_address = None
 
 
 def GetDeviceParams():
@@ -187,6 +187,7 @@ def main():
                       help=('Name of test to be run. If not specified, all '
                             'tests are run.'))
   parser.add_argument('--server_binding_address',
+                      default='127.0.0.1',
                       help='Binding address used to create the test server.')
   parser.add_argument('--proxy_port_number',
                       help=('Port number used to create the proxy http server'
@@ -195,8 +196,7 @@ def main():
   args, _ = parser.parse_known_args()
 
   global _binding_address
-  if args.server_binding_address:
-    _binding_address = args.server_binding_address
+  _binding_address = args.server_binding_address
   test_object = BlackBoxTests(args.test_name, args.proxy_port_number)
   sys.exit(test_object.Run())
 
