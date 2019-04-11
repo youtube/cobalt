@@ -31,6 +31,7 @@
         'murmurhash2.h',
         'new.cc',
         'optional.cc',
+        'queue.h',
         'recursive_mutex.h',
         'ref_counted.cc',
         'ref_counted.h',
