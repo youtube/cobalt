@@ -6,6 +6,8 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/log.h"
+#define printf(format, ...) SbLogFormatF(format, __VA_ARGS__)
 #endif
 
 #include <cstring>
