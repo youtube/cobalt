@@ -14,6 +14,7 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 #define COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -41,8 +42,11 @@ class V8cScriptDebugger : public ScriptDebugger,
   bool EvaluateDebuggerScript(const std::string& js_code,
                               std::string* out_result_utf8) override;
 
-  bool CanDispatchProtocolMethod(const std::string& method) override;
-  void DispatchProtocolMessage(const std::string& message) override;
+  std::set<std::string> SupportedProtocolDomains() override {
+    return supported_domains_;
+  }
+  bool DispatchProtocolMessage(const std::string& method,
+                               const std::string& message) override;
 
   std::string CreateRemoteObject(const ValueHandleHolder& object,
                                  const std::string& group) override;
@@ -77,6 +81,7 @@ class V8cScriptDebugger : public ScriptDebugger,
  private:
   V8cGlobalEnvironment* global_environment_;
   Delegate* delegate_;
+  const std::set<std::string> supported_domains_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   std::unique_ptr<v8_inspector::V8InspectorSession> inspector_session_;
   PauseOnExceptionsState pause_on_exception_state_;

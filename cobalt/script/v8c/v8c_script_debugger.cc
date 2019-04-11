@@ -32,6 +32,12 @@ namespace script {
 namespace v8c {
 
 namespace {
+constexpr const char* kInspectorDomains[] = {
+    "Runtime",
+    "Debugger",
+    "Profiler",
+};
+
 constexpr int kContextGroupId = 1;
 constexpr char kContextName[] = "Cobalt";
 
@@ -68,6 +74,8 @@ V8cScriptDebugger::V8cScriptDebugger(
     V8cGlobalEnvironment* v8c_global_environment, Delegate* delegate)
     : global_environment_(v8c_global_environment),
       delegate_(delegate),
+      supported_domains_(std::begin(kInspectorDomains),
+                         std::end(kInspectorDomains)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           inspector_(v8_inspector::V8Inspector::create(
               global_environment_->isolate(), /* client */ this))),
@@ -143,16 +151,15 @@ ScriptDebugger::PauseOnExceptionsState V8cScriptDebugger::SetPauseOnExceptions(
   return previous_state;
 }
 
-bool V8cScriptDebugger::CanDispatchProtocolMethod(const std::string& method) {
+bool V8cScriptDebugger::DispatchProtocolMessage(const std::string& method,
+                                                const std::string& message) {
   DCHECK(inspector_session_);
-  return inspector_session_->canDispatchMethod(v8_inspector::StringView(
-      reinterpret_cast<const uint8_t*>(method.c_str()), method.length()));
-}
-
-void V8cScriptDebugger::DispatchProtocolMessage(const std::string& message) {
-  DCHECK(inspector_session_);
+  if (!inspector_session_->canDispatchMethod(ToStringView(method))) {
+    return false;
+  }
   inspector_session_->dispatchProtocolMessage(v8_inspector::StringView(
       reinterpret_cast<const uint8_t*>(message.c_str()), message.length()));
+  return true;
 }
 
 std::string V8cScriptDebugger::CreateRemoteObject(

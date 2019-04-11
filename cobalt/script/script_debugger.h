@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 #define COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -103,8 +104,9 @@ class ScriptDebugger {
                                       std::string* out_result_utf8) = 0;
 
   // For engines like V8 that directly handle protocol commands.
-  virtual bool CanDispatchProtocolMethod(const std::string& method) = 0;
-  virtual void DispatchProtocolMessage(const std::string& message) = 0;
+  virtual std::set<std::string> SupportedProtocolDomains() = 0;
+  virtual bool DispatchProtocolMessage(const std::string& method,
+                                       const std::string& message) = 0;
 
   // Creates a JSON representation of an object.
   // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
