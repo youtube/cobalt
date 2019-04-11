@@ -86,6 +86,9 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
   DCHECK(!decoder_creator_.is_null());
   DCHECK(!on_load_complete_.is_null());
 
+  decoder_ = decoder_creator_.Run(
+      base::Bind(&Loader::LoadComplete, base::Unretained(this)));
+
   if (!is_suspended_) {
     Start();
   }
@@ -146,8 +149,6 @@ void Loader::Start() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!is_suspended_);
 
-  decoder_ = decoder_creator_.Run(
-      base::Bind(&Loader::LoadComplete, base::Unretained(this)));
   fetcher_to_decoder_adaptor_.reset(new FetcherToDecoderAdapter(
       decoder_.get(),
       base::Bind(&Loader::LoadComplete, base::Unretained(this))));
