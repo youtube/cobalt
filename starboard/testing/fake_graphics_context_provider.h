@@ -17,11 +17,11 @@
 
 #include <functional>
 
+#include "starboard/common/queue.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/mutex.h"
-#include "starboard/queue.h"
 #include "starboard/thread.h"
 #include "starboard/window.h"
 
