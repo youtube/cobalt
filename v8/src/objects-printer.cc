@@ -20,6 +20,11 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define printf(format) SbLogRaw(format)
+#endif
+
 namespace v8 {
 namespace internal {
 
