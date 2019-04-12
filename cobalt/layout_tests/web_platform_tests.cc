@@ -262,6 +262,28 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
   }
 }
 
+struct GetTestName {
+  std::string operator()(
+      const ::testing::TestParamInfo<WebPlatformTestInfo>& info) const {
+    // Only alphanumeric characters and '_' are valid.
+    std::string name = info.param.url;
+    for (size_t i = 0; i < name.size(); ++i) {
+      char ch = name[i];
+      if (ch >= 'A' && ch <= 'Z') {
+        continue;
+      }
+      if (ch >= 'a' && ch <= 'z') {
+        continue;
+      }
+      if (ch >= '0' && ch <= '9') {
+        continue;
+      }
+      name[i] = '_';
+    }
+    return name;
+  }
+};
+
 }  // namespace
 
 class WebPlatformTest : public ::testing::TestWithParam<WebPlatformTestInfo> {};
@@ -309,36 +331,45 @@ TEST_P(WebPlatformTest, Run) {
 // XML Http Request test cases.
 INSTANTIATE_TEST_CASE_P(
     xhr, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("XMLHttpRequest")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("XMLHttpRequest")),
+    GetTestName());
 
 INSTANTIATE_TEST_CASE_P(
     cobalt_special, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("cobalt_special")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("cobalt_special")),
+    GetTestName());
 
 INSTANTIATE_TEST_CASE_P(
     csp, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("content-security-policy")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("content-security-policy")),
+    GetTestName());
 
 INSTANTIATE_TEST_CASE_P(dom, WebPlatformTest,
-                        ::testing::ValuesIn(EnumerateWebPlatformTests("dom")));
+                        ::testing::ValuesIn(EnumerateWebPlatformTests("dom")),
+                        GetTestName());
 
 INSTANTIATE_TEST_CASE_P(cors, WebPlatformTest,
-                        ::testing::ValuesIn(EnumerateWebPlatformTests("cors")));
+                        ::testing::ValuesIn(EnumerateWebPlatformTests("cors")),
+                        GetTestName());
 
 INSTANTIATE_TEST_CASE_P(
     fetch, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch", "'fetch' in this")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch", "'fetch' in this")),
+    GetTestName());
 
 INSTANTIATE_TEST_CASE_P(html, WebPlatformTest,
-                        ::testing::ValuesIn(EnumerateWebPlatformTests("html")));
+                        ::testing::ValuesIn(EnumerateWebPlatformTests("html")),
+                        GetTestName());
 
 INSTANTIATE_TEST_CASE_P(
     mediasession, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")),
+    GetTestName());
 
 INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests(
-                            "streams", "'ReadableStream' in this")));
+                            "streams", "'ReadableStream' in this")),
+                        GetTestName());
 
 #endif  // !defined(COBALT_WIN)
 

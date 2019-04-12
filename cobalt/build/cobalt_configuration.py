@@ -35,8 +35,9 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   def __init__(self, platform_configuration, application_name,
                application_directory):
-    super(CobaltConfiguration, self).__init__(
-        platform_configuration, application_name, application_directory)
+    super(CobaltConfiguration,
+          self).__init__(platform_configuration, application_name,
+                         application_directory)
 
   def GetVariables(self, config_name):
     variables = {
@@ -69,62 +70,55 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     # the proxy has problems sending and terminating a single complete
     # response. It may end up sending multiple empty responses.
     filters = [
-        # Test Name (cors/late-upload-events.htm):
-        # "Late listeners: Preflight".
+        # Late listeners: Preflight.
         # Disabled because of: Flaky. Buildbot only failure.
-        'cors/WebPlatformTest.Run/4',
+        'cors/WebPlatformTest.Run/cors_late_upload_events_htm',
 
-        # Test Name (cors/response-headers.htm):
         # getResponseHeader: Combined testing of cors response headers.
         # Disabled because of: Timeout.
-        'cors/WebPlatformTest.Run/13',
+        'cors/WebPlatformTest.Run/cors_response_headers_htm',
 
-        # Test Name (cors/status-async.htm):
         # Status on GET 400, HEAD 401, POST 404, PUT 200.
         # Disabled because of: Response status returning 0.
-        'cors/WebPlatformTest.Run/15',
+        'cors/WebPlatformTest.Run/cors_status_async_htm',
 
-        # Test Name (cors/status-preflight.htm):
         # CORS - status after preflight on POST 401, POST 404, PUT 699.
         # Disabled because of: Response status returning 0 or timeout.
-        'cors/WebPlatformTest.Run/16',
+        'cors/WebPlatformTest.Run/cors_status_preflight_htm',
 
-        # Test Name (fetch/api/basic/error-after-response.html):
         # Response reader closed promise should reject after a network error
         # happening after resolving fetch promise.
         # Disabled because of: Timeout.
-        'fetch/WebPlatformTest.Run/0',
+        'fetch/WebPlatformTest.Run/fetch_api_basic_error_after_response_html',
 
-        # Test Name (fetch/api/request/request-cache-no-store.html):
-        # "RequestCache "no-store" mode does not store the response in the
-        # cache with Last-Modified and fresh response".
+        # RequestCache "no-store" mode does not store the response in the
+        # cache with Last-Modified and fresh response.
         # Disabled because of: Timeout. Buildbot only failure.
-        'fetch/WebPlatformTest.Run/9',
+        ('fetch/WebPlatformTest.Run/'
+         'fetch_api_request_request_cache_no_store_html'),
 
-        # Test Name (fetch/api/response/response-clone.html):
         # Check response clone use structureClone for teed ReadableStreams
         # (DataViewchunk).
         # Disabled because of: Timeout.
-        'fetch/WebPlatformTest.Run/16',
+        'fetch/WebPlatformTest.Run/fetch_api_response_response_clone_html',
 
-        # Test Name (XMLHttpRequest/cobalt_trunk_send-authentication-cors-basic
-        # -setrequestheader.htm):
         # XMLHttpRequest: send() - Basic authenticated CORS request using
         # setRequestHeader().
         # Disabled because of: Timeout. Buildbot only failure.
-        'xhr/WebPlatformTest.Run/17',
+        ('xhr/WebPlatformTest.Run/'
+         'XMLHttpRequest_cobalt_trunk_send_authentication_cors_basic_'
+         'setrequestheader_htm'),
 
-        # Test Name (XMLHttpRequest/cobalt_trunk_send-authentication-cors-
-        # setrequestheader-no-cred.htm):
         # XMLHttpRequest: send() - CORS request with setRequestHeader auth to
         # URL accepting Authorization header.
         # Disabled because of: False user and password. Buildbot only failure.
-        'xhr/WebPlatformTest.Run/18',
+        ('xhr/WebPlatformTest.Run/'
+         'XMLHttpRequest_cobalt_trunk_send_authentication_cors_'
+         'setrequestheader_no_cred_htm'),
 
-        # Test Name (XMLHttpRequest/send-redirect.htm):
         # XMLHttpRequest: send() - Redirects (basics) (307).
         # Disabled because of: Flaky.
-        'xhr/WebPlatformTest.Run/118'
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_htm'
     ]
     return filters
 
