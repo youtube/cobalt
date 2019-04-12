@@ -41,8 +41,8 @@ CSSAgent::CSSAgent(DebugDispatcher* dispatcher)
 void CSSAgent::Thaw(JSONObject agent_state) {
   UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-  bool script_loaded = dispatcher_->RunScriptFile(kScriptFile);
-  DCHECK(script_loaded);
+  script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
+  DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;
 }
 
 JSONObject CSSAgent::Freeze() {
@@ -50,7 +50,14 @@ JSONObject CSSAgent::Freeze() {
   return JSONObject();
 }
 
-void CSSAgent::Enable(const Command& command) { command.SendResponse(); }
+void CSSAgent::Enable(const Command& command) {
+  if (script_loaded_) {
+    command.SendResponse();
+  } else {
+    command.SendErrorResponse(Command::kInternalError,
+                              "Cannot create CSS inspector.");
+  }
+}
 
 void CSSAgent::Disable(const Command& command) { command.SendResponse(); }
 
