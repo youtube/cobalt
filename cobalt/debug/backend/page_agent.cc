@@ -52,6 +52,7 @@ PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
 
   commands_["disable"] = &PageAgent::Disable;
   commands_["enable"] = &PageAgent::Enable;
+  commands_["reload"] = &PageAgent::Reload;
   commands_["getResourceTree"] = &PageAgent::GetResourceTree;
   commands_["setOverlayMessage"] = &PageAgent::SetOverlayMessage;
 }
@@ -69,6 +70,13 @@ JSONObject PageAgent::Freeze() {
 void PageAgent::Disable(const Command& command) { command.SendResponse(); }
 
 void PageAgent::Enable(const Command& command) { command.SendResponse(); }
+
+void PageAgent::Reload(const Command& command) {
+  // We don't care about the 'ignoreCache' parameter since navigating creates a
+  // new WebModule with a new cache (i.e. cache is always cleared on navigate).
+  window_->location()->Reload();
+  command.SendResponse();
+}
 
 void PageAgent::GetResourceTree(const Command& command) {
   JSONObject response(new base::DictionaryValue());
