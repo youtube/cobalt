@@ -44,6 +44,7 @@ class PageAgent {
  private:
   void Enable(const Command& command);
   void Disable(const Command& command);
+  void Reload(const Command& command);
   void GetResourceTree(const Command& command);
   void SetOverlayMessage(const Command& command);
 
