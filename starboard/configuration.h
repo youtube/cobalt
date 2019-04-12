@@ -151,6 +151,14 @@
 // on behalf of the business entity owning the brand.
 #define SB_ODM_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Cross-platform helper Starboard definitions refactored out of //starboard/
+// and into //starboard/common/. In order to more explicitly identify the core
+// Starboard API, mulitple files, or parts of them, were moved into the static
+// library //starboard/common/. Each of the changes was potentially breaking,
+// and SB_CPP_API_REFACTORING allowed us to conditionally #include the
+// destination files in the source files and thus prevent breaks.
+#define SB_CPP_API_REFACTORING SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
