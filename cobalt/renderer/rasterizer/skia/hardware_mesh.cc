@@ -29,9 +29,12 @@ uint32 HardwareMesh::GetEstimatedSizeInBytes() const {
   if (vertices_) {
     return static_cast<uint32>(vertices_->size() * sizeof(vertices_->front()) +
                                sizeof(draw_mode_));
+  } else if (vbo_) {
+    return static_cast<uint32>(vbo_->GetVertexCount() * 5 * sizeof(float) +
+                               sizeof(draw_mode_));
+  } else {
+    return 0;
   }
-  return static_cast<uint32>(vbo_->GetVertexCount() * 5 * sizeof(float) +
-                             sizeof(draw_mode_));
 }
 
 const VertexBufferObject* HardwareMesh::GetVBO() const {
