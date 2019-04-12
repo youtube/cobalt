@@ -57,6 +57,7 @@ PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
 }
 
 void PageAgent::Thaw(JSONObject agent_state) {
+  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 

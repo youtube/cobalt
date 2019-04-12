@@ -46,6 +46,7 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
 }
 
 void TracingAgent::Thaw(JSONObject agent_state) {
+  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
