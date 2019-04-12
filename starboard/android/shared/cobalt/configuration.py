@@ -66,4 +66,8 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           # run it on Android platforms.
           'StressTest.TooManyTextures',
       ],
+      'web_platform_tests': [
+          # Test name: content_security_policy_media_src_media_src_allowed_html
+          'csp/WebPlatformTest.Run/63',
+      ],
   }
