@@ -55,9 +55,9 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetWebPlatformTestFilters(self):
     filters = super(CobaltLinuxConfiguration, self).GetWebPlatformTestFilters()
     filters += [
-        'xhr/WebPlatformTest.Run/130',
-        'streams/WebPlatformTest.Run/11',
-        'cors/WebPlatformTest.Run/7',
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_timeout_events_htm',
+        'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',
+        'cors/WebPlatformTest.Run/cors_preflight_failure_htm',
     ]
     return filters
 

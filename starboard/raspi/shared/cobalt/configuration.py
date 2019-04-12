@@ -62,7 +62,8 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetWebPlatformTestFilters(self):
     filters = super(CobaltRaspiConfiguration, self).GetWebPlatformTestFilters()
     filters += [
-        'csp/WebPlatformTest.Run/63',
+        ('csp/WebPlatformTest.Run/'
+         'content_security_policy_media_src_media_src_allowed_html'),
     ]
     return filters
 
