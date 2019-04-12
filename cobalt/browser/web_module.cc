@@ -599,6 +599,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // accessible from |Window|, so we must explicitly add them as roots.
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
+  global_environment_->AddRoot(blob_registry_.get());
 
 #if defined(ENABLE_DEBUGGER)
   if (data.options.wait_for_web_debugger) {
