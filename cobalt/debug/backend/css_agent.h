@@ -51,6 +51,9 @@ class CSSAgent : public script::Wrappable {
 
   // Map of member functions implementing commands.
   CommandMap<CSSAgent> commands_;
+
+  // Whether we successfully loaded the agent's JavaScript implementation.
+  bool script_loaded_ = false;
 };
 
 }  // namespace backend

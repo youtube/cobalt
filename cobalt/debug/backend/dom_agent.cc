@@ -52,6 +52,8 @@ DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
 void DOMAgent::Thaw(JSONObject agent_state) {
   UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+  script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
+  DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;
 }
 
 JSONObject DOMAgent::Freeze() {
@@ -60,8 +62,7 @@ JSONObject DOMAgent::Freeze() {
 }
 
 void DOMAgent::Enable(const Command& command) {
-  bool initialized = dispatcher_->RunScriptFile(kScriptFile);
-  if (initialized) {
+  if (script_loaded_) {
     command.SendResponse();
   } else {
     command.SendErrorResponse(Command::kInternalError,
