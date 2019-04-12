@@ -39,6 +39,7 @@
         'rwlock.h',
         'scoped_ptr.h',
         'semaphore.h',
+        'socket.h',
         'state_machine.cc',
         'state_machine.h',
         'thread_collision_warner.cc',
