@@ -55,10 +55,11 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetWebPlatformTestFilters(self):
     filters = super(CobaltAndroidConfiguration, self).GetWebPlatformTestFilters()
     filters += [
-      # Test Name (content-security-policy/media-src/media-src-allowed.html):
-      # Allowed media src
-      # Disabled because of: Fail (Tests do not account for player with url?).
-      'csp/WebPlatformTest.Run/63',
+        # Test Name (content-security-policy/media-src/media-src-allowed.html):
+        # Allowed media src
+        # Disabled because of: Fail (Tests do not account for player with url?).
+        ('csp/WebPlatformTest.Run/'
+         'content_security_policy_media_src_media_src_allowed_html'),
     ]
     return filters
 
