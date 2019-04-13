@@ -31,6 +31,11 @@
     # from the all_dependent_settings blocks of gypi files that copy static data
     # into content/data.
     'content_deploy_subdirs': [],
+
+    # Some platforms will symlink to a folder containing relative symlinks,
+    # and this will cause an invalid path. To get around this these platforms
+    # should set use_absolute_symlinks to 1.
+    'content_deploy_use_absolute_symlinks': 0,
   },
   'actions': [{
     'action_name': 'collect_deploy_content',
@@ -47,6 +52,7 @@
       '-i', '<(input_dir)',
       '-o', '<(output_dir)',
       '-s', '<(content_deploy_stamp_file)',
+      '--use_absolute_symlinks', '<(content_deploy_use_absolute_symlinks)',
       '>@(content_deploy_subdirs)',
     ],
     'message': 'Collect content: <(executable_name)',
