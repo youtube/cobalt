@@ -55,6 +55,9 @@ def main(argv):
       '-s', dest='stamp_file', required=True,
       help='stamp file to update after the output directory is populated')
   parser.add_argument(
+      '--use_absolute_symlinks', required=True, type=bool,
+      help='Generated symlinks are stored as absolute paths.')
+  parser.add_argument(
       'subdirs', metavar='subdirs', nargs='*',
       help='subdirectories within both the input and output directories')
   options = parser.parse_args(argv[1:])
@@ -97,7 +100,11 @@ def main(argv):
           msg += ' path points to an unknown type'
         logging.error(msg)
 
-    port_symlink.MakeSymLink(rel_path, dst_path)
+    if options.use_absolute_symlinks:
+      port_symlink.MakeSymLink(from_folder=os.path.abspath(src_path),
+                               link_folder=os.path.abspath(dst_path))
+    else:
+      port_symlink.MakeSymLink(from_folder=rel_path, link_folder=dst_path)
 
   if options.stamp_file:
     with open(options.stamp_file, 'w') as stamp_file:
