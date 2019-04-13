@@ -109,7 +109,7 @@ void CloseResState(res_state res) {
 #if defined(OS_LINUX)
   for (int i = 0; i < res->nscount; ++i) {
     if (res->_u._ext.nsaddrs[i] != NULL)
-      SbMemoryFree(res->_u._ext.nsaddrs[i]);
+      SbMemoryDeallocate(res->_u._ext.nsaddrs[i]);
   }
 #endif
 }

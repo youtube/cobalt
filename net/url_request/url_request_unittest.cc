@@ -3373,6 +3373,7 @@ INSTANTIATE_TEST_CASE_P(URLRequestTest,
                         URLRequestTestParameterizedSameSite,
                         ::testing::Bool());
 
+#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(URLRequestTestParameterizedSameSite, CookieAgeMetrics) {
   const bool same_site = GetParam();
   const std::string kInitiatingHost = same_site ? kHost_ : kCrossHost_;
@@ -3464,6 +3465,7 @@ TEST_P(URLRequestTestParameterizedSameSite, CookieAgeMetrics) {
     EXPECT_TRUE(d.data_received().find("cookie2=value2") != std::string::npos);
   }
 }
+#endif
 
 // Cookies with secure attribute (no HSTS) --> k1pSecureAttribute
 TEST_P(URLRequestTestParameterizedSameSite,
@@ -6454,10 +6456,11 @@ TEST_F(URLRequestTestHTTP, PostUnreadableFileTest) {
     EXPECT_TRUE(d.request_failed());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(0, d.bytes_received());
-#if defined(STARBOARD)
-    // Starboard does not well define net errors, all failures return
-    // ERR_FAILED.
-    EXPECT_EQ(ERR_FAILED, d.request_status());
+#ifdef STARBOARD
+    // Depending on the Starboard implementation on defferent platforms, the
+    // error code can sometimes just be the general ERR_FAILED without detailed
+    // reason.
+    EXPECT_NE(OK, d.request_status());
 #else
     EXPECT_EQ(ERR_FILE_NOT_FOUND, d.request_status());
 #endif
@@ -7134,6 +7137,7 @@ class MockCTPolicyEnforcer : public CTPolicyEnforcer {
   ct::CTPolicyCompliance default_result_;
 };
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 // Tests that Expect CT headers for the preload list are processed correctly.
 TEST_F(URLRequestTestHTTP, PreloadExpectCTHeader) {
   SetTransportSecurityStateSourceForTesting(&test_default::kHSTSSource);
@@ -7193,6 +7197,7 @@ TEST_F(URLRequestTestHTTP, PreloadExpectCTHeader) {
 
   EXPECT_EQ(1u, reporter.num_failures());
 }
+#endif
 
 // Tests that Expect CT HTTP headers are processed correctly.
 TEST_F(URLRequestTestHTTP, ExpectCTHeader) {
@@ -9920,6 +9925,7 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 // TODO(svaldez): iOS tests are flaky with EmbeddedTestServer and transport
 // security state. (see http://crbug.com/550977).
 #if !defined(OS_IOS)
@@ -10043,6 +10049,7 @@ TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
   EXPECT_EQ(new_static_pkp_state.bad_spki_hashes,
             static_pkp_state.bad_spki_hashes);
 }
+#endif
 
 // Make sure HSTS preserves a POST request's method and body.
 TEST_F(HTTPSRequestTest, HSTSPreservesPosts) {

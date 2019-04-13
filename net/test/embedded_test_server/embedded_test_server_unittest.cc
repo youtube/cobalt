@@ -331,6 +331,7 @@ TEST_P(EmbeddedTestServerTest, ConnectionListenerAccept) {
   EXPECT_FALSE(connection_listener_.DidReadFromSocket());
 }
 
+#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(EmbeddedTestServerTest, ConnectionListenerRead) {
   ASSERT_TRUE(server_->Start());
 
@@ -345,7 +346,6 @@ TEST_P(EmbeddedTestServerTest, ConnectionListenerRead) {
   EXPECT_TRUE(connection_listener_.DidReadFromSocket());
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(EmbeddedTestServerTest, ConcurrentFetches) {
   server_->RegisterRequestHandler(base::BindRepeating(
       &EmbeddedTestServerTest::HandleRequest, base::Unretained(this), "/test1",

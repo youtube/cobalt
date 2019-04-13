@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_STREAM_FACTORY_H_
 #define NET_QUIC_QUIC_STREAM_FACTORY_H_
 
+#ifndef QUIC_DISABLED_FOR_STARBOARD
+
 #include <list>
 #include <map>
 #include <set>
@@ -609,5 +611,7 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
 };
 
 }  // namespace net
+
+#endif  // QUIC_DISABLED_FOR_STARBOARD
 
 #endif  // NET_QUIC_QUIC_STREAM_FACTORY_H_

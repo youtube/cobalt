@@ -49,7 +49,9 @@ HttpProxyClientSocketWrapper::HttpProxyClientSocketWrapper(
     HttpAuthCache* http_auth_cache,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     SpdySessionPool* spdy_session_pool,
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
     QuicStreamFactory* quic_stream_factory,
+#endif
     bool is_trusted_proxy,
     bool tunnel,
     const NetworkTrafficAnnotationTag& traffic_annotation,
@@ -95,9 +97,11 @@ HttpProxyClientSocketWrapper::HttpProxyClientSocketWrapper(
   // |transport_params| is null. Otherwise, |quic_version| must be
   // quic::QUIC_VERSION_UNSUPPORTED, and exactly one of |transport_params| or
   // |ssl_params| must be set.
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   DCHECK(quic_version_ == quic::QUIC_VERSION_UNSUPPORTED
              ? (bool)transport_params != (bool)ssl_params
              : !transport_params && ssl_params);
+#endif
 }
 
 HttpProxyClientSocketWrapper::~HttpProxyClientSocketWrapper() {
@@ -696,12 +700,17 @@ int HttpProxyClientSocketWrapper::DoQuicProxyCreateStream(int result) {
     return result;
 
   next_state_ = STATE_QUIC_PROXY_CREATE_STREAM_COMPLETE;
+
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   quic_session_ = quic_stream_request_.ReleaseSessionHandle();
   return quic_session_->RequestStream(
       false,
       base::Bind(&HttpProxyClientSocketWrapper::OnIOComplete,
                  base::Unretained(this)),
       traffic_annotation_);
+#else
+  return ERR_NOT_IMPLEMENTED;
+#endif
 }
 
 int HttpProxyClientSocketWrapper::DoQuicProxyCreateStreamComplete(int result) {
@@ -709,6 +718,8 @@ int HttpProxyClientSocketWrapper::DoQuicProxyCreateStreamComplete(int result) {
     return result;
 
   next_state_ = STATE_HTTP_PROXY_CONNECT_COMPLETE;
+
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   std::unique_ptr<QuicChromiumClientStream::Handle> quic_stream =
       quic_session_->ReleaseStream();
 
@@ -721,6 +732,9 @@ int HttpProxyClientSocketWrapper::DoQuicProxyCreateStreamComplete(int result) {
       net_log_, http_auth_controller_.get()));
   return transport_socket_->Connect(base::Bind(
       &HttpProxyClientSocketWrapper::OnIOComplete, base::Unretained(this)));
+#else
+  return ERR_NOT_IMPLEMENTED;
+#endif
 }
 #endif
 

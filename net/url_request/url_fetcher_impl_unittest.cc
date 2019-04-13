@@ -1042,6 +1042,8 @@ class CheckDownloadProgressDelegate : public WaitingURLFetcherDelegate {
   DISALLOW_COPY_AND_ASSIGN(CheckDownloadProgressDelegate);
 };
 
+// Disabled temporarily due to a SbFileExists bug on Android.
+#ifndef STARBOARD
 TEST_F(URLFetcherTest, DownloadProgress) {
   // Get a file large enough to require more than one read into
   // URLFetcher::Core's IOBuffer.
@@ -1067,6 +1069,7 @@ TEST_F(URLFetcherTest, DownloadProgress) {
   ASSERT_TRUE(delegate.fetcher()->GetResponseAsString(&data));
   EXPECT_EQ(file_contents, data);
 }
+#endif
 
 class CancelOnUploadProgressDelegate : public WaitingURLFetcherDelegate {
  public:
@@ -1121,6 +1124,8 @@ class CancelOnDownloadProgressDelegate : public WaitingURLFetcherDelegate {
   DISALLOW_COPY_AND_ASSIGN(CancelOnDownloadProgressDelegate);
 };
 
+// Disabled temporarily due to a SbFileExists bug on Android.
+#ifndef STARBOARD
 // Check that a fetch can be safely cancelled/deleted during a download progress
 // callback.
 TEST_F(URLFetcherTest, CancelInDownloadProgressCallback) {
@@ -1139,6 +1144,7 @@ TEST_F(URLFetcherTest, CancelInDownloadProgressCallback) {
   EXPECT_FALSE(delegate.did_complete());
   EXPECT_FALSE(delegate.fetcher());
 }
+#endif
 
 TEST_F(URLFetcherTest, Headers) {
   WaitingURLFetcherDelegate delegate;
@@ -1538,6 +1544,8 @@ TEST_F(URLFetcherTest, ShutdownCrossThread) {
               IsError(ERR_CONTEXT_SHUT_DOWN));
 }
 
+// Temporarily blocked due to a SbFileExists bug on Android.
+#ifndef STARBOARD
 // Get a small file.
 TEST_F(URLFetcherTest, FileTestSmallGet) {
   const char kFileToFetch[] = "simple.html";
@@ -1649,6 +1657,7 @@ TEST_F(URLFetcherBadHTTPSTest, BadHTTPS) {
   EXPECT_TRUE(delegate.fetcher()->GetResponseAsString(&data));
   EXPECT_TRUE(data.empty());
 }
+#endif  // STARBOARD
 
 }  // namespace
 

@@ -30,8 +30,8 @@ void CrashDoubleFree(void) {
   // Cause memory corruption detectors to notice a double-free
   void* p = SbMemoryAllocate(1);
   LOG(INFO) << "Allocated p=" << p << ".  Double-freeing...";
-  SbMemoryFree(p);
-  SbMemoryFree(p);
+  SbMemoryDeallocate(p);
+  SbMemoryDeallocate(p);
 }
 
 void CrashNullPointerDereference(void) {

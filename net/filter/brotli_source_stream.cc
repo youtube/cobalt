@@ -181,7 +181,7 @@ class BrotliSourceStream : public FilterSourceStream {
       return;
     size_t* array = reinterpret_cast<size_t*>(address);
     used_memory_ -= array[-1];
-    SbMemoryFree(&array[-1]);
+    SbMemoryDeallocate(&array[-1]);
   }
 
   BrotliDecoderState* brotli_state_;
