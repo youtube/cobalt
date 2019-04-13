@@ -80,6 +80,7 @@ import os
 import shutil
 import subprocess
 import stat
+import tempfile
 import time
 import traceback
 
@@ -258,7 +259,7 @@ def _OsWalk(top, topdown, onerror, followlinks):
 def UnitTest():
   """Tests that a small directory hierarchy can be created and then symlinked,
   and then removed."""
-  tmp_dir = os.path.join(os.environ['temp'], 'win_symlink')
+  tmp_dir = os.path.join(tempfile.gettempdir(), 'win_symlink')
   from_dir = os.path.join(tmp_dir, 'from_dir')
   test_txt = os.path.join(from_dir, 'test.txt')
   inner_dir = os.path.join(from_dir, 'inner_dir')
