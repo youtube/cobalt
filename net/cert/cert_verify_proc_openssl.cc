@@ -161,13 +161,30 @@ class X509InitSingleton {
                                                   X509InitSingleton>>::get();
   }
   int der_cache_ex_index() const { return der_cache_ex_index_; }
+  X509_STORE* store() const { return store_.get(); }
+
   X509InitSingleton() {
+    crypto::EnsureOpenSSLInit();
     der_cache_ex_index_ = X509_get_ex_new_index(0, 0, 0, 0, DERCache_free);
     DCHECK_NE(der_cache_ex_index_, -1);
+    ResetCertStore();
+  }
+
+  void ResetCertStore() {
+    store_.reset(X509_STORE_new());
+    DCHECK(store_.get());
+    // Configure the SSL certs dir. We don't implement getenv() or hardcode
+    // the SSL_CERTS_DIR, which are the default methods OpenSSL uses to find
+    // the certs path.
+    base::FilePath cert_path;
+    base::PathService::Get(base::DIR_EXE, &cert_path);
+    cert_path = cert_path.Append("ssl").Append("certs");
+    X509_STORE_load_locations(store_.get(), NULL, cert_path.value().c_str());
   }
 
  private:
   int der_cache_ex_index_;
+  ScopedOpenSSL<X509_STORE, X509_STORE_free> store_;
 
   DISALLOW_COPY_AND_ASSIGN(X509InitSingleton);
 };
@@ -320,23 +337,10 @@ int CertVerifyProcOpenSSL::VerifyInternal(
     }
   }
 
-#if defined(STARBOARD)
-  // Configure the SSL certs dir. We don't implement getenv() or hardcode
-  // the SSL_CERTS_DIR, which are the default methods OpenSSL uses to find
-  // the certs path.
-  // TODO[johnx]: Create a singleton to read once and store the certs.
-  base::FilePath cert_path;
-  base::PathService::Get(base::DIR_ASSETS, &cert_path);
-  cert_path = cert_path.Append("ssl").Append("certs");
-  ScopedOpenSSL<X509_STORE, X509_STORE_free> store;
-  store.reset(X509_STORE_new());
-  DCHECK(store.get());
-  X509_STORE_load_locations(store.get(), NULL, cert_path.value().c_str());
-#endif
   ScopedOpenSSL<X509, X509_free> cert_in_x509;
   cert_in_x509.reset(X509_parse_from_buffer(cert->cert_buffer()));
-  if (X509_STORE_CTX_init(ctx.get(), store.get(), cert_in_x509.get(),
-                          intermediates.get()) != 1) {
+  if (X509_STORE_CTX_init(ctx.get(), X509InitSingleton::GetInstance()->store(),
+                          cert_in_x509.get(), intermediates.get()) != 1) {
     NOTREACHED();
     return ERR_FAILED;
   }

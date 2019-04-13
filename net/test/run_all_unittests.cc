@@ -58,25 +58,27 @@ bool VerifyBuildIsTimely() {
 
 #if defined(STARBOARD)
 int TestSuiteRun(int argc, char** argv) {
+  // set_connect_backup_jobs_enabled(false) below disables backup transport
+  // layer connection which is turned on by default. The backup transport layer
+  // connection sends new connection if certain amount of time has passed
+  // without ACK being received. Some net_unittests have assumption for the
+  // lack of this feature.
+  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
+  base::AtExitManager exit_manager;
+  return NetTestSuite(argc, argv).Run();
+}
+
+STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
 #else
 int main(int argc, char** argv) {
-#endif
   if (!VerifyBuildIsTimely())
     return 1;
 
   NetTestSuite test_suite(argc, argv);
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
 
-#if defined(STARBOARD)
-  base::AtExitManager exit_manager;
-  return test_suite.Run();
-#else
   return base::LaunchUnitTests(
       argc, argv, base::Bind(&NetTestSuite::Run,
                              base::Unretained(&test_suite)));
-#endif
 }
-
-#if defined(STARBOARD)
-STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
 #endif

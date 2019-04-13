@@ -1872,6 +1872,16 @@ TEST_F(CookieMonsterTest, PredicateSeesAllCookies) {
   std::unique_ptr<CookieMonster> cm(
       new CookieMonster(nullptr, nullptr, &net_log_));
   PopulateCmForPredicateCheck(cm.get());
+#ifdef STARBOARD
+  // On some platform, maybe due to compiler optimization or too fast
+  // execution, the cache entry's creation date is exactly the same as
+  // delete_info's ending range(base::Time::Now()) below, making some
+  // cache entries mismatch delete_info and not deleted.
+  for (int i = 0; i < 15; i++) {
+    // Do something to pass time.
+    DLOG(INFO) << "Just wasting time, Cobalt is too fast!";
+  }
+#endif
   // We test that we can see all cookies with |delete_info|. This includes
   // host, http_only, host secure, and all domain cookies.
   CookieDeletionInfo delete_info(base::Time(), base::Time::Now());
