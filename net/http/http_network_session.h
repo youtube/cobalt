@@ -155,6 +155,7 @@ class NET_EXPORT HttpNetworkSession {
     // Maximum number of server configs that are to be stored in
     // HttpServerProperties, instead of the disk cache.
     size_t quic_max_server_configs_stored_in_properties;
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
     // QUIC will be used for all connections in this set.
     std::set<HostPortPair> origins_to_force_quic_on;
     // Set of QUIC tags to send in the handshake's connection options.
@@ -162,6 +163,7 @@ class NET_EXPORT HttpNetworkSession {
     // Set of QUIC tags to send in the handshake's connection options that only
     // affect the client.
     quic::QuicTagVector quic_client_connection_options;
+#endif
     // Enables experimental optimization for receiving data in UDPSocket.
     bool quic_enable_socket_recv_optimization;
 

@@ -111,7 +111,9 @@ HttpNetworkSession::Params::Params()
       enable_http2_alternative_service(false),
       enable_websocket_over_http2(false),
       enable_quic(false),
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_max_packet_length(quic::kDefaultMaxPacketSize),
+#endif
       quic_max_server_configs_stored_in_properties(0u),
       quic_enable_socket_recv_optimization(false),
       mark_quic_broken_when_network_blackholes(false),
@@ -119,23 +121,27 @@ HttpNetworkSession::Params::Params()
       support_ietf_format_quic_altsvc(false),
       quic_close_sessions_on_ip_change(false),
       quic_goaway_sessions_on_ip_change(false),
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_idle_connection_timeout_seconds(kIdleConnectionTimeoutSeconds),
       quic_reduced_ping_timeout_seconds(quic::kPingTimeoutSecs),
       quic_max_time_before_crypto_handshake_seconds(
           quic::kMaxTimeForCryptoHandshakeSecs),
       quic_max_idle_time_before_crypto_handshake_seconds(
           quic::kInitialIdleTimeoutSecs),
+#endif
       quic_migrate_sessions_on_network_change_v2(false),
       quic_migrate_sessions_early_v2(false),
       quic_retry_on_alternate_network_before_handshake(false),
       quic_race_stale_dns_on_connection(false),
       quic_go_away_on_path_degrading(false),
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_max_time_on_non_default_network(
           base::TimeDelta::FromSeconds(kMaxTimeOnNonDefaultNetworkSecs)),
       quic_max_migrations_to_non_default_network_on_write_error(
           kMaxMigrationsToNonDefaultNetworkOnWriteError),
       quic_max_migrations_to_non_default_network_on_path_degrading(
           kMaxMigrationsToNonDefaultNetworkOnPathDegrading),
+#endif
       quic_allow_server_migration(false),
       quic_allow_remote_alt_svc(true),
       quic_disable_bidirectional_streams(false),

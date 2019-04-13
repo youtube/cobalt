@@ -39,6 +39,7 @@ class NET_EXPORT DialUdpServer {
   // Create the listen socket. Runs on a separate thread.
   void CreateAndBind();
   void Shutdown();
+  void AcceptAndProcessConnection();
 
   // Construct the appropriate search response.
   const std::string ConstructSearchResponse() const;
@@ -59,12 +60,12 @@ class NET_EXPORT DialUdpServer {
   std::string server_agent_;
 
   base::Thread thread_;
+  THREAD_CHECKER(thread_checker_);
 
   bool is_running_;
 
-  // For UDPSocket read.
-  IPEndPoint connection_address_;
   scoped_refptr<IOBuffer> read_buf_;
+  IPEndPoint client_address_;
 };
 
 }  // namespace net

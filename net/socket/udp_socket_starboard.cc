@@ -438,7 +438,7 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    if (address && !address->FromSbSocketAddress(&sb_address)) {
+    if (!address || !address->FromSbSocketAddress(&sb_address)) {
       result = ERR_FAILED;
     }
   } else {
@@ -461,7 +461,7 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
   SbSocketAddress sb_address;
-  if (address && !address->ToSbSocketAddress(&sb_address)) {
+  if (!address || !address->ToSbSocketAddress(&sb_address)) {
     int result = ERR_FAILED;
     LogWrite(result, NULL, NULL);
     return result;

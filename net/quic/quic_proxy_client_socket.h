@@ -5,6 +5,8 @@
 #ifndef NET_QUIC_QUIC_PROXY_CLIENT_SOCKET_H_
 #define NET_QUIC_QUIC_PROXY_CLIENT_SOCKET_H_
 
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
+
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -155,5 +157,7 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
 };
 
 }  // namespace net
+
+#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 #endif  // NET_QUIC_QUIC_PROXY_CLIENT_SOCKET_H_
