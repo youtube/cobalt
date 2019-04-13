@@ -195,7 +195,7 @@ FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
   }
 #endif  // defined(OS_ANDROID)
   if (!file.IsValid()) {
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
     return OpenResult(
         base::File(), IOResult::FromFileError(
             file.error_details(), logging::GetLastSystemErrorCode()));
@@ -217,7 +217,6 @@ FileStream::Context::IOResult FileStream::Context::GetFileInfoImpl(
 }
 
 FileStream::Context::IOResult FileStream::Context::CloseFileImpl() {
-  DLOG(INFO)<<"callback closed file";
   file_.Close();
   return IOResult(OK, 0);
 }
@@ -244,23 +243,17 @@ void FileStream::Context::CloseAndDelete() {
   if (file_.IsValid()) {
 #ifdef STARBOARD
     // On Windows, holding file_ will prevent re-creation immediately after
-    // CloseAndDelete is called, failing some tests. Let's close file
-    // synchronously.
+    // CloseAndDelete is called, failing some tests.
     if (base::MessageLoop::current()->task_runner() == task_runner_.get()) {
       file_.Close();
-    } else {
-      nb::polymorphic_downcast<base::SingleThreadTaskRunner*>(
-          task_runner_.get())
-          ->PostBlockingTask(
-              FROM_HERE, base::Bind(base::IgnoreResult(&Context::CloseFileImpl),
-                                    base::Owned(this)));
+      delete this;
+      return;
     }
-#else
+#endif
     bool posted = task_runner_.get()->PostTask(
         FROM_HERE, base::BindOnce(base::IgnoreResult(&Context::CloseFileImpl),
                                   base::Owned(this)));
     DCHECK(posted);
-#endif
   } else {
     delete this;
   }

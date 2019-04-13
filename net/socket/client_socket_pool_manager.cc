@@ -43,7 +43,17 @@ static_assert(arraysize(g_max_sockets_per_pool) ==
 // be the same as the limit for ws. Also note that Firefox uses a limit of 200.
 // See http://crbug.com/486800
 int g_max_sockets_per_group[] = {
-    6,   // NORMAL_SOCKET_POOL
+#ifdef STARBOARD
+    // Low number of max sockets per group will stall proxy connections if
+    // too many are made simultaneously. Some Cobalt unit tests involve proxies
+    // and send out large quantity of requests at the same time.
+    // The number 30 is chosen by experiments and is proven to avoid
+    // proxy connection stalling in cobalt unit tests. Again, see
+    // http://crbug.com/12066 for details and discussion.
+    30,
+#else
+    6,  // NORMAL_SOCKET_POOL
+#endif
     255  // WEBSOCKET_SOCKET_POOL
 };
 

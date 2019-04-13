@@ -691,6 +691,7 @@ bool SSLClientSocketImpl::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->handshake_type = SSL_session_reused(ssl_.get())
                                  ? SSLInfo::HANDSHAKE_RESUME
                                  : SSLInfo::HANDSHAKE_FULL;
+  DLOG(INFO) << "handshake type set to: " << ssl_info->handshake_type;
 
   return true;
 }
@@ -862,8 +863,10 @@ int SSLClientSocketImpl::Init() {
   if (!ssl_session_cache_shard_.empty()) {
     bssl::UniquePtr<SSL_SESSION> session =
         context->session_cache()->Lookup(GetSessionCacheKey());
-    if (session)
+    if (session) {
+      DLOG(INFO) << "set session: " << session.get();
       SSL_set_session(ssl_.get(), session.get());
+    }
   }
 
   transport_adapter_.reset(

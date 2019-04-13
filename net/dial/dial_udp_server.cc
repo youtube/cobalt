@@ -60,6 +60,7 @@ DialUdpServer::DialUdpServer(const std::string& location_url,
       is_running_(false),
       read_buf_(new IOBuffer(kReadBufferSize)) {
   DCHECK(!location_url_.empty());
+  DETACH_FROM_THREAD(thread_checker_);
   thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
   Start();
@@ -71,19 +72,20 @@ DialUdpServer::~DialUdpServer() {
 
 void DialUdpServer::CreateAndBind() {
   DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  // The thread_checker_ will bind to thread_ from this point on.
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900));
-  if (socket_->RecvFrom(read_buf_.get(), kReadBufferSize, &connection_address_,
-                        base::Bind(&DialUdpServer::DidRead,
-                                   base::Unretained(this))) != ERR_IO_PENDING) {
-    DidRead(net::OK);
-  }
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
+                            base::Unretained(this)));
   DLOG_IF(WARNING, !socket_) << "Failed to bind socket for Dial UDP Server";
 }
 
 void DialUdpServer::Shutdown() {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   location_url_.clear();
   socket_.reset();
+  factory_.reset();
 }
 
 void DialUdpServer::Start() {
@@ -96,15 +98,26 @@ void DialUdpServer::Start() {
 
 void DialUdpServer::Stop() {
   DCHECK(is_running_);
-  thread_.message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&DialUdpServer::Shutdown, base::Unretained(this)));
+  thread_.message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&DialUdpServer::Shutdown,
+                            base::Unretained(this)));
+  thread_.Stop();
+}
+
+void DialUdpServer::AcceptAndProcessConnection() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (socket_->RecvFrom(
+          read_buf_.get(), kReadBufferSize, &client_address_,
+          base::Bind(&DialUdpServer::DidRead, base::Unretained(this))) == OK) {
+    DidRead(net::OK);
+  }
 }
 
 void DialUdpServer::DidClose(UDPSocket* server) {}
 
 void DialUdpServer::DidRead(int bytes_read) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
-  if (!socket_) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!socket_ || !read_buf_.get() || !read_buf_->data()) {
     return;
   }
   if (bytes_read <= 0) {
@@ -113,16 +126,23 @@ void DialUdpServer::DidRead(int bytes_read) {
   }
   // If M-Search request was valid, send response. Else, keep quiet.
   if (ParseSearchRequest(std::string(read_buf_->data()))) {
-    std::string response = ConstructSearchResponse();
+    auto response = std::make_unique<std::string>();
+    *response = ConstructSearchResponse();
+    // Using the fake IOBuffer to avoid another copy.
     scoped_refptr<WrappedIOBuffer> fake_buffer =
-        new WrappedIOBuffer(response.data());
-    socket_->SendTo(fake_buffer.get(), response.size(), connection_address_,
-                    base::Bind([](scoped_refptr<IOBuffer>, std::string,
-                                  int /*rv*/) { /*Just to delete buffer.*/ },
-                               fake_buffer, std::move(response)));
-    // Content consumed, marking NULL to prevent duplicate parsing.
-    read_buf_->data()[0] = '\0';
+        new WrappedIOBuffer(response->data());
+    // After optimization, some compiler will dereference and get response size
+    // later than passing response.
+    auto response_size = response->size();
+    socket_->SendTo(fake_buffer.get(), response_size, client_address_,
+                    base::Bind([](scoped_refptr<WrappedIOBuffer>,
+                                  std::unique_ptr<std::string>, int /*rv*/) {},
+                               fake_buffer, base::Passed(&response)));
   }
+  // Now post another RecvFrom to the MessageLoop to take the next request.
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
+                            base::Unretained(this)));
 }
 
 // Parse a request to make sure it is a M-Search.

@@ -26,8 +26,8 @@ void* MappedFile::Init(const base::FilePath& name, size_t size) {
   if (buffer_ && snapshot_ && Read(buffer_, size, 0)) {
     SbMemoryCopy(snapshot_, buffer_, size);
   } else {
-    SbMemoryFree(buffer_);
-    SbMemoryFree(snapshot_);
+    SbMemoryDeallocate(buffer_);
+    SbMemoryDeallocate(snapshot_);
     buffer_ = snapshot_ = 0;
   }
 
@@ -58,8 +58,8 @@ MappedFile::~MappedFile() {
   if (buffer_ && snapshot_) {
     Flush();
   }
-  SbMemoryFree(buffer_);
-  SbMemoryFree(snapshot_);
+  SbMemoryDeallocate(buffer_);
+  SbMemoryDeallocate(snapshot_);
 }
 
 }  // namespace disk_cache

@@ -162,12 +162,16 @@ Time CanonicalCookie::CanonExpiration(const ParsedCookie& pc,
   // First, try the Max-Age attribute.
   uint64_t max_age = 0;
   if (pc.HasMaxAge() &&
+#ifdef STARBOARD
+      SbStringScanF(
+#else
 #ifdef COMPILER_MSVC
       sscanf_s(
 #else
       sscanf(
 #endif
-             pc.MaxAge().c_str(), " %" PRIu64, &max_age) == 1) {
+#endif  // STARBOARD
+          pc.MaxAge().c_str(), " %" PRIu64, &max_age) == 1) {
     return current + TimeDelta::FromSeconds(max_age);
   }
 

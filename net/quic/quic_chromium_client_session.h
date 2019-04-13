@@ -10,6 +10,8 @@
 #ifndef NET_QUIC_QUIC_CHROMIUM_CLIENT_SESSION_H_
 #define NET_QUIC_QUIC_CHROMIUM_CLIENT_SESSION_H_
 
+#ifndef QUIC_DISABLED_FOR_STARBOARD
+
 #include <list>
 #include <memory>
 #include <set>
@@ -809,5 +811,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 };
 
 }  // namespace net
+
+#endif  // QUIC_DISABLED_FOR_STARBOARD
 
 #endif  // NET_QUIC_QUIC_CHROMIUM_CLIENT_SESSION_H_

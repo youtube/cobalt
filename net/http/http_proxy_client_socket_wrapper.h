@@ -71,7 +71,9 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketWrapper
       HttpAuthCache* http_auth_cache,
       HttpAuthHandlerFactory* http_auth_handler_factory,
       SpdySessionPool* spdy_session_pool,
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
       QuicStreamFactory* quic_stream_factory,
+#endif
       bool is_trusted_proxy,
       bool tunnel,
       const NetworkTrafficAnnotationTag& traffic_annotation,
@@ -227,8 +229,8 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketWrapper
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamRequest quic_stream_request_;
-#endif
   std::unique_ptr<QuicChromiumClientSession::Handle> quic_session_;
+#endif
 
   scoped_refptr<HttpAuthController> http_auth_controller_;
 

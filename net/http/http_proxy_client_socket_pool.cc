@@ -157,11 +157,14 @@ HttpProxyConnectJob::HttpProxyConnectJob(
           params->http_auth_cache(),
           params->http_auth_handler_factory(),
           params->spdy_session_pool(),
+#ifndef QUIC_DISABLED_FOR_STARBOARD
           params->quic_stream_factory(),
+#endif
           params->is_trusted_proxy(),
           params->tunnel(),
           params->traffic_annotation(),
-          this->net_log())) {}
+          this->net_log())) {
+}
 
 HttpProxyConnectJob::~HttpProxyConnectJob() = default;
 
