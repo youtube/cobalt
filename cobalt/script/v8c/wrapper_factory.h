@@ -15,7 +15,10 @@
 #ifndef COBALT_SCRIPT_V8C_WRAPPER_FACTORY_H_
 #define COBALT_SCRIPT_V8C_WRAPPER_FACTORY_H_
 
-#include "base/hash_tables.h"
+#include <memory>
+
+#include "base/callback.h"
+#include "base/containers/hash_tables.h"
 #include "cobalt/script/wrappable.h"
 #include "v8/include/v8.h"
 
@@ -64,7 +67,7 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
           get_function_template(get_function_template) {}
   };
 
-  scoped_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
+  std::unique_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
       const scoped_refptr<Wrappable>& wrappable) const;
 
   typedef base::hash_map<base::TypeId, WrappableTypeFunctions>

@@ -5,8 +5,9 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_CLUSTER_BUILDER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_CLUSTER_BUILDER_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -14,14 +15,14 @@ namespace media {
 
 class Cluster {
  public:
-  Cluster(scoped_array<uint8_t> data, int size);
+  Cluster(std::unique_ptr<uint8_t[]> data, int size);
   ~Cluster();
 
   const uint8_t* data() const { return data_.get(); }
   int size() const { return size_; }
 
  private:
-  scoped_array<uint8_t> data_;
+  std::unique_ptr<uint8_t[]> data_;
   int size_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Cluster);
@@ -41,8 +42,8 @@ class ClusterBuilder {
                                          int flags, bool is_key_frame,
                                          const uint8_t* data, int size);
 
-  scoped_ptr<Cluster> Finish();
-  scoped_ptr<Cluster> FinishWithUnknownSize();
+  std::unique_ptr<Cluster> Finish();
+  std::unique_ptr<Cluster> FinishWithUnknownSize();
 
  private:
   void AddBlockGroupInternal(int track_num, int64_t timecode,
@@ -55,7 +56,7 @@ class ClusterBuilder {
   void WriteBlock(uint8_t* buf, int track_num, int64_t timecode, int flags,
                   const uint8_t* data, int size);
 
-  scoped_array<uint8_t> buffer_;
+  std::unique_ptr<uint8_t[]> buffer_;
   int buffer_size_;
   int bytes_used_;
   int64_t cluster_timecode_;

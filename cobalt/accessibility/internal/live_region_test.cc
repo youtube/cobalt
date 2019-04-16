@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/accessibility/internal/live_region.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/test/empty_document.h"
@@ -34,11 +35,13 @@ class LiveRegionTest : public ::testing::Test {
   }
 
  private:
+  // For posting tasks by any triggered code.
+  base::MessageLoop message_loop_;
   test::EmptyDocument empty_document_;
 };
 
 TEST_F(LiveRegionTest, GetLiveRegionRoot) {
-  scoped_ptr<LiveRegion> live_region;
+  std::unique_ptr<LiveRegion> live_region;
 
   scoped_refptr<dom::Element> live_region_element =
       CreateLiveRegion(base::Tokens::polite().c_str());
@@ -75,7 +78,8 @@ TEST_F(LiveRegionTest, NestedLiveRegion) {
   // The closest ancestor live region is this element's live region.
   scoped_refptr<dom::Element> child = document()->CreateElement("div");
   nested_region_element->AppendChild(child);
-  scoped_ptr<LiveRegion> live_region = LiveRegion::GetLiveRegionForNode(child);
+  std::unique_ptr<LiveRegion> live_region =
+      LiveRegion::GetLiveRegionForNode(child);
   ASSERT_TRUE(live_region);
   EXPECT_EQ(live_region->root(), nested_region_element);
 
@@ -88,7 +92,7 @@ TEST_F(LiveRegionTest, NestedLiveRegion) {
 }
 
 TEST_F(LiveRegionTest, LiveRegionType) {
-  scoped_ptr<LiveRegion> live_region;
+  std::unique_ptr<LiveRegion> live_region;
 
   // aria-live="polite"
   scoped_refptr<dom::Element> polite_element =
@@ -126,7 +130,7 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
   ASSERT_TRUE(live_region_element);
 
   // GetLiveRegionForNode with the live region root.
-  scoped_ptr<LiveRegion> live_region =
+  std::unique_ptr<LiveRegion> live_region =
       LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   // Default is that additions and text are relevant.
@@ -182,7 +186,7 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
 }
 
 TEST_F(LiveRegionTest, IsAtomic) {
-  scoped_ptr<LiveRegion> live_region;
+  std::unique_ptr<LiveRegion> live_region;
 
   scoped_refptr<dom::Element> live_region_element =
       CreateLiveRegion(base::Tokens::polite().c_str());

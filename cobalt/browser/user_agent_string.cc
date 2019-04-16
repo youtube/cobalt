@@ -17,8 +17,8 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
 #if defined(COBALT_ENABLE_LIB)
 #include "cobalt/browser/lib/exported/user_agent.h"
@@ -145,8 +145,8 @@ std::string Sanitize(const std::string& str) {
   std::string clean(str);
   for (size_t i = 0; i < arraysize(kSanitizeReplacements); i++) {
     const SanitizeReplacements* replacement = kSanitizeReplacements + i;
-    ReplaceChars(clean, replacement->replace_chars, replacement->replace_with,
-                 &clean);
+    base::ReplaceChars(clean, replacement->replace_chars,
+                       replacement->replace_with, &clean);
   }
   return clean;
 }
@@ -176,7 +176,7 @@ std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {
 }
 
 std::string CreateConnectionTypeString(
-    const base::optional<SbSystemConnectionType>& connection_type) {
+    const base::Optional<SbSystemConnectionType>& connection_type) {
   if (connection_type) {
     switch (*connection_type) {
       case kSbSystemConnectionTypeWired:
@@ -196,8 +196,8 @@ std::string CreateConnectionTypeString(
 UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   UserAgentPlatformInfo platform_info;
 
-  platform_info.starboard_version = base::StringPrintf(
-      "Starboard/%d", SB_API_VERSION);
+  platform_info.starboard_version =
+      base::StringPrintf("Starboard/%d", SB_API_VERSION);
 
   const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
@@ -332,7 +332,7 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
   std::string os_name_and_version = platform_info.os_name_and_version;
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kUserAgentOsNameVersion)) {
     os_name_and_version =
         command_line->GetSwitchValueASCII(switches::kUserAgentOsNameVersion);
@@ -340,8 +340,8 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   //   Mozilla/5.0 (ChromiumStylePlatform)
-  std::string user_agent = base::StringPrintf(
-      "Mozilla/5.0 (%s)", os_name_and_version.c_str());
+  std::string user_agent =
+      base::StringPrintf("Mozilla/5.0 (%s)", os_name_and_version.c_str());
 
   //   Cobalt/Version.BuildNumber-BuildConfiguration (unlike Gecko)
   base::StringAppendF(&user_agent, " Cobalt/%s.%s-%s (unlike Gecko)",

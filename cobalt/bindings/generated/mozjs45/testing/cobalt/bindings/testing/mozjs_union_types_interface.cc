@@ -1,6 +1,6 @@
 
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include "cobalt/bindings/testing/mozjs_union_types_interface.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
@@ -392,7 +392,7 @@ bool set_unionWithNullableMemberProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::Optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -492,7 +492,7 @@ bool set_nullableUnionProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::Optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;

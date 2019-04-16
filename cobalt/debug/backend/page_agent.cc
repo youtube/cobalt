@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/debug/backend/page_agent.h"
 
 #include "base/bind.h"
@@ -37,10 +39,10 @@ constexpr char kInspectorDomain[] = "Page";
 }  // namespace
 
 PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
-                     scoped_ptr<RenderLayer> render_layer,
+                     std::unique_ptr<RenderLayer> render_layer,
                      render_tree::ResourceProvider* resource_provider)
     : window_(window),
-      render_layer_(render_layer.Pass()),
+      render_layer_(std::move(render_layer)),
       resource_provider_(resource_provider),
       dispatcher_(dispatcher),
       ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
@@ -58,7 +60,6 @@ PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
 }
 
 void PageAgent::Thaw(JSONObject agent_state) {
-  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
@@ -86,8 +87,9 @@ void PageAgent::GetResourceTree(const Command& command) {
   frame->SetString("mimeType", "text/html");
   frame->SetString("securityOrigin", window_->document()->url());
   frame->SetString("url", window_->document()->url());
-  response->Set("result.frameTree.frame", frame.release());
-  response->Set("result.frameTree.resources", new base::ListValue());
+  response->Set("result.frameTree.frame", std::move(frame));
+  response->Set("result.frameTree.resources",
+                std::make_unique<base::ListValue>());
   command.SendResponse(response);
 }
 
@@ -123,13 +125,13 @@ void PageAgent::SetOverlayMessage(const Command& command) {
     render_tree::CompositionNode::Builder composition_builder;
     composition_builder.AddChild(new render_tree::RectNode(
         math::RectF(bg_x, bg_y, bg_width, bg_height),
-        scoped_ptr<render_tree::Brush>(
+        std::unique_ptr<render_tree::Brush>(
             new render_tree::SolidColorBrush(bg_color))));
     composition_builder.AddChild(new render_tree::TextNode(
         math::Vector2dF(text_x, text_y), glyph_buffer, text_color));
 
     render_layer_->SetFrontLayer(
-        new render_tree::CompositionNode(composition_builder.Pass()));
+        new render_tree::CompositionNode(std::move(composition_builder)));
   } else {
     render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
   }

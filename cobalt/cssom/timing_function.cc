@@ -49,8 +49,8 @@ struct NonTrivialStaticFields {
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

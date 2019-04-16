@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_SCRIPT_H_
 #define COBALT_WEBDRIVER_PROTOCOL_SCRIPT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -31,7 +31,7 @@ namespace protocol {
 // https://code.google.com/p/selenium/wiki/JsonWireProtocol#/session/:sessionId/execute_async
 class Script {
  public:
-  static base::optional<Script> FromValue(const base::Value* script);
+  static base::Optional<Script> FromValue(const base::Value* script);
   const std::string& function_body() const { return function_body_; }
   const std::string& argument_array() const { return argument_array_; }
 
@@ -46,7 +46,8 @@ class Script {
 // returned as a JSON string.
 class ScriptResult {
  public:
-  static scoped_ptr<base::Value> ToValue(const ScriptResult& script_result);
+  static std::unique_ptr<base::Value> ToValue(
+      const ScriptResult& script_result);
 
   explicit ScriptResult(const std::string& result_string)
       : result_string_(result_string) {}

@@ -15,11 +15,12 @@
 #ifndef COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
 #define COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
 
+#include <memory>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/export.h"
 
 namespace cobalt {
@@ -147,7 +148,7 @@ class COBALT_EXPORT ShellAudioBus {
   const uint8* GetSamplePtr(size_t channel, size_t frame) const;
 
   // Contiguous block of channel memory if the memory is owned by this object.
-  scoped_ptr_malloc<uint8, base::ScopedPtrAlignedFree> data_;
+  std::unique_ptr<uint8[], base::AlignedFreeDeleter> data_;
 
   std::vector<uint8*> channel_data_;
   size_t channels_;

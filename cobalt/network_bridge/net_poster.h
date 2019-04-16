@@ -18,8 +18,7 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace network_bridge {

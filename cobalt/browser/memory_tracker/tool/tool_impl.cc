@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val_collection_entry_stats.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"

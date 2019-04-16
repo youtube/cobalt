@@ -15,12 +15,13 @@
 #include "cobalt/webdriver/dispatcher.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/string_tokenizer.h"
-#include "base/string_util.h"
+#include "base/strings/string_tokenizer.h"
+#include "base/strings/string_util.h"
 #include "cobalt/webdriver/protocol/response.h"
 
 namespace cobalt {
@@ -35,18 +36,19 @@ class CommandResultHandlerImpl
     : public WebDriverDispatcher::CommandResultHandler {
  public:
   CommandResultHandlerImpl(
-      scoped_ptr<WebDriverServer::ResponseHandler> response_handler)
-      : response_handler_(response_handler.Pass()) {}
+      std::unique_ptr<WebDriverServer::ResponseHandler> response_handler)
+      : response_handler_(std::move(response_handler)) {}
 
-  void SendResult(const base::optional<protocol::SessionId>& session_id,
-                  protocol::Response::StatusCode status_code,
-                  scoped_ptr<base::Value> webdriver_response_value) override {
-    scoped_ptr<base::Value> response = protocol::Response::CreateResponse(
-        session_id, status_code, webdriver_response_value.Pass());
+  void SendResult(
+      const base::Optional<protocol::SessionId>& session_id,
+      protocol::Response::StatusCode status_code,
+      std::unique_ptr<base::Value> webdriver_response_value) override {
+    std::unique_ptr<base::Value> response = protocol::Response::CreateResponse(
+        session_id, status_code, std::move(webdriver_response_value));
     if (status_code == protocol::Response::kSuccess) {
-      response_handler_->Success(response.Pass());
+      response_handler_->Success(std::move(response));
     } else {
-      response_handler_->FailedCommand(response.Pass());
+      response_handler_->FailedCommand(std::move(response));
     }
   }
 
@@ -56,9 +58,9 @@ class CommandResultHandlerImpl
     if (status_code == protocol::Response::kSuccess) {
       response_handler_->SuccessData(content_type, data, len);
     } else {
-      scoped_ptr<base::Value> response = protocol::Response::CreateResponse(
-          base::nullopt, status_code, scoped_ptr<base::Value>().Pass());
-      response_handler_->FailedCommand(response.Pass());
+      std::unique_ptr<base::Value> response =
+          protocol::Response::CreateResponse(base::nullopt, status_code, NULL);
+      response_handler_->FailedCommand(std::move(response));
     }
   }
 
@@ -75,7 +77,7 @@ class CommandResultHandlerImpl
   }
 
  private:
-  scoped_ptr<WebDriverServer::ResponseHandler> response_handler_;
+  std::unique_ptr<WebDriverServer::ResponseHandler> response_handler_;
 };
 
 // Helper function to get all supported methods for a given mapping of
@@ -115,7 +117,7 @@ void PopulatePathVariableMap(PathVariableMapInternal* path_variable_map,
 // Tokenize a URL path by component.
 std::vector<std::string> TokenizePath(const std::string& path) {
   std::vector<std::string> tokenized_path;
-  StringTokenizer tokenizer(path, "/");
+  base::StringTokenizer tokenizer(path, "/");
   while (tokenizer.GetNext()) {
     tokenized_path.push_back(tokenizer.token());
   }
@@ -197,9 +199,8 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
         std::mismatch(components.rbegin(), components.rend(),
                       it->second.path_components.rbegin(), predicate);
     if (result_pair.first == components.rend()) {
-      DCHECK(
-          result_pair.second ==
-          static_cast<MismatchResult>(it->second.path_components.rend()));
+      DCHECK(result_pair.second ==
+             static_cast<MismatchResult>(it->second.path_components.rend()));
       return &it->second;
     }
   }
@@ -208,8 +209,8 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
 
 void WebDriverDispatcher::HandleWebDriverServerRequest(
     WebDriverServer::HttpMethod method, const std::string& path,
-    scoped_ptr<base::Value> request_value,
-    scoped_ptr<WebDriverServer::ResponseHandler> response_handler) {
+    std::unique_ptr<base::Value> request_value,
+    std::unique_ptr<WebDriverServer::ResponseHandler> response_handler) {
   // Tokenize the requested resource path and look up a CommandMapping for it,
   // matching variables.
   std::vector<std::string> tokenized_request = TokenizePath(path);
@@ -240,10 +241,10 @@ void WebDriverDispatcher::HandleWebDriverServerRequest(
 
   // Create a new CommandResultHandler that will be passed to the Command
   // callback, and run the callback.
-  scoped_ptr<CommandResultHandler> result_handler(
-      new CommandResultHandlerImpl(response_handler.Pass()));
+  std::unique_ptr<CommandResultHandler> result_handler(
+      new CommandResultHandlerImpl(std::move(response_handler)));
   command_it->second.Run(request_value.get(), &path_variable_map,
-                         result_handler.Pass());
+                         std::move(result_handler));
 }
 
 }  // namespace webdriver

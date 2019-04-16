@@ -22,7 +22,7 @@
 #include "base/containers/small_map.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/media_session/media_session_action.h"
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_playback_state.h"
@@ -41,16 +41,20 @@ class MediaSession : public script::Wrappable {
  public:
   typedef script::CallbackFunction<void(
       const scoped_refptr<MediaSessionActionDetails>& action_details)>
-          MediaSessionActionHandler;
+      MediaSessionActionHandler;
   typedef script::ScriptValue<MediaSessionActionHandler>
       MediaSessionActionHandlerHolder;
   typedef script::ScriptValue<MediaSessionActionHandler>::Reference
       MediaSessionActionHandlerReference;
 
  private:
-  typedef base::SmallMap<
-      std::map<MediaSessionAction, MediaSessionActionHandlerReference*>,
-      kMediaSessionActionNumActions> ActionMap;
+  // typedef base::small_map<
+  //     std::map<MediaSessionAction, MediaSessionActionHandlerReference*>,
+  //     kMediaSessionActionNumActions>
+  //     ActionMap;
+  typedef std::map<MediaSessionAction,
+                   script::ScriptValue<MediaSessionActionHandler>::Reference*>
+      ActionMap;
 
  public:
   explicit MediaSession(MediaSessionClient* client);
@@ -78,7 +82,7 @@ class MediaSession : public script::Wrappable {
   MediaSessionClient* media_session_client_;
   scoped_refptr<MediaMetadata> metadata_;
   MediaSessionPlaybackState state_;
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   bool is_change_task_queued_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSession);

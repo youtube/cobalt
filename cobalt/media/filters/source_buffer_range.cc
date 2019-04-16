@@ -267,8 +267,8 @@ size_t SourceBufferRange::DeleteGOPFromFront(BufferQueue* deleted_buffers) {
 
   if (next_buffer_index_ > -1) {
     next_buffer_index_ -= buffers_deleted;
-    CHECK_GE(next_buffer_index_, 0) << next_buffer_index_ << ", deleted "
-                                    << buffers_deleted;
+    CHECK_GE(next_buffer_index_, 0)
+        << next_buffer_index_ << ", deleted " << buffers_deleted;
   }
 
   // Invalidate range start time if we've deleted the first buffer of the range.
@@ -449,8 +449,8 @@ int SourceBufferRange::GetNextConfigId() const {
 
 DecodeTimestamp SourceBufferRange::GetNextTimestamp() const {
   CHECK(!buffers_.empty()) << next_buffer_index_;
-  CHECK(HasNextBufferPosition()) << next_buffer_index_
-                                 << ", size=" << buffers_.size();
+  CHECK(HasNextBufferPosition())
+      << next_buffer_index_ << ", size=" << buffers_.size();
 
   if (next_buffer_index_ >= static_cast<int>(buffers_.size())) {
     return kNoDecodeTimestamp();

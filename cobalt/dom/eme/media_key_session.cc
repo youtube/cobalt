@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/eme/media_key_session.h"
 
+#include <memory>
 #include <type_traits>
 
 #include "base/polymorphic_downcast.h"
@@ -45,10 +46,10 @@ MediaKeySession::MediaKeySession(
                      base::AsWeakPtr(this))
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_HAS(DRM_SESSION_CLOSED)
-          ,
+              ,
           base::Bind(&MediaKeySession::OnSessionClosed,
                      base::AsWeakPtr(this))
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
+#endif             // SB_HAS(DRM_SESSION_CLOSED)
               )),  // NOLINT(whitespace/parens)
       script_value_factory_(script_value_factory),
       uninitialized_(true),
@@ -238,7 +239,7 @@ void MediaKeySession::TraceMembers(script::Tracer* tracer) {
 void MediaKeySession::OnSessionUpdateRequestGenerated(
     script::EnvironmentSettings* settings,
     VoidPromiseValue::Reference* promise_reference,
-    SbDrmSessionRequestType type, scoped_array<uint8> message,
+    SbDrmSessionRequestType type, std::unique_ptr<uint8[]> message,
     int message_size) {
   DCHECK(settings);
   DOMSettings* dom_settings =

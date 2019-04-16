@@ -14,10 +14,11 @@
 
 #include "cobalt/dom/node.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -70,9 +71,8 @@ struct NodeCountLog {
 
 #if defined(HANDLE_CORE_DUMP)
   static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger(
-        "Total number of nodes",
-        static_cast<NodeCountLog*>(context)->count);
+    SbCoreDumpLogInteger("Total number of nodes",
+                         static_cast<NodeCountLog*>(context)->count);
   }
 #endif
 
@@ -82,7 +82,8 @@ struct NodeCountLog {
   DISALLOW_COPY_AND_ASSIGN(NodeCountLog);
 };
 
-base::LazyInstance<NodeCountLog> node_count_log = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NodeCountLog>::DestructorAtExit node_count_log =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -189,7 +190,7 @@ Element* Node::parent_element() const {
   return parent_ ? parent_->AsElement() : NULL;
 }
 
-bool Node::HasChildNodes() const { return first_child_ != NULL; }
+bool Node::HasChildNodes() const { return first_child_.get() != NULL; }
 
 scoped_refptr<NodeList> Node::child_nodes() const {
   return NodeListLive::CreateWithChildren(this);
@@ -215,12 +216,12 @@ scoped_refptr<Node> Node::CloneNode(bool deep) const {
 }
 
 bool Node::Contains(const scoped_refptr<Node>& other_node) const {
-  const Node* child = first_child_;
+  const Node* child = first_child_.get();
   while (child) {
     if (child == other_node || child->Contains(other_node)) {
       return true;
     }
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
   return false;
 }
@@ -317,7 +318,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   }
 
   // 9. Adopt node into parent's node document.
-  node->AdoptIntoDocument(node_document_);
+  node->AdoptIntoDocument(node_document_.get());
 
   // 10. Remove child from its parent with the suppress observers flag set.
   Remove(child, true);
@@ -519,10 +520,10 @@ void Node::OnInsertedIntoDocument() {
   DCHECK(!inserted_into_document_);
   inserted_into_document_ = true;
 
-  Node* child = first_child_;
+  Node* child = first_child_.get();
   while (child) {
     child->OnInsertedIntoDocument();
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
 }
 
@@ -530,10 +531,10 @@ void Node::OnRemovedFromDocument() {
   DCHECK(inserted_into_document_);
   inserted_into_document_ = false;
 
-  Node* child = first_child_;
+  Node* child = first_child_.get();
   while (child) {
     child->OnRemovedFromDocument();
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
 }
 
@@ -558,26 +559,26 @@ void Node::InvalidateLayoutBoxesOfNodeAndDescendants() {
 }
 
 void Node::MarkDisplayNoneOnDescendants() {
-  Node* child = first_child_;
+  Node* child = first_child_.get();
   while (child) {
     child->MarkDisplayNoneOnNodeAndDescendants();
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
 }
 
 void Node::PurgeCachedBackgroundImagesOfDescendants() {
-  Node* child = first_child_;
+  Node* child = first_child_.get();
   while (child) {
     child->PurgeCachedBackgroundImagesOfNodeAndDescendants();
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
 }
 
 void Node::InvalidateComputedStylesOfDescendants() {
-  Node* child = first_child_;
+  Node* child = first_child_.get();
   while (child) {
     child->InvalidateComputedStylesOfNodeAndDescendants();
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
 }
 
@@ -591,7 +592,7 @@ void Node::InvalidateLayoutBoxesOfDescendants() {
   Node* child = first_child_;
   while (child) {
     child->InvalidateLayoutBoxesOfNodeAndDescendants();
-    child = child->next_sibling_;
+    child = child->next_sibling_.get();
   }
 }
 
@@ -604,9 +605,9 @@ void Node::UpdateGenerationForNodeAndAncestors() {
   }
 }
 
-scoped_ptr<Node::RegisteredObserverVector>
+std::unique_ptr<Node::RegisteredObserverVector>
 Node::GatherInclusiveAncestorsObservers() {
-  scoped_ptr<RegisteredObserverVector> inclusive_observers(
+  std::unique_ptr<RegisteredObserverVector> inclusive_observers(
       new RegisteredObserverVector());
   Node* current = this;
   while (current) {
@@ -616,7 +617,7 @@ Node::GatherInclusiveAncestorsObservers() {
                                 node_observers.begin(), node_observers.end());
     current = current->parent_;
   }
-  return inclusive_observers.Pass();
+  return inclusive_observers;
 }
 
 // Algorithm for EnsurePreInsertionValidity:
@@ -688,7 +689,7 @@ scoped_refptr<Node> Node::PreInsert(const scoped_refptr<Node>& node,
   // 3. If reference child is node, set it to node's next sibling.
   // 4. Adopt node into parent's node document.
   // 5. Insert node into parent before reference child.
-  node->AdoptIntoDocument(node_document_);
+  node->AdoptIntoDocument(node_document_.get());
   Insert(node, child == node ? child->next_sibling_ : child, false);
 
   // 6. Return node.
@@ -714,15 +715,16 @@ void Node::Insert(const scoped_refptr<Node>& node,
   //   2. Run the insertion steps with newNode.
 
   if (!suppress_observers) {
-    scoped_ptr<RegisteredObserverVector> observers =
+    std::unique_ptr<RegisteredObserverVector> observers =
         GatherInclusiveAncestorsObservers();
     if (!observers->empty()) {
-      MutationReporter mutation_reporter(this, observers.Pass());
+      MutationReporter mutation_reporter(this, std::move(observers));
       scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
       added_nodes->AppendNode(node);
       mutation_reporter.ReportChildListMutation(
-          added_nodes, NULL, child ? child->previous_sibling_
-                                 : this->last_child_ /* previous_sibling */,
+          added_nodes, NULL,
+          child ? child->previous_sibling_
+                : this->last_child_ /* previous_sibling */,
           child /* next_sibling */);
     }
   }
@@ -826,12 +828,12 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
   // 9. Remove node from its parent.
   // 10. Run the removing steps with node, parent, and oldPreviousSibling.
 
-  scoped_ptr<RegisteredObserverVector> observers =
+  std::unique_ptr<RegisteredObserverVector> observers =
       GatherInclusiveAncestorsObservers();
   if (!observers->empty()) {
     // Step 7 - Queue a mutation record.
     if (!suppress_observers) {
-      MutationReporter mutation_reporter(this, observers.Pass());
+      MutationReporter mutation_reporter(this, std::move(observers));
       scoped_refptr<dom::NodeList> removed_nodes = new dom::NodeList();
       removed_nodes->AppendNode(node);
       mutation_reporter.ReportChildListMutation(
@@ -903,10 +905,10 @@ void Node::ReplaceAll(const scoped_refptr<Node>& node) {
 
   // 6. Queue a mutation record of "childList" for parent with addedNodes
   //    addedNodes and removedNodes removedNodes.
-  scoped_ptr<RegisteredObserverVector> observers =
+  std::unique_ptr<RegisteredObserverVector> observers =
       GatherInclusiveAncestorsObservers();
   if (!observers->empty()) {
-    MutationReporter mutation_reporter(this, observers.Pass());
+    MutationReporter mutation_reporter(this, std::move(observers));
     scoped_refptr<dom::NodeList> new_added_nodes = new dom::NodeList();
     if (node) {
       new_added_nodes->AppendNode(node);

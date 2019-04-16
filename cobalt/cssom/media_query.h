@@ -15,11 +15,11 @@
 #ifndef COBALT_CSSOM_MEDIA_QUERY_H_
 #define COBALT_CSSOM_MEDIA_QUERY_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/media_feature.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
@@ -36,7 +36,7 @@ class MediaQuery : public script::Wrappable {
   MediaQuery();
   explicit MediaQuery(bool evaluated_media_type);
   MediaQuery(bool evaluated_media_type,
-             scoped_ptr<MediaFeatures> media_features);
+             std::unique_ptr<MediaFeatures> media_features);
 
   // Custom, not in any spec.
   //
@@ -48,7 +48,7 @@ class MediaQuery : public script::Wrappable {
 
  private:
   bool evaluated_media_type_;
-  scoped_ptr<MediaFeatures> media_features_;
+  std::unique_ptr<MediaFeatures> media_features_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaQuery);
 };

@@ -20,10 +20,9 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "base/stringprintf.h"
-#include "base/time.h"
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
@@ -383,7 +382,7 @@ inline void FromJSValue(
 
 // optional<T> -> JSValue
 template <typename T>
-inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
+inline void ToJSValue(JSContext* context, const base::Optional<T>& in_optional,
                       JS::MutableHandleValue out_value) {
   TRACK_MEMORY_SCOPE("Javascript");
   if (!in_optional) {
@@ -397,7 +396,7 @@ inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
 template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
-                        base::optional<T>* out_optional) {
+                        base::Optional<T>* out_optional) {
   TRACK_MEMORY_SCOPE("Javascript");
   if (value.isNull()) {
     *out_optional = base::nullopt;
@@ -414,7 +413,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 template <>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
-                        base::optional<std::string>* out_optional) {
+                        base::Optional<std::string>* out_optional) {
   TRACK_MEMORY_SCOPE("Javascript");
   if (value.isNull()) {
     *out_optional = base::nullopt;
@@ -634,8 +633,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   // 1. If Type(V) is not Object, throw a TypeError.
   JS::RootedObject iterable(context);
-  if (!value.isObject() ||
-      !JS_ValueToObject(context, value, &iterable)) {
+  if (!value.isObject() || !JS_ValueToObject(context, value, &iterable)) {
     exception_state->SetSimpleException(kNotObjectType);
     return;
   }

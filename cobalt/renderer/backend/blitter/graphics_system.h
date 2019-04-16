@@ -15,10 +15,12 @@
 #ifndef COBALT_RENDERER_BACKEND_BLITTER_GRAPHICS_SYSTEM_H_
 #define COBALT_RENDERER_BACKEND_BLITTER_GRAPHICS_SYSTEM_H_
 
-#include "base/optional.h"
+#include <memory>
+
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/system_window/system_window.h"
 #include "starboard/blitter.h"
+#include "starboard/common/optional.h"
 
 #if SB_HAS(BLITTER)
 
@@ -33,10 +35,10 @@ class GraphicsSystemBlitter : public GraphicsSystem {
   GraphicsSystemBlitter();
   ~GraphicsSystemBlitter() override;
 
-  scoped_ptr<Display> CreateDisplay(
+  std::unique_ptr<Display> CreateDisplay(
       system_window::SystemWindow* system_window) override;
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext() override;
+  std::unique_ptr<GraphicsContext> CreateGraphicsContext() override;
 
   SbBlitterDevice GetSbBlitterDevice() { return device_; }
 

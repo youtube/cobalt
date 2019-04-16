@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_BUTTON_H_
 #define COBALT_WEBDRIVER_PROTOCOL_BUTTON_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -32,8 +32,8 @@ namespace protocol {
 // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidbuttonup
 class Button {
  public:
-  static scoped_ptr<base::Value> ToValue(const Button& button);
-  static base::optional<Button> FromValue(const base::Value* value);
+  static std::unique_ptr<base::Value> ToValue(const Button& button);
+  static base::Optional<Button> FromValue(const base::Value* value);
 
   int button() const { return button_; }
 

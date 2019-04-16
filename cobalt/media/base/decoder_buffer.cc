@@ -142,7 +142,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(Allocator* allocator,
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {
-  return make_scoped_refptr(new DecoderBuffer);
+  return base::WrapRefCounted(new DecoderBuffer);
 }
 
 const char* DecoderBuffer::GetTypeName() const {

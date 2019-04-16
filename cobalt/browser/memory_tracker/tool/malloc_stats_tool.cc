@@ -28,12 +28,9 @@ namespace cobalt {
 namespace browser {
 namespace memory_tracker {
 
-MallocStatsTool::MallocStatsTool() {
-}
+MallocStatsTool::MallocStatsTool() {}
 
-std::string MallocStatsTool::tool_name() const  {
-  return "MallocStatsTool";
-}
+std::string MallocStatsTool::tool_name() const { return "MallocStatsTool"; }
 
 void MallocStatsTool::Run(Params* params) {
   params->logger()->Output("MallocStatsTool running...\n");
@@ -60,14 +57,14 @@ void MallocStatsTool::Run(Params* params) {
           nb::analytics::GetProcessMemoryStats();
 
       histogram_table.BeginRow(params->time_since_start());
-      histogram_table.AddRowValue(
-          "TotalCpuMemory(MB)", memory_stats.total_cpu_memory);
-      histogram_table.AddRowValue(
-          "UsedCpuMemory(MB)", memory_stats.used_cpu_memory);
-      histogram_table.AddRowValue(
-          "TotalGpuMemory(MB)", memory_stats.total_gpu_memory);
-      histogram_table.AddRowValue(
-          "UsedGpuMemory(MB)", memory_stats.used_gpu_memory);
+      histogram_table.AddRowValue("TotalCpuMemory(MB)",
+                                  memory_stats.total_cpu_memory);
+      histogram_table.AddRowValue("UsedCpuMemory(MB)",
+                                  memory_stats.used_cpu_memory);
+      histogram_table.AddRowValue("TotalGpuMemory(MB)",
+                                  memory_stats.total_gpu_memory);
+      histogram_table.AddRowValue("UsedGpuMemory(MB)",
+                                  memory_stats.used_gpu_memory);
       histogram_table.FinalizeRow();
     }
 

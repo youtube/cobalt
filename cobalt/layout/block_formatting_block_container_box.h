@@ -15,6 +15,8 @@
 #ifndef COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
 #define COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
 
+#include <memory>
+
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/paragraph.h"
@@ -44,7 +46,7 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
 
  protected:
   // From |BlockContainerBox|.
-  scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
+  std::unique_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
       const LayoutParams& child_layout_params) override;
 
  private:
@@ -112,7 +114,7 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
                        LayoutUnit available_width,
                        bool should_collapse_trailing_white_space) override;
 
-  base::optional<int> GetBidiLevel() const override;
+  base::Optional<int> GetBidiLevel() const override;
 
   bool DoesFulfillEllipsisPlacementRequirement() const override;
   void DoPreEllipsisPlacementProcessing() override;

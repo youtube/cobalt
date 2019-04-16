@@ -22,7 +22,7 @@ namespace media {
 
 namespace {
 // StaticAtomicSequenceNumber is safe to be initialized statically.
-base::StaticAtomicSequenceNumber s_z_index;
+base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
 void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {

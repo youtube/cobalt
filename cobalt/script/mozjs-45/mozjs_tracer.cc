@@ -14,7 +14,7 @@
 
 #include "cobalt/script/mozjs-45/mozjs_tracer.h"
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "third_party/mozjs-45/js/public/Proxy.h"

@@ -5,10 +5,10 @@
 #ifndef COBALT_MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
 #define COBALT_MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
@@ -31,7 +31,7 @@ class MEDIA_EXPORT StreamParserFactory {
   // Returns a new StreamParser object if |type| and all codecs listed in
   //   |codecs| are supported.
   // Returns NULL otherwise.
-  static scoped_ptr<StreamParser> Create(
+  static std::unique_ptr<StreamParser> Create(
       DecoderBuffer::Allocator* buffer_allocator, const std::string& type,
       const std::vector<std::string>& codecs,
       const scoped_refptr<MediaLog>& media_log);

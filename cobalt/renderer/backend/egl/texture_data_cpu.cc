@@ -43,7 +43,7 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
     DCHECK(bgra_supported);
   }
 
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree>
+  std::unique_ptr<uint8_t, base::AlignedFreeDeleter>
       buffer_for_pitch_adjustment;
   auto width_in_bytes = size.width() * BytesPerPixelForGLFormat(format);
   if (width_in_bytes != pitch_in_bytes) {
@@ -102,7 +102,7 @@ bool TextureDataCPU::CreationError() { return memory_.get() == NULL; }
 
 RawTextureMemoryCPU::RawTextureMemoryCPU(size_t size_in_bytes, size_t alignment)
     : size_in_bytes_(size_in_bytes) {
-  memory_ = scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree>(
+  memory_ = std::unique_ptr<uint8_t, base::AlignedFreeDeleter>(
       static_cast<uint8_t*>(base::AlignedAlloc(size_in_bytes, alignment)));
 }
 

@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <ostream>
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/test/scoped_task_environment.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
@@ -26,8 +28,8 @@
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
-#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -56,21 +58,22 @@ const char kOutputAllTestDetails[] = "output-all-test-details";
 namespace {
 
 void ScreenshotFunction(
-    scoped_refptr<base::MessageLoopProxy> expected_message_loop,
+    scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
     renderer::RenderTreePixelTester* pixel_tester,
     const scoped_refptr<render_tree::Node>& node,
-    const base::optional<math::Rect>& clip_rect,
+    const base::Optional<math::Rect>& clip_rect,
     const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
-  if (base::MessageLoopProxy::current() != expected_message_loop) {
+  if (base::MessageLoop::current()->task_runner() != expected_message_loop) {
     expected_message_loop->PostTask(
         FROM_HERE, base::Bind(&ScreenshotFunction, expected_message_loop,
                               pixel_tester, node, clip_rect, callback));
     return;
   }
   // The tests only take full-screen screenshots, so |clip_rect| is ignored.
-  scoped_array<uint8_t> image_data = pixel_tester->RasterizeRenderTree(node);
+  std::unique_ptr<uint8_t[]> image_data =
+      pixel_tester->RasterizeRenderTree(node);
   const math::Size& image_dimensions = pixel_tester->GetTargetSize();
-  callback.Run(image_data.Pass(), image_dimensions);
+  callback.Run(std::move(image_data), image_dimensions);
 }
 
 struct GetTestName {
@@ -105,16 +108,16 @@ TEST_P(Layout, Test) {
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
   // thread.
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::test::ScopedTaskEnvironment scoped_environment;
 
   // Setup the pixel tester we will use to perform pixel tests on the render
   // trees output by the web module.
   renderer::RenderTreePixelTester::Options pixel_tester_options;
   pixel_tester_options.output_failed_test_details =
-      CommandLine::ForCurrentProcess()->HasSwitch(
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputFailedTestDetails);
   pixel_tester_options.output_all_test_details =
-      CommandLine::ForCurrentProcess()->HasSwitch(
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputAllTestDetails);
 
   // Resolve the viewport size to a default if the test did not explicitly
@@ -133,7 +136,8 @@ TEST_P(Layout, Test) {
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       GetParam().url, viewport_size, pixel_tester.GetResourceProvider(),
-      base::Bind(&ScreenshotFunction, base::MessageLoopProxy::current(),
+      base::Bind(&ScreenshotFunction,
+                 base::MessageLoop::current()->task_runner(),
                  base::Unretained(&pixel_tester)));
 
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =
@@ -155,10 +159,10 @@ TEST_P(Layout, Test) {
   bool results =
       pixel_tester.TestTree(static_render_tree, GetParam().base_file_path);
 
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline) ||
-      (!results &&
-       CommandLine::ForCurrentProcess()->HasSwitch(
-           switches::kRebaselineFailedTests))) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kRebaseline) ||
+      (!results && base::CommandLine::ForCurrentProcess()->HasSwitch(
+                       switches::kRebaselineFailedTests))) {
     pixel_tester.Rebaseline(static_render_tree, GetParam().base_file_path);
   }
 

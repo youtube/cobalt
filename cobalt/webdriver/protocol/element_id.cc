@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/element_id.h"
 
 namespace cobalt {
@@ -20,13 +22,14 @@ namespace protocol {
 
 const char ElementId::kElementKey[] = "ELEMENT";
 
-scoped_ptr<base::Value> ElementId::ToValue(const ElementId& element_id) {
-  scoped_ptr<base::DictionaryValue> element_object(new base::DictionaryValue());
+std::unique_ptr<base::Value> ElementId::ToValue(const ElementId& element_id) {
+  std::unique_ptr<base::DictionaryValue> element_object(
+      new base::DictionaryValue());
   element_object->SetString(kElementKey, element_id.id_);
-  return element_object.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(element_object.release());
 }
 
-base::optional<ElementId> ElementId::FromValue(const base::Value* value) {
+base::Optional<ElementId> ElementId::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
     return base::nullopt;

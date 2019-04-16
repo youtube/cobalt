@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_IMAGE_IMAGE_DECODER_H_
 #define COBALT_LOADER_IMAGE_IMAGE_DECODER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/atomicops.h"
@@ -103,7 +104,7 @@ class ImageDecoder : public Decoder {
   const ImageAvailableCallback image_available_callback_;
   ImageType image_type_;
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
-  scoped_ptr<ImageDataDecoder> decoder_;
+  std::unique_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
   std::string error_message_;

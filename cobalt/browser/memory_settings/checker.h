@@ -33,9 +33,8 @@ namespace memory_settings {
 class Checker {
  public:
   Checker();
-  void RunChecks(const AutoMem& auto_mem,
-                 int64_t curr_cpu_memory_usage,
-                 base::optional<int64_t> curr_gpu_memory_usage);
+  void RunChecks(const AutoMem& auto_mem, int64_t curr_cpu_memory_usage,
+                 base::Optional<int64_t> curr_gpu_memory_usage);
 
  private:
   bool cpu_memory_warning_fired_;

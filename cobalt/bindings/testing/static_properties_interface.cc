@@ -18,8 +18,8 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-base::LazyInstance<
-    ::testing::StrictMock<StaticPropertiesInterface::StaticMethodsMock> >
+base::LazyInstance< ::testing::StrictMock<
+    StaticPropertiesInterface::StaticMethodsMock> >::DestructorAtExit
     StaticPropertiesInterface::static_methods_mock = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace testing

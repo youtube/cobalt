@@ -16,7 +16,7 @@
 #define COBALT_BINDINGS_TESTING_INTERFACE_WITH_DATE_H_
 
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 

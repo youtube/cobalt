@@ -20,13 +20,12 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/containers/hash_tables.h"
 #include "base/gtest_prod_util.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/csp/source.h"
 #include "cobalt/network/local_network.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {

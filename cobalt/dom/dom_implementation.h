@@ -43,10 +43,10 @@ class DOMImplementation : public script::Wrappable {
 
   // Web API: DOMImplementation
   scoped_refptr<XMLDocument> CreateDocument(
-      base::optional<std::string> namespace_name,
+      base::Optional<std::string> namespace_name,
       const std::string& qualified_name);
   scoped_refptr<XMLDocument> CreateDocument(
-      base::optional<std::string> namespace_name,
+      base::Optional<std::string> namespace_name,
       const std::string& qualified_name, scoped_refptr<DocumentType> doctype);
 
   DEFINE_WRAPPABLE_TYPE(DOMImplementation);

@@ -135,7 +135,7 @@ bool PositionParseStructure::IsPositionValidOnSizeTwo() {
   // Check for the special case that a pair of keywords can be reordered while
   // a combination of keyword and length or percentage cannot. eg. 'top center'
   // is valid while 'top 50%' is not.
-  DCHECK_EQ(2, position_builder_.size());
+  DCHECK_EQ(size_t(2), position_builder_.size());
 
   Direction first_direction = ConvertToDirection(position_builder_[0]);
   Direction second_direction = ConvertToDirection(position_builder_[1]);

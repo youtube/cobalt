@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -128,8 +128,8 @@ bool ParseAv1CodecId(const std::string& codec_id, VideoCodecProfile* profile,
   if (SbStringFindString(codec_id.c_str(), "..") != nullptr) {
     return false;
   }
-  std::vector<std::string> fields;
-  base::SplitString(codec_id, '.', &fields);
+  std::vector<std::string> fields = base::SplitString(
+      codec_id, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   // The parameters sample entry 4CC, profile, level, tier, and bitDepth are all
   // mandatory fields. If any of these fields are empty, or not within their
@@ -313,8 +313,8 @@ bool ParseAv1CodecId(const std::string& codec_id, VideoCodecProfile* profile,
 bool ParseAVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
                      uint8_t* level_idc) {
   // Make sure we have avc1.xxxxxx or avc3.xxxxxx , where xxxxxx are hex digits
-  if (!StartsWithASCII(codec_id, "avc1.", true) &&
-      !StartsWithASCII(codec_id, "avc3.", true)) {
+  if (!StartsWith(codec_id, "avc1.", base::CompareCase::SENSITIVE) &&
+      !StartsWith(codec_id, "avc3.", base::CompareCase::SENSITIVE)) {
     return false;
   }
   uint32_t elem = 0;
@@ -402,8 +402,8 @@ bool ParseAVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
 // dated 2012 or newer in the Annex E.3
 bool ParseHEVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
                       uint8_t* level_idc) {
-  if (!StartsWithASCII(codec_id, "hev1.", true) &&
-      !StartsWithASCII(codec_id, "hvc1.", true)) {
+  if (!StartsWith(codec_id, "hev1.", base::CompareCase::SENSITIVE) &&
+      !StartsWith(codec_id, "hvc1.", base::CompareCase::SENSITIVE)) {
     return false;
   }
 
@@ -420,8 +420,8 @@ bool ParseHEVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
     return false;
   }
 
-  std::vector<std::string> elem;
-  base::SplitString(codec_id, '.', &elem);
+  std::vector<std::string> elem = base::SplitString(
+      codec_id, std::string("."), base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   DCHECK(elem[0] == "hev1" || elem[0] == "hvc1");
 
   if (elem.size() < 4) {
@@ -505,8 +505,8 @@ bool ParseHEVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
 }
 
 VideoCodec StringToVideoCodec(const std::string& codec_id) {
-  std::vector<std::string> elem;
-  base::SplitString(codec_id, '.', &elem);
+  std::vector<std::string> elem = base::SplitString(
+      codec_id, std::string("."), base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (elem.empty()) return kUnknownVideoCodec;
   VideoCodecProfile profile = VIDEO_CODEC_PROFILE_UNKNOWN;
   uint8_t level = 0;

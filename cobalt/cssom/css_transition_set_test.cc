@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/time.h"
+#include <memory>
+
+#include "base/time/time.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/css_transition_set.h"
@@ -34,37 +36,38 @@ namespace cssom {
 
 namespace {
 scoped_refptr<TimeListValue> MakeTimeListWithSingleTime(float time_in_seconds) {
-  scoped_ptr<TimeListValue::Builder> time_list(new TimeListValue::Builder());
+  std::unique_ptr<TimeListValue::Builder> time_list(
+      new TimeListValue::Builder());
   time_list->push_back(base::TimeDelta::FromMicroseconds(static_cast<int64>(
       time_in_seconds * base::Time::kMicrosecondsPerSecond)));
-  return make_scoped_refptr(new TimeListValue(time_list.Pass()));
+  return base::WrapRefCounted(new TimeListValue(std::move(time_list)));
 }
 
 scoped_refptr<PropertyListValue> MakePropertyListWithSingleProperty(
     const scoped_refptr<PropertyValue>& property_value) {
-  scoped_ptr<PropertyListValue::Builder> property_list_builder(
+  std::unique_ptr<PropertyListValue::Builder> property_list_builder(
       new PropertyListValue::Builder());
   property_list_builder->push_back(property_value.get());
-  return make_scoped_refptr(
-      new PropertyListValue(property_list_builder.Pass()));
+  return base::WrapRefCounted(
+      new PropertyListValue(std::move(property_list_builder)));
 }
 
 scoped_refptr<PropertyKeyListValue> MakePropertyNameListWithSingleProperty(
     PropertyKey property) {
-  scoped_ptr<PropertyKeyListValue::Builder> property_name_list(
+  std::unique_ptr<PropertyKeyListValue::Builder> property_name_list(
       new PropertyKeyListValue::Builder());
   property_name_list->push_back(property);
-  return make_scoped_refptr(
-      new PropertyKeyListValue(property_name_list.Pass()));
+  return base::WrapRefCounted(
+      new PropertyKeyListValue(std::move(property_name_list)));
 }
 
 scoped_refptr<TimingFunctionListValue> MakeTimingFunctionWithSingleProperty(
     const scoped_refptr<TimingFunction>& timing_function) {
-  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list(
+  std::unique_ptr<TimingFunctionListValue::Builder> timing_function_list(
       new TimingFunctionListValue::Builder());
   timing_function_list->push_back(timing_function);
-  return make_scoped_refptr(
-      new TimingFunctionListValue(timing_function_list.Pass()));
+  return base::WrapRefCounted(
+      new TimingFunctionListValue(std::move(timing_function_list)));
 }
 
 scoped_refptr<CSSComputedStyleData> CreateTestComputedData() {

@@ -15,13 +15,13 @@
 #ifndef COBALT_MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
 #define COBALT_MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/player/web_media_player.h"
@@ -69,7 +69,7 @@ class WebMediaPlayerHelper {
   class WebMediaPlayerClientStub;
 
   WebMediaPlayerClientStub* client_;
-  scoped_ptr<WebMediaPlayer> player_;
+  std::unique_ptr<WebMediaPlayer> player_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMediaPlayerHelper);
 };

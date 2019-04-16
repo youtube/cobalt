@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/string_util.h"
+#include <memory>
+
+#include "base/strings/string_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -26,7 +28,7 @@
 #include "cobalt/renderer/submission.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/benchmark.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -46,7 +48,9 @@ const ViewportSize kViewSize(kViewportWidth, kViewportHeight);
 class RendererBenchmarkRunner {
  public:
   RendererBenchmarkRunner()
-      : done_gathering_samples_(true, false),
+      : done_gathering_samples_(
+            base::WaitableEvent::ResetPolicy::MANUAL,
+            base::WaitableEvent::InitialState::NOT_SIGNALED),
         system_window_(new system_window::SystemWindow(
             &event_dispatcher_, kViewSize.width_height())) {
     // Since we'd like to measure the renderer, we force it to rasterize each
@@ -99,8 +103,8 @@ class RendererBenchmarkRunner {
   base::WaitableEvent done_gathering_samples_;
   base::EventDispatcher event_dispatcher_;
 
-  scoped_ptr<system_window::SystemWindow> system_window_;
-  base::optional<renderer::RendererModule> renderer_module_;
+  std::unique_ptr<system_window::SystemWindow> system_window_;
+  base::Optional<renderer::RendererModule> renderer_module_;
 };
 
 }  // namespace
@@ -122,7 +126,7 @@ class LayoutBenchmark : public trace_event::Benchmark {
       FinalResultsSampleMap;
 
   void OnIterationComplete();
-  static std::string FilePathToBenchmarkName(const FilePath& filepath);
+  static std::string FilePathToBenchmarkName(const base::FilePath& filepath);
 
   TestInfo test_info_;
 
@@ -167,23 +171,24 @@ LayoutBenchmark::LayoutBenchmark(const TestInfo& test_info)
   renderer_samples_["Skia Flush"];
 }
 
-std::string LayoutBenchmark::FilePathToBenchmarkName(const FilePath& filepath) {
-  std::vector<FilePath::StringType> components;
+std::string LayoutBenchmark::FilePathToBenchmarkName(
+    const base::FilePath& filepath) {
+  std::vector<base::FilePath::StringType> components;
   filepath.GetComponents(&components);
 
   // Don't include the "benchmarks" directory as part of the benchmark name.
   components.erase(components.begin());
 
-  return JoinString(components, '/');
+  return base::JoinString(components, "/");
 }
 
 void LayoutBenchmark::Experiment() {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
   // We prepare a layout_results variable where we place the results from each
   // layout.  We will then use the final layout_results as input to the renderer
   // benchmark.
-  base::optional<browser::WebModule::LayoutResults> layout_results;
+  base::Optional<browser::WebModule::LayoutResults> layout_results;
 
   ViewportSize viewport_size =
       test_info_.viewport_size ? *test_info_.viewport_size : kViewSize;
@@ -235,7 +240,7 @@ void LayoutBenchmark::AnalyzeTraceEvent(
       layout_samples_.find(event->name());
   if (found_layout != layout_samples_.end() &&
       !HasAncestorEvent(event, layout::kBenchmarkStatNonMeasuredLayout)) {
-    if (!ContainsKey(intermediate_results_, found_layout->first)) {
+    if (!base::ContainsKey(intermediate_results_, found_layout->first)) {
       intermediate_results_[found_layout->first] = 0;
     }
 
@@ -274,7 +279,7 @@ void LayoutBenchmark::OnIterationComplete() {
     // then clear out our intermediate results for the next iteration.
     for (FinalResultsSampleMap::iterator iter = layout_samples_.begin();
          iter != layout_samples_.end(); ++iter) {
-      if (ContainsKey(intermediate_results_, iter->first)) {
+      if (base::ContainsKey(intermediate_results_, iter->first)) {
         iter->second.push_back(intermediate_results_[iter->first]);
       }
     }
@@ -315,9 +320,10 @@ class LayoutBenchmarkCreator : public trace_event::BenchmarkCreator {
   }
 
  private:
-  static scoped_ptr<trace_event::Benchmark> CreateLayoutBenchmark(
+  static std::unique_ptr<trace_event::Benchmark> CreateLayoutBenchmark(
       const TestInfo& test_info) {
-    return scoped_ptr<trace_event::Benchmark>(new LayoutBenchmark(test_info));
+    return std::unique_ptr<trace_event::Benchmark>(
+        new LayoutBenchmark(test_info));
   }
 };
 LayoutBenchmarkCreator g_benchmark_creator;

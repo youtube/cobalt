@@ -15,12 +15,12 @@
 #ifndef COBALT_CSSOM_SCOPED_REF_LIST_VALUE_H_
 #define COBALT_CSSOM_SCOPED_REF_LIST_VALUE_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -35,8 +35,8 @@ class ScopedRefListValue : public PropertyValue {
  public:
   typedef std::vector<scoped_refptr<T> > Builder;
 
-  explicit ScopedRefListValue(scoped_ptr<Builder> value)
-      : value_(value.Pass()) {
+  explicit ScopedRefListValue(std::unique_ptr<Builder> value)
+      : value_(std::move(value)) {
     DCHECK(value_.get());
     DCHECK(!value_->empty());
   }
@@ -64,7 +64,7 @@ class ScopedRefListValue : public PropertyValue {
  protected:
   ~ScopedRefListValue() override {}
 
-  const scoped_ptr<Builder> value_;
+  const std::unique_ptr<Builder> value_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ScopedRefListValue<T>);

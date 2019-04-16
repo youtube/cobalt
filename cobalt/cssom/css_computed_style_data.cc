@@ -17,7 +17,7 @@
 #include <limits>
 
 #include "base/lazy_instance.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -111,8 +111,8 @@ struct NonTrivialStaticFields {
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 
 const scoped_refptr<PropertyValue>&

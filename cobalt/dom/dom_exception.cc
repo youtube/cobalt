@@ -80,7 +80,7 @@ void DOMException::Raise(ExceptionCode code,
                          script::ExceptionState* exception_state) {
   DCHECK(exception_state);
   if (exception_state) {
-    exception_state->SetException(make_scoped_refptr(new DOMException(code)));
+    exception_state->SetException(base::WrapRefCounted(new DOMException(code)));
   }
 }
 
@@ -90,7 +90,7 @@ void DOMException::Raise(ExceptionCode code, const std::string& message,
   DCHECK(exception_state);
   if (exception_state) {
     exception_state->SetException(
-        make_scoped_refptr(new DOMException(code, message)));
+        base::WrapRefCounted(new DOMException(code, message)));
   }
 }
 

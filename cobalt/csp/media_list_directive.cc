@@ -41,7 +41,7 @@ void MediaListDirective::Parse(const base::StringPiece& str) {
   while (position < end) {
     // _____ OR _____mime1/mime1
     // ^        ^
-    SkipWhile<IsAsciiWhitespace>(&position, end);
+    SkipWhile<base::IsAsciiWhitespace>(&position, end);
     if (position == end) {
       return;
     }
@@ -82,7 +82,7 @@ void MediaListDirective::Parse(const base::StringPiece& str) {
     }
     plugin_types_.insert(ToString(begin, position));
 
-    DCHECK(position == end || IsAsciiWhitespace(*position));
+    DCHECK(position == end || base::IsAsciiWhitespace(*position));
   }
 }
 

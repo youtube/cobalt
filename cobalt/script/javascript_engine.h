@@ -15,11 +15,11 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPT_ENGINE_H_
 #define COBALT_SCRIPT_JAVASCRIPT_ENGINE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/source_location.h"
 
 namespace cobalt {
@@ -36,7 +36,7 @@ struct HeapStatistics {
 class JavaScriptEngine {
  public:
   struct Options {
-    Options() : disable_jit(false), gc_threshold_bytes(1024*1024) {}
+    Options() : disable_jit(false), gc_threshold_bytes(1024 * 1024) {}
 
     // Default false. When set to true then the JavaScript engine should
     // disable the just-in-time compiler.
@@ -49,12 +49,13 @@ class JavaScriptEngine {
   };
 
   typedef base::Callback<void(const base::SourceLocation& location,
-                              const std::string& error_message)> ErrorHandler;
+                              const std::string& error_message)>
+      ErrorHandler;
 
   // Initialize a JavaScript engine. The JavaScript engine should only be
   // accessed from the thread that called CreateEngine.
   // This function is defined per-implementation.
-  static scoped_ptr<JavaScriptEngine> CreateEngine(
+  static std::unique_ptr<JavaScriptEngine> CreateEngine(
       const Options& options = Options());
 
   // Create a new JavaScript global object proxy.
@@ -82,7 +83,7 @@ class JavaScriptEngine {
 
  protected:
   virtual ~JavaScriptEngine() {}
-  friend class scoped_ptr<JavaScriptEngine>;
+  friend std::unique_ptr<JavaScriptEngine>::deleter_type;
 };
 
 // Returns the name and version of the JavaScript engine being used, joined

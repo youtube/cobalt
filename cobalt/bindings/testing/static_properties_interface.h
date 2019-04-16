@@ -64,8 +64,8 @@ class StaticPropertiesInterface : public script::Wrappable {
 
   DEFINE_WRAPPABLE_TYPE(StaticPropertiesInterface);
 
-  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >
-      static_methods_mock;
+  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >::
+      DestructorAtExit static_methods_mock;
 };
 
 }  // namespace testing

@@ -32,14 +32,14 @@ class MediaSessionActionDetails : public script::Wrappable {
     explicit Data(MediaSessionAction action, double seek = 0.0)
         : action_(action),
           seek_time_(action == kMediaSessionActionSeek ? seek : 0.0),
-          seek_offset_(
-              (action == kMediaSessionActionSeekforward
-                  || action == kMediaSessionActionSeekbackward) ? seek : 0.0) {
+          seek_offset_((action == kMediaSessionActionSeekforward ||
+                        action == kMediaSessionActionSeekbackward)
+                           ? seek
+                           : 0.0) {
       DCHECK(seek >= 0.0);
-      DCHECK(seek == 0.0
-             || action == kMediaSessionActionSeek
-             || action == kMediaSessionActionSeekforward
-             || action == kMediaSessionActionSeekbackward);
+      DCHECK(seek == 0.0 || action == kMediaSessionActionSeek ||
+             action == kMediaSessionActionSeekforward ||
+             action == kMediaSessionActionSeekbackward);
     }
     Data(const Data&) = default;
 

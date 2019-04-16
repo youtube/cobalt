@@ -7,7 +7,7 @@
 // that provides integration with the logging of your choice.
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "third_party/skia/include/core/SkTypes.h"
 
 void SkDebugf_FileLine(const char* file, int line, bool fatal,

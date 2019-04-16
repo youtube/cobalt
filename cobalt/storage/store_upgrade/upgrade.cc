@@ -15,27 +15,28 @@
 #include "cobalt/storage/store_upgrade/upgrade.h"
 
 #include <map>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "base/debug/trace_event.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/optional.h"
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/memory_store.h"
 #include "cobalt/storage/store/storage.pb.h"
 #include "cobalt/storage/store_upgrade/sql_vfs.h"
 #include "cobalt/storage/store_upgrade/virtual_file.h"
 #include "cobalt/storage/store_upgrade/virtual_file_system.h"
-#include "googleurl/src/gurl.h"
 #include "nb/memory_scope.h"
 #include "net/cookies/canonical_cookie.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
 #include "starboard/storage.h"
 #include "third_party/sqlite/sqlite3.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace storage {
@@ -53,7 +54,7 @@ const std::string& GetFirstValidDatabaseFile(
 
   for (size_t i = 0; i < filenames.size(); ++i) {
     sql::Connection connection;
-    bool is_opened = connection.Open(FilePath(filenames[i]));
+    bool is_opened = connection.Open(base::FilePath(filenames[i]));
     if (!is_opened) {
       continue;
     }
@@ -98,9 +99,9 @@ void GetAllCookies(sql::Connection* conn, Storage* storage) {
   }
 }
 
-base::optional<loader::Origin> ParseLocalStorageId(const std::string& id) {
-  std::vector<std::string> id_tokens;
-  base::SplitString(id, '_', &id_tokens);
+base::Optional<loader::Origin> ParseLocalStorageId(const std::string& id) {
+  std::vector<std::string> id_tokens =
+      base::SplitString(id, "_", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (id_tokens.size() != 3) {
     DLOG(WARNING) << "Failed to parse id=" << id;
     return base::nullopt;
@@ -109,8 +110,8 @@ base::optional<loader::Origin> ParseLocalStorageId(const std::string& id) {
   url += "://";
   url += id_tokens[1];
 
-  std::vector<std::string> port_tokens;
-  base::SplitString(id_tokens[2], '.', &port_tokens);
+  std::vector<std::string> port_tokens = base::SplitString(
+      id_tokens[2], ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (port_tokens.size() != 2) {
     return base::nullopt;
   }
@@ -134,7 +135,7 @@ void GetLocalStorage(sql::Connection* conn, Storage* storage) {
   std::map<std::string, LocalStorage*> map_storage;
   while (get_all.Step()) {
     std::string id(get_all.ColumnString(0));
-    base::optional<loader::Origin> origin = ParseLocalStorageId(id);
+    base::Optional<loader::Origin> origin = ParseLocalStorageId(id);
     if (!origin) {
       continue;
     }
@@ -154,9 +155,9 @@ void GetLocalStorage(sql::Connection* conn, Storage* storage) {
 }
 
 bool OpenConnection(const std::vector<uint8>& raw_bytes,
-                    const scoped_ptr<VirtualFileSystem>& vfs,
-                    const scoped_ptr<SqlVfs>& sql_vfs,
-                    const scoped_ptr<sql::Connection>& connection) {
+                    const std::unique_ptr<VirtualFileSystem>& vfs,
+                    const std::unique_ptr<SqlVfs>& sql_vfs,
+                    const std::unique_ptr<sql::Connection>& connection) {
   VirtualFileSystem::SerializedHeader header = {};
 
   if (raw_bytes.size() > 0) {
@@ -181,7 +182,7 @@ bool OpenConnection(const std::vector<uint8>& raw_bytes,
   // Legacy Steel save data may contain multiple files (e.g. db-journal as well
   // as db), so use the first one that looks like a valid database file.
   const std::string& save_name = GetFirstValidDatabaseFile(filenames);
-  bool ok = connection->Open(FilePath(save_name));
+  bool ok = connection->Open(base::FilePath(save_name));
   if (!ok) {
     DLOG(WARNING) << "Failed to open file: " << save_name;
     return false;
@@ -218,9 +219,9 @@ bool IsUpgradeRequired(const std::vector<uint8>& buffer) {
 }
 
 bool UpgradeStore(std::vector<uint8>* buffer) {
-  scoped_ptr<VirtualFileSystem> vfs(new VirtualFileSystem());
-  scoped_ptr<SqlVfs> sql_vfs(new SqlVfs("cobalt_vfs", vfs.get()));
-  scoped_ptr<sql::Connection> connection(new sql::Connection());
+  std::unique_ptr<VirtualFileSystem> vfs(new VirtualFileSystem());
+  std::unique_ptr<SqlVfs> sql_vfs(new SqlVfs("cobalt_vfs", vfs.get()));
+  std::unique_ptr<sql::Connection> connection(new sql::Connection());
 
   if (!OpenConnection(*buffer, vfs, sql_vfs, connection)) {
     return false;

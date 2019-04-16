@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/document.h"
 #include "cobalt/dom/html_anchor_element.h"
+#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {

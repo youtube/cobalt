@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/audio/audio_file_reader_wav.h"
 
 #include "base/basictypes.h"
@@ -55,21 +57,21 @@ uint32 kWAVfmtChunkHeaderSize = 16;
 }  // namespace
 
 // static
-scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(
+std::unique_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(
     const uint8* data, size_t size, SampleType sample_type) {
   // Need at least the |kWAVChunkSize| bytes for this to be a WAV.
   if (size < kWAVChunkSize) {
-    return scoped_ptr<AudioFileReader>();
+    return std::unique_ptr<AudioFileReader>();
   }
 
-  scoped_ptr<AudioFileReaderWAV> audio_file_reader_wav(
+  std::unique_ptr<AudioFileReaderWAV> audio_file_reader_wav(
       new AudioFileReaderWAV(data, size, sample_type));
 
   if (!audio_file_reader_wav->is_valid()) {
-    return scoped_ptr<AudioFileReader>();
+    return std::unique_ptr<AudioFileReader>();
   }
 
-  return make_scoped_ptr<AudioFileReader>(audio_file_reader_wav.release());
+  return std::unique_ptr<AudioFileReader>(audio_file_reader_wav.release());
 }
 
 AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size,

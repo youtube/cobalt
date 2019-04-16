@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/css_animations_adapter.h"
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/base/tokens.h"
@@ -176,7 +177,7 @@ void CSSAnimationsAdapter::OnAnimationStarted(
 
   // Setup an event handler on the animation so we can watch for when it enters
   // the after phase, allowing us to then trigger the animation events.
-  scoped_ptr<web_animations::Animation::EventHandler> event_handler =
+  std::unique_ptr<web_animations::Animation::EventHandler> event_handler =
       web_animation->AttachEventHandler(
           base::Bind(&CSSAnimationsAdapter::HandleAnimationEnterAfterPhase,
                      base::Unretained(this), animation_set));
@@ -186,7 +187,7 @@ void CSSAnimationsAdapter::OnAnimationStarted(
 
   animation_map_.insert(std::make_pair(
       css_animation.name(),
-      new AnimationWithEventHandler(web_animation, event_handler.Pass())));
+      new AnimationWithEventHandler(web_animation, std::move(event_handler))));
 
   web_animation->Play();
 }

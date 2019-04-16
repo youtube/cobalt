@@ -27,7 +27,7 @@ namespace layout {
 struct LetterboxDimensions {
   // The destination dimensions of the image such that its aspect ratio is
   // maintained.
-  base::optional<math::RectF> image_rect;
+  base::Optional<math::RectF> image_rect;
 
   // A set of filling rectangles that pad the image.
   std::vector<math::RectF> fill_rects;

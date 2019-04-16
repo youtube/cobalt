@@ -14,7 +14,7 @@
 
 #include "cobalt/media/sandbox/fuzzer_app.h"
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "starboard/directory.h"
 #include "starboard/string.h"
@@ -127,7 +127,7 @@ void FuzzerApp::AddFile(const std::string& file_name, double min_ratio,
   LOG(INFO) << "Loading " << file_name;
 
   std::string content;
-  if (!file_util::ReadFileToString(FilePath(file_name), &content)) {
+  if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
     LOG(ERROR) << "Failed to load file " << file_name;
     return;
   }

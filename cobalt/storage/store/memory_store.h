@@ -15,12 +15,13 @@
 #ifndef COBALT_STORAGE_STORE_MEMORY_STORE_H_
 #define COBALT_STORAGE_STORE_MEMORY_STORE_H_
 
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/basictypes.h"
+#include "base/containers/hash_tables.h"
 #include "cobalt/loader/origin.h"
 #include "net/cookies/canonical_cookie.h"
 
@@ -40,7 +41,8 @@ class MemoryStore {
   bool Serialize(std::vector<uint8>* out) const;
 
   // Cookies
-  void GetAllCookies(std::vector<net::CanonicalCookie*>* cookies) const;
+  void GetAllCookies(
+      std::vector<std::unique_ptr<net::CanonicalCookie>>* cookies) const;
   void AddCookie(const net::CanonicalCookie& cc, int64 expiration_time_us);
   void UpdateCookieAccessTime(const net::CanonicalCookie& cc, int64 time_us);
   void DeleteCookie(const net::CanonicalCookie& cc);
@@ -64,7 +66,7 @@ class MemoryStore {
 
  private:
   class Impl;
-  scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace storage

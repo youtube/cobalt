@@ -61,7 +61,7 @@ class TestDimensionSetting : public DimensionSetting {
   explicit TestDimensionSetting(const std::string& name)
       : DimensionSetting(name) {}
   virtual void ScaleMemory(double absolute_constraining_value) {
-    UNREFERENCED_PARAMETER(absolute_constraining_value);
+    SB_UNREFERENCED_PARAMETER(absolute_constraining_value);
   }
 };
 
@@ -98,7 +98,7 @@ class TestSettingGroup {
   void MakeSetting(MemorySetting::SourceType source_type,
                    MemorySetting::MemoryType memory_type,
                    const std::string& name, const ValueType& value) {
-    const bool found = (map_.find(name) !=  map_.end());
+    const bool found = (map_.find(name) != map_.end());
 
     ASSERT_FALSE(found);
     map_[name] = CreateMemorySetting(source_type, memory_type, name, value);

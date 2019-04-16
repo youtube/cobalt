@@ -90,7 +90,7 @@ class GlobalStats {
   base::CVal<int> num_xhrs_;
   base::CVal<base::cval::SizeInBytes> xhr_memory_;
 
-  friend struct DefaultSingletonTraits<GlobalStats>;
+  friend struct base::DefaultSingletonTraits<GlobalStats>;
   DISALLOW_COPY_AND_ASSIGN(GlobalStats);
 };
 

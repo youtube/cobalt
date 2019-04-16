@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/storage_area.h"
 
 #include "base/bind.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/storage/store/memory_store.h"
@@ -24,12 +26,12 @@ namespace cobalt {
 namespace dom {
 
 StorageArea::StorageArea(Storage* storage_node, LocalStorageDatabase* db)
-    : read_event_(true, false),
+    : read_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                  base::WaitableEvent::InitialState::NOT_SIGNALED),
       storage_node_(storage_node),
       size_bytes_(0),
       db_interface_(db),
-      initialized_(false) {
-}
+      initialized_(false) {}
 
 StorageArea::~StorageArea() {}
 
@@ -38,7 +40,7 @@ int StorageArea::length() {
   return static_cast<int>(storage_map_->size());
 }
 
-base::optional<std::string> StorageArea::Key(int index) {
+base::Optional<std::string> StorageArea::Key(int index) {
   Init();
 
   if (index < 0 || index >= length()) {
@@ -55,7 +57,7 @@ base::optional<std::string> StorageArea::Key(int index) {
   return it->first;
 }
 
-base::optional<std::string> StorageArea::GetItem(const std::string& key) {
+base::Optional<std::string> StorageArea::GetItem(const std::string& key) {
   Init();
 
   StorageMap::const_iterator it = storage_map_->find(key);
@@ -69,7 +71,7 @@ base::optional<std::string> StorageArea::GetItem(const std::string& key) {
 void StorageArea::SetItem(const std::string& key, const std::string& value) {
   Init();
 
-  base::optional<std::string> old_value = GetItem(key);
+  base::Optional<std::string> old_value = GetItem(key);
 
   // If the previous value is equal to value, then the method must do nothing.
   // https://www.w3.org/TR/2015/CR-webstorage-20150609/#storage-0
@@ -144,7 +146,7 @@ void StorageArea::Init() {
   initialized_ = true;
 }
 
-void StorageArea::OnInitComplete(scoped_ptr<StorageMap> data) {
+void StorageArea::OnInitComplete(std::unique_ptr<StorageMap> data) {
   storage_map_.reset(data.release());
   read_event_.Signal();
 }

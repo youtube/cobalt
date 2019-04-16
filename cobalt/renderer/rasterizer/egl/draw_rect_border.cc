@@ -47,10 +47,9 @@ const int kIndexCount = kRegionCount * (4 * 2 * 3) + kIndexCountForContentRect;
 }  // namespace
 
 DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
-    const BaseState& base_state,
-    const scoped_refptr<render_tree::RectNode>& node)
-    : DrawPolyColor(base_state),
-      draw_content_rect_(false) {
+                               const BaseState& base_state,
+                               const scoped_refptr<render_tree::RectNode>& node)
+    : DrawPolyColor(base_state), draw_content_rect_(false) {
   DCHECK(node->data().border);
   allow_simple_clip_ = true;
 
@@ -58,15 +57,13 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
   render_tree::ColorRGBA border_color;
   int num_borders = 0;
   int num_unhandled_borders = 0;
-  bool uniform_opposing_borders =
-      border.left.style == border.right.style &&
-      border.left.color == border.right.color &&
-      border.top.style == border.bottom.style &&
-      border.top.color == border.bottom.color;
-  bool uniform_borders =
-      uniform_opposing_borders &&
-      border.left.style == border.top.style &&
-      border.left.color == border.top.color;
+  bool uniform_opposing_borders = border.left.style == border.right.style &&
+                                  border.left.color == border.right.color &&
+                                  border.top.style == border.bottom.style &&
+                                  border.top.color == border.bottom.color;
+  bool uniform_borders = uniform_opposing_borders &&
+                         border.left.style == border.top.style &&
+                         border.left.color == border.top.color;
 
   if (border.left.style == render_tree::kBorderStyleSolid) {
     border_color = border.left.color;
@@ -100,10 +97,10 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
   // do not create a diagonal edge are supported. For example, a top border of
   // one color adjacent to a right border of a different color would create a
   // diagonal edge between them.
-  is_valid_ = !node->data().rounded_corners && num_unhandled_borders == 0 &&
-              ((num_borders <= 1) ||
-               (num_borders == 2 && uniform_opposing_borders) ||
-               (num_borders == 4 && uniform_borders));
+  is_valid_ =
+      !node->data().rounded_corners && num_unhandled_borders == 0 &&
+      ((num_borders <= 1) || (num_borders == 2 && uniform_opposing_borders) ||
+       (num_borders == 4 && uniform_borders));
 
   // If the background brush is solid-colored, then this object can handle the
   // content rect as well. Otherwise, don't draw the inner antialiased edge to
@@ -115,10 +112,10 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
                            base::GetTypeId<render_tree::SolidColorBrush>();
       if (draw_content_rect_) {
         const render_tree::SolidColorBrush* solid_brush =
-            base::polymorphic_downcast<const render_tree::SolidColorBrush*>
-                (node->data().background_brush.get());
-        content_color = GetDrawColor(solid_brush->color()) *
-                        base_state_.opacity;
+            base::polymorphic_downcast<const render_tree::SolidColorBrush*>(
+                node->data().background_brush.get());
+        content_color =
+            GetDrawColor(solid_brush->color()) * base_state_.opacity;
       }
     } else {
       // No background brush is the same as a totally transparent background.
@@ -128,8 +125,8 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
 
   if (is_valid_) {
     content_rect_ = node->data().rect;
-    content_rect_.Inset(border.left.width, border.top.width,
-                        border.right.width, border.bottom.width);
+    content_rect_.Inset(border.left.width, border.top.width, border.right.width,
+                        border.bottom.width);
     node_bounds_ = node->data().rect;
 
     if (num_borders > 0) {
@@ -139,17 +136,17 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
       is_valid_ = SetSquareBorder(border, node->data().rect, content_rect_,
                                   border_color, content_color);
       if (is_valid_ && attributes_.size() > 0) {
-        graphics_state->ReserveVertexData(
-            attributes_.size() * sizeof(attributes_[0]));
+        graphics_state->ReserveVertexData(attributes_.size() *
+                                          sizeof(attributes_[0]));
         graphics_state->ReserveVertexIndices(indices_.size());
       }
     }
   }
 }
 
-bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
-    const math::RectF& border_rect, const math::RectF& content_rect,
-    const render_tree::ColorRGBA& border_color,
+bool DrawRectBorder::SetSquareBorder(
+    const render_tree::Border& border, const math::RectF& border_rect,
+    const math::RectF& content_rect, const render_tree::ColorRGBA& border_color,
     const render_tree::ColorRGBA& content_color) {
   // If the scaled border rect is too small, then don't bother rendering.
   math::Vector2dF scale = math::GetScale2d(base_state_.transform);
@@ -164,13 +161,13 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
   float pixel_size_x = 1.0f / scale.x();
   float pixel_size_y = 1.0f / scale.y();
   if ((border.left.style != render_tree::kBorderStyleNone &&
-        border.left.width < pixel_size_x) ||
+       border.left.width < pixel_size_x) ||
       (border.right.style != render_tree::kBorderStyleNone &&
-        border.right.width < pixel_size_x) ||
+       border.right.width < pixel_size_x) ||
       (border.top.style != render_tree::kBorderStyleNone &&
-        border.top.width < pixel_size_y) ||
+       border.top.width < pixel_size_y) ||
       (border.bottom.style != render_tree::kBorderStyleNone &&
-        border.bottom.style < pixel_size_y)) {
+       border.bottom.style < pixel_size_y)) {
     return false;
   }
 
@@ -228,25 +225,23 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
 }
 
 void DrawRectBorder::AddBorders(const render_tree::Border& border,
-    uint16_t outer_verts, uint16_t inner_verts) {
+                                uint16_t outer_verts, uint16_t inner_verts) {
   // Draw the area between those two rectangles using triangle primitives.
   // The vertices for the rectangles were added as top-left, top-right,
   // bottom-left, and bottom-right. See DrawPolyColor::AddRectVertices().
   if (border.left.style != render_tree::kBorderStyleNone) {
-    AddRectIndices(outer_verts, inner_verts,
-                   outer_verts + 2, inner_verts + 2);
+    AddRectIndices(outer_verts, inner_verts, outer_verts + 2, inner_verts + 2);
   }
   if (border.top.style != render_tree::kBorderStyleNone) {
-    AddRectIndices(outer_verts, outer_verts + 1,
-                   inner_verts, inner_verts + 1);
+    AddRectIndices(outer_verts, outer_verts + 1, inner_verts, inner_verts + 1);
   }
   if (border.right.style != render_tree::kBorderStyleNone) {
-    AddRectIndices(inner_verts + 1, outer_verts + 1,
-                   inner_verts + 3, outer_verts + 3);
+    AddRectIndices(inner_verts + 1, outer_verts + 1, inner_verts + 3,
+                   outer_verts + 3);
   }
   if (border.bottom.style != render_tree::kBorderStyleNone) {
-    AddRectIndices(inner_verts + 2, inner_verts + 3,
-                   outer_verts + 2, outer_verts + 3);
+    AddRectIndices(inner_verts + 2, inner_verts + 3, outer_verts + 2,
+                   outer_verts + 3);
   }
 }
 

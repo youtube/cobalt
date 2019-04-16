@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"

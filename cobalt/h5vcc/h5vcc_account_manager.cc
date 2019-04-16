@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/h5vcc/h5vcc_account_manager.h"
 
 #include "base/command_line.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/browser/switches.h"
 #include "starboard/user.h"
@@ -25,7 +26,8 @@ namespace h5vcc {
 
 H5vccAccountManager::H5vccAccountManager()
     : user_authorizer_(account::UserAuthorizer::Create()),
-      owning_message_loop_(MessageLoop::current()), thread_("AccountManager") {
+      owning_message_loop_(base::MessageLoop::current()),
+      thread_("AccountManager") {
   thread_.Start();
 }
 
@@ -52,14 +54,14 @@ void H5vccAccountManager::PostOperation(
   DCHECK(thread_checker_.CalledOnValidThread());
   AccessTokenCallbackReference* token_callback =
       new AccessTokenCallbackHolder::Reference(this, callback);
-  pending_callbacks_.push_back(token_callback);
-  thread_.message_loop()->PostTask(
+  pending_callbacks_.push_back(
+      std::unique_ptr<AccessTokenCallbackReference>(token_callback));
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&H5vccAccountManager::RequestOperationInternal,
                             user_authorizer_.get(), operation_type,
                             base::Bind(&H5vccAccountManager::PostResult,
                                        owning_message_loop_,
-                                       base::AsWeakPtr(this),
-                                       token_callback)));
+                                       base::AsWeakPtr(this), token_callback)));
 }
 
 H5vccAccountManager::~H5vccAccountManager() {
@@ -74,7 +76,7 @@ void H5vccAccountManager::RequestOperationInternal(
     account::UserAuthorizer* user_authorizer, OperationType operation,
     const base::Callback<void(const std::string&, uint64_t)>& post_result) {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kDisableSignIn)) {
     post_result.Run(std::string(), 0);
     return;
@@ -84,7 +86,7 @@ void H5vccAccountManager::RequestOperationInternal(
   SbUser current_user = SbUserGetCurrent();
   DCHECK(SbUserIsValid(current_user));
 
-  scoped_ptr<account::AccessToken> access_token(NULL);
+  std::unique_ptr<account::AccessToken> access_token(nullptr);
 
   switch (operation) {
     case kPairing:
@@ -127,22 +129,26 @@ void H5vccAccountManager::RequestOperationInternal(
 
 // static
 void H5vccAccountManager::PostResult(
-    MessageLoop* message_loop,
+    base::MessageLoop* message_loop,
     base::WeakPtr<H5vccAccountManager> h5vcc_account_manager,
-    AccessTokenCallbackReference* token_callback,
-    const std::string& token, uint64_t expiration_in_seconds) {
-  message_loop->PostTask(
+    AccessTokenCallbackReference* token_callback, const std::string& token,
+    uint64_t expiration_in_seconds) {
+  message_loop->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&H5vccAccountManager::SendResult, h5vcc_account_manager,
                  token_callback, token, expiration_in_seconds));
 }
 
 void H5vccAccountManager::SendResult(
-    AccessTokenCallbackReference* token_callback,
-    const std::string& token, uint64_t expiration_in_seconds) {
+    AccessTokenCallbackReference* token_callback, const std::string& token,
+    uint64_t expiration_in_seconds) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  ScopedVector<AccessTokenCallbackReference>::iterator found = std::find(
-      pending_callbacks_.begin(), pending_callbacks_.end(), token_callback);
+  std::vector<std::unique_ptr<AccessTokenCallbackReference>>::iterator found =
+      std::find_if(pending_callbacks_.begin(), pending_callbacks_.end(),
+                   [token_callback](
+                       const std::unique_ptr<AccessTokenCallbackReference>& i) {
+                     return i.get() == token_callback;
+                   });
   if (found == pending_callbacks_.end()) {
     DLOG(ERROR) << "Account manager callback not valid.";
     return;
@@ -150,7 +156,8 @@ void H5vccAccountManager::SendResult(
   // In case a new account manager request is made as part of the callback,
   // erase the callback in the pending vector before running it, but we can't
   // delete it until after we've made the callback.
-  pending_callbacks_.weak_erase(found);
+  found->release();
+  pending_callbacks_.erase(found);
   token_callback->value().Run(token, expiration_in_seconds);
   delete token_callback;
 }

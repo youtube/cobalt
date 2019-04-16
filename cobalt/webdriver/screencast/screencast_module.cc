@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 
 #include "base/base64.h"
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_piece.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/trace_event/trace_event.h"
 
 #include "cobalt/webdriver/screencast/screencast_module.h"
 
@@ -40,7 +41,8 @@ ScreencastModule::ScreencastModule(
       incoming_requests_(),
       last_served_request_(-1),
       screenshot_function_(screenshot_function),
-      no_screenshots_pending_(true, false),
+      no_screenshots_pending_(base::WaitableEvent::ResetPolicy::MANUAL,
+                              base::WaitableEvent::InitialState::NOT_SIGNALED),
       num_screenshots_processing_(0) {
   thread_checker_.DetachFromThread();
 
@@ -49,21 +51,21 @@ ScreencastModule::ScreencastModule(
       base::Bind(&ScreencastModule::PutRequestInQueue, base::Unretained(this)));
   // Start the thread and create the HTTP server on that thread.
   screenshot_thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_IO, 0));
-  screenshot_thread_.message_loop()->PostTask(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+  screenshot_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&ScreencastModule::StartServer,
                             base::Unretained(this), server_port, listen_ip));
 }
 
 ScreencastModule::~ScreencastModule() {
   TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::~ScreencastModule()");
-  screenshot_thread_.message_loop()->PostTask(
+  screenshot_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ScreencastModule::StopTimer, base::Unretained(this)));
 
   no_screenshots_pending_.Wait();
 
-  screenshot_thread_.message_loop()->PostTask(
+  screenshot_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ScreencastModule::StopServer, base::Unretained(this)));
   screenshot_thread_.Stop();
@@ -80,9 +82,7 @@ void ScreencastModule::StartServer(int server_port,
                  base::Unretained(screenshot_dispatcher_.get())),
       "Cobalt.Server.Screencast"));
 
-  bool retain_user_task = true;
-  bool is_repeating = true;
-  screenshot_timer_.reset(new base::Timer(retain_user_task, is_repeating));
+  screenshot_timer_.reset(new base::RepeatingTimer());
 
   const base::Closure screenshot_event =
       base::Bind(&ScreencastModule::TakeScreenshot, base::Unretained(this));
@@ -107,10 +107,10 @@ void ScreencastModule::StopServer() {
   while (!incoming_requests_.empty()) {
     scoped_refptr<WaitingRequest> next_request = incoming_requests_.front();
     incoming_requests_.pop();
-    scoped_ptr<base::Value> message = scoped_ptr<base::Value>();
+    std::unique_ptr<base::Value> message = std::unique_ptr<base::Value>();
     // Send rejection to request with invalid ID.
     next_request->result_handler->SendResult(
-        base::nullopt, protocol::Response::kUnknownError, message.Pass());
+        base::nullopt, protocol::Response::kUnknownError, std::move(message));
   }
   screenshot_server_.reset();
 }
@@ -118,21 +118,21 @@ void ScreencastModule::StopServer() {
 void ScreencastModule::PutRequestInQueue(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::PutRequestInQueue()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_refptr<WaitingRequest> current_request = new WaitingRequest;
-  current_request->result_handler = result_handler.Pass();
+  current_request->result_handler = std::move(result_handler);
   // The id of request, e.g. screencast/2 would be 2.
   if (base::StringToInt(path_variables->GetVariable(":id"),
                         &(current_request->request_id))) {
     incoming_requests_.push(current_request);
   } else {
     // Send rejection to request with invalid ID.
-    scoped_ptr<base::Value> message = scoped_ptr<base::Value>();
+    std::unique_ptr<base::Value> message = std::unique_ptr<base::Value>();
     result_handler->SendResult(base::nullopt, protocol::Response::kUnknownError,
-                               message.Pass());
+                               std::move(message));
   }
 }
 
@@ -141,8 +141,8 @@ void ScreencastModule::SendScreenshotToNextInQueue(
   TRACE_EVENT0("cobalt::Screencast",
                "ScreencastModule::SendScreenshotToNextInQueue()");
 
-  if (MessageLoop::current() != screenshot_thread_.message_loop()) {
-    screenshot_thread_.message_loop()->PostTask(
+  if (base::MessageLoop::current() != screenshot_thread_.message_loop()) {
+    screenshot_thread_.message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&ScreencastModule::SendScreenshotToNextInQueue,
                               base::Unretained(this), screenshot));
     return;
@@ -158,7 +158,7 @@ void ScreencastModule::SendScreenshotToNextInQueue(
   while (!incoming_requests_.empty()) {
     scoped_refptr<WaitingRequest> next_request = incoming_requests_.front();
     incoming_requests_.pop();
-    scoped_ptr<base::Value> message = scoped_ptr<base::Value>();
+    std::unique_ptr<base::Value> message = std::unique_ptr<base::Value>();
     // Check if request is valid.
     if (next_request->request_id > last_served_request_) {
       // Send screenshot.
@@ -171,7 +171,7 @@ void ScreencastModule::SendScreenshotToNextInQueue(
     } else {
       // Send rejection to request with invalid ID.
       next_request->result_handler->SendResult(
-          base::nullopt, protocol::Response::kUnknownError, message.Pass());
+          base::nullopt, protocol::Response::kUnknownError, std::move(message));
     }
   }
 }

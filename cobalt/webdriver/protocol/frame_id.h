@@ -28,7 +28,7 @@ namespace protocol {
 // is always active.
 class FrameId {
  public:
-  static base::optional<FrameId> FromValue(const base::Value* value);
+  static base::Optional<FrameId> FromValue(const base::Value* value);
 
   bool is_top_level_browsing_context() const {
     return is_top_level_browsing_context_;

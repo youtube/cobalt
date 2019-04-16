@@ -93,8 +93,8 @@ bool WebMVideoClient::InitializeConfig(
   } else if (display_unit_ == 3) {
     if (display_width_ <= 0 || display_height_ <= 0) return false;
   } else {
-    MEDIA_LOG(ERROR, media_log_) << "Unsupported display unit type "
-                                 << display_unit_;
+    MEDIA_LOG(ERROR, media_log_)
+        << "Unsupported display unit type " << display_unit_;
     return false;
   }
   gfx::Size natural_size = gfx::Size(display_width_, display_height_);
@@ -179,9 +179,9 @@ bool WebMVideoClient::OnUInt(int id, int64_t val) {
   }
 
   if (*dst != -1) {
-    MEDIA_LOG(ERROR, media_log_) << "Multiple values for id " << std::hex << id
-                                 << " specified (" << *dst << " and " << val
-                                 << ")";
+    MEDIA_LOG(ERROR, media_log_)
+        << "Multiple values for id " << std::hex << id << " specified (" << *dst
+        << " and " << val << ")";
     return false;
   }
 

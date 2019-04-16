@@ -5,8 +5,8 @@
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
@@ -135,9 +135,9 @@ bool WebMTracksParser::OnListEnd(int id) {
 
   if (id == kWebMIdTrackEntry) {
     if (track_type_ == -1 || track_num_ == -1) {
-      MEDIA_LOG(ERROR, media_log_) << "Missing TrackEntry data for "
-                                   << " TrackType " << track_type_
-                                   << " TrackNum " << track_num_;
+      MEDIA_LOG(ERROR, media_log_)
+          << "Missing TrackEntry data for "
+          << " TrackType " << track_type_ << " TrackNum " << track_num_;
       return false;
     }
 
@@ -304,8 +304,8 @@ bool WebMTracksParser::OnUInt(int id, int64_t val) {
   }
 
   if (*dst != -1) {
-    MEDIA_LOG(ERROR, media_log_) << "Multiple values for id " << std::hex << id
-                                 << " specified";
+    MEDIA_LOG(ERROR, media_log_)
+        << "Multiple values for id " << std::hex << id << " specified";
     return false;
   }
 

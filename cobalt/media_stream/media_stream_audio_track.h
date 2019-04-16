@@ -16,7 +16,7 @@
 #define COBALT_MEDIA_STREAM_MEDIA_STREAM_AUDIO_TRACK_H_
 
 #include "base/callback.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/audio_parameters.h"
@@ -36,7 +36,6 @@ namespace cobalt {
 namespace media_capture {
 
 class MediaRecorderTest;
-
 }
 
 namespace media_stream {

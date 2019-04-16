@@ -18,7 +18,7 @@
 #include <sstream>
 #endif  // ENABLE_WEBDRIVER
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 #if defined(ENABLE_WEBDRIVER)
@@ -34,15 +34,16 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
       should_track_event_stats_(should_track_event_stats),
       dom_stat_tracker_(new dom::DomStatTracker(name)),
       layout_stat_tracker_(new layout::LayoutStatTracker(name)),
-      event_is_processing_(StringPrintf("Event.%s.IsProcessing", name.c_str()),
-                           false, "Nonzero when an event is being processed."),
+      event_is_processing_(
+          base::StringPrintf("Event.%s.IsProcessing", name.c_str()), false,
+          "Nonzero when an event is being processed."),
       current_event_type_(kEventTypeInvalid),
       current_event_dispatched_event_(nullptr) {
   if (should_track_event_stats_) {
     event_stats_list_.reserve(kNumEventTypes);
     for (int i = 0; i < kNumEventTypes; ++i) {
       EventType event_type = static_cast<EventType>(i);
-      event_stats_list_.push_back(new EventStats(StringPrintf(
+      event_stats_list_.emplace_back(new EventStats(base::StringPrintf(
           "%s.%s", name.c_str(), GetEventTypeName(event_type).c_str())));
     }
   }
@@ -165,119 +166,128 @@ void WebModuleStatTracker::OnRenderTreeRasterized(
 }
 
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)
-    : start_time(StringPrintf("Event.Time.%s.Start", name.c_str()), 0,
-          "The time that the event started."),
+    : start_time(base::StringPrintf("Event.Time.%s.Start", name.c_str()), 0,
+                 "The time that the event started."),
       produced_render_tree(
-          StringPrintf("Event.%s.ProducedRenderTree", name.c_str()), false,
-          "Nonzero when the event produced a render tree."),
+          base::StringPrintf("Event.%s.ProducedRenderTree", name.c_str()),
+          false, "Nonzero when the event produced a render tree."),
       count_dom_html_element(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement", name.c_str()), 0,
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement", name.c_str()), 0,
           "Total number of HTML elements."),
       count_dom_html_element_created(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.Created", name.c_str()),
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement.Created",
+                             name.c_str()),
           0, "Total number of HTML elements created."),
       count_dom_html_element_destroyed(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.Destroyed",
-                       name.c_str()),
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement.Destroyed",
+                             name.c_str()),
           0, "Total number of HTML elements destroyed."),
       count_dom_html_element_document(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.Document", name.c_str()),
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement.Document",
+                             name.c_str()),
           0, "Number of HTML elements in document."),
       count_dom_html_element_document_added(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.Document.Added",
-                       name.c_str()),
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement.Document.Added",
+                             name.c_str()),
           0, "Number of HTML elements added to document."),
       count_dom_html_element_document_removed(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.Document.Removed",
-                       name.c_str()),
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement.Document.Removed",
+                             name.c_str()),
           0, "Number of HTML elements removed from document."),
       count_dom_update_matching_rules(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.UpdateMatchingRules",
-                       name.c_str()),
+          base::StringPrintf(
+              "Event.Count.%s.DOM.HtmlElement.UpdateMatchingRules",
+              name.c_str()),
           0, "Number of HTML elements that had their matching rules updated."),
       count_dom_update_computed_style(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement.UpdateComputedStyle",
-                       name.c_str()),
+          base::StringPrintf(
+              "Event.Count.%s.DOM.HtmlElement.UpdateComputedStyle",
+              name.c_str()),
           0, "Number of HTML elements that had their computed style updated."),
       count_dom_generate_html_element_computed_style(
-          StringPrintf(
+          base::StringPrintf(
               "Event.Count.%s.DOM.HtmlElement.GenerateHtmlElementComputedStyle",
               name.c_str()),
           0,
           "Number of HTML elements that had their computed style generated."),
       count_dom_generate_pseudo_element_computed_style(
-          StringPrintf("Event.Count.%s.DOM.HtmlElement."
-                       "GeneratePseudoElementComputedStyle",
-                       name.c_str()),
+          base::StringPrintf("Event.Count.%s.DOM.HtmlElement."
+                             "GeneratePseudoElementComputedStyle",
+                             name.c_str()),
           0,
           "Number of pseudo elements that had their computed style generated."),
-      count_layout_box(StringPrintf("Event.Count.%s.Layout.Box", name.c_str()),
-                       0, "Number of layout boxes."),
+      count_layout_box(
+          base::StringPrintf("Event.Count.%s.Layout.Box", name.c_str()), 0,
+          "Number of layout boxes."),
       count_layout_box_created(
-          StringPrintf("Event.Count.%s.Layout.Box.Created", name.c_str()), 0,
-          "Number of layout boxes created."),
+          base::StringPrintf("Event.Count.%s.Layout.Box.Created", name.c_str()),
+          0, "Number of layout boxes created."),
       count_layout_box_destroyed(
-          StringPrintf("Event.Count.%s.Layout.Box.Destroyed", name.c_str()), 0,
-          "Number of layout boxes destroyed."),
+          base::StringPrintf("Event.Count.%s.Layout.Box.Destroyed",
+                             name.c_str()),
+          0, "Number of layout boxes destroyed."),
       count_layout_update_size(
-          StringPrintf("Event.Count.%s.Layout.Box.UpdateSize", name.c_str()), 0,
-          "Number of layout boxes that had their size updated."),
+          base::StringPrintf("Event.Count.%s.Layout.Box.UpdateSize",
+                             name.c_str()),
+          0, "Number of layout boxes that had their size updated."),
       count_layout_render_and_animate(
-          StringPrintf("Event.Count.%s.Layout.Box.RenderAndAnimate",
-                       name.c_str()),
+          base::StringPrintf("Event.Count.%s.Layout.Box.RenderAndAnimate",
+                             name.c_str()),
           0, "Number of layout boxes that had their render tree node updated."),
       count_layout_update_cross_references(
-          StringPrintf("Event.Count.%s.Layout.Box.UpdateCrossReferences",
-                       name.c_str()),
+          base::StringPrintf("Event.Count.%s.Layout.Box.UpdateCrossReferences",
+                             name.c_str()),
           0, "Number of layout boxes that had their cross references updated."),
-      duration_total(StringPrintf("Event.Duration.%s", name.c_str()),
+      duration_total(base::StringPrintf("Event.Duration.%s", name.c_str()),
                      base::TimeDelta(),
                      "Total duration of the event (in microseconds). This is "
                      "the time elapsed from the event dispatch until the "
                      "render tree is produced."),
       duration_dom_dispatch_event(
-          StringPrintf("Event.Duration.%s.DOM.DispatchEvent", name.c_str()),
+          base::StringPrintf("Event.Duration.%s.DOM.DispatchEvent",
+                             name.c_str()),
           base::TimeDelta(),
           "Dispatch duration, which includes JS, for event (in "
           "microseconds). This does not include subsequent DOM and Layout "
           "processing."),
       duration_dom_run_animation_frame_callbacks(
-          StringPrintf("Event.Duration.%s.DOM.RunAnimationFrameCallbacks",
-                       name.c_str()),
+          base::StringPrintf("Event.Duration.%s.DOM.RunAnimationFrameCallbacks",
+                             name.c_str()),
           base::TimeDelta(),
           "Run animation frame callbacks duration for event (in "
           "microseconds)."),
       duration_dom_update_computed_style(
-          StringPrintf("Event.Duration.%s.DOM.UpdateComputedStyle",
-                       name.c_str()),
+          base::StringPrintf("Event.Duration.%s.DOM.UpdateComputedStyle",
+                             name.c_str()),
           base::TimeDelta(),
           "UpdateComputedStyle duration for event (in microseconds)."),
       duration_layout_box_tree(
-          StringPrintf("Event.Duration.%s.Layout.BoxTree", name.c_str()),
+          base::StringPrintf("Event.Duration.%s.Layout.BoxTree", name.c_str()),
           base::TimeDelta(),
           "Layout box tree duration for event (in microseconds)."),
       duration_layout_box_generation(
-          StringPrintf("Event.Duration.%s.Layout.BoxTree.BoxGeneration",
-                       name.c_str()),
+          base::StringPrintf("Event.Duration.%s.Layout.BoxTree.BoxGeneration",
+                             name.c_str()),
           base::TimeDelta(),
           "BoxGeneration duration for event (in microseconds)."),
       duration_layout_update_used_sizes(
-          StringPrintf("Event.Duration.%s.Layout.BoxTree.UpdateUsedSizes",
-                       name.c_str()),
+          base::StringPrintf("Event.Duration.%s.Layout.BoxTree.UpdateUsedSizes",
+                             name.c_str()),
           base::TimeDelta(),
           "UpdateUsedSizes duration for event (in microseconds)."),
       duration_layout_render_and_animate(
-          StringPrintf("Event.Duration.%s.Layout.RenderAndAnimate",
-                       name.c_str()),
+          base::StringPrintf("Event.Duration.%s.Layout.RenderAndAnimate",
+                             name.c_str()),
           base::TimeDelta(),
           "RenderAndAnimate duration for event (in microseconds)."),
       duration_renderer_rasterize(
-          StringPrintf("Event.Duration.%s.Renderer.Rasterize", name.c_str()),
+          base::StringPrintf("Event.Duration.%s.Renderer.Rasterize",
+                             name.c_str()),
           base::TimeDelta(), "Rasterize duration for event (in microseconds).")
 #if defined(ENABLE_WEBDRIVER)
       ,
       value_dictionary(
-          StringPrintf("Event.%s.ValueDictionary", name.c_str()), "{}",
+          base::StringPrintf("Event.%s.ValueDictionary", name.c_str()), "{}",
           "All event values represented as a dictionary in a string.")
 #endif  // ENABLE_WEBDRIVER
 {
@@ -313,7 +323,7 @@ void WebModuleStatTracker::EndCurrentEvent(base::TimeTicks event_end_time) {
           ? event_end_time - current_event_render_tree_produced_time_
           : base::TimeDelta();
 
-  EventStats* event_stats = event_stats_list_[current_event_type_];
+  EventStats* event_stats = event_stats_list_[current_event_type_].get();
   event_stats->start_time = current_event_start_time_.ToInternalValue();
   event_stats->produced_render_tree =
       !current_event_render_tree_produced_time_.is_null();

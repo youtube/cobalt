@@ -19,7 +19,7 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"
@@ -31,8 +31,7 @@ namespace v8c {
 
 // Implements v8's platform class to handle some requests from v8 to cobalt.
 // It contains a v8::DefaultPlatform and uses most of its implementations.
-class CobaltPlatform : public base::RefCounted<CobaltPlatform>,
-                       public v8::Platform {
+class CobaltPlatform : public v8::Platform {
  public:
   explicit CobaltPlatform(std::unique_ptr<v8::Platform> platform)
       : default_platform_(std::move(platform)) {
@@ -42,10 +41,11 @@ class CobaltPlatform : public base::RefCounted<CobaltPlatform>,
   // Because foreground tasks have to be run on the isolate's main thread,
   // each JavaScriptEngine needs to register its isolate in IsolateFellowship
   // so that when v8 post tasks to an isolate, we know which thread to call
-  // PumpMessageLoop and run the posted task on.
-  void RegisterIsolateOnThread(v8::Isolate* isolate, MessageLoop* message_loop);
+  // Pumpbase::MessageLoop and run the posted task on.
+  void RegisterIsolateOnThread(v8::Isolate* isolate,
+                               base::MessageLoop* message_loop);
   void UnregisterIsolateOnThread(v8::Isolate* isolate);
-  void RunV8Task(v8::Isolate* isolate, scoped_ptr<v8::Task> task);
+  void RunV8Task(v8::Isolate* isolate, std::unique_ptr<v8::Task> task);
 
   // v8::Platform APIs.
   v8::PageAllocator* GetPageAllocator() override {
@@ -121,7 +121,7 @@ class CobaltPlatform : public base::RefCounted<CobaltPlatform>,
     // and post them when isolate is registered.
     std::vector<std::unique_ptr<TaskBeforeRegistration>>
         tasks_before_registration;
-    MessageLoop* message_loop = NULL;
+    base::MessageLoop* message_loop = NULL;
   };
   typedef std::map<v8::Isolate*, std::unique_ptr<MessageLoopMapEntry>>
       MessageLoopMap;

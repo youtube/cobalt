@@ -5,7 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_PIPELINE_METADATA_H_
 #define COBALT_MEDIA_BASE_PIPELINE_METADATA_H_
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/video_rotation.h"
 #include "ui/gfx/size.h"
 

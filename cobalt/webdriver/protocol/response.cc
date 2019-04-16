@@ -12,38 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/response.h"
 
 namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
-scoped_ptr<base::Value> Response::CreateErrorResponse(
+std::unique_ptr<base::Value> Response::CreateErrorResponse(
     const std::string& message) {
-  scoped_ptr<base::DictionaryValue> error_value(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> error_value(
+      new base::DictionaryValue());
   error_value->SetString("message", message);
-  return error_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(error_value.release());
 }
 
-scoped_ptr<base::Value> Response::CreateResponse(
-    const base::optional<protocol::SessionId>& session_id,
-    StatusCode status_code, scoped_ptr<base::Value> webdriver_response_value) {
-  scoped_ptr<base::DictionaryValue> http_response_value(
+std::unique_ptr<base::Value> Response::CreateResponse(
+    const base::Optional<protocol::SessionId>& session_id,
+    StatusCode status_code,
+    std::unique_ptr<base::Value> webdriver_response_value) {
+  std::unique_ptr<base::DictionaryValue> http_response_value(
       new base::DictionaryValue());
   if (session_id) {
     http_response_value->Set(
         "sessionId",
-        protocol::SessionId::ToValue(session_id.value()).release());
+        std::move(protocol::SessionId::ToValue(session_id.value())));
   } else {
-    http_response_value->Set("sessionId", base::Value::CreateNullValue());
+    http_response_value->Set("sessionId", std::make_unique<base::Value>());
   }
   http_response_value->SetInteger("status", status_code);
   if (webdriver_response_value) {
-    http_response_value->Set("value", webdriver_response_value.release());
+    http_response_value->Set("value", std::move(webdriver_response_value));
   } else {
-    http_response_value->Set("value", base::Value::CreateNullValue());
+    http_response_value->Set("value", std::make_unique<base::Value>());
   }
-  return http_response_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(std::move(http_response_value));
 }
 
 }  // namespace protocol

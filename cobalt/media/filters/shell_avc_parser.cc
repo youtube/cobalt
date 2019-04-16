@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/base/media_util.h"

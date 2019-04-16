@@ -57,8 +57,7 @@ class MediaStreamAudioSourceTest : public testing::Test {
 };
 
 TEST_F(MediaStreamAudioSourceTest, SourceCanStart) {
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(true));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(true));
   // Source will be stopped when the last track is disconnected.
   // This happens when |track_| is destructed.
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
@@ -69,8 +68,7 @@ TEST_F(MediaStreamAudioSourceTest, SourceCanStart) {
 }
 
 TEST_F(MediaStreamAudioSourceTest, SourceCannotStart) {
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(false));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(false));
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started (if it is not stopped).
@@ -79,8 +77,7 @@ TEST_F(MediaStreamAudioSourceTest, SourceCannotStart) {
 }
 
 TEST_F(MediaStreamAudioSourceTest, CallStopCallback) {
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(true));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(true));
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   int times_callback_is_called = 0;
@@ -96,8 +93,7 @@ TEST_F(MediaStreamAudioSourceTest, CallStopCallback) {
 
 TEST_F(MediaStreamAudioSourceTest, EmptyStopCallback) {
   // This test should not crash.
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(true));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(true));
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started.
@@ -114,7 +110,7 @@ TEST_F(MediaStreamAudioSourceTest, AddMultipleTracks) {
 
   // Adding a track ensures that the source is started.
   audio_source_->ConnectToTrack(track_);
-  auto track2 = make_scoped_refptr(new MediaStreamAudioTrack());
+  auto track2 = base::WrapRefCounted(new MediaStreamAudioTrack());
   audio_source_->ConnectToTrack(track2);
   audio_source_->StopSource();
 }

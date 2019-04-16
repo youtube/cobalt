@@ -14,11 +14,12 @@
 
 #include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
@@ -68,7 +69,7 @@ class HardwareRasterizer::Impl {
 
   backend::GraphicsContextBlitter* context_;
 
-  scoped_ptr<render_tree::ResourceProvider> resource_provider_;
+  std::unique_ptr<render_tree::ResourceProvider> resource_provider_;
 
   int64 submit_count_;
 
@@ -121,7 +122,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 #endif  // defined(ENABLE_DEBUGGER)
 {
   resource_provider_ =
-      scoped_ptr<render_tree::ResourceProvider>(new ResourceProvider(
+      std::unique_ptr<render_tree::ResourceProvider>(new ResourceProvider(
           context_->GetSbBlitterDevice(),
           software_surface_cache_.GetResourceProvider(),
           base::Bind(&HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget,
@@ -137,7 +138,7 @@ HardwareRasterizer::Impl::~Impl() {
 #if defined(ENABLE_DEBUGGER)
 void HardwareRasterizer::Impl::OnToggleHighlightSoftwareDraws(
     const std::string& message) {
-  UNREFERENCED_PARAMETER(message);
+  SB_UNREFERENCED_PARAMETER(message);
   toggle_highlight_software_draws_ = !toggle_highlight_software_draws_;
 }
 #endif
@@ -208,8 +209,8 @@ void HardwareRasterizer::Impl::Submit(
 #endif  // defined(ENABLE_DEBUGGER)
     RenderTreeNodeVisitor visitor(
         context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
-        initial_render_state, &scratch_surface_cache_,
-        &software_surface_cache_, &linear_gradient_cache_);
+        initial_render_state, &scratch_surface_cache_, &software_surface_cache_,
+        &linear_gradient_cache_);
     render_tree->Accept(&visitor);
   }
 

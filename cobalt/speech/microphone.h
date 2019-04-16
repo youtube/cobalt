@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/basictypes.h"
+#include "base/files/file_path.h"
 #include "base/optional.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ class Microphone {
     // Audio data size.
     int audio_data_size;
     // Input file path.
-    base::optional<FilePath> file_path;
+    base::Optional<base::FilePath> file_path;
   };
 
   virtual ~Microphone() {}

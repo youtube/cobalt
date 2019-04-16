@@ -14,11 +14,11 @@
 
 #include "cobalt/browser/splash_screen_cache.h"
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/get_application_key.h"
 #include "starboard/directory.h"
@@ -85,7 +85,7 @@ bool SplashScreenCache::IsSplashScreenCached(const std::string& key) const {
 }
 
 int SplashScreenCache::ReadCachedSplashScreen(
-    const std::string& key, scoped_array<char>* result) const {
+    const std::string& key, std::unique_ptr<char[]>* result) const {
   base::AutoLock lock(lock_);
   if (!result) {
     return 0;
@@ -111,9 +111,9 @@ int SplashScreenCache::ReadCachedSplashScreen(
 }
 
 // static
-base::optional<std::string> SplashScreenCache::GetKeyForStartUrl(
+base::Optional<std::string> SplashScreenCache::GetKeyForStartUrl(
     const GURL& url) {
-  base::optional<std::string> encoded_url = base::GetApplicationKey(url);
+  base::Optional<std::string> encoded_url = base::GetApplicationKey(url);
   if (!encoded_url) {
     return base::nullopt;
   }

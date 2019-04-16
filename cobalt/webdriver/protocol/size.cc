@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/size.h"
 
 namespace cobalt {
@@ -22,11 +24,12 @@ const char kWidthKey[] = "width";
 const char kHeightKey[] = "height";
 }  // namespace
 
-scoped_ptr<base::Value> Size::ToValue(const Size& size) {
-  scoped_ptr<base::DictionaryValue> size_value(new base::DictionaryValue());
+std::unique_ptr<base::Value> Size::ToValue(const Size& size) {
+  std::unique_ptr<base::DictionaryValue> size_value(
+      new base::DictionaryValue());
   size_value->SetDouble(kWidthKey, size.width_);
   size_value->SetDouble(kHeightKey, size.height_);
-  return size_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(size_value.release());
 }
 
 }  // namespace protocol

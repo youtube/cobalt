@@ -14,13 +14,15 @@
 #include "cobalt/layout_tests/web_platform_test_parser.h"
 
 #include <map>
+#include <memory>
 #include <utility>
 
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/optional.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/script/global_environment.h"
@@ -47,11 +49,11 @@ std::string ExpectationToString(WebPlatformTestInfo::State state) {
 
 WebPlatformTestInfo::State StringToExpectation(
     const std::string& lower_case_string) {
-  if (LowerCaseEqualsASCII(lower_case_string, "pass")) {
+  if (base::LowerCaseEqualsASCII(lower_case_string, "pass")) {
     return WebPlatformTestInfo::kPass;
-  } else if (LowerCaseEqualsASCII(lower_case_string, "fail")) {
+  } else if (base::LowerCaseEqualsASCII(lower_case_string, "fail")) {
     return WebPlatformTestInfo::kFail;
-  } else if (LowerCaseEqualsASCII(lower_case_string, "disable")) {
+  } else if (base::LowerCaseEqualsASCII(lower_case_string, "disable")) {
     return WebPlatformTestInfo::kDisable;
   } else {
     NOTREACHED() << "Invalid test expectation " << lower_case_string;
@@ -59,20 +61,21 @@ WebPlatformTestInfo::State StringToExpectation(
   }
 }
 
-base::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
+base::Optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
     const std::string& line_string) {
-  std::vector<std::string> test_case_tokens;
-  Tokenize(line_string, ",", &test_case_tokens);
+  std::vector<std::string> test_case_tokens = base::SplitString(
+      line_string, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (test_case_tokens.size() < 2) {
     DLOG(WARNING) << "Failed to parse: " << line_string;
     return base::nullopt;
   }
 
   for (size_t i = 0; i < test_case_tokens.size(); ++i) {
-    TrimWhitespaceASCII(test_case_tokens[i], TRIM_ALL, &test_case_tokens[i]);
+    TrimWhitespaceASCII(test_case_tokens[i], base::TRIM_ALL,
+                        &test_case_tokens[i]);
   }
 
-  std::string test_expect = StringToLowerASCII(test_case_tokens[1]);
+  std::string test_expect = base::ToLowerASCII(test_case_tokens[1]);
   WebPlatformTestInfo::State expectation = StringToExpectation(test_expect);
   if (expectation == WebPlatformTestInfo::kDisable) {
     return base::nullopt;
@@ -100,7 +103,7 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
   if (precondition) {
     // Evaluate the javascript precondition. Enumerate the web platform tests
     // only if the precondition is true.
-    scoped_ptr<script::JavaScriptEngine> engine =
+    std::unique_ptr<script::JavaScriptEngine> engine =
         script::JavaScriptEngine::CreateEngine();
     scoped_refptr<script::GlobalEnvironment> global_environment =
         engine->CreateGlobalEnvironment();
@@ -123,21 +126,21 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
     }
   }
 
-  FilePath test_dir(GetTestInputRootDirectory()
-                        .Append("web-platform-tests")
-                        .Append(top_level));
-  FilePath tests_list_file(
+  base::FilePath test_dir(GetTestInputRootDirectory()
+                              .Append("web-platform-tests")
+                              .Append(top_level));
+  base::FilePath tests_list_file(
       test_dir.Append(FILE_PATH_LITERAL("web_platform_tests.txt")));
 
   std::string test_list;
-  if (!file_util::ReadFileToString(tests_list_file, &test_list)) {
+  if (!base::ReadFileToString(tests_list_file, &test_list)) {
     DLOG(ERROR) << "Could not open '" << tests_list_file.value() << "'.";
     return std::vector<WebPlatformTestInfo>();
   } else {
-    // Tokenize the file contents into lines, and then read each line one by
-    // one as the name of the test file.
-    std::vector<std::string> line_tokens;
-    Tokenize(test_list, "\n\r", &line_tokens);
+    // base::SplitString the file contents into lines, and then read each line
+    // one by one as the name of the test file.
+    std::vector<std::string> line_tokens = base::SplitString(
+        test_list, "\n\r", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
     const char kCommentChar = '#';
 
@@ -146,14 +149,14 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
     for (std::vector<std::string>::iterator iter = line_tokens.begin();
          iter != line_tokens.end(); ++iter) {
       std::string trimmed_line;
-      TrimWhitespaceASCII(*iter, TRIM_ALL, &trimmed_line);
+      TrimWhitespaceASCII(*iter, base::TRIM_ALL, &trimmed_line);
 
       // Skip commented-out lines.
       if (trimmed_line.size() > 0 && trimmed_line[0] == kCommentChar) {
         continue;
       }
 
-      base::optional<WebPlatformTestInfo> parsed_test_info =
+      base::Optional<WebPlatformTestInfo> parsed_test_info =
           ParseWebPlatformTestCaseLine(trimmed_line);
       if (parsed_test_info) {
         WebPlatformTestInfo& test_info = *parsed_test_info;

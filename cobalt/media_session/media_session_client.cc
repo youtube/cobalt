@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media_session/media_session_client.h"
 
 namespace cobalt {
@@ -59,9 +61,8 @@ MediaSessionClient::GetAvailableActions() {
   AvailableActionsSet result = AvailableActionsSet();
 
   for (MediaSession::ActionMap::iterator it =
-         media_session_->action_map_.begin();
-       it != media_session_->action_map_.end();
-       ++it) {
+           media_session_->action_map_.begin();
+       it != media_session_->action_map_.end(); ++it) {
     result[it->first] = true;
   }
 
@@ -83,8 +84,9 @@ MediaSessionClient::GetAvailableActions() {
 
 void MediaSessionClient::UpdatePlatformPlaybackState(
     MediaSessionPlaybackState state) {
-  if (base::MessageLoopProxy::current() != media_session_->message_loop_) {
-    media_session_->message_loop_->PostTask(
+  if (base::MessageLoop::current()->task_runner() !=
+      media_session_->task_runner_) {
+    media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
                               base::Unretained(this), state));
     return;
@@ -99,9 +101,10 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
 }
 
 void MediaSessionClient::InvokeActionInternal(
-    scoped_ptr<MediaSessionActionDetails::Data> data) {
-  if (base::MessageLoopProxy::current() != media_session_->message_loop_) {
-    media_session_->message_loop_->PostTask(
+    std::unique_ptr<MediaSessionActionDetails::Data> data) {
+  if (base::MessageLoop::current()->task_runner() !=
+      media_session_->task_runner_) {
+    media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
                               base::Unretained(this), base::Passed(&data)));
     return;

@@ -18,7 +18,7 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -67,7 +67,7 @@ void ApplyAnimation(
   scoped_refptr<cssom::CSSComputedStyleData> animated_style =
       new cssom::CSSComputedStyleData();
   animated_style->AssignFrom(*base_style);
-  animations.Apply(time_elapsed, animated_style);
+  animations.Apply(time_elapsed, animated_style.get());
   apply_style_function.Run(animated_style, node_builder);
 }
 
@@ -95,8 +95,9 @@ void AddAnimations(
       *css_computed_style_declaration.animations());
 
   node_animation_map_builder->Add(
-      target_node, base::Bind(&ApplyAnimation<T>, apply_style_function,
-                              baked_animation_set, base_style),
+      target_node,
+      base::Bind(&ApplyAnimation<T>, apply_style_function, baked_animation_set,
+                 base_style),
       baked_animation_set.end_time());
 }
 

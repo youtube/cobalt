@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/json_object.h"
 
@@ -48,14 +48,14 @@ class Command {
         domain_(method_, 0, method_.find('.')),
         json_params_(json_params),
         callback_(response_callback),
-        message_loop_(MessageLoop::current()) {}
+        task_runner_(base::MessageLoop::current()->task_runner()) {}
 
   const std::string& GetMethod() const { return method_; }
   const std::string& GetDomain() const { return domain_; }
   const std::string& GetParams() const { return json_params_; }
 
   void SendResponse(const std::string& json_response) const {
-    message_loop_->PostTask(FROM_HERE, base::Bind(callback_, json_response));
+    task_runner_->PostTask(FROM_HERE, base::Bind(callback_, json_response));
   }
 
   void SendResponse(const JSONObject& response) const {
@@ -77,7 +77,7 @@ class Command {
   std::string domain_;
   std::string json_params_;
   DebugClient::ResponseCallback callback_;
-  MessageLoop* message_loop_;
+  base::SingleThreadTaskRunner* task_runner_;
 };
 
 }  // namespace debug

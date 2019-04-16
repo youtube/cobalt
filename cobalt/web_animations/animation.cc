@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/web_animations/animation.h"
 
 #include "base/logging.h"
@@ -72,7 +74,7 @@ void Animation::Cancel() {
   UpdatePendingTasks();
 }
 
-base::optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
+base::Optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
   if (!timeline_) {
     return base::nullopt;
   }
@@ -82,9 +84,9 @@ base::optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
-base::optional<double> Animation::current_time() const {
-  base::optional<base::TimeDelta> current_time = current_time_as_time_delta();
-  return current_time ? base::optional<double>(current_time->InMillisecondsF())
+base::Optional<double> Animation::current_time() const {
+  base::Optional<base::TimeDelta> current_time = current_time_as_time_delta();
+  return current_time ? base::Optional<double>(current_time->InMillisecondsF())
                       : base::nullopt;
 }
 
@@ -95,9 +97,9 @@ base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
 }  // namespace
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 Animation::Data::ComputeLocalTimeFromTimelineTime(
-    const base::optional<base::TimeDelta>& timeline_time) const {
+    const base::Optional<base::TimeDelta>& timeline_time) const {
   // TODO: Take into account the hold time.
   if (!timeline_time || !start_time_) {
     return base::nullopt;
@@ -106,9 +108,9 @@ Animation::Data::ComputeLocalTimeFromTimelineTime(
   return ScaleTime(*timeline_time - *start_time_, playback_rate_);
 }
 
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 Animation::Data::ComputeTimelineTimeFromLocalTime(
-    const base::optional<base::TimeDelta>& local_time) const {
+    const base::Optional<base::TimeDelta>& local_time) const {
   if (!start_time_ || !local_time) {
     return base::nullopt;
   }
@@ -121,8 +123,8 @@ Animation::Data::ComputeTimelineTimeFromLocalTime(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#setting-the-current-time-of-an-animation
-void Animation::set_current_time(const base::optional<double>& current_time) {
-  UNREFERENCED_PARAMETER(current_time);
+void Animation::set_current_time(const base::Optional<double>& current_time) {
+  SB_UNREFERENCED_PARAMETER(current_time);
   NOTIMPLEMENTED();
 }
 
@@ -158,7 +160,7 @@ void Animation::UpdatePendingTasks() {
   base::TimeDelta end_time_local =
       effect_->timing()->data().time_until_after_phase(base::TimeDelta());
 
-  base::optional<base::TimeDelta> end_time_timeline =
+  base::Optional<base::TimeDelta> end_time_timeline =
       data_.ComputeTimelineTimeFromLocalTime(end_time_local);
 
   // If the local time is unresolved, then we cannot know when we will enter
@@ -201,15 +203,15 @@ void Animation::OnEnterAfterPhase() {
   }
 }
 
-scoped_ptr<Animation::EventHandler> Animation::AttachEventHandler(
+std::unique_ptr<Animation::EventHandler> Animation::AttachEventHandler(
     const base::Closure& on_enter_after_phase) {
   // Attaches an event handler to this animation and returns a handle to it.
-  scoped_ptr<Animation::EventHandler> event_handler(
+  std::unique_ptr<Animation::EventHandler> event_handler(
       new Animation::EventHandler(this, on_enter_after_phase));
 
   event_handlers_.insert(event_handler.get());
 
-  return event_handler.Pass();
+  return event_handler;
 }
 
 void Animation::OnAddedToAnimationSet(const scoped_refptr<AnimationSet>& set) {

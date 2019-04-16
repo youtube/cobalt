@@ -28,7 +28,7 @@ class CValKeyList : public script::Wrappable {
  public:
   CValKeyList();
 
-  base::optional<std::string> Item(uint32 item);
+  base::Optional<std::string> Item(uint32 item);
   uint32 length();
   int32 IndexOf(const std::string& key);
 

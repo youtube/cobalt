@@ -15,6 +15,7 @@
 #ifndef COBALT_CSS_PARSER_PARSER_H_
 #define COBALT_CSS_PARSER_PARSER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -35,7 +36,7 @@ class Parser : public cssom::CSSParser {
   // The parameter |supports_map_to_mesh| can be used to toggle parser support
   // for the map-to-mesh CSS filter.  If disabled, "filter: map-to-mesh(...)"
   // will result in a parse error.
-  static scoped_ptr<Parser> Create(
+  static std::unique_ptr<Parser> Create(
       SupportsMapToMeshFlag supports_map_to_mesh = kSupportsMapToMesh);
   ~Parser();
 

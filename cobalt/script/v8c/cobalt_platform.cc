@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/script/v8c/cobalt_platform.h"
 
 #include "base/logging.h"
@@ -34,7 +36,7 @@ CobaltPlatform::MessageLoopMapEntry* CobaltPlatform::FindOrAddMapEntry(
 }
 
 void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate,
-                                             MessageLoop* message_loop) {
+                                             base::MessageLoop* message_loop) {
   base::AutoLock auto_lock(lock_);
   auto* message_loop_entry = FindOrAddMapEntry(isolate);
   message_loop_entry->message_loop = message_loop;
@@ -46,13 +48,13 @@ void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate,
   task_vec.swap(message_loop_entry->tasks_before_registration);
   DCHECK(message_loop_entry->tasks_before_registration.empty());
   for (unsigned int i = 0; i < task_vec.size(); ++i) {
-    scoped_ptr<v8::Task> scoped_task(task_vec[i]->task.release());
+    std::unique_ptr<v8::Task> scoped_task(task_vec[i]->task.release());
     base::TimeDelta delay =
         std::max(task_vec[i]->target_time - base::TimeTicks::Now(),
                  base::TimeDelta::FromSeconds(0));
-    message_loop->PostDelayedTask(
+    message_loop->task_runner()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&CobaltPlatform::RunV8Task, this, isolate,
+        base::Bind(&CobaltPlatform::RunV8Task, base::Unretained(this), isolate,
                    base::Passed(&scoped_task)),
         delay);
   }
@@ -69,7 +71,7 @@ void CobaltPlatform::UnregisterIsolateOnThread(v8::Isolate* isolate) {
 }
 
 void CobaltPlatform::RunV8Task(v8::Isolate* isolate,
-                               scoped_ptr<v8::Task> task) {
+                               std::unique_ptr<v8::Task> task) {
   {
     base::AutoLock auto_lock(lock_);
     MessageLoopMap::iterator iter = message_loop_map_.find(isolate);
@@ -93,10 +95,10 @@ void CobaltPlatform::CallDelayedOnForegroundThread(v8::Isolate* isolate,
   base::AutoLock auto_lock(lock_);
   auto* message_loop_entry = FindOrAddMapEntry(isolate);
   if (message_loop_entry->message_loop != NULL) {
-    scoped_ptr<v8::Task> scoped_task(task);
-    message_loop_entry->message_loop->PostDelayedTask(
+    std::unique_ptr<v8::Task> scoped_task(task);
+    message_loop_entry->message_loop->task_runner()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&CobaltPlatform::RunV8Task, this, isolate,
+        base::Bind(&CobaltPlatform::RunV8Task, base::Unretained(this), isolate,
                    base::Passed(&scoped_task)),
         base::TimeDelta::FromSecondsD(delay_in_seconds));
   } else {

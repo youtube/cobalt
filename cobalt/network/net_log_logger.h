@@ -17,11 +17,13 @@
 
 #include <string>
 
-#include "base/platform_file.h"
+#include "base/files/platform_file.h"
 #include "base/threading/thread.h"
-#include "net/base/net_log.h"
+#include "net/log/net_log.h"
 
+namespace base {
 class FilePath;
+}
 
 namespace cobalt {
 namespace network {
@@ -40,15 +42,16 @@ class NetLogLogger : public net::NetLog::ThreadSafeObserver {
   // If |log_path| is empty or file creation fails, writes to VLOG(1).
   // Otherwise, writes to |log_path|.  Uses one line per entry, for
   // easy parsing.
-  explicit NetLogLogger(const FilePath& log_path);
+  explicit NetLogLogger(const base::FilePath& log_path);
   virtual ~NetLogLogger();
 
   // Starts observing specified NetLog.  Must not already be watching a NetLog.
   // Separate from constructor to enforce thread safety.
-  void StartObserving(net::NetLog* net_log);
+  void StartObserving(net::NetLog* net_log,
+                      net::NetLogCaptureMode capture_mode);
 
   // net::NetLog::ThreadSafeObserver implementation:
-  void OnAddEntry(const net::NetLog::Entry& entry) override;
+  void OnAddEntry(const net::NetLogEntry& entry) override;
 
  private:
   void WriteToLog(const std::string& data);

@@ -15,8 +15,11 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_WRAPPER_FACTORY_H_
 #define COBALT_SCRIPT_MOZJS_45_WRAPPER_FACTORY_H_
 
+#include <memory>
+
 #include "base/bind.h"
-#include "base/hash_tables.h"
+#include "base/callback.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/wrappable.h"
@@ -68,7 +71,7 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
         : create_wrapper(create_wrapper), prototype_class(prototype_class) {}
   };
 
-  scoped_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
+  std::unique_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
       const scoped_refptr<Wrappable>& wrappable) const;
 
   typedef base::hash_map<base::TypeId, WrappableTypeFunctions>

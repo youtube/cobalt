@@ -15,15 +15,15 @@
 #ifndef COBALT_LOADER_DECODER_H_
 #define COBALT_LOADER_DECODER_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -32,7 +32,7 @@ class Fetcher;
 
 class Decoder {
  public:
-  typedef base::Callback<void(const base::optional<std::string>&)>
+  typedef base::Callback<void(const base::Optional<std::string>&)>
       OnCompleteFunction;
 
   Decoder() {}
@@ -56,7 +56,7 @@ class Decoder {
   // decoded asynchronously.  Not all fetchers are guaranteed to support this
   // though, in which case they simply forward the scoped pointer data to
   // DecodeChunk.
-  virtual void DecodeChunkPassed(scoped_ptr<std::string> data) {
+  virtual void DecodeChunkPassed(std::unique_ptr<std::string> data) {
     DecodeChunk(data->data(), data->size());
   }
 

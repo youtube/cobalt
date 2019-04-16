@@ -14,11 +14,11 @@
 
 #include "cobalt/dom/error_event.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
@@ -49,22 +49,22 @@ namespace cobalt {
 namespace dom {
 
 class MockLoadCompleteCallback
-    : public base::Callback<void(const base::optional<std::string>&)> {
+    : public base::Callback<void(const base::Optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
+  MOCK_METHOD1(Run, void(const base::Optional<std::string>&));
 };
 
 namespace {
 class ErrorEventTest : public ::testing::Test {
  public:
   ErrorEventTest()
-      : message_loop_(MessageLoop::TYPE_DEFAULT),
+      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         environment_settings_(new script::EnvironmentSettings),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_load_complete_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         loader_factory_(new loader::LoaderFactory(
-            fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
+            fetcher_factory_.get(), NULL, base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
         url_("about:blank") {
     engine_ = script::JavaScriptEngine::CreateEngine();
@@ -95,15 +95,15 @@ class ErrorEventTest : public ::testing::Test {
   bool EvaluateScript(const std::string& js_code, std::string* result);
 
  private:
-  MessageLoop message_loop_;
-  scoped_ptr<script::JavaScriptEngine> engine_;
-  const scoped_ptr<script::EnvironmentSettings> environment_settings_;
+  base::MessageLoop message_loop_;
+  std::unique_ptr<script::JavaScriptEngine> engine_;
+  const std::unique_ptr<script::EnvironmentSettings> environment_settings_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   MockLoadCompleteCallback mock_load_complete_callback_;
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-  scoped_ptr<loader::LoaderFactory> loader_factory_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
+  std::unique_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
   scoped_refptr<Window> window_;
@@ -128,8 +128,8 @@ TEST_F(ErrorEventTest, ConstructorWithEventTypeString) {
   scoped_refptr<ErrorEvent> event = new ErrorEvent("mytestevent");
 
   EXPECT_EQ("mytestevent", event->type());
-  EXPECT_EQ(NULL, event->target());
-  EXPECT_EQ(NULL, event->current_target());
+  EXPECT_EQ(NULL, event->target().get());
+  EXPECT_EQ(NULL, event->current_target().get());
   EXPECT_EQ(Event::kNone, event->event_phase());
   EXPECT_FALSE(event->bubbles());
   EXPECT_FALSE(event->cancelable());
@@ -149,8 +149,8 @@ TEST_F(ErrorEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   scoped_refptr<ErrorEvent> event = new ErrorEvent("mytestevent", init);
 
   EXPECT_EQ("mytestevent", event->type());
-  EXPECT_EQ(NULL, event->target());
-  EXPECT_EQ(NULL, event->current_target());
+  EXPECT_EQ(NULL, event->target().get());
+  EXPECT_EQ(NULL, event->current_target().get());
   EXPECT_EQ(Event::kNone, event->event_phase());
   EXPECT_FALSE(event->bubbles());
   EXPECT_FALSE(event->cancelable());

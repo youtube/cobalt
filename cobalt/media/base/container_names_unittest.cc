@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/files/file_util.h"
 #include "cobalt/media/base/container_names.h"
+
+#include "base/files/file_util.h"
 #include "cobalt/media/base/test_data_util.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"

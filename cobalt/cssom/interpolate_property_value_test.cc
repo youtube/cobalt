@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/interpolate_property_value.h"
@@ -98,13 +98,13 @@ TEST(InterpolatePropertyValueTest, TransformSingleRotateValuesInterpolate) {
   struct MakeSingleRotateTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new RotateFunction(1.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new RotateFunction(1.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new RotateFunction(2.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new RotateFunction(2.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -116,7 +116,7 @@ TEST(InterpolatePropertyValueTest, TransformSingleRotateValuesInterpolate) {
   ASSERT_EQ(1, interpolated->value().size());
 
   const RotateFunction* single_function =
-      dynamic_cast<const RotateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const RotateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_NEAR(single_function->clockwise_angle_in_radians(), 1.5f,
@@ -127,13 +127,13 @@ TEST(InterpolatePropertyValueTest, TransformSingleScaleValuesInterpolate) {
   struct MakeSingleScaleTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new ScaleFunction(1.0f, 2.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new ScaleFunction(1.0f, 2.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new ScaleFunction(3.0f, 4.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new ScaleFunction(3.0f, 4.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -145,7 +145,7 @@ TEST(InterpolatePropertyValueTest, TransformSingleScaleValuesInterpolate) {
   ASSERT_EQ(1, interpolated->value().size());
 
   const ScaleFunction* single_function =
-      dynamic_cast<const ScaleFunction*>(interpolated->value()[0]);
+      dynamic_cast<const ScaleFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_NEAR(single_function->x_factor(), 2.0f, kErrorEpsilon);
@@ -159,8 +159,8 @@ TEST(InterpolatePropertyValueTest, TransformFromNoneToScaleValuesInterpolate) {
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new ScaleFunction(5.0f, 9.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new ScaleFunction(5.0f, 9.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -172,7 +172,7 @@ TEST(InterpolatePropertyValueTest, TransformFromNoneToScaleValuesInterpolate) {
   ASSERT_EQ(1, interpolated->value().size());
 
   const ScaleFunction* single_function =
-      dynamic_cast<const ScaleFunction*>(interpolated->value()[0]);
+      dynamic_cast<const ScaleFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_NEAR(single_function->x_factor(), 2.0f, kErrorEpsilon);
@@ -183,8 +183,8 @@ TEST(InterpolatePropertyValueTest, TransformFromScaleToNoneValuesInterpolate) {
   struct MakeSingleScaleTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new ScaleFunction(5.0f, 9.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new ScaleFunction(5.0f, 9.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       return KeywordValue::GetNone();
@@ -199,7 +199,7 @@ TEST(InterpolatePropertyValueTest, TransformFromScaleToNoneValuesInterpolate) {
   ASSERT_EQ(1, interpolated->value().size());
 
   const ScaleFunction* single_function =
-      dynamic_cast<const ScaleFunction*>(interpolated->value()[0]);
+      dynamic_cast<const ScaleFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_NEAR(single_function->x_factor(), 4.0f, kErrorEpsilon);
@@ -210,15 +210,15 @@ void TestTransformSingleTranslateValuesAnimate(TranslateFunction::Axis axis) {
   struct MakeSingleTranslateTransform {
     static scoped_refptr<PropertyValue> Start(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new TranslateFunction(axis, new LengthValue(1.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new TranslateFunction(axis, new LengthValue(2.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -229,7 +229,7 @@ void TestTransformSingleTranslateValuesAnimate(TranslateFunction::Axis axis) {
 
   ASSERT_EQ(1, interpolated->value().size());
   const TranslateFunction* single_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_NEAR(single_function->offset_as_length()->value(), 1.5f,
@@ -253,15 +253,15 @@ void TestTransformTranslateFromLengthToPercentageValuesAnimate(
   struct MakeSingleTranslateTransform {
     static scoped_refptr<PropertyValue> Start(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new TranslateFunction(axis, new LengthValue(1.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new TranslateFunction(axis, new PercentageValue(0.5f)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -272,7 +272,7 @@ void TestTransformTranslateFromLengthToPercentageValuesAnimate(
 
   ASSERT_EQ(1, interpolated->value().size());
   const TranslateFunction* single_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   ASSERT_EQ(TranslateFunction::kCalc, single_function->offset_type());
@@ -306,17 +306,17 @@ void TestTransformTranslateCalcValuesAnimate(TranslateFunction::Axis axis) {
   struct MakeSingleTranslateTransform {
     static scoped_refptr<PropertyValue> Start(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           axis, new CalcValue(new LengthValue(1.0f, kPixelsUnit),
                               new PercentageValue(0.2f))));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           axis, new CalcValue(new LengthValue(2.0f, kPixelsUnit),
                               new PercentageValue(0.4f))));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -327,7 +327,7 @@ void TestTransformTranslateCalcValuesAnimate(TranslateFunction::Axis axis) {
 
   ASSERT_EQ(1, interpolated->value().size());
   const TranslateFunction* single_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   ASSERT_EQ(TranslateFunction::kCalc, single_function->offset_type());
@@ -356,9 +356,9 @@ void TestTransformFromTranslateToNoneValuesAnimate(
   struct MakeSingleTranslateTransform {
     static scoped_refptr<PropertyValue> Start(TranslateFunction::Axis axis) {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new TranslateFunction(axis, new LengthValue(1.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       return KeywordValue::GetNone();
@@ -372,7 +372,7 @@ void TestTransformFromTranslateToNoneValuesAnimate(
 
   ASSERT_EQ(1, interpolated->value().size());
   const TranslateFunction* single_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_NEAR(single_function->offset_as_length()->value(), 0.5f,
@@ -399,27 +399,27 @@ TEST(InterpolatePropertyValueTest,
   struct MakeSingleScaleTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new RotateFunction(1.0f));
-      functions.push_back(new ScaleFunction(1.0f, 2.0f));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new RotateFunction(1.0f));
+      functions.emplace_back(new ScaleFunction(1.0f, 2.0f));
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis, new LengthValue(3.0f, kPixelsUnit)));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kYAxis, new LengthValue(4.0f, kPixelsUnit)));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kZAxis, new LengthValue(5.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new RotateFunction(2.0f));
-      functions.push_back(new ScaleFunction(7.0f, 8.0f));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new RotateFunction(2.0f));
+      functions.emplace_back(new ScaleFunction(7.0f, 8.0f));
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis, new LengthValue(9.0f, kPixelsUnit)));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kYAxis, new LengthValue(10.0f, kPixelsUnit)));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kZAxis, new LengthValue(11.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -431,32 +431,32 @@ TEST(InterpolatePropertyValueTest,
   ASSERT_EQ(5, interpolated->value().size());
 
   const RotateFunction* first_function =
-      dynamic_cast<const RotateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const RotateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(first_function);
   EXPECT_NEAR(first_function->clockwise_angle_in_radians(), 1.5f,
               kErrorEpsilon);
 
   const ScaleFunction* second_function =
-      dynamic_cast<const ScaleFunction*>(interpolated->value()[1]);
+      dynamic_cast<const ScaleFunction*>(interpolated->value()[1].get());
   ASSERT_TRUE(second_function);
   EXPECT_NEAR(second_function->x_factor(), 4.0f, kErrorEpsilon);
   EXPECT_NEAR(second_function->y_factor(), 5.0f, kErrorEpsilon);
 
   const TranslateFunction* third_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[2]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[2].get());
   ASSERT_TRUE(third_function);
   EXPECT_NEAR(third_function->offset_as_length()->value(), 6.0f, kErrorEpsilon);
   EXPECT_EQ(kPixelsUnit, third_function->offset_as_length()->unit());
 
   const TranslateFunction* fourth_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[3]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[3].get());
   ASSERT_TRUE(fourth_function);
   EXPECT_NEAR(fourth_function->offset_as_length()->value(), 7.0f,
               kErrorEpsilon);
   EXPECT_EQ(kPixelsUnit, fourth_function->offset_as_length()->unit());
 
   const TranslateFunction* fifth_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[4]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[4].get());
   ASSERT_TRUE(fifth_function);
   EXPECT_NEAR(fifth_function->offset_as_length()->value(), 8.0f, kErrorEpsilon);
   EXPECT_EQ(kPixelsUnit, fifth_function->offset_as_length()->unit());
@@ -467,14 +467,14 @@ TEST(InterpolatePropertyValueTest,
   struct MakeSingleMatrixTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new MatrixFunction(math::RotateMatrix(0.0f)));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new MatrixFunction(math::RotateMatrix(0.0f)));
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new MatrixFunction(math::RotateMatrix(static_cast<float>(M_PI / 2))));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -486,7 +486,7 @@ TEST(InterpolatePropertyValueTest,
   ASSERT_EQ(1, interpolated->value().size());
 
   const MatrixFunction* single_function =
-      dynamic_cast<const MatrixFunction*>(interpolated->value()[0]);
+      dynamic_cast<const MatrixFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_TRUE(single_function->value().IsNear(
@@ -498,13 +498,13 @@ TEST(InterpolatePropertyValueTest,
   struct MakeSingleMatrixTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new MatrixFunction(math::ScaleMatrix(2.0f, 1.0f)));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new MatrixFunction(math::ScaleMatrix(2.0f, 1.0f)));
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new MatrixFunction(math::ScaleMatrix(4.0f, 2.0f)));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new MatrixFunction(math::ScaleMatrix(4.0f, 2.0f)));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -516,7 +516,7 @@ TEST(InterpolatePropertyValueTest,
   ASSERT_EQ(1, interpolated->value().size());
 
   const MatrixFunction* single_function =
-      dynamic_cast<const MatrixFunction*>(interpolated->value()[0]);
+      dynamic_cast<const MatrixFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_TRUE(single_function->value().IsNear(math::ScaleMatrix(3.0f, 1.5f),
@@ -528,15 +528,15 @@ TEST(InterpolatePropertyValueTest,
   struct MakeSingleMatrixTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new MatrixFunction(math::TranslateMatrix(2.0f, 1.0f)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(
+      functions.emplace_back(
           new MatrixFunction(math::TranslateMatrix(4.0f, 2.0f)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -548,7 +548,7 @@ TEST(InterpolatePropertyValueTest,
   ASSERT_EQ(1, interpolated->value().size());
 
   const MatrixFunction* single_function =
-      dynamic_cast<const MatrixFunction*>(interpolated->value()[0]);
+      dynamic_cast<const MatrixFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
 
   EXPECT_TRUE(single_function->value().IsNear(math::TranslateMatrix(3.0f, 1.5f),
@@ -560,18 +560,18 @@ TEST(InterpolatePropertyValueTest,
   struct MakeMultipleMismatchedTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis, new LengthValue(2.0f, kPixelsUnit)));
-      functions.push_back(new ScaleFunction(2.0f, 1.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new ScaleFunction(2.0f, 1.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis, new LengthValue(4.0f, kPixelsUnit)));
-      functions.push_back(new RotateFunction(static_cast<float>(M_PI / 2)));
-      functions.push_back(new ScaleFunction(4.0f, 2.0f));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new RotateFunction(static_cast<float>(M_PI / 2)));
+      functions.emplace_back(new ScaleFunction(4.0f, 2.0f));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -600,14 +600,14 @@ TEST(InterpolatePropertyValueTest,
   struct MakeMultipleMismatchedTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis, new LengthValue(0.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new RotateFunction(static_cast<float>(M_PI / 2)));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new RotateFunction(static_cast<float>(M_PI / 2)));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -634,15 +634,15 @@ TEST(InterpolatePropertyValueTest,
   struct MakeMultipleMismatchedTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis, new LengthValue(5.0f, kPixelsUnit)));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(TranslateFunction::kXAxis,
-                                                new PercentageValue(0.5f)));
-      return new TransformFunctionListValue(functions.Pass());
+      functions.emplace_back(new TranslateFunction(TranslateFunction::kXAxis,
+                                                   new PercentageValue(0.5f)));
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 
@@ -653,7 +653,7 @@ TEST(InterpolatePropertyValueTest,
 
   ASSERT_EQ(1, interpolated->value().size());
   const TranslateFunction* single_function =
-      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
   EXPECT_EQ(TranslateFunction::kXAxis, single_function->axis());
 
@@ -668,24 +668,24 @@ TEST(InterpolatePropertyValueTest,
   struct MakeMultipleMismatchedTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis,
           new CalcValue(new LengthValue(2.0f, kPixelsUnit),
                         new PercentageValue(0.2f))));
-      functions.push_back(new RotateFunction(static_cast<float>(M_PI / 2)));
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new RotateFunction(static_cast<float>(M_PI / 2)));
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kXAxis,
           new CalcValue(new LengthValue(10.0f, kPixelsUnit),
                         new PercentageValue(1.0f))));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.push_back(new TranslateFunction(
+      functions.emplace_back(new TranslateFunction(
           TranslateFunction::kYAxis,
           new CalcValue(new LengthValue(5.0f, kPixelsUnit),
                         new PercentageValue(0.5f))));
-      return new TransformFunctionListValue(functions.Pass());
+      return new TransformFunctionListValue(std::move(functions));
     }
   };
 

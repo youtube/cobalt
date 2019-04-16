@@ -15,16 +15,17 @@
 #ifndef COBALT_LOADER_MOCK_LOADER_FACTORY_H_
 #define COBALT_LOADER_MOCK_LOADER_FACTORY_H_
 
+#include <memory>
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/font/typeface_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/loader_factory.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -47,27 +48,27 @@ class MockLoaderFactory {
                        typeface_available_callback,
                    const Loader::OnCompleteFunction& load_complete_callback));
 
-  // This workaround is required since scoped_ptr has no copy constructor.
+  // This workaround is required since std::unique_ptr has no copy constructor.
   // see:
   // https://groups.google.com/a/chromium.org/forum/#!msg/chromium-dev/01sDxsJ1OYw/I_S0xCBRF2oJ
-  scoped_ptr<Loader> CreateImageLoader(
+  std::unique_ptr<Loader> CreateImageLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::ImageAvailableCallback&
           image_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback) {
-    return scoped_ptr<Loader>(CreateImageLoaderMock(
+    return std::unique_ptr<Loader>(CreateImageLoaderMock(
         url, origin, url_security_callback, image_available_callback,
         load_complete_callback));
   }
 
-  scoped_ptr<Loader> CreateTypefaceLoader(
+  std::unique_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::TypefaceAvailableCallback&
           typeface_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback) {
-    return scoped_ptr<Loader>(CreateTypefaceLoaderMock(
+    return std::unique_ptr<Loader>(CreateTypefaceLoaderMock(
         url, origin, url_security_callback, typeface_available_callback,
         load_complete_callback));
   }

@@ -15,9 +15,10 @@
 #ifndef COBALT_CSSOM_COMPLEX_SELECTOR_H_
 #define COBALT_CSSOM_COMPLEX_SELECTOR_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/specificity.h"
 
@@ -59,15 +60,15 @@ class ComplexSelector : public Selector {
   // should be first called with the left most compound selector, then
   // AppendCombinatorAndSelector should be called with each (combinator,
   // compound selector) pair that follows.
-  void AppendSelector(scoped_ptr<CompoundSelector> compound_selector);
+  void AppendSelector(std::unique_ptr<CompoundSelector> compound_selector);
   void AppendCombinatorAndSelector(
-      scoped_ptr<Combinator> combinator,
-      scoped_ptr<CompoundSelector> compound_selector);
+      std::unique_ptr<Combinator> combinator,
+      std::unique_ptr<CompoundSelector> compound_selector);
 
  private:
   CompoundSelector* last_selector_;
 
-  scoped_ptr<CompoundSelector> first_selector_;
+  std::unique_ptr<CompoundSelector> first_selector_;
   Specificity specificity_;
 
   int combinator_count_;

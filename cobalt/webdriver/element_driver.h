@@ -15,13 +15,13 @@
 #ifndef COBALT_WEBDRIVER_ELEMENT_DRIVER_H_
 #define COBALT_WEBDRIVER_ELEMENT_DRIVER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/element.h"
@@ -59,12 +59,13 @@ class ElementDriver {
                               const dom::PointerEventInit&)>
       PointerEventInjector;
 
-  ElementDriver(const protocol::ElementId& element_id,
-                const base::WeakPtr<dom::Element>& element,
-                ElementMapping* element_mapping,
-                KeyboardEventInjector keyboard_event_injector,
-                PointerEventInjector pointer_event_injector,
-                const scoped_refptr<base::MessageLoopProxy>& message_loop);
+  ElementDriver(
+      const protocol::ElementId& element_id,
+      const base::WeakPtr<dom::Element>& element,
+      ElementMapping* element_mapping,
+      KeyboardEventInjector keyboard_event_injector,
+      PointerEventInjector pointer_event_injector,
+      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
   util::CommandResult<std::string> GetTagName();
@@ -79,8 +80,8 @@ class ElementDriver {
   util::CommandResult<std::vector<protocol::ElementId> > FindElements(
       const protocol::SearchStrategy& strategy);
   util::CommandResult<void> SendClick(const protocol::Button& button);
-  util::CommandResult<bool> Equals(const ElementDriver* other_element_driver);
-  util::CommandResult<base::optional<std::string> > GetAttribute(
+  util::CommandResult<bool> Equals(ElementDriver* other_element_driver);
+  util::CommandResult<base::Optional<std::string> > GetAttribute(
       const std::string& attribute_name);
   util::CommandResult<std::string> GetCssProperty(
       const std::string& property_name);
@@ -91,11 +92,11 @@ class ElementDriver {
   typedef std::vector<protocol::ElementId> ElementIdVector;
 
   // Get the dom::Element* that this ElementDriver wraps. This must be called
-  // on |element_message_loop_|.
+  // on |element_task_runner_|.
   dom::Element* GetWeakElement();
 
   util::CommandResult<void> SendKeysInternal(
-      scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
+      std::unique_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
   util::CommandResult<void> SendClickInternal(const protocol::Button& button);
 
@@ -112,12 +113,12 @@ class ElementDriver {
 
   protocol::ElementId element_id_;
 
-  // These should only be accessed from |element_message_loop_|.
+  // These should only be accessed from |element_task_runner_|.
   base::WeakPtr<dom::Element> element_;
   ElementMapping* element_mapping_;
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;
-  scoped_refptr<base::MessageLoopProxy> element_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> element_task_runner_;
 
   friend class WindowDriver;
 };

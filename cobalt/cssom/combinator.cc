@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/combinator.h"
 
 #include "cobalt/cssom/compound_selector.h"
@@ -24,8 +26,8 @@ Combinator::Combinator() : left_selector_(NULL) {}
 Combinator::~Combinator() {}
 
 void Combinator::set_right_selector(
-    scoped_ptr<CompoundSelector> right_selector) {
-  right_selector_ = right_selector.Pass();
+    std::unique_ptr<CompoundSelector> right_selector) {
+  right_selector_ = std::move(right_selector);
 }
 
 }  // namespace cssom

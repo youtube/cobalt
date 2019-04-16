@@ -18,9 +18,9 @@
 #define COBALT_LOADER_IMAGE_IMAGE_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/image.h"
@@ -125,7 +125,7 @@ class AnimatedImage : public Image {
   // Start playing the animation, decoding on the given message loop.
   // Implementation should be thread safe.
   virtual void Play(
-      const scoped_refptr<base::MessageLoopProxy>& message_loop) = 0;
+      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop) = 0;
 
   // Stop playing the animation.
   virtual void Stop() = 0;

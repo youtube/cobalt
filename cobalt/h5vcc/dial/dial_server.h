@@ -17,10 +17,11 @@
 #if defined(DIAL_SERVER)
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/h5vcc/dial/dial_http_request.h"
 #include "cobalt/h5vcc/dial/dial_http_response.h"
@@ -73,7 +74,7 @@ class DialServer : public script::Wrappable,
               const DialHttpRequestCallbackWrapper::ScriptValue& handler);
   const std::string& service_name() const;
 
-  scoped_ptr<net::HttpServerResponseInfo> RunCallback(
+  std::unique_ptr<net::HttpServerResponseInfo> RunCallback(
       const std::string& path, const net::HttpServerRequestInfo& request);
 
   DEFINE_WRAPPABLE_TYPE(DialServer);

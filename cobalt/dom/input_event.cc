@@ -17,7 +17,6 @@
 #include <string>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 

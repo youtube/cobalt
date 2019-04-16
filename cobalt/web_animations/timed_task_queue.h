@@ -16,11 +16,12 @@
 #define COBALT_WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_
 
 #include <map>
+#include <memory>
 #include <set>
 
 #include "base/memory/weak_ptr.h"
-#include "base/time.h"
-#include "base/timer.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -62,8 +63,8 @@ class TimedTaskQueue {
 
   TimedTaskQueue();
 
-  scoped_ptr<Task> QueueTask(base::TimeDelta fire_time,
-                             const base::Closure& task);
+  std::unique_ptr<Task> QueueTask(base::TimeDelta fire_time,
+                                  const base::Closure& task);
 
   void UpdateTime(base::TimeDelta time);
 

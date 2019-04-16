@@ -51,7 +51,6 @@ ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
 }
 
 void ConsoleAgent::Thaw(JSONObject agent_state) {
-  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 

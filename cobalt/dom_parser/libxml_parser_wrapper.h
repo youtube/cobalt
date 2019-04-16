@@ -21,8 +21,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/node.h"

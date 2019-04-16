@@ -15,9 +15,10 @@
 #include "cobalt/loader/image/image_decoder.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/command_line.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/image_decoder_starboard.h"
 #include "cobalt/loader/image/jpeg_image_decoder.h"
@@ -94,7 +95,7 @@ ImageDecoder::ImageDecoder(
 
 LoadResponseType ImageDecoder::OnResponseStarted(
     Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
-  UNREFERENCED_PARAMETER(fetcher);
+  SB_UNREFERENCED_PARAMETER(fetcher);
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::OnResponseStarted()");
 
   if (state_ == kSuspended) {
@@ -270,7 +271,7 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
 }
 
 // If |mime_type| is empty, |image_type| will be used to deduce the mime type.
-scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
+std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
     const std::string& mime_type, ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider) {
   // clang-format off
@@ -304,35 +305,35 @@ scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
 
     if (SbDecodeTargetIsFormatValid(format) &&
         resource_provider->SupportsSbDecodeTarget()) {
-      return make_scoped_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
+      return std::unique_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
           resource_provider, mime_type_c_string, format));
     }
   }
-  return scoped_ptr<ImageDataDecoder>();
+  return std::unique_ptr<ImageDataDecoder>();
 }
 #endif  // SB_HAS(GRAPHICS) && !SB_IS(EVERGREEN)
 
-scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
+std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider) {
   // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
-    return make_scoped_ptr<ImageDataDecoder>(
+    return std::unique_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeJPEG) {
-    return make_scoped_ptr<ImageDataDecoder>(new JPEGImageDecoder(
+    return std::unique_ptr<ImageDataDecoder>(new JPEGImageDecoder(
         resource_provider, ImageDecoder::AllowDecodingToMultiPlane()));
   } else if (image_type == ImageDecoder::kImageTypePNG) {
-    return make_scoped_ptr<ImageDataDecoder>(
+    return std::unique_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeWebP) {
-    return make_scoped_ptr<ImageDataDecoder>(
+    return std::unique_ptr<ImageDataDecoder>(
         new WEBPImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeGIF) {
-    return make_scoped_ptr<ImageDataDecoder>(
+    return std::unique_ptr<ImageDataDecoder>(
         new DummyGIFImageDecoder(resource_provider));
   } else {
-    return scoped_ptr<ImageDataDecoder>();
+    return std::unique_ptr<ImageDataDecoder>();
   }
 }
 }  // namespace
@@ -396,7 +397,7 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
 #endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  auto command_line = CommandLine::ForCurrentProcess();
+  auto command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kAllowImageDecodingToMultiPlane)) {
     std::string value = command_line->GetSwitchValueASCII(
         switches::kAllowImageDecodingToMultiPlane);

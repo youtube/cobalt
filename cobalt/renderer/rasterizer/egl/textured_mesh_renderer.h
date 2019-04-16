@@ -123,7 +123,7 @@ class TexturedMeshRenderer {
     uint32 gl_program_id;
   };
   // We key each program off of their GL texture type and image type.
-  typedef std::tuple<uint32, Image::Type, base::optional<int32> > CacheKey;
+  typedef std::tuple<uint32, Image::Type, base::Optional<int32> > CacheKey;
   typedef std::map<CacheKey, ProgramInfo> ProgramCache;
 
   uint32 GetQuadVBO();
@@ -152,7 +152,7 @@ class TexturedMeshRenderer {
   static const int kBlitPositionAttribute = 0;
   static const int kBlitTexcoordAttribute = 1;
 
-  base::optional<uint32> quad_vbo_;
+  base::Optional<uint32> quad_vbo_;
 };
 
 }  // namespace egl

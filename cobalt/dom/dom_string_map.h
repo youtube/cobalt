@@ -42,7 +42,7 @@ class DOMStringMap : public script::Wrappable,
   explicit DOMStringMap(const scoped_refptr<Element>& element);
 
   // Web API: DOMStringMap
-  base::optional<std::string> AnonymousNamedGetter(
+  base::Optional<std::string> AnonymousNamedGetter(
       const std::string& key, script::ExceptionState* exception_state);
   void AnonymousNamedSetter(const std::string& key, const std::string& value,
                             script::ExceptionState* exception_state);

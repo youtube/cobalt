@@ -22,9 +22,7 @@ class InsetsF : public InsetsBase<InsetsF, float> {
   InsetsF Scale(float scale) const { return Scale(scale, scale); }
 
   InsetsF Scale(float x_scale, float y_scale) const {
-    return InsetsF(left() * x_scale,
-                   top() * y_scale,
-                   right() * x_scale,
+    return InsetsF(left() * x_scale, top() * y_scale, right() * x_scale,
                    bottom() * y_scale);
   }
 

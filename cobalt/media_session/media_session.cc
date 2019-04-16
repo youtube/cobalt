@@ -22,7 +22,7 @@ namespace media_session {
 MediaSession::MediaSession(MediaSessionClient* client)
     : media_session_client_(client),
       state_(kMediaSessionPlaybackStateNone),
-      message_loop_(base::MessageLoopProxy::current()),
+      task_runner_(base::MessageLoop::current()->task_runner()),
       is_change_task_queued_(false) {}
 
 MediaSession::~MediaSession() {
@@ -46,7 +46,7 @@ void MediaSession::set_playback_state(MediaSessionPlaybackState state) {
 void MediaSession::SetActionHandler(
     MediaSessionAction action, const MediaSessionActionHandlerHolder& handler) {
   // See algorithm https://wicg.github.io/mediasession/#actions-model
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_.get());
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
   ActionMap::iterator it = action_map_.find(action);
 
   if (it != action_map_.end()) {
@@ -61,16 +61,16 @@ void MediaSession::SetActionHandler(
 }
 
 void MediaSession::TraceMembers(script::Tracer* tracer) {
-  tracer->Trace(metadata_);
+  tracer->Trace(metadata_.get());
 }
 
 void MediaSession::MaybeQueueChangeTask() {
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_.get());
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
   if (is_change_task_queued_) {
     return;
   }
   is_change_task_queued_ = true;
-  message_loop_->PostTask(
+  task_runner_->PostTask(
       FROM_HERE, base::Bind(&MediaSession::OnChanged, base::Unretained(this)));
 }
 

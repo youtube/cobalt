@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/test/scenes/growing_rect_scene.h"
 
 #include "base/bind.h"
@@ -68,9 +70,10 @@ scoped_refptr<render_tree::Node> CreateGrowingRectScene(
   // size.
   AnimateNode::Builder animations;
 
-  scoped_refptr<RectNode> growing_rect_node(new RectNode(
-      math::RectF(output_dimensions),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.2f, 0.2f, 0.2f)))));
+  scoped_refptr<RectNode> growing_rect_node(
+      new RectNode(math::RectF(output_dimensions),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.2f, 0.2f, 0.2f)))));
 
   scoped_refptr<MatrixTransformNode> transformed_growing_rect(
       new MatrixTransformNode(growing_rect_node, Matrix3F::Identity()));

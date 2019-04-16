@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,12 +55,12 @@ MozjsSingleOperationInterface::MozjsSingleOperationInterface(
     : context_(context),
       implementing_object_(context, implementing_object_value) { }
 
-base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
+base::Optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
     const scoped_refptr<script::Wrappable>& callback_this,
     const scoped_refptr<ArbitraryInterface>& value,
     bool* had_exception) const {
   bool success = false;
-  base::optional<int32_t > cobalt_return_value;
+  base::Optional<int32_t > cobalt_return_value;
   JSAutoRequest auto_request(context_);
   JS::AutoSaveExceptionState auto_save_exception_state(context_);
   ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);

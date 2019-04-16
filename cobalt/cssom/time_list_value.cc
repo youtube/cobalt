@@ -14,7 +14,7 @@
 
 #include <inttypes.h>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/time_list_value.h"
 
 namespace cobalt {

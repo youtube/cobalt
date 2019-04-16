@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/base/video_decoder_config.h"
+
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/media_util.h"
-#include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/base/video_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

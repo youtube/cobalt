@@ -15,11 +15,11 @@
 #ifndef COBALT_BASE_PATH_PROVIDER_H_
 #define COBALT_BASE_PATH_PROVIDER_H_
 
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 
 namespace cobalt {
 
-bool PathProvider(int key, FilePath* result);
+bool PathProvider(int key, base::FilePath* result);
 
 }  // namespace cobalt
 

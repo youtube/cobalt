@@ -22,8 +22,8 @@ namespace testing {
 
 namespace {
 base::LazyInstance<
-    GarbageCollectionTestInterface::GarbageCollectionTestInterfaceVector>
-    instances;
+    GarbageCollectionTestInterface::GarbageCollectionTestInterfaceVector>::
+    DestructorAtExit instances;
 }  // namespace
 
 GarbageCollectionTestInterface::GarbageCollectionTestInterfaceVector&

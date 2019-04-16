@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/media_query.h"
 
 #include "base/memory/ref_counted.h"
@@ -30,7 +32,7 @@ MediaQuery::MediaQuery(bool evaluated_media_type)
     : evaluated_media_type_(evaluated_media_type) {}
 
 MediaQuery::MediaQuery(bool evaluated_media_type,
-                       scoped_ptr<MediaFeatures> media_features)
+                       std::unique_ptr<MediaFeatures> media_features)
     : evaluated_media_type_(evaluated_media_type),
       media_features_(media_features.release()) {}
 

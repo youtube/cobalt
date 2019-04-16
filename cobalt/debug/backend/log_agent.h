@@ -17,7 +17,7 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"

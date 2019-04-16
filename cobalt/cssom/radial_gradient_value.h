@@ -21,7 +21,6 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/color_stop.h"
@@ -57,8 +56,9 @@ class RadialGradientValue : public PropertyValue {
                       ColorStopList color_stop_list)
       : shape_(shape),
         size_keyword_(size_keyword),
+        size_value_(nullptr),
         position_(position),
-        color_stop_list_(color_stop_list.Pass()) {}
+        color_stop_list_(std::move(color_stop_list)) {}
 
   RadialGradientValue(Shape shape,
                       const scoped_refptr<PropertyListValue>& size_value,
@@ -67,13 +67,13 @@ class RadialGradientValue : public PropertyValue {
       : shape_(shape),
         size_value_(size_value),
         position_(position),
-        color_stop_list_(color_stop_list.Pass()) {}
+        color_stop_list_(std::move(color_stop_list)) {}
 
   void Accept(PropertyValueVisitor* visitor) override;
 
   const Shape& shape() const { return shape_; }
 
-  base::optional<SizeKeyword> size_keyword() const { return size_keyword_; }
+  base::Optional<SizeKeyword> size_keyword() const { return size_keyword_; }
   const scoped_refptr<PropertyListValue>& size_value() const {
     return size_value_;
   }
@@ -96,7 +96,7 @@ class RadialGradientValue : public PropertyValue {
   const Shape shape_;
 
   // Exactly one of |size_keyword_| and |size_value_| is engaged.
-  const base::optional<SizeKeyword> size_keyword_;
+  const base::Optional<SizeKeyword> size_keyword_;
   const scoped_refptr<PropertyListValue> size_value_;
 
   const scoped_refptr<PropertyListValue> position_;

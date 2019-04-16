@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/node.h"
 
 #include "cobalt/dom/document.h"
@@ -52,8 +54,8 @@ class NodeDispatchEventTest : public ::testing::Test {
   scoped_refptr<Node> grand_parent_;
   scoped_refptr<Node> parent_;
   scoped_refptr<Node> child_;
-  scoped_ptr<MockEventListener> event_listener_capture_;
-  scoped_ptr<MockEventListener> event_listener_bubbling_;
+  std::unique_ptr<MockEventListener> event_listener_capture_;
+  std::unique_ptr<MockEventListener> event_listener_bubbling_;
 };
 
 NodeDispatchEventTest::NodeDispatchEventTest() {
@@ -68,23 +70,23 @@ NodeDispatchEventTest::NodeDispatchEventTest() {
   event_listener_bubbling_ = MockEventListener::Create();
 
   grand_parent_->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listener_bubbling_.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listener_bubbling_.get()),
+      false);
   grand_parent_->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listener_capture_.get()), true);
+      "fired", FakeScriptValue<EventListener>(event_listener_capture_.get()),
+      true);
   parent_->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listener_bubbling_.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listener_bubbling_.get()),
+      false);
   parent_->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listener_capture_.get()), true);
+      "fired", FakeScriptValue<EventListener>(event_listener_capture_.get()),
+      true);
   child_->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listener_bubbling_.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listener_bubbling_.get()),
+      false);
   child_->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listener_capture_.get()), true);
+      "fired", FakeScriptValue<EventListener>(event_listener_capture_.get()),
+      true);
 }
 
 NodeDispatchEventTest::~NodeDispatchEventTest() {

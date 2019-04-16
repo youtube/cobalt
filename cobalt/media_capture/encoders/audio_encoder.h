@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/string_piece.h"
-#include "base/time.h"
+#include "base/strings/string_piece.h"
+#include "base/time/time.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "starboard/mutex.h"
 

@@ -12,29 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/css_parser/margin_or_padding_shorthand.h"
 
 namespace cobalt {
 namespace css_parser {
 
-scoped_ptr<MarginOrPaddingShorthand> MarginOrPaddingShorthand::TryCreate(
+std::unique_ptr<MarginOrPaddingShorthand> MarginOrPaddingShorthand::TryCreate(
     const scoped_refptr<cssom::PropertyValue>& top,
     const scoped_refptr<cssom::PropertyValue>& right,
     const scoped_refptr<cssom::PropertyValue>& bottom,
     const scoped_refptr<cssom::PropertyValue>& left) {
   // User agents must ignore a declaration with an illegal value.
   //   https://www.w3.org/TR/CSS21/syndata.html#illegalvalues
-  if (top == NULL || right == NULL || bottom == NULL || left == NULL) {
-    return scoped_ptr<MarginOrPaddingShorthand>();
+  if (top.get() == NULL || right.get() == NULL || bottom.get() == NULL ||
+      left.get() == NULL) {
+    return std::unique_ptr<MarginOrPaddingShorthand>();
   }
 
-  scoped_ptr<MarginOrPaddingShorthand> shorthand(
+  std::unique_ptr<MarginOrPaddingShorthand> shorthand(
       new MarginOrPaddingShorthand());
   shorthand->top = top;
   shorthand->right = right;
   shorthand->bottom = bottom;
   shorthand->left = left;
-  return shorthand.Pass();
+  return shorthand;
 }
 
 }  // namespace css_parser

@@ -86,12 +86,13 @@ static ConvertYUVAToARGBProc g_convert_yuva_to_argb_proc_ = NULL;
 static const int kYUVToRGBTableSize = 256 * 4 * 4 * sizeof(int16_t);
 
 // base::AlignedMemory has a private operator new(), so wrap it in a struct so
-// that we can put it in a LazyInstance::Leaky.
+// that we can put it in a LazyInstance::DestructorAtExit.
 struct YUVToRGBTableWrapper {
   base::AlignedMemory<kYUVToRGBTableSize, 16> table;
 };
 
-typedef base::LazyInstance<YUVToRGBTableWrapper>::Leaky YUVToRGBTable;
+typedef base::LazyInstance<YUVToRGBTableWrapper>::DestructorAtExit
+    YUVToRGBTable;
 static YUVToRGBTable g_table_rec601 = LAZY_INSTANCE_INITIALIZER;
 static YUVToRGBTable g_table_jpeg = LAZY_INSTANCE_INITIALIZER;
 static YUVToRGBTable g_table_rec709 = LAZY_INSTANCE_INITIALIZER;

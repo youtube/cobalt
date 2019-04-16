@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
+#include "base/memory/ptr_util.h"
 #include "cobalt/web_animations/timed_task_queue.h"
 
 namespace cobalt {
@@ -19,9 +22,9 @@ namespace web_animations {
 
 TimedTaskQueue::TimedTaskQueue() {}
 
-scoped_ptr<TimedTaskQueue::Task> TimedTaskQueue::QueueTask(
+std::unique_ptr<TimedTaskQueue::Task> TimedTaskQueue::QueueTask(
     base::TimeDelta fire_time, const base::Closure& task) {
-  return make_scoped_ptr(new Task(this, fire_time, task));
+  return base::WrapUnique(new Task(this, fire_time, task));
 }
 
 void TimedTaskQueue::UpdateTime(base::TimeDelta time) {

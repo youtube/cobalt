@@ -35,7 +35,7 @@ struct FontStyleValue::NonTrivialStaticFields {
 
 namespace {
 
-base::LazyInstance<FontStyleValue::NonTrivialStaticFields>
+base::LazyInstance<FontStyleValue::NonTrivialStaticFields>::DestructorAtExit
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

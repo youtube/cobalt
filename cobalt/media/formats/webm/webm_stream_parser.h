@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_STREAM_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_STREAM_PARSER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/byte_queue.h"
 #include "cobalt/media/base/decoder_buffer.h"
@@ -80,7 +80,7 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
 
   bool unknown_segment_size_;
 
-  scoped_ptr<WebMClusterParser> cluster_parser_;
+  std::unique_ptr<WebMClusterParser> cluster_parser_;
   ByteQueue byte_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMStreamParser);

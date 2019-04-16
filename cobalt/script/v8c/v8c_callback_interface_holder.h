@@ -15,7 +15,6 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_CALLBACK_INTERFACE_HOLDER_H_
 #define COBALT_SCRIPT_V8C_V8C_CALLBACK_INTERFACE_HOLDER_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/callback_interface_traits.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"

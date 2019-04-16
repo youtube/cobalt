@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/selector_tree.h"
 
 #include "cobalt/base/version_compatibility.h"
@@ -46,7 +48,7 @@ TEST(SelectorTreeTest, AppendRuleShouldTakeOneRule) {
   // Selector Tree:
   // root
   //   kDescendantCombinator -> node_1("div")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule("div {}", base::SourceLocation(
                                           "[object SelectorTreeTest]", 1, 1))
@@ -87,7 +89,7 @@ TEST(SelectorTreeTest, AppendRuleShouldNormalizeCompoundSelector) {
   // Selector Tree:
   // root
   //   kDescendantCombinator -> node_1(".class#id")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule(
                     ".class#id {}",
@@ -127,7 +129,7 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
   // Selector Tree:
   // root
   //   kDescendantCombinator -> node_1("div")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule("div {}", base::SourceLocation(
                                           "[object SelectorTreeTest]", 1, 1))
@@ -174,7 +176,7 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDesendantSelectors) {
   // root
   //   kNone -> node_1("div")
   //     kChildCombinator -> node_2("span")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule("div {}", base::SourceLocation(
                                           "[object SelectorTreeTest]", 1, 1))
@@ -232,7 +234,7 @@ TEST(SelectorTreeTest, AppendRuleTwoDifferentNotSelectorsForSameElement) {
   // root
   //   kDescendantCombinator -> node_1("body:not(.class-1)")
   //   kDescendantCombinator -> node_2("body:not(.class-2)")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser
           ->ParseRule("body:not(.class-1) {}",
@@ -290,7 +292,7 @@ TEST(SelectorTreeTest, AppendRuleTwoNotSelectorsForDifferentElements) {
   // root
   //   kDescendantCombinator -> node_1("body:not(.class-1)")
   //   kDescendantCombinator -> node_2("div:not(.class-1)")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser
           ->ParseRule("body:not(.class-1) {}",
@@ -342,7 +344,7 @@ TEST(SelectorTreeTest, AppendRuleTwoIdenticalNotSelectors) {
   // Selector Tree:
   // root
   //   kDescendantCombinator -> node_1("body:not(.class-1")
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser
           ->ParseRule("body:not(.class-1) {}",

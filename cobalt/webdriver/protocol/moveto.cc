@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/moveto.h"
 
 namespace cobalt {
@@ -23,10 +25,12 @@ const char kXoffsetKey[] = "xoffset";
 const char kYoffsetKey[] = "yoffset";
 }  // namespace
 
-scoped_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
-  scoped_ptr<base::DictionaryValue> moveto_object(new base::DictionaryValue());
+std::unique_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
+  std::unique_ptr<base::DictionaryValue> moveto_object(
+      new base::DictionaryValue());
   if (moveto.element_) {
-    moveto_object->Set(kElementKey, ElementId::ToValue(*moveto.element_).get());
+    moveto_object->Set(kElementKey,
+                       std::move(ElementId::ToValue(*moveto.element_)));
   }
   if (moveto.xoffset_) {
     moveto_object->SetInteger(kXoffsetKey, *moveto.xoffset_);
@@ -34,29 +38,29 @@ scoped_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
   if (moveto.yoffset_) {
     moveto_object->SetInteger(kYoffsetKey, *moveto.yoffset_);
   }
-  return moveto_object.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(moveto_object.release());
 }
 
-base::optional<Moveto> Moveto::FromValue(const base::Value* value) {
+base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
     return base::nullopt;
   }
 
-  base::optional<ElementId> element;
-  const Value* element_value = NULL;
+  base::Optional<ElementId> element;
+  const base::Value* element_value = NULL;
   if (dictionary_value->Get(kElementKey, &element_value) && element_value) {
     element = ElementId::FromValue(element_value);
   }
 
   int xoffset_value = 0;
-  base::optional<int> xoffset;
+  base::Optional<int> xoffset;
   if (dictionary_value->GetInteger(kXoffsetKey, &xoffset_value)) {
     xoffset = xoffset_value;
   }
 
   int yoffset_value = 0;
-  base::optional<int> yoffset;
+  base::Optional<int> yoffset;
   if (dictionary_value->GetInteger(kYoffsetKey, &yoffset_value)) {
     yoffset = yoffset_value;
   }

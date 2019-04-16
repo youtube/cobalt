@@ -19,12 +19,12 @@ namespace cobalt {
 namespace paths {
 
 // The following keys are used to retreive Cobalt-specific paths using
-// PathService::Get().
+// base::PathService::Get().
 //
 // Example:
 // --------
-//   FilePath log_directory;
-//   PathService::Get(paths::DIR_COBALT_DEBUG_OUT, &log_directory);
+//   base::FilePath log_directory;
+//   base::PathService::Get(paths::DIR_COBALT_DEBUG_OUT, &log_directory);
 //
 
 enum CobaltPathKeys {

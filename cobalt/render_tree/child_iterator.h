@@ -149,7 +149,7 @@ class ChildIterator<CompositionNode> {
 
   // The builder to use if we are modifying the children.  If constructed, it
   // starts as a copy of the origin CompositionNode's data.
-  base::optional<CompositionNode::Builder> modified_children_builder_;
+  base::Optional<CompositionNode::Builder> modified_children_builder_;
 };
 
 // FilterNodes can have up to 1 child.
@@ -162,7 +162,7 @@ class ChildIterator<FilterNode> {
       FilterNode* filter,
       ChildIteratorDirection direction = kChildIteratorDirectionForwards)
       : filter_node_(filter), source_(filter->data().source.get()) {
-    UNREFERENCED_PARAMETER(direction);
+    SB_UNREFERENCED_PARAMETER(direction);
   }
 
   Node* GetCurrent() const { return source_; }
@@ -183,7 +183,7 @@ class ChildIterator<FilterNode> {
   FilterNode* filter_node_;
   Node* source_;
 
-  base::optional<FilterNode::Builder> modified_children_builder_;
+  base::Optional<FilterNode::Builder> modified_children_builder_;
 };
 
 // MatrixTransform3DNodes can have up to 1 child.
@@ -197,7 +197,7 @@ class ChildIterator<MatrixTransform3DNode> {
       ChildIteratorDirection direction = kChildIteratorDirectionForwards)
       : matrix_transform_3d_node_(matrix_transform_3d),
         source_(matrix_transform_3d->data().source.get()) {
-    UNREFERENCED_PARAMETER(direction);
+    SB_UNREFERENCED_PARAMETER(direction);
   }
 
   Node* GetCurrent() const { return source_; }
@@ -218,7 +218,7 @@ class ChildIterator<MatrixTransform3DNode> {
   MatrixTransform3DNode* matrix_transform_3d_node_;
   Node* source_;
 
-  base::optional<MatrixTransform3DNode::Builder> modified_children_builder_;
+  base::Optional<MatrixTransform3DNode::Builder> modified_children_builder_;
 };
 
 // MatrixTransformNodes can have up to 1 child.
@@ -232,7 +232,7 @@ class ChildIterator<MatrixTransformNode> {
       ChildIteratorDirection direction = kChildIteratorDirectionForwards)
       : matrix_transform_node_(matrix_transform),
         source_(matrix_transform->data().source.get()) {
-    UNREFERENCED_PARAMETER(direction);
+    SB_UNREFERENCED_PARAMETER(direction);
   }
 
   Node* GetCurrent() const { return source_; }
@@ -253,7 +253,7 @@ class ChildIterator<MatrixTransformNode> {
   MatrixTransformNode* matrix_transform_node_;
   Node* source_;
 
-  base::optional<MatrixTransformNode::Builder> modified_children_builder_;
+  base::Optional<MatrixTransformNode::Builder> modified_children_builder_;
 };
 
 }  // namespace render_tree

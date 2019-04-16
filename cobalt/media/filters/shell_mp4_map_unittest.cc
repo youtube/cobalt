@@ -17,6 +17,7 @@
 #include <stdlib.h>  // for rand and srand
 
 #include <algorithm>  // for std::min
+#include <memory>
 #include <set>
 #include <sstream>
 #include <vector>
@@ -463,7 +464,7 @@ class ShellMP4MapTest : public testing::Test {
   // ==== Test Fixture Members
   scoped_refptr<ShellMP4Map> map_;
   scoped_refptr<MockShellDataSourceReader> reader_;
-  scoped_ptr<SampleTable> sample_table_;
+  std::unique_ptr<SampleTable> sample_table_;
 };
 
 // ==== SetAtom() Tests ========================================================

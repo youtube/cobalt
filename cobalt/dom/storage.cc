@@ -43,16 +43,16 @@ void Storage::EnumerateNamedProperties(
     script::PropertyEnumerator* enumerator) const {
   const uint32 num_entries = length();
   for (uint32 i = 0; i < num_entries; ++i) {
-    base::optional<std::string> key = Key(i);
+    base::Optional<std::string> key = Key(i);
     if (key) {
       enumerator->AddProperty(key.value());
     }
   }
 }
 
-bool Storage::DispatchEvent(const base::optional<std::string>& key,
-                            const base::optional<std::string>& old_value,
-                            const base::optional<std::string>& new_value) {
+bool Storage::DispatchEvent(const base::Optional<std::string>& key,
+                            const base::Optional<std::string>& old_value,
+                            const base::Optional<std::string>& new_value) {
   return window_->DispatchEvent(new StorageEvent(
       key, old_value, new_value, window_->document()->url(), this));
 }

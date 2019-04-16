@@ -7,8 +7,8 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/filters/h264_parser.h"
@@ -365,8 +365,8 @@ TEST_F(AVCConversionTest, ValidAnnexBConstructs) {
     std::vector<uint8_t> buf;
     std::vector<SubsampleEntry> subsamples;
     StringToAnnexB(test_cases[i], &buf, NULL);
-    EXPECT_TRUE(AVC::IsValidAnnexB(buf, subsamples)) << "'" << test_cases[i]
-                                                     << "' failed";
+    EXPECT_TRUE(AVC::IsValidAnnexB(buf, subsamples))
+        << "'" << test_cases[i] << "' failed";
   }
 }
 
@@ -390,8 +390,8 @@ TEST_F(AVCConversionTest, InvalidAnnexBConstructs) {
     std::vector<uint8_t> buf;
     std::vector<SubsampleEntry> subsamples;
     StringToAnnexB(test_cases[i], &buf, NULL);
-    EXPECT_FALSE(AVC::IsValidAnnexB(buf, subsamples)) << "'" << test_cases[i]
-                                                      << "' failed";
+    EXPECT_FALSE(AVC::IsValidAnnexB(buf, subsamples))
+        << "'" << test_cases[i] << "' failed";
   }
 }
 

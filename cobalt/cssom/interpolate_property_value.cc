@@ -16,8 +16,9 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ptr_util.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/calc_value.h"
@@ -143,12 +144,12 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   // and progress.  Note that end may be NULL if the destination transform is
   // 'none'.  In this case, we should use an appropriate identity transform
   // to animate towards.
-  static scoped_ptr<TransformFunction> Animate(const TransformFunction* start,
-                                               const TransformFunction* end,
-                                               float progress) {
+  static std::unique_ptr<TransformFunction> Animate(
+      const TransformFunction* start, const TransformFunction* end,
+      float progress) {
     AnimateTransformFunction visitor(end, progress);
     const_cast<TransformFunction*>(start)->Accept(&visitor);
-    return visitor.animated_.Pass();
+    return std::move(visitor.animated_);
   }
 
  private:
@@ -162,7 +163,7 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
 
   const TransformFunction* end_;
   float progress_;
-  scoped_ptr<TransformFunction> animated_;
+  std::unique_ptr<TransformFunction> animated_;
 };
 
 void AnimateTransformFunction::VisitMatrix(
@@ -208,7 +209,7 @@ void AnimateTransformFunction::VisitScale(const ScaleFunction* scale_function) {
 }
 
 namespace {
-scoped_ptr<TranslateFunction> InterpolateTranslateFunctions(
+std::unique_ptr<TranslateFunction> InterpolateTranslateFunctions(
     const TranslateFunction* a, const TranslateFunction* b, float progress) {
   if (b) {
     DCHECK_EQ(a->axis(), b->axis());
@@ -226,21 +227,21 @@ scoped_ptr<TranslateFunction> InterpolateTranslateFunctions(
                         a->offset_type() == TranslateFunction::kCalc;
 
   if (result_is_calc) {
-    return make_scoped_ptr(new TranslateFunction(
+    return base::WrapUnique(new TranslateFunction(
         a->axis(),
         new CalcValue(new LengthValue(lerped_length_offset, kPixelsUnit),
                       new PercentageValue(lerped_percentage_offset))));
   } else if (a->offset_type() == TranslateFunction::kLength) {
     DCHECK_EQ(0.0f, lerped_percentage_offset);
-    return make_scoped_ptr(new TranslateFunction(
+    return base::WrapUnique(new TranslateFunction(
         a->axis(), new LengthValue(lerped_length_offset, kPixelsUnit)));
   } else if (a->offset_type() == TranslateFunction::kPercentage) {
     DCHECK_EQ(0.0f, lerped_length_offset);
-    return make_scoped_ptr(new TranslateFunction(
+    return base::WrapUnique(new TranslateFunction(
         a->axis(), new PercentageValue(lerped_percentage_offset)));
   } else {
     NOTREACHED();
-    return scoped_ptr<TranslateFunction>();
+    return std::unique_ptr<TranslateFunction>();
   }
 }
 }  // namespace
@@ -267,9 +268,10 @@ bool TransformListsHaveSameType(const TransformFunctionListValue::Builder& a,
     if (a[i]->GetTypeId() != b[i]->GetTypeId()) {
       return false;
     } else if (a[i]->GetTypeId() == base::GetTypeId<TranslateFunction>() &&
-               base::polymorphic_downcast<const TranslateFunction*>(a[i])
+               base::polymorphic_downcast<const TranslateFunction*>(a[i].get())
                        ->axis() !=
-                   base::polymorphic_downcast<const TranslateFunction*>(b[i])
+                   base::polymorphic_downcast<const TranslateFunction*>(
+                       b[i].get())
                        ->axis()) {
       return false;
     }
@@ -327,13 +329,11 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     // matches in type.  In this case, we do a transition on each
     // corresponding transform individually.
     for (size_t i = 0; i < start_functions->size(); ++i) {
-      animated_functions.push_back(
-          AnimateTransformFunction::Animate(
-              (*start_functions)[i], end_functions ? (*end_functions)[i] : NULL,
-              progress)
-              .release());
+      animated_functions.push_back(AnimateTransformFunction::Animate(
+          (*start_functions)[i].get(),
+          end_functions ? (*end_functions)[i].get() : NULL, progress));
     }
-    return new TransformFunctionListValue(animated_functions.Pass());
+    return new TransformFunctionListValue(std::move(animated_functions));
   } else {
     // The transform lists do not match up type for type. Collapse each list
     // into a matrix and animate the matrix using the algorithm described here:
@@ -375,7 +375,7 @@ void InterpolateVisitor::VisitFontWeight(
 }
 
 void InterpolateVisitor::VisitInteger(IntegerValue* integer_value) {
-  UNREFERENCED_PARAMETER(integer_value);
+  SB_UNREFERENCED_PARAMETER(integer_value);
   interpolated_value_ = end_value_;
 }
 

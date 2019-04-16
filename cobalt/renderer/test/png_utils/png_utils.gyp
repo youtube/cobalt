@@ -56,7 +56,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
         'png_utils',
         'png_utils_copy_test_data',
       ],

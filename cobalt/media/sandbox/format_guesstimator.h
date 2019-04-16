@@ -17,9 +17,9 @@
 
 #include <string>
 
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/logging.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
@@ -63,11 +63,11 @@ class FormatGuesstimator {
 
  private:
   void InitializeAsProgressive(const GURL& url);
-  void InitializeAsMp4(const FilePath& path);
-  void InitializeAsWebM(const FilePath& path);
+  void InitializeAsMp4(const base::FilePath& path);
+  void InitializeAsWebM(const base::FilePath& path);
 
   GURL progressive_url_;
-  FilePath adaptive_path_;
+  base::FilePath adaptive_path_;
   std::string mime_;
   std::string codecs_;
 };

@@ -15,19 +15,20 @@
 #include "cobalt/dom/html_link_element.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
-#include "googleurl/src/gurl.h"
 #include "nb/memory_scope.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -49,7 +50,7 @@ bool IsRelContentCriticalResource(const std::string& rel) {
 }
 
 loader::RequestMode GetRequestMode(
-    const base::optional<std::string>& cross_origin_attribute) {
+    const base::Optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
   if (cross_origin_attribute) {
     if (*cross_origin_attribute == "use-credentials") {
@@ -82,8 +83,8 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
   }
 }
 
-base::optional<std::string> HTMLLinkElement::cross_origin() const {
-  base::optional<std::string> cross_origin_attribute =
+base::Optional<std::string> HTMLLinkElement::cross_origin() const {
+  base::Optional<std::string> cross_origin_attribute =
       GetAttribute("crossOrigin");
   if (cross_origin_attribute &&
       (*cross_origin_attribute != "anonymous" &&
@@ -94,7 +95,7 @@ base::optional<std::string> HTMLLinkElement::cross_origin() const {
 }
 
 void HTMLLinkElement::set_cross_origin(
-    const base::optional<std::string>& value) {
+    const base::Optional<std::string>& value) {
   if (value) {
     SetAttribute("crossOrigin", *value);
   } else {
@@ -138,7 +139,7 @@ void HTMLLinkElement::Obtain() {
     return;
   }
 
-  DCHECK(MessageLoop::current());
+  DCHECK(base::MessageLoop::current());
   DCHECK(!loader_);
 
   // 1. If the href attribute's value is the empty string, then abort these
@@ -179,19 +180,14 @@ void HTMLLinkElement::Obtain() {
                               ? document->location()->GetOriginAsObject()
                               : loader::Origin();
 
-  loader_ =
-      html_element_context()
-          ->loader_factory()
-          ->CreateLinkLoader(absolute_url_, origin, csp_callback, request_mode_,
-                             base::Bind(&HTMLLinkElement::OnContentProduced,
-                                        base::Unretained(this)),
-                             base::Bind(&HTMLLinkElement::OnLoadingComplete,
-                                        base::Unretained(this)))
-          .Pass();
+  loader_ = html_element_context()->loader_factory()->CreateLinkLoader(
+      absolute_url_, origin, csp_callback, request_mode_,
+      base::Bind(&HTMLLinkElement::OnContentProduced, base::Unretained(this)),
+      base::Bind(&HTMLLinkElement::OnLoadingComplete, base::Unretained(this)));
 }
 
 void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
-                                        scoped_ptr<std::string> content) {
+                                        std::unique_ptr<std::string> content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(content);
   TRACK_MEMORY_SCOPE("DOM");
@@ -227,8 +223,8 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
 }
 
 void HTMLLinkElement::OnLoadingComplete(
-    const base::optional<std::string>& error) {
-  MessageLoop::current()->PostTask(
+    const base::Optional<std::string>& error) {
+  base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 
   if (!error) return;

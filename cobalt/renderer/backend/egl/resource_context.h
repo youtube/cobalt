@@ -17,8 +17,8 @@
 
 #include <EGL/egl.h>
 
+#include <memory>
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 

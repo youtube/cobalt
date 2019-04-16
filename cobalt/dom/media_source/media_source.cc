@@ -51,8 +51,8 @@
 #include "base/compiler_specific.h"
 #include "base/guid.h"
 #include "base/logging.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
@@ -88,9 +88,9 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
   DCHECK(codecs);
   static const char kCodecs[] = "codecs=";
 
-  std::vector<std::string> tokens;
   // SplitString will also trim the results.
-  ::base::SplitString(content_type, ';', &tokens);
+  std::vector<std::string> tokens = ::base::SplitString(
+      content_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   // The first one has to be mime type with delimiter '/' like 'video/mp4'.
   if (tokens.size() < 2 || tokens[0].find('/') == tokens[0].npos) {
     return false;
@@ -101,7 +101,7 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
       continue;
     }
     *codecs = tokens[i].substr(strlen("codecs="));
-    TrimString(*codecs, " \"", codecs);
+    base::TrimString(*codecs, " \"", codecs);
     break;
   }
   return !codecs->empty();
@@ -130,7 +130,7 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
 MediaSourceReadyState MediaSource::ready_state() const { return ready_state_; }
 
 double MediaSource::duration(script::ExceptionState* exception_state) const {
-  UNREFERENCED_PARAMETER(exception_state);
+  SB_UNREFERENCED_PARAMETER(exception_state);
 
   if (ready_state_ == kMediaSourceReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();
@@ -242,7 +242,7 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
 void MediaSource::RemoveSourceBuffer(
     const scoped_refptr<SourceBuffer>& source_buffer,
     script::ExceptionState* exception_state) {
-  if (source_buffer == NULL) {
+  if (source_buffer.get() == NULL) {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
@@ -317,7 +317,7 @@ void MediaSource::ClearLiveSeekableRange(
 bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
                                   const std::string& type) {
   // TODO: Remove |settings| parameter once MSE2012 is removed.
-  UNREFERENCED_PARAMETER(settings);
+  SB_UNREFERENCED_PARAMETER(settings);
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(type.c_str(), "");
   if (support_type == kSbMediaSupportTypeNotSupported) {

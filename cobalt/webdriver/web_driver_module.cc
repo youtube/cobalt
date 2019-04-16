@@ -14,13 +14,15 @@
 
 #include "cobalt/webdriver/web_driver_module.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/base64.h"
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
+#include "base/memory/ptr_util.h"
+#include "base/trace_event/trace_event.h"
 #include "base/values.h"
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
@@ -110,7 +112,8 @@ WindowDriver* LookUpWindowDriverOrReturnInvalidResponse(
   DCHECK(session_driver);
   protocol::WindowId window_id(
       path_variables->GetVariable(kWindowHandleVariable));
-  WindowDriver* window_driver = session_driver->GetWindow(window_id);
+  WindowDriver* window_driver =
+      session_driver->GetWindow(protocol::WindowId(window_id));
   if (!window_driver) {
     result_handler->SendInvalidRequestResponse(
         WebDriverDispatcher::CommandResultHandler::kInvalidPathVariable,
@@ -132,7 +135,8 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
       LookUpCurrentWindowDriver(session_driver, path_variables, result_handler);
   if (window_driver) {
     protocol::ElementId element_id(path_variables->GetVariable(path_variable));
-    element_driver = window_driver->GetElementDriver(element_id);
+    element_driver =
+        window_driver->GetElementDriver(protocol::ElementId(element_id));
     if (!element_driver) {
       result_handler->SendInvalidRequestResponse(
           WebDriverDispatcher::CommandResultHandler::kInvalidPathVariable,
@@ -207,249 +211,254 @@ WebDriverModule::WebDriverModule(
       WebDriverServer::kGet, "/shutdown",
       base::Bind(&WebDriverModule::Shutdown, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kDelete, StringPrintf("/session/%s", kSessionIdVariable),
+      WebDriverServer::kDelete,
+      base::StringPrintf("/session/%s", kSessionIdVariable),
       base::Bind(&WebDriverModule::DeleteSession, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/screenshot", kSessionIdVariable),
+      base::StringPrintf("/session/%s/screenshot", kSessionIdVariable),
       base::Bind(&WebDriverModule::RequestScreenshot, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/startscreencast", kSessionIdVariable),
+      base::StringPrintf("/session/%s/startscreencast", kSessionIdVariable),
       base::Bind(&WebDriverModule::StartScreencast, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/stopscreencast", kSessionIdVariable),
+      base::StringPrintf("/session/%s/stopscreencast", kSessionIdVariable),
       base::Bind(&WebDriverModule::StopScreencast, base::Unretained(this)));
 
   // Session commands.
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kGet, StringPrintf("/session/%s", kSessionIdVariable),
+      WebDriverServer::kGet,
+      base::StringPrintf("/session/%s", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetCapabilities)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/window_handle", kSessionIdVariable),
+      base::StringPrintf("/session/%s/window_handle", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetCurrentWindowHandle)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/window_handles", kSessionIdVariable),
+      base::StringPrintf("/session/%s/window_handles", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetWindowHandles)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/alert_text", kSessionIdVariable),
+      base::StringPrintf("/session/%s/alert_text", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetAlertText)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/window", kSessionIdVariable),
+      base::StringPrintf("/session/%s/window", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::SwitchToWindow)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/log/types", kSessionIdVariable),
+      base::StringPrintf("/session/%s/log/types", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetLogTypes)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/log", kSessionIdVariable),
+      base::StringPrintf("/session/%s/log", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetLog)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/url", kSessionIdVariable),
+      base::StringPrintf("/session/%s/url", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::Navigate)));
 
   // Specified window commands.
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/window/%s/size", kSessionIdVariable,
-                   kWindowHandleVariable),
+      base::StringPrintf("/session/%s/window/%s/size", kSessionIdVariable,
+                         kWindowHandleVariable),
       window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetWindowSize)));
 
   // Current window commands.
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/url", kSessionIdVariable),
+      base::StringPrintf("/session/%s/url", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetCurrentUrl)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/source", kSessionIdVariable),
+      base::StringPrintf("/session/%s/source", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetSource)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/title", kSessionIdVariable),
+      base::StringPrintf("/session/%s/title", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetTitle)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/execute", kSessionIdVariable),
+      base::StringPrintf("/session/%s/execute", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::Execute)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/execute_async", kSessionIdVariable),
+      base::StringPrintf("/session/%s/execute_async", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::ExecuteAsync)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/element", kSessionIdVariable),
+      base::StringPrintf("/session/%s/element", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::FindElement)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/elements", kSessionIdVariable),
+      base::StringPrintf("/session/%s/elements", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::FindElements)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/keys", kSessionIdVariable),
+      base::StringPrintf("/session/%s/keys", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::SendKeys)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/active", kSessionIdVariable),
+      base::StringPrintf("/session/%s/element/active", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetActiveElement)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/frame", kSessionIdVariable),
+      base::StringPrintf("/session/%s/frame", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::SwitchFrame)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/cookie", kSessionIdVariable),
+      base::StringPrintf("/session/%s/cookie", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetAllCookies)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/cookie/%s", kSessionIdVariable, kCookieName),
+      base::StringPrintf("/session/%s/cookie/%s", kSessionIdVariable,
+                         kCookieName),
       base::Bind(&WebDriverModule::GetCookieByName, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/cookie", kSessionIdVariable),
+      base::StringPrintf("/session/%s/cookie", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::AddCookie)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/moveto", kSessionIdVariable),
+      base::StringPrintf("/session/%s/moveto", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::MouseMoveTo)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/buttondown", kSessionIdVariable),
+      base::StringPrintf("/session/%s/buttondown", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::MouseButtonDown)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/buttonup", kSessionIdVariable),
+      base::StringPrintf("/session/%s/buttonup", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::MouseButtonUp)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/click", kSessionIdVariable),
+      base::StringPrintf("/session/%s/click", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::SendClick)));
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/name", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/name", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetTagName)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/text", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/text", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetText)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/displayed", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/displayed", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::IsDisplayed)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/rect", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/rect", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetRect)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/location", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/location", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetLocation)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/size", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/size", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetSize)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/%s/value", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/value", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::SendKeys)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/%s/element", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/element", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::FindElement)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/%s/elements", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/elements", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::FindElements)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/%s/click", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/click", kSessionIdVariable,
+                         kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::SendClick)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/equals/%s", kSessionIdVariable,
-                   kElementId, kOtherElementId),
+      base::StringPrintf("/session/%s/element/%s/equals/%s", kSessionIdVariable,
+                         kElementId, kOtherElementId),
       base::Bind(&WebDriverModule::ElementEquals, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/attribute/%s", kSessionIdVariable,
-                   kElementId, kAttributeName),
+      base::StringPrintf("/session/%s/element/%s/attribute/%s",
+                         kSessionIdVariable, kElementId, kAttributeName),
       base::Bind(&WebDriverModule::GetAttribute, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/css/%s", kSessionIdVariable,
-                   kElementId, kCssPropertyName),
+      base::StringPrintf("/session/%s/element/%s/css/%s", kSessionIdVariable,
+                         kElementId, kCssPropertyName),
       base::Bind(&WebDriverModule::GetCssProperty, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/screenshot", kSessionIdVariable,
-                   kElementId),
+      base::StringPrintf("/session/%s/element/%s/screenshot",
+                         kSessionIdVariable, kElementId),
       base::Bind(&WebDriverModule::RequestElementScreenshot,
                  base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/timeouts", kSessionIdVariable),
+      base::StringPrintf("/session/%s/timeouts", kSessionIdVariable),
       base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/timeouts/async_script", kSessionIdVariable),
+      base::StringPrintf("/session/%s/timeouts/async_script",
+                         kSessionIdVariable),
       base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
-      StringPrintf("/session/%s/timeouts/implicit_wait", kSessionIdVariable),
+      base::StringPrintf("/session/%s/timeouts/implicit_wait",
+                         kSessionIdVariable),
       base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
 
   // The WebDriver API implementation will be called on the HTTP server thread.
@@ -457,22 +466,22 @@ WebDriverModule::WebDriverModule(
 
   // Start the thread and create the HTTP server on that thread.
   webdriver_thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_IO, 0));
-  webdriver_thread_.message_loop()->PostTask(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+  webdriver_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebDriverModule::StartServer,
                             base::Unretained(this), server_port, listen_ip));
 }  // NOLINT(readability/fn_size)
 
 WebDriverModule::~WebDriverModule() {
-  webdriver_thread_.message_loop()->PostBlockingTask(
+  webdriver_thread_.message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebDriverModule::StopServerAndSession,
                             base::Unretained(this)));
   webdriver_thread_.Stop();
 }  // NOLINT(readability/fn_size)
 
 void WebDriverModule::OnWindowRecreated() {
-  if (MessageLoop::current() != webdriver_thread_.message_loop()) {
-    webdriver_thread_.message_loop()->PostTask(
+  if (base::MessageLoop::current() != webdriver_thread_.message_loop()) {
+    webdriver_thread_.message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&WebDriverModule::OnWindowRecreated,
                               base::Unretained(this)));
     return;
@@ -513,7 +522,7 @@ SessionDriver* WebDriverModule::GetSessionDriver(
 void WebDriverModule::GetServerStatus(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
   result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
                              protocol::ServerStatus::ToValue(status_));
@@ -523,7 +532,7 @@ void WebDriverModule::GetServerStatus(
 void WebDriverModule::GetActiveSessions(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
   std::vector<protocol::SessionId> sessions;
   if (session_) {
@@ -537,10 +546,10 @@ void WebDriverModule::GetActiveSessions(
 void WebDriverModule::CreateSession(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  base::optional<protocol::RequestedCapabilities> requested_capabilities =
+  base::Optional<protocol::RequestedCapabilities> requested_capabilities =
       protocol::RequestedCapabilities::FromValue(parameters);
   if (!requested_capabilities) {
     result_handler->SendInvalidRequestResponse(
@@ -551,7 +560,7 @@ void WebDriverModule::CreateSession(
   util::CommandResult<protocol::Capabilities> command_result =
       CreateSessionInternal(requested_capabilities.value());
 
-  base::optional<protocol::SessionId> session_id;
+  base::Optional<protocol::SessionId> session_id;
   if (command_result.is_success()) {
     session_id = session_->session_id();
   }
@@ -563,7 +572,7 @@ void WebDriverModule::CreateSession(
 void WebDriverModule::DeleteSession(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (session_) {
@@ -578,13 +587,13 @@ void WebDriverModule::DeleteSession(
   }
   // If the session doesn't exist, then this is a no-op.
   result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
-                             scoped_ptr<base::Value>());
+                             std::unique_ptr<base::Value>());
 }
 
 void WebDriverModule::StartScreencast(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -607,7 +616,7 @@ void WebDriverModule::StartScreencast(
 void WebDriverModule::StopScreencast(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -627,7 +636,7 @@ void WebDriverModule::StopScreencast(
 void WebDriverModule::RequestScreenshot(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   TRACE_EVENT0("cobalt::WebDriver", "WebDriverModule::RequestScreenshot()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -648,7 +657,7 @@ void WebDriverModule::RequestScreenshot(
 void WebDriverModule::Shutdown(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // It's expected that the application will terminate, so it's okay to
@@ -659,7 +668,7 @@ void WebDriverModule::Shutdown(
 void WebDriverModule::ElementEquals(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
@@ -689,7 +698,7 @@ void WebDriverModule::ElementEquals(
 void WebDriverModule::GetAttribute(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
@@ -701,8 +710,9 @@ void WebDriverModule::GetAttribute(
     if (element_driver) {
       std::string attribute_name = path_variables->GetVariable(kAttributeName);
 
-      typedef util::CommandResult<base::optional<std::string> > CommandResult;
-      CommandResult result = element_driver->GetAttribute(attribute_name);
+      typedef util::CommandResult<base::Optional<std::string> > CommandResult;
+      CommandResult result =
+          element_driver->GetAttribute(std::move(attribute_name));
       util::internal::ReturnResponse(session_driver->session_id(), result,
                                      result_handler.get());
     }
@@ -712,7 +722,7 @@ void WebDriverModule::GetAttribute(
 void WebDriverModule::GetCssProperty(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
@@ -725,7 +735,8 @@ void WebDriverModule::GetCssProperty(
       std::string property_name = path_variables->GetVariable(kCssPropertyName);
 
       typedef util::CommandResult<std::string> CommandResult;
-      CommandResult result = element_driver->GetCssProperty(property_name);
+      CommandResult result =
+          element_driver->GetCssProperty(std::move(property_name));
       util::internal::ReturnResponse(session_driver->session_id(), result,
                                      result_handler.get());
     }
@@ -735,7 +746,7 @@ void WebDriverModule::GetCssProperty(
 void WebDriverModule::RequestElementScreenshot(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
@@ -757,7 +768,7 @@ void WebDriverModule::RequestElementScreenshot(
 void WebDriverModule::GetCookieByName(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
@@ -770,7 +781,7 @@ void WebDriverModule::GetCookieByName(
       std::string cookie_name = path_variables->GetVariable(kCookieName);
 
       typedef util::CommandResult<std::vector<protocol::Cookie> > CommandResult;
-      CommandResult result = window_driver->GetCookie(cookie_name);
+      CommandResult result = window_driver->GetCookie(std::string(cookie_name));
       util::internal::ReturnResponse(session_driver->session_id(), result,
                                      result_handler.get());
     }
@@ -780,11 +791,11 @@ void WebDriverModule::GetCookieByName(
 void WebDriverModule::IgnoreCommand(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+    std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   // TODO: Hook up and implement timeouts.
-  return result_handler->SendResult(
-      protocol::SessionId(kWebDriverSessionId), protocol::Response::kSuccess,
-      make_scoped_ptr(base::Value::CreateNullValue()));
+  return result_handler->SendResult(protocol::SessionId(kWebDriverSessionId),
+                                    protocol::Response::kSuccess,
+                                    std::make_unique<base::Value>());
 }
 
 util::CommandResult<protocol::Capabilities>
@@ -816,7 +827,7 @@ WebDriverModule::CreateSessionInternal(
 
   // If proxy settings were requested when the session was created, set them
   // now.
-  base::optional<protocol::Proxy> proxy_settings =
+  base::Optional<protocol::Proxy> proxy_settings =
       requested_capabilities.desired().proxy();
   if (!proxy_settings && requested_capabilities.required()) {
     proxy_settings = requested_capabilities.required()->proxy();

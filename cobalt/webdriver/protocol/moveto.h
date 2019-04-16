@@ -15,7 +15,8 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_MOVETO_H_
 #define COBALT_WEBDRIVER_PROTOCOL_MOVETO_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/element_id.h"
@@ -28,20 +29,20 @@ namespace protocol {
 // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidmoveto
 class Moveto {
  public:
-  static scoped_ptr<base::Value> ToValue(const Moveto& moveto);
-  static base::optional<Moveto> FromValue(const base::Value* moveto);
+  static std::unique_ptr<base::Value> ToValue(const Moveto& moveto);
+  static base::Optional<Moveto> FromValue(const base::Value* moveto);
 
-  const base::optional<ElementId>& element() const { return element_; }
-  const base::optional<int>& xoffset() const { return xoffset_; }
-  const base::optional<int>& yoffset() const { return yoffset_; }
+  const base::Optional<ElementId>& element() const { return element_; }
+  const base::Optional<int>& xoffset() const { return xoffset_; }
+  const base::Optional<int>& yoffset() const { return yoffset_; }
 
  private:
-  Moveto(const base::optional<ElementId>& element,
-         const base::optional<int>& xoffset, const base::optional<int>& yoffset)
+  Moveto(const base::Optional<ElementId>& element,
+         const base::Optional<int>& xoffset, const base::Optional<int>& yoffset)
       : element_(element), xoffset_(xoffset), yoffset_(yoffset) {}
-  const base::optional<ElementId> element_;
-  const base::optional<int> xoffset_;
-  const base::optional<int> yoffset_;
+  const base::Optional<ElementId> element_;
+  const base::Optional<int> xoffset_;
+  const base::Optional<int> yoffset_;
 };
 
 }  // namespace protocol

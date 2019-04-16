@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/script/execution_state.h"
 
 #include "cobalt/script/global_environment.h"
@@ -40,9 +42,10 @@ std::string ExecutionStateImpl::GetStackTrace() const {
 
 }  // namespace
 
-scoped_ptr<ExecutionState> ExecutionState::CreateExecutionState(
+std::unique_ptr<ExecutionState> ExecutionState::CreateExecutionState(
     const scoped_refptr<GlobalEnvironment>& global_environment) {
-  return scoped_ptr<ExecutionState>(new ExecutionStateImpl(global_environment));
+  return std::unique_ptr<ExecutionState>(
+      new ExecutionStateImpl(global_environment));
 }
 
 }  // namespace script

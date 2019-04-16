@@ -7,12 +7,12 @@
 #include <memory>
 
 #include "base/basictypes.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "base/threading/thread_checker.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/key_system_names.h"
 #include "cobalt/media/base/key_system_properties.h"
@@ -252,7 +252,7 @@ class KeySystemsImpl : public KeySystems {
   DISALLOW_COPY_AND_ASSIGN(KeySystemsImpl);
 };
 
-static base::LazyInstance<KeySystemsImpl>::Leaky g_key_systems =
+static base::LazyInstance<KeySystemsImpl>::DestructorAtExit g_key_systems =
     LAZY_INSTANCE_INITIALIZER;
 
 KeySystemsImpl* KeySystemsImpl::GetInstance() {
@@ -501,8 +501,8 @@ std::string KeySystemsImpl::GetPepperType(const std::string& key_system) const {
     return std::string();
   }
   const std::string& type = key_system_iter->second->GetPepperType();
-  DLOG_IF(FATAL, type.empty()) << key_system_iter->second->GetKeySystemName()
-                               << " is not Pepper-based";
+  DLOG_IF(FATAL, type.empty())
+      << key_system_iter->second->GetKeySystemName() << " is not Pepper-based";
   return type;
 }
 

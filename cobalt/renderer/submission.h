@@ -18,9 +18,9 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "base/debug/trace_event.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 

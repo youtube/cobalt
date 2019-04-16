@@ -15,6 +15,7 @@
 #ifndef COBALT_AUDIO_AUDIO_NODE_OUTPUT_H_
 #define COBALT_AUDIO_AUDIO_NODE_OUTPUT_H_
 
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -51,9 +52,9 @@ class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
 
   void DisconnectAll();
 
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames,
-                                                   SampleType sample_type,
-                                                   bool* finished);
+  std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames,
+                                                        SampleType sample_type,
+                                                        bool* finished);
 
  private:
   AudioNode* const owner_node_;

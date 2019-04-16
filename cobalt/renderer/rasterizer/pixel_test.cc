@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include <cmath>
+#include <memory>
 
 #include "base/bind.h"
+#include "base/memory/ptr_util.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
@@ -126,9 +128,9 @@ bool SetBounds(bool result, const math::Rect&) { return result; }
 TEST_F(PixelTest, RedFillRectOnEntireSurface) {
   // Create a test render tree that will fill the entire output surface
   // with a solid color rectangle.
-  TestTree(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  TestTree(new RectNode(RectF(output_surface_size()),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, RedFillRectOnTopLeftQuarterOfSurface) {
@@ -137,17 +139,17 @@ TEST_F(PixelTest, RedFillRectOnTopLeftQuarterOfSurface) {
   // expected.  It also tests that we have a consistent value for background
   // pixels that are not rendered to by the rasterizer, which is important
   // for some of these unit tests.
-  TestTree(new RectNode(
-      RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  TestTree(new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, GreenFillRectOnEntireSurface) {
   // Create a test render tree that will fill the entire output surface
   // with a solid color rectangle.
-  TestTree(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  TestTree(new RectNode(RectF(output_surface_size()),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, GreenFillRectOnTopLeftQuarterOfSurface) {
@@ -156,17 +158,17 @@ TEST_F(PixelTest, GreenFillRectOnTopLeftQuarterOfSurface) {
   // expected.  It also tests that we have a consistent value for background
   // pixels that are not rendered to by the rasterizer, which is important
   // for some of these unit tests.
-  TestTree(new RectNode(
-      RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  TestTree(new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, BlueFillRectOnEntireSurface) {
   // Create a test render tree that will fill the entire output surface
   // with a solid color rectangle.
-  TestTree(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
+  TestTree(new RectNode(RectF(output_surface_size()),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
 }
 
 TEST_F(PixelTest, BlueFillRectOnTopLeftQuarterOfSurface) {
@@ -175,30 +177,31 @@ TEST_F(PixelTest, BlueFillRectOnTopLeftQuarterOfSurface) {
   // expected.  It also tests that we have a consistent value for background
   // pixels that are not rendered to by the rasterizer, which is important
   // for some of these unit tests.
-  TestTree(new RectNode(
-      RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
+  TestTree(new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
 }
 
 TEST_F(PixelTest, CircleViaRoundedCorners) {
   RoundedCorner rounded_corner(50, 50);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(rounded_corner));
-  TestTree(new RectNode(RectF(100, 100), scoped_ptr<Brush>(new SolidColorBrush(
-                                             ColorRGBA(1.0, 0.0, 0.0, 1))),
-                        rounded_corners.Pass()));
+  TestTree(new RectNode(
+      RectF(100, 100),
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(rounded_corners)));
 }
 
 // These particular rounded corner values were found to cause a crash problem
 // with some rasterizers, this test is added to prevent a regression.
 TEST_F(PixelTest, AlmostCircleViaRoundedCorners) {
   RoundedCorner rounded_corner(11.9999504f, 11.9999504f);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(rounded_corner));
-  TestTree(new RectNode(
-      RectF(24, 24),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 1.0, 0.0, 1.0))),
-      rounded_corners.Pass()));
+  TestTree(new RectNode(RectF(24, 24),
+                        std::unique_ptr<Brush>(
+                            new SolidColorBrush(ColorRGBA(1.0, 1.0, 0.0, 1.0))),
+                        std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, OvalViaRoundedCorners) {
@@ -206,11 +209,12 @@ TEST_F(PixelTest, OvalViaRoundedCorners) {
   RoundedCorner top_right(50, 25);
   RoundedCorner bottom_right(50, 25);
   RoundedCorner bottom_left(50, 25);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
-  TestTree(new RectNode(RectF(100, 50), scoped_ptr<Brush>(new SolidColorBrush(
-                                            ColorRGBA(1.0, 0.0, 0.0, 1))),
-                        rounded_corners.Pass()));
+  TestTree(new RectNode(
+      RectF(100, 50),
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, RotatedOvalViaRoundedCorners) {
@@ -219,13 +223,14 @@ TEST_F(PixelTest, RotatedOvalViaRoundedCorners) {
   RoundedCorner bottom_right(50, 25);
   RoundedCorner bottom_left(50, 25);
 
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(RectF(100, 50), scoped_ptr<Brush>(new SolidColorBrush(
-                                       ColorRGBA(1.0, 0.0, 0.0, 1))),
-                   rounded_corners.Pass()),
+      new RectNode(RectF(100, 50),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+                   std::move(rounded_corners)),
       TranslateMatrix(50, 100) *
           RotateMatrix(static_cast<float>(M_PI) / 6.0f)));
 }
@@ -236,17 +241,17 @@ TEST_F(PixelTest, ScaledThenRotatedRectWithDifferentRoundedCorners) {
   RoundedCorner bottom_right(6, 25);
   RoundedCorner bottom_left(2, 25);
 
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(RectF(-7, -25, 14, 50),
-                   scoped_ptr<Brush>(
-                       new SolidColorBrush(ColorRGBA(1, 1, 1, 1))),
-                   rounded_corners.Pass()),
+      new RectNode(
+          RectF(-7, -25, 14, 50),
+          std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1, 1, 1, 1))),
+          std::move(rounded_corners)),
       TranslateMatrix(100.0f, 100.0f) *
-      RotateMatrix(static_cast<float>(M_PI) / 3.0f) *
-      ScaleMatrix(-10.0f, 2.0f)));
+          RotateMatrix(static_cast<float>(M_PI) / 3.0f) *
+          ScaleMatrix(-10.0f, 2.0f)));
 }
 
 TEST_F(PixelTest, RotatedThenScaledRectWithDifferentRoundedCorners) {
@@ -255,17 +260,16 @@ TEST_F(PixelTest, RotatedThenScaledRectWithDifferentRoundedCorners) {
   RoundedCorner bottom_right(10, 2);
   RoundedCorner bottom_left(5, 3);
 
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(RectF(-10, -7, 20, 14),
-                   scoped_ptr<Brush>(
-                       new SolidColorBrush(ColorRGBA(1, 1, 1, 1))),
-                   rounded_corners.Pass()),
-      TranslateMatrix(100.0f, 100.0f) *
-      ScaleMatrix(6.0f, 9.0f) *
-      RotateMatrix(static_cast<float>(M_PI) / 6.0f)));
+      new RectNode(
+          RectF(-10, -7, 20, 14),
+          std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1, 1, 1, 1))),
+          std::move(rounded_corners)),
+      TranslateMatrix(100.0f, 100.0f) * ScaleMatrix(6.0f, 9.0f) *
+          RotateMatrix(static_cast<float>(M_PI) / 6.0f)));
 }
 
 TEST_F(PixelTest, RedRectWithDifferentRoundedCornersOnTopLeftOfSurface) {
@@ -273,12 +277,12 @@ TEST_F(PixelTest, RedRectWithDifferentRoundedCornersOnTopLeftOfSurface) {
   RoundedCorner top_right(20, 20);
   RoundedCorner bottom_right(30, 30);
   RoundedCorner bottom_left(40, 40);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
   TestTree(new RectNode(
       RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      rounded_corners.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, RedRectWith2DifferentRadiusForEachCornerOnTopLeftOfSurface) {
@@ -286,14 +290,14 @@ TEST_F(PixelTest, RedRectWith2DifferentRadiusForEachCornerOnTopLeftOfSurface) {
   RoundedCorner top_right(30, 40);
   RoundedCorner bottom_right(50, 60);
   RoundedCorner bottom_left(70, 80);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
   math::RectF rect(ScaleSize(output_surface_size(), 0.5f, 0.5f));
   *rounded_corners = rounded_corners->Normalize(rect);
   TestTree(new RectNode(
       rect,
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      rounded_corners.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, EmptyRectWithRedBorderOnTopLeftOfSurface) {
@@ -301,9 +305,9 @@ TEST_F(PixelTest, EmptyRectWithRedBorderOnTopLeftOfSurface) {
   // a rectangle which has a border.
   BorderSide border_side(20, render_tree::kBorderStyleSolid,
                          ColorRGBA(1.0, 0.0, 0.0, 1));
-  scoped_ptr<Border> border(new Border(border_side));
+  std::unique_ptr<Border> border(new Border(border_side));
   TestTree(new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-                        border.Pass()));
+                        std::move(border)));
 }
 
 TEST_F(PixelTest, RedRectWithBlueBorderOnTopLeftOfSurface) {
@@ -311,11 +315,11 @@ TEST_F(PixelTest, RedRectWithBlueBorderOnTopLeftOfSurface) {
   // a rectangle which has a border.
   BorderSide border_side(20, render_tree::kBorderStyleSolid,
                          ColorRGBA(0.0, 0.0, 1.0, 1));
-  scoped_ptr<Border> border(new Border(border_side));
+  std::unique_ptr<Border> border(new Border(border_side));
   TestTree(new RectNode(
       RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      border.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(border)));
 }
 
 TEST_F(PixelTest, RedRectWith4DifferentBlueBordersOnTopLeftOfSurface) {
@@ -330,12 +334,12 @@ TEST_F(PixelTest, RedRectWith4DifferentBlueBordersOnTopLeftOfSurface) {
   BorderSide border_bottom(40, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 0.0, 1.0, 1));
 
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
   TestTree(new RectNode(
       RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      border.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(border)));
 }
 
 TEST_F(PixelTest, RedRectWith4DifferentColorBorders) {
@@ -350,12 +354,12 @@ TEST_F(PixelTest, RedRectWith4DifferentColorBorders) {
   BorderSide border_bottom(20, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
 
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
   TestTree(new RectNode(
       RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      border.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(border)));
 }
 
 TEST_F(PixelTest, RedRectWith4DifferentColorAndWidthBorders) {
@@ -370,12 +374,12 @@ TEST_F(PixelTest, RedRectWith4DifferentColorAndWidthBorders) {
   BorderSide border_bottom(40, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
 
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
   TestTree(new RectNode(
       RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      border.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(border)));
 }
 
 TEST_F(PixelTest, DownwardPointingTriangle) {
@@ -389,11 +393,12 @@ TEST_F(PixelTest, DownwardPointingTriangle) {
   BorderSide border_bottom(0, render_tree::kBorderStyleNone,
                            ColorRGBA(1.0, 0.0, 0.0, 1));
 
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
-  TestTree(new RectNode(RectF(140, 80), scoped_ptr<Brush>(new SolidColorBrush(
-                                            ColorRGBA(1.0, 0.0, 0.0, 1))),
-                        border.Pass()));
+  TestTree(new RectNode(
+      RectF(140, 80),
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(border)));
 }
 
 namespace {
@@ -467,7 +472,7 @@ scoped_refptr<Image> CreateAdditiveColorGridImage(
   DCHECK_EQ(3, column_colors.size());
   // Allocate memory to store the image data that we will subsequently generate.
   PixelFormat pixel_format = ChoosePixelFormat(resource_provider);
-  scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
+  std::unique_ptr<ImageData> image_data = resource_provider->AllocateImageData(
       Size(static_cast<int>(dimensions.width()),
            static_cast<int>(dimensions.height())),
       pixel_format, alpha_format);
@@ -492,7 +497,7 @@ scoped_refptr<Image> CreateAdditiveColorGridImage(
     }
   }
 
-  return resource_provider->CreateImage(image_data.Pass());
+  return resource_provider->CreateImage(std::move(image_data));
 }
 
 scoped_refptr<Image> CreateColoredCheckersImageForAlphaFormat(
@@ -560,26 +565,26 @@ TEST_F(PixelTest,
       render_tree::kAlphaFormatOpaque);
 
   CompositionNode::Builder builder;
-  builder.AddChild(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new RectNode(RectF(output_surface_size()),
+                                std::unique_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(0.0, 1.0, 0.0, 1)))));
   builder.AddChild(new FilterNode(
       ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
       new ImageNode(image)));
-  TestTree(new CompositionNode(builder.Pass()));
+  TestTree(new CompositionNode(std::move(builder)));
 }
 
 TEST_F(PixelTest, RectWithRoundedCornersOnSolidColor) {
   CompositionNode::Builder builder;
-  builder.AddChild(new RectNode(
-      RectF(output_surface_size()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new RectNode(RectF(output_surface_size()),
+                                std::unique_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(0.0, 1.0, 0.0, 1)))));
   builder.AddChild(new FilterNode(
       ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
       new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(
+                   std::unique_ptr<Brush>(
                        new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
-  TestTree(new CompositionNode(builder.Pass()));
+  TestTree(new CompositionNode(std::move(builder)));
 }
 
 TEST_F(PixelTest, EmptyRectWithRoundedCornersAnd4DifferentEdgeColorsBorder) {
@@ -593,17 +598,17 @@ TEST_F(PixelTest, EmptyRectWithRoundedCornersAnd4DifferentEdgeColorsBorder) {
                         ColorRGBA(1.0, 1.0, 1.0, 1));
   BorderSide border_bottom(25, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
 
   math::RectF rect(200, 100);
 
   RoundedCorner rounded_corner(100, 100);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(rounded_corner));
   *rounded_corners = rounded_corners->Normalize(rect);
 
-  TestTree(new RectNode(rect, border.Pass(), rounded_corners.Pass()));
+  TestTree(new RectNode(rect, std::move(border), std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, EmptyRectWith4DifferentRoundedCornersAndEdgeColorsBorder) {
@@ -617,7 +622,7 @@ TEST_F(PixelTest, EmptyRectWith4DifferentRoundedCornersAndEdgeColorsBorder) {
                         ColorRGBA(1.0, 1.0, 1.0, 1));
   BorderSide border_bottom(25, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
 
   math::RectF rect(200, 100);
@@ -626,11 +631,11 @@ TEST_F(PixelTest, EmptyRectWith4DifferentRoundedCornersAndEdgeColorsBorder) {
   RoundedCorner top_right(10, 10);
   RoundedCorner bottom_right(50, 50);
   RoundedCorner bottom_left(40, 40);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
   *rounded_corners = rounded_corners->Normalize(rect);
 
-  TestTree(new RectNode(rect, border.Pass(), rounded_corners.Pass()));
+  TestTree(new RectNode(rect, std::move(border), std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, EmptyRectWithRoundedCornersAnd4DifferentEdgeWidthsBorder) {
@@ -644,17 +649,17 @@ TEST_F(PixelTest, EmptyRectWithRoundedCornersAnd4DifferentEdgeWidthsBorder) {
                         ColorRGBA(0.0, 1.0, 0.0, 0.8f));
   BorderSide border_bottom(10, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
 
   math::RectF rect(200, 100);
 
   RoundedCorner rounded_corner(100, 100);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(rounded_corner));
   *rounded_corners = rounded_corners->Normalize(rect);
 
-  TestTree(new RectNode(rect, border.Pass(), rounded_corners.Pass()));
+  TestTree(new RectNode(rect, std::move(border), std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, EmptyRectWith4DifferentRoundedCornersAndEdgeWidthsBorder) {
@@ -668,7 +673,7 @@ TEST_F(PixelTest, EmptyRectWith4DifferentRoundedCornersAndEdgeWidthsBorder) {
                         ColorRGBA(0.0, 1.0, 0.0, 0.8f));
   BorderSide border_bottom(10, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
 
   math::RectF rect(200, 100);
@@ -677,11 +682,11 @@ TEST_F(PixelTest, EmptyRectWith4DifferentRoundedCornersAndEdgeWidthsBorder) {
   RoundedCorner top_right(10, 10);
   RoundedCorner bottom_right(60, 60);
   RoundedCorner bottom_left(40, 40);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
   *rounded_corners = rounded_corners->Normalize(rect);
 
-  TestTree(new RectNode(rect, border.Pass(), rounded_corners.Pass()));
+  TestTree(new RectNode(rect, std::move(border), std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest,
@@ -696,17 +701,17 @@ TEST_F(PixelTest,
                         ColorRGBA(1.0, 1.0, 1.0, 1));
   BorderSide border_bottom(10, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
 
   math::RectF rect(200, 100);
 
   RoundedCorner rounded_corner(100, 100);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(rounded_corner));
   *rounded_corners = rounded_corners->Normalize(rect);
 
-  TestTree(new RectNode(rect, border.Pass(), rounded_corners.Pass()));
+  TestTree(new RectNode(rect, std::move(border), std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest,
@@ -721,7 +726,7 @@ TEST_F(PixelTest,
                         ColorRGBA(1.0, 1.0, 1.0, 1));
   BorderSide border_bottom(10, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 0.8f));
-  scoped_ptr<Border> border(
+  std::unique_ptr<Border> border(
       new Border(border_left, border_right, border_top, border_bottom));
 
   math::RectF rect(200, 100);
@@ -730,11 +735,11 @@ TEST_F(PixelTest,
   RoundedCorner top_right(10, 10);
   RoundedCorner bottom_right(50, 50);
   RoundedCorner bottom_left(40, 40);
-  scoped_ptr<RoundedCorners> rounded_corners(
+  std::unique_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
   *rounded_corners = rounded_corners->Normalize(rect);
 
-  TestTree(new RectNode(rect, border.Pass(), rounded_corners.Pass()));
+  TestTree(new RectNode(rect, std::move(border), std::move(rounded_corners)));
 }
 
 TEST_F(PixelTest, SingleRGBAImageLargerThanRenderTarget) {
@@ -779,9 +784,9 @@ namespace {
 scoped_refptr<MatrixTransformNode> MakeTransformedSingleSolidColorRect(
     const SizeF& size, const Matrix3F& transform) {
   return new MatrixTransformNode(
-      new RectNode(
-          RectF(ScaleSize(size, 0.5f, 0.5f)),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))),
+      new RectNode(RectF(ScaleSize(size, 0.5f, 0.5f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))),
       transform);
 }
 }  // namespace
@@ -831,19 +836,22 @@ scoped_refptr<CompositionNode> CreateCascadedRectsOfDifferentColors(
   // by the rasterizer, and that we support multiple children.
   CompositionNode::Builder composition_builder;
 
-  composition_builder.AddChild(new RectNode(
-      RectF(PointF(25, 25), rect_size),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  composition_builder.AddChild(
+      new RectNode(RectF(PointF(25, 25), rect_size),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
-  composition_builder.AddChild(new RectNode(
-      RectF(PointF(50, 50), rect_size),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  composition_builder.AddChild(
+      new RectNode(RectF(PointF(50, 50), rect_size),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
 
-  composition_builder.AddChild(new RectNode(
-      RectF(PointF(75, 75), rect_size),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
+  composition_builder.AddChild(
+      new RectNode(RectF(PointF(75, 75), rect_size),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
 
-  return new CompositionNode(composition_builder.Pass());
+  return new CompositionNode(std::move(composition_builder));
 }
 }  // namespace
 
@@ -860,13 +868,15 @@ TEST_F(PixelTest, TransparentRectOverlappingSolidRect) {
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(50, 50), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 0.5)))));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 0.5)))));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, RectDrawOrder) {
@@ -878,8 +888,8 @@ TEST_F(PixelTest, RectDrawOrder) {
   struct SimpleRand {
     SimpleRand() : seed(10222016) {}
     int32_t operator()() {
-      seed = static_cast<int32_t>(
-          (static_cast<int64_t>(seed) * 48271) % 2147483647);
+      seed = static_cast<int32_t>((static_cast<int64_t>(seed) * 48271) %
+                                  2147483647);
       return seed;
     }
     int32_t seed;
@@ -907,15 +917,14 @@ TEST_F(PixelTest, RectDrawOrder) {
     float b = (simple_rand() % 256) / 255.0f;
     float a = (simple_rand() % 5) * 0.1f + 0.1f;
     composition_builder.AddChild(new RectNode(
-        math::RectF(
-            std::min(x1, x2) * kPositionScale + 0.1f,
-            std::min(y1, y2) * kPositionScale + 0.1f,
-            std::abs(x1 - x2) * kPositionScale - 0.2f,
-            std::abs(y1 - y2) * kPositionScale - 0.2f),
-        scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(r, g, b, a)))));
+        math::RectF(std::min(x1, x2) * kPositionScale + 0.1f,
+                    std::min(y1, y2) * kPositionScale + 0.1f,
+                    std::abs(x1 - x2) * kPositionScale - 0.2f,
+                    std::abs(y1 - y2) * kPositionScale - 0.2f),
+        std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(r, g, b, a)))));
   }
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 namespace {
@@ -958,10 +967,11 @@ scoped_refptr<Node> CreateTransparencyImageRenderTree(
     uint8_t r, uint8_t g, uint8_t b, AlphaFormat alpha_format) {
   CompositionNode::Builder composition_builder;
 
-  composition_builder.AddChild(new RectNode(
-      RectF(25, 25, output_dimensions.width() / 2,
-            output_dimensions.height() / 2),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  composition_builder.AddChild(
+      new RectNode(RectF(25, 25, output_dimensions.width() / 2,
+                         output_dimensions.height() / 2),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   scoped_refptr<Image> transparency_image;
   if (alpha_format == render_tree::kAlphaFormatPremultiplied) {
@@ -979,7 +989,7 @@ scoped_refptr<Node> CreateTransparencyImageRenderTree(
   composition_builder.AddChild(
       new ImageNode(transparency_image, Vector2dF(40, 40)));
 
-  return new CompositionNode(composition_builder.Pass());
+  return new CompositionNode(std::move(composition_builder));
 }
 
 }  // namespace
@@ -1107,9 +1117,9 @@ TEST_F(PixelTest, TooManyGlyphs) {
   // Overflow the glyph atlas to force path rendering.
   CompositionNode::Builder builder;
   for (char ch = 33; ch < 127; ++ch) {
-    builder.AddChild(CreateTextNodeWithinSurface(
-        GetResourceProvider(), std::string(1, ch), FontStyle(), 500,
-        ColorRGBA(0, 0, 0, 0.1)));
+    builder.AddChild(
+        CreateTextNodeWithinSurface(GetResourceProvider(), std::string(1, ch),
+                                    FontStyle(), 500, ColorRGBA(0, 0, 0, 0.1)));
   }
   TestTree(new CompositionNode(builder));
 }
@@ -1143,13 +1153,13 @@ scoped_refptr<Node> CreateTextNodeWithBackgroundColor(
   RectF bounds(glyph_buffer->GetBounds());
 
   CompositionNode::Builder composition_builder;
-  composition_builder.AddChild(
-      new RectNode(RectF(bounds.width(), bounds.height()),
-                   scoped_ptr<Brush>(new SolidColorBrush(background_color))));
+  composition_builder.AddChild(new RectNode(
+      RectF(bounds.width(), bounds.height()),
+      std::unique_ptr<Brush>(new SolidColorBrush(background_color))));
   composition_builder.AddChild(new TextNode(Vector2dF(-bounds.x(), -bounds.y()),
                                             glyph_buffer, text_color));
 
-  return new CompositionNode(composition_builder.Pass());
+  return new CompositionNode(std::move(composition_builder));
 }
 }  // namespace
 
@@ -1190,7 +1200,7 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
   static const int kMaxBytesUsed =
       image_size.width() * image_size.height() * 3 / 2;
 
-  scoped_ptr<RawImageMemory> image_memory =
+  std::unique_ptr<RawImageMemory> image_memory =
       resource_provider->AllocateRawImageMemory(kMaxBytesUsed, 256);
 
   // Setup information about the Y plane.
@@ -1249,7 +1259,7 @@ scoped_refptr<Image> MakeI420Image(ResourceProvider* resource_provider,
   image_data_descriptor.AddPlane(v_plane_memory_offset, v_plane_descriptor);
 
   return resource_provider->CreateMultiPlaneImageFromRawMemory(
-      image_memory.Pass(), image_data_descriptor);
+      std::move(image_memory), image_data_descriptor);
 }
 
 // The software rasterizer does not support NV12 images.
@@ -1273,7 +1283,7 @@ scoped_refptr<Image> MakeNV12Image(ResourceProvider* resource_provider,
   static const int kMaxBytesUsed =
       image_size.width() * image_size.height() * 3 / 2;
 
-  scoped_ptr<RawImageMemory> image_memory =
+  std::unique_ptr<RawImageMemory> image_memory =
       resource_provider->AllocateRawImageMemory(kMaxBytesUsed, 256);
 
   // Setup information about the Y plane.
@@ -1316,7 +1326,7 @@ scoped_refptr<Image> MakeNV12Image(ResourceProvider* resource_provider,
   image_data_descriptor.AddPlane(uv_plane_memory_offset, uv_plane_descriptor);
 
   return resource_provider->CreateMultiPlaneImageFromRawMemory(
-      image_memory.Pass(), image_data_descriptor);
+      std::move(image_memory), image_data_descriptor);
 }
 #endif  // #if NV12_TEXTURE_SUPPORTED
 }  // namespace
@@ -1332,7 +1342,7 @@ scoped_refptr<Image> MakeUYVYImage(ResourceProvider* resource_provider,
   Size uv_size = image_size;
   uv_size.set_width(image_size.width() / 2);
 
-  scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
+  std::unique_ptr<ImageData> image_data = resource_provider->AllocateImageData(
       uv_size, render_tree::kPixelFormatUYVY, alpha_format);
 
   float x_step = 1.0f / (uv_size.width() - 1);
@@ -1357,7 +1367,7 @@ scoped_refptr<Image> MakeUYVYImage(ResourceProvider* resource_provider,
     }
   }
 
-  return resource_provider->CreateImage(image_data.Pass());
+  return resource_provider->CreateImage(std::move(image_data));
 }
 
 // Makes an image where the Y values alternate between 0 and 255.  This is
@@ -1374,7 +1384,7 @@ scoped_refptr<Image> MakeAlternatingYUYVYImage(
   Size uv_size = image_size;
   uv_size.set_width(image_size.width() / 2);
 
-  scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
+  std::unique_ptr<ImageData> image_data = resource_provider->AllocateImageData(
       uv_size, render_tree::kPixelFormatUYVY, alpha_format);
 
   float x_step = 1.0f / (uv_size.width() - 1);
@@ -1396,7 +1406,7 @@ scoped_refptr<Image> MakeAlternatingYUYVYImage(
     }
   }
 
-  return resource_provider->CreateImage(image_data.Pass());
+  return resource_provider->CreateImage(std::move(image_data));
 }
 
 #if !SB_HAS(BLITTER)
@@ -1550,16 +1560,17 @@ TEST_F(PixelTest, OpacityFilterOnRectNodeTest) {
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   composition_builder.AddChild(new FilterNode(
       OpacityFilter(0.5f),
       new RectNode(
           RectF(PointF(50, 50), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-          scoped_ptr<Brush>(
+          std::unique_ptr<Brush>(
               new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, OpacityFilterOnImageNodeTest) {
@@ -1570,7 +1581,8 @@ TEST_F(PixelTest, OpacityFilterOnImageNodeTest) {
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   composition_builder.AddChild(new FilterNode(
       OpacityFilter(0.5f),
@@ -1579,7 +1591,7 @@ TEST_F(PixelTest, OpacityFilterOnImageNodeTest) {
                         ScaleSize(output_surface_size(), 0.5f, 0.5f)),
                     Vector2dF(50, 50))));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, OpacityFilterOnCompositionOfThreeRectsTest) {
@@ -1590,7 +1602,8 @@ TEST_F(PixelTest, OpacityFilterOnCompositionOfThreeRectsTest) {
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   composition_builder.AddChild(new MatrixTransformNode(
       new FilterNode(OpacityFilter(0.5f),
@@ -1598,7 +1611,7 @@ TEST_F(PixelTest, OpacityFilterOnCompositionOfThreeRectsTest) {
                          ScaleSize(output_surface_size(), 0.5f, 0.5f))),
       TranslateMatrix(10, 10)));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, OpacityFilterWithinOpacityFilter) {
@@ -1609,28 +1622,30 @@ TEST_F(PixelTest, OpacityFilterWithinOpacityFilter) {
   // the bottom right rectangle should be 0.5 * 0.5 = 0.25, the middle rectangle
   // should have 0.5, and the top left rectangle should have an opacity of 1.
   CompositionNode::Builder sub_composition_builder;
-  sub_composition_builder.AddChild(new RectNode(
-      RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  sub_composition_builder.AddChild(
+      new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
   sub_composition_builder.AddChild(new FilterNode(
       OpacityFilter(0.5f),
       new RectNode(
           RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-          scoped_ptr<Brush>(
+          std::unique_ptr<Brush>(
               new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
   scoped_refptr<CompositionNode> sub_composition =
-      new CompositionNode(sub_composition_builder.Pass());
+      new CompositionNode(std::move(sub_composition_builder));
 
   CompositionNode::Builder composition_builder;
   composition_builder.AddChild(new RectNode(
       RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   composition_builder.AddChild(new MatrixTransformNode(
       new FilterNode(OpacityFilter(0.5f), sub_composition),
       TranslateMatrix(50, 50)));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, OpacityFilterOnRotatedRectNodeTest) {
@@ -1641,29 +1656,30 @@ TEST_F(PixelTest, OpacityFilterOnRotatedRectNodeTest) {
 
   const SizeF rect_size(ScaleSize(output_surface_size(), 0.5f, 0.5f));
 
-  composition_builder.AddChild(new RectNode(
-      RectF(PointF(25, 25), rect_size),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  composition_builder.AddChild(
+      new RectNode(RectF(PointF(25, 25), rect_size),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   composition_builder.AddChild(new MatrixTransformNode(
-      new FilterNode(
-          OpacityFilter(0.5f),
-          new RectNode(RectF(rect_size), scoped_ptr<Brush>(new SolidColorBrush(
-                                             ColorRGBA(0.0, 0.0, 1.0, 1))))),
+      new FilterNode(OpacityFilter(0.5f),
+                     new RectNode(RectF(rect_size),
+                                  std::unique_ptr<Brush>(new SolidColorBrush(
+                                      ColorRGBA(0.0, 0.0, 1.0, 1))))),
       TranslateMatrix(50, 50) *
           TranslateMatrix(rect_size.width() / 2, rect_size.height() / 2) *
           RotateMatrix(static_cast<float>(M_PI) / 4) *
           TranslateMatrix(-rect_size.width() / 2, -rect_size.height() / 2)));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, ViewportFilterWithTranslateAndScaleOnRectNodeTest) {
   FilterNode::Builder filter_node_builder(
       ViewportFilter(RectF(50, 50, 50, 50)),
-      new RectNode(
-          RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
+      new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
 
   TestTree(
       new MatrixTransformNode(new FilterNode(filter_node_builder),
@@ -1736,8 +1752,9 @@ TEST_F(PixelTest, ViewportFilterOnRotatedRectNodeTest) {
   FilterNode::Builder filter_node_builder(
       ViewportFilter(RectF(70, 50, 100, 100)),
       new MatrixTransformNode(
-          new RectNode(RectF(rect_size), scoped_ptr<Brush>(new SolidColorBrush(
-                                             ColorRGBA(0.0, 0.0, 1.0, 1)))),
+          new RectNode(RectF(rect_size),
+                       std::unique_ptr<Brush>(
+                           new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))),
           TranslateMatrix(50, 100) *
               RotateMatrix(static_cast<float>(M_PI) / 4)));
 
@@ -1774,36 +1791,37 @@ TEST_F(PixelTest, RectNodeContainsBorderWithTranslation) {
 
   BorderSide border_side_1(20, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.0, 1.0, 0.0, 1));
-  scoped_ptr<Border> border_1(new Border(border_side_1));
+  std::unique_ptr<Border> border_1(new Border(border_side_1));
 
   BorderSide border_side_2(10, render_tree::kBorderStyleSolid,
                            ColorRGBA(0.5, 0.5, 0.0, 1));
-  scoped_ptr<Border> border_2(new Border(border_side_2));
+  std::unique_ptr<Border> border_2(new Border(border_side_2));
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(25, 25), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-      border_1.Pass()));
+      std::unique_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+      std::move(border_1)));
 
   composition_builder.AddChild(new RectNode(
       RectF(PointF(50, 50), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 0.5))),
-      border_2.Pass()));
+      std::unique_ptr<Brush>(
+          new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 0.5))),
+      std::move(border_2)));
 
-  TestTree(new CompositionNode(composition_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_builder)));
 }
 
 TEST_F(PixelTest, RectNodeContainsBorderWithRotation) {
   // RectNode with border can be rotated.
   BorderSide border_side(10, render_tree::kBorderStyleSolid,
                          ColorRGBA(0.0, 1.0, 0.0, 1));
-  scoped_ptr<Border> border(new Border(border_side));
+  std::unique_ptr<Border> border(new Border(border_side));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(
-          RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-          border.Pass()),
+      new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+                   std::move(border)),
       TranslateMatrix(40, 80) * RotateMatrix(static_cast<float>(M_PI) / 4.0f)));
 }
 
@@ -1811,13 +1829,13 @@ TEST_F(PixelTest, RectNodeContainsBorderWithScale) {
   // RectNode with border can be scaled.
   BorderSide border_side(10, render_tree::kBorderStyleSolid,
                          ColorRGBA(0.0, 1.0, 0.0, 1));
-  scoped_ptr<Border> border(new Border(border_side));
+  std::unique_ptr<Border> border(new Border(border_side));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(
-          RectF(ScaleSize(output_surface_size(), 0.3f, 0.3f)),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-          border.Pass()),
+      new RectNode(RectF(ScaleSize(output_surface_size(), 0.3f, 0.3f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+                   std::move(border)),
       ScaleMatrix(1.5f)));
 }
 
@@ -1825,13 +1843,13 @@ TEST_F(PixelTest, RectNodeContainsBorderWithTranslationRotationAndScale) {
   // RectNode with border can be translated, rotated and scaled.
   BorderSide border_side(10, render_tree::kBorderStyleSolid,
                          ColorRGBA(0.0, 1.0, 0.0, 1));
-  scoped_ptr<Border> border(new Border(border_side));
+  std::unique_ptr<Border> border(new Border(border_side));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(
-          RectF(ScaleSize(output_surface_size(), 0.3f, 0.3f)),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-          border.Pass()),
+      new RectNode(RectF(ScaleSize(output_surface_size(), 0.3f, 0.3f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+                   std::move(border)),
       TranslateMatrix(40, 80) * RotateMatrix(static_cast<float>(M_PI) / 4.0f) *
           ScaleMatrix(1.5f)));
 }
@@ -1840,13 +1858,13 @@ TEST_F(PixelTest, RectNodeContainsSkinnyBorderWithTranslation) {
   // RectNode can be translated and drawn with skinny borders.
   BorderSide border_side(2, render_tree::kBorderStyleSolid,
                          ColorRGBA(0.0, 1.0, 0.0, 1));
-  scoped_ptr<Border> border(new Border(border_side));
+  std::unique_ptr<Border> border(new Border(border_side));
 
   TestTree(new MatrixTransformNode(
-      new RectNode(
-          RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
-          border.Pass()),
+      new RectNode(RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+                   std::move(border)),
       TranslateMatrix(40, 80)));
 }
 
@@ -1858,7 +1876,7 @@ scoped_refptr<Image> CreateCheckerImage(ResourceProvider* resource_provider,
                                         const SizeF& block_size) {
   // Allocate memory to store the image data that we will subsequently generate.
   PixelFormat pixel_format = ChoosePixelFormat(resource_provider);
-  scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
+  std::unique_ptr<ImageData> image_data = resource_provider->AllocateImageData(
       Size(static_cast<int>(dimensions.width()),
            static_cast<int>(dimensions.height())),
       pixel_format, render_tree::kAlphaFormatPremultiplied);
@@ -1880,7 +1898,7 @@ scoped_refptr<Image> CreateCheckerImage(ResourceProvider* resource_provider,
     }
   }
 
-  return resource_provider->CreateImage(image_data.Pass());
+  return resource_provider->CreateImage(std::move(image_data));
 }
 
 scoped_refptr<Image> CreateCheckerImage(ResourceProvider* resource_provider,
@@ -1905,7 +1923,7 @@ scoped_refptr<CompositionNode> CreatePixelEdgeCascade(
         new ImageNode(image, RectF(offset, frame_size), texture_coord_matrix));
   }
 
-  return new CompositionNode(builder.Pass());
+  return new CompositionNode(std::move(builder));
 }
 
 scoped_refptr<CompositionNode> CreatePixelEdgeCascade(
@@ -2006,9 +2024,10 @@ TEST_F(PixelTest, VeryLargeOpacityFilterDoesNotOccupyVeryMuchMemory) {
 
   CompositionNode::Builder composition_builder;
 
-  composition_builder.AddChild(new RectNode(
-      RectF(PointF(25, 25), kOpacitySurfaceSize),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  composition_builder.AddChild(
+      new RectNode(RectF(PointF(25, 25), kOpacitySurfaceSize),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
   // Add a small opacity rectangle to hopefully disable any simple optimization
   // that would just apply alpha to the color of the above RectNode.
@@ -2016,11 +2035,11 @@ TEST_F(PixelTest, VeryLargeOpacityFilterDoesNotOccupyVeryMuchMemory) {
       OpacityFilter(0.5f),
       new RectNode(
           RectF(PointF(50, 50), ScaleSize(output_surface_size(), 0.5f, 0.5f)),
-          scoped_ptr<Brush>(
+          std::unique_ptr<Brush>(
               new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
 
   TestTree(new FilterNode(OpacityFilter(0.5f),
-                          new CompositionNode(composition_builder.Pass())));
+                          new CompositionNode(std::move(composition_builder))));
 }
 
 TEST_F(PixelTest, ChildrenOfCompositionThatStartsOffscreenAppear) {
@@ -2031,20 +2050,23 @@ TEST_F(PixelTest, ChildrenOfCompositionThatStartsOffscreenAppear) {
   CompositionNode::Builder inner_composition_builder;
 
   const math::SizeF kRectSize(25, 25);
-  inner_composition_builder.AddChild(new RectNode(
-      RectF(PointF(0, 0), kRectSize),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  inner_composition_builder.AddChild(
+      new RectNode(RectF(PointF(0, 0), kRectSize),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
 
-  inner_composition_builder.AddChild(new RectNode(
-      RectF(PointF(50, 50), kRectSize),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  inner_composition_builder.AddChild(
+      new RectNode(RectF(PointF(50, 50), kRectSize),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
 
-  inner_composition_builder.AddChild(new RectNode(
-      RectF(PointF(100, 100), kRectSize),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
+  inner_composition_builder.AddChild(
+      new RectNode(RectF(PointF(100, 100), kRectSize),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1)))));
 
   TestTree(new MatrixTransformNode(
-      new CompositionNode(inner_composition_builder.Pass()),
+      new CompositionNode(std::move(inner_composition_builder)),
       TranslateMatrix(-50, -50)));
 }
 
@@ -2069,7 +2091,7 @@ TEST_F(PixelTest, TextNodesScaleDownSmoothly) {
         TranslateMatrix(5, 10 + i * 10) * ScaleMatrix(1 - i * 0.01f)));
   }
 
-  TestTree(new CompositionNode(text_collection_builder.Pass()));
+  TestTree(new CompositionNode(std::move(text_collection_builder)));
 }
 
 TEST_F(PixelTest, CircularViewportOverImage) {
@@ -2127,19 +2149,19 @@ TEST_F(PixelTest, FractionallyPositionedViewportsRenderOpacityCircle) {
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
 
   CompositionNode::Builder builder;
-  builder.AddChild(new RectNode(
-      RectF(RectF(100, 100)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1)))));
-  builder.AddChild(new RectNode(
-      RectF(RectF(50, 50, 100, 100)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new RectNode(RectF(RectF(100, 100)),
+                                std::unique_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(1.0, 0.0, 0.0, 1)))));
+  builder.AddChild(new RectNode(RectF(RectF(50, 50, 100, 100)),
+                                std::unique_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(0.0, 1.0, 0.0, 1)))));
 
   TestTree(new FilterNode(
       ViewportFilter(RectF(0.3f, 0.3f, 100, 100)),
       new FilterNode(
           ViewportFilter(RectF(0, 0, 100, 100), RoundedCorners(50, 50)),
           new FilterNode(OpacityFilter(0.5f),
-                         new CompositionNode(builder.Pass())))));
+                         new CompositionNode(std::move(builder))))));
 }
 
 TEST_F(PixelTest, EllipticalViewportOverImage) {
@@ -2172,7 +2194,7 @@ TEST_F(PixelTest, EllipticalViewportOverCompositionOfImages) {
   builder.AddChild(new ImageNode(image, RectF(75, 50, 75, 50)));
   TestTree(new FilterNode(
       ViewportFilter(RectF(25, 50, 150, 100), RoundedCorners(75, 50)),
-      new CompositionNode(builder.Pass())));
+      new CompositionNode(std::move(builder))));
 }
 
 TEST_F(PixelTest, EllipticalViewportOverWrappingImage) {
@@ -2203,15 +2225,15 @@ TEST_F(PixelTest, OpacityOnRectAndEllipseMaskedImage) {
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
 
   CompositionNode::Builder builder;
-  builder.AddChild(new RectNode(
-      RectF(SizeF(100, 100)),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 0.0, 0.0, 1)))));
+  builder.AddChild(new RectNode(RectF(SizeF(100, 100)),
+                                std::unique_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(0.0, 0.0, 0.0, 1)))));
   builder.AddChild(new FilterNode(
       ViewportFilter(RectF(0, 100, 150, 100), RoundedCorners(75, 50)),
       new ImageNode(image)));
 
-  TestTree(
-      new FilterNode(OpacityFilter(0.8f), new CompositionNode(builder.Pass())));
+  TestTree(new FilterNode(OpacityFilter(0.8f),
+                          new CompositionNode(std::move(builder))));
 }
 
 TEST_F(PixelTest, RoundedCornersViewportOverImage) {
@@ -2232,8 +2254,8 @@ TEST_F(PixelTest, ScaledThenRotatedRoundedCornersViewportOverImage) {
           ViewportFilter(RectF(25, 5, 150, 10), RoundedCorners(25, 2)),
           new ImageNode(image)),
       TranslateMatrix(-30, 130) *
-      RotateMatrix(static_cast<float>(M_PI / 3.0f)) *
-      ScaleMatrix(1.0f, 10.0f)));
+          RotateMatrix(static_cast<float>(M_PI / 3.0f)) *
+          ScaleMatrix(1.0f, 10.0f)));
 }
 
 TEST_F(PixelTest, RoundedCornersViewportOverWrappingImage) {
@@ -2340,7 +2362,7 @@ scoped_refptr<Node> CascadeNode(const Vector2dF& offset,
         node, TranslateMatrix(offset.x() + i * spacing.x(),
                               offset.y() + i * spacing.y())));
   }
-  return new CompositionNode(builder.Pass());
+  return new CompositionNode(std::move(builder));
 }
 }  // namespace
 
@@ -2449,8 +2471,8 @@ scoped_refptr<Node> CreateRoundedBorderRect(const SizeF& size,
                                             float border_width,
                                             const ColorRGBA& color) {
   BorderSide border_side(border_width, render_tree::kBorderStyleSolid, color);
-  return new RectNode(RectF(size), make_scoped_ptr(new Border(border_side)),
-                      make_scoped_ptr(new RoundedCorners(
+  return new RectNode(RectF(size), base::WrapUnique(new Border(border_side)),
+                      base::WrapUnique(new RoundedCorners(
                           size.width() / 4.0f, size.height() / 4.0f)));
 }
 
@@ -2458,8 +2480,8 @@ scoped_refptr<Node> CreateEllipticalBorderRect(const SizeF& size,
                                                float border_width,
                                                const ColorRGBA& color) {
   BorderSide border_side(border_width, render_tree::kBorderStyleSolid, color);
-  return new RectNode(RectF(size), make_scoped_ptr(new Border(border_side)),
-                      make_scoped_ptr(new RoundedCorners(
+  return new RectNode(RectF(size), base::WrapUnique(new Border(border_side)),
+                      base::WrapUnique(new RoundedCorners(
                           size.width() / 2.0f, size.height() / 2.0f)));
 }
 
@@ -2479,43 +2501,39 @@ TEST_F(PixelTest, RoundedCornersEachDifferentThickBorder) {
   BorderSide border_side(20.0f, render_tree::kBorderStyleSolid,
                          ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
   TestTree(new RectNode(RectF(30, 30, 100, 100),
-                        make_scoped_ptr(new Border(border_side)),
-                        make_scoped_ptr(new RoundedCorners(rounded_corners))));
+                        base::WrapUnique(new Border(border_side)),
+                        base::WrapUnique(new RoundedCorners(rounded_corners))));
 }
 
 TEST_F(PixelTest, RoundedCornersEachDifferentThickBorderSolidBrush) {
   RoundedCorners rounded_corners(
       RoundedCorner(10.0f, 20.0f), RoundedCorner(20.0f, 30.0f),
       RoundedCorner(30.0f, 40.0f), RoundedCorner(50.0f, 40.0f));
-  BorderSide border_side(
-      20.0f, render_tree::kBorderStyleSolid, ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
-  scoped_ptr<Brush> content_brush(new SolidColorBrush(
-      ColorRGBA(0.0f, 1.0f, 0.0f, 1.0f)));
-  TestTree(new RectNode(
-      RectF(30, 30, 100, 100),
-      content_brush.Pass(),
-      make_scoped_ptr(new Border(border_side)),
-      make_scoped_ptr(new RoundedCorners(rounded_corners))));
+  BorderSide border_side(20.0f, render_tree::kBorderStyleSolid,
+                         ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
+  std::unique_ptr<Brush> content_brush(
+      new SolidColorBrush(ColorRGBA(0.0f, 1.0f, 0.0f, 1.0f)));
+  TestTree(new RectNode(RectF(30, 30, 100, 100), std::move(content_brush),
+                        base::WrapUnique(new Border(border_side)),
+                        base::WrapUnique(new RoundedCorners(rounded_corners))));
 }
 
 TEST_F(PixelTest, RoundedCornersDifferentCornersDifferentThicknessSolidBrush) {
   RoundedCorners rounded_corners(
       RoundedCorner(10.0f, 20.0f), RoundedCorner(20.0f, 30.0f),
       RoundedCorner(30.0f, 40.0f), RoundedCorner(50.0f, 40.0f));
-  BorderSide border_side_template(
-      0.0f, render_tree::kBorderStyleSolid, ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
+  BorderSide border_side_template(0.0f, render_tree::kBorderStyleSolid,
+                                  ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
   Border border(border_side_template);
   border.left.width = 10.0f;
   border.top.width = 15.0f;
   border.right.width = 20.0f;
   border.bottom.width = 25.0f;
-  scoped_ptr<Brush> content_brush(new SolidColorBrush(
-      ColorRGBA(0.0f, 1.0f, 0.0f, 1.0f)));
-  TestTree(new RectNode(
-      RectF(30, 30, 100, 100),
-      content_brush.Pass(),
-      make_scoped_ptr(new Border(border)),
-      make_scoped_ptr(new RoundedCorners(rounded_corners))));
+  std::unique_ptr<Brush> content_brush(
+      new SolidColorBrush(ColorRGBA(0.0f, 1.0f, 0.0f, 1.0f)));
+  TestTree(new RectNode(RectF(30, 30, 100, 100), std::move(content_brush),
+                        base::WrapUnique(new Border(border)),
+                        base::WrapUnique(new RoundedCorners(rounded_corners))));
 }
 
 TEST_F(PixelTest, RoundedCornersThickBlueBorder) {
@@ -2606,8 +2624,8 @@ TEST_F(PixelTest, EllipticalSubPixelBorder) {
 namespace {
 std::pair<PointF, PointF> LinearGradientPointsFromDegrees(
     float ccw_degrees_from_right, const SizeF& frame_size, float frame_scale) {
-  float ccw_radians_from_right = static_cast<float>(
-      ccw_degrees_from_right * M_PI / 180.0f);
+  float ccw_radians_from_right =
+      static_cast<float>(ccw_degrees_from_right * M_PI / 180.0f);
 
   // Scale |frame_size| by |frame_scale|, and offset the source and destination
   // points for the gradient so their midpoint coincides with the center of
@@ -2615,8 +2633,8 @@ std::pair<PointF, PointF> LinearGradientPointsFromDegrees(
   float offset_x = frame_size.width() * (1.0f - frame_scale) * 0.5f;
   float offset_y = frame_size.height() * (1.0f - frame_scale) * 0.5f;
   std::pair<PointF, PointF> source_and_dest =
-      render_tree::LinearGradientPointsFromAngle(ccw_radians_from_right,
-          ScaleSize(frame_size, frame_scale));
+      render_tree::LinearGradientPointsFromAngle(
+          ccw_radians_from_right, ScaleSize(frame_size, frame_scale));
   source_and_dest.first.Offset(offset_x, offset_y);
   source_and_dest.second.Offset(offset_x, offset_y);
   return source_and_dest;
@@ -2632,7 +2650,7 @@ RectF ScaledCenteredSurface(const SizeF& frame_size, float scale) {
 TEST_F(PixelTest, LinearGradient2StopsLeftRight) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(0, output_surface_size(), 0.9f),
           ColorRGBA(1.0, 0.0, 0.0, 1), ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
@@ -2640,7 +2658,7 @@ TEST_F(PixelTest, LinearGradient2StopsLeftRight) {
 TEST_F(PixelTest, LinearGradient2StopsTopBottom) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(-90, output_surface_size(), 0.9f),
           ColorRGBA(1.0, 0.0, 0.0, 1), ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
@@ -2648,19 +2666,17 @@ TEST_F(PixelTest, LinearGradient2StopsTopBottom) {
 TEST_F(PixelTest, LinearGradient2Stops45Degrees) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(45, output_surface_size(), 0.9f),
-          ColorRGBA(1.0, 0.0, 0.0, 1),
-          ColorRGBA(0.0, 1.0, 0.0, 1)))));
+          ColorRGBA(1.0, 0.0, 0.0, 1), ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, LinearGradient2Stops315Degrees) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(315, output_surface_size(), 0.9f),
-          ColorRGBA(1.0, 0.0, 0.0, 1),
-          ColorRGBA(0.0, 1.0, 0.0, 1)))));
+          ColorRGBA(1.0, 0.0, 0.0, 1), ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 namespace {
@@ -2676,7 +2692,7 @@ ColorStopList Make3ColorEvenlySpacedStopList() {
 TEST_F(PixelTest, LinearGradient3StopsLeftRightInset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(0, output_surface_size(), 0.8f),
           Make3ColorEvenlySpacedStopList()))));
 }
@@ -2684,7 +2700,7 @@ TEST_F(PixelTest, LinearGradient3StopsLeftRightInset) {
 TEST_F(PixelTest, LinearGradient3StopsTopBottomInset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(-90, output_surface_size(), 0.8f),
           Make3ColorEvenlySpacedStopList()))));
 }
@@ -2692,7 +2708,7 @@ TEST_F(PixelTest, LinearGradient3StopsTopBottomInset) {
 TEST_F(PixelTest, LinearGradient3Stops30DegreesInset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(30, output_surface_size(), 0.8f),
           Make3ColorEvenlySpacedStopList()))));
 }
@@ -2700,7 +2716,7 @@ TEST_F(PixelTest, LinearGradient3Stops30DegreesInset) {
 TEST_F(PixelTest, LinearGradient3Stops210DegreesInset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(210, output_surface_size(), 0.8f),
           Make3ColorEvenlySpacedStopList()))));
 }
@@ -2720,7 +2736,7 @@ ColorStopList Make5ColorEvenlySpacedStopList() {
 TEST_F(PixelTest, LinearGradient5StopsLeftRightOutset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(0, output_surface_size(), 1.0f),
           Make5ColorEvenlySpacedStopList()))));
 }
@@ -2728,7 +2744,7 @@ TEST_F(PixelTest, LinearGradient5StopsLeftRightOutset) {
 TEST_F(PixelTest, LinearGradient5StopsTopBottomOutset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(-90, output_surface_size(), 1.0f),
           Make5ColorEvenlySpacedStopList()))));
 }
@@ -2736,7 +2752,7 @@ TEST_F(PixelTest, LinearGradient5StopsTopBottomOutset) {
 TEST_F(PixelTest, LinearGradient5Stops150DegreesOutset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(150, output_surface_size(), 1.0f),
           Make5ColorEvenlySpacedStopList()))));
 }
@@ -2744,7 +2760,7 @@ TEST_F(PixelTest, LinearGradient5Stops150DegreesOutset) {
 TEST_F(PixelTest, LinearGradient5Stops330DegreesOutset) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new LinearGradientBrush(
+      std::unique_ptr<Brush>(new LinearGradientBrush(
           LinearGradientPointsFromDegrees(330, output_surface_size(), 1.0f),
           Make5ColorEvenlySpacedStopList()))));
 }
@@ -2760,73 +2776,72 @@ TEST_F(PixelTest, LinearGradientWithTransparencyOnWhiteBackground) {
 
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(output_surface_size()),
-                                scoped_ptr<Brush>(new SolidColorBrush(
+                                std::unique_ptr<Brush>(new SolidColorBrush(
                                     ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f)))));
 
   builder.AddChild(
       new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(new LinearGradientBrush(
+                   std::unique_ptr<Brush>(new LinearGradientBrush(
                        PointF(0, 0), PointF(output_surface_size().width(), 0),
                        color_stop_list))));
-  TestTree(new CompositionNode(builder.Pass()));
+  TestTree(new CompositionNode(std::move(builder)));
 }
 
 TEST_F(PixelTest, RadialGradient2Stops) {
-  TestTree(new RectNode(
-      ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
-          PointF(75, 100), 75, ColorRGBA(1.0, 0.0, 0.0, 1),
-          ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  TestTree(new RectNode(ScaledCenteredSurface(output_surface_size(), 0.9f),
+                        std::unique_ptr<Brush>(new RadialGradientBrush(
+                            PointF(75, 100), 75, ColorRGBA(1.0, 0.0, 0.0, 1),
+                            ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, RadialGradient3Stops) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
+      std::unique_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, Make3ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, RadialGradient5Stops) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
+      std::unique_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, Make5ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, VerticalEllipseGradient2Stops) {
-  TestTree(new RectNode(
-      ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(PointF(75, 100), 75, 100,
-                                                ColorRGBA(1.0, 0.0, 0.0, 1),
-                                                ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  TestTree(
+      new RectNode(ScaledCenteredSurface(output_surface_size(), 0.9f),
+                   std::unique_ptr<Brush>(new RadialGradientBrush(
+                       PointF(75, 100), 75, 100, ColorRGBA(1.0, 0.0, 0.0, 1),
+                       ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, VerticalEllipseGradient3Stops) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
+      std::unique_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, 100, Make3ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, VerticalEllipseGradient5Stops) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
+      std::unique_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, 100, Make5ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, HorizontalEllipseGradient2Stops) {
-  TestTree(new RectNode(
-      ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(PointF(75, 100), 100, 75,
-                                                ColorRGBA(1.0, 0.0, 0.0, 1),
-                                                ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  TestTree(
+      new RectNode(ScaledCenteredSurface(output_surface_size(), 0.9f),
+                   std::unique_ptr<Brush>(new RadialGradientBrush(
+                       PointF(75, 100), 100, 75, ColorRGBA(1.0, 0.0, 0.0, 1),
+                       ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, HorizontalEllipseGradient3Stops) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
+      std::unique_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 100, 75, Make3ColorEvenlySpacedStopList()))));
 }
 
@@ -2841,19 +2856,19 @@ TEST_F(PixelTest, RadialGradientWithTransparencyOnWhiteBackground) {
 
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(output_surface_size()),
-                                scoped_ptr<Brush>(new SolidColorBrush(
+                                std::unique_ptr<Brush>(new SolidColorBrush(
                                     ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f)))));
 
   builder.AddChild(new RectNode(RectF(output_surface_size()),
-                                scoped_ptr<Brush>(new RadialGradientBrush(
+                                std::unique_ptr<Brush>(new RadialGradientBrush(
                                     PointF(75, 100), 75, color_stop_list))));
-  TestTree(new CompositionNode(builder.Pass()));
+  TestTree(new CompositionNode(std::move(builder)));
 }
 
 TEST_F(PixelTest, HorizontalEllipseGradient5Stops) {
   TestTree(new RectNode(
       ScaledCenteredSurface(output_surface_size(), 0.9f),
-      scoped_ptr<Brush>(new RadialGradientBrush(
+      std::unique_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 100, 75, Make5ColorEvenlySpacedStopList()))));
 }
 
@@ -3011,13 +3026,14 @@ scoped_refptr<Node> CreateShadowRectWithBackground(
     const Shadow& shadow, bool inset, float spread,
     const RoundedCorners& shadow_rounded_corners) {
   CompositionNode::Builder builder;
-  builder.AddChild(
-      new RectNode(RectF(background_size),
-                   scoped_ptr<Brush>(new SolidColorBrush(background_color))));
   builder.AddChild(new RectNode(
-      shadow_rect, scoped_ptr<Brush>(new SolidColorBrush(shadow_rect_color)),
-      scoped_ptr<Border>(),
-      make_scoped_ptr(new RoundedCorners(shadow_rounded_corners))));
+      RectF(background_size),
+      std::unique_ptr<Brush>(new SolidColorBrush(background_color))));
+  builder.AddChild(new RectNode(
+      shadow_rect,
+      std::unique_ptr<Brush>(new SolidColorBrush(shadow_rect_color)),
+      std::unique_ptr<Border>(),
+      base::WrapUnique(new RoundedCorners(shadow_rounded_corners))));
   RectShadowNode::Builder rect_shadow_node_builder(shadow_rect, shadow, inset,
                                                    spread);
   if (!shadow_rounded_corners.AreSquares()) {
@@ -3025,7 +3041,7 @@ scoped_refptr<Node> CreateShadowRectWithBackground(
   }
   builder.AddChild(new RectShadowNode(rect_shadow_node_builder));
 
-  return new CompositionNode(builder.Pass());
+  return new CompositionNode(std::move(builder));
 }
 
 scoped_refptr<Node> CreateShadowRectWithBackground(
@@ -3149,10 +3165,12 @@ TEST_F(PixelTest, BoxShadowBlur100pxCentered) {
 }
 
 TEST_F(PixelTest, ScaledBoxShadowWithSpreadAndBlurCentered) {
-  TestTree(new MatrixTransformNode(CreateShadowRectWithBackground(
-      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
-      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 8, 100, 4),
-      Shadow(Vector2dF(0.0f, 0.0f), 3.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f),
+  TestTree(new MatrixTransformNode(
+      CreateShadowRectWithBackground(
+          output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+          ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 8, 100, 4),
+          Shadow(Vector2dF(0.0f, 0.0f), 3.0f, ColorRGBA(0, 0, 0, 1)), false,
+          5.0f),
       ScaleMatrix(1.0f, 10.0f)));
 }
 
@@ -3244,11 +3262,12 @@ TEST_F(PixelTest, BoxShadowCircleWithOutset25pxSpreadAndRoundedCorners) {
 }
 
 TEST_F(PixelTest, ScaledBoxShadowEllipseWithOutset5pxSpreadAndRoundedCorners) {
-  TestTree(new MatrixTransformNode(CreateShadowRectWithBackground(
-      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
-      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(6, 25, 2, 100),
-      Shadow(Vector2dF(0.0f, 0.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
-      RoundedCorners(1, 50)),
+  TestTree(new MatrixTransformNode(
+      CreateShadowRectWithBackground(
+          output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+          ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(6, 25, 2, 100),
+          Shadow(Vector2dF(0.0f, 0.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false,
+          5.0f, RoundedCorners(1, 50)),
       ScaleMatrix(15.0f, 1.0f)));
 }
 
@@ -3371,11 +3390,12 @@ TEST_F(PixelTest,
 
 TEST_F(PixelTest,
        ScaledBoxShadowEllipseWithOutset25pxSpread3pxBlurAndRoundedCorners) {
-  TestTree(new MatrixTransformNode(CreateShadowRectWithBackground(
-      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
-      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(20, 5, 140, 10),
-      Shadow(Vector2dF(8.0f, 1.0f), 3.0f, ColorRGBA(0, 0, 0, 1)), false, 4.0f,
-      RoundedCorners(70, 5)),
+  TestTree(new MatrixTransformNode(
+      CreateShadowRectWithBackground(
+          output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+          ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(20, 5, 140, 10),
+          Shadow(Vector2dF(8.0f, 1.0f), 3.0f, ColorRGBA(0, 0, 0, 1)), false,
+          4.0f, RoundedCorners(70, 5)),
       ScaleMatrix(1.0f, 10.0f)));
 }
 
@@ -3815,25 +3835,25 @@ TEST_F(PixelTest, BoxShadowInsetCircleSpread) {
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
-                                scoped_ptr<Brush>(new SolidColorBrush(
+                                std::unique_ptr<Brush>(new SolidColorBrush(
                                     ColorRGBA(0.5f, 0.5f, 1.0f, 1.0f)))));
 
   builder.AddChild(new PunchThroughVideoNode(PunchThroughVideoNode::Builder(
       RectF(50, 50, 100, 100), base::Bind(SetBounds, false))));
 
-  TestTree(new CompositionNode(builder.Pass()));
+  TestTree(new CompositionNode(std::move(builder)));
 }
 
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsTrue) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
-                                scoped_ptr<Brush>(new SolidColorBrush(
+                                std::unique_ptr<Brush>(new SolidColorBrush(
                                     ColorRGBA(0.5f, 0.5f, 1.0f, 1.0f)))));
 
   builder.AddChild(new PunchThroughVideoNode(PunchThroughVideoNode::Builder(
       RectF(50, 50, 100, 100), base::Bind(SetBounds, true))));
 
-  TestTree(new CompositionNode(builder.Pass()));
+  TestTree(new CompositionNode(std::move(builder)));
 }
 
 TEST_F(PixelTest, DrawOffscreenImage) {
@@ -3863,7 +3883,7 @@ namespace {
 scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
   // Defines a cube mesh where each face faces inward.  Each face has the entire
   // texture mapped over it.
-  scoped_ptr<std::vector<Mesh::Vertex> > vertices(
+  std::unique_ptr<std::vector<Mesh::Vertex> > vertices(
       new std::vector<Mesh::Vertex>);
 
   vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
@@ -3908,8 +3928,8 @@ scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
   vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 0.0f, 1.0f));
   vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
 
-  return resource_provider->CreateMesh(
-      vertices.Pass(), Mesh::kDrawModeTriangles);
+  return resource_provider->CreateMesh(std::move(vertices),
+                                       Mesh::kDrawModeTriangles);
 }
 
 // Creates a cube mesh with a perspective transform applied to it such that the
@@ -3986,7 +4006,7 @@ TEST_F(PixelTest, DrawNullImage) {
 TEST_F(PixelTest, ClearRectNodeTest) {
   CompositionNode::Builder composition_node_builder;
   composition_node_builder.AddChild(new RectNode(
-      RectF(output_surface_size()), scoped_ptr<Brush>(new SolidColorBrush(
+      RectF(output_surface_size()), std::unique_ptr<Brush>(new SolidColorBrush(
                                         ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f)))));
   RectF clear_rect(output_surface_size());
   clear_rect.Inset(15, 15);
@@ -3996,7 +4016,7 @@ TEST_F(PixelTest, ClearRectNodeTest) {
   RectF inner_rect(clear_rect);
   inner_rect.Inset(15, 15);
   composition_node_builder.AddChild(new RectNode(
-      inner_rect, scoped_ptr<Brush>(
+      inner_rect, std::unique_ptr<Brush>(
                       new SolidColorBrush(ColorRGBA(0.0f, 1.0f, 0.0f, 0.5f)))));
 
   RectF inner_clear_rect(inner_rect);
@@ -4007,10 +4027,10 @@ TEST_F(PixelTest, ClearRectNodeTest) {
   RectF inner_inner_rect(inner_clear_rect);
   inner_inner_rect.Inset(15, 15);
   composition_node_builder.AddChild(
-      new RectNode(inner_inner_rect, scoped_ptr<Brush>(new SolidColorBrush(
+      new RectNode(inner_inner_rect, std::unique_ptr<Brush>(new SolidColorBrush(
                                          ColorRGBA(1.0f, 0.0f, 0.0f, 0.5f)))));
 
-  TestTree(new CompositionNode(composition_node_builder.Pass()));
+  TestTree(new CompositionNode(std::move(composition_node_builder)));
 }
 
 }  // namespace rasterizer

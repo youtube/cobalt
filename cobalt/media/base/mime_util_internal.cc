@@ -5,9 +5,9 @@
 #include "cobalt/media/base/mime_util_internal.h"
 
 #include "base/command_line.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/media.h"
 #include "cobalt/media/base/video_codecs.h"
@@ -108,13 +108,13 @@ static std::string TranslateLegacyAvc1CodecIds(const std::string& codec_id) {
   // See, for example, http://qtdevseed.apple.com/qadrift/testcases/tc-0133.php
   uint32_t level_start = 0;
   std::string result;
-  if (StartsWithASCII(codec_id, "avc1.66.", true)) {
+  if (StartsWith(codec_id, "avc1.66.", base::CompareCase::SENSITIVE)) {
     level_start = 8;
     result = "avc1.4200";
-  } else if (StartsWithASCII(codec_id, "avc1.77.", true)) {
+  } else if (StartsWith(codec_id, "avc1.77.", base::CompareCase::SENSITIVE)) {
     level_start = 8;
     result = "avc1.4D00";
-  } else if (StartsWithASCII(codec_id, "avc1.100.", true)) {
+  } else if (StartsWith(codec_id, "avc1.100.", base::CompareCase::SENSITIVE)) {
     level_start = 9;
     result = "avc1.6400";
   }
@@ -161,8 +161,8 @@ static bool ParseVp9CodecID(const std::string& mime_type_lower_case,
     return false;
   }
 
-  std::vector<std::string> fields;
-  base::SplitString(codec_id, '.', &fields);
+  std::vector<std::string> fields = base::SplitString(
+      codec_id, std::string("."), base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (fields.size() < 1) return false;
 
   if (fields[0] != "vp09") return false;
@@ -413,7 +413,7 @@ void MimeUtil::AddContainerWithCodecs(const std::string& mime_type,
 }
 
 bool MimeUtil::IsSupportedMediaMimeType(const std::string& mime_type) const {
-  return media_format_map_.find(StringToLowerASCII(mime_type)) !=
+  return media_format_map_.find(base::ToLowerASCII(mime_type)) !=
          media_format_map_.end();
 }
 
@@ -421,8 +421,9 @@ void MimeUtil::ParseCodecString(const std::string& codecs,
                                 std::vector<std::string>* codecs_out,
                                 bool strip) {
   std::string trimmed_codecs;
-  TrimString(codecs, "\"", &trimmed_codecs);
-  base::SplitString(trimmed_codecs, ',', codecs_out);
+  base::TrimString(codecs, "\"", &trimmed_codecs);
+  *codecs_out = base::SplitString(trimmed_codecs, std::string(","),
+                                  base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   // Convert empty or all-whitespace input to 0 results.
   if (codecs_out->size() == 1 && (*codecs_out)[0].empty()) codecs_out->clear();
@@ -440,7 +441,7 @@ void MimeUtil::ParseCodecString(const std::string& codecs,
 SupportsType MimeUtil::IsSupportedMediaFormat(
     const std::string& mime_type, const std::vector<std::string>& codecs,
     bool is_encrypted) const {
-  const std::string mime_type_lower_case = StringToLowerASCII(mime_type);
+  const std::string mime_type_lower_case = base::ToLowerASCII(mime_type);
   MediaFormatMappings::const_iterator it_media_format_map =
       media_format_map_.find(mime_type_lower_case);
   if (it_media_format_map == media_format_map_.end()) return IsNotSupported;
@@ -542,7 +543,8 @@ bool MimeUtil::IsCodecSupportedOnPlatform(
       if (!platform_info.supports_opus) return false;
 
       // MediaPlayer does not support Opus in ogg containers.
-      if (EndsWith(mime_type_lower_case, "ogg", true)) {
+      if (base::EndsWith(mime_type_lower_case, "ogg",
+                         base::CompareCase::SENSITIVE)) {
         return false;
       }
 

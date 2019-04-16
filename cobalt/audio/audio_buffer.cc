@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
 #include "cobalt/audio/audio_buffer.h"
 
@@ -24,8 +25,9 @@
 namespace cobalt {
 namespace audio {
 
-AudioBuffer::AudioBuffer(float sample_rate, scoped_ptr<ShellAudioBus> audio_bus)
-    : sample_rate_(sample_rate), audio_bus_(audio_bus.Pass()) {
+AudioBuffer::AudioBuffer(float sample_rate,
+                         std::unique_ptr<ShellAudioBus> audio_bus)
+    : sample_rate_(sample_rate), audio_bus_(std::move(audio_bus)) {
   DCHECK_GT(sample_rate_, 0);
   DCHECK_GT(length(), 0);
   DCHECK_GT(number_of_channels(), 0);
@@ -40,8 +42,8 @@ void AudioBuffer::CopyToChannel(
     return;
   }
 
-  size_t last_frame = std::min(audio_bus_->frames(),
-                               source->Length() + start_in_channel);
+  size_t last_frame =
+      std::min(audio_bus_->frames(), source->Length() + start_in_channel);
   float* src_data = source->Data();
   switch (audio_bus_->sample_type()) {
     case kSampleTypeFloat32: {
@@ -49,7 +51,7 @@ void AudioBuffer::CopyToChannel(
         for (size_t frame = start_in_channel; frame < last_frame; ++frame) {
           float* dest_ptr = reinterpret_cast<float*>(
               audio_bus_->GetSamplePtrForType<float, kStorageTypePlanar>(
-              channel_number, frame));
+                  channel_number, frame));
           *dest_ptr = *src_data;
           ++src_data;
         }
@@ -57,7 +59,7 @@ void AudioBuffer::CopyToChannel(
         for (size_t frame = start_in_channel; frame < last_frame; ++frame) {
           float* dest_ptr = reinterpret_cast<float*>(
               audio_bus_->GetSamplePtrForType<float, kStorageTypeInterleaved>(
-              channel_number, frame));
+                  channel_number, frame));
           *dest_ptr = *src_data;
           ++src_data;
         }
@@ -67,18 +69,20 @@ void AudioBuffer::CopyToChannel(
     case kSampleTypeInt16: {
       if (audio_bus_->storage_type() == kStorageTypePlanar) {
         for (size_t frame = start_in_channel; frame < last_frame; ++frame) {
-          uint8* dest_ptr = audio_bus_->GetSamplePtrForType
-              <int16, kStorageTypePlanar>(channel_number, frame);
-          *reinterpret_cast<int16*>(dest_ptr) = ConvertSample<float, int16>(
-              *src_data);
+          uint8* dest_ptr =
+              audio_bus_->GetSamplePtrForType<int16, kStorageTypePlanar>(
+                  channel_number, frame);
+          *reinterpret_cast<int16*>(dest_ptr) =
+              ConvertSample<float, int16>(*src_data);
           ++src_data;
         }
       } else {
         for (size_t frame = start_in_channel; frame < last_frame; ++frame) {
-          uint8* dest_ptr = audio_bus_->GetSamplePtrForType
-              <int16, kStorageTypeInterleaved>(channel_number, frame);
-          *reinterpret_cast<int16*>(dest_ptr) = ConvertSample<float, int16>(
-              *src_data);
+          uint8* dest_ptr =
+              audio_bus_->GetSamplePtrForType<int16, kStorageTypeInterleaved>(
+                  channel_number, frame);
+          *reinterpret_cast<int16*>(dest_ptr) =
+              ConvertSample<float, int16>(*src_data);
           ++src_data;
         }
       }

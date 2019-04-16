@@ -127,7 +127,7 @@ class NativePromise : public Promise<T> {
 
  private:
   JSContext* context_;
-  base::optional<PromiseWrapper> promise_resolver_;
+  base::Optional<PromiseWrapper> promise_resolver_;
 };
 
 template <typename T>

@@ -48,16 +48,16 @@
 #ifndef COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
 #define COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/eme_constants.h"
@@ -66,8 +66,8 @@
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
-#include "googleurl/src/gurl.h"
 #include "ui/gfx/size.h"
+#include "url/gurl.h"
 
 #if defined(OS_STARBOARD)
 
@@ -84,7 +84,7 @@ class MediaLog;
 class WebMediaPlayerProxy;
 
 class WebMediaPlayerImpl : public WebMediaPlayer,
-                           public MessageLoop::DestructionObserver,
+                           public base::MessageLoop::DestructionObserver,
                            public base::SupportsWeakPtr<WebMediaPlayerImpl> {
  public:
   // Construct a WebMediaPlayerImpl with reference to the client, and media
@@ -116,8 +116,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void LoadUrl(const GURL& url) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void LoadMediaSource() override;
-  void LoadProgressive(const GURL& url,
-                       scoped_ptr<BufferedDataSource> data_source) override;
+  void LoadProgressive(
+      const GURL& url,
+      std::unique_ptr<BufferedDataSource> data_source) override;
 
   void CancelLoad() override;
 
@@ -198,7 +199,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Called when the data source is downloading or paused.
   void OnDownloadingStatusChanged(bool is_downloading);
 
-  // Finishes starting the pipeline due to a call to load().
+// Finishes starting the pipeline due to a call to load().
 #if SB_HAS(PLAYER_WITH_URL)
   void StartPipeline(const GURL& url);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -241,7 +242,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   // Message loops for posting tasks between Chrome's main thread. Also used
   // for DCHECKs so methods calls won't execute in the wrong thread.
-  MessageLoop* main_loop_;
+  base::MessageLoop* main_loop_;
 
   scoped_refptr<Pipeline> pipeline_;
 
@@ -305,8 +306,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   bool is_local_source_;
   bool supports_save_;
 
-  scoped_ptr<Demuxer> progressive_demuxer_;
-  scoped_ptr<ChunkDemuxer> chunk_demuxer_;
+  std::unique_ptr<Demuxer> progressive_demuxer_;
+  std::unique_ptr<ChunkDemuxer> chunk_demuxer_;
 
 #if defined(__LB_ANDROID__)
   AudioFocusBridge audio_focus_bridge_;

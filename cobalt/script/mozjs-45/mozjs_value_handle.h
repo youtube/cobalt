@@ -47,7 +47,7 @@ class MozjsValueHandle : public ValueHandle {
   WeakHeapObject handle_;
 
   friend class MozjsUserObjectHolder<MozjsValueHandle>;
-  friend class base::optional<MozjsValueHandle>;
+  friend class base::Optional<MozjsValueHandle>;
 };
 
 typedef MozjsUserObjectHolder<MozjsValueHandle> MozjsValueHandleHolder;

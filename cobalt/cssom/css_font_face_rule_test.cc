@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/css_font_face_rule.h"
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
@@ -175,25 +177,25 @@ TEST_F(CSSFontFaceRuleTest, CSSTextSetter) {
 TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
   scoped_refptr<StringValue> family = new StringValue("youtube-icons");
 
-  scoped_ptr<PropertyListValue::Builder> src_builder(
+  std::unique_ptr<PropertyListValue::Builder> src_builder(
       new PropertyListValue::Builder());
   src_builder->reserve(2);
   src_builder->push_back(new LocalSrcValue("Roboto"));
   src_builder->push_back(
       new UrlSrcValue(new URLValue("'../assets/icons.ttf'"), "truetype"));
   scoped_refptr<PropertyListValue> src(
-      new PropertyListValue(src_builder.Pass()));
+      new PropertyListValue(std::move(src_builder)));
 
   scoped_refptr<FontStyleValue> style = FontStyleValue::GetItalic();
   scoped_refptr<FontWeightValue> weight = FontWeightValue::GetBoldAka700();
 
-  scoped_ptr<PropertyListValue::Builder> unicode_range_builder(
+  std::unique_ptr<PropertyListValue::Builder> unicode_range_builder(
       new PropertyListValue::Builder());
   unicode_range_builder->reserve(2);
   unicode_range_builder->push_back(new UnicodeRangeValue(0x100, 0x100));
   unicode_range_builder->push_back(new UnicodeRangeValue(0x1000, 0x2000));
   scoped_refptr<PropertyListValue> unicode_range(
-      new PropertyListValue(unicode_range_builder.Pass()));
+      new PropertyListValue(std::move(unicode_range_builder)));
 
   scoped_refptr<CSSFontFaceDeclarationData> font_face_data =
       new CSSFontFaceDeclarationData();

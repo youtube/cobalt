@@ -15,11 +15,11 @@
 #ifndef COBALT_WEBDRIVER_WEB_DRIVER_MODULE_H_
 #define COBALT_WEBDRIVER_WEB_DRIVER_MODULE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/files/file_path.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/dispatcher.h"
@@ -44,7 +44,8 @@ class WindowDriver;
 
 class WebDriverModule {
  public:
-  typedef base::Callback<scoped_ptr<SessionDriver>(const protocol::SessionId&)>
+  typedef base::Callback<std::unique_ptr<SessionDriver>(
+      const protocol::SessionId&)>
       CreateSessionDriverCB;
   typedef Screenshot::GetScreenshotFunction GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
@@ -73,65 +74,73 @@ class WebDriverModule {
   void GetServerStatus(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
   void GetActiveSessions(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void CreateSession(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void DeleteSession(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
+  void CreateSession(const base::Value* parameters,
+                     const WebDriverDispatcher::PathVariableMap* path_variables,
+                     std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+                         result_handler);
+  void DeleteSession(const base::Value* parameters,
+                     const WebDriverDispatcher::PathVariableMap* path_variables,
+                     std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+                         result_handler);
   // This method starts a Screencast server on port 3003 for a client to connect
   // to. This is not standard Webdriver functionality.
   void StartScreencast(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
   // This method destroys the Screencast server.
   // This is not standard Webdriver functionality.
   void StopScreencast(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
   void RequestScreenshot(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void Shutdown(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
+  void Shutdown(const base::Value* parameters,
+                const WebDriverDispatcher::PathVariableMap* path_variables,
+                std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+                    result_handler);
 
-  void ElementEquals(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetAttribute(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void ElementEquals(const base::Value* parameters,
+                     const WebDriverDispatcher::PathVariableMap* path_variables,
+                     std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+                         result_handler);
+  void GetAttribute(const base::Value* parameters,
+                    const WebDriverDispatcher::PathVariableMap* path_variables,
+                    std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+                        result_handler);
   void GetCssProperty(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
   void RequestElementScreenshot(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
   void GetCookieByName(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
 
-  void IgnoreCommand(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void IgnoreCommand(const base::Value* parameters,
+                     const WebDriverDispatcher::PathVariableMap* path_variables,
+                     std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+                         result_handler);
 
   SessionDriver* GetSessionDriver(const protocol::SessionId& session_id);
 
@@ -156,13 +165,13 @@ class WebDriverModule {
   base::Closure shutdown_cb_;
 
   // The WebDriver command dispatcher
-  scoped_ptr<WebDriverDispatcher> webdriver_dispatcher_;
+  std::unique_ptr<WebDriverDispatcher> webdriver_dispatcher_;
 
   // The WebDriver server
-  scoped_ptr<WebDriverServer> webdriver_server_;
+  std::unique_ptr<WebDriverServer> webdriver_server_;
 
   // The current (and only) WebDriver session, if it has been created.
-  scoped_ptr<SessionDriver> session_;
+  std::unique_ptr<SessionDriver> session_;
 
   // The WebDriver server status.
   const protocol::ServerStatus status_;
@@ -170,7 +179,7 @@ class WebDriverModule {
   base::Callback<SessionDriver*(const protocol::SessionId&)>
       get_session_driver_;
 
-  scoped_ptr<screencast::ScreencastModule> screencast_driver_module_;
+  std::unique_ptr<screencast::ScreencastModule> screencast_driver_module_;
 };
 
 }  // namespace webdriver

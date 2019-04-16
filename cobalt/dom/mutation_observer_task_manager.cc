@@ -15,8 +15,8 @@
 #include "cobalt/dom/mutation_observer_task_manager.h"
 
 #include "base/callback.h"
-#include "base/debug/trace_event.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/mutation_observer.h"
 
 namespace cobalt {
@@ -55,7 +55,7 @@ void MutationObserverTaskManager::QueueMutationObserverMicrotask() {
   // 2. Set mutation observer compound microtask queued flag.
   task_posted_ = true;
   // 3. Queue a compound microtask to notify mutation observers.
-  MessageLoop::current()->PostTask(
+  base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&MutationObserverTaskManager::NotifyMutationObservers,
                  base::Unretained(this)));
@@ -70,7 +70,7 @@ void MutationObserverTaskManager::NotifyMutationObservers() {
                "MutationObserverTaskManager::NotifyMutationObservers()");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(task_posted_);
-  DCHECK(MessageLoop::current());
+  DCHECK(base::MessageLoop::current());
   // https://www.w3.org/TR/dom/#notify-mutation-observers
   // To notify mutation observers, run these steps:
   // 1. Unset mutation observer compound microtask queued flag.

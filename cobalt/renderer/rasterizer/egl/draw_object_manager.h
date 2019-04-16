@@ -15,12 +15,11 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_MANAGER_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_MANAGER_H_
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/renderer/backend/render_target.h"
@@ -60,9 +59,10 @@ class DrawObjectManager {
   // execution of these draws, |flush_external_offscreen_draws| is called, so
   // these batched draws do not need to flush individually.
   // Returns an ID which can be used to remove the queued draw.
-  uint32_t AddBatchedExternalDraw(scoped_ptr<DrawObject> draw_object,
-      base::TypeId draw_type, const backend::RenderTarget* render_target,
-      const math::RectF& draw_bounds);
+  uint32_t AddBatchedExternalDraw(std::unique_ptr<DrawObject> draw_object,
+                                  base::TypeId draw_type,
+                                  const backend::RenderTarget* render_target,
+                                  const math::RectF& draw_bounds);
 
   // Add a draw object that will render to an offscreen render target. There
   // must be a corresponding draw object added via AddOnscreenDraw() to
@@ -70,10 +70,10 @@ class DrawObjectManager {
   // batched together and executed before any onscreen objects are processed
   // in order to minimize the cost of switching render targets.
   // Returns an ID which can be used to remove the queued draw.
-  uint32_t AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
-      BlendType blend_type, base::TypeId draw_type,
-      const backend::RenderTarget* render_target,
-      const math::RectF& draw_bounds);
+  uint32_t AddOffscreenDraw(std::unique_ptr<DrawObject> draw_object,
+                            BlendType blend_type, base::TypeId draw_type,
+                            const backend::RenderTarget* render_target,
+                            const math::RectF& draw_bounds);
 
   // Add a draw object to be processed when rendering to the main render
   // target. Although most draws are expected to go to the main render target,
@@ -83,10 +83,10 @@ class DrawObjectManager {
   // has a major negative impact to performance, so it is preferable to avoid
   // reusing offscreen targets during the frame.
   // Returns an ID which can be used to remove the queued draw.
-  uint32_t AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
-      BlendType blend_type, base::TypeId draw_type,
-      const backend::RenderTarget* render_target,
-      const math::RectF& draw_bounds);
+  uint32_t AddOnscreenDraw(std::unique_ptr<DrawObject> draw_object,
+                           BlendType blend_type, base::TypeId draw_type,
+                           const backend::RenderTarget* render_target,
+                           const math::RectF& draw_bounds);
 
   // Remove all queued draws whose ID comes after the given last_valid_draw_id.
   // Calling RemoveDraws(0) will remove all draws that have been added.
@@ -96,16 +96,16 @@ class DrawObjectManager {
   // on draws to another render target. This information is used to sort
   // offscreen draws.
   void AddRenderTargetDependency(const backend::RenderTarget* draw_target,
-      const backend::RenderTarget* required_target);
+                                 const backend::RenderTarget* required_target);
 
   void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager);
+                                 ShaderProgramManager* program_manager);
   void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager);
+                                ShaderProgramManager* program_manager);
 
  private:
   struct DrawInfo {
-    DrawInfo(scoped_ptr<DrawObject> in_draw_object,
+    DrawInfo(std::unique_ptr<DrawObject> in_draw_object,
              base::TypeId in_draw_type, BlendType in_blend_type,
              const backend::RenderTarget* in_render_target,
              const math::RectF& in_draw_bounds, uint32_t in_draw_id)
@@ -129,8 +129,7 @@ class DrawObjectManager {
   struct RenderTargetDependency {
     RenderTargetDependency(const backend::RenderTarget* in_draw_target,
                            const backend::RenderTarget* in_required_target)
-        : draw_target(in_draw_target),
-          required_target(in_required_target) {}
+        : draw_target(in_draw_target), required_target(in_required_target) {}
     const backend::RenderTarget* draw_target;
     const backend::RenderTarget* required_target;
   };
@@ -139,18 +138,16 @@ class DrawObjectManager {
   typedef std::vector<DrawInfo*> SortedDrawList;
 
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager);
+                                 ShaderProgramManager* program_manager);
 
-  void Rasterize(const SortedDrawList& draw_list,
-                 GraphicsState* graphics_state,
+  void Rasterize(const SortedDrawList& draw_list, GraphicsState* graphics_state,
                  ShaderProgramManager* program_manager);
 
   void RemoveDraws(DrawList* draw_list, uint32_t last_valid_draw_id);
 
   void SortOffscreenDraws(DrawList* draw_list,
                           SortedDrawList* sorted_draw_list);
-  void SortOnscreenDraws(DrawList* draw_list,
-                         SortedDrawList* sorted_draw_list);
+  void SortOnscreenDraws(DrawList* draw_list, SortedDrawList* sorted_draw_list);
   void MergeSortedDraws(SortedDrawList* sorted_draw_list);
 
   base::Closure reset_external_rasterizer_;

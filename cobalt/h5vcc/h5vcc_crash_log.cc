@@ -36,8 +36,8 @@ namespace h5vcc {
 class CrashLogDictionary {
  public:
   static CrashLogDictionary* GetInstance() {
-    return Singleton<CrashLogDictionary,
-                     LeakySingletonTraits<CrashLogDictionary> >::get();
+    return base::Singleton<CrashLogDictionary, base::DefaultSingletonTraits<
+                                                   CrashLogDictionary> >::get();
   }
 
   void SetString(const std::string& key, const std::string& value) {
@@ -75,7 +75,7 @@ class CrashLogDictionary {
     }
   }
 
-  friend struct DefaultSingletonTraits<CrashLogDictionary>;
+  friend struct base::DefaultSingletonTraits<CrashLogDictionary>;
 
   base::subtle::Atomic32 accessing_log_data_;
 

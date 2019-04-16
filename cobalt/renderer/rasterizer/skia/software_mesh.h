@@ -17,6 +17,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_MESH_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_MESH_H_
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/render_tree/mesh.h"
@@ -29,9 +30,10 @@ namespace skia {
 
 class SoftwareMesh : public render_tree::Mesh {
  public:
-  SoftwareMesh(scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
-               render_tree::Mesh::DrawMode draw_mode)
-      : vertices_(vertices.Pass()), draw_mode_(draw_mode) {
+  SoftwareMesh(
+      std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      render_tree::Mesh::DrawMode draw_mode)
+      : vertices_(std::move(vertices)), draw_mode_(draw_mode) {
     DCHECK(vertices_);
   }
 
@@ -46,7 +48,7 @@ class SoftwareMesh : public render_tree::Mesh {
   }
 
  private:
-  const scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
+  const std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
   const render_tree::Mesh::DrawMode draw_mode_;
 };
 

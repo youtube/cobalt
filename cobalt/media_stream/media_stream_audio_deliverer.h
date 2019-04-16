@@ -22,10 +22,10 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/debug/trace_event.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
-#include "base/time.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/media_stream/audio_parameters.h"
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
@@ -121,7 +121,7 @@ class MediaStreamAudioDeliverer {
     consumers_.clear();
   }
 
-  // Deliver data to all consumers. This method may be called on any thread.
+// Deliver data to all consumers. This method may be called on any thread.
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
   void OnData(const media::ShellAudioBus& audio_bus,

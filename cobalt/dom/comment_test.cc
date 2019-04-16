@@ -34,6 +34,7 @@ class CommentTest : public ::testing::Test {
   CommentTest();
   ~CommentTest() override;
 
+  base::MessageLoop message_loop_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
@@ -67,8 +68,8 @@ TEST_F(CommentTest, CommentCheckAttach) {
   scoped_refptr<Node> text = new Text(document_, "text");
 
   // Checks that we can't attach text nodes to comment nodes.
-  EXPECT_EQ(NULL, comment->AppendChild(text));
-  EXPECT_EQ(NULL, comment->InsertBefore(text, NULL));
+  EXPECT_EQ(NULL, comment->AppendChild(text).get());
+  EXPECT_EQ(NULL, comment->InsertBefore(text, NULL).get());
 }
 
 TEST_F(CommentTest, NodeValue) {

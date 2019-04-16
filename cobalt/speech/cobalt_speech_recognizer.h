@@ -15,6 +15,7 @@
 #ifndef COBALT_SPEECH_COBALT_SPEECH_RECOGNIZER_H_
 #define COBALT_SPEECH_COBALT_SPEECH_RECOGNIZER_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/network/network_module.h"
@@ -58,7 +59,7 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
 
  private:
   // Callbacks from mic.
-  void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
+  void OnDataReceived(std::unique_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
   void OnMicrophoneError(MicrophoneManager::MicrophoneError error,
                          std::string error_message);
@@ -67,8 +68,8 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
 
   EventCallback event_callback_;
-  scoped_ptr<GoogleSpeechService> service_;
-  scoped_ptr<MicrophoneManager> microphone_manager_;
+  std::unique_ptr<GoogleSpeechService> service_;
+  std::unique_ptr<MicrophoneManager> microphone_manager_;
   // Delegate of endpointer which is used for detecting sound energy.
   EndPointerDelegate endpointer_delegate_;
 };

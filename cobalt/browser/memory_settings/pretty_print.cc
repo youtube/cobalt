@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/table_printer.h"
 #include "starboard/log.h"
@@ -65,8 +65,7 @@ void FillStream(size_t count, const char fill_ch, std::stringstream* ss) {
 }  // namespace
 
 std::string GeneratePrettyPrintTable(
-    bool use_color_ascii,
-    const std::vector<const MemorySetting*>& settings) {
+    bool use_color_ascii, const std::vector<const MemorySetting*>& settings) {
   TablePrinter printer;
   if (use_color_ascii) {
     printer.set_text_color(TablePrinter::kGreen);
@@ -156,8 +155,8 @@ std::string ToMegabyteString(int64_t bytes, int decimal_places) {
 }
 
 std::string MakeBorder(const std::string& body, const char border_ch) {
-  std::vector<std::string> lines;
-  base::SplitStringDontTrim(body, '\n', &lines);
+  std::vector<std::string> lines = base::SplitString(
+      body, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
 
   size_t max_span = 0;
   for (size_t i = 0; i < lines.size(); ++i) {

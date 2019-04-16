@@ -134,7 +134,7 @@ class V8cCallbackFunction<R(A1)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1)
+      CallbackParamTraits<A1>::ForwardType a1)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -192,8 +192,8 @@ class V8cCallbackFunction<R(A1, A2)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
+      CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -252,9 +252,9 @@ class V8cCallbackFunction<R(A1, A2, A3)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
+      CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -314,10 +314,10 @@ class V8cCallbackFunction<R(A1, A2, A3, A4)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
+      CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -379,11 +379,11 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
+      CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -446,12 +446,12 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
-      typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
+      CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -515,13 +515,13 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run(      typename
-      base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
-      typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
-      typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
+      CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());

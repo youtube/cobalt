@@ -18,7 +18,8 @@
 
 #include "third_party/glm/glm/gtx/euler_angles.hpp"
 
-#include "base/time.h"
+#include "base/basictypes.h"
+#include "base/time/time.h"
 #include "cobalt/dom/device_orientation_event.h"
 
 namespace cobalt {

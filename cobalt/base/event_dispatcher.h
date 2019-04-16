@@ -15,11 +15,11 @@
 #ifndef COBALT_BASE_EVENT_DISPATCHER_H_
 #define COBALT_BASE_EVENT_DISPATCHER_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/event.h"
 
@@ -37,7 +37,7 @@ class EventDispatcher {
   ~EventDispatcher();
   // Send the event to all callers registered for this type of event.
   // May be called from any thread.
-  void DispatchEvent(scoped_ptr<Event> event) const;
+  void DispatchEvent(std::unique_ptr<Event> event) const;
 
   // Register a callback to be notified about Events of the given type.
   // May be called from any thread, but not from a dispatched event.

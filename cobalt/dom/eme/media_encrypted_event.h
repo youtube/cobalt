@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_EME_MEDIA_ENCRYPTED_EVENT_H_
 #define COBALT_DOM_EME_MEDIA_ENCRYPTED_EVENT_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -50,7 +51,7 @@ class MediaEncryptedEvent : public Event {
 
  private:
   std::string init_data_type_;
-  scoped_ptr<script::ScriptValue<script::ArrayBuffer>::Reference>
+  std::unique_ptr<script::ScriptValue<script::ArrayBuffer>::Reference>
       init_data_reference_;
 };
 

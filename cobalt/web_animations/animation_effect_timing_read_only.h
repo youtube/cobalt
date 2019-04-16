@@ -22,7 +22,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/wrappable.h"
@@ -107,34 +107,34 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
     // passed into KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue()
     // to animate property values.
     struct IterationProgress {
-      base::optional<double> iteration_progress;
-      base::optional<double> current_iteration;
+      base::Optional<double> iteration_progress;
+      base::Optional<double> current_iteration;
     };
     IterationProgress ComputeIterationProgressFromLocalTime(
-        const base::optional<base::TimeDelta>& local_time) const;
+        const base::Optional<base::TimeDelta>& local_time) const;
 
     // These methods are all based off of functionality defined by the Web
     // Animations specification.  They are all called internally by
     // ComputeIterationProgressFromLocalTime(), and are public primarily so that
     // they can be tested.
-    base::optional<base::TimeDelta> ComputeActiveTimeFromLocalTime(
-        const base::optional<base::TimeDelta>& local_time) const;
-    base::optional<base::TimeDelta> ComputeScaledActiveTimeFromActiveTime(
-        const base::optional<base::TimeDelta>& active_time) const;
-    base::optional<base::TimeDelta> ComputeIterationTimeFromScaledActiveTime(
-        const base::optional<base::TimeDelta>& scaled_active_time) const;
-    base::optional<base::TimeDelta> ComputeDirectedTimeFromIterationTime(
-        const base::optional<base::TimeDelta>& iteration_time,
-        const base::optional<double>& current_iteration) const;
-    base::optional<base::TimeDelta> ComputeTransformedTimeFromDirectedTime(
-        const base::optional<base::TimeDelta>& directed_time) const;
-    base::optional<double> ComputeIterationProgressFromTransformedTime(
-        const base::optional<base::TimeDelta>& transformed_time) const;
+    base::Optional<base::TimeDelta> ComputeActiveTimeFromLocalTime(
+        const base::Optional<base::TimeDelta>& local_time) const;
+    base::Optional<base::TimeDelta> ComputeScaledActiveTimeFromActiveTime(
+        const base::Optional<base::TimeDelta>& active_time) const;
+    base::Optional<base::TimeDelta> ComputeIterationTimeFromScaledActiveTime(
+        const base::Optional<base::TimeDelta>& scaled_active_time) const;
+    base::Optional<base::TimeDelta> ComputeDirectedTimeFromIterationTime(
+        const base::Optional<base::TimeDelta>& iteration_time,
+        const base::Optional<double>& current_iteration) const;
+    base::Optional<base::TimeDelta> ComputeTransformedTimeFromDirectedTime(
+        const base::Optional<base::TimeDelta>& directed_time) const;
+    base::Optional<double> ComputeIterationProgressFromTransformedTime(
+        const base::Optional<base::TimeDelta>& transformed_time) const;
 
-    base::optional<double> ComputeCurrentIteration(
-        const base::optional<base::TimeDelta>& active_time,
-        const base::optional<base::TimeDelta>& scaled_active_time,
-        const base::optional<base::TimeDelta>& iteration_time) const;
+    base::Optional<double> ComputeCurrentIteration(
+        const base::Optional<base::TimeDelta>& active_time,
+        const base::Optional<base::TimeDelta>& scaled_active_time,
+        const base::Optional<base::TimeDelta>& iteration_time) const;
 
     base::TimeDelta time_until_after_phase(base::TimeDelta local_time) const;
 
@@ -145,7 +145,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
       kAfterPhase,
       kNoPhase,
     };
-    Phase GetPhase(const base::optional<base::TimeDelta>& local_time) const;
+    Phase GetPhase(const base::Optional<base::TimeDelta>& local_time) const;
     base::TimeDelta active_duration() const;
     base::TimeDelta start_offset() const;
 

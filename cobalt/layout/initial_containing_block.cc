@@ -14,7 +14,7 @@
 
 #include "cobalt/layout/initial_containing_block.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/integer_value.h"
@@ -103,7 +103,7 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
   initial_style_state->SetData(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
 
-  results.box = make_scoped_refptr(new BlockLevelBlockContainerBox(
+  results.box = base::WrapRefCounted(new BlockLevelBlockContainerBox(
       initial_style_state, kLeftToRightBaseDirection, used_style_provider,
       layout_stat_tracker));
 

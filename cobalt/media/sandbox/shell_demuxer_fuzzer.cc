@@ -17,7 +17,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/fuzzer_app.h"
@@ -45,7 +45,7 @@ class ShellDemuxerFuzzer : DemuxerHost {
  public:
   explicit ShellDemuxerFuzzer(const std::vector<uint8>& content)
       : error_occurred_(false), eos_count_(0), stopped_(false) {
-    demuxer_ = new ShellDemuxer(base::MessageLoopProxy::current(),
+    demuxer_ = new ShellDemuxer(base::MessageLoop::current()->task_runner(),
                                 new InMemoryDataSource(content));
   }
 
@@ -56,39 +56,39 @@ class ShellDemuxerFuzzer : DemuxerHost {
     // Check if there is any error or if both of the audio and video streams
     // have reached eos.
     while (!error_occurred_ && eos_count_ != 2) {
-      MessageLoop::current()->RunUntilIdle();
+      base::RunLoop().RunUntilIdle();
     }
 
     demuxer_->Stop(Bind(&ShellDemuxerFuzzer::StopCB, base::Unretained(this)));
 
     while (!stopped_) {
-      MessageLoop::current()->RunUntilIdle();
+      base::RunLoop().RunUntilIdle();
     }
   }
 
  private:
   // DataSourceHost methods (parent class of DemuxerHost)
   void SetTotalBytes(int64 total_bytes) override {
-    UNREFERENCED_PARAMETER(total_bytes);
+    SB_UNREFERENCED_PARAMETER(total_bytes);
   }
 
   void AddBufferedByteRange(int64 start, int64 end) override {
-    UNREFERENCED_PARAMETER(start);
-    UNREFERENCED_PARAMETER(end);
+    SB_UNREFERENCED_PARAMETER(start);
+    SB_UNREFERENCED_PARAMETER(end);
   }
 
   void AddBufferedTimeRange(base::TimeDelta start,
                             base::TimeDelta end) override {
-    UNREFERENCED_PARAMETER(start);
-    UNREFERENCED_PARAMETER(end);
+    SB_UNREFERENCED_PARAMETER(start);
+    SB_UNREFERENCED_PARAMETER(end);
   }
 
   // DemuxerHost methods
   void SetDuration(base::TimeDelta duration) override {
-    UNREFERENCED_PARAMETER(duration);
+    SB_UNREFERENCED_PARAMETER(duration);
   }
   void OnDemuxerError(PipelineStatus error) override {
-    UNREFERENCED_PARAMETER(error);
+    SB_UNREFERENCED_PARAMETER(error);
     error_occurred_ = true;
   }
 
@@ -146,7 +146,7 @@ class ShellDemuxerFuzzerApp : public FuzzerApp {
   std::vector<uint8> ParseFileContent(
       const std::string& file_name,
       const std::vector<uint8>& file_content) override {
-    std::string ext = FilePath(file_name).Extension();
+    std::string ext = base::FilePath(file_name).Extension();
     if (ext != ".flv" && ext != ".mp4") {
       LOG(ERROR) << "Skip unsupported file " << file_name;
       return std::vector<uint8>();
@@ -166,7 +166,8 @@ class ShellDemuxerFuzzerApp : public FuzzerApp {
 
 int SandboxMain(int argc, char** argv) {
   MediaSandbox media_sandbox(
-      argc, argv, FilePath(FILE_PATH_LITERAL("shell_demuxer_fuzzer.json")));
+      argc, argv,
+      base::FilePath(FILE_PATH_LITERAL("shell_demuxer_fuzzer.json")));
   ShellDemuxerFuzzerApp fuzzer_app(&media_sandbox);
 
   if (fuzzer_app.Init(argc, argv)) {

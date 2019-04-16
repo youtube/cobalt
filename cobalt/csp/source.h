@@ -19,7 +19,8 @@
 
 #include "base/basictypes.h"
 #include "cobalt/csp/content_security_policy.h"
-#include "googleurl/src/gurl.h"
+#include "net/base/url_util.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {
@@ -30,7 +31,7 @@ struct SourceConfig {
     kNoWildcard,
   };
   SourceConfig()
-      : port(url_parse::PORT_UNSPECIFIED),
+      : port(url::PORT_UNSPECIFIED),
         host_wildcard(kNoWildcard),
         port_wildcard(kNoWildcard) {}
 

@@ -13,8 +13,8 @@
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
-#include "base/string_piece.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/timestamp_constants.h"
@@ -26,7 +26,7 @@ namespace cobalt {
 namespace media {
 
 // Static POD class for generating unique identifiers for each VideoFrame.
-static base::StaticAtomicSequenceNumber g_unique_id_generator;
+static base::AtomicSequenceNumber g_unique_id_generator;
 
 static bool IsPowerOfTwo(size_t x) { return x != 0 && (x & (x - 1)) == 0; }
 
@@ -154,7 +154,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateZeroInitializedFrame(
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapNativeTextures(
     VideoPixelFormat format,
-    const gpu::MailboxHolder(&mailbox_holders)[kMaxPlanes],
+    const gpu::MailboxHolder (&mailbox_holders)[kMaxPlanes],
     const ReleaseMailboxCB& mailbox_holder_release_cb,
     const gfx::Size& coded_size, const gfx::Rect& visible_rect,
     const gfx::Size& natural_size, base::TimeDelta timestamp) {
@@ -895,7 +895,7 @@ VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
                        const gfx::Size& coded_size,
                        const gfx::Rect& visible_rect,
                        const gfx::Size& natural_size,
-                       const gpu::MailboxHolder(&mailbox_holders)[kMaxPlanes],
+                       const gpu::MailboxHolder (&mailbox_holders)[kMaxPlanes],
                        const ReleaseMailboxCB& mailbox_holder_release_cb,
                        base::TimeDelta timestamp)
     : VideoFrame(format, storage_type, coded_size, visible_rect, natural_size,

@@ -20,18 +20,18 @@
 namespace base {
 
 namespace {
-// Checks whether this thread allows Singleton access. Some threads
+// Checks whether this thread allows base::Singleton access. Some threads
 // (e.g. detached threads, non-joinable threads) do not allow Singleton
 // access, which means we cannot access our |LogMessageHandler| instance,
-// nor even call |MessageLoop::current|.
+// nor even call |base::MessageLoop::current|.
 bool DoesThreadAllowSingletons() {
   return ThreadRestrictions::GetSingletonAllowed();
 }
 }  // namespace
 
 LogMessageHandler* LogMessageHandler::GetInstance() {
-  return Singleton<LogMessageHandler,
-                   StaticMemorySingletonTraits<LogMessageHandler> >::get();
+  return base::Singleton<LogMessageHandler, base::StaticMemorySingletonTraits<
+                                                LogMessageHandler> >::get();
 }
 
 LogMessageHandler::LogMessageHandler() {

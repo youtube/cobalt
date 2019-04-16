@@ -14,6 +14,7 @@
 
 #include "cobalt/renderer/test/scenes/marquee_scene.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
@@ -112,10 +113,11 @@ scoped_refptr<render_tree::Node> CreateMarqueeScene(
 
   // Add a background rectangle to the text in order to demonstrate the
   // relationship between the text's origin and its bounding box.
-  marquee_scene_builder.AddChild(make_scoped_refptr(new RectNode(
-      RectF(text_bounds.x(), y_position + text_bounds.y(), text_bounds.width(),
-            text_bounds.height()),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.7f, 0.2f, 1.0f))))));
+  marquee_scene_builder.AddChild(base::WrapRefCounted(
+      new RectNode(RectF(text_bounds.x(), y_position + text_bounds.y(),
+                         text_bounds.width(), text_bounds.height()),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.7f, 0.2f, 1.0f))))));
 
   // Add the actual text node to our composition.
   marquee_scene_builder.AddChild(new TextNode(math::Vector2dF(0, y_position),
@@ -123,7 +125,8 @@ scoped_refptr<render_tree::Node> CreateMarqueeScene(
                                               ColorRGBA(0.0f, 0.0f, 0.0f)));
 
   scoped_refptr<MatrixTransformNode> marquee_node(new MatrixTransformNode(
-      new CompositionNode(marquee_scene_builder.Pass()), Matrix3F::Identity()));
+      new CompositionNode(std::move(marquee_scene_builder)),
+      Matrix3F::Identity()));
 
   animations.Add(marquee_node, base::Bind(&AnimateMarqueeElement, start_time,
                                           text_bounds, output_dimensions));

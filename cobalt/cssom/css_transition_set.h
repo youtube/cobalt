@@ -19,7 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/optional.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/property_definitions.h"
 

@@ -5,7 +5,8 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "starboard/types.h"
@@ -22,7 +23,7 @@ namespace media {
 // http://wiki.webmproject.org/encryption/webm-encryption-rfc
 bool MEDIA_EXPORT WebMCreateDecryptConfig(
     const uint8_t* data, int data_size, const uint8_t* key_id, int key_id_size,
-    scoped_ptr<DecryptConfig>* decrypt_config, int* data_offset);
+    std::unique_ptr<DecryptConfig>* decrypt_config, int* data_offset);
 
 }  // namespace media
 }  // namespace cobalt

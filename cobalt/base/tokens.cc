@@ -18,7 +18,7 @@ namespace base {
 
 // static
 Tokens* Tokens::GetInstance() {
-  return Singleton<Tokens, LeakySingletonTraits<Tokens> >::get();
+  return base::Singleton<Tokens, DefaultSingletonTraits<Tokens> >::get();
 }
 
 }  // namespace base

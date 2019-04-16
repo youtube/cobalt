@@ -5,11 +5,11 @@
 #include "cobalt/media/formats/mp4/hevc.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/filters/h265_parser.h"
 #include "cobalt/media/formats/mp4/avc.h"
@@ -144,7 +144,7 @@ bool HEVC::InsertParamSetsAnnexB(
     std::vector<uint8_t>* buffer, std::vector<SubsampleEntry>* subsamples) {
   DCHECK(HEVC::IsValidAnnexB(*buffer, *subsamples));
 
-  scoped_ptr<H265Parser> parser(new H265Parser());
+  std::unique_ptr<H265Parser> parser(new H265Parser());
   const uint8_t* start = &(*buffer)[0];
   parser->SetEncryptedStream(start, buffer->size(), *subsamples);
 
@@ -220,8 +220,8 @@ bool HEVC::IsValidAnnexB(const uint8_t* buffer, size_t size,
 }
 
 HEVCBitstreamConverter::HEVCBitstreamConverter(
-    scoped_ptr<HEVCDecoderConfigurationRecord> hevc_config)
-    : hevc_config_(hevc_config.Pass()) {
+    std::unique_ptr<HEVCDecoderConfigurationRecord> hevc_config)
+    : hevc_config_(std::move(hevc_config)) {
   DCHECK(hevc_config_);
 }
 

@@ -17,8 +17,9 @@
 #if defined(ENABLE_FAKE_MICROPHONE)
 
 #include <algorithm>
+#include <memory>
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
@@ -71,16 +72,16 @@ MicrophoneFake::MicrophoneFake(const Options& options)
       // External input file.
       file_paths_.push_back(options.file_path.value());
     } else {
-      FilePath audio_files_path;
-      CHECK(PathService::Get(base::DIR_TEST_DATA, &audio_files_path));
+      base::FilePath audio_files_path;
+      CHECK(base::PathService::Get(base::DIR_TEST_DATA, &audio_files_path));
       audio_files_path = audio_files_path.Append(FILE_PATH_LITERAL("cobalt"))
                              .Append(FILE_PATH_LITERAL("speech"))
                              .Append(FILE_PATH_LITERAL("testdata"));
 
-      file_util::FileEnumerator file_enumerator(
-          audio_files_path, false /* Not recursive */,
-          file_util::FileEnumerator::FILES);
-      for (FilePath next = file_enumerator.Next(); !next.empty();
+      base::FileEnumerator file_enumerator(audio_files_path,
+                                           false /* Not recursive */,
+                                           base::FileEnumerator::FILES);
+      for (base::FilePath next = file_enumerator.Next(); !next.empty();
            next = file_enumerator.Next()) {
         file_paths_.push_back(next);
       }
@@ -117,15 +118,16 @@ bool MicrophoneFake::Open() {
         std::min(static_cast<int>(file.GetSize()), kMaxBufferSize);
     DCHECK_GT(file_buffer_size, 0);
 
-    scoped_array<char> audio_input(new char[file_buffer_size]);
+    std::unique_ptr<char[]> audio_input(new char[file_buffer_size]);
     int read_bytes = file.ReadAll(audio_input.get(), file_buffer_size);
     if (read_bytes < 0) {
       return false;
     }
 
-    scoped_ptr<audio::AudioFileReader> reader(audio::AudioFileReader::TryCreate(
-        reinterpret_cast<const uint8*>(audio_input.get()), file_buffer_size,
-        audio::kSampleTypeInt16));
+    std::unique_ptr<audio::AudioFileReader> reader(
+        audio::AudioFileReader::TryCreate(
+            reinterpret_cast<const uint8*>(audio_input.get()), file_buffer_size,
+            audio::kSampleTypeInt16));
     const float kSupportedSampleRate = 16000.0f;
     if (!reader) {
       // If it is not a WAV file, read audio data as raw audio.
@@ -143,7 +145,7 @@ bool MicrophoneFake::Open() {
       // it as an error.
       return false;
     } else {
-      audio_bus_ = reader->ResetAndReturnAudioBus().Pass();
+      audio_bus_ = reader->ResetAndReturnAudioBus();
       file_length_ =
           static_cast<int>(reader->number_of_frames() *
                            audio::GetSampleTypeSize(reader->sample_type()));

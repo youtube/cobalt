@@ -19,9 +19,9 @@
 #include <map>
 #include <utility>
 
-#include "base/basictypes.h"
 #include "SkString.h"
 #include "SkTDArray.h"
+#include "base/basictypes.h"
 
 // The font_character_map namespace contains all of the constants, typedefs, and
 // utility functions used with determining whether or not a font supports a

@@ -6,14 +6,14 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/callback_helpers.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/media_tracks.h"
@@ -151,7 +151,7 @@ bool MP4StreamParser::ParseBox(bool* err) {
   queue_.Peek(&buf, &size);
   if (!size) return false;
 
-  scoped_ptr<BoxReader> reader(
+  std::unique_ptr<BoxReader> reader(
       BoxReader::ReadTopLevelBox(buf, size, media_log_, err));
   if (reader.get() == NULL) return false;
 
@@ -191,7 +191,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
   has_audio_ = false;
   has_video_ = false;
 
-  scoped_ptr<MediaTracks> media_tracks(new MediaTracks());
+  std::unique_ptr<MediaTracks> media_tracks(new MediaTracks());
   AudioDecoderConfig audio_config;
   VideoDecoderConfig video_config;
   int detected_audio_track_count = 0;
@@ -236,9 +236,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
       if (audio_format != FOURCC_MP4A && audio_format != FOURCC_AC3 &&
           audio_format != FOURCC_EAC3) {
-        MEDIA_LOG(ERROR, media_log_) << "Unsupported audio format 0x"
-                                     << std::hex << entry.format
-                                     << " in stsd box.";
+        MEDIA_LOG(ERROR, media_log_)
+            << "Unsupported audio format 0x" << std::hex << entry.format
+            << " in stsd box.";
         return false;
       }
 
@@ -276,9 +276,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         channel_layout = GuessChannelLayout(entry.channelcount);
         sample_per_second = entry.samplerate;
       } else {
-        MEDIA_LOG(ERROR, media_log_) << "Unsupported audio object type 0x"
-                                     << std::hex << static_cast<int>(audio_type)
-                                     << " in esds.";
+        MEDIA_LOG(ERROR, media_log_)
+            << "Unsupported audio object type 0x" << std::hex
+            << static_cast<int>(audio_type) << " in esds.";
         return false;
       }
 
@@ -331,9 +331,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       const VideoSampleEntry& entry = samp_descr.video_entries[desc_idx];
 
       if (!entry.IsFormatValid()) {
-        MEDIA_LOG(ERROR, media_log_) << "Unsupported video format 0x"
-                                     << std::hex << entry.format
-                                     << " in stsd box.";
+        MEDIA_LOG(ERROR, media_log_)
+            << "Unsupported video format 0x" << std::hex << entry.format
+            << " in stsd box.";
         return false;
       }
 
@@ -394,7 +394,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
   if (!moov_->pssh.empty()) OnEncryptedMediaInitData(moov_->pssh);
 
-  RCHECK(config_cb_.Run(media_tracks.Pass(), TextTrackConfigMap()));
+  RCHECK(config_cb_.Run(std::move(media_tracks), TextTrackConfigMap()));
 
   StreamParser::InitParameters params(kInfiniteDuration);
   if (moov_->extends.header.fragment_duration > 0) {
@@ -561,7 +561,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
     return true;
   }
 
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   std::vector<SubsampleEntry> subsamples;
   if (runs_->is_encrypted()) {
     decrypt_config = runs_->GetDecryptConfig();
@@ -623,7 +623,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
     return false;
   }
 
-  if (decrypt_config) stream_buf->set_decrypt_config(decrypt_config.Pass());
+  if (decrypt_config) stream_buf->set_decrypt_config(std::move(decrypt_config));
 
   stream_buf->set_duration(runs_->duration());
   stream_buf->set_timestamp(runs_->cts());

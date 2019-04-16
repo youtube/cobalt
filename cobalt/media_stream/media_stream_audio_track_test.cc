@@ -64,7 +64,7 @@ TEST_F(MediaStreamAudioTrackTest, OnSetFormatAndData) {
                              MediaStreamTrack::ReadyState::kReadyStateEnded));
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
-  track->Start(base::Bind(&base::DoNothing));
+  track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink);
 
   MediaStreamAudioDeliverer<MediaStreamAudioTrack> deliverer;
@@ -95,7 +95,7 @@ TEST_F(MediaStreamAudioTrackTest, OneTrackMultipleSinks) {
                               MediaStreamTrack::ReadyState::kReadyStateEnded));
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
-  track->Start(base::Bind(&base::DoNothing));
+  track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink1);
   track->AddSink(&mock_sink2);
 
@@ -128,8 +128,8 @@ TEST_F(MediaStreamAudioTrackTest, TwoTracksWithOneSinkEach) {
 
   scoped_refptr<MediaStreamAudioTrack> track1 = new MediaStreamAudioTrack();
   scoped_refptr<MediaStreamAudioTrack> track2 = new MediaStreamAudioTrack();
-  track1->Start(base::Bind(&base::DoNothing));
-  track2->Start(base::Bind(&base::DoNothing));
+  track1->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
+  track2->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track1->AddSink(&mock_sink1);
   track2->AddSink(&mock_sink2);
 
@@ -155,7 +155,7 @@ TEST_F(MediaStreamAudioTrackTest, AddRemoveSink) {
   StrictMock<MockMediaStreamAudioSink> mock_sink;
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
-  track->Start(base::Bind(&base::DoNothing));
+  track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink);
 
   MediaStreamAudioDeliverer<MediaStreamAudioTrack> deliverer;
@@ -174,7 +174,7 @@ TEST_F(MediaStreamAudioTrackTest, Stop) {
   StrictMock<MockMediaStreamAudioSink> mock_sink;
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
-  track->Start(base::Bind(&base::DoNothing));
+  track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink);
 
   MediaStreamAudioDeliverer<MediaStreamAudioTrack> deliverer;
@@ -193,7 +193,7 @@ TEST_F(MediaStreamAudioTrackTest, Stop) {
 
 TEST_F(MediaStreamAudioTrackTest, ReadyStateEndedNotifyIfAlreadyStopped) {
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
-  track->Start(base::Bind(&base::DoNothing));
+  track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->Stop();
 
   StrictMock<MockMediaStreamAudioSink> mock_sink;

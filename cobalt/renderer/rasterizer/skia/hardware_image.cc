@@ -14,11 +14,12 @@
 
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -36,10 +37,10 @@ namespace rasterizer {
 namespace skia {
 
 HardwareImageData::HardwareImageData(
-    scoped_ptr<backend::TextureDataEGL> texture_data,
+    std::unique_ptr<backend::TextureDataEGL> texture_data,
     render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format)
-    : texture_data_(texture_data.Pass()),
+    : texture_data_(std::move(texture_data)),
       descriptor_(texture_data_->GetSize(), pixel_format, alpha_format,
                   texture_data_->GetPitchInBytes()) {}
 
@@ -50,13 +51,13 @@ const render_tree::ImageDataDescriptor& HardwareImageData::GetDescriptor()
 
 uint8_t* HardwareImageData::GetMemory() { return texture_data_->GetMemory(); }
 
-scoped_ptr<backend::TextureDataEGL> HardwareImageData::PassTextureData() {
-  return texture_data_.Pass();
+std::unique_ptr<backend::TextureDataEGL> HardwareImageData::PassTextureData() {
+  return std::move(texture_data_);
 }
 
 HardwareRawImageMemory::HardwareRawImageMemory(
-    scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory)
-    : raw_texture_memory_(raw_texture_memory.Pass()) {}
+    std::unique_ptr<backend::RawTextureMemoryEGL> raw_texture_memory)
+    : raw_texture_memory_(std::move(raw_texture_memory)) {}
 
 size_t HardwareRawImageMemory::GetSizeInBytes() const {
   return raw_texture_memory_->GetSizeInBytes();
@@ -66,9 +67,9 @@ uint8_t* HardwareRawImageMemory::GetMemory() {
   return raw_texture_memory_->GetMemory();
 }
 
-scoped_ptr<backend::RawTextureMemoryEGL>
+std::unique_ptr<backend::RawTextureMemoryEGL>
 HardwareRawImageMemory::PassRawTextureMemory() {
-  return raw_texture_memory_.Pass();
+  return std::move(raw_texture_memory_);
 }
 
 // This will store the given pixel data in a GrTexture and the function
@@ -123,17 +124,17 @@ class HardwareFrontendImage::HardwareBackendImage {
   //      constructed first, then a separate function to set the callback.
   //   3. Bind std::placeholders::_1 for "this". base::Callback does not accept
   //      placeholders, so the callback needs to be changed to std::function.
-  //      However, std::function cannot take ownership of scoped_ptr objects,
-  //      so such parameters would have to be manually deleted.
+  //      However, std::function cannot take ownership of std::unique_ptr
+  //      objects, so such parameters would have to be manually deleted.
 
   static void InitializeFromImageData(
-      scoped_ptr<HardwareImageData> image_data,
+      std::unique_ptr<HardwareImageData> image_data,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       HardwareBackendImage* backend) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::InitializeFromImageData()");
-    backend->texture_ = cobalt_context->CreateTexture(
-        image_data->PassTextureData());
+    backend->texture_ =
+        cobalt_context->CreateTexture(image_data->PassTextureData());
     backend->CommonInitialize(gr_context, cobalt_context);
   }
 
@@ -152,11 +153,11 @@ class HardwareFrontendImage::HardwareBackendImage {
   }
 
   static void InitializeFromTexture(
-      scoped_ptr<backend::TextureEGL> texture, GrContext* gr_context,
+      std::unique_ptr<backend::TextureEGL> texture, GrContext* gr_context,
       HardwareBackendImage* backend) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::InitializeFromTexture()");
-    backend->texture_ = texture.Pass();
+    backend->texture_ = std::move(texture);
     backend::GraphicsContextEGL* cobalt_context =
         backend->texture_->graphics_context();
     backend->CommonInitialize(gr_context, cobalt_context);
@@ -182,10 +183,10 @@ class HardwareFrontendImage::HardwareBackendImage {
                              kTextureBinding_GrGLBackendState);
     submit_offscreen_callback.Run(root, render_target);
 
-    scoped_ptr<backend::TextureEGL> texture(
+    std::unique_ptr<backend::TextureEGL> texture(
         new backend::TextureEGL(cobalt_context, render_target));
 
-    InitializeFromTexture(texture.Pass(), gr_context, backend);
+    InitializeFromTexture(std::move(texture), gr_context, backend);
 
     // Tell Skia that the graphics state is unknown because we issued custom
     // GL commands above.
@@ -241,10 +242,10 @@ class HardwareFrontendImage::HardwareBackendImage {
  private:
   // Keep a reference to the texture alive as long as this backend image
   // exists.
-  scoped_ptr<backend::TextureEGL> texture_;
+  std::unique_ptr<backend::TextureEGL> texture_;
 
   base::ThreadChecker thread_checker_;
-  scoped_ptr<GrBackendTexture> gr_texture_;
+  std::unique_ptr<GrBackendTexture> gr_texture_;
   sk_sp<SkImage> image_;
 
   InitializeFunction initialize_function_;
@@ -256,7 +257,7 @@ namespace {
 // which for most formats will be base::nullopt, but for those that piggy-back
 // on RGBA but assign different meanings to each of the 4 pixels, this will
 // return a special formatting option.
-base::optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
+base::Optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
     const render_tree::ImageDataDescriptor& descriptor) {
   if (descriptor.pixel_format == render_tree::kPixelFormatUYVY) {
     return AlternateRgbaFormat_UYVY;
@@ -273,7 +274,7 @@ base::optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
 // which is more natural.
 math::Size AdjustSizeForFormat(
     const math::Size& size,
-    const base::optional<AlternateRgbaFormat>& alternate_rgba_format) {
+    const base::Optional<AlternateRgbaFormat>& alternate_rgba_format) {
   if (!alternate_rgba_format) {
     return size;
   }
@@ -291,9 +292,9 @@ math::Size AdjustSizeForFormat(
 }  // namespace
 
 HardwareFrontendImage::HardwareFrontendImage(
-    scoped_ptr<HardwareImageData> image_data,
+    std::unique_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    MessageLoop* rasterizer_message_loop)
+    base::MessageLoop* rasterizer_message_loop)
     : is_opaque_(image_data->GetDescriptor().alpha_format ==
                  render_tree::kAlphaFormatOpaque),
       alternate_rgba_format_(AlternateRgbaFormatFromImageDataDescriptor(
@@ -301,9 +302,9 @@ HardwareFrontendImage::HardwareFrontendImage(
       size_(AdjustSizeForFormat(image_data->GetDescriptor().size,
                                 alternate_rgba_format_)),
       rasterizer_message_loop_(rasterizer_message_loop) {
-  backend_image_.reset(new HardwareBackendImage(base::Bind(
-      &HardwareBackendImage::InitializeFromImageData,
-      base::Passed(&image_data), cobalt_context, gr_context)));
+  backend_image_.reset(new HardwareBackendImage(
+      base::Bind(&HardwareBackendImage::InitializeFromImageData,
+                 base::Passed(&image_data), cobalt_context, gr_context)));
   InitializeBackend();
 }
 
@@ -311,7 +312,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     const scoped_refptr<backend::ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    MessageLoop* rasterizer_message_loop)
+    base::MessageLoop* rasterizer_message_loop)
     : is_opaque_(descriptor.alpha_format == render_tree::kAlphaFormatOpaque),
       alternate_rgba_format_(
           AlternateRgbaFormatFromImageDataDescriptor(descriptor)),
@@ -320,20 +321,20 @@ HardwareFrontendImage::HardwareFrontendImage(
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
   backend_image_.reset(new HardwareBackendImage(base::Bind(
-      &HardwareBackendImage::InitializeFromRawImageData,
-      raw_texture_memory, offset, descriptor, cobalt_context, gr_context)));
+      &HardwareBackendImage::InitializeFromRawImageData, raw_texture_memory,
+      offset, descriptor, cobalt_context, gr_context)));
   InitializeBackend();
 }
 
 HardwareFrontendImage::HardwareFrontendImage(
-    scoped_ptr<backend::TextureEGL> texture,
+    std::unique_ptr<backend::TextureEGL> texture,
     render_tree::AlphaFormat alpha_format,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_ptr<math::RectF> content_region,
-    MessageLoop* rasterizer_message_loop,
-    base::optional<AlternateRgbaFormat> alternate_rgba_format)
+    std::unique_ptr<math::RectF> content_region,
+    base::MessageLoop* rasterizer_message_loop,
+    base::Optional<AlternateRgbaFormat> alternate_rgba_format)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
-      content_region_(content_region.Pass()),
+      content_region_(std::move(content_region)),
       alternate_rgba_format_(alternate_rgba_format),
       size_(AdjustSizeForFormat(
           content_region_ ? math::Size(std::abs(content_region_->width()),
@@ -343,9 +344,9 @@ HardwareFrontendImage::HardwareFrontendImage(
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
-  backend_image_.reset(new HardwareBackendImage(base::Bind(
-      &HardwareBackendImage::InitializeFromTexture, base::Passed(&texture),
-      gr_context)));
+  backend_image_.reset(new HardwareBackendImage(
+      base::Bind(&HardwareBackendImage::InitializeFromTexture,
+                 base::Passed(&texture), gr_context)));
   InitializeBackend();
 }
 
@@ -353,7 +354,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     const scoped_refptr<render_tree::Node>& root,
     const SubmitOffscreenCallback& submit_offscreen_callback,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    MessageLoop* rasterizer_message_loop)
+    base::MessageLoop* rasterizer_message_loop)
     : is_opaque_(false),
       size_(AdjustSizeForFormat(
           math::Size(static_cast<int>(root->GetBounds().right()),
@@ -362,9 +363,9 @@ HardwareFrontendImage::HardwareFrontendImage(
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
-  backend_image_.reset(new HardwareBackendImage(base::Bind(
-      &HardwareBackendImage::InitializeFromRenderTree, root, size_,
-      submit_offscreen_callback, cobalt_context, gr_context)));
+  backend_image_.reset(new HardwareBackendImage(
+      base::Bind(&HardwareBackendImage::InitializeFromRenderTree, root, size_,
+                 submit_offscreen_callback, cobalt_context, gr_context)));
   InitializeBackend();
 }
 
@@ -375,9 +376,10 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   // InitializeTask(). Make sure that task has finished before
   // destroying backend_image_.
   if (rasterizer_message_loop_) {
-    if (rasterizer_message_loop_ != MessageLoop::current() ||
+    if (rasterizer_message_loop_ != base::MessageLoop::current() ||
         !backend_image_->TryDestroy()) {
-      rasterizer_message_loop_->DeleteSoon(FROM_HERE, backend_image_.release());
+      rasterizer_message_loop_->task_runner()->DeleteSoon(
+          FROM_HERE, backend_image_.release());
     }
   }  // else let the scoped pointer clean it up immediately.
 }
@@ -388,14 +390,14 @@ void HardwareFrontendImage::InitializeBackend() {
   // may take some time, so doing a lazy initialize can cause a big spike in
   // frame time if multiple images are initialized in one frame.
   if (rasterizer_message_loop_) {
-    rasterizer_message_loop_->PostTask(FROM_HERE, base::Bind(
-        &HardwareBackendImage::InitializeTask,
-        base::Unretained(backend_image_.get())));
+    rasterizer_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&HardwareBackendImage::InitializeTask,
+                              base::Unretained(backend_image_.get())));
   }
 }
 
 const sk_sp<SkImage>& HardwareFrontendImage::GetImage() const {
-  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  DCHECK_EQ(rasterizer_message_loop_, base::MessageLoop::current());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
   // image will check that this is being called from the correct thread.
@@ -403,12 +405,12 @@ const sk_sp<SkImage>& HardwareFrontendImage::GetImage() const {
 }
 
 const backend::TextureEGL* HardwareFrontendImage::GetTextureEGL() const {
-  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  DCHECK_EQ(rasterizer_message_loop_, base::MessageLoop::current());
   return backend_image_->GetTextureEGL();
 }
 
 bool HardwareFrontendImage::CanRenderInSkia() const {
-  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  DCHECK_EQ(rasterizer_message_loop_, base::MessageLoop::current());
   // In some cases, especially when dealing with SbDecodeTargets, we may end
   // up with a GLES2 texture whose target is not GL_TEXTURE_2D, in which case
   // we cannot use our typical Skia flow to render it, and we delegate to
@@ -422,15 +424,15 @@ bool HardwareFrontendImage::CanRenderInSkia() const {
 }
 
 bool HardwareFrontendImage::EnsureInitialized() {
-  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  DCHECK_EQ(rasterizer_message_loop_, base::MessageLoop::current());
   return backend_image_->EnsureInitialized();
 }
 
 HardwareMultiPlaneImage::HardwareMultiPlaneImage(
-    scoped_ptr<HardwareRawImageMemory> raw_image_memory,
+    std::unique_ptr<HardwareRawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    MessageLoop* rasterizer_message_loop)
+    base::MessageLoop* rasterizer_message_loop)
     : size_(descriptor.GetPlaneDescriptor(0).size),
       estimated_size_in_bytes_(raw_image_memory->GetSizeInBytes()),
       format_(descriptor.image_format()) {

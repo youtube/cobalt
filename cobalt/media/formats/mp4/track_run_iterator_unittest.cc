@@ -9,7 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 #include "cobalt/media/base/mock_media_log.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 #include "cobalt/media/formats/mp4/rcheck.h"

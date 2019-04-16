@@ -15,10 +15,10 @@
 #ifndef COBALT_AUDIO_AUDIO_BUFFER_H_
 #define COBALT_AUDIO_AUDIO_BUFFER_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"  // For scoped_array
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
@@ -39,7 +39,7 @@ namespace audio {
 //   https://www.w3.org/TR/webaudio/#AudioBuffer
 class AudioBuffer : public script::Wrappable {
  public:
-  AudioBuffer(float sample_rate, scoped_ptr<ShellAudioBus> audio_bus);
+  AudioBuffer(float sample_rate, std::unique_ptr<ShellAudioBus> audio_bus);
 
   // Web API: AudioBuffer
   //
@@ -67,7 +67,7 @@ class AudioBuffer : public script::Wrappable {
  private:
   const float sample_rate_;
 
-  scoped_ptr<ShellAudioBus> audio_bus_;
+  std::unique_ptr<ShellAudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBuffer);
 };

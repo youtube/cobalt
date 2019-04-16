@@ -29,9 +29,7 @@ namespace browser {
 namespace memory_tracker {
 namespace {
 
-const char* ToAddress(uintptr_t val) {
-  return nb::bit_cast<const char*>(val);
-}
+const char* ToAddress(uintptr_t val) { return nb::bit_cast<const char*>(val); }
 
 // 4k page size.
 static const uintptr_t kPageSize = 4096;
@@ -39,12 +37,9 @@ static const uintptr_t kPageSize = 4096;
 class FakeTimeSource {
  public:
   explicit FakeTimeSource(base::TimeTicks value) : static_time_(value) {}
-  void set_static_time(base::TimeTicks value) {
-    static_time_ = value;
-  }
-  base::TimeTicks GetTime() {
-    return static_time_;
-  }
+  void set_static_time(base::TimeTicks value) { static_time_ = value; }
+  base::TimeTicks GetTime() { return static_time_; }
+
  private:
   base::TimeTicks static_time_;
 };
@@ -113,7 +108,7 @@ TEST(UtilTest, RemoveOddElements) {
 TEST(UtilTest, GetLinearFit) {
   std::vector<std::pair<int, int> > data;
   for (int i = 0; i < 10; ++i) {
-    data.push_back(std::pair<int, int>(i+1, 2*i));
+    data.push_back(std::pair<int, int>(i + 1, 2 * i));
   }
   double slope = 0;
   double y_intercept = 0;

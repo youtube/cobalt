@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class MozjsSingleOperationInterface : public SingleOperationInterface {
 
   MozjsSingleOperationInterface(
       JSContext* context, JS::HandleValue implementing_object_value);
-  base::optional<int32_t > HandleCallback(
+  base::Optional<int32_t > HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
       bool* had_exception) const override;

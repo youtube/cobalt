@@ -16,15 +16,15 @@
 
 #include "cobalt/dom/test_runner.h"
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascript_engine.h"
 
 namespace cobalt {
 namespace dom {
 
-TestRunner::TestRunner() :
-    should_wait_(false), clock_(new base::ManualAdvanceClock()) {}
+TestRunner::TestRunner()
+    : should_wait_(false), clock_(new base::ManualAdvanceClock()) {}
 
 void TestRunner::NotifyDone() {
   if (should_wait_) {
@@ -61,9 +61,7 @@ void TestRunner::CollectGarbageAndThenDo(
   reference.value().Run();
 }
 
-scoped_refptr<base::Clock> TestRunner::GetClock() {
-  return clock_;
-}
+scoped_refptr<base::BasicClock> TestRunner::GetClock() { return clock_; }
 
 }  // namespace dom
 }  // namespace cobalt

@@ -4,6 +4,8 @@
 
 #include "cobalt/media/base/mock_filters.h"
 
+#include <memory>
+
 #include "base/logging.h"
 
 using ::testing::_;

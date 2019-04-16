@@ -15,14 +15,13 @@
 #ifndef COBALT_NETWORK_SOCKET_ADDRESS_PARSER_H_
 #define COBALT_NETWORK_SOCKET_ADDRESS_PARSER_H_
 
-#include "googleurl/src/url_parse.h"
 #include "starboard/socket.h"
+#include "url/third_party/mozilla/url_parse.h"
 
 namespace cobalt {
 namespace network {
 
-bool ParseSocketAddress(const char* spec,
-                        const url_parse::Component& host_component,
+bool ParseSocketAddress(const char* spec, const url::Component& host_component,
                         SbSocketAddress* out_socket_address);
 }  // namespace network
 }  // namespace cobalt

@@ -15,7 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_HARDWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_HARDWARE_RASTERIZER_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -56,7 +57,7 @@ class HardwareRasterizer : public Rasterizer {
 
  private:
   class Impl;
-  scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace blitter

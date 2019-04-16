@@ -15,8 +15,8 @@
 #ifndef COBALT_ACCESSIBILITY_SCREEN_READER_H_
 #define COBALT_ACCESSIBILITY_SCREEN_READER_H_
 
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
+#include <memory>
+
 #include "base/memory/weak_ptr.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/dom/document.h"
@@ -61,7 +61,7 @@ class ScreenReader : public base::SupportsWeakPtr<ScreenReader>,
   scoped_refptr<dom::MutationObserver> live_region_observer_;
   bool focus_changed_;
 
-  friend class scoped_ptr<ScreenReader>;
+  friend std::unique_ptr<ScreenReader>::deleter_type;
   DISALLOW_COPY_AND_ASSIGN(ScreenReader);
 };
 }  // namespace accessibility

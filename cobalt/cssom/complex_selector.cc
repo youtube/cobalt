@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/complex_selector.h"
 
 #include "base/logging.h"
@@ -29,16 +31,16 @@ void ComplexSelector::Accept(SelectorVisitor* visitor) {
 }
 
 void ComplexSelector::AppendSelector(
-    scoped_ptr<CompoundSelector> compound_selector) {
+    std::unique_ptr<CompoundSelector> compound_selector) {
   DCHECK(!first_selector_);
   specificity_.AddFrom(compound_selector->GetSpecificity());
-  first_selector_ = compound_selector.Pass();
+  first_selector_ = std::move(compound_selector);
   last_selector_ = first_selector_.get();
 }
 
 void ComplexSelector::AppendCombinatorAndSelector(
-    scoped_ptr<Combinator> combinator,
-    scoped_ptr<CompoundSelector> compound_selector) {
+    std::unique_ptr<Combinator> combinator,
+    std::unique_ptr<CompoundSelector> compound_selector) {
   DCHECK(first_selector_);
   DCHECK(last_selector_);
 
@@ -57,8 +59,8 @@ void ComplexSelector::AppendCombinatorAndSelector(
   combinator->set_left_selector(last_selector_);
   compound_selector->set_left_combinator(combinator.get());
 
-  combinator->set_right_selector(compound_selector.Pass());
-  last_selector_->set_right_combinator(combinator.Pass());
+  combinator->set_right_selector(std::move(compound_selector));
+  last_selector_->set_right_combinator(std::move(combinator));
 
   last_selector_ = last_selector_->right_combinator()->right_selector();
 

@@ -25,12 +25,12 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/ref_counted_lock.h"
 #include "cobalt/base/type_id.h"
 
@@ -415,7 +415,7 @@ class CValManager {
   };
 #endif  // ENABLE_DEBUG_C_VAL
 
-  friend struct StaticMemorySingletonTraits<CValManager>;
+  friend struct base::StaticMemorySingletonTraits<CValManager>;
 
   // Returns a set of the sorted names of all CVals currently registered.
   std::set<std::string> GetOrderedCValNames();
@@ -424,12 +424,12 @@ class CValManager {
   // pair, the first element is true if the CVal exists, in which case the
   // second element is the value (as a string).  If the CVal does not exist,
   // the value of the second element is undefined.
-  optional<std::string> GetValueAsString(const std::string& name);
+  Optional<std::string> GetValueAsString(const std::string& name);
 
   // Similar to the above, but formatting may be done on numerical values.
   // For example, large numbers may have metric postfixes appended to them.
   // i.e. 104857600 = 100M
-  optional<std::string> GetValueAsPrettyString(const std::string& name);
+  Optional<std::string> GetValueAsPrettyString(const std::string& name);
 
  private:
   // Class can only be instanced via the singleton
@@ -452,7 +452,7 @@ class CValManager {
 
   // Helper function to remove code duplication between GetValueAsString
   // and GetValueAsPrettyString.
-  optional<std::string> GetCValStringValue(const std::string& name,
+  Optional<std::string> GetCValStringValue(const std::string& name,
                                            bool pretty);
 
 #if defined(ENABLE_DEBUG_C_VAL)
@@ -647,12 +647,12 @@ class CValStub {
   CValStub(const std::string& name, const T& initial_value,
            const std::string& description)
       : value_(initial_value) {
-    UNREFERENCED_PARAMETER(name);
-    UNREFERENCED_PARAMETER(description);
+    SB_UNREFERENCED_PARAMETER(name);
+    SB_UNREFERENCED_PARAMETER(description);
   }
   CValStub(const std::string& name, const std::string& description) {
-    UNREFERENCED_PARAMETER(name);
-    UNREFERENCED_PARAMETER(description);
+    SB_UNREFERENCED_PARAMETER(name);
+    SB_UNREFERENCED_PARAMETER(description);
   }
 
   operator T() const { return value_; }

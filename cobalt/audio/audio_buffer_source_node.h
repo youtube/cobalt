@@ -15,9 +15,10 @@
 #ifndef COBALT_AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
 #define COBALT_AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
 
+#include <memory>
 #include <vector>
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
@@ -82,9 +83,8 @@ class AudioBufferSourceNode : public AudioNode {
     SetAttributeEventListener(base::Tokens::ended(), event_listener);
   }
 
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames,
-                                                   SampleType sample_type,
-                                                   bool* finished) override;
+  std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 number_of_frames, SampleType sample_type, bool* finished) override;
 
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
   void TraceMembers(script::Tracer* tracer) override;
@@ -103,7 +103,7 @@ class AudioBufferSourceNode : public AudioNode {
 
   scoped_refptr<AudioBuffer> buffer_;
 
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   State state_;
 

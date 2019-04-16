@@ -14,9 +14,9 @@
 
 #include "cobalt/cssom/computed_style.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
@@ -127,7 +127,7 @@ scoped_refptr<PropertyListValue> ProvideAbsoluteLengthsForNonNullLengthsInList(
     const LengthValue* computed_font_size,
     const LengthValue* root_computed_font_size,
     const math::Size& viewport_size) {
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(specified_value->value().size());
 
@@ -138,7 +138,7 @@ scoped_refptr<PropertyListValue> ProvideAbsoluteLengthsForNonNullLengthsInList(
         *iter, computed_font_size, root_computed_font_size, viewport_size));
   }
 
-  return new PropertyListValue(builder.Pass());
+  return new PropertyListValue(std::move(builder));
 }
 
 // Computed value: absolute length;
@@ -1444,7 +1444,7 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
   }
 
   void VisitDefault(PropertyValue* property_value) override {
-    UNREFERENCED_PARAMETER(property_value);
+    SB_UNREFERENCED_PARAMETER(property_value);
   }
 
   bool computed_length_is_negative() { return computed_length_is_negative_; }
@@ -1868,13 +1868,13 @@ ColorStopList ComputeColorStopList(const ColorStopList& color_stops,
        iter != color_stops.end(); ++iter) {
     const ColorStop& color_stop = **iter;
 
-    computed_color_stops.push_back(new ColorStop(
+    computed_color_stops.emplace_back(new ColorStop(
         color_stop.rgba(), ProvideAbsoluteLengthIfNonNullLength(
                                color_stop.position(), computed_font_size,
                                root_computed_font_size, viewport_size)));
   }
 
-  return computed_color_stops.Pass();
+  return computed_color_stops;
 }
 }  // namespace
 
@@ -1889,10 +1889,11 @@ void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
   if (linear_gradient_value->angle_in_radians()) {
     computed_background_image_ =
         new LinearGradientValue(*linear_gradient_value->angle_in_radians(),
-                                computed_color_stops.Pass());
+                                std::move(computed_color_stops));
   } else {
-    computed_background_image_ = new LinearGradientValue(
-        *linear_gradient_value->side_or_corner(), computed_color_stops.Pass());
+    computed_background_image_ =
+        new LinearGradientValue(*linear_gradient_value->side_or_corner(),
+                                std::move(computed_color_stops));
   }
 }
 
@@ -1904,9 +1905,9 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
     const math::Size& viewport_size) {
   if (!specified_position) {
     // If no position is specified, we default to 'center'.
-    scoped_ptr<PropertyListValue::Builder> builder(
+    std::unique_ptr<PropertyListValue::Builder> builder(
         new PropertyListValue::Builder(2, new PercentageValue(0.5f)));
-    return new PropertyListValue(builder.Pass());
+    return new PropertyListValue(std::move(builder));
   }
 
   size_t size = specified_position->value().size();
@@ -1915,12 +1916,12 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
 
   ComputedPositionHelper position_helper(
       computed_font_size, root_computed_font_size, viewport_size);
-  scoped_ptr<PropertyListValue::Builder> computed_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> computed_position_builder(
       new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
   position_helper.ComputePosition(specified_position->value(),
                                   computed_position_builder.get());
 
-  return new PropertyListValue(computed_position_builder.Pass());
+  return new PropertyListValue(std::move(computed_position_builder));
 }
 }  // namespace
 
@@ -1946,11 +1947,11 @@ void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
         ProvideAbsoluteLengthsForNonNullLengthsInList(
             radial_gradient_value->size_value(), computed_font_size_,
             root_computed_font_size_, viewport_size_),
-        computed_position, computed_color_stops.Pass());
+        computed_position, std::move(computed_color_stops));
   } else {
     computed_background_image_ = new RadialGradientValue(
         radial_gradient_value->shape(), *radial_gradient_value->size_keyword(),
-        computed_position, computed_color_stops.Pass());
+        computed_position, std::move(computed_color_stops));
   }
 }
 
@@ -2006,7 +2007,7 @@ class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
 
 void ComputedBackgroundImageProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(property_list_value->value().size());
 
@@ -2019,7 +2020,7 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
     builder->push_back(computed_background_image);
   }
 
-  computed_background_image_ = new PropertyListValue(builder.Pass());
+  computed_background_image_ = new PropertyListValue(std::move(builder));
 }
 
 class ComputedBackgroundSizeSingleValueProvider
@@ -2192,14 +2193,14 @@ void ComputedBackgroundPositionProvider::VisitPropertyList(
 
   ComputedPositionHelper position_helper(
       computed_font_size_, root_computed_font_size_, viewport_size_);
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
 
   position_helper.ComputePosition(property_list_value->value(),
                                   background_position_builder.get());
 
   computed_background_position_ =
-      new PropertyListValue(background_position_builder.Pass());
+      new PropertyListValue(std::move(background_position_builder));
 }
 
 class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
@@ -2246,12 +2247,12 @@ void ComputedBackgroundSizeProvider::VisitPropertyList(
       computed_font_size_, root_computed_font_size_, viewport_size_);
   property_list_value->value()[1]->Accept(&right_value_provider);
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(2);
   builder->push_back(left_value_provider.computed_background_size());
   builder->push_back(right_value_provider.computed_background_size());
-  computed_background_size_ = new PropertyListValue(builder.Pass());
+  computed_background_size_ = new PropertyListValue(std::move(builder));
 }
 
 //    https://www.w3.org/TR/css3-background/#border-radius
@@ -2415,7 +2416,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
 
 void ComputedShadowProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(property_list_value->value().size());
 
@@ -2442,7 +2443,7 @@ void ComputedShadowProvider::VisitPropertyList(
         new ShadowValue(computed_lengths, color, shadow_value->has_inset()));
   }
 
-  computed_shadow_ = new PropertyListValue(builder.Pass());
+  computed_shadow_ = new PropertyListValue(std::move(builder));
 }
 
 // Computed value: for length of translation transforms.
@@ -2458,12 +2459,12 @@ class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
   void VisitScale(const ScaleFunction* scale_function) override;
   void VisitTranslate(const TranslateFunction* translate_function) override;
 
-  scoped_ptr<TransformFunction> PassComputedTransformFunction() {
-    return computed_transform_function_.Pass();
+  std::unique_ptr<TransformFunction> PassComputedTransformFunction() {
+    return std::move(computed_transform_function_);
   }
 
  private:
-  scoped_ptr<TransformFunction> computed_transform_function_;
+  std::unique_ptr<TransformFunction> computed_transform_function_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
   const math::Size& viewport_size_;
@@ -2597,7 +2598,7 @@ void ComputedTransformOriginProvider::VisitPropertyList(
 
   ComputedPositionHelper position_helper(
       computed_font_size_, root_computed_font_size_, viewport_size_);
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder(3, scoped_refptr<PropertyValue>()));
 
   // If one or two values are specified, the third value is assumed to be 0px.
@@ -2620,7 +2621,7 @@ void ComputedTransformOriginProvider::VisitPropertyList(
   }
 
   computed_transform_origin_ =
-      new PropertyListValue(transform_origin_builder.Pass());
+      new PropertyListValue(std::move(transform_origin_builder));
 }
 
 namespace {
@@ -2635,13 +2636,13 @@ class TransformFunctionContainsRelativeUnitVisitor
       : contains_relative_unit_(false) {}
 
   void VisitMatrix(const MatrixFunction* matrix_function) override {
-    UNREFERENCED_PARAMETER(matrix_function);
+    SB_UNREFERENCED_PARAMETER(matrix_function);
   }
   void VisitRotate(const RotateFunction* rotate_function) override {
-    UNREFERENCED_PARAMETER(rotate_function);
+    SB_UNREFERENCED_PARAMETER(rotate_function);
   }
   void VisitScale(const ScaleFunction* scale_function) override {
-    UNREFERENCED_PARAMETER(scale_function);
+    SB_UNREFERENCED_PARAMETER(scale_function);
   }
   void VisitTranslate(const TranslateFunction* translate_function) override {
     contains_relative_unit_ =
@@ -2660,7 +2661,7 @@ bool TransformListContainsRelativeUnits(
   for (TransformFunctionListValue::Builder::const_iterator iter =
            transform_function_list->value().begin();
        iter != transform_function_list->value().end(); ++iter) {
-    TransformFunction* transform_function = *iter;
+    TransformFunction* transform_function = iter->get();
 
     TransformFunctionContainsRelativeUnitVisitor contains_ems_visitor;
     transform_function->Accept(&contains_ems_visitor);
@@ -2719,19 +2720,18 @@ void ComputedTransformProvider::VisitTransformFunctionList(
     for (TransformFunctionListValue::Builder::const_iterator iter =
              transform_function_list->value().begin();
          iter != transform_function_list->value().end(); ++iter) {
-      TransformFunction* transform_function = *iter;
+      TransformFunction* transform_function = iter->get();
 
       ComputedTransformFunctionProvider computed_transform_function_provider(
           computed_font_size_, root_computed_font_size_, viewport_size_);
       transform_function->Accept(&computed_transform_function_provider);
 
       computed_list_builder.push_back(
-          computed_transform_function_provider.PassComputedTransformFunction()
-              .release());
+          computed_transform_function_provider.PassComputedTransformFunction());
     }
 
     computed_transform_list_ =
-        new TransformFunctionListValue(computed_list_builder.Pass());
+        new TransformFunctionListValue(std::move(computed_list_builder));
   }
 }
 

@@ -15,7 +15,7 @@
 #include "cobalt/browser/debug_console.h"
 #include "base/bind.h"
 #include "base/command_line.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
@@ -38,10 +38,10 @@ const char kDebugConsoleHudString[] = "hud";
 
 // Convert from a debug console visibility setting string to an integer
 // value specified by a constant defined in debug::console::DebugHub.
-base::optional<int> DebugConsoleModeStringToInt(
+base::Optional<int> DebugConsoleModeStringToInt(
     const std::string& mode_string) {
   // Static casting is necessary in order to get around what appears to be a
-  // compiler error on Linux when implicitly constructing a base::optional<int>
+  // compiler error on Linux when implicitly constructing a base::Optional<int>
   // from a static const int.
   if (mode_string == kDebugConsoleOffString) {
     return static_cast<int>(debug::console::DebugHub::kDebugConsoleOff);
@@ -73,9 +73,9 @@ std::string DebugConsoleModeIntToString(int mode) {
 
 // Returns the debug console mode as specified by the command line.
 // If unspecified by the command line, base::nullopt is returned.
-base::optional<int> GetDebugConsoleModeFromCommandLine() {
+base::Optional<int> GetDebugConsoleModeFromCommandLine() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
     const std::string debug_console_mode_string =
         command_line->GetSwitchValueASCII(switches::kDebugConsoleMode);
@@ -88,9 +88,10 @@ base::optional<int> GetDebugConsoleModeFromCommandLine() {
 
 // Returns the path of the temporary file used to store debug console visibility
 // mode preferences.
-bool GetDebugConsoleModeStoragePath(FilePath* out_file_path) {
+bool GetDebugConsoleModeStoragePath(base::FilePath* out_file_path) {
   DCHECK(out_file_path);
-  if (PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, out_file_path)) {
+  if (base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT,
+                             out_file_path)) {
     *out_file_path = out_file_path->Append("last_debug_console_mode.txt");
     return true;
   } else {
@@ -103,20 +104,20 @@ bool GetDebugConsoleModeStoragePath(FilePath* out_file_path) {
 // we silently do nothing if there is a failure.
 void SaveModeToPreferences(int mode) {
   std::string mode_string = DebugConsoleModeIntToString(mode);
-  FilePath preferences_file;
+  base::FilePath preferences_file;
   if (GetDebugConsoleModeStoragePath(&preferences_file)) {
-    file_util::WriteFile(preferences_file, mode_string.c_str(),
-                         static_cast<int>(mode_string.size()));
+    base::WriteFile(preferences_file, mode_string.c_str(),
+                    static_cast<int>(mode_string.size()));
   }
 }
 
 // Load debug console visibility mode preferences from disk.  Since this
 // functionality is not critical, we silently do nothing if there is a failure.
-base::optional<int> LoadModeFromPreferences() {
+base::Optional<int> LoadModeFromPreferences() {
   std::string saved_contents;
-  FilePath preferences_file;
+  base::FilePath preferences_file;
   if (GetDebugConsoleModeStoragePath(&preferences_file)) {
-    if (file_util::ReadFileToString(preferences_file, &saved_contents)) {
+    if (base::ReadFileToString(preferences_file, &saved_contents)) {
       return DebugConsoleModeStringToInt(saved_contents);
     }
   }
@@ -127,14 +128,14 @@ base::optional<int> LoadModeFromPreferences() {
 // Returns the debug console's initial visibility mode.
 int GetInitialMode() {
   // First check to see if the mode is explicitly set from the command line.
-  base::optional<int> mode_from_command_line =
+  base::Optional<int> mode_from_command_line =
       GetDebugConsoleModeFromCommandLine();
   if (mode_from_command_line) {
     return *mode_from_command_line;
   }
 
   // Now check to see if mode preferences have been saved to disk.
-  base::optional<int> mode_from_preferences = LoadModeFromPreferences();
+  base::Optional<int> mode_from_preferences = LoadModeFromPreferences();
   if (mode_from_preferences) {
     return *mode_from_preferences;
   }
@@ -150,9 +151,9 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
     const scoped_refptr<dom::Window>& window,
     dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
-  UNREFERENCED_PARAMETER(window);
-  UNREFERENCED_PARAMETER(mutation_observer_task_manager);
-  UNREFERENCED_PARAMETER(global_environment);
+  SB_UNREFERENCED_PARAMETER(window);
+  SB_UNREFERENCED_PARAMETER(mutation_observer_task_manager);
+  SB_UNREFERENCED_PARAMETER(global_environment);
   return new debug::console::DebugHub(get_hud_mode_function,
                                       create_debug_client_callback);
 }

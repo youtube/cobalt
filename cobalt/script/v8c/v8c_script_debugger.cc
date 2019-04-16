@@ -14,11 +14,12 @@
 
 #include "cobalt/script/v8c/v8c_script_debugger.h"
 
+#include <memory>
 #include <sstream>
 #include <string>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
@@ -214,15 +215,15 @@ const script::ValueHandleHolder* V8cScriptDebugger::LookupRemoteObjectId(
     return nullptr;
   }
 
-  scoped_ptr<V8cValueHandleHolder> holder(new V8cValueHandleHolder());
+  std::unique_ptr<V8cValueHandleHolder> holder(new V8cValueHandleHolder());
   FromJSValue(isolate, v8_value, 0 /*conversion_flags*/, &exception_state,
               holder.get());
 
   V8cValueHandleHolder* retval = holder.get();
   // Keep the scoped_ptr alive in a no-op task so the holder stays valid until
   // the bindings code gets the v8::Value out of it through the raw pointer.
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind([](scoped_ptr<V8cValueHandleHolder>) {},
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE, base::Bind([](std::unique_ptr<V8cValueHandleHolder>) {},
                             base::Passed(&holder)));
   return retval;
 }
@@ -262,8 +263,8 @@ void V8cScriptDebugger::consoleAPIMessage(
     const v8_inspector::StringView& message,
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* trace) {
-  UNREFERENCED_PARAMETER(contextGroupId);
-  UNREFERENCED_PARAMETER(trace);
+  SB_UNREFERENCED_PARAMETER(contextGroupId);
+  SB_UNREFERENCED_PARAMETER(trace);
 
   std::stringstream log;
   if (url.length()) {
@@ -313,12 +314,12 @@ void V8cScriptDebugger::sendNotification(
 }  // namespace v8c
 
 // Static factory method declared in public interface.
-scoped_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
+std::unique_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
     GlobalEnvironment* global_environment, Delegate* delegate) {
   auto* v8c_global_environment =
       base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(
           global_environment);
-  return scoped_ptr<ScriptDebugger>(
+  return std::unique_ptr<ScriptDebugger>(
       new v8c::V8cScriptDebugger(v8c_global_environment, delegate));
 }
 

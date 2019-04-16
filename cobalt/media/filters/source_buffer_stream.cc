@@ -9,8 +9,8 @@
 #include <sstream>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_resolution.h"

@@ -25,11 +25,11 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::optional<LayoutUnit>& maybe_intrinsic_width,
-    const base::optional<LayoutUnit>& maybe_intrinsic_height,
-    const base::optional<float>& maybe_intrinsic_ratio,
+    const base::Optional<LayoutUnit>& maybe_intrinsic_width,
+    const base::Optional<LayoutUnit>& maybe_intrinsic_height,
+    const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::optional<bool> is_video_punched_out, const math::SizeF& content_size,
+    base::Optional<bool> is_video_punched_out, const math::SizeF& content_size,
     LayoutStatTracker* layout_stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb,
                   set_bounds_cb, paragraph, text_position,
@@ -65,10 +65,10 @@ bool InlineLevelReplacedBox::IsHiddenByEllipsis() const {
 
 void InlineLevelReplacedBox::UpdateHorizontalMargins(
     LayoutUnit containing_block_width, LayoutUnit border_box_width,
-    const base::optional<LayoutUnit>& maybe_margin_left,
-    const base::optional<LayoutUnit>& maybe_margin_right) {
-  UNREFERENCED_PARAMETER(containing_block_width);
-  UNREFERENCED_PARAMETER(border_box_width);
+    const base::Optional<LayoutUnit>& maybe_margin_left,
+    const base::Optional<LayoutUnit>& maybe_margin_right) {
+  SB_UNREFERENCED_PARAMETER(containing_block_width);
+  SB_UNREFERENCED_PARAMETER(border_box_width);
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".

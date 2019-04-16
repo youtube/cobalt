@@ -66,21 +66,21 @@ class FilterNode : public Node {
 
     // If set, this filter will make the source subtree appear transparent,
     // with the level of transparency dictated by the OpacityFilter's value.
-    base::optional<OpacityFilter> opacity_filter;
+    base::Optional<OpacityFilter> opacity_filter;
 
     // If set, this filter will specify the viewport of source content. Only
     // the source content within the viewport rectangle will be rendered.
     // Rounded corners may be specified on this filter.
-    base::optional<ViewportFilter> viewport_filter;
+    base::Optional<ViewportFilter> viewport_filter;
 
     // If set, then a Gaussian blur will be applied to the source with a
     // Gaussian kernel of standard deviation |blur_sigma|.
-    base::optional<BlurFilter> blur_filter;
+    base::Optional<BlurFilter> blur_filter;
 
     // If set, indicates that the rasterized output of the source content should
     // be used as a texture which is then mapped onto a 3D mesh specified by the
     // filter.
-    base::optional<MapToMeshFilter> map_to_mesh_filter;
+    base::Optional<MapToMeshFilter> map_to_mesh_filter;
   };
 
   // Forwarding constructor to the set of Builder constructors.

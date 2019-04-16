@@ -15,11 +15,11 @@
 #ifndef COBALT_LOADER_SYNC_LOADER_H_
 #define COBALT_LOADER_SYNC_LOADER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -33,10 +33,10 @@ namespace loader {
 // and use the given message loop to load the resource. The fetcher and decoder
 // are responsible for setting up timeout for themselves.
 void LoadSynchronously(
-    MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
-    base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-    base::Callback<scoped_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const base::optional<std::string>&)>
+    base::MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
+    base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
+    base::Callback<std::unique_ptr<Decoder>()> decoder_creator,
+    base::Callback<void(const base::Optional<std::string>&)>
         load_complete_callback);
 
 }  // namespace loader

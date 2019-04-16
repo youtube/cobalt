@@ -19,7 +19,7 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/script/callback_function.h"
@@ -41,7 +41,8 @@ class DebuggerEventTarget : public script::Wrappable {
   // Type for JavaScript debugger event callback.
   typedef script::CallbackFunction<void(
       const std::string& method,
-      const base::optional<std::string>& json_params)> DebuggerEventCallback;
+      const base::Optional<std::string>& json_params)>
+      DebuggerEventCallback;
   typedef script::ScriptValue<DebuggerEventCallback> DebuggerEventCallbackArg;
 
   // Type for listener info.
@@ -50,10 +51,10 @@ class DebuggerEventTarget : public script::Wrappable {
   struct ListenerInfo {
     ListenerInfo(DebuggerEventTarget* const debugger_event_target,
                  const DebuggerEventCallbackArg& cb,
-                 const scoped_refptr<base::MessageLoopProxy>& proxy)
-        : callback(debugger_event_target, cb), message_loop_proxy(proxy) {}
+                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner)
+        : callback(debugger_event_target, cb), task_runner(task_runner) {}
     DebuggerEventCallbackArg::Reference callback;
-    scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner;
   };
 
   DebuggerEventTarget();
@@ -62,7 +63,7 @@ class DebuggerEventTarget : public script::Wrappable {
   // Dispatches a debugger event to the registered listeners.
   // May be called from any thread.
   void DispatchEvent(const std::string& method,
-                     const base::optional<std::string>& json_params);
+                     const base::Optional<std::string>& json_params);
 
   // Called from JavaScript to register an event listener callback.
   // May be called from any thread.
@@ -74,7 +75,7 @@ class DebuggerEventTarget : public script::Wrappable {
   // Notifies a particular listener. Called on the same message loop the
   // listener registered its callback from.
   void NotifyListener(const ListenerInfo* listener, const std::string& method,
-                      const base::optional<std::string>& json_params);
+                      const base::Optional<std::string>& json_params);
 
  private:
   typedef std::set<ListenerInfo*> ListenerSet;

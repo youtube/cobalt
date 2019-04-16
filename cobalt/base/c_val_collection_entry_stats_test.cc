@@ -34,26 +34,26 @@ TEST(CValCollectionEntryStatsTest, DefaultValues) {
                                            enable_entry_list_c_val);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::optional<std::string> count =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Cnt", name.c_str()));
-  base::optional<std::string> avg =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Avg", name.c_str()));
-  base::optional<std::string> min =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Min", name.c_str()));
-  base::optional<std::string> max =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Max", name.c_str()));
-  base::optional<std::string> pct25 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.25th", name.c_str()));
-  base::optional<std::string> pct50 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.50th", name.c_str()));
-  base::optional<std::string> pct75 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.75th", name.c_str()));
-  base::optional<std::string> pct95 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
-  base::optional<std::string> std =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
-  base::optional<std::string> entry_list =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
+  base::Optional<std::string> count =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
+  base::Optional<std::string> avg =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
+  base::Optional<std::string> min =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
+  base::Optional<std::string> max =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
+  base::Optional<std::string> pct25 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.25th", name.c_str()));
+  base::Optional<std::string> pct50 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.50th", name.c_str()));
+  base::Optional<std::string> pct75 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.75th", name.c_str()));
+  base::Optional<std::string> pct95 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.95th", name.c_str()));
+  base::Optional<std::string> std =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
+  base::Optional<std::string> entry_list = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "0");
@@ -89,26 +89,26 @@ TEST(CValCollectionEntryStatsTest, NoFlush) {
   cval.AddEntry(7);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::optional<std::string> count =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Cnt", name.c_str()));
-  base::optional<std::string> avg =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Avg", name.c_str()));
-  base::optional<std::string> min =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Min", name.c_str()));
-  base::optional<std::string> max =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Max", name.c_str()));
-  base::optional<std::string> pct25 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.25th", name.c_str()));
-  base::optional<std::string> pct50 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.50th", name.c_str()));
-  base::optional<std::string> pct75 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.75th", name.c_str()));
-  base::optional<std::string> pct95 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
-  base::optional<std::string> std =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
-  base::optional<std::string> entry_list =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
+  base::Optional<std::string> count =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
+  base::Optional<std::string> avg =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
+  base::Optional<std::string> min =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
+  base::Optional<std::string> max =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
+  base::Optional<std::string> pct25 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.25th", name.c_str()));
+  base::Optional<std::string> pct50 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.50th", name.c_str()));
+  base::Optional<std::string> pct75 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.75th", name.c_str()));
+  base::Optional<std::string> pct95 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.95th", name.c_str()));
+  base::Optional<std::string> std =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
+  base::Optional<std::string> entry_list = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "0");
@@ -146,26 +146,26 @@ TEST(CValCollectionEntryStatsTest, MaxSizeFlush) {
   cval.AddEntry(5);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::optional<std::string> count =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Cnt", name.c_str()));
-  base::optional<std::string> avg =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Avg", name.c_str()));
-  base::optional<std::string> min =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Min", name.c_str()));
-  base::optional<std::string> max =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Max", name.c_str()));
-  base::optional<std::string> pct25 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.25th", name.c_str()));
-  base::optional<std::string> pct50 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.50th", name.c_str()));
-  base::optional<std::string> pct75 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.75th", name.c_str()));
-  base::optional<std::string> pct95 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
-  base::optional<std::string> std =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
-  base::optional<std::string> entry_list =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
+  base::Optional<std::string> count =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
+  base::Optional<std::string> avg =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
+  base::Optional<std::string> min =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
+  base::Optional<std::string> max =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
+  base::Optional<std::string> pct25 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.25th", name.c_str()));
+  base::Optional<std::string> pct50 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.50th", name.c_str()));
+  base::Optional<std::string> pct75 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.75th", name.c_str()));
+  base::Optional<std::string> pct95 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.95th", name.c_str()));
+  base::Optional<std::string> std =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
+  base::Optional<std::string> entry_list = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "5");
@@ -204,26 +204,26 @@ TEST(CValCollectionEntryStatsTest, ManualFlush) {
   cval.AddEntry(5);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::optional<std::string> count =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Cnt", name.c_str()));
-  base::optional<std::string> avg =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Avg", name.c_str()));
-  base::optional<std::string> min =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Min", name.c_str()));
-  base::optional<std::string> max =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Max", name.c_str()));
-  base::optional<std::string> pct25 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.25th", name.c_str()));
-  base::optional<std::string> pct50 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.50th", name.c_str()));
-  base::optional<std::string> pct75 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.75th", name.c_str()));
-  base::optional<std::string> pct95 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
-  base::optional<std::string> std =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
-  base::optional<std::string> entry_list =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
+  base::Optional<std::string> count =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
+  base::Optional<std::string> avg =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
+  base::Optional<std::string> min =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
+  base::Optional<std::string> max =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
+  base::Optional<std::string> pct25 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.25th", name.c_str()));
+  base::Optional<std::string> pct50 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.50th", name.c_str()));
+  base::Optional<std::string> pct75 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.75th", name.c_str()));
+  base::Optional<std::string> pct95 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.95th", name.c_str()));
+  base::Optional<std::string> std =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
+  base::Optional<std::string> entry_list = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "4");
@@ -263,26 +263,26 @@ TEST(CValCollectionEntryStatsTest, TwoManualFlushes) {
   cval.Flush();
 
   base::CValManager* cvm = base::CValManager::GetInstance();
-  base::optional<std::string> count =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Cnt", name.c_str()));
-  base::optional<std::string> avg =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Avg", name.c_str()));
-  base::optional<std::string> min =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Min", name.c_str()));
-  base::optional<std::string> max =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Max", name.c_str()));
-  base::optional<std::string> pct25 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.25th", name.c_str()));
-  base::optional<std::string> pct50 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.50th", name.c_str()));
-  base::optional<std::string> pct75 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.75th", name.c_str()));
-  base::optional<std::string> pct95 =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
-  base::optional<std::string> std =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
-  base::optional<std::string> entry_list =
-      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
+  base::Optional<std::string> count =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Cnt", name.c_str()));
+  base::Optional<std::string> avg =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Avg", name.c_str()));
+  base::Optional<std::string> min =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Min", name.c_str()));
+  base::Optional<std::string> max =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Max", name.c_str()));
+  base::Optional<std::string> pct25 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.25th", name.c_str()));
+  base::Optional<std::string> pct50 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.50th", name.c_str()));
+  base::Optional<std::string> pct75 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.75th", name.c_str()));
+  base::Optional<std::string> pct95 = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.Pct.95th", name.c_str()));
+  base::Optional<std::string> std =
+      cvm->GetValueAsPrettyString(base::StringPrintf("%s.Std", name.c_str()));
+  base::Optional<std::string> entry_list = cvm->GetValueAsPrettyString(
+      base::StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "1");

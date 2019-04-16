@@ -14,6 +14,7 @@
 
 #include "cobalt/debug/backend/dom_agent.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
@@ -37,9 +38,9 @@ constexpr char kScriptFile[] = "dom_agent.js";
 }  // namespace
 
 DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
-                   scoped_ptr<RenderLayer> render_layer)
+                   std::unique_ptr<RenderLayer> render_layer)
     : dispatcher_(dispatcher),
-      render_layer_(render_layer.Pass()),
+      render_layer_(std::move(render_layer)),
       ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
   DCHECK(dispatcher_);
 
@@ -50,7 +51,6 @@ DOMAgent::DOMAgent(DebugDispatcher* dispatcher,
 }
 
 void DOMAgent::Thaw(JSONObject agent_state) {
-  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
   script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
   DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;
@@ -134,12 +134,12 @@ void DOMAgent::RenderHighlight(
   render_tree::ColorRGBA color(r / 255.0f, g / 255.0f, b / 255.0f,
                                static_cast<float>(a));
 
-  scoped_ptr<render_tree::Brush> background_brush(
+  std::unique_ptr<render_tree::Brush> background_brush(
       new render_tree::SolidColorBrush(color));
   scoped_refptr<render_tree::Node> rect = new render_tree::RectNode(
       math::RectF(bounding_rect->x(), bounding_rect->y(),
                   bounding_rect->width(), bounding_rect->height()),
-      background_brush.Pass());
+      std::move(background_brush));
   render_layer_->SetFrontLayer(rect);
 }
 

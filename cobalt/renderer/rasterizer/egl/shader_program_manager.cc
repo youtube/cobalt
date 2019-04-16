@@ -53,7 +53,7 @@ ShaderProgramBase* ShaderProgramManager::FindProgram(
 }
 
 void ShaderProgramManager::AddProgram(base::TypeId program_type_id,
-    ShaderProgramBase* program) {
+                                      ShaderProgramBase* program) {
   program_map_[program_type_id] = program;
 }
 

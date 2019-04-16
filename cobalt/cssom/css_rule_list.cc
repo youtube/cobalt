@@ -46,7 +46,7 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
       parent_css_style_sheet_->css_parser()->ParseRule(
           rule, GetInlineSourceLocation());
 
-  if (css_rule == NULL) {
+  if (css_rule.get() == NULL) {
     // TODO: Throw a SyntaxError exception instead of logging.
     LOG(ERROR) << "SyntaxError";
     return 0;

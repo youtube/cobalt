@@ -15,12 +15,11 @@
 #ifndef COBALT_NETWORK_NETWORK_MODULE_H_
 #define COBALT_NETWORK_NETWORK_MODULE_H_
 
+#include <memory>
 #include <string>
 
-#include "base/message_loop_proxy.h"
-#if !defined(OS_STARBOARD)
-#include "base/object_watcher_shell.h"
-#endif
+#include "base/message_loop/message_loop.h"
+#include "base/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/network/cobalt_net_log.h"
@@ -29,8 +28,8 @@
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/static_cookie_policy.h"
+#include "url/gurl.h"
 #if defined(DIAL_SERVER)
 // Including this header causes a link error on Windows, since we
 // don't have StreamListenSocket.
@@ -57,8 +56,7 @@ class NetworkModule {
  public:
   struct Options {
     Options()
-        : cookie_policy(
-              net::StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES),
+        : cookie_policy(net::StaticCookiePolicy::BLOCK_ALL_THIRD_PARTY_COOKIES),
           ignore_certificate_errors(false),
           https_requirement(network::kHTTPSRequired),
           preferred_language("en-US") {}
@@ -85,15 +83,15 @@ class NetworkModule {
   NetworkDelegate* network_delegate() const {
     return network_delegate_.get();
   }
-  const std::string& GetUserAgent() const;
+  std::string GetUserAgent() const;
   const std::string& preferred_language() const {
     return options_.preferred_language;
   }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy() const {
-    return thread_->message_loop_proxy();
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner() const {
+    return thread_->task_runner();
   }
   storage::StorageManager* storage_manager() const { return storage_manager_; }
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
@@ -109,25 +107,22 @@ class NetworkModule {
   void Initialize(const std::string& user_agent_string,
                   base::EventDispatcher* event_dispatcher);
   void OnCreate(base::WaitableEvent* creation_event);
-  scoped_ptr<network_bridge::NetPoster> CreateNetPoster();
+  std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
   storage::StorageManager* storage_manager_;
-  scoped_ptr<base::Thread> thread_;
-#if !defined(OS_STARBOARD)
-  scoped_ptr<base::ObjectWatchMultiplexer> object_watch_multiplexer_;
-#endif
-  scoped_ptr<URLRequestContext> url_request_context_;
+  std::unique_ptr<base::Thread> thread_;
+  std::unique_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
-  scoped_ptr<NetworkDelegate> network_delegate_;
-  scoped_ptr<NetworkSystem> network_system_;
-  scoped_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
-  scoped_ptr<network_bridge::CookieJar> cookie_jar_;
+  std::unique_ptr<NetworkDelegate> network_delegate_;
+  std::unique_ptr<NetworkSystem> network_system_;
+  std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
+  std::unique_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
-  scoped_ptr<net::DialService> dial_service_;
+  std::unique_ptr<net::DialService> dial_service_;
   scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
 #endif
-  scoped_ptr<network_bridge::NetPoster> net_poster_;
-  scoped_ptr<CobaltNetLog> net_log_;
+  std::unique_ptr<network_bridge::NetPoster> net_poster_;
+  std::unique_ptr<CobaltNetLog> net_log_;
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);

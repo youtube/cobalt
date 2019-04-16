@@ -30,10 +30,8 @@ namespace egl {
 // Handles drawing various colored polygons.
 class DrawPolyColor : public DrawObject {
  public:
-  DrawPolyColor(GraphicsState* graphics_state,
-                const BaseState& base_state,
-                const math::RectF& rect,
-                const render_tree::ColorRGBA& color);
+  DrawPolyColor(GraphicsState* graphics_state, const BaseState& base_state,
+                const math::RectF& rect, const render_tree::ColorRGBA& color);
 
   bool TryMerge(DrawObject* other) override;
   void ExecuteUpdateVertexBuffer(
@@ -71,7 +69,7 @@ class DrawPolyColor : public DrawObject {
 
   uint16_t* index_buffer_;
   uint8_t* vertex_buffer_;
-  base::optional<bool> can_merge_;
+  base::Optional<bool> can_merge_;
 };
 
 }  // namespace egl

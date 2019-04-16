@@ -14,7 +14,7 @@
 
 #include "cobalt/speech/endpointer_delegate.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace speech {

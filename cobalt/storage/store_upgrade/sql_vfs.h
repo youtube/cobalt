@@ -15,9 +15,9 @@
 #ifndef COBALT_STORAGE_STORE_UPGRADE_SQL_VFS_H_
 #define COBALT_STORAGE_STORE_UPGRADE_SQL_VFS_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 
 struct sqlite3_vfs;
 
@@ -35,7 +35,7 @@ class SqlVfs {
   ~SqlVfs();
 
  private:
-  scoped_ptr<sqlite3_vfs> sql_vfs_;
+  std::unique_ptr<sqlite3_vfs> sql_vfs_;
 };
 
 }  // namespace store_upgrade

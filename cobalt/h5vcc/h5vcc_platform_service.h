@@ -18,8 +18,9 @@
 #include <map>
 #include <string>
 
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/single_thread_task_runner.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/extension/platform_service.h"
 #include "cobalt/script/array_buffer.h"
@@ -74,7 +75,7 @@ class H5vccPlatformService : public script::Wrappable {
   ExtPlatformServiceApi* platform_service_api_;
   const ReceiveCallbackReference receive_callback_;
   // The main message loop.
-  scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> const main_message_loop_;
 
   base::WeakPtrFactory<H5vccPlatformService> weak_ptr_factory_;
   // We construct a WeakPtr upon H5vccPlatformService's construction in order to

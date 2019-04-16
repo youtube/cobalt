@@ -259,7 +259,7 @@ FontFaceUpdater::FontFaceUpdater(const GURL& document_base_url,
       font_face_map_(new FontCache::FontFaceMap()) {}
 
 FontFaceUpdater::~FontFaceUpdater() {
-  cache_->SetFontFaceMap(font_face_map_.Pass());
+  cache_->SetFontFaceMap(std::move(font_face_map_));
 }
 
 void FontFaceUpdater::ProcessCSSStyleSheet(

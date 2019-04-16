@@ -4,11 +4,11 @@
 
 #include "cobalt/media/formats/webm/webm_crypto_helpers.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/sys_byteorder.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
@@ -96,7 +96,7 @@ bool ExtractSubsamples(const uint8_t* buf, size_t frame_data_size,
 
 bool WebMCreateDecryptConfig(const uint8_t* data, int data_size,
                              const uint8_t* key_id, int key_id_size,
-                             scoped_ptr<DecryptConfig>* decrypt_config,
+                             std::unique_ptr<DecryptConfig>* decrypt_config,
                              int* data_offset) {
   if (data_size < kWebMSignalByteSize) {
     DVLOG(1) << "Got a block from an encrypted stream with no data.";

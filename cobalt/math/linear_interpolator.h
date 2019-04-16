@@ -66,9 +66,7 @@ namespace math {
 template <typename KeyT, typename ValueT>
 class LinearInterpolator {
  public:
-  ValueT Map(const KeyT& key) const {
-    return Interp(key);
-  }
+  ValueT Map(const KeyT& key) const { return Interp(key); }
 
   // Adds a key to the table. For a continuous piecewise line-curve each key
   // added must be greater in value than the last key added.
@@ -81,9 +79,7 @@ class LinearInterpolator {
     }
     table_.push_back(std::pair<KeyT, ValueT>(key, val));
   }
-  void Clear() {
-    table_.clear();
-  }
+  void Clear() { table_.clear(); }
 
  private:
   ValueT Interp(const KeyT& k) const {
@@ -109,8 +105,8 @@ class LinearInterpolator {
       return next.second;
     }
 
-    return LinearInterpolation(k, curr.first, next.first,
-                               curr.second, next.second);
+    return LinearInterpolation(k, curr.first, next.first, curr.second,
+                               next.second);
   }
 
   // Linearly walk through the table looking for a pair of interpolation
@@ -124,10 +120,10 @@ class LinearInterpolator {
 
     for (size_t i = 0; i < table_.size() - 1; ++i) {
       const std::pair<KeyT, ValueT>& curr = table_[i];
-      const std::pair<KeyT, ValueT>& next = table_[i+1];
+      const std::pair<KeyT, ValueT>& next = table_[i + 1];
 
       if (curr.first <= k && k < next.first) {
-        return std::pair<size_t, size_t>(i, i+1);
+        return std::pair<size_t, size_t>(i, i + 1);
       }
     }
 
@@ -135,9 +131,9 @@ class LinearInterpolator {
   }
 
   // Maps a value in the range [x1, x2] to the range [y1, y2].
-  static const ValueT LinearInterpolation(const KeyT& t,
-                                          const KeyT& x1, const KeyT& x2,
-                                          const ValueT& y1, const ValueT& y2) {
+  static const ValueT LinearInterpolation(const KeyT& t, const KeyT& x1,
+                                          const KeyT& x2, const ValueT& y1,
+                                          const ValueT& y2) {
     ValueT return_val =
         static_cast<ValueT>((t - x1) * (y2 - y1) / (x2 - x1) + y1);
     return return_val;

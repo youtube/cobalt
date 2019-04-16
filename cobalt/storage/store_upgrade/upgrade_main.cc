@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/path_service.h"
 #include "cobalt/base/get_application_key.h"
 #include "cobalt/base/wrap_main.h"
@@ -30,13 +32,13 @@ int UpgradeMain(int argc, char** argv) {
   std::vector<uint8> buffer;
   Savegame::Options options;
 
-  base::optional<std::string> partition_key;
+  base::Optional<std::string> partition_key;
   partition_key = base::GetApplicationKey(GURL(kDefaultURL));
 
   options.id = partition_key;
   options.fallback_to_default_id = true;
 
-  scoped_ptr<Savegame> savegame = Savegame::Create(options);
+  std::unique_ptr<Savegame> savegame = Savegame::Create(options);
   if (!savegame->Read(&buffer, kMaxSaveGameSizeBytes)) {
     DLOG(ERROR) << "Failed to read storage";
     return -1;

@@ -36,15 +36,15 @@ class GraphicsSystemEGL : public GraphicsSystem {
 
   EGLDisplay GetDisplay() { return display_; }
 
-  scoped_ptr<Display> CreateDisplay(
+  std::unique_ptr<Display> CreateDisplay(
       system_window::SystemWindow* system_window) override;
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext() override;
+  std::unique_ptr<GraphicsContext> CreateGraphicsContext() override;
 
-  scoped_ptr<TextureDataEGL> AllocateTextureData(const math::Size& size,
-                                                 GLenum format);
-  scoped_ptr<RawTextureMemoryEGL> AllocateRawTextureMemory(size_t size_in_bytes,
-                                                           size_t alignment);
+  std::unique_ptr<TextureDataEGL> AllocateTextureData(const math::Size& size,
+                                                      GLenum format);
+  std::unique_ptr<RawTextureMemoryEGL> AllocateRawTextureMemory(
+      size_t size_in_bytes, size_t alignment);
 
  private:
   EGLDisplay display_;
@@ -61,7 +61,7 @@ class GraphicsSystemEGL : public GraphicsSystem {
 
   // A special graphics context which is used exclusively for mapping/unmapping
   // texture memory.
-  base::optional<ResourceContext> resource_context_;
+  base::Optional<ResourceContext> resource_context_;
 };
 
 }  // namespace backend

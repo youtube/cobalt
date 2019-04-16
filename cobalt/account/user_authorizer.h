@@ -15,11 +15,11 @@
 #ifndef COBALT_ACCOUNT_USER_AUTHORIZER_H_
 #define COBALT_ACCOUNT_USER_AUTHORIZER_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "starboard/user.h"
 
 namespace cobalt {
@@ -30,7 +30,7 @@ struct AccessToken {
   std::string token_value;
 
   // The absolute time that this token expires, if any.
-  base::optional<base::Time> expiry;
+  base::Optional<base::Time> expiry;
 };
 
 // Platform-specific mechanism to authorize a user to access protected resources
@@ -47,11 +47,11 @@ class UserAuthorizer {
   // authorization process is complete, which may involve user input.
   // After this call completes successfully, subsequent calls to
   // RefreshAuthorization for the same |user| will return valid tokens.
-  // Returns a scoped_ptr holding NULL if the process failed for any reason
+  // Returns a std::unique_ptr holding NULL if the process failed for any reason
   // including an invalid |user|, or user cancellation of the authorization
   // process.
-  // On success, a scoped_ptr holding a valid AccessToken is returned.
-  virtual scoped_ptr<AccessToken> AuthorizeUser(SbUser user) = 0;
+  // On success, a std::unique_ptr holding a valid AccessToken is returned.
+  virtual std::unique_ptr<AccessToken> AuthorizeUser(SbUser user) = 0;
 
   // Remove authorization for |user| to use application resources (i.e.
   // sign-out).  This call will block until the linking process is complete,
@@ -67,11 +67,11 @@ class UserAuthorizer {
   // Requests a new access token to extend authorization for |user| to continue
   // using application resources.
   // This call will block until the token has been received.
-  // Returns a scoped_ptr holding NULL if the process failed for any reason
+  // Returns a std::unique_ptr holding NULL if the process failed for any reason
   // including an invalid |user|, or |user| not already being authorized (in
   // which case AuthorizeUser should be called).
-  // On success, a scoped_ptr holding a valid AccessToken is returned.
-  virtual scoped_ptr<AccessToken> RefreshAuthorization(SbUser user) = 0;
+  // On success, a std::unique_ptr holding a valid AccessToken is returned.
+  virtual std::unique_ptr<AccessToken> RefreshAuthorization(SbUser user) = 0;
 
   // Signals that the account manager is shutting down, and unblocks any pending
   // request. Calling other methods after |Shutdown| may have no effect.

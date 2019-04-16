@@ -32,7 +32,7 @@ BakedAnimation::BakedAnimation(const Animation& animation)
 void BakedAnimation::Apply(const base::TimeDelta& timeline_time,
                            cssom::CSSComputedStyleData* in_out_style) const {
   // Get the animation's local time from the Animation::Data object.
-  base::optional<base::TimeDelta> local_time =
+  base::Optional<base::TimeDelta> local_time =
       animation_data_.ComputeLocalTimeFromTimelineTime(timeline_time);
 
   // Obtain the iteration progress from the AnimationEffectTimingReadOnly::Data
@@ -62,14 +62,14 @@ BakedAnimationSet::BakedAnimationSet(const AnimationSet& animation_set) {
   for (AnimationSet::InternalSet::const_iterator iter =
            animation_set.animations().begin();
        iter != animation_set.animations().end(); ++iter) {
-    animations_.push_back(new BakedAnimation(**iter));
+    animations_.emplace_back(new BakedAnimation(**iter));
   }
 }
 
 BakedAnimationSet::BakedAnimationSet(const BakedAnimationSet& rhs) {
   for (AnimationList::const_iterator iter = rhs.animations_.begin();
        iter != rhs.animations_.end(); ++iter) {
-    animations_.push_back(new BakedAnimation(**iter));
+    animations_.emplace_back(new BakedAnimation(**iter));
   }
 }
 

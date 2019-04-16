@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_CAPABILITIES_H_
 #define COBALT_WEBDRIVER_PROTOCOL_CAPABILITIES_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/proxy.h"
@@ -31,8 +31,8 @@ namespace protocol {
 class Capabilities {
  public:
   // Convert a Capabilities object to/from a base::Value
-  static scoped_ptr<base::Value> ToValue(const Capabilities& capabilities);
-  static base::optional<Capabilities> FromValue(const base::Value* value);
+  static std::unique_ptr<base::Value> ToValue(const Capabilities& capabilities);
+  static base::Optional<Capabilities> FromValue(const base::Value* value);
 
   // Create the actual capabilities of Cobalt's WebDriver implementation.
   static Capabilities CreateActualCapabilities();
@@ -40,29 +40,29 @@ class Capabilities {
   // Return true if we support all the capabilities listed here.
   bool AreCapabilitiesSupported() const;
 
-  base::optional<Proxy> proxy() const { return proxy_; }
+  base::Optional<Proxy> proxy() const { return proxy_; }
 
  private:
   Capabilities() {}
   // The capabilities listed here:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Capabilities_JSON_Object
 
-  base::optional<std::string> browser_name_;
-  base::optional<std::string> version_;
-  base::optional<std::string> platform_;
-  base::optional<bool> javascript_enabled_;
-  base::optional<bool> takes_screenshot_;
-  base::optional<bool> handles_alerts_;
-  base::optional<bool> database_enabled_;
-  base::optional<bool> location_context_enabled_;
-  base::optional<bool> application_cache_enabled_;
-  base::optional<bool> browser_connection_enabled_;
-  base::optional<bool> css_selectors_enabled_;
-  base::optional<bool> web_storage_enabled_;
-  base::optional<bool> rotatable_;
-  base::optional<bool> accept_ssl_certs_;
-  base::optional<bool> native_events_;
-  base::optional<Proxy> proxy_;
+  base::Optional<std::string> browser_name_;
+  base::Optional<std::string> version_;
+  base::Optional<std::string> platform_;
+  base::Optional<bool> javascript_enabled_;
+  base::Optional<bool> takes_screenshot_;
+  base::Optional<bool> handles_alerts_;
+  base::Optional<bool> database_enabled_;
+  base::Optional<bool> location_context_enabled_;
+  base::Optional<bool> application_cache_enabled_;
+  base::Optional<bool> browser_connection_enabled_;
+  base::Optional<bool> css_selectors_enabled_;
+  base::Optional<bool> web_storage_enabled_;
+  base::Optional<bool> rotatable_;
+  base::Optional<bool> accept_ssl_certs_;
+  base::Optional<bool> native_events_;
+  base::Optional<Proxy> proxy_;
 };
 
 // Clients can provide two sets of Capabilities objects - one specifying
@@ -70,11 +70,11 @@ class Capabilities {
 // that the session must have.
 class RequestedCapabilities {
  public:
-  static base::optional<RequestedCapabilities> FromValue(
+  static base::Optional<RequestedCapabilities> FromValue(
       const base::Value* value);
 
   const Capabilities& desired() const { return desired_; }
-  const base::optional<Capabilities>& required() const { return required_; }
+  const base::Optional<Capabilities>& required() const { return required_; }
 
  private:
   explicit RequestedCapabilities(const Capabilities& desired)
@@ -83,7 +83,7 @@ class RequestedCapabilities {
                         const Capabilities& required)
       : desired_(desired), required_(required) {}
   Capabilities desired_;
-  base::optional<Capabilities> required_;
+  base::Optional<Capabilities> required_;
 };
 
 }  // namespace protocol

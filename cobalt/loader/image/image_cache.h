@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_IMAGE_IMAGE_CACHE_H_
 #define COBALT_LOADER_IMAGE_IMAGE_CACHE_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/loader/image/image.h"
@@ -45,10 +46,10 @@ typedef CachedImageReferenceWithCallbacks::CachedResourceReferenceVector
 typedef ResourceCache<ImageResourceCacheType> ImageCache;
 
 // CreateImageCache() provides a mechanism for creating an |ImageCache|.
-inline static scoped_ptr<ImageCache> CreateImageCache(
+inline static std::unique_ptr<ImageCache> CreateImageCache(
     const std::string& name, uint32 cache_capacity,
     loader::LoaderFactory* loader_factory) {
-  return make_scoped_ptr<ImageCache>(new ImageCache(
+  return std::unique_ptr<ImageCache>(new ImageCache(
       name, cache_capacity, false /*are_loading_retries_enabled*/,
       base::Bind(&loader::LoaderFactory::CreateImageLoader,
                  base::Unretained(loader_factory))));

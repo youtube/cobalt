@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "cobalt/media/base/media_tracks.h"
 
 #include "base/bind.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
@@ -22,10 +23,10 @@ MediaTrack* MediaTracks::AddAudioTrack(
     const std::string& language) {
   DCHECK(config.IsValidConfig());
   CHECK(audio_configs_.find(bytestream_track_id) == audio_configs_.end());
-  scoped_ptr<MediaTrack> track(new MediaTrack(
+  std::unique_ptr<MediaTrack> track(new MediaTrack(
       MediaTrack::Audio, bytestream_track_id, kind, label, language));
   MediaTrack* track_ptr = track.get();
-  tracks_.push_back(track.release());
+  tracks_.push_back(std::move(track));
   audio_configs_[bytestream_track_id] = config;
   return track_ptr;
 }
@@ -36,10 +37,10 @@ MediaTrack* MediaTracks::AddVideoTrack(
     const std::string& language) {
   DCHECK(config.IsValidConfig());
   CHECK(video_configs_.find(bytestream_track_id) == video_configs_.end());
-  scoped_ptr<MediaTrack> track(new MediaTrack(
+  std::unique_ptr<MediaTrack> track(new MediaTrack(
       MediaTrack::Video, bytestream_track_id, kind, label, language));
   MediaTrack* track_ptr = track.get();
-  tracks_.push_back(track.release());
+  tracks_.push_back(std::move(track));
   video_configs_[bytestream_track_id] = config;
   return track_ptr;
 }

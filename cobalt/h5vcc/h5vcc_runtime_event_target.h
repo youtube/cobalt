@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/h5vcc/h5vcc_event_listener_container.h"
 #include "cobalt/script/callback_function.h"

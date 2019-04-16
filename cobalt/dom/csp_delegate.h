@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_CSP_DELEGATE_H_
 #define COBALT_DOM_CSP_DELEGATE_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/base/source_location.h"
@@ -103,7 +104,7 @@ class CspDelegateInsecure : public CspDelegate {
 
 class CspDelegateSecure : public CspDelegate {
  public:
-  CspDelegateSecure(scoped_ptr<CspViolationReporter> violation_reporter,
+  CspDelegateSecure(std::unique_ptr<CspViolationReporter> violation_reporter,
                     const GURL& url, csp::CSPHeaderPolicy require_csp,
                     const base::Closure& policy_changed_callback);
   ~CspDelegateSecure();
@@ -139,10 +140,10 @@ class CspDelegateSecure : public CspDelegate {
  protected:
   void SetLocationPolicy(const std::string& policy);
 
-  scoped_ptr<csp::ContentSecurityPolicy> csp_;
+  std::unique_ptr<csp::ContentSecurityPolicy> csp_;
 
   // Helper class to send violation events to any reporting endpoints.
-  scoped_ptr<CspViolationReporter> reporter_;
+  std::unique_ptr<CspViolationReporter> reporter_;
 
   // We disallow all loads if CSP headers weren't received. This tracks if we
   // did get a valid header.

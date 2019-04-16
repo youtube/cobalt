@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/font_cache.h"
 
 namespace cobalt {
@@ -34,7 +36,7 @@ FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
           new loader::font::CachedRemoteTypefaceReferenceWithCallbacks(
               cached_remote_typeface, typeface_load_event_callback,
               typeface_load_event_callback)),
-      request_timer_(new base::Timer(false, false)) {
+      request_timer_(new base::OneShotTimer()) {
   request_timer_->Start(FROM_HERE,
                         base::TimeDelta::FromMilliseconds(kRequestTimerDelay),
                         typeface_load_event_callback);
@@ -54,7 +56,7 @@ FontCache::FontCache(render_tree::ResourceProvider** resource_provider,
       last_inactive_process_time_(base::TimeTicks::Now()),
       document_location_(document_location) {}
 
-void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
+void FontCache::SetFontFaceMap(std::unique_ptr<FontFaceMap> font_face_map) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // If nothing has changed, then there's nothing to update. Just return.
   if (*font_face_map == *font_face_map_) {
@@ -65,7 +67,7 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   // mappings as a result of the font face map changing.
   font_list_map_.clear();
 
-  font_face_map_ = font_face_map.Pass();
+  font_face_map_ = std::move(font_face_map);
 
   // Generate a set of the urls contained within the new font face map.
   std::set<GURL> new_url_set;
@@ -137,7 +139,7 @@ const scoped_refptr<dom::FontList>& FontCache::GetFontList(
     const FontListKey& font_list_key) {
   DCHECK(thread_checker_.CalledOnValidThread());
   FontListInfo& font_list_info = font_list_map_[font_list_key];
-  if (font_list_info.font_list == NULL) {
+  if (font_list_info.font_list.get() == NULL) {
     font_list_info.font_list = new FontList(this, font_list_key);
   }
   return font_list_info.font_list;
@@ -150,7 +152,7 @@ const scoped_refptr<render_tree::Font>& FontCache::GetFontFromTypefaceAndSize(
   // Check to see if the font is already in the cache. If it is not, then
   // create it from the typeface and size and add it to the cache.
   FontInfo& cached_font_info = font_map_[font_key];
-  if (cached_font_info.font == NULL) {
+  if (cached_font_info.font.get() == NULL) {
     cached_font_info.font = typeface->CreateFontWithSize(size);
   }
   return cached_font_info.font;
@@ -186,7 +188,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
       } else {
         scoped_refptr<render_tree::Font> font =
             TryGetLocalFontByFaceName(source_iterator->GetName(), size, state);
-        if (font != NULL) {
+        if (font.get() != NULL) {
           return font;
         }
       }
@@ -217,7 +219,7 @@ FontCache::GetCharacterFallbackTypeface(int32 utf32_character,
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
-    const char16* text_buffer, int32 text_length, bool is_rtl,
+    const base::char16* text_buffer, int32 text_length, bool is_rtl,
     FontList* font_list) {
   DCHECK(resource_provider());
   return resource_provider()->CreateGlyphBuffer(
@@ -225,8 +227,9 @@ scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
       font_list);
 }
 
-float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
-                              bool is_rtl, FontList* font_list,
+float FontCache::GetTextWidth(const base::char16* text_buffer,
+                              int32 text_length, bool is_rtl,
+                              FontList* font_list,
                               render_tree::FontVector* maybe_used_fonts) {
   DCHECK(resource_provider());
   return resource_provider()->GetTextWidth(
@@ -318,7 +321,7 @@ const scoped_refptr<render_tree::Typeface>& FontCache::GetCachedLocalTypeface(
   // it is not, then add the passed in typeface to the cache.
   scoped_refptr<render_tree::Typeface>& cached_typeface =
       local_typeface_map_[typeface->GetId()];
-  if (cached_typeface == NULL) {
+  if (cached_typeface.get() == NULL) {
     cached_typeface = typeface;
   }
   return cached_typeface;
@@ -359,7 +362,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
 
   scoped_refptr<render_tree::Typeface> typeface =
       cached_remote_typeface->TryGetResource();
-  if (typeface != NULL) {
+  if (typeface.get() != NULL) {
     *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(typeface, size);
   } else {

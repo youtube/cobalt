@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/dom_string_map.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
 
@@ -29,7 +29,7 @@ const size_t kDataPrefixLength = sizeof(kDataPrefix) - 1;
 
 // See "The algorithm for getting the list of name-value pairs" at
 // https://www.w3.org/TR/html5/dom.html#dom-dataset.
-base::optional<std::string> TryConvertAttributeNameToPropertyName(
+base::Optional<std::string> TryConvertAttributeNameToPropertyName(
     const std::string& attribute_name) {
   // First five characters of attribute name should be "data-".
   if (attribute_name.compare(0, kDataPrefixLength, kDataPrefix) != 0) {
@@ -86,7 +86,7 @@ base::optional<std::string> TryConvertAttributeNameToPropertyName(
 
 // See "The algorithm for setting names to certain values" at
 // https://www.w3.org/TR/html5/dom.html#dom-dataset.
-base::optional<std::string> TryConvertPropertyNameToAttributeName(
+base::Optional<std::string> TryConvertPropertyNameToAttributeName(
     const std::string& property_name) {
   // Insert the string "data-" at the front of attribute name.
   std::string attribute_name = kDataPrefix;
@@ -129,9 +129,9 @@ DOMStringMap::DOMStringMap(const scoped_refptr<Element>& element)
   GlobalStats::GetInstance()->Add(this);
 }
 
-base::optional<std::string> DOMStringMap::AnonymousNamedGetter(
+base::Optional<std::string> DOMStringMap::AnonymousNamedGetter(
     const std::string& property_name, script::ExceptionState* exception_state) {
-  base::optional<std::string> attribute_name =
+  base::Optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
   if (attribute_name) {
     return element_->GetAttribute(*attribute_name);
@@ -145,7 +145,7 @@ base::optional<std::string> DOMStringMap::AnonymousNamedGetter(
 void DOMStringMap::AnonymousNamedSetter(
     const std::string& property_name, const std::string& value,
     script::ExceptionState* exception_state) {
-  base::optional<std::string> attribute_name =
+  base::Optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
   if (attribute_name) {
     element_->SetAttribute(*attribute_name, value);
@@ -157,7 +157,7 @@ void DOMStringMap::AnonymousNamedSetter(
 
 bool DOMStringMap::CanQueryNamedProperty(
     const std::string& property_name) const {
-  base::optional<std::string> attribute_name =
+  base::Optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
   // TODO: Throw a SyntaxError if attribute name is invalid once getters and
   // setters support throwing exceptions.
@@ -170,7 +170,7 @@ void DOMStringMap::EnumerateNamedProperties(
            attribute_iterator = element_->attribute_map().begin(),
            attribute_end_iterator = element_->attribute_map().end();
        attribute_iterator != attribute_end_iterator; ++attribute_iterator) {
-    base::optional<std::string> property_name =
+    base::Optional<std::string> property_name =
         TryConvertAttributeNameToPropertyName(attribute_iterator->first);
     if (property_name) {
       enumerator->AddProperty(*property_name);

@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
 #define COBALT_RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
 
+#include <memory>
+
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -28,10 +30,10 @@ namespace backend {
 // Cobalt platforms.  A |system_window| can optionally be provided, in which
 // case the returned graphics system will be guaranteed to be compatible with
 // the window passed in.
-scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
+std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
     system_window::SystemWindow* system_window);
 
-inline scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem() {
+inline std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem() {
   return CreateDefaultGraphicsSystem(nullptr);
 }
 

@@ -16,18 +16,18 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/containers/small_map.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_vector.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "SkFontMgr.h"
 #include "SkTArray.h"
 #include "SkTypeface.h"
+#include "base/containers/hash_tables.h"
+#include "base/containers/small_map.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of SkFontMgr. It
 // is responsible for the creation of remote typefaces and for, given a set of
@@ -111,7 +111,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
  private:
   typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToStyleSetMap;
-  typedef base::SmallMap<base::hash_map<std::string, StyleSetArray*> >
+  typedef base::small_map<base::hash_map<std::string, StyleSetArray*>>
       NameToStyleSetArrayMap;
 
   void ParseConfigAndBuildFamilies(
@@ -153,7 +153,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   StyleSetArray fallback_families_;
   // Language-specific fallback families. These are lazily populated from
   // |fallback_families_| when a new language tag is requested.
-  ScopedVector<StyleSetArray> language_fallback_families_array_;
+  std::vector<std::unique_ptr<StyleSetArray>> language_fallback_families_array_;
   NameToStyleSetArrayMap language_fallback_families_map_;
 
   // The default family that is used when no specific match is found during a

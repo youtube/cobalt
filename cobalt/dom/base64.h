@@ -24,11 +24,11 @@ namespace cobalt {
 namespace dom {
 
 // https://infra.spec.whatwg.org/#forgiving-base64-encode
-base::optional<std::string> ForgivingBase64Encode(
+base::Optional<std::string> ForgivingBase64Encode(
     const std::string& string_to_encode);
 
 // https://infra.spec.whatwg.org/#forgiving-base64-decode
-base::optional<std::vector<uint8_t>> ForgivingBase64Decode(
+base::Optional<std::vector<uint8_t>> ForgivingBase64Decode(
     const std::string& encoded_string);
 
 }  // namespace dom

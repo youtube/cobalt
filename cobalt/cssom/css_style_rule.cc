@@ -26,7 +26,7 @@ CSSStyleRule::CSSStyleRule() : added_to_selector_tree_(false) {}
 
 CSSStyleRule::CSSStyleRule(Selectors selectors,
                            const scoped_refptr<CSSRuleStyleDeclaration>& style)
-    : selectors_(selectors.Pass()),
+    : selectors_(std::move(selectors)),
       style_(style),
       added_to_selector_tree_(false) {
   if (style_) {

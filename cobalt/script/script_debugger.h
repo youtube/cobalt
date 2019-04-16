@@ -15,11 +15,11 @@
 #ifndef COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 #define COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 #include "cobalt/script/call_frame.h"
 #include "cobalt/script/source_provider.h"
@@ -88,7 +88,7 @@ class ScriptDebugger {
 
   // Factory method to create an engine-specific instance. Implementation to be
   // provided by derived class.
-  static scoped_ptr<ScriptDebugger> CreateDebugger(
+  static std::unique_ptr<ScriptDebugger> CreateDebugger(
       GlobalEnvironment* global_environment, Delegate* delegate);
 
   // Attach/detach the script debugger. Saved state can be passed between
@@ -130,7 +130,7 @@ class ScriptDebugger {
 
  protected:
   virtual ~ScriptDebugger() {}
-  friend class scoped_ptr<ScriptDebugger>;
+  friend std::unique_ptr<ScriptDebugger>::deleter_type;
 };
 
 }  // namespace script

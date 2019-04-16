@@ -14,9 +14,11 @@
 
 #include "cobalt/loader/net_fetcher.h"
 
+#include <memory>
 #include <string>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
@@ -56,7 +58,8 @@ class NetFetcherLog {
   DISALLOW_COPY_AND_ASSIGN(NetFetcherLog);
 };
 
-base::LazyInstance<NetFetcherLog> net_fetcher_log = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NetFetcherLog>::DestructorAtExit net_fetcher_log =
+    LAZY_INSTANCE_INITIALIZER;
 
 #endif  // defined(HANDLE_CORE_DUMP)
 
@@ -81,10 +84,12 @@ NetFetcher::NetFetcher(const GURL& url,
           base::Bind(&NetFetcher::Start, base::Unretained(this)))),
       request_cross_origin_(false),
       origin_(origin) {
-  url_fetcher_.reset(
-      net::URLFetcher::Create(url, options.request_method, this));
-  url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
-  url_fetcher_->DiscardResponse();
+  url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
+  url_fetcher_->SetRequestContext(
+      network_module->url_request_context_getter().get());
+  auto* download_data_writer = new CobaltURLFetcherStringWriter();
+  url_fetcher_->SaveResponseWithWriter(
+      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
   if (request_mode != kNoCORSMode && !url.SchemeIs("data") &&
       origin != Origin(url)) {
     request_cross_origin_ = true;
@@ -102,7 +107,8 @@ NetFetcher::NetFetcher(const GURL& url,
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
-  MessageLoop::current()->PostTask(FROM_HERE, start_callback_.callback());
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE, start_callback_.callback());
 }
 
 void NetFetcher::Start() {
@@ -162,6 +168,15 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   const net::URLRequestStatus& status = source->GetStatus();
   const int response_code = source->GetResponseCode();
   if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+    auto* download_data_writer =
+        base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+            source->GetResponseWriter());
+    std::unique_ptr<std::string> data = download_data_writer->data();
+    if (!data->empty()) {
+      DLOG(INFO) << "in OnURLFetchComplete data still has bytes: "
+                 << data->size();
+      handler()->OnReceivedPassed(this, std::move(data));
+    }
     handler()->OnDone(this);
   } else {
     // Check for response codes and errors that are considered transient. These
@@ -177,24 +192,31 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
       SetFailedFromTransientError();
     }
 
-    std::string msg(
-        base::StringPrintf("NetFetcher error on %s: %s, response code %d",
-                           source->GetURL().spec().c_str(),
-                           net::ErrorToString(status.error()), response_code));
+    std::string msg(base::StringPrintf(
+        "NetFetcher error on %s: %s, response code %d",
+        source->GetURL().spec().c_str(),
+        net::ErrorToString(status.error()).c_str(), response_code));
     return HandleError(msg).InvalidateThis();
   }
 }
 
-bool NetFetcher::ShouldSendDownloadData() { return true; }
-
-void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
-                                        scoped_ptr<std::string> download_data) {
+void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
+                                            int64_t /*current*/,
+                                            int64_t /*total*/,
+                                            int64_t /*current_network_bytes*/) {
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
+    auto* download_data_writer =
+        base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+            source->GetResponseWriter());
+    std::unique_ptr<std::string> data = download_data_writer->data();
+    if (data->empty()) {
+      return;
+    }
 #if defined(HANDLE_CORE_DUMP)
     net_fetcher_log.Get().IncrementFetchedBytes(
-        static_cast<int>(download_data->length()));
+        static_cast<int>(data->length()));
 #endif
-    handler()->OnReceivedPassed(this, download_data.Pass());
+    handler()->OnReceivedPassed(this, std::move(data));
   }
 }
 

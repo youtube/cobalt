@@ -21,7 +21,7 @@ namespace dom {
 
 // static
 GlobalStats* GlobalStats::GetInstance() {
-  return Singleton<GlobalStats>::get();
+  return base::Singleton<GlobalStats>::get();
 }
 
 GlobalStats::GlobalStats()

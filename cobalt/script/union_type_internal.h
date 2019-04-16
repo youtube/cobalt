@@ -100,7 +100,7 @@ struct UnionTypeTraits<bool> : UnionTypeDefaultTraits<bool> {
 };
 
 template <typename T>
-struct UnionTypeTraits<Sequence<T> > : UnionTypeDefaultTraits<Sequence<T> > {
+struct UnionTypeTraits<Sequence<T>> : UnionTypeDefaultTraits<Sequence<T>> {
   typedef const Sequence<T>& ArgType;
   typedef Sequence<T> ReturnType;
   typedef const Sequence<T>& ConstReturnType;
@@ -109,9 +109,9 @@ struct UnionTypeTraits<Sequence<T> > : UnionTypeDefaultTraits<Sequence<T> > {
 
 // Explicitly blacklist nullable types. None of the union members should be
 // nullable. If the union has a nullable member, then the whole union type
-// should be declared nullable such as base::optional<base::UnionTypeN<...> >
+// should be declared nullable such as base::Optional<base::UnionTypeN<...> >
 template <typename T>
-struct UnionTypeTraits<base::optional<T> > : UnionTypeDefaultTraits<T> {
+struct UnionTypeTraits<base::Optional<T>> : UnionTypeDefaultTraits<T> {
   // This assert will only be evaluated if the template is instantiated.
   COMPILE_ASSERT(sizeof(T) == 0, NullableTypesAreNotPermittedInUnionss);
 };

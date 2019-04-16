@@ -11,8 +11,8 @@ namespace cobalt {
 namespace media {
 
 // This variable is Leaky because it is accessed from WorkerPool threads.
-static base::LazyInstance<internal::MimeUtil>::Leaky g_media_mime_util =
-    LAZY_INSTANCE_INITIALIZER;
+static base::LazyInstance<internal::MimeUtil>::DestructorAtExit
+    g_media_mime_util = LAZY_INSTANCE_INITIALIZER;
 
 bool IsSupportedMediaMimeType(const std::string& mime_type) {
   return g_media_mime_util.Pointer()->IsSupportedMediaMimeType(mime_type);

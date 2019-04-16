@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/filters/ivf_parser.h"
+
 #include "base/logging.h"
 #include "base/sys_byteorder.h"
-#include "cobalt/media/filters/ivf_parser.h"
 #include "starboard/memory.h"
 
 namespace cobalt {

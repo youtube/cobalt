@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_RENDERER_MODULE_H_
 #define COBALT_RENDERER_RENDERER_MODULE_H_
 
+#include <memory>
+
 #include "cobalt/base/camera_transform.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/display.h"
@@ -32,7 +34,7 @@ class RendererModule {
   struct Options {
     Options();
 
-    typedef base::Callback<scoped_ptr<rasterizer::Rasterizer>(
+    typedef base::Callback<std::unique_ptr<rasterizer::Rasterizer>(
         backend::GraphicsContext*, const Options& options)>
         CreateRasterizerCallback;
 
@@ -130,10 +132,10 @@ class RendererModule {
   system_window::SystemWindow* system_window_;
   Options options_;
 
-  scoped_ptr<renderer::backend::GraphicsSystem> graphics_system_;
-  scoped_ptr<renderer::backend::Display> display_;
-  scoped_ptr<renderer::backend::GraphicsContext> graphics_context_;
-  scoped_ptr<renderer::Pipeline> pipeline_;
+  std::unique_ptr<renderer::backend::GraphicsSystem> graphics_system_;
+  std::unique_ptr<renderer::backend::Display> display_;
+  std::unique_ptr<renderer::backend::GraphicsContext> graphics_context_;
+  std::unique_ptr<renderer::Pipeline> pipeline_;
 };
 
 }  // namespace renderer

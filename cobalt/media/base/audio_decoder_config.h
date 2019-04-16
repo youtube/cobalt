@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/audio_codecs.h"
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/encryption_scheme.h"

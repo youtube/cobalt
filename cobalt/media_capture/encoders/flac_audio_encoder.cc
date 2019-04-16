@@ -14,11 +14,12 @@
 
 #include "cobalt/media_capture/encoders/flac_audio_encoder.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 
 namespace {
 
@@ -53,27 +54,27 @@ FlacAudioEncoder::FlacAudioEncoder() : thread_("flac_encoding_thread") {
 }
 
 FlacAudioEncoder::~FlacAudioEncoder() {
-  thread_.message_loop_proxy()->PostBlockingTask(
+  thread_.task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&FlacAudioEncoder::DestroyEncoder, base::Unretained(this)));
 }
 
 void FlacAudioEncoder::Encode(const ShellAudioBus& audio_bus,
                               base::TimeTicks reference_time) {
-  scoped_ptr<ShellAudioBus> audio_bus_copy(
+  std::unique_ptr<ShellAudioBus> audio_bus_copy(
       new ShellAudioBus(audio_bus.channels(), audio_bus.frames(),
                         audio_bus.sample_type(), audio_bus.storage_type()));
   audio_bus_copy->Assign(audio_bus);
 
   // base::Unretained usage is safe here, since we're posting to a thread that
   // we own.
-  thread_.message_loop_proxy()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&FlacAudioEncoder::DoEncode, base::Unretained(this),
                             base::Passed(&audio_bus_copy), reference_time));
 }
 
 void FlacAudioEncoder::Finish(base::TimeTicks reference_time) {
-  thread_.message_loop_proxy()->PostBlockingTask(
+  thread_.task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&FlacAudioEncoder::DoFinish, base::Unretained(this),
                             reference_time));
 }
@@ -94,9 +95,9 @@ void FlacAudioEncoder::OnSetFormat(
     const media_stream::AudioParameters& params) {
   // base::Unretained usage is safe here, since we're posting to a thread that
   // we own.
-  thread_.message_loop_proxy()->PostTask(
-      FROM_HERE, base::Bind(&FlacAudioEncoder::CreateEncoder,
-                            base::Unretained(this), params));
+  thread_.task_runner()->PostTask(FROM_HERE,
+                                  base::Bind(&FlacAudioEncoder::CreateEncoder,
+                                             base::Unretained(this), params));
 }
 
 void FlacAudioEncoder::CreateEncoder(
@@ -106,7 +107,7 @@ void FlacAudioEncoder::CreateEncoder(
 
 void FlacAudioEncoder::DestroyEncoder() { flac_encoder_.reset(); }
 
-void FlacAudioEncoder::DoEncode(scoped_ptr<ShellAudioBus> audio_bus,
+void FlacAudioEncoder::DoEncode(std::unique_ptr<ShellAudioBus> audio_bus,
                                 base::TimeTicks reference_time) {
   DCHECK(flac_encoder_);
   flac_encoder_->Encode(audio_bus.get());

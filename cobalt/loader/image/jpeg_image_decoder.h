@@ -16,10 +16,10 @@
 #define COBALT_LOADER_IMAGE_JPEG_IMAGE_DECODER_H_
 
 #include <setjmp.h>
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 
@@ -75,11 +75,11 @@ class JPEGImageDecoder : public ImageDataDecoder {
 
   // This is only used when |output_format_| is kOutputFormatRGBA or
   // kOutputFormatBGRA.
-  scoped_ptr<render_tree::ImageData> decoded_image_data_;
+  std::unique_ptr<render_tree::ImageData> decoded_image_data_;
 
   // All the following variables are only valid when |output_format_| is
   // kOutputFormatYUV.
-  scoped_ptr<render_tree::RawImageMemory> raw_image_memory_;
+  std::unique_ptr<render_tree::RawImageMemory> raw_image_memory_;
 
   // Sample factors of y plane, they are 1 for yuv444 or 2 for yuv420 but may
   // have other value combinations for other yuv formats.

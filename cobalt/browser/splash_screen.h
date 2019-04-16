@@ -15,17 +15,17 @@
 #ifndef COBALT_BROWSER_SPLASH_SCREEN_H_
 #define COBALT_BROWSER_SPLASH_SCREEN_H_
 
+#include <memory>
 #include <string>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/window.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -41,7 +41,7 @@ class SplashScreen : public LifecycleObserver {
                const cssom::ViewportSize& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate,
-               const base::optional<GURL>& fallback_splash_screen_url,
+               const base::Optional<GURL>& fallback_splash_screen_url,
                const GURL& initial_main_web_module_url,
                cobalt::browser::SplashScreenCache* splash_screen_cache,
                const base::Callback<void(base::TimeDelta)>&
@@ -86,10 +86,10 @@ class SplashScreen : public LifecycleObserver {
 
   WebModule::OnRenderTreeProducedCallback render_tree_produced_callback_;
 
-  scoped_ptr<WebModule> web_module_;
+  std::unique_ptr<WebModule> web_module_;
 
   // The splash screen runs on this message loop.
-  MessageLoop* const self_message_loop_;
+  base::MessageLoop* const self_message_loop_;
 
   // This is called by Shutdown (via window.close) or after
   // the time limit has been exceeded.

@@ -34,29 +34,30 @@ const float kRCornerGradientScale = 16.0f;
 // Get the midpoint of the given rounded rect. A normalized rounded rect
 // should have at least one point which the corners do not cross.
 math::PointF GetRRectCenter(const math::RectF& rect,
-    const render_tree::RoundedCorners& corners) {
+                            const render_tree::RoundedCorners& corners) {
   return math::PointF(
-      0.5f * (rect.x() + std::max(corners.top_left.horizontal,
-                                  corners.bottom_left.horizontal) +
-              rect.right() - std::max(corners.top_right.horizontal,
-                                      corners.bottom_right.horizontal)),
-      0.5f * (rect.y() + std::max(corners.top_left.vertical,
-                                  corners.top_right.vertical) +
-              rect.bottom() - std::max(corners.bottom_left.vertical,
-                                       corners.bottom_right.vertical)));
+      0.5f * (rect.x() +
+              std::max(corners.top_left.horizontal,
+                       corners.bottom_left.horizontal) +
+              rect.right() -
+              std::max(corners.top_right.horizontal,
+                       corners.bottom_right.horizontal)),
+      0.5f * (rect.y() +
+              std::max(corners.top_left.vertical, corners.top_right.vertical) +
+              rect.bottom() -
+              std::max(corners.bottom_left.vertical,
+                       corners.bottom_right.vertical)));
 }
 
 math::PointF ClampToBounds(const math::RectF& bounds, float x, float y) {
-  return math::PointF(
-      std::min(std::max(bounds.x(), x), bounds.right()),
-      std::min(std::max(bounds.y(), y), bounds.bottom()));
+  return math::PointF(std::min(std::max(bounds.x(), x), bounds.right()),
+                      std::min(std::max(bounds.y(), y), bounds.bottom()));
 }
 }  // namespace
 
 DrawObject::BaseState::BaseState()
     : transform(math::Matrix3F::Identity()),
-      scissor(0, 0,
-              std::numeric_limits<int>::max(),
+      scissor(0, 0, std::numeric_limits<int>::max(),
               std::numeric_limits<int>::max()),
       opacity(1.0f) {}
 
@@ -73,19 +74,18 @@ DrawObject::RCorner::RCorner(const float (&position)[2], const RCorner& init)
       rx(init.rx * kRCornerGradientScale),
       ry(init.ry * kRCornerGradientScale) {}
 
-DrawObject::DrawObject()
-    : merge_type_(base::GetTypeId<DrawObject>()) {}
+DrawObject::DrawObject() : merge_type_(base::GetTypeId<DrawObject>()) {}
 
 DrawObject::DrawObject(const BaseState& base_state)
-    : base_state_(base_state),
-      merge_type_(base::GetTypeId<DrawObject>()) {}
+    : base_state_(base_state), merge_type_(base::GetTypeId<DrawObject>()) {}
 
 math::Vector2dF DrawObject::RemoveScaleFromTransform() {
   // Avoid division by zero.
   const float kEpsilon = 0.00001f;
 
   math::Vector2dF scale = math::GetScale2d(base_state_.transform);
-  base_state_.transform = base_state_.transform *
+  base_state_.transform =
+      base_state_.transform *
       math::ScaleMatrix(1.0f / std::max(scale.x(), kEpsilon),
                         1.0f / std::max(scale.y(), kEpsilon));
   return scale;
@@ -106,9 +106,9 @@ uint32_t DrawObject::GetGLRGBA(float r, float g, float b, float a) {
 }
 
 // static
-void DrawObject::GetRRectAttributes(const math::RectF& bounds,
-    math::RectF rect, render_tree::RoundedCorners corners,
-    RRectAttributes (&out_attributes)[4]) {
+void DrawObject::GetRRectAttributes(const math::RectF& bounds, math::RectF rect,
+                                    render_tree::RoundedCorners corners,
+                                    RRectAttributes (&out_attributes)[4]) {
   GetRCornerValues(&rect, &corners, out_attributes);
 
   // Calculate the bounds for each patch. Four patches will be used to cover
@@ -116,20 +116,23 @@ void DrawObject::GetRRectAttributes(const math::RectF& bounds,
   math::PointF center = GetRRectCenter(rect, corners);
   center = ClampToBounds(bounds, center.x(), center.y());
 
-  out_attributes[0].bounds.SetRect(bounds.x(), bounds.y(),
-      center.x() - bounds.x(), center.y() - bounds.y());
+  out_attributes[0].bounds.SetRect(
+      bounds.x(), bounds.y(), center.x() - bounds.x(), center.y() - bounds.y());
   out_attributes[1].bounds.SetRect(center.x(), bounds.y(),
-      bounds.right() - center.x(), center.y() - bounds.y());
+                                   bounds.right() - center.x(),
+                                   center.y() - bounds.y());
   out_attributes[2].bounds.SetRect(bounds.x(), center.y(),
-      center.x() - bounds.x(), bounds.bottom() - center.y());
+                                   center.x() - bounds.x(),
+                                   bounds.bottom() - center.y());
   out_attributes[3].bounds.SetRect(center.x(), center.y(),
-      bounds.right() - center.x(), bounds.bottom() - center.y());
+                                   bounds.right() - center.x(),
+                                   bounds.bottom() - center.y());
 }
 
 // static
-void DrawObject::GetRRectAttributes(const math::RectF& bounds,
-    math::RectF rect, render_tree::RoundedCorners corners,
-    RRectAttributes (&out_attributes)[8]) {
+void DrawObject::GetRRectAttributes(const math::RectF& bounds, math::RectF rect,
+                                    render_tree::RoundedCorners corners,
+                                    RRectAttributes (&out_attributes)[8]) {
   GetRCornerValues(&rect, &corners, out_attributes);
   out_attributes[4].rcorner = out_attributes[0].rcorner;
   out_attributes[5].rcorner = out_attributes[1].rcorner;
@@ -139,7 +142,7 @@ void DrawObject::GetRRectAttributes(const math::RectF& bounds,
   // Given an ellipse with radii A and B, the largest inscribed rectangle has
   // dimensions sqrt(2) * A and sqrt(2) * B. To accommodate the antialiased
   // edge, inset the inscribed rect by a pixel on each side.
-  const float kInsetScale = 0.2929f;    // 1 - sqrt(2) / 2
+  const float kInsetScale = 0.2929f;  // 1 - sqrt(2) / 2
 
   // Calculate the bounds for each patch. Eight patches will be used to exclude
   // the inscribed rect:
@@ -154,40 +157,47 @@ void DrawObject::GetRRectAttributes(const math::RectF& bounds,
   //   +---+-----+-----+---+
   math::PointF center = GetRRectCenter(rect, corners);
   center = ClampToBounds(bounds, center.x(), center.y());
-  math::PointF inset0 = ClampToBounds(bounds,
-      rect.x() + kInsetScale * corners.top_left.horizontal + 1.0f,
+  math::PointF inset0 = ClampToBounds(
+      bounds, rect.x() + kInsetScale * corners.top_left.horizontal + 1.0f,
       rect.y() + kInsetScale * corners.top_left.vertical + 1.0f);
-  math::PointF inset1 = ClampToBounds(bounds,
-      rect.right() - kInsetScale * corners.top_right.horizontal - 1.0f,
+  math::PointF inset1 = ClampToBounds(
+      bounds, rect.right() - kInsetScale * corners.top_right.horizontal - 1.0f,
       rect.y() + kInsetScale * corners.top_right.vertical + 1.0f);
-  math::PointF inset2 = ClampToBounds(bounds,
-      rect.x() + kInsetScale * corners.bottom_left.horizontal + 1.0f,
+  math::PointF inset2 = ClampToBounds(
+      bounds, rect.x() + kInsetScale * corners.bottom_left.horizontal + 1.0f,
       rect.bottom() - kInsetScale * corners.bottom_left.vertical - 1.0f);
-  math::PointF inset3 = ClampToBounds(bounds,
+  math::PointF inset3 = ClampToBounds(
+      bounds,
       rect.right() - kInsetScale * corners.bottom_right.horizontal - 1.0f,
       rect.bottom() - kInsetScale * corners.bottom_right.vertical - 1.0f);
 
-  out_attributes[0].bounds.SetRect(bounds.x(), bounds.y(),
-      inset0.x() - bounds.x(), center.y() - bounds.y());
+  out_attributes[0].bounds.SetRect(
+      bounds.x(), bounds.y(), inset0.x() - bounds.x(), center.y() - bounds.y());
   out_attributes[1].bounds.SetRect(inset1.x(), bounds.y(),
-      bounds.right() - inset1.x(), center.y() - bounds.y());
+                                   bounds.right() - inset1.x(),
+                                   center.y() - bounds.y());
   out_attributes[2].bounds.SetRect(bounds.x(), center.y(),
-      inset2.x() - bounds.x(), bounds.bottom() - center.y());
+                                   inset2.x() - bounds.x(),
+                                   bounds.bottom() - center.y());
   out_attributes[3].bounds.SetRect(inset3.x(), center.y(),
-      bounds.right() - inset3.x(), bounds.bottom() - center.y());
-  out_attributes[4].bounds.SetRect(inset0.x(), bounds.y(),
-      center.x() - inset0.x(), inset0.y() - bounds.y());
-  out_attributes[5].bounds.SetRect(center.x(), bounds.y(),
-      inset1.x() - center.x(), inset1.y() - bounds.y());
+                                   bounds.right() - inset3.x(),
+                                   bounds.bottom() - center.y());
+  out_attributes[4].bounds.SetRect(
+      inset0.x(), bounds.y(), center.x() - inset0.x(), inset0.y() - bounds.y());
+  out_attributes[5].bounds.SetRect(
+      center.x(), bounds.y(), inset1.x() - center.x(), inset1.y() - bounds.y());
   out_attributes[6].bounds.SetRect(inset2.x(), inset2.y(),
-      center.x() - inset2.x(), bounds.bottom() - inset2.y());
+                                   center.x() - inset2.x(),
+                                   bounds.bottom() - inset2.y());
   out_attributes[7].bounds.SetRect(center.x(), inset3.y(),
-      inset3.x() - center.x(), bounds.bottom() - inset3.y());
+                                   inset3.x() - center.x(),
+                                   bounds.bottom() - inset3.y());
 }
 
 // static
 void DrawObject::GetRCornerValues(math::RectF* rect,
-    render_tree::RoundedCorners* corners, RRectAttributes out_rcorners[4]) {
+                                  render_tree::RoundedCorners* corners,
+                                  RRectAttributes out_rcorners[4]) {
   // Ensure that square corners have dimensions of 0, otherwise they may be
   // rendered as skewed ellipses (in the case where one dimension is 0 but
   // not the other).

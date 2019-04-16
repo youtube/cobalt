@@ -55,8 +55,9 @@ class CSSComputedStyleData
 
   // Time spent during initial layout and incremental layout is the shortest
   // with an array size of 16.
-  typedef base::SmallMap<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
-                         16, std::equal_to<PropertyKey> > PropertyValues;
+  typedef base::small_map<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
+                          16, std::equal_to<PropertyKey> >
+      PropertyValues;
 
   CSSComputedStyleData();
   ~CSSComputedStyleData();

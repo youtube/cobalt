@@ -20,21 +20,23 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "base/command_line.h"
-#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/path_service.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
@@ -68,9 +70,9 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "crypto/hmac.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/escape.h"
 #include "starboard/configuration.h"
+#include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -89,18 +91,18 @@ bool IsStringNone(const std::string& str) {
 #if defined(ENABLE_DEBUGGER)
 int GetRemoteDebuggingPort() {
 #if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
-  const int kDefaultRemoteDebuggingPort =
+  const unsigned int kDefaultRemoteDebuggingPort =
       SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT;
 #else
-  const int kDefaultRemoteDebuggingPort = 9222;
+  const unsigned int kDefaultRemoteDebuggingPort = 9222;
 #endif  // defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
-  int remote_debugging_port = kDefaultRemoteDebuggingPort;
+  unsigned int remote_debugging_port = kDefaultRemoteDebuggingPort;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kRemoteDebuggingPort)) {
     std::string switch_value =
         command_line->GetSwitchValueASCII(switches::kRemoteDebuggingPort);
-    if (!base::StringToInt(switch_value, &remote_debugging_port)) {
+    if (!base::StringToUint(switch_value, &remote_debugging_port)) {
       DLOG(ERROR) << "Invalid port specified for remote debug server: "
                   << switch_value
                   << ". Using default port: " << kDefaultRemoteDebuggingPort;
@@ -112,7 +114,7 @@ int GetRemoteDebuggingPort() {
       << switches::kWaitForWebDebugger << " switch can't be used when "
       << switches::kRemoteDebuggingPort << " is 0 (disabled).";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-  return remote_debugging_port;
+  return uint16_t(remote_debugging_port);
 }
 #endif  // ENABLE_DEBUGGER
 
@@ -127,7 +129,7 @@ int GetWebDriverPort() {
 #endif  // defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
   int webdriver_port = kDefaultWebDriverPort;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverPort)) {
     if (!base::StringToInt(
             command_line->GetSwitchValueASCII(switches::kWebDriverPort),
@@ -148,7 +150,7 @@ std::string GetWebDriverListenIp() {
   std::string webdriver_listen_ip =
       webdriver::WebDriverModule::kDefaultListenIp;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
     webdriver_listen_ip =
         command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
@@ -211,7 +213,7 @@ std::string ComputeSignature(const std::string& cert_scope,
 GURL GetInitialURL() {
   GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
     GURL url = GURL(command_line->GetSwitchValueASCII(switches::kInitialURL));
     if (url.is_valid()) {
@@ -281,8 +283,8 @@ GURL GetInitialURL() {
   return initial_url;
 }
 
-base::optional<GURL> GetFallbackSplashScreenURL() {
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+base::Optional<GURL> GetFallbackSplashScreenURL() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   std::string fallback_splash_screen_string;
   if (command_line->HasSwitch(switches::kFallbackSplashScreenURL)) {
     fallback_splash_screen_string =
@@ -291,9 +293,9 @@ base::optional<GURL> GetFallbackSplashScreenURL() {
     fallback_splash_screen_string = COBALT_FALLBACK_SPLASH_SCREEN_URL;
   }
   if (IsStringNone(fallback_splash_screen_string)) {
-    return base::optional<GURL>();
+    return base::Optional<GURL>();
   }
-  base::optional<GURL> fallback_splash_screen_url =
+  base::Optional<GURL> fallback_splash_screen_url =
       GURL(fallback_splash_screen_string);
   if (!fallback_splash_screen_url->is_valid() ||
       !(fallback_splash_screen_url->SchemeIsFile() ||
@@ -306,7 +308,7 @@ base::optional<GURL> GetFallbackSplashScreenURL() {
 
 base::TimeDelta GetTimedTraceDuration() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   int duration_in_seconds = 0;
   if (command_line->HasSwitch(switches::kTimedTrace) &&
       base::StringToInt(
@@ -319,19 +321,19 @@ base::TimeDelta GetTimedTraceDuration() {
   return base::TimeDelta();
 }
 
-FilePath GetExtraWebFileDir() {
+base::FilePath GetExtraWebFileDir() {
   // Default is empty, command line can override.
-  FilePath result;
+  base::FilePath result;
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kExtraWebFileDir)) {
-    result =
-        FilePath(command_line->GetSwitchValueASCII(switches::kExtraWebFileDir));
+    result = base::FilePath(
+        command_line->GetSwitchValueASCII(switches::kExtraWebFileDir));
     if (!result.IsAbsolute()) {
       // Non-absolute paths are relative to the executable directory.
-      FilePath content_path;
-      PathService::Get(base::DIR_EXE, &content_path);
+      base::FilePath content_path;
+      base::PathService::Get(base::DIR_EXE, &content_path);
       result = content_path.DirName().DirName().Append(result);
     }
     DLOG(INFO) << "Extra web file dir: " << result.value();
@@ -343,15 +345,15 @@ FilePath GetExtraWebFileDir() {
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 void EnableUsingStubImageDecoderIfRequired() {
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kStubImageDecoder)) {
     loader::image::ImageDecoder::UseStubImageDecoder();
   }
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-base::optional<cssom::ViewportSize> GetRequestedViewportSize(
-    CommandLine* command_line) {
+base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
+    base::CommandLine* command_line) {
   DCHECK(command_line);
   if (!command_line->HasSwitch(browser::switches::kViewport)) {
     return base::nullopt;
@@ -360,8 +362,8 @@ base::optional<cssom::ViewportSize> GetRequestedViewportSize(
   std::string switch_value =
       command_line->GetSwitchValueASCII(browser::switches::kViewport);
 
-  std::vector<std::string> lengths;
-  base::SplitString(switch_value, 'x', &lengths);
+  std::vector<std::string> lengths = base::SplitString(
+      switch_value, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   if (lengths.empty()) {
     DLOG(ERROR) << "Viewport " << switch_value << " is invalid.";
@@ -406,7 +408,7 @@ base::optional<cssom::ViewportSize> GetRequestedViewportSize(
 
 std::string GetMinLogLevelString() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kMinLogLevel)) {
     return command_line->GetSwitchValueASCII(switches::kMinLogLevel);
   }
@@ -430,10 +432,11 @@ int StringToLogLevel(const std::string& log_level) {
 }
 
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
     int32 out;
     if (base::StringToInt32(
-            CommandLine::ForCurrentProcess()->GetSwitchValueNative(switch_name),
+            base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
+                switch_name),
             &out)) {
       LOG(INFO) << "Command line switch '" << switch_name << "': Modifying "
                 << *output << " -> " << out;
@@ -449,7 +452,7 @@ void ApplyCommandLineSettingsToRendererOptions(
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  auto command_line = CommandLine::ForCurrentProcess();
+  auto command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kDisableRasterizerCaching) ||
       command_line->HasSwitch(
           browser::switches::kForceDeterministicRendering)) {
@@ -475,8 +478,8 @@ struct SecurityFlags {
 
 // |non_trivial_static_fields| will be lazily created on the first time it's
 // accessed.
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 
 // Static user logs
@@ -496,22 +499,22 @@ int Application::network_connect_count_ = 0;
 int Application::network_disconnect_count_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload)
-    : message_loop_(MessageLoop::current()),
-      quit_closure_(quit_closure),
-      stats_update_timer_(true, true) {
+    : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
   DCHECK(!quit_closure_.is_null());
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
   if (trace_duration != base::TimeDelta()) {
     trace_event::TraceToFileForDuration(
-        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
+        base::FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
   }
 
   TRACE_EVENT0("cobalt::browser", "Application::Application()");
 
-  DCHECK(MessageLoop::current());
-  DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
+  DCHECK(base::MessageLoop::current());
+  DCHECK_EQ(
+      base::MessageLoop::TYPE_UI,
+      static_cast<base::MessageLoop*>(base::MessageLoop::current())->type());
 
   network_event_thread_checker_.DetachFromThread();
   application_event_thread_checker_.DetachFromThread();
@@ -530,7 +533,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the fallback splash screen URL.
-  base::optional<GURL> fallback_splash_screen_url =
+  base::Optional<GURL> fallback_splash_screen_url =
       GetFallbackSplashScreenURL();
   DLOG(INFO) << "Fallback splash screen URL: "
              << (fallback_splash_screen_url ? fallback_splash_screen_url->spec()
@@ -540,8 +543,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  base::optional<cssom::ViewportSize> requested_viewport_size =
+  // A one-per-process task scheduler is needed for usage of APIs in
+  // base/post_task.h which will be used by some net APIs like
+  // URLRequestContext;
+  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
   WebModule::Options web_options;
@@ -602,7 +610,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(minimum_version);
 #endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
-  base::optional<std::string> partition_key;
+  base::Optional<std::string> partition_key;
   if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {
     std::string local_storage_partition_url = command_line->GetSwitchValueASCII(
         browser::switches::kLocalStoragePartitionUrl);
@@ -613,7 +621,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   }
   options.storage_manager_options.savegame_options.id = partition_key;
 
-  base::optional<std::string> default_key =
+  base::Optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
   if (command_line->HasSwitch(
           browser::switches::kForceMigrationForStoragePartitioning) ||
@@ -816,7 +824,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     // If the "shutdown_after" command line option is specified, setup a delayed
     // message to quit the application after the specified number of seconds
     // have passed.
-    message_loop_->PostDelayedTask(
+    message_loop_->task_runner()->PostDelayedTask(
         FROM_HERE, quit_closure_,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
@@ -866,8 +874,8 @@ Application::~Application() {
 }
 
 void Application::Start() {
-  if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(
+  if (base::MessageLoop::current() != message_loop_) {
+    message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
     return;
   }
@@ -881,8 +889,8 @@ void Application::Start() {
 }
 
 void Application::Quit() {
-  if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(
+  if (base::MessageLoop::current() != message_loop_) {
+    message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&Application::Quit, base::Unretained(this)));
     return;
   }
@@ -1228,7 +1236,7 @@ void Application::UpdatePeriodicStats() {
   c_val_stats_.app_lifetime = base::StartupTimer::TimeElapsed();
 
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
-  base::optional<int64_t> used_gpu_memory;
+  base::Optional<int64_t> used_gpu_memory;
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     used_gpu_memory = SbSystemGetUsedGPUMemory();
   }
@@ -1250,7 +1258,7 @@ void Application::UpdatePeriodicStats() {
 }
 
 void Application::DispatchEventInternal(base::Event* event) {
-  event_dispatcher_.DispatchEvent(make_scoped_ptr<base::Event>(event));
+  event_dispatcher_.DispatchEvent(std::unique_ptr<base::Event>(event));
 }
 
 }  // namespace browser

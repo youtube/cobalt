@@ -15,10 +15,10 @@
 #ifndef COBALT_DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
 #define COBALT_DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -59,7 +59,8 @@ class AnimationFrameRequestCallbackList {
     FrameRequestCallbackArg::Reference callback;
     bool cancelled;
   };
-  typedef ScopedVector<FrameRequestCallbackWithCancelledFlag> InternalList;
+  typedef std::vector<std::unique_ptr<FrameRequestCallbackWithCancelledFlag>>
+      InternalList;
 
   script::Wrappable* const owner_;
   // Our list of frame request callbacks.

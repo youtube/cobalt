@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "nb/bit_cast.h"
 #include "starboard/string.h"
 
@@ -120,7 +120,7 @@ bool Timer::UpdateAndIsExpired() {
 
 base::TimeTicks Timer::Now() {
   if (time_function_override_.is_null()) {
-    return base::TimeTicks::HighResNow();
+    return base::TimeTicks::Now();
   } else {
     return time_function_override_.Run();
   }
@@ -128,16 +128,13 @@ base::TimeTicks Timer::Now() {
 
 void Timer::ScaleTriggerTime(double scale) {
   int64_t old_dt = time_before_expiration_.InMicroseconds();
-  int64_t new_dt =
-      static_cast<int64_t>(static_cast<double>(old_dt) * scale);
+  int64_t new_dt = static_cast<int64_t>(static_cast<double>(old_dt) * scale);
   time_before_expiration_ = base::TimeDelta::FromMicroseconds(new_dt);
 }
 
-Segment::Segment(const std::string* name,
-                 const char* start_address,
+Segment::Segment(const std::string* name, const char* start_address,
                  const char* end_address)
-    : name_(name), begin_(start_address), end_(end_address) {
-}
+    : name_(name), begin_(start_address), end_(end_address) {}
 
 void Segment::SplitAcrossPageBoundaries(size_t page_size,
                                         std::vector<Segment>* segments) const {
@@ -146,10 +143,8 @@ void Segment::SplitAcrossPageBoundaries(size_t page_size,
     return;
   }
 
-  uintptr_t page_start =
-      nb::bit_cast<uintptr_t>(begin_) / page_size;
-  uintptr_t page_end =
-      nb::bit_cast<uintptr_t>(end_ - 1) / page_size;
+  uintptr_t page_start = nb::bit_cast<uintptr_t>(begin_) / page_size;
+  uintptr_t page_end = nb::bit_cast<uintptr_t>(end_ - 1) / page_size;
 
   if (page_start == page_end) {
     segments->push_back(*this);
@@ -168,7 +163,7 @@ void Segment::SplitAcrossPageBoundaries(size_t page_size,
     if (p == page_end) {
       end_addr = nb::bit_cast<uintptr_t>(end_);
     } else {
-      end_addr = (p+1) * page_size;
+      end_addr = (p + 1) * page_size;
     }
 
     const char* start = nb::bit_cast<const char*>(start_addr);
@@ -178,9 +173,8 @@ void Segment::SplitAcrossPageBoundaries(size_t page_size,
 }
 
 bool Segment::Intersects(const Segment& other) const {
-  size_t total_span = std::distance(
-      std::min(begin_, other.begin()),
-      std::max(end_, other.end()));
+  size_t total_span = std::distance(std::min(begin_, other.begin()),
+                                    std::max(end_, other.end()));
 
   bool intersects = (size() + other.size()) > total_span;
   return intersects;
@@ -198,9 +192,7 @@ bool Segment::operator==(const Segment& other) const {
   return false;
 }
 
-size_t Segment::size() const {
-  return std::distance(begin_, end_);
-}
+size_t Segment::size() const { return std::distance(begin_, end_); }
 
 const char* BaseNameFast(const char* file_name) {
   // Case: Linux.

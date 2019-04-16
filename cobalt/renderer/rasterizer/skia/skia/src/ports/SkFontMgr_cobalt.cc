@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
 #include "SkData.h"
@@ -19,7 +21,8 @@
 #include "SkStream.h"
 #include "SkString.h"
 #include "SkTSearch.h"
-#include "base/debug/trace_event.h"
+#include "base/memory/ptr_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
@@ -227,7 +230,7 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
                                                int face_index) const {
-  scoped_ptr<SkStreamAsset> stream(
+  std::unique_ptr<SkStreamAsset> stream(
       new SkMemoryStream(data->data(), data->size()));
   return createFromStream(stream.get(), face_index);
 }
@@ -446,8 +449,10 @@ SkFontMgr_Cobalt::StyleSetArray* SkFontMgr_Cobalt::GetMatchingFallbackFamilies(
   // this is the first time that this tag has been encountered, then create and
   // populate the fallback families now.
   if (language_fallback_families == NULL) {
-    language_fallback_families_array_.push_back(new StyleSetArray);
-    language_fallback_families = *language_fallback_families_array_.rbegin();
+    language_fallback_families_array_.push_back(
+        base::WrapUnique(new StyleSetArray));
+    language_fallback_families =
+        language_fallback_families_array_.rbegin()->get();
 
     for (StyleSetArray::iterator iter = fallback_families_.begin();
          iter != fallback_families_.end(); ++iter) {

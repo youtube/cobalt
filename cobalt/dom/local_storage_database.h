@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_LOCAL_STORAGE_DATABASE_H_
 #define COBALT_DOM_LOCAL_STORAGE_DATABASE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -31,7 +32,7 @@ namespace dom {
 // Interacts with the StorageManager to read and write from the LocalStorage.
 class LocalStorageDatabase {
  public:
-  typedef base::Callback<void(scoped_ptr<StorageArea::StorageMap>)>
+  typedef base::Callback<void(std::unique_ptr<StorageArea::StorageMap>)>
       ReadCompletionCallback;
 
   explicit LocalStorageDatabase(storage::StorageManager* storage);

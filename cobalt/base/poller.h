@@ -15,10 +15,12 @@
 #ifndef COBALT_BASE_POLLER_H_
 #define COBALT_BASE_POLLER_H_
 
+#include <memory>
+
 #include "base/callback.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 
 namespace base {
 
@@ -31,7 +33,8 @@ class Poller {
 
   // Using this constructor, you can specify the message loop you would like
   // the poll task to be run on.
-  Poller(MessageLoop* message_loop, const Closure& user_task, TimeDelta period)
+  Poller(base::MessageLoop* message_loop, const Closure& user_task,
+         TimeDelta period)
       : message_loop_(message_loop) {
     message_loop_->PostTask(
         FROM_HERE, base::Bind(&Poller::StartTimer, base::Unretained(this),
@@ -61,8 +64,8 @@ class Poller {
     timer_.reset();
   }
 
-  MessageLoop* message_loop_;
-  scoped_ptr<RepeatingTimer<Poller> > timer_;
+  base::MessageLoop* message_loop_;
+  std::unique_ptr<RepeatingTimer<Poller> > timer_;
   DISALLOW_COPY_AND_ASSIGN(Poller);
 };
 
@@ -78,7 +81,7 @@ class PollerWithThread {
 
  private:
   base::Thread thread_;
-  scoped_ptr<Poller> poller_;
+  std::unique_ptr<Poller> poller_;
 };
 }  // namespace base
 

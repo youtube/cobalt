@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_
 #define COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_
 
+#include <memory>
 #include <set>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/audio_timestamp_helper.h"
 #include "cobalt/media/base/bit_reader.h"
@@ -139,7 +139,7 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
   ByteQueue queue_;
 
   AudioDecoderConfig config_;
-  scoped_ptr<AudioTimestampHelper> timestamp_helper_;
+  std::unique_ptr<AudioTimestampHelper> timestamp_helper_;
   bool in_media_segment_;
   const uint32_t start_code_mask_;
   const AudioCodec audio_codec_;

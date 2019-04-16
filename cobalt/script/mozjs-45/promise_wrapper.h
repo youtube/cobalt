@@ -15,7 +15,6 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_PROMISE_WRAPPER_H_
 #define COBALT_SCRIPT_MOZJS_45_PROMISE_WRAPPER_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
 #include "cobalt/script/promise.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"

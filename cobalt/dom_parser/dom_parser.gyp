@@ -38,6 +38,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
+        '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
       ],
     },

@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
@@ -37,14 +37,15 @@ const size_t kStartIndex = 5;
 const size_t kNumAddressPrints = 2;
 const size_t kMaxStackSize = 10;
 const size_t kRecordLimit = 1024;
-const NbMemoryScopeInfo kEmptyCallstackMemoryScopeInfo = {nullptr,
-  "-", "-", 0, "-", true};
+const NbMemoryScopeInfo kEmptyCallstackMemoryScopeInfo = {nullptr, "-", "-",
+                                                          0,       "-", true};
 }  // namespace
 
-MallocLoggerTool::MallocLoggerTool() : start_time_(NowTime()),
-  atomic_counter_(0),
-  atomic_used_memory_(SbSystemGetUsedCPUMemory()) {
-    buffered_file_writer_.reset(new BufferedFileWriter(MemoryLogPath()));
+MallocLoggerTool::MallocLoggerTool()
+    : start_time_(NowTime()),
+      atomic_counter_(0),
+      atomic_used_memory_(SbSystemGetUsedCPUMemory()) {
+  buffered_file_writer_.reset(new BufferedFileWriter(MemoryLogPath()));
 }
 
 MallocLoggerTool::~MallocLoggerTool() {
@@ -74,8 +75,7 @@ void MallocLoggerTool::Run(Params* params) {
   //
   // The following piece of code resets atomic_used_memory_ at the 20 second
   // mark, to compensate for the deviation due to untracked memory.
-  base::TimeDelta current_sample_interval =
-      base::TimeDelta::FromSeconds(20);
+  base::TimeDelta current_sample_interval = base::TimeDelta::FromSeconds(20);
   if (!params->wait_for_finish_signal(current_sample_interval.ToSbTime())) {
     atomic_used_memory_.store(SbSystemGetUsedCPUMemory());
   }
@@ -98,8 +98,9 @@ void MallocLoggerTool::Run(Params* params) {
 }
 
 void MallocLoggerTool::LogRecord(const void* memory_block,
-    const nb::analytics::AllocationRecord& record,
-    const nb::analytics::CallStack& callstack, int type) {
+                                 const nb::analytics::AllocationRecord& record,
+                                 const nb::analytics::CallStack& callstack,
+                                 int type) {
   const int log_counter = atomic_counter_.increment();
   const int64_t used_memory = atomic_used_memory_.load();
   const int64_t allocated_memory = SbSystemGetUsedCPUMemory();
@@ -115,12 +116,13 @@ void MallocLoggerTool::LogRecord(const void* memory_block,
     memory_scope = callstack.back();
   }
 
-  int bytes_written = SbStringFormatF(buff, sizeof(buff),
-    "%u,%d,%zd,\"%s\",%d,%s,%d,%" PRId64 ",%" PRId64 ",%" PRIXPTR ",\"",
-    log_counter, type, record.size, memory_scope->file_name_,
-    memory_scope->line_number_, memory_scope->function_name_,
-    time_since_start_ms, allocated_memory, used_memory,
-    reinterpret_cast<uintptr_t>(memory_block));
+  int bytes_written = SbStringFormatF(
+      buff, sizeof(buff),
+      "%u,%d,%zd,\"%s\",%d,%s,%d,%" PRId64 ",%" PRId64 ",%" PRIXPTR ",\"",
+      log_counter, type, record.size, memory_scope->file_name_,
+      memory_scope->line_number_, memory_scope->function_name_,
+      time_since_start_ms, allocated_memory, used_memory,
+      reinterpret_cast<uintptr_t>(memory_block));
 
   buff_pos += static_cast<size_t>(bytes_written);
   const size_t count = std::max(SbSystemGetStack(addresses, kMaxStackSize), 0);
@@ -179,10 +181,9 @@ std::string MallocLoggerTool::MemoryLogPath() {
   time.LocalExplode(&exploded);
 
   std::stringstream ss;
-  ss << "/memory_log_" << exploded.year << "-"
-     << exploded.month << "-" << exploded.day_of_month << ":"
-     << exploded.hour << "-" << exploded.minute << "-" << exploded.second
-     << ".csv";
+  ss << "/memory_log_" << exploded.year << "-" << exploded.month << "-"
+     << exploded.day_of_month << ":" << exploded.hour << "-" << exploded.minute
+     << "-" << exploded.second << ".csv";
   path.append(ss.str());
   return path;
 }

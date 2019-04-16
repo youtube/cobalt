@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/crypto.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -38,7 +40,7 @@ using testing::StrictMock;
 
 TEST(CryptoTest, GetRandomValues) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_ptr<script::JavaScriptEngine> javascript_engine =
+  std::unique_ptr<script::JavaScriptEngine> javascript_engine =
       script::JavaScriptEngine::CreateEngine();
   scoped_refptr<script::GlobalEnvironment> global_environment =
       javascript_engine->CreateGlobalEnvironment();
@@ -90,7 +92,7 @@ TEST(CryptoTest, NullArray) {
   scoped_refptr<Crypto> crypto = new Crypto;
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_ptr<script::JavaScriptEngine> javascript_engine =
+  std::unique_ptr<script::JavaScriptEngine> javascript_engine =
       script::JavaScriptEngine::CreateEngine();
   scoped_refptr<script::GlobalEnvironment> global_environment =
       javascript_engine->CreateGlobalEnvironment();
@@ -113,7 +115,7 @@ TEST(CryptoTest, LargeArray) {
   // QuotaExceededErr.
   scoped_refptr<Crypto> crypto = new Crypto;
   StrictMock<MockExceptionState> exception_state;
-  scoped_ptr<script::JavaScriptEngine> javascript_engine =
+  std::unique_ptr<script::JavaScriptEngine> javascript_engine =
       script::JavaScriptEngine::CreateEngine();
   scoped_refptr<script::GlobalEnvironment> global_environment =
       javascript_engine->CreateGlobalEnvironment();

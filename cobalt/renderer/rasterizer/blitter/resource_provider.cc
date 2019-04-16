@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
 
 #include "base/bind.h"
@@ -59,26 +61,27 @@ bool ResourceProvider::AlphaFormatSupported(
          alpha_format == render_tree::kAlphaFormatOpaque;
 }
 
-scoped_ptr<render_tree::ImageData> ResourceProvider::AllocateImageData(
+std::unique_ptr<render_tree::ImageData> ResourceProvider::AllocateImageData(
     const math::Size& size, PixelFormat pixel_format,
     AlphaFormat alpha_format) {
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
 
-  scoped_ptr<render_tree::ImageData> image_data(
+  std::unique_ptr<render_tree::ImageData> image_data(
       new ImageData(device_, size, pixel_format, alpha_format));
   if (!image_data->GetMemory()) {
-    return scoped_ptr<render_tree::ImageData>();
+    return std::unique_ptr<render_tree::ImageData>();
   } else {
-    return image_data.Pass();
+    return std::move(image_data);
   }
 }
 
 scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
-    scoped_ptr<render_tree::ImageData> source_data) {
-  scoped_ptr<ImageData> blitter_source_data(
+    std::unique_ptr<render_tree::ImageData> source_data) {
+  std::unique_ptr<ImageData> blitter_source_data(
       base::polymorphic_downcast<ImageData*>(source_data.release()));
-  return make_scoped_refptr(new SinglePlaneImage(blitter_source_data.Pass()));
+  return base::WrapRefCounted(
+      new SinglePlaneImage(std::move(blitter_source_data)));
 }
 
 #if SB_HAS(GRAPHICS)
@@ -100,7 +103,7 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
       NOTREACHED() << "Cobalt has not yet implemented support for Blitter "
                       "decode target content regions.";
     }
-    return make_scoped_refptr(new SinglePlaneImage(
+    return base::WrapRefCounted(new SinglePlaneImage(
         plane.surface, info.is_opaque,
         base::Bind(&SbDecodeTargetRelease, decode_target)));
   }
@@ -113,7 +116,7 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
 
 #endif  // SB_HAS(GRAPHICS)
 
-scoped_ptr<render_tree::RawImageMemory>
+std::unique_ptr<render_tree::RawImageMemory>
 ResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
                                          size_t alignment) {
   return skia_resource_provider_->AllocateRawImageMemory(size_in_bytes,
@@ -122,10 +125,10 @@ ResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
 
 scoped_refptr<render_tree::Image>
 ResourceProvider::CreateMultiPlaneImageFromRawMemory(
-    scoped_ptr<render_tree::RawImageMemory> raw_image_memory,
+    std::unique_ptr<render_tree::RawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor) {
   return skia_resource_provider_->CreateMultiPlaneImageFromRawMemory(
-      raw_image_memory.Pass(), descriptor);
+      std::move(raw_image_memory), descriptor);
 }
 
 bool ResourceProvider::HasLocalFontFamily(const char* font_family_name) const {
@@ -152,12 +155,13 @@ scoped_refptr<Typeface> ResourceProvider::GetCharacterFallbackTypeface(
 }
 
 scoped_refptr<Typeface> ResourceProvider::CreateTypefaceFromRawData(
-    scoped_ptr<RawTypefaceDataVector> raw_data, std::string* error_string) {
-  return skia_resource_provider_->CreateTypefaceFromRawData(raw_data.Pass(),
+    std::unique_ptr<RawTypefaceDataVector> raw_data,
+    std::string* error_string) {
+  return skia_resource_provider_->CreateTypefaceFromRawData(std::move(raw_data),
                                                             error_string);
 }
 
-float ResourceProvider::GetTextWidth(const char16* text_buffer,
+float ResourceProvider::GetTextWidth(const base::char16* text_buffer,
                                      size_t text_length,
                                      const std::string& language, bool is_rtl,
                                      FontProvider* font_provider,
@@ -170,8 +174,8 @@ float ResourceProvider::GetTextWidth(const char16* text_buffer,
 // Creates a glyph buffer, which is populated with shaped text, and used to
 // render that text.
 scoped_refptr<GlyphBuffer> ResourceProvider::CreateGlyphBuffer(
-    const char16* text_buffer, size_t text_length, const std::string& language,
-    bool is_rtl, FontProvider* font_provider) {
+    const base::char16* text_buffer, size_t text_length,
+    const std::string& language, bool is_rtl, FontProvider* font_provider) {
   return skia_resource_provider_->CreateGlyphBuffer(
       text_buffer, text_length, language, is_rtl, font_provider);
 }
@@ -184,7 +188,7 @@ scoped_refptr<GlyphBuffer> ResourceProvider::CreateGlyphBuffer(
 }
 
 scoped_refptr<render_tree::Mesh> ResourceProvider::CreateMesh(
-    scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+    std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
   NOTIMPLEMENTED();
   return scoped_refptr<render_tree::Mesh>(NULL);
@@ -192,7 +196,7 @@ scoped_refptr<render_tree::Mesh> ResourceProvider::CreateMesh(
 
 scoped_refptr<render_tree::Image> ResourceProvider::DrawOffscreenImage(
     const scoped_refptr<render_tree::Node>& root) {
-  return make_scoped_refptr(
+  return base::WrapRefCounted(
       new SinglePlaneImage(root, submit_offscreen_callback_, device_));
 }
 

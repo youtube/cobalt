@@ -6,9 +6,9 @@
 #define COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 
 #include <deque>
+#include <memory>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_export.h"
@@ -186,7 +186,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   DecodeTimestamp decode_timestamp_;
   int config_id_;
   TrackId track_id_;
-  scoped_ptr<BufferQueue> splice_buffers_;
+  std::unique_ptr<BufferQueue> splice_buffers_;
   scoped_refptr<StreamParserBuffer> preroll_buffer_;
   bool is_duration_estimated_;
 

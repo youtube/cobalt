@@ -28,10 +28,10 @@ namespace {
 cobalt::browser::Application* g_application = NULL;
 typedef base::Callback<void(void)> InitializedCallback;
 typedef base::Callback<bool(const SbEvent*)> HandleEventCallback;
-static base::LazyInstance<InitializedCallback>
+static base::LazyInstance<InitializedCallback>::DestructorAtExit
     g_on_cobalt_initialized_callback = LAZY_INSTANCE_INITIALIZER;
-static base::LazyInstance<HandleEventCallback> g_handle_event_callback =
-    LAZY_INSTANCE_INITIALIZER;
+static base::LazyInstance<HandleEventCallback>::DestructorAtExit
+    g_handle_event_callback = LAZY_INSTANCE_INITIALIZER;
 
 // We cannot use LazyInstance here as this can be set before Cobalt has been
 // initialized at all - thus there will not yet exist an AtExitManager which
@@ -117,11 +117,9 @@ void CbLibMainSetHandleEventCallback(void* context,
                                      CbLibMainHandleEventCallback callback) {
   // If the user passes nullptr, provide a default event handler so that it is
   // never actually null.
-  g_handle_event_callback.Get() = callback ?
-      base::Bind(callback, context) :
-      base::Bind([](const SbEvent*) {
-        return false;
-      });
+  g_handle_event_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind([](const SbEvent*) { return false; });
 }
 
 SbWindow CbLibMainGetSbWindow() {

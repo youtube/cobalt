@@ -14,7 +14,7 @@
 
 #include <limits>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/extended_idl_attributes_interface.h"
 
@@ -38,9 +38,10 @@ TEST_F(ExtendedAttributesTest, CallWithEnvironmentSettings) {
 
 TEST_F(ExtendedAttributesTest, ClampArgument) {
   EXPECT_CALL(test_mock(), ClampArgument(std::numeric_limits<uint16_t>::max()));
-  EXPECT_TRUE(EvaluateScript(StringPrintf("test.clampArgument(%u);",
-                                          std::numeric_limits<uint32_t>::max()),
-                             NULL));
+  EXPECT_TRUE(
+      EvaluateScript(base::StringPrintf("test.clampArgument(%u);",
+                                        std::numeric_limits<uint32_t>::max()),
+                     NULL));
 }
 
 TEST_F(ExtendedAttributesTest, ImplementedAsAttributeGetter) {
@@ -66,10 +67,11 @@ TEST_F(ExtendedAttributesTest, ImplementedAsAttributeGetter) {
 
 TEST_F(ExtendedAttributesTest, ImplementedAsAttributeSetter) {
   EXPECT_CALL(test_mock(), set_attribute_default(true));
-  EXPECT_TRUE(EvaluateScript(StringPrintf("test.default = true;"), NULL));
+  EXPECT_TRUE(EvaluateScript(base::StringPrintf("test.default = true;"), NULL));
 
   EXPECT_CALL(test_mock(), set_attribute_default(false));
-  EXPECT_TRUE(EvaluateScript(StringPrintf("test.default = false;"), NULL));
+  EXPECT_TRUE(
+      EvaluateScript(base::StringPrintf("test.default = false;"), NULL));
 }
 
 }  // namespace testing
