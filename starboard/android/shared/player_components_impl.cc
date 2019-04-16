@@ -20,6 +20,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
+#include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -41,18 +42,23 @@ class PlayerComponentsImpl : public PlayerComponents {
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
-    using AudioDecoderImpl = ::starboard::android::shared::AudioDecoder;
+    using AacAudioDecoder = ::starboard::android::shared::AudioDecoder;
+    using OpusAudioDecoder = ::starboard::shared::opus::OpusAudioDecoder;
 
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
 
-    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(new AudioDecoderImpl(
-        audio_parameters.audio_codec, audio_parameters.audio_header,
-        audio_parameters.drm_system));
-    if (audio_decoder_impl->is_valid()) {
-      audio_decoder->reset(audio_decoder_impl.release());
+    if (audio_parameters.audio_codec == kSbMediaAudioCodecOpus) {
+      audio_decoder->reset(new OpusAudioDecoder(audio_parameters.audio_header));
     } else {
-      audio_decoder->reset();
+      scoped_ptr<AacAudioDecoder> audio_decoder_impl(new AacAudioDecoder(
+          audio_parameters.audio_codec, audio_parameters.audio_header,
+          audio_parameters.drm_system));
+      if (audio_decoder_impl->is_valid()) {
+        audio_decoder->reset(audio_decoder_impl.release());
+      } else {
+        audio_decoder->reset();
+      }
     }
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }

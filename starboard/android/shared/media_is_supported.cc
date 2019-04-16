@@ -22,6 +22,13 @@ SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   const char* key_system) {
   using starboard::android::shared::IsWidevine;
   using starboard::android::shared::JniEnvExt;
+  // Filter anything other then aac as we only support paid content on aac.
+  // TODO: Add support of Opus if we are going to support software based drm
+  // systems.
+  if (audio_codec != kSbMediaAudioCodecNone &&
+      audio_codec != kSbMediaAudioCodecAac) {
+    return false;
+  }
   if (!IsWidevine(key_system)) {
     return false;
   }
