@@ -21,7 +21,7 @@
     'sb_evergreen': 1,
   },
   'target_defaults': {
-  'cflags_c': [
+    'cflags_c': [
       '-fPIC',
     ],
     'cflags_cc': [

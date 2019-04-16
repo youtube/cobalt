@@ -40,8 +40,15 @@
     'variables': {
       'use_dlmalloc_allocator%': 0,
     },
-    'linker_flags': [
-      '-static-libstdc++'
+    'conditions': [
+        ['sb_evergreen != 1', {
+          # TODO: allow starboard_platform to use system libc/libc++ in the
+          # future. For now, if this flags is enabled, a warning emerge saying
+          # it's unused anyway.
+          'linker_flags': [
+            '-static-libstdc++',
+          ],
+        }],
     ],
   },
 
