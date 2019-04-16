@@ -132,7 +132,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   // in an increase in unresponsiveness and input latency on single-core
   // devices.  Keeping it at normal so that it doesn't take precedence over
   // user interaction processing.
-  thread_options.priority = base::kThreadPriority_Normal;
+  thread_options.priority = base::kThreadPriority_Low;
   thread_->StartWithOptions(thread_options);
 
   base::WaitableEvent creation_event(true, false);
