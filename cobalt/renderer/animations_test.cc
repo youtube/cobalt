@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/simple_thread.h"
 #include "cobalt/render_tree/animations/animate_node.h"
@@ -55,7 +57,7 @@ scoped_refptr<Image> CreateDummyImage(ResourceProvider* resource_provider) {
     NOTREACHED() << "Unsupported pixel format.";
   }
 
-  scoped_ptr<render_tree::ImageData> image_data =
+  std::unique_ptr<render_tree::ImageData> image_data =
       resource_provider->AllocateImageData(
           image_size, pixel_format, render_tree::kAlphaFormatPremultiplied);
   for (int i = 0; i < image_size.width() * image_size.height(); ++i) {
@@ -66,15 +68,13 @@ scoped_refptr<Image> CreateDummyImage(ResourceProvider* resource_provider) {
   }
 
   // Create and return the new image.
-  return resource_provider->CreateImage(image_data.Pass());
+  return resource_provider->CreateImage(std::move(image_data));
 }
 
 void AnimateImageNode(base::WaitableEvent* animate_has_started,
                       base::WaitableEvent* image_ready,
                       scoped_refptr<Image>* image, bool* first_animate,
                       ImageNode::Builder* image_node, base::TimeDelta time) {
-  UNREFERENCED_PARAMETER(time);
-
   if (!*first_animate) {
     // We only do the test the first time this animation runs, ignore the
     // subsequent animate calls.
@@ -142,9 +142,9 @@ class CreateImageThread : public base::SimpleThread {
 // relies on this mechanism to deliver responsive video with minimal frame
 // drops.
 TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
-  scoped_ptr<backend::GraphicsSystem> graphics_system =
+  std::unique_ptr<backend::GraphicsSystem> graphics_system =
       backend::CreateDefaultGraphicsSystem();
-  scoped_ptr<backend::GraphicsContext> graphics_context =
+  std::unique_ptr<backend::GraphicsContext> graphics_context =
       graphics_system->CreateGraphicsContext();
 
   // Initialize the debug context. This will cause GraphicsContextEGL to compute
@@ -167,9 +167,14 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
     // is referenced only after it is created.  It is important that these
     // objects outlive the Pipeline object (created below), since they will
     // be referenced from another thread created within the Pipeline object.
-    base::WaitableEvent animate_has_started(true, false);
-    base::WaitableEvent image_ready(true, false);
+    base::WaitableEvent animate_has_started(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    base::WaitableEvent image_ready(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
     scoped_refptr<Image> image;
+    bool first_animate = true;
 
     // Create the rasterizer using the platform default RenderModule options.
     RendererModule::Options render_module_options;
@@ -186,7 +191,6 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
     // Animate the ImageNode and pass in our callback function to be executed
     // upon render_tree animation.
     AnimateNode::Builder animations;
-    bool first_animate = true;
     animations.Add(test_node,
                    base::Bind(&AnimateImageNode, &animate_has_started,
                               &image_ready, &image, &first_animate));
@@ -211,7 +215,7 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
   }
 
   // Verify that the image data was read and rendered correctly.
-  scoped_array<uint8_t> rendered_data =
+  std::unique_ptr<uint8_t[]> rendered_data =
       graphics_context->DownloadPixelDataAsRGBA(dummy_output_surface);
   const int kNumRenderedPixels =
       kDummySurfaceDimensions.width() * kDummySurfaceDimensions.height();

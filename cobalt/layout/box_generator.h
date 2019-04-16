@@ -15,7 +15,6 @@
 #ifndef COBALT_LAYOUT_BOX_GENERATOR_H_
 #define COBALT_LAYOUT_BOX_GENERATOR_H_
 
-#include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/html_element.h"

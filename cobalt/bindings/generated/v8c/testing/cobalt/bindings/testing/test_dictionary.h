@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -270,16 +270,16 @@ class TestDictionary {
   int32_t member_with_default_;
   bool has_non_default_member_;
   int32_t non_default_member_;
-  scoped_ptr<script::Handle<::cobalt::script::ValueHandle>> any_member_with_default_;
+  std::unique_ptr<script::Handle<::cobalt::script::ValueHandle>> any_member_with_default_;
   bool has_any_member_;
-  scoped_ptr<script::Handle<::cobalt::script::ValueHandle>> any_member_;
+  std::unique_ptr<script::Handle<::cobalt::script::ValueHandle>> any_member_;
 };
 
 // This ostream override is necessary for MOCK_METHODs commonly used
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const cobalt::bindings::testing::TestDictionary& in) {
-  UNREFERENCED_PARAMETER(in);
+  SB_UNREFERENCED_PARAMETER(in);
   stream << "[TestDictionary]";
   return stream;
 }

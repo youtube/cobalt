@@ -18,11 +18,11 @@
 #include <vector>
 
 #include "base/base_paths.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -70,13 +70,13 @@ TEST_F(SimpleExampleTest, MultiplyZeroAndAddNumbers) {
 }
 
 TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
-  FilePath data_dir;
-  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &data_dir));
+  base::FilePath data_dir;
+  ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("cobalt"))
                  .Append(FILE_PATH_LITERAL("samples"))
                  .Append(FILE_PATH_LITERAL("testdata"))
                  .Append(FILE_PATH_LITERAL("test_cases"));
-  ASSERT_TRUE(file_util::PathExists(data_dir));
+  ASSERT_TRUE(base::PathExists(data_dir));
 
   const char* kCaseFiles[] = {
       "case1.txt", "case2.txt", "case3.txt",
@@ -86,10 +86,10 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
   for (int i = 0; i < arraysize(kCaseFiles); ++i) {
     // Read test input.
     std::string test_input_string;
-    ASSERT_TRUE(file_util::ReadFileToString(data_dir.AppendASCII(kCaseFiles[i]),
-                                            &test_input_string));
-    std::vector<std::string> test_input;
-    base::SplitString(test_input_string, ' ', &test_input);
+    ASSERT_TRUE(base::ReadFileToString(data_dir.AppendASCII(kCaseFiles[i]),
+                                       &test_input_string));
+    std::vector<std::string> test_input = base::SplitString(
+        test_input_string, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     ASSERT_EQ(kNumInputArgs, test_input.size());
 
     // Convert input arguments from strings to integers.
@@ -100,7 +100,7 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
 
     // Read expected test result.
     std::string expected_string;
-    ASSERT_TRUE(file_util::ReadFileToString(
+    ASSERT_TRUE(base::ReadFileToString(
         data_dir.AppendASCII(std::string(kCaseFiles[i]) + ".expected"),
         &expected_string));
 
@@ -118,15 +118,15 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
 }
 
 TEST_F(SimpleExampleTest, PrintData) {
-  FilePath data_dir;
-  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &data_dir));
+  base::FilePath data_dir;
+  ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("cobalt"))
                  .Append(FILE_PATH_LITERAL("samples"))
                  .Append(FILE_PATH_LITERAL("testdata"));
-  ASSERT_TRUE(file_util::PathExists(data_dir));
+  ASSERT_TRUE(base::PathExists(data_dir));
 
   std::string data_string;
-  EXPECT_TRUE(file_util::ReadFileToString(
+  EXPECT_TRUE(base::ReadFileToString(
       data_dir.Append(FILE_PATH_LITERAL("data.txt")), &data_string));
 
   EXPECT_LT(0, data_string.size());

@@ -24,7 +24,7 @@ class Vp9CompressedHeaderParser {
   uint8_t DecodeTermSubexp();
   void DiffUpdateProb(Vp9Prob* prob);
   template <int N>
-  void DiffUpdateProbArray(Vp9Prob(&prob_array)[N]);
+  void DiffUpdateProbArray(Vp9Prob (&prob_array)[N]);
   void ReadTxModeProbs(Vp9FrameContext* frame_context);
   void ReadCoefProbs(Vp9FrameHeader* fhdr);
   void ReadSkipProb(Vp9FrameContext* frame_context);
@@ -39,7 +39,7 @@ class Vp9CompressedHeaderParser {
                    Vp9FrameContext* frame_context);
   void UpdateMvProb(Vp9Prob* prob);
   template <int N>
-  void UpdateMvProbArray(Vp9Prob(&prob_array)[N]);
+  void UpdateMvProbArray(Vp9Prob (&prob_array)[N]);
 
   // Bool decoder for compressed frame header.
   Vp9BoolDecoder reader_;

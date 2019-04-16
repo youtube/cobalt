@@ -23,13 +23,15 @@
 //
 // Talk with your Google representative about how to get speech-api quota.
 
+#include <memory>
+
 #include "cobalt/speech/google_speech_service.h"
 
 #include "base/bind.h"
 #include "base/rand_util.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
-#include "base/utf_string_conversions.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
@@ -180,7 +182,8 @@ GoogleSpeechService::GoogleSpeechService(
       event_callback_(event_callback),
       fetcher_creator_(fetcher_creator),
       thread_("speech_recognizer") {
-  thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  thread_.StartWithOptions(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 }
 
 GoogleSpeechService::~GoogleSpeechService() {
@@ -193,40 +196,42 @@ GoogleSpeechService::~GoogleSpeechService() {
 void GoogleSpeechService::Start(const SpeechRecognitionConfig& config,
                                 int sample_rate) {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::StartInternal,
                             base::Unretained(this), config, sample_rate));
 }
 
 void GoogleSpeechService::Stop() {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&GoogleSpeechService::StopInternal, base::Unretained(this)));
 }
 
-void GoogleSpeechService::RecognizeAudio(scoped_ptr<ShellAudioBus> audio_bus,
-                                         bool is_last_chunk) {
+void GoogleSpeechService::RecognizeAudio(
+    std::unique_ptr<ShellAudioBus> audio_bus, bool is_last_chunk) {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::UploadAudioDataInternal,
                             base::Unretained(this), base::Passed(&audio_bus),
                             is_last_chunk));
 }
 
-void GoogleSpeechService::OnURLFetchDownloadData(
-    const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+void GoogleSpeechService::OnURLFetchDownloadProgress(
+    const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
+    int64_t /*current_network_bytes*/) {
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  std::unique_ptr<std::string> data = download_data_writer_->data();
 
   const net::URLRequestStatus& status = source->GetStatus();
   const int response_code = source->GetResponseCode();
 
   if (source == downstream_fetcher_.get()) {
     if (status.is_success() && IsResponseCodeSuccess(response_code)) {
-      chunked_byte_buffer_.Append(*download_data);
+      chunked_byte_buffer_.Append(*data);
       while (chunked_byte_buffer_.HasChunks()) {
-        scoped_ptr<std::vector<uint8_t> > chunk =
-            chunked_byte_buffer_.PopChunk().Pass();
+        std::unique_ptr<std::vector<uint8_t> > chunk =
+            chunked_byte_buffer_.PopChunk();
 
         proto::SpeechRecognitionEvent event;
         if (!event.ParseFromString(std::string(chunk->begin(), chunk->end()))) {
@@ -248,13 +253,17 @@ void GoogleSpeechService::OnURLFetchDownloadData(
 }
 
 void GoogleSpeechService::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
-  UNREFERENCED_PARAMETER(source);
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  std::unique_ptr<std::string> remaining_data = download_data_writer_->data();
+  int64_t length = remaining_data->length();
+  if (remaining_data && length > 0) {
+    OnURLFetchDownloadProgress(source, length, length, length);
+  }
   // no-op.
 }
 
 // static
-base::optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
+base::Optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
   const int kSpeechApiKeyLength = 100;
   char buffer[kSpeechApiKeyLength] = {0};
   bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
@@ -268,7 +277,7 @@ base::optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
 
 void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
                                         int sample_rate) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
 
   if (started_) {
     // Recognizer is already started.
@@ -290,6 +299,9 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 
   downstream_fetcher_ =
       fetcher_creator_.Run(down_url, net::URLFetcher::GET, this);
+  download_data_writer_ = new CobaltURLFetcherStringWriter();
+  downstream_fetcher_->SaveResponseWithWriter(
+      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer_));
   downstream_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter());
   downstream_fetcher_->Start();
@@ -301,7 +313,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
 
-  base::optional<std::string> api_key = GetSpeechAPIKey();
+  base::Optional<std::string> api_key = GetSpeechAPIKey();
   SB_DCHECK(api_key);
 
   up_url = AppendQueryParameter(up_url, "key", api_key.value_or(""));
@@ -333,7 +345,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 }
 
 void GoogleSpeechService::StopInternal() {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
 
   if (!started_) {
     // Recognizer is not started.
@@ -342,6 +354,7 @@ void GoogleSpeechService::StopInternal() {
   started_ = false;
 
   upstream_fetcher_.reset();
+  download_data_writer_ = nullptr;
   downstream_fetcher_.reset();
   encoder_.reset();
 
@@ -352,8 +365,8 @@ void GoogleSpeechService::StopInternal() {
 }
 
 void GoogleSpeechService::UploadAudioDataInternal(
-    scoped_ptr<ShellAudioBus> audio_bus, bool is_last_chunk) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+    std::unique_ptr<ShellAudioBus> audio_bus, bool is_last_chunk) {
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
   DCHECK(audio_bus);
 
   std::string encoded_audio_data;
@@ -372,7 +385,7 @@ void GoogleSpeechService::UploadAudioDataInternal(
 
 void GoogleSpeechService::ProcessAndFireSuccessEvent(
     const SpeechRecognitionResults& new_results) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
 
   SpeechRecognitionResults success_results;
   size_t total_size = final_results_.size() + new_results.size();

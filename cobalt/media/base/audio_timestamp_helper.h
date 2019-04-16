@@ -6,7 +6,7 @@
 #define COBALT_MEDIA_BASE_AUDIO_TIMESTAMP_HELPER_H_
 
 #include "base/basictypes.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/media_export.h"
 #include "starboard/types.h"
 

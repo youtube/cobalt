@@ -10,10 +10,11 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
+
+#include <memory>
 // limitations under the License.
 #include "cobalt/webdriver/protocol/capabilities.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 #include "cobalt/version.h"
 
@@ -53,7 +54,7 @@ class CapabilityReader {
                    base::DictionaryValue* capabilities_value)
       : capabilities_(capabilities), capabilities_value_(capabilities_value) {}
 
-  template <base::optional<std::string> Capabilities::*member>
+  template <base::Optional<std::string> Capabilities::*member>
   void TryReadCapability(const char* key) {
     std::string value;
     if (capabilities_value_->GetString(key, &value)) {
@@ -63,7 +64,7 @@ class CapabilityReader {
     }
   }
 
-  template <base::optional<bool> Capabilities::*member>
+  template <base::Optional<bool> Capabilities::*member>
   void TryReadCapability(const char* key) {
     bool value;
     if (capabilities_value_->GetBoolean(key, &value)) {
@@ -73,7 +74,7 @@ class CapabilityReader {
     }
   }
 
-  template <typename T, base::optional<T> Capabilities::*member>
+  template <typename T, base::Optional<T> Capabilities::*member>
   void TryReadCapability(const char* key) {
     const base::DictionaryValue* dictionary_value;
     if (capabilities_value_->GetDictionary(key, &dictionary_value)) {
@@ -96,17 +97,18 @@ class CapabilityWriter {
                    base::DictionaryValue* capabilities_value)
       : capabilities_(capabilities), capabilities_value_(capabilities_value) {}
 
-  template <base::optional<std::string> Capabilities::*member>
+  template <base::Optional<std::string> Capabilities::*member>
   void TryWriteCapability(const char* key) {
     if (capabilities_.*member) {
-      capabilities_value_->SetString(key, (capabilities_.*member).value());
+      capabilities_value_->SetString(key, (capabilities_.*member).value_or(""));
     }
   }
 
-  template <base::optional<bool> Capabilities::*member>
+  template <base::Optional<bool> Capabilities::*member>
   void TryWriteCapability(const char* key) {
     if (capabilities_.*member) {
-      capabilities_value_->SetBoolean(key, (capabilities_.*member).value());
+      capabilities_value_->SetBoolean(key,
+                                      (capabilities_.*member).value_or(false));
     }
   }
 
@@ -117,9 +119,9 @@ class CapabilityWriter {
 
 }  // namespace
 
-scoped_ptr<base::Value> Capabilities::ToValue(
+std::unique_ptr<base::Value> Capabilities::ToValue(
     const Capabilities& capabilities) {
-  scoped_ptr<base::DictionaryValue> capabilities_value(
+  std::unique_ptr<base::DictionaryValue> capabilities_value(
       new base::DictionaryValue());
 
   CapabilityWriter writer(capabilities, capabilities_value.get());
@@ -148,10 +150,10 @@ scoped_ptr<base::Value> Capabilities::ToValue(
       kAcceptSslCertsKey);
   writer.TryWriteCapability<&Capabilities::native_events_>(kNativeEventsKey);
 
-  return capabilities_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(capabilities_value.release());
 }
 
-base::optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
+base::Optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
   const base::DictionaryValue* value_as_dictionary;
   if (!value->GetAsDictionary(&value_as_dictionary)) {
     return base::nullopt;
@@ -159,7 +161,7 @@ base::optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
   // Create a new Capabilities object, and copy the capabilities dictionary
   // from which we will read capabilities
   Capabilities capabilities;
-  scoped_ptr<base::DictionaryValue> capabilities_copy(
+  std::unique_ptr<base::DictionaryValue> capabilities_copy(
       value_as_dictionary->DeepCopy());
 
   // Read all the capabilities we know about, and remove handled capabilities
@@ -210,7 +212,7 @@ bool Capabilities::AreCapabilitiesSupported() const {
   return true;
 }
 
-base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
+base::Optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     const base::Value* value) {
   DCHECK(value);
   const base::DictionaryValue* requested_capabilities_value;
@@ -218,7 +220,7 @@ base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     return base::nullopt;
   }
 
-  base::optional<Capabilities> desired;
+  base::Optional<Capabilities> desired;
   const base::Value* capabilities_value = NULL;
   if (requested_capabilities_value->Get(kDesiredCapabilitiesKey,
                                         &capabilities_value)) {
@@ -228,7 +230,7 @@ base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     // Desired capabilities are required.
     return base::nullopt;
   }
-  base::optional<Capabilities> required;
+  base::Optional<Capabilities> required;
   if (requested_capabilities_value->Get(kRequiredCapabilitiesKey,
                                         &capabilities_value)) {
     required = Capabilities::FromValue(capabilities_value);

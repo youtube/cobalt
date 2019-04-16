@@ -5,9 +5,9 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_HEVC_H_
 #define COBALT_MEDIA_FORMATS_MP4_HEVC_H_
 
+#include <memory>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_codecs.h"
 #include "cobalt/media/formats/mp4/bitstream_converter.h"
@@ -93,7 +93,7 @@ class MEDIA_EXPORT HEVC {
 class HEVCBitstreamConverter : public BitstreamConverter {
  public:
   explicit HEVCBitstreamConverter(
-      scoped_ptr<HEVCDecoderConfigurationRecord> hevc_config);
+      std::unique_ptr<HEVCDecoderConfigurationRecord> hevc_config);
 
   // BitstreamConverter interface
   bool ConvertFrame(std::vector<uint8_t>* frame_buf, bool is_keyframe,
@@ -101,7 +101,7 @@ class HEVCBitstreamConverter : public BitstreamConverter {
 
  private:
   ~HEVCBitstreamConverter() override;
-  scoped_ptr<HEVCDecoderConfigurationRecord> hevc_config_;
+  std::unique_ptr<HEVCDecoderConfigurationRecord> hevc_config_;
 };
 
 }  // namespace mp4

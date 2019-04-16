@@ -17,7 +17,7 @@
 
 #include "base/command_line.h"
 #include "base/threading/thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
@@ -81,7 +81,7 @@ CValsMap GetAllCValValues() {
 
   for (std::set<std::string>::iterator iter = cvals.begin();
        iter != cvals.end(); ++iter) {
-    base::optional<std::string> cval_value = cvm->GetValueAsString(*iter);
+    base::Optional<std::string> cval_value = cvm->GetValueAsString(*iter);
     if (cval_value) {
       cvals_with_values[*iter] = *cval_value;
     }
@@ -135,9 +135,9 @@ void StartApplication(int /*argc*/, char* /*argv*/ [], const char* /*link*/,
   // Use null storage for our savegame so that we don't persist state from
   // one run to another, which makes the measurements more deterministic (e.g.
   // we will not consistently register for experiments via cookies).
-  CommandLine::ForCurrentProcess()->AppendSwitch(
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
       cobalt::browser::switches::kNullSavegame);
-  CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       cobalt::browser::switches::kDebugConsoleMode, "off");
 
   // Create the application object just like is done in the Cobalt main app.
@@ -149,7 +149,7 @@ void StartApplication(int /*argc*/, char* /*argv*/ [], const char* /*link*/,
   // application.
   g_snapshot_thread = new base::Thread("StatsSnapshot");
   g_snapshot_thread->Start();
-  g_snapshot_thread->message_loop()->PostDelayedTask(
+  g_snapshot_thread->message_loop()->task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&DoStatsSnapshot, g_application),
       base::TimeDelta::FromSeconds(kSecondsToWait));
 }

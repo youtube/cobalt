@@ -15,7 +15,8 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_RECT_H_
 #define COBALT_WEBDRIVER_PROTOCOL_RECT_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "base/values.h"
 
 namespace cobalt {
@@ -25,7 +26,7 @@ namespace protocol {
 // A quad of numbers representing the location and size of an entity.
 class Rect {
  public:
-  static scoped_ptr<base::Value> ToValue(const Rect& rect);
+  static std::unique_ptr<base::Value> ToValue(const Rect& rect);
 
   Rect() : x_(0.f), y_(0.f), width_(0.f), height_(0.f) {}
   Rect(float x, float y, float w, float h)

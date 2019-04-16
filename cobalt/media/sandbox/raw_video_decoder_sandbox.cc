@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
-#include "base/time.h"
+#include "base/message_loop/message_loop.h"
+#include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/demuxer_helper.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
@@ -74,7 +75,7 @@ class RawVideoDecoderSandbox {
   }
 
   scoped_refptr<Image> GetCurrentFrame(const base::TimeDelta& time) {
-    UNREFERENCED_PARAMETER(time);
+    SB_UNREFERENCED_PARAMETER(time);
     return current_frame_
                ? reinterpret_cast<Image*>(current_frame_->texture_id())
                : NULL;
@@ -93,7 +94,7 @@ class RawVideoDecoderSandbox {
       if (frame->IsEndOfStream()) {
         current_frame_ = NULL;
         decoder_.reset();
-        demuxer_->Stop(MessageLoop::QuitWhenIdleClosure());
+        demuxer_->Stop(base::MessageLoop::QuitWhenIdleClosure());
         return;
       } else {
         current_frame_ = frame;
@@ -122,7 +123,7 @@ class RawVideoDecoderSandbox {
   }
 
   scoped_refptr<Demuxer> demuxer_;
-  scoped_ptr<ShellRawVideoDecoder> decoder_;
+  std::unique_ptr<ShellRawVideoDecoder> decoder_;
   scoped_refptr<VideoFrame> current_frame_;
 };
 
@@ -131,17 +132,18 @@ int SandboxMain(int argc, char** argv) {
   GURL video_url(argv[1]);
   DCHECK(video_url.is_valid()) << " \"" << argv[1] << "\" is not a valid URL.";
 
-  MediaSandbox media_sandbox(
-      argc, argv,
-      FilePath(FILE_PATH_LITERAL("raw_video_decoder_sandbox_trace.json")));
+  MediaSandbox media_sandbox(argc, argv,
+                             base::FilePath(FILE_PATH_LITERAL(
+                                 "raw_video_decoder_sandbox_trace.json")));
   RawVideoDecoderSandbox decoder_sandbox;
   DemuxerHelper demuxer_helper(
-      base::MessageLoopProxy::current(), media_sandbox.GetFetcherFactory(),
-      video_url, BindToCurrentLoop(Bind(&RawVideoDecoderSandbox::SetDemuxer,
-                                        Unretained(&decoder_sandbox))));
+      base::MessageLoop::current()->task_runner(),
+      media_sandbox.GetFetcherFactory(), video_url,
+      BindToCurrentLoop(Bind(&RawVideoDecoderSandbox::SetDemuxer,
+                             Unretained(&decoder_sandbox))));
   media_sandbox.RegisterFrameCB(Bind(&RawVideoDecoderSandbox::GetCurrentFrame,
                                      Unretained(&decoder_sandbox)));
-  MessageLoop::current()->Run();
+  base::MessageLoop::current()->Run();
 
   LOG(INFO) << "Video playback finished successfully.";
 

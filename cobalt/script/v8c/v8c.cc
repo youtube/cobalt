@@ -15,8 +15,8 @@
 #include <iostream>
 
 #include "base/command_line.h"
-#include "base/file_path.h"
-#include "base/string_util.h"
+#include "base/files/file_path.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/script/standalone_javascript_runner.h"
@@ -52,7 +52,7 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
     string_args.push_back(*utf8_value);
   }
 
-  std::string joined = JoinString(string_args, ' ');
+  std::string joined = base::JoinString(string_args, " ");
   std::cout << joined << std::endl;
 }
 
@@ -87,7 +87,7 @@ int V8cMain(int argc, char** argv) {
       if (std::string(argv[i]) == "-f") {
         std::string filename = std::string(argv[i + 1]);
         // Execute source file.
-        FilePath source_file(filename);
+        base::FilePath source_file(filename);
         standalone_runner.ExecuteFile(source_file);
         ++i;
       } else if (std::string(argv[i]) == "-e") {

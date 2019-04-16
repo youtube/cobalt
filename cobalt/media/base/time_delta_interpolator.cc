@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/tick_clock.h"
+#include "base/time/tick_clock.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "starboard/types.h"
 

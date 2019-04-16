@@ -15,11 +15,13 @@
 #include "cobalt/loader/blob_fetcher.h"
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "cobalt/loader/fetcher_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -60,7 +62,7 @@ bool TestResolver(const TestRegistry& registry, const GURL& url,
 }
 
 TEST(BlobFetcherTest, NonExistentBlobURL) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
 
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
@@ -68,7 +70,7 @@ TEST(BlobFetcherTest, NonExistentBlobURL) {
 
   TestRegistry registry;
 
-  scoped_ptr<BlobFetcher> blob_fetcher = make_scoped_ptr(
+  std::unique_ptr<BlobFetcher> blob_fetcher = base::WrapUnique(
       new loader::BlobFetcher(GURL("blob:sd98sdfuh8sdh"), &fetcher_handler_mock,
                               base::Bind(&TestResolver, registry)));
 
@@ -78,7 +80,7 @@ TEST(BlobFetcherTest, NonExistentBlobURL) {
 }
 
 TEST(BlobFetcherTest, EmptyBlob) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
   InSequence dummy;
 
@@ -90,7 +92,7 @@ TEST(BlobFetcherTest, EmptyBlob) {
   TestRegistry registry;
   registry[url];
 
-  scoped_ptr<BlobFetcher> blob_fetcher = make_scoped_ptr(
+  std::unique_ptr<BlobFetcher> blob_fetcher = base::WrapUnique(
       new loader::BlobFetcher(GURL(url), &fetcher_handler_mock,
                               base::Bind(&TestResolver, registry)));
 
@@ -102,7 +104,7 @@ TEST(BlobFetcherTest, EmptyBlob) {
 }
 
 TEST(BlobFetcherTest, ValidBlob) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
   InSequence dummy;
 
@@ -118,7 +120,7 @@ TEST(BlobFetcherTest, ValidBlob) {
   buffer.push_back(0);
   buffer.push_back(7);
 
-  scoped_ptr<BlobFetcher> blob_fetcher = make_scoped_ptr(
+  std::unique_ptr<BlobFetcher> blob_fetcher = base::WrapUnique(
       new loader::BlobFetcher(GURL(url), &fetcher_handler_mock,
                               base::Bind(&TestResolver, registry)));
 

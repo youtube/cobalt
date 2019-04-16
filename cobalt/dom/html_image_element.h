@@ -15,9 +15,9 @@
 #ifndef COBALT_DOM_HTML_IMAGE_ELEMENT_H_
 #define COBALT_DOM_HTML_IMAGE_ELEMENT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/environment_settings.h"
@@ -67,16 +67,16 @@ class HTMLImageElement : public HTMLElement {
   void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);
   void AllowGarbageCollectionAfterEventIsDispatched(
       base::Token event_name,
-      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
   void DestroyScopedPreventGC(
-      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
 
-  scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
+  std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
 
-  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_load_complete_;
 };
 

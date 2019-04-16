@@ -30,8 +30,9 @@ namespace rasterizer {
 namespace egl {
 
 DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
-    const BaseState& base_state, const math::RectF& rect,
-    const render_tree::ColorRGBA& color)
+                             const BaseState& base_state,
+                             const math::RectF& rect,
+                             const render_tree::ColorRGBA& color)
     : DrawObject(base_state),
       allow_simple_clip_(true),
       index_buffer_(nullptr),
@@ -43,8 +44,8 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
   indices_.reserve(6);
   AddRectIndices(0, 1, 2, 3);
 
-  graphics_state->ReserveVertexData(
-      attributes_.size() * sizeof(attributes_[0]));
+  graphics_state->ReserveVertexData(attributes_.size() *
+                                    sizeof(attributes_[0]));
   graphics_state->ReserveVertexIndices(indices_.size());
 }
 
@@ -74,8 +75,8 @@ bool DrawPolyColor::TryMerge(DrawObject* other) {
   // concatenate the vertex attributes and indices. Keep in mind the indices
   // for the |other| object need to be fixed up.
   uint16_t index_offset = static_cast<uint16_t>(attributes_.size());
-  attributes_.insert(attributes_.end(),
-                     merge->attributes_.begin(), merge->attributes_.end());
+  attributes_.insert(attributes_.end(), merge->attributes_.begin(),
+                     merge->attributes_.end());
   for (uint16_t index : merge->indices_) {
     indices_.emplace_back(index + index_offset);
   }
@@ -85,11 +86,10 @@ bool DrawPolyColor::TryMerge(DrawObject* other) {
 }
 
 void DrawPolyColor::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (attributes_.size() > 0) {
-    vertex_buffer_ = graphics_state->AllocateVertexData(
-        attributes_.size() * sizeof(attributes_[0]));
+    vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
+                                                        sizeof(attributes_[0]));
     SbMemoryCopy(vertex_buffer_, &attributes_[0],
                  attributes_.size() * sizeof(attributes_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
@@ -98,42 +98,40 @@ void DrawPolyColor::ExecuteUpdateVertexBuffer(
   }
 }
 
-void DrawPolyColor::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+void DrawPolyColor::ExecuteRasterize(GraphicsState* graphics_state,
+                                     ShaderProgramManager* program_manager) {
   if (attributes_.size() > 0) {
     SetupShader(graphics_state, program_manager);
-    GL_CALL(glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
-        graphics_state->GetVertexIndexPointer(index_buffer_)));
+    GL_CALL(
+        glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
+                       graphics_state->GetVertexIndexPointer(index_buffer_)));
   }
 }
 
 base::TypeId DrawPolyColor::GetTypeId() const {
-  return ShaderProgram<ShaderVertexColor,
-                       ShaderFragmentColor>::GetTypeId();
+  return ShaderProgram<ShaderVertexColor, ShaderFragmentColor>::GetTypeId();
 }
 
 void DrawPolyColor::SetupShader(GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  ShaderProgram<ShaderVertexColor,
-                ShaderFragmentColor>* program;
+                                ShaderProgramManager* program_manager) {
+  ShaderProgram<ShaderVertexColor, ShaderFragmentColor>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());
   graphics_state->UpdateClipAdjustment(
       program->GetVertexShader().u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(
-      program->GetVertexShader().u_view_matrix(),
-      base_state_.transform);
+      program->GetVertexShader().u_view_matrix(), base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
       program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, position));
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
       program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, color));
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, color));
   graphics_state->VertexAttribFinish();
 }
 
@@ -147,7 +145,8 @@ void DrawPolyColor::AddRectVertices(const math::RectF& rect, uint32_t color) {
 }
 
 void DrawPolyColor::AddRectIndices(uint16_t top_left, uint16_t top_right,
-    uint16_t bottom_left, uint16_t bottom_right) {
+                                   uint16_t bottom_left,
+                                   uint16_t bottom_right) {
   indices_.emplace_back(top_left);
   indices_.emplace_back(top_right);
   indices_.emplace_back(bottom_left);
@@ -194,11 +193,10 @@ bool DrawPolyColor::PrepareForMerge() {
     // Transform the vertices and check that they are within the scissor.
     for (auto& vert : attributes_) {
       math::PointF pos = base_state_.transform *
-          math::PointF(vert.position[0], vert.position[1]);
+                         math::PointF(vert.position[0], vert.position[1]);
       vert.position[0] = pos.x();
       vert.position[1] = pos.y();
-      in_scissor = in_scissor &&
-                   pos.x() >= x_min && pos.x() <= x_max &&
+      in_scissor = in_scissor && pos.x() >= x_min && pos.x() <= x_max &&
                    pos.y() >= y_min && pos.y() <= y_max;
     }
   }

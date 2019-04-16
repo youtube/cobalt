@@ -15,13 +15,13 @@
 #ifndef COBALT_MEDIA_CAPTURE_MEDIA_DEVICES_H_
 #define COBALT_MEDIA_CAPTURE_MEDIA_DEVICES_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
@@ -91,7 +91,7 @@ class MediaDevices : public dom::EventTarget {
   std::vector<std::unique_ptr<MediaStreamPromiseValue::Reference>>
       pending_microphone_promises_;
 
-  scoped_refptr<base::MessageLoopProxy> javascript_message_loop_;
+  base::MessageLoop* javascript_message_loop_;
   base::ThreadChecker thread_checker_;
 
   base::WeakPtrFactory<MediaDevices> weak_ptr_factory_;

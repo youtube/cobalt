@@ -19,7 +19,7 @@
 #include <functional>
 #include <vector>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/document.h"
@@ -127,14 +127,14 @@ bool IsInHeadElement(dom::Element* element) {
     return true;
   }
   scoped_refptr<dom::Element> parent = element->parent_element();
-  if (parent == NULL) {
+  if (parent.get() == NULL) {
     return false;
   }
   return IsInHeadElement(parent.get());
 }
 
-void CanonicalizeText(const base::optional<std::string>& whitespace_style,
-                      const base::optional<std::string>& text_transform,
+void CanonicalizeText(const base::Optional<std::string>& whitespace_style,
+                      const base::Optional<std::string>& text_transform,
                       icu::UnicodeString* text) {
   // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.1 Remove any zero-width spaces (\u200b, \u200e, \u200f), form feeds (\f)
@@ -154,7 +154,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
 
   // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.3
-  if (whitespace_style) {
+  if (whitespace_style.has_value()) {
     // If the parent's effective CSS whitespace style is 'normal' or 'nowrap'
     // replace each newline (\n) in text with a single space character (\x20).
     if (*whitespace_style == cssom::kNormalKeywordName ||
@@ -186,7 +186,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
   // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.4 Apply the parent's effective CSS text-transform style as per the
   // CSS 2.1 specification ([CSS21])
-  if (text_transform) {
+  if (text_transform.has_value()) {
     // Cobalt does not support 'capitalize' and 'lowercase' keywords.
     if (*text_transform == cssom::kUppercaseKeywordName) {
       text->toUpper();
@@ -197,7 +197,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
 // Helper template function to get the computed style from a
 // cssom::CSSComputedStyleData member function getter.
 template <typename style_getter_function>
-base::optional<std::string> GetComputedStyle(dom::Element* element,
+base::Optional<std::string> GetComputedStyle(dom::Element* element,
                                              style_getter_function getter) {
   scoped_refptr<dom::HTMLElement> html_element(element->AsHTMLElement());
   DCHECK(html_element);
@@ -213,9 +213,9 @@ base::optional<std::string> GetComputedStyle(dom::Element* element,
 
 // https://www.w3.org/TR/webdriver/#text.blocklevel
 bool IsBlockLevelElement(dom::Element* element) {
-  base::optional<std::string> display_style =
+  base::Optional<std::string> display_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::display);
-  if (display_style) {
+  if (display_style.has_value()) {
     if (*display_style == cssom::kInlineKeywordName ||
         *display_style == cssom::kInlineBlockKeywordName ||
         *display_style == cssom::kNoneKeywordName) {
@@ -255,9 +255,9 @@ void GetElementTextInternal(dom::Element* element,
   }
 
   // These styles are needed for the text nodes.
-  base::optional<std::string> whitespace_style =
+  base::Optional<std::string> whitespace_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::white_space);
-  base::optional<std::string> text_transform_style =
+  base::Optional<std::string> text_transform_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::text_transform);
 
   bool is_displayed = IsDisplayed(element);
@@ -270,8 +270,8 @@ void GetElementTextInternal(dom::Element* element,
     if (child->IsText() && is_displayed) {
       // If descendent is a [DOM] text node let text equal the nodeValue
       // property of descendent.
-      icu::UnicodeString text = icu::UnicodeString::fromUTF8(
-          child->node_value().value_or(""));
+      icu::UnicodeString text =
+          icu::UnicodeString::fromUTF8(child->node_value().value_or(""));
       CanonicalizeText(whitespace_style, text_transform_style, &text);
 
       // 2.5 If last(lines) ends with a space character and text starts with a
@@ -297,14 +297,14 @@ void GetElementTextInternal(dom::Element* element,
 }
 
 bool DisplayStyleIsNone(dom::Element* element) {
-  base::optional<std::string> display_style =
+  base::Optional<std::string> display_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::display);
   return display_style && *display_style == cssom::kNoneKeywordName;
 }
 
 // Return true if opacity is set to zero.
 bool IsTransparent(dom::Element* element) {
-  base::optional<std::string> opacity_style =
+  base::Optional<std::string> opacity_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::opacity);
   return opacity_style && *opacity_style == "0";
 }
@@ -333,9 +333,10 @@ bool HasPositiveSizeDimensions(dom::Element* element) {
   // Zero-sized elements should still be considered to have positive size
   // if they have a child element or text node with positive size, unless
   // the element has an 'overflow' style of 'hidden'.
-  base::optional<std::string> overflow_style =
+  base::Optional<std::string> overflow_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::overflow);
-  if (overflow_style && *overflow_style == cssom::kHiddenKeywordName) {
+  if (overflow_style.has_value() &&
+      *overflow_style == cssom::kHiddenKeywordName) {
     return false;
   }
   scoped_refptr<dom::NodeList> child_nodes = element->child_nodes();
@@ -370,9 +371,10 @@ bool IsHiddenByOverflow(dom::Element* element) {
     if (IsBlockLevelElement(parent)) {
       // Cobalt doesn't support overflow-x or overflow-y, so just check for
       // overflow.
-      base::optional<std::string> overflow_style =
+      base::Optional<std::string> overflow_style =
           GetComputedStyle(parent, &cssom::CSSComputedStyleData::overflow);
-      if (overflow_style && *overflow_style == cssom::kHiddenKeywordName) {
+      if (overflow_style.has_value() &&
+          *overflow_style == cssom::kHiddenKeywordName) {
         // Get the parent's rect. If the element's rect does not intersect the
         // parent's rect, then it is hidden by overflow.
         math::Rect parent_rect = GetRect(parent);
@@ -446,7 +448,7 @@ std::string GetElementText(dom::Element* element) {
       joined.append("\n");
       lines[i].toUTF8String(joined);
     }
-    TrimString(joined, "\n", &joined);
+    base::TrimString(joined, "\n", &joined);
   }
 
   return joined;
@@ -483,7 +485,7 @@ bool IsDisplayed(dom::Element* element) {
   }
 
   // Any element with hidden/collapsed visibility is not shown.
-  base::optional<std::string> visibility_style =
+  base::Optional<std::string> visibility_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::visibility);
   if (visibility_style && *visibility_style == cssom::kHiddenKeywordName) {
     return false;

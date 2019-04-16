@@ -48,7 +48,7 @@ class ViewportFilter {
 
  private:
   math::RectF viewport_;
-  base::optional<RoundedCorners> rounded_corners_;
+  base::Optional<RoundedCorners> rounded_corners_;
 };
 
 }  // namespace render_tree

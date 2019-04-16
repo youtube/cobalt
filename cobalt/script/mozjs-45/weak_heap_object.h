@@ -34,9 +34,7 @@ class WeakHeapObject {
   ~WeakHeapObject();
 
   const JS::Value& GetValue() const { return value_.get(); }
-  JSObject* GetObject() const {
-    return value_.toObjectOrNull();
-  }
+  JSObject* GetObject() const { return value_.toObjectOrNull(); }
 
   void Trace(JSTracer* js_tracer);
   bool IsObject() const;

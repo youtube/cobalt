@@ -33,8 +33,7 @@ namespace egl {
 class DrawRectLinearGradient : public DrawObject {
  public:
   DrawRectLinearGradient(GraphicsState* graphics_state,
-                         const BaseState& base_state,
-                         const math::RectF& rect,
+                         const BaseState& base_state, const math::RectF& rect,
                          const render_tree::LinearGradientBrush& brush);
 
   void ExecuteUpdateVertexBuffer(
@@ -51,8 +50,8 @@ class DrawRectLinearGradient : public DrawObject {
   void AddRectWithVerticalGradient(
       const math::RectF& rect, const math::PointF& source,
       const math::PointF& dest, const render_tree::ColorStopList& color_stops);
-  void AddRectWithAngledGradient(
-      const math::RectF& rect, const render_tree::LinearGradientBrush& brush);
+  void AddRectWithAngledGradient(const math::RectF& rect,
+                                 const render_tree::LinearGradientBrush& brush);
   uint32_t GetGLColor(const render_tree::ColorStop& color_stop);
   void AddVertex(float x, float y, uint32_t color);
 

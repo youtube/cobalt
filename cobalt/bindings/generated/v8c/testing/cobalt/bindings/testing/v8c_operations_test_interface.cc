@@ -1,6 +1,6 @@
 
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include "cobalt/bindings/testing/v8c_operations_test_interface.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
@@ -344,7 +344,7 @@ void optionalNullableArgumentsWithDefaultsMethod(const v8::FunctionCallbackInfo<
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments with default values
-  TypeTraits<base::optional<bool > >::ConversionType arg1 =
+  TypeTraits<base::Optional<bool > >::ConversionType arg1 =
       base::nullopt;
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2 =
       NULL;
@@ -771,7 +771,7 @@ void overloadedNullableMethod2(
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<bool > >::ConversionType arg;
+  TypeTraits<base::Optional<bool > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,

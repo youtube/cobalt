@@ -26,11 +26,15 @@ H5vccStorage::H5vccStorage(network::NetworkModule* network_module)
 void H5vccStorage::ClearCookies() {
   net::CookieStore* cookie_store =
       network_module_->url_request_context()->cookie_store();
-  cookie_store->GetCookieMonster()->DeleteAllAsync(
-      net::CookieStore::DeleteCallback());
+  auto* cookie_monster = static_cast<net::CookieMonster*>(cookie_store);
+  network_module_->task_runner()->PostBlockingTask(
+      FROM_HERE,
+      base::Bind(&net::CookieMonster::DeleteAllMatchingInfoAsync,
+                 base::Unretained(cookie_monster), net::CookieDeletionInfo(),
+                 base::Passed(net::CookieStore::DeleteCallback())));
 }
 
-void H5vccStorage::Flush(const base::optional<bool>& sync) {
+void H5vccStorage::Flush(const base::Optional<bool>& sync) {
   if (sync.value_or(false) == true) {
     DLOG(WARNING) << "Synchronous flush is not supported.";
   }

@@ -14,10 +14,11 @@
 
 #include "cobalt/renderer/fps_overlay.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -63,7 +64,7 @@ scoped_refptr<render_tree::Node> ConvertLinesToOverlay(
   }
 
   scoped_refptr<render_tree::CompositionNode> text =
-      new render_tree::CompositionNode(text_builder.Pass());
+      new render_tree::CompositionNode(std::move(text_builder));
 
   // Now compose that onto a solid background.
   math::RectF background_bounds = text->GetBounds();
@@ -77,11 +78,12 @@ scoped_refptr<render_tree::Node> ConvertLinesToOverlay(
   render_tree::CompositionNode::Builder text_with_background_builder;
   text_with_background_builder.AddChild(new render_tree::RectNode(
       background_bounds,
-      scoped_ptr<render_tree::Brush>(
+      std::unique_ptr<render_tree::Brush>(
           new render_tree::SolidColorBrush(kBackgroundColor))));
   text_with_background_builder.AddChild(text);
 
-  return new render_tree::CompositionNode(text_with_background_builder.Pass());
+  return new render_tree::CompositionNode(
+      std::move(text_with_background_builder));
 }
 
 scoped_refptr<render_tree::Node> ConvertFPSStatsToOverlay(
@@ -119,7 +121,7 @@ FpsOverlay::FpsOverlay(render_tree::ResourceProvider* resource_provider)
 void FpsOverlay::UpdateOverlay(
     const base::CValCollectionTimerStatsFlushResults& fps_stats) {
   cached_overlay_ =
-      ConvertFPSStatsToOverlay(resource_provider_, font_, fps_stats);
+      ConvertFPSStatsToOverlay(resource_provider_, font_.get(), fps_stats);
 }
 
 scoped_refptr<render_tree::Node> FpsOverlay::AnnotateRenderTreeWithOverlay(
@@ -131,7 +133,7 @@ scoped_refptr<render_tree::Node> FpsOverlay::AnnotateRenderTreeWithOverlay(
     render_tree::CompositionNode::Builder builder;
     builder.AddChild(original_tree);
     builder.AddChild(cached_overlay_);
-    return new render_tree::CompositionNode(builder.Pass());
+    return new render_tree::CompositionNode(std::move(builder));
   }
 }
 

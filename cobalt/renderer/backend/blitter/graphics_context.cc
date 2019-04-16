@@ -15,8 +15,9 @@
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 
 #include <algorithm>
+#include <memory>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/graphics_system.h"
 #include "cobalt/renderer/backend/blitter/surface_render_target.h"
@@ -59,7 +60,7 @@ scoped_refptr<RenderTarget> GraphicsContextBlitter::CreateOffscreenRenderTarget(
   }
 }
 
-scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
+std::unique_ptr<uint8_t[]> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
     const scoped_refptr<RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
                "GraphicsContextBlitter::DownloadPixelDataAsRGBA");
@@ -70,13 +71,13 @@ scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(
   SbBlitterSurface surface = render_target_blitter->GetSbSurface();
 
   const math::Size& size = render_target_blitter->GetSize();
-  scoped_array<uint8_t> pixels(new uint8_t[size.GetArea() * 4]);
+  std::unique_ptr<uint8_t[]> pixels(new uint8_t[size.GetArea() * 4]);
 
   SbBlitterFlushContext(context_);
   SbBlitterDownloadSurfacePixels(surface, kSbBlitterPixelDataFormatRGBA8,
                                  size.width() * 4, pixels.get());
 
-  return pixels.Pass();
+  return std::move(pixels);
 }
 
 void GraphicsContextBlitter::Finish() {

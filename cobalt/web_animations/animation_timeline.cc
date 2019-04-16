@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/web_animations/animation.h"
 #include "cobalt/web_animations/animation_set.h"
 #include "cobalt/web_animations/animation_timeline.h"
@@ -19,7 +21,8 @@
 namespace cobalt {
 namespace web_animations {
 
-AnimationTimeline::AnimationTimeline(const scoped_refptr<base::Clock>& clock)
+AnimationTimeline::AnimationTimeline(
+    const scoped_refptr<base::BasicClock>& clock)
     : clock_(clock), animations_(new AnimationSet()) {}
 
 AnimationTimeline::~AnimationTimeline() { DCHECK(animations_->IsEmpty()); }
@@ -39,7 +42,7 @@ unsigned int AnimationTimeline::num_animations() const {
 // Returns the current time for the document.  This is based off of the last
 // sampled time.
 // https://www.w3.org/TR/web-animations-1/#the-animationtimeline-interface
-base::optional<double> AnimationTimeline::current_time() const {
+base::Optional<double> AnimationTimeline::current_time() const {
   if (sampled_clock_time_) {
     return sampled_clock_time_->InMillisecondsF();
   } else {
@@ -57,16 +60,16 @@ void AnimationTimeline::Sample() {
   UpdateNextEventTimer();
 }
 
-scoped_ptr<TimedTaskQueue::Task> AnimationTimeline::QueueTask(
+std::unique_ptr<TimedTaskQueue::Task> AnimationTimeline::QueueTask(
     base::TimeDelta fire_time, const base::Closure& closure) {
-  scoped_ptr<TimedTaskQueue::Task> task =
+  std::unique_ptr<TimedTaskQueue::Task> task =
       event_queue_.QueueTask(fire_time, closure);
 
   // Update our next-event timer since we may have modified the time of the
   // next-to-fire event by inserting this new event.
   UpdateNextEventTimer();
 
-  return task.Pass();
+  return task;
 }
 
 void AnimationTimeline::UpdateNextEventTimer() {

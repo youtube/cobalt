@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/script/sequence.h"
 
@@ -35,8 +34,8 @@ class Traceable {
   // that owns a |Traceable| must implement this interface and trace each of
   // its |Traceable| members.  Note that here, "owns" means is accessible from
   // JavaScript, which means that weak and raw pointers must be traced in
-  // addition to |scoped_ptr|s and |scoped_refptr|s.  Consider, for example, a
-  // list IDL interface, with parent and child references.  A C++
+  // addition to |std::unique_ptr|s and |scoped_refptr|s.  Consider, for
+  // example, a list IDL interface, with parent and child references.  A C++
   // implementation backed by |scoped__refptr| will be forced to demote the
   // pointer from a child to a parent to a |base::WeakPtr| or raw pointer, in
   // order to break the reference cycle. In JavaScript however, holding a
@@ -63,7 +62,12 @@ class Tracer {
   }
 
   template <typename T>
-  void Trace(const scoped_ptr<T>& ptr) {
+  void Trace(const scoped_refptr<T>& ptr) {
+    Trace(ptr.get());
+  }
+
+  template <typename T>
+  void Trace(const base::WeakPtr<T>& ptr) {
     Trace(ptr.get());
   }
 

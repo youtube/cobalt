@@ -25,9 +25,10 @@ namespace switches {
 // VLOG(1).
 const char kNetLog[] = "net_log";
 
-// Corresponds to the levels described in the NetLog::LogLevel enum defined in
-// net/base/net_log.h
-const char kNetLogLevel[] = "net_log_level";
+// Corresponds to the capture mode described in the NetLogCaptureMode defined
+// in net/log/net_log_capture_mode.h. Except for the default mode, Cobalt also
+// takes in "IncludeCookiesAndCredentials" and "IncludeSocketBytes" modes.
+const char kNetLogCaptureMode[] = "net_log_capture_mode";
 
 const char kUserAgent[] = "user_agent";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES

@@ -14,10 +14,11 @@
 
 #include "cobalt/dom/html_image_element.h"
 
+#include <memory>
 #include <string>
 
-#include "base/debug/trace_event.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
@@ -25,7 +26,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -36,7 +37,8 @@ const char HTMLImageElement::kTagName[] = "img";
 HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
     : HTMLElement(base::polymorphic_downcast<DOMSettings*>(env_settings)
                       ->window()
-                      ->document(),
+                      ->document()
+                      .get(),
                   base::Token(kTagName)) {}
 
 void HTMLImageElement::OnSetAttribute(const std::string& name,
@@ -65,7 +67,7 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
 // Algorithm for UpdateTheImageData:
 //   https://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
 void HTMLImageElement::UpdateImageData() {
-  DCHECK(MessageLoop::current());
+  DCHECK(base::MessageLoop::current());
   DCHECK(node_document());
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::UpdateImageData()");
 
@@ -156,7 +158,7 @@ void HTMLImageElement::UpdateImageData() {
 void HTMLImageElement::OnLoadingSuccess() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingSuccess()");
   AllowGarbageCollectionAfterEventIsDispatched(
-      base::Tokens::load(), prevent_gc_until_load_complete_.Pass());
+      base::Tokens::load(), std::move(prevent_gc_until_load_complete_));
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
@@ -166,7 +168,7 @@ void HTMLImageElement::OnLoadingSuccess() {
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
   AllowGarbageCollectionAfterEventIsDispatched(
-      base::Tokens::error(), prevent_gc_until_load_complete_.Pass());
+      base::Tokens::error(), std::move(prevent_gc_until_load_complete_));
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
@@ -175,18 +177,18 @@ void HTMLImageElement::OnLoadingError() {
 
 void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
     base::Token event_name) {
-  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_event_dispatch(
           new script::GlobalEnvironment::ScopedPreventGarbageCollection(
               html_element_context()->script_runner()->GetGlobalEnvironment(),
               this));
   AllowGarbageCollectionAfterEventIsDispatched(
-      event_name, prevent_gc_until_event_dispatch.Pass());
+      event_name, std::move(prevent_gc_until_event_dispatch));
 }
 
 void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
     base::Token event_name,
-    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+    std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   PostToDispatchEventNameAndRunCallback(
       FROM_HERE, event_name,
@@ -196,7 +198,7 @@ void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
 }
 
 void HTMLImageElement::DestroyScopedPreventGC(
-    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+    std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   scoped_prevent_gc.reset();
 }

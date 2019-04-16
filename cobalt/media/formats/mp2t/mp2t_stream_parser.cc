@@ -271,8 +271,9 @@ bool Mp2tStreamParser::Parse(const uint8_t* buf, int size) {
       std::unique_ptr<PidState> pat_pid_state(new PidState(
           ts_packet->pid(), PidState::kPidPat, std::move(pat_section_parser)));
       pat_pid_state->Enable();
-      it = pids_.insert(
-                    std::make_pair(ts_packet->pid(), std::move(pat_pid_state)))
+      it = pids_
+               .insert(
+                   std::make_pair(ts_packet->pid(), std::move(pat_pid_state)))
                .first;
     }
 

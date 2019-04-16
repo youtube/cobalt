@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/h5vcc/dial/dial_http_response.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
+#include "net/server/http_server_response_info.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -25,19 +28,20 @@ DialHttpResponse::DialHttpResponse(const std::string& path,
 
 void DialHttpResponse::AddHeader(const std::string& header,
                                  const std::string& value) {
-  headers_.push_back(
-      base::StringPrintf("%s: %s", header.c_str(), value.c_str()));
+  if (!info_) {
+    info_.reset(new net::HttpServerResponseInfo());
+  }
+  info_->AddHeader(header, value);
 }
 
-scoped_ptr<net::HttpServerResponseInfo>
-DialHttpResponse::ToHttpServerResponseInfo() const {
-  scoped_ptr<net::HttpServerResponseInfo> info(
-      new net::HttpServerResponseInfo());
-  info->response_code = response_code_;
-  info->mime_type = mime_type_;
-  info->body = body_;
-  info->headers = headers_;
-  return info.Pass();
+std::unique_ptr<net::HttpServerResponseInfo>
+DialHttpResponse::ToHttpServerResponseInfo() {
+  if (!info_) {
+    info_.reset(new net::HttpServerResponseInfo());
+  }
+  info_->SetStatusCode(net::HttpStatusCode(response_code_));
+  info_->SetBody(body_, mime_type_);
+  return std::move(info_);
 }
 
 }  // namespace dial

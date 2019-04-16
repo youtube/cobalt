@@ -243,7 +243,7 @@ std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
   return utf8_sub_string;
 }
 
-const char16* Paragraph::GetTextBuffer() const {
+const base::char16* Paragraph::GetTextBuffer() const {
   return unicode_text_.getBuffer();
 }
 

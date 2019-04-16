@@ -14,7 +14,7 @@
 
 #include <limits>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/derived_dictionary.h"
 #include "cobalt/bindings/testing/dictionary_interface.h"
@@ -81,8 +81,9 @@ TEST_F(DictionaryTest, ClampMember) {
       .WillOnce(SaveArg<0>(&dictionary));
 
   EXPECT_TRUE(EvaluateScript(
-      StringPrintf("test.dictionaryOperation( {shortClampMember : %d } );",
-                   std::numeric_limits<int32_t>::max()),
+      base::StringPrintf(
+          "test.dictionaryOperation( {shortClampMember : %d } );",
+          std::numeric_limits<int32_t>::max()),
       NULL));
   ASSERT_TRUE(dictionary.has_short_clamp_member());
   EXPECT_EQ(std::numeric_limits<int16_t>::max(),
@@ -132,7 +133,7 @@ TEST_F(DictionaryTest, ArbitraryInterfaceMember) {
                      "ArbitraryInterface()} );",
                      NULL));
   ASSERT_TRUE(dictionary.has_interface_member());
-  EXPECT_TRUE(dictionary.interface_member() != NULL);
+  EXPECT_TRUE(dictionary.interface_member().get() != NULL);
 }
 
 TEST_F(DictionaryTest, OverrideDefault) {

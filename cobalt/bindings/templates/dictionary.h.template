@@ -177,7 +177,7 @@ class {{class_name}} {
   bool has_{{member.name}}_;
 {% endif %}
 {% if member.is_script_value %}
-  scoped_ptr<script::Handle<{{member.type}}>> {{member.name}}_;
+  std::unique_ptr<script::Handle<{{member.type}}>> {{member.name}}_;
 {% else %}
   {{member.type}} {{member.name}}_;
 {% endif %}
@@ -188,7 +188,7 @@ class {{class_name}} {
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const {{components|join('::')}}::{{class_name}}& in) {
-  UNREFERENCED_PARAMETER(in);
+  SB_UNREFERENCED_PARAMETER(in);
   stream << "[{{class_name}}]";
   return stream;
 }

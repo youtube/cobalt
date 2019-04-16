@@ -21,25 +21,25 @@ namespace {
 const char kFrameIdKey[] = "id";
 }  // namespace
 
-base::optional<FrameId> FrameId::FromValue(const base::Value* value) {
+base::Optional<FrameId> FrameId::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   const base::Value* frame_id_value;
   if (value->GetAsDictionary(&dictionary_value) &&
       dictionary_value->Get(kFrameIdKey, &frame_id_value)) {
-    switch (frame_id_value->GetType()) {
-      case base::Value::TYPE_NULL:
+    switch (frame_id_value->type()) {
+      case base::Value::Type::NONE:
         // NULL indicates the top-level browsing context.
         return FrameId(true);
-      case base::Value::TYPE_DICTIONARY:
-      case base::Value::TYPE_INTEGER:
-      case base::Value::TYPE_STRING:
+      case base::Value::Type::DICTIONARY:
+      case base::Value::Type::INTEGER:
+      case base::Value::Type::STRING:
         // Well-formed parameter, but frames are not supported by Cobalt so
         // this will end up being NoSuchFrame error.
         return FrameId(false);
-      case base::Value::TYPE_BINARY:
-      case base::Value::TYPE_BOOLEAN:
-      case base::Value::TYPE_DOUBLE:
-      case base::Value::TYPE_LIST:
+      case base::Value::Type::BINARY:
+      case base::Value::Type::BOOLEAN:
+      case base::Value::Type::DOUBLE:
+      case base::Value::Type::LIST:
         // Malformed parameter.
         return base::nullopt;
     }

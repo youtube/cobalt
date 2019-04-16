@@ -210,7 +210,7 @@
     'enable_sso%': 0,
 
     # Set to 1 to compile with SPDY support.
-    'enable_spdy%': 0,
+    'enable_spdy%': 1,
 
     # Set to 1 to enable filtering of HTTP headers before sending.
     'enable_xhr_header_filtering%': 0,
@@ -614,7 +614,7 @@
         'enable_webdriver': 0,
       },
     }],
-    ['cobalt_config != "gold" and cobalt_enable_lib == 0', {
+    ['cobalt_config != "gold"', {
       'variables' : {
         'cobalt_copy_test_data': 1,
       },

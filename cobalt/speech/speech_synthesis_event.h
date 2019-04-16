@@ -43,18 +43,18 @@ class SpeechSynthesisEvent : public dom::Event {
   const scoped_refptr<SpeechSynthesisUtterance>& utterance() const {
     return utterance_;
   }
-  const base::optional<unsigned int> char_index() const { return char_index_; }
-  const base::optional<float> elapsed_time() const { return elapsed_time_; }
-  const base::optional<std::string>& name() const { return name_; }
+  const base::Optional<unsigned int> char_index() const { return char_index_; }
+  const base::Optional<float> elapsed_time() const { return elapsed_time_; }
+  const base::Optional<std::string>& name() const { return name_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisEvent);
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
   const scoped_refptr<SpeechSynthesisUtterance> utterance_;
-  const base::optional<unsigned int> char_index_;
-  const base::optional<float> elapsed_time_;
-  const base::optional<std::string> name_;
+  const base::Optional<unsigned int> char_index_;
+  const base::Optional<float> elapsed_time_;
+  const base::Optional<std::string> name_;
 
   DISALLOW_COPY_AND_ASSIGN(SpeechSynthesisEvent);
 };

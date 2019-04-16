@@ -15,6 +15,7 @@
 #include "cobalt/media/shell_video_data_allocator_common.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
@@ -54,8 +55,8 @@ ShellVideoDataAllocatorCommon::ShellVideoDataAllocatorCommon(
 scoped_refptr<ShellVideoDataAllocator::FrameBuffer>
 ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
                                                    size_t alignment) {
-  UNREFERENCED_PARAMETER(size);
-  UNREFERENCED_PARAMETER(alignment);
+  SB_UNREFERENCED_PARAMETER(size);
+  SB_UNREFERENCED_PARAMETER(alignment);
   DCHECK_LE(size, maximum_allocation_size_);
   if (size > maximum_allocation_size_) {
     NOTREACHED();
@@ -63,10 +64,10 @@ ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
   }
   size = std::max(size, minimum_allocation_size_);
   alignment = std::max(alignment, minimum_alignment_);
-  scoped_ptr<RawImageMemory> raw_image_memory =
+  std::unique_ptr<RawImageMemory> raw_image_memory =
       resource_provider_->AllocateRawImageMemory(size, alignment);
 
-  return raw_image_memory ? new FrameBufferCommon(raw_image_memory.Pass())
+  return raw_image_memory ? new FrameBufferCommon(std::move(raw_image_memory))
                           : NULL;
 }
 
@@ -172,15 +173,15 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
 }
 
 ShellVideoDataAllocatorCommon::FrameBufferCommon::FrameBufferCommon(
-    scoped_ptr<RawImageMemory> raw_image_memory)
-    : raw_image_memory_(raw_image_memory.Pass()) {
+    std::unique_ptr<RawImageMemory> raw_image_memory)
+    : raw_image_memory_(std::move(raw_image_memory)) {
   DCHECK(raw_image_memory_);
 }
 
-scoped_ptr<ShellVideoDataAllocatorCommon::RawImageMemory>
+std::unique_ptr<ShellVideoDataAllocatorCommon::RawImageMemory>
 ShellVideoDataAllocatorCommon::FrameBufferCommon::DetachRawImageMemory() {
   DCHECK(raw_image_memory_);
-  return raw_image_memory_.Pass();
+  return std::move(raw_image_memory_);
 }
 
 }  // namespace media

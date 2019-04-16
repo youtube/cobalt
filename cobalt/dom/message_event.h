@@ -19,7 +19,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/event.h"

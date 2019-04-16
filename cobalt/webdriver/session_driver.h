@@ -17,14 +17,15 @@
 
 #if defined(ENABLE_WEBDRIVER)
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
 #include "cobalt/webdriver/protocol/log_entry.h"
@@ -32,7 +33,7 @@
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/util/command_result.h"
 #include "cobalt/webdriver/window_driver.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -41,7 +42,7 @@ class SessionDriver {
  public:
   // Factory callback to create a WindowDriver for the currently displayed
   // Window.
-  typedef base::Callback<scoped_ptr<webdriver::WindowDriver>(
+  typedef base::Callback<std::unique_ptr<webdriver::WindowDriver>(
       const webdriver::protocol::WindowId& window_id)>
       CreateWindowDriverCallback;
 
@@ -83,7 +84,7 @@ class SessionDriver {
   CreateWindowDriverCallback create_window_driver_callback_;
   WaitForNavigationFunction wait_for_navigation_;
   int32 next_window_id_;
-  scoped_ptr<WindowDriver> window_driver_;
+  std::unique_ptr<WindowDriver> window_driver_;
 
   int logging_callback_id_;
   typedef std::vector<protocol::LogEntry> LogEntryVector;

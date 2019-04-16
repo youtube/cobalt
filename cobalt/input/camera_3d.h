@@ -15,6 +15,7 @@
 #ifndef COBALT_INPUT_CAMERA_3D_H_
 #define COBALT_INPUT_CAMERA_3D_H_
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/camera_transform.h"
 #include "cobalt/input/input_poller.h"
@@ -44,11 +45,13 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   // Functions to map input keys to camera controls.
   virtual void CreateKeyMapping(int keycode, uint32 camera_axis,
                                 float degrees_per_second) {
-    UNREFERENCED_PARAMETER(keycode);
-    UNREFERENCED_PARAMETER(camera_axis);
-    UNREFERENCED_PARAMETER(degrees_per_second);
+    SB_UNREFERENCED_PARAMETER(keycode);
+    SB_UNREFERENCED_PARAMETER(camera_axis);
+    SB_UNREFERENCED_PARAMETER(degrees_per_second);
   }
-  virtual void ClearKeyMapping(int keycode) { UNREFERENCED_PARAMETER(keycode); }
+  virtual void ClearKeyMapping(int keycode) {
+    SB_UNREFERENCED_PARAMETER(keycode);
+  }
   virtual void ClearAllKeyMappings() {}
 
   // Return the camera's current view direction.
@@ -63,8 +66,8 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   // Updates the camera's perspective parameters.
   virtual void UpdatePerspective(float width_to_height_aspect_ratio,
                                  float vertical_fov) {
-    UNREFERENCED_PARAMETER(width_to_height_aspect_ratio);
-    UNREFERENCED_PARAMETER(vertical_fov);
+    SB_UNREFERENCED_PARAMETER(width_to_height_aspect_ratio);
+    SB_UNREFERENCED_PARAMETER(vertical_fov);
   }
 
   // Returns the camera's view and projection matrices, setup according to the

@@ -16,6 +16,7 @@
 #define COBALT_DOM_CSS_ANIMATIONS_ADAPTER_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -53,12 +54,12 @@ class CSSAnimationsAdapter : public cssom::AnimationSet::EventHandler {
   struct AnimationWithEventHandler {
     AnimationWithEventHandler(
         const scoped_refptr<web_animations::Animation>& animation,
-        scoped_ptr<web_animations::Animation::EventHandler> event_handler)
-        : animation(animation), event_handler(event_handler.Pass()) {}
+        std::unique_ptr<web_animations::Animation::EventHandler> event_handler)
+        : animation(animation), event_handler(std::move(event_handler)) {}
     ~AnimationWithEventHandler() {}
 
     scoped_refptr<web_animations::Animation> animation;
-    scoped_ptr<web_animations::Animation::EventHandler> event_handler;
+    std::unique_ptr<web_animations::Animation::EventHandler> event_handler;
   };
   typedef std::map<std::string, AnimationWithEventHandler*> AnimationMap;
 

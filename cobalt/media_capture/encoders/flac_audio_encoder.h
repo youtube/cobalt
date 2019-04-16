@@ -15,10 +15,10 @@
 #ifndef COBALT_MEDIA_CAPTURE_ENCODERS_FLAC_AUDIO_ENCODER_H_
 #define COBALT_MEDIA_CAPTURE_ENCODERS_FLAC_AUDIO_ENCODER_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "base/threading/thread.h"
 #include "cobalt/media_capture/encoders/audio_encoder.h"
 #include "cobalt/speech/audio_encoder_flac.h"
@@ -54,13 +54,13 @@ class FlacAudioEncoder : public AudioEncoder {
   // These functions are called on the encoder thread.
   void CreateEncoder(const media_stream::AudioParameters& params);
   void DestroyEncoder();
-  void DoEncode(scoped_ptr<ShellAudioBus> audio_bus,
+  void DoEncode(std::unique_ptr<ShellAudioBus> audio_bus,
                 base::TimeTicks reference_time);
   void DoFinish(base::TimeTicks reference_time);
 
   // Encoder thread
   base::Thread thread_;
-  scoped_ptr<speech::AudioEncoderFlac> flac_encoder_;
+  std::unique_ptr<speech::AudioEncoderFlac> flac_encoder_;
 };
 
 }  // namespace encoders

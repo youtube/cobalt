@@ -5,10 +5,10 @@
 #include "cobalt/media/formats/mp4/avc.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/filters/h264_parser.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
@@ -107,7 +107,7 @@ bool AVC::InsertParamSetsAnnexB(const AVCDecoderConfigurationRecord& avc_config,
                                 std::vector<SubsampleEntry>* subsamples) {
   DCHECK(AVC::IsValidAnnexB(*buffer, *subsamples));
 
-  scoped_ptr<H264Parser> parser(new H264Parser());
+  std::unique_ptr<H264Parser> parser(new H264Parser());
   const uint8_t* start = &(*buffer)[0];
   parser->SetEncryptedStream(start, buffer->size(), *subsamples);
 
@@ -308,8 +308,8 @@ bool AVC::IsValidAnnexB(const uint8_t* buffer, size_t size,
 }
 
 AVCBitstreamConverter::AVCBitstreamConverter(
-    scoped_ptr<AVCDecoderConfigurationRecord> avc_config)
-    : avc_config_(avc_config.Pass()) {
+    std::unique_ptr<AVCDecoderConfigurationRecord> avc_config)
+    : avc_config_(std::move(avc_config)) {
   DCHECK(avc_config_);
 }
 

@@ -21,7 +21,7 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/script/wrappable.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {

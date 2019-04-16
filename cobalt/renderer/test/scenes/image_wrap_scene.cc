@@ -17,8 +17,8 @@
 #include <cmath>
 
 #include "base/bind.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -76,8 +76,8 @@ void AnimateImage(base::TimeDelta start_time,
 
 scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
   // Load a test image from disk.
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return DecodePNGToRenderTreeImage(
       data_directory.Append(FILE_PATH_LITERAL("test"))
           .Append(FILE_PATH_LITERAL("scenes"))

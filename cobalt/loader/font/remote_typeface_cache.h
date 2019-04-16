@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_FONT_REMOTE_TYPEFACE_CACHE_H_
 #define COBALT_LOADER_FONT_REMOTE_TYPEFACE_CACHE_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/loader/loader_factory.h"
@@ -53,10 +54,10 @@ typedef ResourceCache<RemoteTypefaceResourceCacheType> RemoteTypefaceCache;
 
 // CreateTypefaceCache() provides a mechanism for creating a remote typeface
 // cache.
-inline static scoped_ptr<RemoteTypefaceCache> CreateRemoteTypefaceCache(
+inline static std::unique_ptr<RemoteTypefaceCache> CreateRemoteTypefaceCache(
     const std::string& name, uint32 cache_capacity,
     loader::LoaderFactory* loader_factory) {
-  return make_scoped_ptr<RemoteTypefaceCache>(new RemoteTypefaceCache(
+  return std::unique_ptr<RemoteTypefaceCache>(new RemoteTypefaceCache(
       name, cache_capacity, true /*are_loading_retries_enabled*/,
       base::Bind(&loader::LoaderFactory::CreateTypefaceLoader,
                  base::Unretained(loader_factory))));

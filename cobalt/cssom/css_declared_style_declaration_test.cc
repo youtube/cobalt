@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_declared_style_declaration.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"

@@ -6,10 +6,10 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "starboard/memory.h"
 #include "ui/gfx/rect.h"
@@ -34,7 +34,7 @@ H264SPS::H264SPS() { SbMemorySet(this, 0, sizeof(*this)); }
 
 // Based on T-REC-H.264 7.4.2.1.1, "Sequence parameter set data semantics",
 // available from http://www.itu.int/rec/T-REC-H.264.
-base::optional<gfx::Size> H264SPS::GetCodedSize() const {
+base::Optional<gfx::Size> H264SPS::GetCodedSize() const {
   // Interlaced frames are twice the height of each field.
   const int mb_unit = 16;
   int map_unit = frame_mbs_only_flag ? 16 : 32;
@@ -56,8 +56,8 @@ base::optional<gfx::Size> H264SPS::GetCodedSize() const {
 }
 
 // Also based on section 7.4.2.1.1.
-base::optional<gfx::Rect> H264SPS::GetVisibleRect() const {
-  base::optional<gfx::Size> coded_size = GetCodedSize();
+base::Optional<gfx::Rect> H264SPS::GetVisibleRect() const {
+  base::Optional<gfx::Size> coded_size = GetCodedSize();
   if (!coded_size) return base::nullopt;
 
   if (!frame_cropping_flag) return gfx::Rect(coded_size.value());
@@ -843,7 +843,7 @@ H264Parser::Result H264Parser::ParseSPS(int* sps_id) {
 
   *sps_id = -1;
 
-  scoped_ptr<H264SPS> sps(new H264SPS());
+  std::unique_ptr<H264SPS> sps(new H264SPS());
 
   READ_BITS_OR_RETURN(8, &sps->profile_idc);
   READ_BOOL_OR_RETURN(&sps->constraint_set0_flag);
@@ -963,7 +963,7 @@ H264Parser::Result H264Parser::ParsePPS(int* pps_id) {
 
   *pps_id = -1;
 
-  scoped_ptr<H264PPS> pps(new H264PPS());
+  std::unique_ptr<H264PPS> pps(new H264PPS());
 
   READ_UE_OR_RETURN(&pps->pic_parameter_set_id);
   READ_UE_OR_RETURN(&pps->seq_parameter_set_id);

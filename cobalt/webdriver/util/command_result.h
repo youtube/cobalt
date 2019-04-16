@@ -55,8 +55,8 @@ class CommandResult {
 
  private:
   protocol::Response::StatusCode status_code_;
-  base::optional<T> result_;
-  base::optional<std::string> error_message_;
+  base::Optional<T> result_;
+  base::Optional<std::string> error_message_;
   bool can_retry_;
 };
 
@@ -85,7 +85,7 @@ class CommandResult<void> {
 
  private:
   protocol::Response::StatusCode status_code_;
-  base::optional<std::string> error_message_;
+  base::Optional<std::string> error_message_;
   bool can_retry_;
 };
 

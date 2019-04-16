@@ -33,7 +33,7 @@ class ExponentialMovingAverage {
     DCHECK_GE(1, new_value_weight_);
   }
 
-  const base::optional<T>& average() const { return average_; }
+  const base::Optional<T>& average() const { return average_; }
 
   void AddValue(T value) {
     if (!average_) {
@@ -46,7 +46,7 @@ class ExponentialMovingAverage {
 
  private:
   const float new_value_weight_;
-  base::optional<T> average_;
+  base::Optional<T> average_;
 };
 
 typedef ExponentialMovingAverage<float> ExponentialMovingAverageF;

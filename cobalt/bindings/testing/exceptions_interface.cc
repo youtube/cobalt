@@ -18,8 +18,8 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-base::LazyInstance<
-    ::testing::StrictMock<ExceptionsInterface::ConstructorImplementationMock> >
+base::LazyInstance< ::testing::StrictMock<
+    ExceptionsInterface::ConstructorImplementationMock> >::DestructorAtExit
     ExceptionsInterface::constructor_implementation_mock =
         LAZY_INSTANCE_INITIALIZER;
 

@@ -23,7 +23,6 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/memory_settings/texture_dimensions.h"
@@ -43,8 +42,14 @@ class MemorySetting {
   // SourceType defines the location where the setting was set from.
   // kNotApplicable means the setting is not supported on the current system
   // configuration.
-  enum SourceType { kUnset, kStarboardAPI, kBuildSetting, kCmdLine, kAutoSet,
-                    kAutosetConstrained };
+  enum SourceType {
+    kUnset,
+    kStarboardAPI,
+    kBuildSetting,
+    kCmdLine,
+    kAutoSet,
+    kAutosetConstrained
+  };
   enum ClassType { kInt, kDimensions };
   enum MemoryType { kCPU, kGPU, kNotApplicable };
 
@@ -115,9 +120,11 @@ class IntSetting : public MemorySetting {
   void ScaleMemory(double absolute_constraining_value) override;
 
   int64_t value() const { return valid() ? value_ : 0; }
-  base::optional<int64_t> optional_value() const {
-    base::optional<int64_t> output;
-    if (valid()) { output = value_; }
+  base::Optional<int64_t> optional_value() const {
+    base::Optional<int64_t> output;
+    if (valid()) {
+      output = value_;
+    }
     return output;
   }
   void set_value(SourceType source_type, int64_t val) {
@@ -143,9 +150,11 @@ class DimensionSetting : public MemorySetting {
   TextureDimensions value() const {
     return valid() ? value_ : TextureDimensions();
   }
-  base::optional<TextureDimensions> optional_value() const {
-    base::optional<TextureDimensions> output;
-    if (valid()) { output = value_; }
+  base::Optional<TextureDimensions> optional_value() const {
+    base::Optional<TextureDimensions> output;
+    if (valid()) {
+      output = value_;
+    }
     return output;
   }
 
@@ -176,11 +185,11 @@ class JavaScriptGcThresholdSetting : public IntSetting {
 };
 
 int64_t SumMemoryConsumption(
-    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    base::Optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<const MemorySetting*>& memory_settings);
 
 int64_t SumMemoryConsumption(
-    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    base::Optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<MemorySetting*>& memory_settings);
 
 }  // namespace memory_settings

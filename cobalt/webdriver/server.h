@@ -15,18 +15,18 @@
 #ifndef COBALT_WEBDRIVER_SERVER_H_
 #define COBALT_WEBDRIVER_SERVER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/webdriver/protocol/server_status.h"
-#include "googleurl/src/gurl.h"
-#include "net/base/stream_listen_socket.h"
 #include "net/server/http_server.h"
+#include "net/socket/tcp_server_socket.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -38,7 +38,7 @@ namespace webdriver {
 // directly.
 // The WebDriverServer and related classes will take care of parsing the
 // Http requests from a client, as well as preparing the Http responses.
-class WebDriverServer : private net::HttpServer::Delegate {
+class WebDriverServer : public net::HttpServer::Delegate {
  public:
   enum HttpMethod {
     kUnknownMethod,
@@ -56,14 +56,14 @@ class WebDriverServer : private net::HttpServer::Delegate {
    public:
     // Called after a successful WebDriver command.
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
-    virtual void Success(scoped_ptr<base::Value>) = 0;
+    virtual void Success(std::unique_ptr<base::Value>) = 0;
     // |content_type| specifies the type of the data using HTTP mime types.
     virtual void SuccessData(const std::string& content_type, const char* data,
                              int len) = 0;
 
     // Called after a failed WebDriver command
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Failed_Commands
-    virtual void FailedCommand(scoped_ptr<base::Value>) = 0;
+    virtual void FailedCommand(std::unique_ptr<base::Value>) = 0;
 
     // Called after an invalid request.
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Invalid_Requests
@@ -78,9 +78,10 @@ class WebDriverServer : private net::HttpServer::Delegate {
     virtual ~ResponseHandler() {}
   };
 
-  typedef base::Callback<void(
-      HttpMethod, const std::string&, scoped_ptr<base::Value>,
-      scoped_ptr<ResponseHandler>)> HandleRequestCallback;
+  typedef base::Callback<void(HttpMethod, const std::string&,
+                              std::unique_ptr<base::Value>,
+                              std::unique_ptr<ResponseHandler>)>
+      HandleRequestCallback;
 
   // |address_cval_name| is the name of the CVal that identifies the Webdriver
   // address and port
@@ -90,6 +91,7 @@ class WebDriverServer : private net::HttpServer::Delegate {
 
  protected:
   // net::HttpServer::Delegate implementation.
+  void OnConnect(int connection_id) override;
   void OnHttpRequest(int connection_id,
                      const net::HttpServerRequestInfo& info) override;
 
@@ -104,9 +106,10 @@ class WebDriverServer : private net::HttpServer::Delegate {
 
   base::ThreadChecker thread_checker_;
   HandleRequestCallback handle_request_callback_;
-  scoped_ptr<net::StreamListenSocketFactory> factory_;
-  scoped_refptr<net::HttpServer> server_;
+  std::unique_ptr<net::HttpServer> server_;
   base::CVal<std::string> server_address_;
+
+  friend std::unique_ptr<WebDriverServer>::deleter_type;
 };
 
 }  // namespace webdriver

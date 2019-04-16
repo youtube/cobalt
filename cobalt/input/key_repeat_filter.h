@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/optional.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/key_event_handler.h"
 
@@ -41,9 +41,9 @@ class KeyRepeatFilter : public KeyEventHandler {
                    const dom::KeyboardEventInit& keyboard_event);
   void FireKeyRepeatEvent();
 
-  base::optional<dom::KeyboardEventInit> last_event_data_;
+  base::Optional<dom::KeyboardEventInit> last_event_data_;
 
-  base::RepeatingTimer<KeyRepeatFilter> key_repeat_timer_;
+  base::RepeatingTimer key_repeat_timer_;
 };
 
 }  // namespace input

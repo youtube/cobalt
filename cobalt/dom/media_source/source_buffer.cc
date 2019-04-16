@@ -46,11 +46,12 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/media_source.h"
@@ -110,7 +111,8 @@ SourceBuffer::SourceBuffer(const std::string& id, MediaSource* media_source,
   DCHECK(event_queue);
 
   chunk_demuxer_->SetTracksWatcher(
-      id_, base::Bind(&SourceBuffer::InitSegmentReceived, this));
+      id_,
+      base::Bind(&SourceBuffer::InitSegmentReceived, base::Unretained(this)));
 }
 
 void SourceBuffer::set_mode(SourceBufferAppendMode mode,
@@ -352,8 +354,8 @@ void SourceBuffer::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(video_tracks_);
 }
 
-void SourceBuffer::InitSegmentReceived(scoped_ptr<MediaTracks> tracks) {
-  UNREFERENCED_PARAMETER(tracks);
+void SourceBuffer::InitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
+  SB_UNREFERENCED_PARAMETER(tracks);
 
   if (!first_initialization_segment_received_) {
     media_source_->SetSourceBufferActive(this, true);

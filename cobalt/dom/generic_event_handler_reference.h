@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_GENERIC_EVENT_HANDLER_REFERENCE_H_
 #define COBALT_DOM_GENERIC_EVENT_HANDLER_REFERENCE_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event_listener.h"
 #include "cobalt/dom/on_error_event_listener.h"
@@ -87,8 +89,9 @@ class GenericEventHandlerReference {
  private:
   // At most only one of the below two fields may be non-null...  They are
   // serving as a poor man's std::variant.
-  scoped_ptr<EventListenerScriptValue::Reference> event_listener_reference_;
-  scoped_ptr<OnErrorEventListenerScriptValue::Reference>
+  std::unique_ptr<EventListenerScriptValue::Reference>
+      event_listener_reference_;
+  std::unique_ptr<OnErrorEventListenerScriptValue::Reference>
       on_error_event_listener_reference_;
 
   DISALLOW_COPY_AND_ASSIGN(GenericEventHandlerReference);

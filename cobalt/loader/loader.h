@@ -15,12 +15,12 @@
 #ifndef COBALT_LOADER_LOADER_H_
 #define COBALT_LOADER_LOADER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
@@ -33,11 +33,12 @@ namespace loader {
 // resource respectively.
 class Loader {
  public:
-  typedef base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> FetcherCreator;
+  typedef base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)>
+      FetcherCreator;
   typedef base::Callback<void(Loader*)> OnDestructionFunction;
-  typedef base::Callback<void(const base::optional<std::string>&)>
+  typedef base::Callback<void(const base::Optional<std::string>&)>
       OnCompleteFunction;
-  typedef base::Callback<scoped_ptr<Decoder>(const OnCompleteFunction&)>
+  typedef base::Callback<std::unique_ptr<Decoder>(const OnCompleteFunction&)>
       DecoderCreator;
 
   // The construction of Loader initiates the loading. It takes the ownership
@@ -63,7 +64,7 @@ class Loader {
 
   bool DidFailFromTransientError() const;
 
-  void LoadComplete(const base::optional<std::string>& status);
+  void LoadComplete(const base::Optional<std::string>& status);
 
  private:
   class FetcherToDecoderAdapter;
@@ -74,9 +75,9 @@ class Loader {
   const FetcherCreator fetcher_creator_;
   const DecoderCreator decoder_creator_;
 
-  scoped_ptr<Decoder> decoder_;
-  scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
-  scoped_ptr<Fetcher> fetcher_;
+  std::unique_ptr<Decoder> decoder_;
+  std::unique_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
+  std::unique_ptr<Fetcher> fetcher_;
 
   base::CancelableClosure fetcher_creator_error_closure_;
   base::ThreadChecker thread_checker_;

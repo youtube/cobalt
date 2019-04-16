@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/base/wrap_main.h"
@@ -16,9 +16,9 @@ namespace {
 static const int BitmapSize = 24;
 
 bool ReadTestCase(const char* filename, std::string* ipc_filter_message) {
-  FilePath filepath = FilePath::FromUTF8Unsafe(filename);
+  base::FilePath filepath = base::FilePath::FromUTF8Unsafe(filename);
 
-  if (!file_util::ReadFileToString(filepath, ipc_filter_message)) {
+  if (!base::ReadFileToString(filepath, ipc_filter_message)) {
     LOG(ERROR) << filename << ": couldn't read file.";
     return false;
   }

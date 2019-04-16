@@ -14,11 +14,12 @@
 
 #include "cobalt/renderer/test/png_utils/png_encode.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/debug/trace_event.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "third_party/libpng/png.h"
 
 namespace cobalt {
@@ -39,27 +40,33 @@ void PNGWriteFunction(png_structp png_ptr, png_bytep data, png_size_t length) {
 }
 }  // namespace
 
-void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
-                     int width, int height, int pitch_in_bytes) {
+void EncodeRGBAToPNG(const base::FilePath& png_file_path,
+                     const uint8_t* pixel_data, int width, int height,
+                     int pitch_in_bytes) {
   // Write the PNG to an in-memory buffer and then write it to disk.
   TRACE_EVENT0("cobalt::renderer", "png_encode::EncodeRGBAToPNG()");
   size_t size;
-  scoped_array<uint8> buffer =
+  std::unique_ptr<uint8[]> buffer =
       EncodeRGBAToBuffer(pixel_data, width, height, pitch_in_bytes, &size);
   if (!buffer || size == 0) {
     DLOG(ERROR) << "Failed to encode PNG.";
     return;
   }
 
-  int bytes_written = file_util::WriteFile(
-      png_file_path, reinterpret_cast<char*>(buffer.get()), size);
+  SbFile file = SbFileOpen(png_file_path.value().c_str(),
+                           kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
+  DCHECK_NE(file, kSbFileInvalid);
+  int bytes_written =
+      SbFileWrite(file, reinterpret_cast<char*>(buffer.get()), size);
+  SbFileClose(file);
   DLOG_IF(ERROR, bytes_written != size) << "Error writing PNG to file.";
 }
 
 // Encodes RGBA8 formatted pixel data to an in memory buffer.
-scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
-                                       int height, int pitch_in_bytes,
-                                       size_t* out_size) {
+std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
+                                            int width, int height,
+                                            int pitch_in_bytes,
+                                            size_t* out_size) {
   TRACE_EVENT0("cobalt::renderer", "png_encode::EncodeRGBAToBuffer()");
   // Initialize png library and headers for writing.
   png_structp png =
@@ -74,7 +81,7 @@ scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
   if (setjmp(png->jmpbuf)) {
     png_destroy_write_struct(&png, &info);
     NOTREACHED() << "libpng encountered an error during processing.";
-    return scoped_array<uint8>();
+    return std::unique_ptr<uint8[]>();
   }
 
   // Structure into which png data will be written.
@@ -105,9 +112,9 @@ scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
   *out_size = num_bytes;
 
   // Copy the memory from the buffer to a scoped_array to return to the caller.
-  scoped_array<uint8> out_buffer(new uint8[num_bytes]);
+  std::unique_ptr<uint8[]> out_buffer(new uint8[num_bytes]);
   memcpy(out_buffer.get(), &(png_buffer[0]), num_bytes);
-  return out_buffer.Pass();
+  return std::move(out_buffer);
 }
 
 }  // namespace png_utils

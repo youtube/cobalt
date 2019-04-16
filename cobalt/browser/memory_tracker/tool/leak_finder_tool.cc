@@ -19,7 +19,7 @@
 #include <map>
 #include <utility>
 
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "cobalt/browser/memory_tracker/tool/util.h"
@@ -102,7 +102,7 @@ void LeakFinderTool::OnMemoryAllocation(
 void LeakFinderTool::OnMemoryDeallocation(
     const void* memory_block, const nb::analytics::AllocationRecord& record,
     const nb::analytics::CallStack& callstack) {
-  UNREFERENCED_PARAMETER(callstack);
+  SB_UNREFERENCED_PARAMETER(callstack);
 
   const std::string* symbol_str = NULL;
 
@@ -325,8 +325,7 @@ std::string LeakFinderTool::GenerateCSV(
      << "// the N top allocations will be displayed, sorted" << kNewLine
      << "// by slope steepness. Negative slopping allocations" << kNewLine
      << "// and allocations that have few blocks may be filtered" << kNewLine
-     << "// out." << kNewLine
-     << kQuote << "Time(min)" << kQuote << kDelimiter;
+     << "// out." << kNewLine << kQuote << "Time(min)" << kQuote << kDelimiter;
   for (size_t i = 0; i < data.size(); ++i) {
     const AllocationProfile& alloc_profile = data[i];
     const std::string& name = *alloc_profile.name_;

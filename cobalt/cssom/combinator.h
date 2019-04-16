@@ -15,8 +15,9 @@
 #ifndef COBALT_CSSOM_COMBINATOR_H_
 #define COBALT_CSSOM_COMBINATOR_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace cssom {
@@ -54,11 +55,11 @@ class Combinator {
   }
 
   CompoundSelector* right_selector() { return right_selector_.get(); }
-  void set_right_selector(scoped_ptr<CompoundSelector> right_selector);
+  void set_right_selector(std::unique_ptr<CompoundSelector> right_selector);
 
  private:
   CompoundSelector* left_selector_;
-  scoped_ptr<CompoundSelector> right_selector_;
+  std::unique_ptr<CompoundSelector> right_selector_;
 
   DISALLOW_COPY_AND_ASSIGN(Combinator);
 };

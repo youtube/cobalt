@@ -65,8 +65,8 @@ TEST_F(TextTest, CheckAttach) {
   scoped_refptr<Node> other_text = new Text(document_, "other_text");
 
   // Checks that we can't attach text nodes to other text nodes.
-  EXPECT_EQ(NULL, text->AppendChild(other_text));
-  EXPECT_EQ(NULL, text->InsertBefore(other_text, NULL));
+  EXPECT_EQ(NULL, text->AppendChild(other_text).get());
+  EXPECT_EQ(NULL, text->InsertBefore(other_text, NULL).get());
 }
 
 TEST_F(TextTest, NodeValue) {

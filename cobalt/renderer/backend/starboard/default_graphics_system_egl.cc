@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/backend/default_graphics_system.h"
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -21,9 +23,9 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
+std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
     system_window::SystemWindow* system_window) {
-  return scoped_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
+  return std::unique_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
 }
 
 }  // namespace backend

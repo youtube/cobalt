@@ -14,7 +14,10 @@
 
 #include "cobalt/speech/sandbox/audio_loader.h"
 
+#include <memory>
 #include <vector>
+
+#include "base/memory/ptr_util.h"
 
 namespace cobalt {
 namespace speech {
@@ -33,11 +36,11 @@ class DummyDecoder : public loader::Decoder {
   ~DummyDecoder() override {}
 
   // This function is used for binding callback for creating DummyDecoder.
-  static scoped_ptr<Decoder> Create(
+  static std::unique_ptr<Decoder> Create(
       const DoneCallback& done_callback,
       const loader::Loader::OnCompleteFunction& load_complete_callback =
           loader::Loader::OnCompleteFunction()) {
-    return scoped_ptr<Decoder>(
+    return std::unique_ptr<Decoder>(
         new DummyDecoder(done_callback, load_complete_callback));
   }
 
@@ -94,7 +97,7 @@ AudioLoader::AudioLoader(const GURL& url,
   DCHECK(!callback.is_null());
 
   fetcher_factory_.reset(new loader::FetcherFactory(network_module_));
-  loader_ = make_scoped_ptr(new loader::Loader(
+  loader_ = base::WrapUnique(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
                  base::Unretained(fetcher_factory_.get()), url),
       base::Bind(&DummyDecoder::Create, base::Bind(&AudioLoader::OnLoadingDone,
@@ -108,7 +111,7 @@ void AudioLoader::OnLoadingDone(const uint8* data, int size) {
   done_callback_.Run(data, size);
 }
 
-void AudioLoader::OnLoadingError(const base::optional<std::string>& error) {
+void AudioLoader::OnLoadingError(const base::Optional<std::string>& error) {
   if (error) DLOG(WARNING) << "OnLoadingError with error message: " << *error;
 }
 

@@ -119,8 +119,8 @@ struct MEDIA_EXPORT Vp9LoopFilterParams {
   int8_t mode_deltas[kNumModeDeltas];
 
   // Calculated from above fields.
-  uint8_t
-      lvl[Vp9SegmentationParams::kNumSegments][VP9_FRAME_MAX][kNumModeDeltas];
+  uint8_t lvl[Vp9SegmentationParams::kNumSegments][VP9_FRAME_MAX]
+             [kNumModeDeltas];
 };
 
 // Members of Vp9FrameHeader will be 0-initialized by Vp9Parser::ParseNextFrame.

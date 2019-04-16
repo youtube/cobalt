@@ -15,16 +15,16 @@
 #ifndef COBALT_DOM_WINDOW_H_
 #define COBALT_DOM_WINDOW_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_parser.h"
@@ -71,7 +71,8 @@
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/ui_navigation/nav_item.h"
-#include "googleurl/src/gurl.h"
+#include "starboard/window.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media_session {
@@ -408,7 +409,8 @@ class Window : public EventTarget,
       loader::FetcherFactory* fetcher_factory, const GURL& url,
       Parser* dom_parser,
       const loader::Decoder::OnCompleteFunction& load_complete_callback);
-  scoped_refptr<base::Clock> MakePerformanceClock(Window::ClockType clock_type);
+  scoped_refptr<base::BasicClock> MakePerformanceClock(
+      Window::ClockType clock_type);
 
   class RelayLoadEvent;
 
@@ -437,17 +439,17 @@ class Window : public EventTarget,
   scoped_refptr<TestRunner> test_runner_;
 #endif  // ENABLE_TEST_RUNNER
 
-  const scoped_ptr<HTMLElementContext> html_element_context_;
+  const std::unique_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Performance> performance_;
   scoped_refptr<Document> document_;
-  scoped_ptr<loader::Loader> document_loader_;
+  std::unique_ptr<loader::Loader> document_loader_;
   scoped_refptr<History> history_;
   scoped_refptr<Navigator> navigator_;
-  scoped_ptr<RelayLoadEvent> relay_on_load_event_;
+  std::unique_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
   scoped_refptr<Camera3D> camera_3d_;
-  scoped_ptr<WindowTimers> window_timers_;
-  scoped_ptr<AnimationFrameRequestCallbackList>
+  std::unique_ptr<WindowTimers> window_timers_;
+  std::unique_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
 
   scoped_refptr<Crypto> crypto_;
@@ -473,8 +475,6 @@ class Window : public EventTarget,
   OnStopDispatchEventCallback on_stop_dispatch_event_callback_;
 
   ScreenshotManager screenshot_manager_;
-
-  script::EnvironmentSettings* environment_settings_ = nullptr;
 
   // This UI navigation root container should contain all active UI navigation
   // items for this window.

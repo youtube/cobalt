@@ -15,7 +15,8 @@
 #ifndef COBALT_AUDIO_AUDIO_FILE_READER_H_
 #define COBALT_AUDIO_AUDIO_FILE_READER_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "cobalt/audio/audio_helpers.h"
 
 namespace cobalt {
@@ -25,15 +26,16 @@ class AudioFileReader {
  public:
   virtual ~AudioFileReader() {}
 
-  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
-                                               SampleType sample_type);
+  static std::unique_ptr<AudioFileReader> TryCreate(const uint8* data,
+                                                    size_t size,
+                                                    SampleType sample_type);
 
   virtual float sample_rate() const = 0;
   virtual int32 number_of_frames() const = 0;
   virtual int32 number_of_channels() const = 0;
   virtual SampleType sample_type() const = 0;
 
-  virtual scoped_ptr<ShellAudioBus> ResetAndReturnAudioBus() = 0;
+  virtual std::unique_ptr<ShellAudioBus> ResetAndReturnAudioBus() = 0;
 };
 
 }  // namespace audio

@@ -70,9 +70,9 @@ bool AAC::Parse(const std::vector<uint8_t>& data,
   // with those extensions (these extensions are supported).
   // 1 = AAC main, 2 = AAC LC, 3 = AAC SSR, 4 = AAC LTP
   if (profile_ < 1 || profile_ > 4) {
-    MEDIA_LOG(ERROR, media_log) << "Audio codec(mp4a.40."
-                                << static_cast<int>(profile_)
-                                << ") is not supported.";
+    MEDIA_LOG(ERROR, media_log)
+        << "Audio codec(mp4a.40." << static_cast<int>(profile_)
+        << ") is not supported.";
     return false;
   }
 

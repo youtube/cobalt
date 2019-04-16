@@ -41,13 +41,13 @@ class MutationRecord : public script::Wrappable {
     return previous_sibling_;
   }
   const scoped_refptr<dom::Node>& next_sibling() { return next_sibling_; }
-  const base::optional<std::string>& attribute_name() {
+  const base::Optional<std::string>& attribute_name() {
     return attribute_name_;
   }
-  const base::optional<std::string>& attribute_namespace() {
+  const base::Optional<std::string>& attribute_namespace() {
     return attribute_namespace_;
   }
-  const base::optional<std::string>& old_value() { return old_value_; }
+  const base::Optional<std::string>& old_value() { return old_value_; }
 
   // Not part of the MutationRecord interface. These create functions implement
   // the part of the "queueing a mutation record" algorithm pertaining to
@@ -55,11 +55,11 @@ class MutationRecord : public script::Wrappable {
   // https://www.w3.org/TR/dom/#queue-a-mutation-record
   static scoped_refptr<MutationRecord> CreateAttributeMutationRecord(
       const scoped_refptr<Node>& target, const std::string& attribute_name,
-      const base::optional<std::string>& old_value);
+      const base::Optional<std::string>& old_value);
 
   static scoped_refptr<MutationRecord> CreateCharacterDataMutationRecord(
       const scoped_refptr<Node>& target,
-      const base::optional<std::string>& old_character_data);
+      const base::Optional<std::string>& old_character_data);
 
   static scoped_refptr<MutationRecord> CreateChildListMutationRecord(
       const scoped_refptr<Node>& target,
@@ -81,9 +81,9 @@ class MutationRecord : public script::Wrappable {
   scoped_refptr<dom::NodeList> removed_nodes_;
   scoped_refptr<dom::Node> previous_sibling_;
   scoped_refptr<dom::Node> next_sibling_;
-  base::optional<std::string> attribute_name_;
-  base::optional<std::string> attribute_namespace_;
-  base::optional<std::string> old_value_;
+  base::Optional<std::string> attribute_name_;
+  base::Optional<std::string> attribute_namespace_;
+  base::Optional<std::string> old_value_;
 };
 }  // namespace dom
 }  // namespace cobalt

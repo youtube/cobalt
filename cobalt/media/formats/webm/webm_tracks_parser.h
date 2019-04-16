@@ -6,14 +6,14 @@
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_TRACKS_PARSER_H_
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/media_tracks.h"
@@ -86,9 +86,9 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
   // object from WebMTracksParser to the caller (which is typically
   // WebMStreamParser object). So this method must be called only once, after
   // track parsing has been completed.
-  scoped_ptr<MediaTracks> media_tracks() {
+  std::unique_ptr<MediaTracks> media_tracks() {
     CHECK(media_tracks_.get());
-    return media_tracks_.Pass();
+    return std::move(media_tracks_);
   }
 
  private:
@@ -113,7 +113,7 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
   int64_t seek_preroll_;
   int64_t codec_delay_;
   int64_t default_duration_;
-  scoped_ptr<WebMContentEncodingsClient> track_content_encodings_client_;
+  std::unique_ptr<WebMContentEncodingsClient> track_content_encodings_client_;
 
   int64_t audio_track_num_;
   int64_t audio_default_duration_;
@@ -135,7 +135,7 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
   int detected_audio_track_count_;
   int detected_video_track_count_;
   int detected_text_track_count_;
-  scoped_ptr<MediaTracks> media_tracks_;
+  std::unique_ptr<MediaTracks> media_tracks_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMTracksParser);
 };

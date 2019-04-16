@@ -41,14 +41,12 @@ DrawRectShadowSpread::VertexAttributesRound::VertexAttributesRound(
   rcorner_outer = RCorner(position, outer);
 }
 
-DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
-    const BaseState& base_state, const math::RectF& inner_rect,
-    const OptionalRoundedCorners& inner_corners, const math::RectF& outer_rect,
-    const OptionalRoundedCorners& outer_corners,
+DrawRectShadowSpread::DrawRectShadowSpread(
+    GraphicsState* graphics_state, const BaseState& base_state,
+    const math::RectF& inner_rect, const OptionalRoundedCorners& inner_corners,
+    const math::RectF& outer_rect, const OptionalRoundedCorners& outer_corners,
     const render_tree::ColorRGBA& color)
-    : DrawObject(base_state),
-      vertex_buffer_(nullptr),
-      index_buffer_(nullptr) {
+    : DrawObject(base_state), vertex_buffer_(nullptr), index_buffer_(nullptr) {
   color_ = GetDrawColor(color) * base_state_.opacity;
 
   // Extract scale from the transform and move it into the vertex attributes
@@ -68,65 +66,60 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
         inner_corners->Scale(scale.x(), scale.y());
     render_tree::RoundedCorners outside_corners =
         outer_corners->Scale(scale.x(), scale.y());
-    SetGeometry(graphics_state,
-                inside_rect, inside_corners,
-                outside_rect, outside_corners);
+    SetGeometry(graphics_state, inside_rect, inside_corners, outside_rect,
+                outside_corners);
   } else {
     SetGeometry(graphics_state, inside_rect, outside_rect);
   }
 }
 
 void DrawRectShadowSpread::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (attributes_square_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_square_.size() * sizeof(attributes_square_[0]));
     SbMemoryCopy(vertex_buffer_, &attributes_square_[0],
-        attributes_square_.size() * sizeof(attributes_square_[0]));
+                 attributes_square_.size() * sizeof(attributes_square_[0]));
   } else if (attributes_round_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_round_.size() * sizeof(attributes_round_[0]));
     SbMemoryCopy(vertex_buffer_, &attributes_round_[0],
-        attributes_round_.size() * sizeof(attributes_round_[0]));
+                 attributes_round_.size() * sizeof(attributes_round_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
     SbMemoryCopy(index_buffer_, &indices_[0],
-        indices_.size() * sizeof(indices_[0]));
+                 indices_.size() * sizeof(indices_[0]));
   }
 }
 
 void DrawRectShadowSpread::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (vertex_buffer_ == nullptr) {
     return;
   }
 
   // Draw the box shadow.
   if (attributes_square_.size() > 0) {
-    ShaderProgram<ShaderVertexColor,
-                  ShaderFragmentColor>* program;
+    ShaderProgram<ShaderVertexColor, ShaderFragmentColor>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupVertexShader(graphics_state, program->GetVertexShader());
     GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_square_.size()));
   } else {
-    ShaderProgram<ShaderVertexRcorner2,
-                  ShaderFragmentRcorner2Color>* program;
+    ShaderProgram<ShaderVertexRcorner2, ShaderFragmentRcorner2Color>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupVertexShader(graphics_state, program->GetVertexShader());
-    GL_CALL(glUniform4f(program->GetFragmentShader().u_color(),
-        color_.r(), color_.g(), color_.b(), color_.a()));
-    GL_CALL(glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
-        graphics_state->GetVertexIndexPointer(index_buffer_)));
+    GL_CALL(glUniform4f(program->GetFragmentShader().u_color(), color_.r(),
+                        color_.g(), color_.b(), color_.a()));
+    GL_CALL(
+        glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
+                       graphics_state->GetVertexIndexPointer(index_buffer_)));
   }
 }
 
 base::TypeId DrawRectShadowSpread::GetTypeId() const {
   if (attributes_square_.size() > 0) {
-    return ShaderProgram<ShaderVertexColor,
-                         ShaderFragmentColor>::GetTypeId();
+    return ShaderProgram<ShaderVertexColor, ShaderFragmentColor>::GetTypeId();
   } else {
     return ShaderProgram<ShaderVertexRcorner2,
                          ShaderFragmentRcorner2Color>::GetTypeId();
@@ -134,94 +127,86 @@ base::TypeId DrawRectShadowSpread::GetTypeId() const {
 }
 
 void DrawRectShadowSpread::SetupVertexShader(GraphicsState* graphics_state,
-    const ShaderVertexColor& shader) {
+                                             const ShaderVertexColor& shader) {
   graphics_state->UpdateClipAdjustment(shader.u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(shader.u_view_matrix(),
-      base_state_.transform);
+                                        base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
       shader.a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesSquare), vertex_buffer_ +
-      offsetof(VertexAttributesSquare, position));
+      sizeof(VertexAttributesSquare),
+      vertex_buffer_ + offsetof(VertexAttributesSquare, position));
   graphics_state->VertexAttribPointer(
       shader.a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
-      sizeof(VertexAttributesSquare), vertex_buffer_ +
-      offsetof(VertexAttributesSquare, color));
+      sizeof(VertexAttributesSquare),
+      vertex_buffer_ + offsetof(VertexAttributesSquare, color));
   graphics_state->VertexAttribFinish();
 }
 
-void DrawRectShadowSpread::SetupVertexShader(GraphicsState* graphics_state,
-    const ShaderVertexRcorner2& shader) {
+void DrawRectShadowSpread::SetupVertexShader(
+    GraphicsState* graphics_state, const ShaderVertexRcorner2& shader) {
   graphics_state->UpdateClipAdjustment(shader.u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(shader.u_view_matrix(),
-      base_state_.transform);
+                                        base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      shader.a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesRound), vertex_buffer_ +
-      offsetof(VertexAttributesRound, position));
+      shader.a_position(), 2, GL_FLOAT, GL_FALSE, sizeof(VertexAttributesRound),
+      vertex_buffer_ + offsetof(VertexAttributesRound, position));
   graphics_state->VertexAttribPointer(
       shader.a_rcorner_inner(), 4, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesRound), vertex_buffer_ +
-      offsetof(VertexAttributesRound, rcorner_inner));
+      sizeof(VertexAttributesRound),
+      vertex_buffer_ + offsetof(VertexAttributesRound, rcorner_inner));
   graphics_state->VertexAttribPointer(
       shader.a_rcorner_outer(), 4, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesRound), vertex_buffer_ +
-      offsetof(VertexAttributesRound, rcorner_outer));
+      sizeof(VertexAttributesRound),
+      vertex_buffer_ + offsetof(VertexAttributesRound, rcorner_outer));
   graphics_state->VertexAttribFinish();
 }
 
 void DrawRectShadowSpread::SetGeometry(GraphicsState* graphics_state,
-    const math::RectF& inner_rect, const math::RectF& outer_rect) {
+                                       const math::RectF& inner_rect,
+                                       const math::RectF& outer_rect) {
   // Draw the box shadow's spread. This is a triangle strip covering the area
   // between outer rect and inner rect.
   uint32_t color = GetGLRGBA(color_);
 
   if (inner_rect.IsEmpty()) {
     attributes_square_.reserve(4);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.y(), color);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.y(), color);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.bottom(), color);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.bottom(), color);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.y(), color);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.y(), color);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.bottom(), color);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.bottom(),
+                                    color);
   } else {
     math::RectF inside_rect(inner_rect);
     inside_rect.Intersect(outer_rect);
     attributes_square_.reserve(10);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.y(), color);
-    attributes_square_.emplace_back(
-        inside_rect.x(), inside_rect.y(), color);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.y(), color);
-    attributes_square_.emplace_back(
-        inside_rect.right(), inside_rect.y(), color);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.bottom(), color);
-    attributes_square_.emplace_back(
-        inside_rect.right(), inside_rect.bottom(), color);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.bottom(), color);
-    attributes_square_.emplace_back(
-        inside_rect.x(), inside_rect.bottom(), color);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.y(), color);
-    attributes_square_.emplace_back(
-        inside_rect.x(), inside_rect.y(), color);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.y(), color);
+    attributes_square_.emplace_back(inside_rect.x(), inside_rect.y(), color);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.y(), color);
+    attributes_square_.emplace_back(inside_rect.right(), inside_rect.y(),
+                                    color);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.bottom(),
+                                    color);
+    attributes_square_.emplace_back(inside_rect.right(), inside_rect.bottom(),
+                                    color);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.bottom(), color);
+    attributes_square_.emplace_back(inside_rect.x(), inside_rect.bottom(),
+                                    color);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.y(), color);
+    attributes_square_.emplace_back(inside_rect.x(), inside_rect.y(), color);
   }
 
-  graphics_state->ReserveVertexData(
-      attributes_square_.size() * sizeof(attributes_square_[0]));
+  graphics_state->ReserveVertexData(attributes_square_.size() *
+                                    sizeof(attributes_square_[0]));
 }
 
 void DrawRectShadowSpread::SetGeometry(
-    GraphicsState* graphics_state,
-    const math::RectF& inner_rect,
+    GraphicsState* graphics_state, const math::RectF& inner_rect,
     const render_tree::RoundedCorners& inner_corners,
     const math::RectF& outer_rect,
     const render_tree::RoundedCorners& outer_corners) {
@@ -242,21 +227,21 @@ void DrawRectShadowSpread::SetGeometry(
   // Add geometry to draw the area between the inner rrect and outer rrect.
   for (int i = 0; i < arraysize(rrect_inner); ++i) {
     for (int o = 0; o < arraysize(rrect_outer); ++o) {
-      math::RectF intersection = math::IntersectRects(
-          rrect_inner[i].bounds, rrect_outer[o].bounds);
+      math::RectF intersection =
+          math::IntersectRects(rrect_inner[i].bounds, rrect_outer[o].bounds);
       if (!intersection.IsEmpty()) {
         // Use two triangles to draw the intersection.
         const RCorner& inner = rrect_inner[i].rcorner;
         const RCorner& outer = rrect_outer[o].rcorner;
         uint16_t vert = static_cast<uint16_t>(attributes_round_.size());
-        attributes_round_.emplace_back(
-            intersection.x(), intersection.y(), inner, outer);
-        attributes_round_.emplace_back(
-            intersection.right(), intersection.y(), inner, outer);
-        attributes_round_.emplace_back(
-            intersection.x(), intersection.bottom(), inner, outer);
-        attributes_round_.emplace_back(
-            intersection.right(), intersection.bottom(), inner, outer);
+        attributes_round_.emplace_back(intersection.x(), intersection.y(),
+                                       inner, outer);
+        attributes_round_.emplace_back(intersection.right(), intersection.y(),
+                                       inner, outer);
+        attributes_round_.emplace_back(intersection.x(), intersection.bottom(),
+                                       inner, outer);
+        attributes_round_.emplace_back(intersection.right(),
+                                       intersection.bottom(), inner, outer);
         indices_.emplace_back(vert);
         indices_.emplace_back(vert + 1);
         indices_.emplace_back(vert + 2);
@@ -267,8 +252,8 @@ void DrawRectShadowSpread::SetGeometry(
     }
   }
 
-  graphics_state->ReserveVertexData(
-      attributes_round_.size() * sizeof(attributes_round_[0]));
+  graphics_state->ReserveVertexData(attributes_round_.size() *
+                                    sizeof(attributes_round_[0]));
   graphics_state->ReserveVertexIndices(indices_.size());
 }
 

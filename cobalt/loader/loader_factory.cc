@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/loader/loader_factory.h"
 
 #include "base/threading/platform_thread.h"
@@ -35,12 +37,13 @@ LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
       resource_provider_(resource_provider),
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
-  base::Thread::Options options(MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize,
-                                loader_thread_priority);
+  base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
+                                kLoadThreadStackSize);
+  options.priority = loader_thread_priority;
   load_thread_.StartWithOptions(options);
 }
 
-scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
+std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const image::ImageDecoder::ImageAvailableCallback& image_available_callback,
@@ -50,7 +53,7 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
   Loader::FetcherCreator fetcher_creator =
       MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
 
-  scoped_ptr<Loader> loader(new Loader(
+  std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
       base::Bind(&image::ThreadedImageDecoderProxy::Create, resource_provider_,
                  image_available_callback, load_thread_.message_loop()),
@@ -59,10 +62,10 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
       is_suspended_));
 
   OnLoaderCreated(loader.get());
-  return loader.Pass();
+  return loader;
 }
 
-scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
+std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const font::TypefaceDecoder::TypefaceAvailableCallback&
@@ -73,7 +76,7 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
   Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
       url, url_security_callback, kCORSModeSameOriginCredentials, origin);
 
-  scoped_ptr<Loader> loader(new Loader(
+  std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
       base::Bind(&font::TypefaceDecoder::Create, resource_provider_,
                  typeface_available_callback),
@@ -82,11 +85,11 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
       is_suspended_));
 
   OnLoaderCreated(loader.get());
-  return loader.Pass();
+  return loader;
 }
 
 // Creates a loader that fetches and decodes a Mesh.
-scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
+std::unique_ptr<Loader> LoaderFactory::CreateMeshLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const mesh::MeshDecoder::MeshAvailableCallback& mesh_available_callback,
@@ -96,7 +99,7 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
   Loader::FetcherCreator fetcher_creator =
       MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
 
-  scoped_ptr<Loader> loader(new Loader(
+  std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
       base::Bind(&mesh::MeshDecoder::Create, resource_provider_,
                  mesh_available_callback),
@@ -105,10 +108,10 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
       is_suspended_));
 
   OnLoaderCreated(loader.get());
-  return loader.Pass();
+  return loader;
 }
 
-scoped_ptr<Loader> LoaderFactory::CreateLinkLoader(
+std::unique_ptr<Loader> LoaderFactory::CreateLinkLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const loader::RequestMode cors_mode,
@@ -119,7 +122,7 @@ scoped_ptr<Loader> LoaderFactory::CreateLinkLoader(
   Loader::FetcherCreator fetcher_creator =
       MakeFetcherCreator(url, url_security_callback, cors_mode, origin);
 
-  scoped_ptr<Loader> loader(new Loader(
+  std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
       base::Bind(&loader::TextDecoder::Create, link_available_callback),
       load_complete_callback,
@@ -127,10 +130,10 @@ scoped_ptr<Loader> LoaderFactory::CreateLinkLoader(
       is_suspended_));
 
   OnLoaderCreated(loader.get());
-  return loader.Pass();
+  return loader;
 }
 
-scoped_ptr<Loader> LoaderFactory::CreateScriptLoader(
+std::unique_ptr<Loader> LoaderFactory::CreateScriptLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const TextDecoder::TextAvailableCallback& script_available_callback,
@@ -140,7 +143,7 @@ scoped_ptr<Loader> LoaderFactory::CreateScriptLoader(
   Loader::FetcherCreator fetcher_creator =
       MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
 
-  scoped_ptr<Loader> loader(new Loader(
+  std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
       base::Bind(&loader::TextDecoder::Create, script_available_callback),
       load_complete_callback,
@@ -148,7 +151,7 @@ scoped_ptr<Loader> LoaderFactory::CreateScriptLoader(
       is_suspended_));
 
   OnLoaderCreated(loader.get());
-  return loader.Pass();
+  return loader;
 }
 
 Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
@@ -175,7 +178,7 @@ void LoaderFactory::Suspend() {
   }
 
   // Wait for all loader thread messages to be flushed before returning.
-  load_thread_.message_loop()->WaitForFence();
+  load_thread_.message_loop()->task_runner()->WaitForFence();
 }
 
 void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {

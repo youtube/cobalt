@@ -22,7 +22,7 @@ namespace dom {
 
 namespace {
 
-const char16 kHorizontalEllipsisValue = 0x2026;
+const base::char16 kHorizontalEllipsisValue = 0x2026;
 
 }  // namespace
 
@@ -106,11 +106,11 @@ bool FontList::IsVisible() const {
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontList::CreateGlyphBuffer(
-    const char16* text_buffer, int32 text_length, bool is_rtl) {
+    const base::char16* text_buffer, int32 text_length, bool is_rtl) {
   return font_cache_->CreateGlyphBuffer(text_buffer, text_length, is_rtl, this);
 }
 
-float FontList::GetTextWidth(const char16* text_buffer, int32 text_length,
+float FontList::GetTextWidth(const base::char16* text_buffer, int32 text_length,
                              bool is_rtl,
                              render_tree::FontVector* maybe_used_fonts) {
   return font_cache_->GetTextWidth(text_buffer, text_length, is_rtl, this,
@@ -170,7 +170,9 @@ render_tree::FontMetrics FontList::GetFontMetrics(
                                   max_x_height);
 }
 
-char16 FontList::GetEllipsisValue() const { return kHorizontalEllipsisValue; }
+base::char16 FontList::GetEllipsisValue() const {
+  return kHorizontalEllipsisValue;
+}
 
 const scoped_refptr<render_tree::Font>& FontList::GetEllipsisFont() {
   GenerateEllipsisInfo();
@@ -215,7 +217,7 @@ const scoped_refptr<render_tree::Font>& FontList::GetFallbackCharacterFont(
     int32 utf32_character, render_tree::GlyphIndex* glyph_index) {
   scoped_refptr<render_tree::Typeface>& fallback_typeface =
       character_fallback_typeface_map_[utf32_character];
-  if (fallback_typeface == NULL) {
+  if (fallback_typeface.get() == NULL) {
     fallback_typeface =
         font_cache_->GetCharacterFallbackTypeface(utf32_character, style_);
   }
@@ -226,7 +228,7 @@ const scoped_refptr<render_tree::Font>& FontList::GetFallbackCharacterFont(
   // simply return that font.
   scoped_refptr<render_tree::Font>& fallback_font =
       fallback_typeface_to_font_map_[fallback_typeface->GetId()];
-  if (fallback_font == NULL) {
+  if (fallback_font.get() == NULL) {
     fallback_font = fallback_typeface_to_font_map_[fallback_typeface->GetId()] =
         font_cache_->GetFontFromTypefaceAndSize(fallback_typeface, size_);
   }
@@ -269,7 +271,7 @@ void FontList::RequestFont(size_t index) {
       font_list_font.family_name(), style_, size_, &state);
 
   if (state == FontListFont::kLoadedState) {
-    DCHECK(render_tree_font != NULL);
+    DCHECK(render_tree_font.get() != NULL);
 
     // Walk all of the fonts in the list preceding the loaded font. If they have
     // the same typeface as the loaded font, then set the font list font as a

@@ -17,18 +17,19 @@
 #ifndef COBALT_LOADER_CORS_PREFLIGHT_CACHE_H_
 #define COBALT_LOADER_CORS_PREFLIGHT_CACHE_H_
 
+#include <memory>
 #include <queue>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "base/hash_tables.h"
-#include "base/time.h"
-#include "googleurl/src/gurl.h"
+#include "base/containers/hash_tables.h"
+#include "base/time/time.h"
 #include "net/http/http_request_headers.h"
 #include "net/url_request/url_fetcher.h"
 #include "starboard/string.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -104,8 +105,8 @@ class CORSPreflightCache : public base::RefCounted<CORSPreflightCache> {
 
   void ClearObsoleteEntries();
 
-  // TODO: Replace scoped_refptr with scoped_ptr when possible or replace the
-  // map as a 'scoped_map'.
+  // TODO: Replace scoped_refptr with std::unique_ptr when possible or replace
+  // the map as a 'scoped_map'.
   base::hash_map<
       std::string,
       base::hash_map<std::string, scoped_refptr<CORSPreflightCacheEntry> > >

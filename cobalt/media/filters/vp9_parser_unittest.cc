@@ -15,6 +15,7 @@
 // If |should_update| is true, it follows by the frame context to update.
 #include <string.h>
 
+#include <memory>
 #include <string>
 
 #include "base/files/memory_mapped_file.h"
@@ -41,8 +42,8 @@ class Vp9ParserTest : public ::testing::Test {
     base::FilePath file_path = GetTestDataFilePath(filename);
 
     stream_.reset(new base::MemoryMappedFile());
-    ASSERT_TRUE(stream_->Initialize(file_path)) << "Couldn't open stream file: "
-                                                << file_path.MaybeAsASCII();
+    ASSERT_TRUE(stream_->Initialize(file_path))
+        << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
     IvfFileHeader ivf_file_header;
     ASSERT_TRUE(ivf_parser_.Initialize(stream_->data(), stream_->length(),

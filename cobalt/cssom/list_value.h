@@ -15,11 +15,11 @@
 #ifndef COBALT_CSSOM_LIST_VALUE_H_
 #define COBALT_CSSOM_LIST_VALUE_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
@@ -36,7 +36,8 @@ class ListValue : public PropertyValue {
  public:
   typedef std::vector<T> Builder;
 
-  explicit ListValue(scoped_ptr<Builder> value) : value_(value.Pass()) {
+  explicit ListValue(std::unique_ptr<Builder> value)
+      : value_(std::move(value)) {
     DCHECK(value_.get());
     DCHECK(!value_->empty());
   }
@@ -54,7 +55,7 @@ class ListValue : public PropertyValue {
  protected:
   ~ListValue() override {}
 
-  const scoped_ptr<Builder> value_;
+  const std::unique_ptr<Builder> value_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ListValue<T>);

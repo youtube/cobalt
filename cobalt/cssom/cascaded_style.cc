@@ -31,7 +31,7 @@ void SetPropertyValuesOfHigherPrecedence(
     const scoped_refptr<const CSSDeclaredStyleData>& style,
     const CascadePrecedence& precedence_normal,
     const CascadePrecedence& precedence_important,
-    base::optional<CascadePrecedence>* cascade_precedences,
+    base::Optional<CascadePrecedence>* cascade_precedences,
     scoped_refptr<CSSComputedStyleData>* cascaded_style,
     bool* background_image_refreshed) {
   const CSSDeclaredStyleData::PropertyValues& property_values =
@@ -69,7 +69,7 @@ scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
 
   // A sparse vector of CascadePrecedence values for all possible property
   // values.
-  base::optional<CascadePrecedence>
+  base::Optional<CascadePrecedence>
       cascade_precedences[static_cast<size_t>(kNumLonghandProperties)];
 
   if (inline_style) {

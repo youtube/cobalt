@@ -14,6 +14,7 @@
 
 #include "cobalt/media_stream/microphone_audio_source.h"
 
+#include <memory>
 #include <string>
 
 #include "cobalt/media_stream/audio_parameters.h"
@@ -38,19 +39,20 @@ void MicrophoneAudioSource::EnsureSourceIsStopped() {
   NotifyTracksOfNewReadyState(MediaStreamAudioTrack::kReadyStateEnded);
 }
 
-scoped_ptr<cobalt::speech::Microphone> MicrophoneAudioSource::CreateMicrophone(
+std::unique_ptr<cobalt::speech::Microphone>
+MicrophoneAudioSource::CreateMicrophone(
     const cobalt::speech::Microphone::Options& options, int buffer_size_bytes) {
 #if defined(ENABLE_FAKE_MICROPHONE)
-  UNREFERENCED_PARAMETER(buffer_size_bytes);
+  SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
   if (options.enable_fake_microphone) {
-    return make_scoped_ptr<speech::Microphone>(
+    return std::unique_ptr<speech::Microphone>(
         new speech::MicrophoneFake(options));
   }
 #else
-  UNREFERENCED_PARAMETER(options);
+  SB_UNREFERENCED_PARAMETER(options);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
-  scoped_ptr<speech::Microphone> mic;
+  std::unique_ptr<speech::Microphone> mic;
 
 #if defined(ENABLE_MICROPHONE_IDL)
   mic.reset(new speech::MicrophoneStarboard(
@@ -61,10 +63,10 @@ scoped_ptr<cobalt::speech::Microphone> MicrophoneAudioSource::CreateMicrophone(
       speech::MicrophoneStarboard::kSbMicrophoneSampleSizeInBytes * 8);
   SetFormat(params);
 #else
-  UNREFERENCED_PARAMETER(buffer_size_bytes);
+  SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
 #endif  // defined(ENABLE_MICROPHONE_IDL)
 
-  return mic.Pass();
+  return mic;
 }
 
 MicrophoneAudioSource::MicrophoneAudioSource(
@@ -78,7 +80,7 @@ MicrophoneAudioSource::MicrophoneAudioSource(
     // Furthermore, it is an error to destruct the microphone manager
     // without stopping it, so these callbacks are not to be called
     // during the destruction of the object.
-    : javascript_message_loop_(base::MessageLoopProxy::current()),
+    : javascript_message_loop_(base::MessageLoop::current()->task_runner()),
       successful_open_callback_(successful_open),
       completion_callback_(completion),
       error_callback_(error),
@@ -95,13 +97,13 @@ MicrophoneAudioSource::MicrophoneAudioSource(
                      base::Unretained(this), options))) {}
 
 void MicrophoneAudioSource::OnDataReceived(
-    scoped_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus) {
+    std::unique_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus) {
   base::TimeTicks now = base::TimeTicks::Now();
   DeliverDataToTracks(*audio_bus, now);
 }
 
 void MicrophoneAudioSource::OnDataCompletion() {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+  if (javascript_message_loop_ != base::MessageLoop::current()->task_runner()) {
     javascript_message_loop_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnDataCompletion, this));
     return;
@@ -116,7 +118,7 @@ void MicrophoneAudioSource::OnDataCompletion() {
 }
 
 void MicrophoneAudioSource::OnMicrophoneOpen() {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+  if (javascript_message_loop_ != base::MessageLoop::current()->task_runner()) {
     javascript_message_loop_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneOpen, this));
     return;
@@ -130,7 +132,7 @@ void MicrophoneAudioSource::OnMicrophoneOpen() {
 void MicrophoneAudioSource::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error,
     std::string error_message) {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+  if (javascript_message_loop_ != base::MessageLoop::current()->task_runner()) {
     javascript_message_loop_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneError, this,
                               error, error_message));

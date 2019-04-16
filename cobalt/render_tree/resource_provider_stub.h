@@ -15,11 +15,11 @@
 #ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 #define COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/aligned_memory.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
@@ -75,7 +75,7 @@ class ImageDataStub : public ImageData {
 
  private:
   ImageDataDescriptor descriptor_;
-  scoped_array<uint8> memory_;
+  std::unique_ptr<uint8[]> memory_;
 };
 
 // Wraps an ImageDataStub object or a RawImageMemory and its associated image
@@ -83,11 +83,11 @@ class ImageDataStub : public ImageData {
 // tests can access the pixel data.
 class ImageStub : public Image {
  public:
-  explicit ImageStub(scoped_ptr<ImageDataStub> image_data)
-      : image_data_(image_data.Pass()) {}
-  ImageStub(scoped_ptr<RawImageMemory> raw_image_memory,
+  explicit ImageStub(std::unique_ptr<ImageDataStub> image_data)
+      : image_data_(std::move(image_data)) {}
+  ImageStub(std::unique_ptr<RawImageMemory> raw_image_memory,
             const MultiPlaneImageDataDescriptor& multi_plane_descriptor)
-      : raw_image_memory_(raw_image_memory.Pass()),
+      : raw_image_memory_(std::move(raw_image_memory)),
         multi_plane_descriptor_(multi_plane_descriptor) {}
 
   const math::Size& GetSize() const override {
@@ -123,10 +123,10 @@ class ImageStub : public Image {
  private:
   ~ImageStub() override {}
 
-  scoped_ptr<ImageDataStub> image_data_;
+  std::unique_ptr<ImageDataStub> image_data_;
 
-  scoped_ptr<RawImageMemory> raw_image_memory_;
-  base::optional<MultiPlaneImageDataDescriptor> multi_plane_descriptor_;
+  std::unique_ptr<RawImageMemory> raw_image_memory_;
+  base::Optional<MultiPlaneImageDataDescriptor> multi_plane_descriptor_;
 };
 
 // Simple class that returns dummy data for metric information modeled on
@@ -161,12 +161,12 @@ class FontStub : public Font {
   }
 
   const math::RectF& GetGlyphBounds(GlyphIndex glyph) override {
-    UNREFERENCED_PARAMETER(glyph);
+    SB_UNREFERENCED_PARAMETER(glyph);
     return glyph_bounds_;
   }
 
   float GetGlyphWidth(GlyphIndex glyph) override {
-    UNREFERENCED_PARAMETER(glyph);
+    SB_UNREFERENCED_PARAMETER(glyph);
     return glyph_bounds_.width();
   }
 
@@ -182,7 +182,7 @@ class FontStub : public Font {
 // Roboto.
 class TypefaceStub : public Typeface {
  public:
-  explicit TypefaceStub(const void* data) { UNREFERENCED_PARAMETER(data); }
+  explicit TypefaceStub(const void* data) { SB_UNREFERENCED_PARAMETER(data); }
 
   TypefaceId GetId() const override { return Internal::kDefaultTypefaceId; }
 
@@ -191,11 +191,11 @@ class TypefaceStub : public Typeface {
   }
 
   scoped_refptr<Font> CreateFontWithSize(float font_size) override {
-    return make_scoped_refptr(new FontStub(this, font_size));
+    return base::WrapRefCounted(new FontStub(this, font_size));
   }
 
   GlyphIndex GetGlyphForCharacter(int32 utf32_character) override {
-    UNREFERENCED_PARAMETER(utf32_character);
+    SB_UNREFERENCED_PARAMETER(utf32_character);
     return Internal::kDefaultGlyphIndex;
   }
 
@@ -205,7 +205,7 @@ class TypefaceStub : public Typeface {
 
 class RawImageMemoryStub : public RawImageMemory {
  public:
-  typedef scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> ScopedMemory;
+  typedef std::unique_ptr<uint8_t, base::AlignedFreeDeleter> ScopedMemory;
 
   RawImageMemoryStub(size_t size_in_bytes, size_t alignment)
       : size_in_bytes_(size_in_bytes) {
@@ -226,9 +226,9 @@ class RawImageMemoryStub : public RawImageMemory {
 
 class MeshStub : public render_tree::Mesh {
  public:
-  MeshStub(scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+  MeshStub(std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
            render_tree::Mesh::DrawMode draw_mode)
-      : vertices_(vertices.Pass()), draw_mode_(draw_mode) {}
+      : vertices_(std::move(vertices)), draw_mode_(draw_mode) {}
 
   uint32 GetEstimatedSizeInBytes() const override {
     return static_cast<uint32>(vertices_->size() * 5 * sizeof(float) +
@@ -241,7 +241,7 @@ class MeshStub : public render_tree::Mesh {
   }
 
  private:
-  const scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
+  const std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
   const render_tree::Mesh::DrawMode draw_mode_;
 };
 
@@ -260,29 +260,30 @@ class ResourceProviderStub : public ResourceProvider {
   void Finish() override {}
 
   bool PixelFormatSupported(PixelFormat pixel_format) override {
-    UNREFERENCED_PARAMETER(pixel_format);
+    SB_UNREFERENCED_PARAMETER(pixel_format);
     return true;
   }
 
   bool AlphaFormatSupported(AlphaFormat alpha_format) override {
-    UNREFERENCED_PARAMETER(alpha_format);
+    SB_UNREFERENCED_PARAMETER(alpha_format);
     return true;
   }
 
-  scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
-                                          PixelFormat pixel_format,
-                                          AlphaFormat alpha_format) override {
-    return scoped_ptr<ImageData>(
+  std::unique_ptr<ImageData> AllocateImageData(
+      const math::Size& size, PixelFormat pixel_format,
+      AlphaFormat alpha_format) override {
+    return std::unique_ptr<ImageData>(
         new ImageDataStub(size, pixel_format, alpha_format));
   }
 
-  scoped_refptr<Image> CreateImage(scoped_ptr<ImageData> source_data) override {
-    scoped_ptr<ImageDataStub> skia_source_data(
+  scoped_refptr<Image> CreateImage(
+      std::unique_ptr<ImageData> source_data) override {
+    std::unique_ptr<ImageDataStub> skia_source_data(
         base::polymorphic_downcast<ImageDataStub*>(source_data.release()));
     if (release_image_data_) {
       skia_source_data->ReleaseMemory();
     }
-    return make_scoped_refptr(new ImageStub(skia_source_data.Pass()));
+    return base::WrapRefCounted(new ImageStub(std::move(skia_source_data)));
   }
 
 #if SB_HAS(GRAPHICS)
@@ -303,49 +304,48 @@ class ResourceProviderStub : public ResourceProvider {
   }
 #endif  // SB_HAS(GRAPHICS)
 
-  scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
-                                                    size_t alignment) override {
-    return scoped_ptr<RawImageMemory>(
-        new RawImageMemoryStub(size_in_bytes, alignment));
+  std::unique_ptr<RawImageMemory> AllocateRawImageMemory(
+      size_t size_in_bytes, size_t alignment) override {
+    RawImageMemory* ptr = new RawImageMemoryStub(size_in_bytes, alignment);
+    return std::unique_ptr<RawImageMemory>(ptr);
   }
 
   scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
-      scoped_ptr<RawImageMemory> raw_image_memory,
+      std::unique_ptr<RawImageMemory> raw_image_memory,
       const MultiPlaneImageDataDescriptor& descriptor) override {
-    UNREFERENCED_PARAMETER(raw_image_memory);
-    return make_scoped_refptr(
-        new ImageStub(raw_image_memory.Pass(), descriptor));
+    return base::WrapRefCounted(
+        new ImageStub(std::move(raw_image_memory), descriptor));
   }
 
   bool HasLocalFontFamily(const char* font_family_name) const override {
-    UNREFERENCED_PARAMETER(font_family_name);
+    SB_UNREFERENCED_PARAMETER(font_family_name);
     return true;
   }
 
   scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
                                            FontStyle font_style) override {
-    UNREFERENCED_PARAMETER(font_family_name);
-    UNREFERENCED_PARAMETER(font_style);
-    return make_scoped_refptr(new TypefaceStub(NULL));
+    SB_UNREFERENCED_PARAMETER(font_family_name);
+    SB_UNREFERENCED_PARAMETER(font_style);
+    return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
       const char* font_face_name) override {
-    UNREFERENCED_PARAMETER(font_face_name);
-    return make_scoped_refptr(new TypefaceStub(NULL));
+    SB_UNREFERENCED_PARAMETER(font_face_name);
+    return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
   scoped_refptr<Typeface> GetCharacterFallbackTypeface(
       int32 utf32_character, FontStyle font_style,
       const std::string& language) override {
-    UNREFERENCED_PARAMETER(utf32_character);
-    UNREFERENCED_PARAMETER(font_style);
-    UNREFERENCED_PARAMETER(language);
-    return make_scoped_refptr(new TypefaceStub(NULL));
+    SB_UNREFERENCED_PARAMETER(utf32_character);
+    SB_UNREFERENCED_PARAMETER(font_style);
+    SB_UNREFERENCED_PARAMETER(language);
+    return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
   scoped_refptr<Typeface> CreateTypefaceFromRawData(
-      scoped_ptr<RawTypefaceDataVector> raw_data,
+      std::unique_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) override {
     if (raw_data == NULL) {
       *error_string = "No data to process";
@@ -360,16 +360,16 @@ class ResourceProviderStub : public ResourceProvider {
       *error_string = "OpenType sanitizer unable to process data";
       return NULL;
     }
-    return make_scoped_refptr(new TypefaceStub(NULL));
+    return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
-  float GetTextWidth(const char16* text_buffer, size_t text_length,
+  float GetTextWidth(const base::char16* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      FontProvider* font_provider,
                      FontVector* maybe_used_fonts) override {
-    UNREFERENCED_PARAMETER(text_buffer);
-    UNREFERENCED_PARAMETER(language);
-    UNREFERENCED_PARAMETER(is_rtl);
+    SB_UNREFERENCED_PARAMETER(text_buffer);
+    SB_UNREFERENCED_PARAMETER(language);
+    SB_UNREFERENCED_PARAMETER(is_rtl);
     render_tree::GlyphIndex glyph_index;
     const scoped_refptr<render_tree::Font>& font =
         font_provider->GetCharacterFont(Internal::kDefaultCharacter,
@@ -383,18 +383,18 @@ class ResourceProviderStub : public ResourceProvider {
   // Creates a glyph buffer, which is populated with shaped text, and used to
   // render that text.
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
-      const char16* text_buffer, size_t text_length,
+      const base::char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       FontProvider* font_provider) override {
-    UNREFERENCED_PARAMETER(text_buffer);
-    UNREFERENCED_PARAMETER(language);
-    UNREFERENCED_PARAMETER(is_rtl);
+    SB_UNREFERENCED_PARAMETER(text_buffer);
+    SB_UNREFERENCED_PARAMETER(language);
+    SB_UNREFERENCED_PARAMETER(is_rtl);
     render_tree::GlyphIndex glyph_index;
     const scoped_refptr<render_tree::Font>& font =
         font_provider->GetCharacterFont(Internal::kDefaultCharacter,
                                         &glyph_index);
     const math::RectF& glyph_bounds = font->GetGlyphBounds(glyph_index);
-    return make_scoped_refptr(new GlyphBuffer(
+    return base::WrapRefCounted(new GlyphBuffer(
         math::RectF(0, glyph_bounds.y(), glyph_bounds.width() * text_length,
                     glyph_bounds.height())));
   }
@@ -406,21 +406,21 @@ class ResourceProviderStub : public ResourceProvider {
       const scoped_refptr<Font>& font) override {
     const math::RectF& glyph_bounds =
         font->GetGlyphBounds(Internal::kDefaultGlyphIndex);
-    return make_scoped_refptr(new GlyphBuffer(math::RectF(
+    return base::WrapRefCounted(new GlyphBuffer(math::RectF(
         0, glyph_bounds.y(), glyph_bounds.width() * utf8_string.size(),
         glyph_bounds.height())));
   }
 
   // Create a mesh which can map replaced boxes to 3D shapes.
   scoped_refptr<render_tree::Mesh> CreateMesh(
-      scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) override {
-    return new MeshStub(vertices.Pass(), draw_mode);
+    return new MeshStub(std::move(vertices), draw_mode);
   }
 
   scoped_refptr<Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) override {
-    UNREFERENCED_PARAMETER(root);
+    SB_UNREFERENCED_PARAMETER(root);
     return scoped_refptr<Image>(NULL);
   }
 

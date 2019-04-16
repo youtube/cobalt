@@ -38,7 +38,7 @@ class InMemoryDataSource : public ::media::DataSource {
   void Stop() override;
   bool GetSize(int64* size_out) override;
   bool IsStreaming() override { return false; }
-  void SetBitrate(int bitrate) override { UNREFERENCED_PARAMETER(bitrate); }
+  void SetBitrate(int bitrate) override { SB_UNREFERENCED_PARAMETER(bitrate); }
 
  private:
   std::vector<uint8> content_;

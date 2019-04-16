@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 
 #include "base/basictypes.h"
 #include "net/base/io_buffer.h"
@@ -105,7 +106,7 @@ class WebSocketFrameContainer {
 
     const net::WebSocketFrameChunk* first_chunk(*begin());
     DCHECK(first_chunk);
-    const scoped_ptr<net::WebSocketFrameHeader>& first_chunk_header =
+    const std::unique_ptr<net::WebSocketFrameHeader>& first_chunk_header =
         first_chunk->header;
     if (!first_chunk_header) {
       NOTREACHED() << "No header found in the first chunk.";

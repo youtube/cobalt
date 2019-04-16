@@ -16,6 +16,7 @@
 
 #include <sstream>
 
+#include "base/basictypes.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 
 namespace cobalt {

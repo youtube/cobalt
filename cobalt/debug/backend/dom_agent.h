@@ -14,9 +14,9 @@
 #ifndef COBALT_DEBUG_BACKEND_DOM_AGENT_H_
 #define COBALT_DEBUG_BACKEND_DOM_AGENT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
@@ -31,7 +31,8 @@ namespace backend {
 
 class DOMAgent {
  public:
-  DOMAgent(DebugDispatcher* dispatcher, scoped_ptr<RenderLayer> render_layer);
+  DOMAgent(DebugDispatcher* dispatcher,
+           std::unique_ptr<RenderLayer> render_layer);
 
   void Thaw(JSONObject agent_state);
   JSONObject Freeze();
@@ -54,7 +55,7 @@ class DOMAgent {
   DebugDispatcher* dispatcher_;
 
   // Render layer owned by this object.
-  scoped_ptr<RenderLayer> render_layer_;
+  std::unique_ptr<RenderLayer> render_layer_;
 
   // Map of member functions implementing commands.
   CommandMap<DOMAgent> commands_;

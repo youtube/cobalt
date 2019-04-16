@@ -25,48 +25,56 @@ namespace {
 class CookiesGetter {
  public:
   CookiesGetter(const GURL& origin, net::CookieStore* cookie_store,
-                MessageLoop* get_cookies_message_loop)
-      : event_(true, false) {
-    get_cookies_message_loop->PostTask(
-        FROM_HERE, base::Bind(&net::CookieStore::GetCookiesWithOptionsAsync,
-                              cookie_store, origin, net::CookieOptions(),
-                              base::Bind(&CookiesGetter::CompletionCallback,
-                                         base::Unretained(this))));
+                base::TaskRunner* network_task_runner)
+      : event_(base::WaitableEvent::ResetPolicy::MANUAL,
+               base::WaitableEvent::InitialState::NOT_SIGNALED) {
+    network_task_runner->PostTask(
+        FROM_HERE,
+        base::Bind(
+            &::net::CookieStore::GetCookieListWithOptionsAsync,
+            base::Unretained(cookie_store), origin, net::CookieOptions(),
+            base::Passed(base::BindOnce(&CookiesGetter::CompletionCallback,
+                                        base::Unretained(this)))));
   }
 
-  const std::string& WaitForCookies() {
+  net::CookieList WaitForCookies() {
     event_.Wait();
-    return cookies_;
+    return std::move(cookies_);
   }
 
  private:
-  void CompletionCallback(const std::string& cookies) {
+  void CompletionCallback(const net::CookieList& cookies) {
     cookies_ = cookies;
+    for (auto i : cookies_) {
+    }
     event_.Signal();
   }
 
-  std::string cookies_;
+  net::CookieList cookies_;
   base::WaitableEvent event_;
 };
 
 }  // namespace
 
-CookieJarImpl::CookieJarImpl(net::CookieStore* cookie_store)
-    : get_cookies_thread_("CookiesGetter"), cookie_store_(cookie_store) {
+CookieJarImpl::CookieJarImpl(net::CookieStore* cookie_store,
+                             base::TaskRunner* network_task_runner)
+    : cookie_store_(cookie_store), network_task_runner_(network_task_runner) {
   DCHECK(cookie_store_);
-  get_cookies_thread_.Start();
+  DCHECK(network_task_runner);
 }
 
-std::string CookieJarImpl::GetCookies(const GURL& origin) {
-  CookiesGetter cookies_getter(
-      origin, cookie_store_, get_cookies_thread_.message_loop());
+net::CookieList CookieJarImpl::GetCookies(const GURL& origin) {
+  CookiesGetter cookies_getter(origin, cookie_store_, network_task_runner_);
   return cookies_getter.WaitForCookies();
 }
 
 void CookieJarImpl::SetCookie(const GURL& origin,
                               const std::string& cookie_line) {
-  cookie_store_->SetCookieWithOptionsAsync(
-      origin, cookie_line, net::CookieOptions(), base::Callback<void(bool)>());
+  network_task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&net::CookieStore::SetCookieWithOptionsAsync,
+                 base::Unretained(cookie_store_), origin, cookie_line,
+                 net::CookieOptions(), base::Callback<void(bool)>()));
 }
 
 }  // namespace network

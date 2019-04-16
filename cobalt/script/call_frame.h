@@ -15,9 +15,9 @@
 #ifndef COBALT_SCRIPT_CALL_FRAME_H_
 #define COBALT_SCRIPT_CALL_FRAME_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/script/scope.h"
 #include "cobalt/script/value_handle.h"
@@ -41,7 +41,7 @@ class CallFrame {
   virtual std::string GetCallFrameId() = 0;
 
   // The next call frame on the stack.
-  virtual scoped_ptr<CallFrame> GetCaller() = 0;
+  virtual std::unique_ptr<CallFrame> GetCaller() = 0;
 
   // The name of the function called at this stack frame. May be empty for
   // anonymous functions.
@@ -51,7 +51,7 @@ class CallFrame {
   virtual int GetLineNumber() = 0;
 
   // Current column number of executed statement.
-  virtual base::optional<int> GetColumnNumber() = 0;
+  virtual base::Optional<int> GetColumnNumber() = 0;
 
   // The ID of the script being executed. Corresponds to the scriptId parameter
   // in the Debugger.scriptParsed event notification when the script was first
@@ -61,7 +61,7 @@ class CallFrame {
 
   // The first entry in the scope chain for this call frame.
   // https://developer.chrome.com/devtools/docs/protocol/1.1/debugger#type-Scope
-  virtual scoped_ptr<Scope> GetScopeChain() = 0;
+  virtual std::unique_ptr<Scope> GetScopeChain() = 0;
 
   // An opaque handle to the current JavaScript |this| object.
   // May be NULL if the value of |this| in the call frame is not an object.

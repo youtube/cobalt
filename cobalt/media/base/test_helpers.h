@@ -11,7 +11,7 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/threading/non_thread_safe.h"
 #include "cobalt/media/base/audio_parameters.h"
 #include "cobalt/media/base/channel_layout.h"
@@ -26,7 +26,7 @@
 namespace base {
 class RunLoop;
 class TimeDelta;
-}
+}  // namespace base
 
 namespace cobalt {
 namespace media {
@@ -43,11 +43,11 @@ PipelineStatusCB NewExpectedStatusCB(PipelineStatus status);
 // testing classes that run on more than a single thread.
 //
 // Events are intended for single use and cannot be reset.
-class WaitableMessageLoopEvent : public base::NonThreadSafe {
+class Waitablebase::MessageLoopEvent : public base::NonThreadSafe {
  public:
-  WaitableMessageLoopEvent();
-  explicit WaitableMessageLoopEvent(base::TimeDelta timeout);
-  ~WaitableMessageLoopEvent();
+  Waitablebase::MessageLoopEvent();
+  explicit Waitablebase::MessageLoopEvent(base::TimeDelta timeout);
+  ~Waitablebase::MessageLoopEvent();
 
   // Returns a thread-safe closure that will signal |this| when executed.
   base::Closure GetClosure();
@@ -75,7 +75,7 @@ class WaitableMessageLoopEvent : public base::NonThreadSafe {
   std::unique_ptr<base::RunLoop> run_loop_;
   const base::TimeDelta timeout_;
 
-  DISALLOW_COPY_AND_ASSIGN(WaitableMessageLoopEvent);
+  DISALLOW_COPY_AND_ASSIGN(Waitablebase::MessageLoopEvent);
 };
 
 // Provides pre-canned VideoDecoderConfig. These types are used for tests that

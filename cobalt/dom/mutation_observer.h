@@ -15,11 +15,11 @@
 #ifndef COBALT_DOM_MUTATION_OBSERVER_H_
 #define COBALT_DOM_MUTATION_OBSERVER_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/mutation_record.h"
 #include "cobalt/script/callback_function.h"
@@ -101,7 +101,7 @@ class MutationObserver : public script::Wrappable {
                        const MutationObserverInit& options,
                        script::ExceptionState* exception_state);
 
-  scoped_ptr<CallbackInternal> callback_;
+  std::unique_ptr<CallbackInternal> callback_;
   typedef std::vector<base::WeakPtr<dom::Node> > WeakNodeVector;
   WeakNodeVector observed_nodes_;
   MutationRecordSequence record_queue_;

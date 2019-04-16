@@ -35,7 +35,7 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
  public:
   explicit TransformFunctionListValue(
       ScopedListValue<TransformFunction>::Builder value)
-      : ScopedListValue<TransformFunction>(value.Pass()) {}
+      : ScopedListValue<TransformFunction>(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTransformFunctionList(this);

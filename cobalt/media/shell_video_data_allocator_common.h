@@ -15,8 +15,9 @@
 #ifndef COBALT_MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
 #define COBALT_MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "media/base/shell_video_data_allocator.h"
@@ -49,7 +50,8 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
 
   class FrameBufferCommon : public FrameBuffer {
    public:
-    explicit FrameBufferCommon(scoped_ptr<RawImageMemory> raw_image_memory);
+    explicit FrameBufferCommon(
+        std::unique_ptr<RawImageMemory> raw_image_memory);
 
     uint8* data() const override {
       return raw_image_memory_ ? raw_image_memory_->GetMemory() : NULL;
@@ -60,10 +62,10 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
     }
 
     // Disown the image_data_.
-    scoped_ptr<RawImageMemory> DetachRawImageMemory();
+    std::unique_ptr<RawImageMemory> DetachRawImageMemory();
 
    private:
-    scoped_ptr<RawImageMemory> raw_image_memory_;
+    std::unique_ptr<RawImageMemory> raw_image_memory_;
   };
 
   cobalt::render_tree::ResourceProvider* resource_provider_;

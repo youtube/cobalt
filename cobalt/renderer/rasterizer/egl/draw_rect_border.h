@@ -31,8 +31,7 @@ namespace egl {
 // settings are supported, so check DrawRectBorder::IsValid to verify support.
 class DrawRectBorder : public DrawPolyColor {
  public:
-  DrawRectBorder(GraphicsState* graphics_state,
-                 const BaseState& base_state,
+  DrawRectBorder(GraphicsState* graphics_state, const BaseState& base_state,
                  const scoped_refptr<render_tree::RectNode>& node);
 
   bool IsValid() const { return is_valid_; }
@@ -46,8 +45,8 @@ class DrawRectBorder : public DrawPolyColor {
                        const math::RectF& content_rect,
                        const render_tree::ColorRGBA& border_color,
                        const render_tree::ColorRGBA& content_color);
-  void AddBorders(const render_tree::Border& border,
-                  uint16_t outer_verts, uint16_t inner_verts);
+  void AddBorders(const render_tree::Border& border, uint16_t outer_verts,
+                  uint16_t inner_verts);
 
   math::RectF content_rect_;
   math::RectF node_bounds_;

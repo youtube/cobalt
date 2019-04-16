@@ -15,11 +15,11 @@
 #ifndef COBALT_DOM_MUTATION_REPORTER_H_
 #define COBALT_DOM_MUTATION_REPORTER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/registered_observer.h"
 
 namespace cobalt {
@@ -40,8 +40,9 @@ class MutationReporter {
   // RegisteredObservers. In practice, this list of |registered_observers| will
   // the RegisteredObservers registered to the node that is being mutated and
   // its ancestors. |registered_observers| may contain duplicates.
-  MutationReporter(dom::Node* target,
-                   scoped_ptr<RegisteredObserverVector> registered_observers);
+  MutationReporter(
+      dom::Node* target,
+      std::unique_ptr<RegisteredObserverVector> registered_observers);
 
   ~MutationReporter();
 
@@ -49,7 +50,7 @@ class MutationReporter {
   // of mutations.
   void ReportAttributesMutation(
       const std::string& name,
-      const base::optional<std::string>& old_value) const;
+      const base::Optional<std::string>& old_value) const;
   void ReportCharacterDataMutation(const std::string& old_value) const;
   void ReportChildListMutation(
       const scoped_refptr<dom::NodeList>& added_nodes,
@@ -59,7 +60,7 @@ class MutationReporter {
 
  private:
   dom::Node* target_;
-  scoped_ptr<RegisteredObserverVector> observers_;
+  std::unique_ptr<RegisteredObserverVector> observers_;
 };
 }  // namespace dom
 }  // namespace cobalt

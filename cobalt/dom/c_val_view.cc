@@ -34,12 +34,12 @@ scoped_refptr<CValKeyList> CValView::Keys() {
   return key_list;
 }
 
-base::optional<std::string> CValView::GetValue(const std::string& name) {
+base::Optional<std::string> CValView::GetValue(const std::string& name) {
   return base::CValManager::GetInstance()->GetValueAsString(name);
 }
 
 std::string CValView::GetPrettyValue(const std::string& name) {
-  base::optional<std::string> result =
+  base::Optional<std::string> result =
       base::CValManager::GetInstance()->GetValueAsPrettyString(name);
   return result ? *result : "<undefined>";
 }

@@ -22,7 +22,7 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "starboard/string.h"
 #include "starboard/types.h"
 
@@ -167,15 +167,14 @@ bool GetLinearFit(PairIterator begin_it, PairIterator end_it, double* out_slope,
 class Segment {
  public:
   // Equal name string values must have equal pointers.
-  Segment(const std::string* name,
-          const char* start_address, const char* end_address);
+  Segment(const std::string* name, const char* start_address,
+          const char* end_address);
 
   // Using the page_size, split this Segment into one Segment
   // per page. Each of the sub_segments will copy the name
   // pointer from this.
-  void SplitAcrossPageBoundaries(
-      size_t page_size,
-      std::vector<Segment>* sub_segments) const;
+  void SplitAcrossPageBoundaries(size_t page_size,
+                                 std::vector<Segment>* sub_segments) const;
 
   bool Intersects(const Segment& other) const;
 

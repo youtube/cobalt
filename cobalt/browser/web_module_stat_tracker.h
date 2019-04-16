@@ -15,11 +15,11 @@
 #ifndef COBALT_BROWSER_WEB_MODULE_STAT_TRACKER_H_
 #define COBALT_BROWSER_WEB_MODULE_STAT_TRACKER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_vector.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/stop_watch.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -149,8 +149,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   const bool should_track_event_stats_;
 
   // Web module owns the dom and layout stat trackers.
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
-  scoped_ptr<layout::LayoutStatTracker> layout_stat_tracker_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<layout::LayoutStatTracker> layout_stat_tracker_;
 
   // Event-related
   base::CVal<bool> event_is_processing_;
@@ -162,7 +162,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   base::TimeTicks current_event_render_tree_produced_time_;
 
   // Each individual |EventType| has its own entry in the vector.
-  ScopedVector<EventStats> event_stats_list_;
+  std::vector<std::unique_ptr<EventStats>> event_stats_list_;
 
   // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;

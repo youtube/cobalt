@@ -69,7 +69,7 @@ TEST(LinearInterpolator, Discontinuity) {
   interp.Add(2, 4);
 
   static const double kErrorThreshold = .1f;
-  static const double kEpsilon = std::numeric_limits<double>::epsilon()*4.0;
+  static const double kEpsilon = std::numeric_limits<double>::epsilon() * 4.0;
 
   EXPECT_NEAR(1.0, interp.Map(1.f - kEpsilon), kErrorThreshold);
   // Expect that at the discontinuity point value of 1, that the value that
@@ -98,7 +98,7 @@ TEST(LinearInterpolator, UseComplexFloat) {
   interp.Add(1023, 15);
 
   EXPECT_FLOAT_EQ(0.0f, interp.Map(0.f));
-  EXPECT_FLOAT_EQ(0.5f, interp.Map(41.f/2.f));
+  EXPECT_FLOAT_EQ(0.5f, interp.Map(41.f / 2.f));
   EXPECT_FLOAT_EQ(1.0f, interp.Map(41.f));
   EXPECT_FLOAT_EQ(15.f, interp.Map(1023.f));
 }

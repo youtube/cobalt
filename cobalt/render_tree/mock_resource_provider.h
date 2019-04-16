@@ -15,11 +15,11 @@
 #ifndef COBALT_RENDER_TREE_MOCK_RESOURCE_PROVIDER_H_
 #define COBALT_RENDER_TREE_MOCK_RESOURCE_PROVIDER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
@@ -66,17 +66,17 @@ class MockResourceProvider : public ResourceProvider {
   MOCK_METHOD2(CreateTypefaceFromRawDataMock,
                Typeface*(RawTypefaceDataVector* raw_data,
                          std::string* error_string));
-  MOCK_METHOD5(
-      CreateGlyphBufferMock,
-      render_tree::GlyphBuffer*(const char16* text_buffer, size_t text_length,
-                                const std::string& language, bool is_rtl,
-                                render_tree::FontProvider* font_provider));
+  MOCK_METHOD5(CreateGlyphBufferMock,
+               render_tree::GlyphBuffer*(
+                   const base::char16* text_buffer, size_t text_length,
+                   const std::string& language, bool is_rtl,
+                   render_tree::FontProvider* font_provider));
   MOCK_METHOD2(
       CreateGlyphBufferMock,
       render_tree::GlyphBuffer*(const std::string& utf8_string,
                                 const scoped_refptr<render_tree::Font>& font));
   MOCK_METHOD6(GetTextWidth,
-               float(const char16* text_buffer, size_t text_length,
+               float(const base::char16* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts));
@@ -89,20 +89,20 @@ class MockResourceProvider : public ResourceProvider {
                scoped_refptr<render_tree::Image>(
                    const scoped_refptr<render_tree::Node>& root));
 
-  scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
-                                          PixelFormat pixel_format,
-                                          AlphaFormat alpha_format) {
-    return scoped_ptr<ImageData>(
+  std::unique_ptr<ImageData> AllocateImageData(const math::Size& size,
+                                               PixelFormat pixel_format,
+                                               AlphaFormat alpha_format) {
+    return std::unique_ptr<ImageData>(
         AllocateImageDataMock(size, pixel_format, alpha_format));
   }
-  scoped_refptr<Image> CreateImage(scoped_ptr<ImageData> pixel_data) {
+  scoped_refptr<Image> CreateImage(std::unique_ptr<ImageData> pixel_data) {
     return scoped_refptr<Image>(CreateImageMock(pixel_data.get()));
   }
 
 #if SB_HAS(GRAPHICS)
 
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
-    UNREFERENCED_PARAMETER(target);
+    SB_UNREFERENCED_PARAMETER(target);
     return NULL;
   }
 
@@ -115,13 +115,13 @@ class MockResourceProvider : public ResourceProvider {
 
 #endif  // SB_HAS(GRAPHICS)
 
-  scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
-                                                    size_t alignment) {
-    return scoped_ptr<RawImageMemory>(
+  std::unique_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
+                                                         size_t alignment) {
+    return std::unique_ptr<RawImageMemory>(
         AllocateRawImageMemoryMock(size_in_bytes, alignment));
   }
   scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
-      scoped_ptr<RawImageMemory> raw_image_memory,
+      std::unique_ptr<RawImageMemory> raw_image_memory,
       const MultiPlaneImageDataDescriptor& descriptor) {
     return scoped_refptr<Image>(CreateMultiPlaneImageFromRawMemoryMock(
         raw_image_memory.get(), descriptor));
@@ -143,12 +143,13 @@ class MockResourceProvider : public ResourceProvider {
         utf32_character, font_style, language));
   }
   scoped_refptr<Typeface> CreateTypefaceFromRawData(
-      scoped_ptr<RawTypefaceDataVector> raw_data, std::string* error_string) {
+      std::unique_ptr<RawTypefaceDataVector> raw_data,
+      std::string* error_string) {
     return scoped_refptr<Typeface>(
         CreateTypefaceFromRawDataMock(raw_data.get(), error_string));
   }
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const char16* text_buffer, size_t text_length,
+      const base::char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider) {
     return scoped_refptr<render_tree::GlyphBuffer>(CreateGlyphBufferMock(
@@ -161,9 +162,9 @@ class MockResourceProvider : public ResourceProvider {
         CreateGlyphBufferMock(utf8_string, font.get()));
   }
   virtual scoped_refptr<Mesh> CreateMesh(
-      scoped_ptr<std::vector<Mesh::Vertex> > vertices,
+      std::unique_ptr<std::vector<Mesh::Vertex> > vertices,
       Mesh::DrawMode draw_mode) {
-    return make_scoped_refptr(CreateMeshMock(vertices.get(), draw_mode));
+    return base::WrapRefCounted(CreateMeshMock(vertices.get(), draw_mode));
   }
 };
 

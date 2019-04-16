@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -20,8 +21,7 @@
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/base/wrap_main.h"
@@ -55,7 +55,7 @@ using starboard::ScopedFile;
 
 void PrintUsage(const char* executable_path_name) {
   std::string executable_file_name =
-      FilePath(executable_path_name).BaseName().value();
+      base::FilePath(executable_path_name).BaseName().value();
   const char kExampleAdaptiveAudioPathName[] =
       "cobalt/demos/media-element-demo/dash-audio.mp4";
   const char kExampleAdaptiveVideoPathName[] =
@@ -88,8 +88,8 @@ void PrintUsage(const char* executable_path_name) {
 
 std::string MakeCodecParameter(const std::string& string) { return string; }
 
-void OnInitSegmentReceived(scoped_ptr<MediaTracks> tracks) {
-  UNREFERENCED_PARAMETER(tracks);
+void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
+  SB_UNREFERENCED_PARAMETER(tracks);
 }
 
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -116,9 +116,9 @@ class Application {
  public:
   Application(int argc, char* argv[])
       : init_cobalt_helper_(argc, argv),
-        media_sandbox_(
-            argc, argv,
-            FilePath(FILE_PATH_LITERAL("media_source_sandbox_trace.json"))) {
+        media_sandbox_(argc, argv,
+                       base::FilePath(FILE_PATH_LITERAL(
+                           "media_source_sandbox_trace.json"))) {
     if (argc > 1) {
       FormatGuesstimator guesstimator1(argv[argc - 1]);
       FormatGuesstimator guesstimator2(argv[argc - 2]);
@@ -159,7 +159,7 @@ class Application {
   void InitializeAdaptivePlayback(const FormatGuesstimator& guesstimator) {
     is_adaptive_playback_ = true;
 
-    scoped_ptr<ScopedFile>& file =
+    std::unique_ptr<ScopedFile>& file =
         guesstimator.is_audio() ? audio_file_ : video_file_;
     file.reset(new ScopedFile(guesstimator.adaptive_path().c_str(),
                               kSbFileOpenOnly | kSbFileRead));
@@ -179,7 +179,7 @@ class Application {
     // asynchronously during initialization of |player_helper_|.  Wait until
     // it is set before proceed.
     while (!chunk_demuxer_) {
-      MessageLoop::current()->RunUntilIdle();
+      base::RunLoop().RunUntilIdle();
     }
 
     LOG(INFO) << "Playing " << guesstimator.adaptive_path();
@@ -233,7 +233,7 @@ class Application {
     // asynchronously during initialization of |player_helper_|.  Wait until
     // it is set before proceed.
     while (!chunk_demuxer_) {
-      MessageLoop::current()->RunUntilIdle();
+      base::RunLoop().RunUntilIdle();
     }
 
     LOG(INFO) << "Playing " << audio_guesstimator.adaptive_path() << " and "
@@ -313,7 +313,7 @@ class Application {
       }
     }
 
-    MessageLoop::current()->RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
     timer_event_id_ =
         SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
   }
@@ -355,7 +355,7 @@ class Application {
   }
 
   scoped_refptr<Image> FrameCB(const base::TimeDelta& time) {
-    UNREFERENCED_PARAMETER(time);
+    SB_UNREFERENCED_PARAMETER(time);
 
 #if SB_HAS(GRAPHICS)
     SbDecodeTarget decode_target = player_helper_->GetCurrentDecodeTarget();
@@ -381,11 +381,11 @@ class Application {
   bool is_adaptive_playback_;
   InitCobaltHelper init_cobalt_helper_;
   MediaSandbox media_sandbox_;
-  scoped_ptr<WebMediaPlayerHelper> player_helper_;
+  std::unique_ptr<WebMediaPlayerHelper> player_helper_;
   ChunkDemuxer* chunk_demuxer_ = NULL;
   WebMediaPlayer* player_ = NULL;
-  scoped_ptr<ScopedFile> audio_file_;
-  scoped_ptr<ScopedFile> video_file_;
+  std::unique_ptr<ScopedFile> audio_file_;
+  std::unique_ptr<ScopedFile> video_file_;
   int64 audio_offset_ = 0;
   int64 video_offset_ = 0;
   bool eos_appended_ = false;

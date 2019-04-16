@@ -18,7 +18,6 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media_capture/media_device_kind.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
@@ -31,9 +30,7 @@ namespace media_capture {
 
 class MediaDeviceInfo : public script::Wrappable {
  public:
-  MediaDeviceInfo(script::ScriptValueFactory* script_value_factory,
-                  MediaDeviceKind kind,
-                  const std::string& label);
+  MediaDeviceInfo(MediaDeviceKind kind, const std::string& label);
 
   MediaDeviceKind kind() { return kind_; }
   const std::string label() const { return label_; }
@@ -41,7 +38,6 @@ class MediaDeviceInfo : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(MediaDeviceInfo);
 
  private:
-  script::ScriptValueFactory* script_value_factory_;
   MediaDeviceKind kind_;
   std::string label_;
 

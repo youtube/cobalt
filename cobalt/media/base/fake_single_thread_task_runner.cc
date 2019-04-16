@@ -6,7 +6,7 @@
 
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/tick_clock.h"
+#include "base/time/tick_clock.h"
 
 namespace cobalt {
 namespace media {
@@ -18,7 +18,7 @@ FakeSingleThreadTaskRunner::FakeSingleThreadTaskRunner(
 FakeSingleThreadTaskRunner::~FakeSingleThreadTaskRunner() {}
 
 bool FakeSingleThreadTaskRunner::PostDelayedTask(
-    const tracked_objects::Location& from_here, const base::Closure& task,
+    const base::Location& from_here, const base::Closure& task,
     base::TimeDelta delay) {
   if (fail_on_next_task_) {
     LOG(FATAL) << "Infinite task posting loop detected.  Possibly caused by "
@@ -101,7 +101,7 @@ void FakeSingleThreadTaskRunner::Sleep(base::TimeDelta t) {
 }
 
 bool FakeSingleThreadTaskRunner::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here, const base::Closure& task,
+    const base::Location& from_here, const base::Closure& task,
     base::TimeDelta delay) {
   NOTIMPLEMENTED();
   return false;

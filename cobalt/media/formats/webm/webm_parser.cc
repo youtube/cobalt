@@ -16,7 +16,6 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"

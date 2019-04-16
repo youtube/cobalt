@@ -27,7 +27,8 @@ Comment::Comment(script::EnvironmentSettings* env_settings,
                  const base::StringPiece& comment)
     : CharacterData(base::polymorphic_downcast<DOMSettings*>(env_settings)
                         ->window()
-                        ->document(),
+                        ->document()
+                        .get(),
                     comment) {}
 
 Comment::Comment(Document* document, const base::StringPiece& comment)

@@ -24,7 +24,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/script/script.gyp:script',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/url/url.gyp:url',
       ],
     },
   ],

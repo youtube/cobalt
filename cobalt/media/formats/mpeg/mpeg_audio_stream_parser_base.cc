@@ -5,11 +5,11 @@
 #include "cobalt/media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/media_util.h"
@@ -211,11 +211,12 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data, int size,
     timestamp_helper_.reset(new AudioTimestampHelper(sample_rate));
     timestamp_helper_->SetBaseTimestamp(base_timestamp);
 
-    scoped_ptr<MediaTracks> media_tracks(new MediaTracks());
+    std::unique_ptr<MediaTracks> media_tracks(new MediaTracks());
     if (config_.IsValidConfig()) {
       media_tracks->AddAudioTrack(config_, kMpegAudioTrackId, "main", "", "");
     }
-    if (!config_cb_.Run(media_tracks.Pass(), TextTrackConfigMap())) return -1;
+    if (!config_cb_.Run(std::move(media_tracks), TextTrackConfigMap()))
+      return -1;
 
     if (!init_cb_.is_null()) {
       InitParameters params(kInfiniteDuration);

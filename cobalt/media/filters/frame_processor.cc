@@ -247,8 +247,8 @@ bool FrameProcessor::AddTrack(StreamParser::TrackId id,
   MseTrackBuffer* existing_track = FindTrack(id);
   DCHECK(!existing_track);
   if (existing_track) {
-    MEDIA_LOG(ERROR, media_log_) << "Failure adding track with duplicate ID "
-                                 << id;
+    MEDIA_LOG(ERROR, media_log_)
+        << "Failure adding track with duplicate ID " << id;
     return false;
   }
 
@@ -333,7 +333,7 @@ MseTrackBuffer* FrameProcessor::FindTrack(StreamParser::TrackId id) {
   TrackBuffersMap::iterator itr = track_buffers_.find(id);
   if (itr == track_buffers_.end()) return NULL;
 
-  return itr->second;
+  return itr->second.get();
 }
 
 void FrameProcessor::NotifyStartOfCodedFrameGroup(
@@ -489,13 +489,13 @@ bool FrameProcessor::ProcessFrame(
 
     // Sanity check the timestamps.
     if (presentation_timestamp == kNoTimestamp) {
-      MEDIA_LOG(ERROR, media_log_) << "Unknown PTS for " << frame->GetTypeName()
-                                   << " frame";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Unknown PTS for " << frame->GetTypeName() << " frame";
       return false;
     }
     if (decode_timestamp == kNoDecodeTimestamp()) {
-      MEDIA_LOG(ERROR, media_log_) << "Unknown DTS for " << frame->GetTypeName()
-                                   << " frame";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Unknown DTS for " << frame->GetTypeName() << " frame";
       return false;
     }
     if (decode_timestamp.ToPresentationTime() > presentation_timestamp) {

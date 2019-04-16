@@ -21,13 +21,12 @@
 
 #include "base/basictypes.h"
 #include "base/cancelable_callback.h"
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -55,7 +54,8 @@ class AnimatedWebPImage : public AnimatedImage {
 
   scoped_refptr<FrameProvider> GetFrameProvider() override;
 
-  void Play(const scoped_refptr<base::MessageLoopProxy>& message_loop) override;
+  void Play(
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) override;
 
   void Stop() override;
 
@@ -97,13 +97,13 @@ class AnimatedWebPImage : public AnimatedImage {
   int current_frame_index_;
   bool should_dispose_previous_frame_to_background_;
   render_tree::ResourceProvider* resource_provider_;
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   render_tree::ColorRGBA background_color_;
   math::RectF previous_frame_rect_;
   base::CancelableClosure decode_closure_;
   base::TimeTicks current_frame_time_;
-  base::optional<base::TimeTicks> next_frame_time_;
+  base::Optional<base::TimeTicks> next_frame_time_;
   // The original encoded data.
   std::vector<uint8> data_buffer_;
   scoped_refptr<render_tree::Image> current_canvas_;

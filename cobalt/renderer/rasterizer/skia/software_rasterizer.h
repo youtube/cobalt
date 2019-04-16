@@ -15,8 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RASTERIZER_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -47,7 +48,7 @@ class SoftwareRasterizer {
 
  private:
   class Impl;
-  scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace skia

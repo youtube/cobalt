@@ -28,22 +28,21 @@ DrawClear::DrawClear(GraphicsState* graphics_state, const BaseState& base_state,
     : DrawObject(base_state), clear_color_(GetDrawColor(clear_color)) {}
 
 void DrawClear::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   SB_UNREFERENCED_PARAMETER(graphics_state);
   SB_UNREFERENCED_PARAMETER(program_manager);
 }
 
-void DrawClear::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+void DrawClear::ExecuteRasterize(GraphicsState* graphics_state,
+                                 ShaderProgramManager* program_manager) {
   SB_UNREFERENCED_PARAMETER(program_manager);
 
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
 
   graphics_state->Clear(clear_color_.r(), clear_color_.g(), clear_color_.b(),
-      clear_color_.a());
+                        clear_color_.a());
 }
 
 base::TypeId DrawClear::GetTypeId() const {

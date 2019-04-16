@@ -16,15 +16,15 @@
 #define COBALT_DOM_FONT_CACHE_H_
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
 
 #include "base/callback.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/dom/font_face.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/dom/location.h"
@@ -32,7 +32,7 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/glyph.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -80,7 +80,7 @@ class FontCache {
     // to the remote typeface cache for this remote typeface, and also ensures
     // that the remote typeface is retained in the remote typeface cache's
     // memory for as long as this reference exists.
-    scoped_ptr<loader::font::CachedRemoteTypefaceReferenceWithCallbacks>
+    std::unique_ptr<loader::font::CachedRemoteTypefaceReferenceWithCallbacks>
         cached_remote_typeface_reference_;
 
     // The request timer is started on object creation and triggers a load event
@@ -90,7 +90,7 @@ class FontCache {
     // the text while waiting for it to load is considered non-conformant
     // behavior by the spec, so after the timer expires, the fallback font
     // becomes visible (https://www.w3.org/TR/css3-fonts/#font-face-loading).
-    scoped_ptr<base::Timer> request_timer_;
+    std::unique_ptr<base::OneShotTimer> request_timer_;
   };
 
   struct FontListInfo {
@@ -159,9 +159,10 @@ class FontCache {
   typedef std::map<FontListKey, FontListInfo> FontListMap;
 
   // Typeface/Font related
-  typedef base::SmallMap<
+  typedef base::small_map<
       std::map<render_tree::TypefaceId, scoped_refptr<render_tree::Typeface> >,
-      7> TypefaceMap;
+      7>
+      TypefaceMap;
   typedef std::map<FontKey, FontInfo> FontMap;
   typedef std::set<InactiveFontKey> InactiveFontSet;
 
@@ -181,7 +182,7 @@ class FontCache {
   // is done. Otherwise, it is updated with the new value and the remote
   // typeface containers are purged of URLs that are no longer contained within
   // the map.
-  void SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map);
+  void SetFontFaceMap(std::unique_ptr<FontFaceMap> font_face_map);
 
   // Purge all caches within the font cache.
   void PurgeCachedResources();
@@ -227,13 +228,13 @@ class FontCache {
 
   // Given a string of text, returns the glyph buffer needed to render it.
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const char16* text_buffer, int32 text_length, bool is_rtl,
+      const base::char16* text_buffer, int32 text_length, bool is_rtl,
       FontList* font_list);
 
   // Given a string of text, return its width. This is faster than
   // CreateGlyphBuffer().
-  float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl,
-                     FontList* font_list,
+  float GetTextWidth(const base::char16* text_buffer, int32 text_length,
+                     bool is_rtl, FontList* font_list,
                      render_tree::FontVector* maybe_used_fonts);
 
  private:
@@ -294,7 +295,7 @@ class FontCache {
   // |remote_typeface_cache_| have a reference retained by the cache for as long
   // as the cache contains a font face with the corresponding url, to ensure
   // that they remain in memory.
-  scoped_ptr<FontFaceMap> font_face_map_;
+  std::unique_ptr<FontFaceMap> font_face_map_;
   RequestedRemoteTypefaceMap requested_remote_typeface_cache_;
 
   // Font list related

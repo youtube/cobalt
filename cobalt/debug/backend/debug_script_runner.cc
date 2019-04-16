@@ -15,10 +15,10 @@
 #include "cobalt/debug/backend/debug_script_runner.h"
 
 #include "base/bind.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/script/source_code.h"
 
@@ -55,13 +55,13 @@ bool DebugScriptRunner::RunCommand(const std::string& method,
 bool DebugScriptRunner::RunScriptFile(const std::string& filename) {
   std::string result;
 
-  FilePath file_path;
-  PathService::Get(paths::DIR_COBALT_WEB_ROOT, &file_path);
+  base::FilePath file_path;
+  base::PathService::Get(paths::DIR_COBALT_WEB_ROOT, &file_path);
   file_path = file_path.AppendASCII(kContentDir);
   file_path = file_path.AppendASCII(filename);
 
   std::string script;
-  if (!file_util::ReadFileToString(file_path, &script)) {
+  if (!base::ReadFileToString(file_path, &script)) {
     DLOG(WARNING) << "Cannot read file: " << file_path.value();
     return false;
   }

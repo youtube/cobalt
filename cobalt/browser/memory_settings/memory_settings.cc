@@ -24,7 +24,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/math/linear_interpolator.h"
@@ -108,7 +108,7 @@ void SkiaGlyphAtlasTextureSetting::ScaleMemory(double memory_scale) {
   DCHECK_LT(0, texture_dims.height());
 
   for (size_t i = 0; i < number_of_reductions; ++i) {
-    if (texture_dims.width() <= 1 && texture_dims.height() <=1) {
+    if (texture_dims.width() <= 1 && texture_dims.height() <= 1) {
       break;
     }
     if (texture_dims.width() > texture_dims.height()) {
@@ -132,8 +132,7 @@ size_t SkiaGlyphAtlasTextureSetting::NumberOfReductions(
 }
 
 JavaScriptGcThresholdSetting::JavaScriptGcThresholdSetting()
-    : IntSetting(switches::kJavaScriptGcThresholdInBytes) {
-}
+    : IntSetting(switches::kJavaScriptGcThresholdInBytes) {}
 
 void JavaScriptGcThresholdSetting::PostInit() {
   const int64_t normal_memory_consumption = MemoryConsumption();
@@ -141,13 +140,12 @@ void JavaScriptGcThresholdSetting::PostInit() {
       std::min<int64_t>(normal_memory_consumption, 1 * 1024 * 1024);
 
   ScalingFunction function =
-      MakeJavaScriptGCScaler(min_memory_consumption,
-                             normal_memory_consumption);
+      MakeJavaScriptGCScaler(min_memory_consumption, normal_memory_consumption);
   set_memory_scaling_function(function);
 }
 
 int64_t SumMemoryConsumption(
-    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    base::Optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<const MemorySetting*>& memory_settings) {
   int64_t sum = 0;
   for (size_t i = 0; i < memory_settings.size(); ++i) {
@@ -160,10 +158,10 @@ int64_t SumMemoryConsumption(
 }
 
 int64_t SumMemoryConsumption(
-    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    base::Optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<MemorySetting*>& memory_settings) {
-  const std::vector<const MemorySetting*> const_vector(
-      memory_settings.begin(), memory_settings.end());
+  const std::vector<const MemorySetting*> const_vector(memory_settings.begin(),
+                                                       memory_settings.end());
   return SumMemoryConsumption(memory_type_filter, const_vector);
 }
 

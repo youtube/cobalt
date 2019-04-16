@@ -174,7 +174,7 @@ struct KeywordValue::NonTrivialStaticFields {
 
 namespace {
 
-base::LazyInstance<KeywordValue::NonTrivialStaticFields>
+base::LazyInstance<KeywordValue::NonTrivialStaticFields>::DestructorAtExit
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

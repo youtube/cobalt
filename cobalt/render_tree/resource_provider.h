@@ -15,11 +15,11 @@
 #ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_H_
 #define COBALT_RENDER_TREE_RESOURCE_PROVIDER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
@@ -68,15 +68,15 @@ class ResourceProvider {
   virtual bool AlphaFormatSupported(AlphaFormat alpha_format) = 0;
 
   // This method can be used to create an ImageData object.
-  virtual scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
-                                                  PixelFormat pixel_format,
-                                                  AlphaFormat alpha_format) = 0;
+  virtual std::unique_ptr<ImageData> AllocateImageData(
+      const math::Size& size, PixelFormat pixel_format,
+      AlphaFormat alpha_format) = 0;
 
   // This function will consume an ImageData object produced by a call to
   // AllocateImageData(), wrap it in a render_tree::Image that can be
   // used in a render tree, and return it to the caller.
   virtual scoped_refptr<Image> CreateImage(
-      scoped_ptr<ImageData> pixel_data) = 0;
+      std::unique_ptr<ImageData> pixel_data) = 0;
 
 #if SB_HAS(GRAPHICS)
   // This function will consume an SbDecodeTarget object produced by
@@ -105,7 +105,7 @@ class ResourceProvider {
   // example, a video decoder requires a raw chunk of memory to decode, but is
   // not able to provide image format information until after it begins
   // decoding.
-  virtual scoped_ptr<RawImageMemory> AllocateRawImageMemory(
+  virtual std::unique_ptr<RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) = 0;
 
   // Constructs a multi-plane image from a single contiguous chunk of raw
@@ -116,7 +116,7 @@ class ResourceProvider {
   // out the descriptor requires knowledge of the specific platform's texture
   // alignment/pitch requirements.
   virtual scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
-      scoped_ptr<RawImageMemory> raw_image_memory,
+      std::unique_ptr<RawImageMemory> raw_image_memory,
       const MultiPlaneImageDataDescriptor& descriptor) = 0;
 
   // Given a font family name, this method returns whether or not a local font
@@ -157,7 +157,7 @@ class ResourceProvider {
   // Anything larger than that is guaranteed to result in typeface creation
   // failure.
   virtual scoped_refptr<Typeface> CreateTypefaceFromRawData(
-      scoped_ptr<RawTypefaceDataVector> raw_data,
+      std::unique_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) = 0;
 
   // Given a UTF-16 text buffer, a font provider, and other shaping parameters,
@@ -173,7 +173,7 @@ class ResourceProvider {
   //   determining the best font-glyph combination are encapsulated within the
   //   FontProvider object.
   virtual scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const char16* text_buffer, size_t text_length,
+      const base::char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider) = 0;
 
@@ -200,14 +200,15 @@ class ResourceProvider {
   // NOTE: While shaping is done on the text in order to produce an accurate
   // width, a glyph buffer is never generated, so this method should be
   // faster than CreateGlyphBuffer().
-  virtual float GetTextWidth(const char16* text_buffer, size_t text_length,
-                             const std::string& language, bool is_rtl,
+  virtual float GetTextWidth(const base::char16* text_buffer,
+                             size_t text_length, const std::string& language,
+                             bool is_rtl,
                              render_tree::FontProvider* font_provider,
                              render_tree::FontVector* maybe_used_fonts) = 0;
 
   // Consumes a list of vertices and returns a Mesh instance.
   virtual scoped_refptr<Mesh> CreateMesh(
-      scoped_ptr<std::vector<Mesh::Vertex> > vertices,
+      std::unique_ptr<std::vector<Mesh::Vertex> > vertices,
       Mesh::DrawMode draw_mode) = 0;
 
   virtual scoped_refptr<Image> DrawOffscreenImage(

@@ -68,7 +68,7 @@ class ConsoleCommandManager {
     std::string long_help_;
   };
 
-  friend struct StaticMemorySingletonTraits<ConsoleCommandManager>;
+  friend struct base::StaticMemorySingletonTraits<ConsoleCommandManager>;
 
   // Method to get the singleton instance of this class.
   static ConsoleCommandManager* GetInstance();

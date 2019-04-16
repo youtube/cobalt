@@ -5,8 +5,9 @@
 #ifndef COBALT_MEDIA_BASE_BYTE_QUEUE_H_
 #define COBALT_MEDIA_BASE_BYTE_QUEUE_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/media_export.h"
 #include "starboard/types.h"
 
@@ -41,7 +42,7 @@ class MEDIA_EXPORT ByteQueue {
   // Returns a pointer to the front of the queue.
   uint8_t* front() const;
 
-  scoped_array<uint8_t> buffer_;
+  std::unique_ptr<uint8_t[]> buffer_;
 
   // Size of |buffer_|.
   size_t size_;

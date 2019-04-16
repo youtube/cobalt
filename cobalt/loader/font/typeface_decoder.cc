@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
+#include "base/memory/ptr_util.h"
 #include "cobalt/loader/font/typeface_decoder.h"
 
 namespace cobalt {
@@ -44,7 +47,7 @@ void TypefaceDecoder::DecodeChunk(const char* data, size_t size) {
   }
 
   if (!raw_data_) {
-    raw_data_ = make_scoped_ptr(
+    raw_data_ = base::WrapUnique(
         new render_tree::ResourceProvider::RawTypefaceDataVector());
   }
 
@@ -77,7 +80,7 @@ void TypefaceDecoder::Finish() {
 
   std::string error_string;
   scoped_refptr<render_tree::Typeface> decoded_typeface =
-      resource_provider_->CreateTypefaceFromRawData(raw_data_.Pass(),
+      resource_provider_->CreateTypefaceFromRawData(std::move(raw_data_),
                                                     &error_string);
 
   if (decoded_typeface) {

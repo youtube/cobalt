@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/node_list.h"
 
 #include "cobalt/dom/document.h"
@@ -35,7 +37,7 @@ class NodeListTest : public ::testing::Test {
 
   ~NodeListTest() override {}
 
-  scoped_ptr<DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };

@@ -169,7 +169,7 @@ namespace base {
 
 // clang-format on
 
-// Singleton containing commonly used Tokens.
+// base::Singleton containing commonly used Tokens.
 // This prevents runtime Token allocations when dispatching events, and avoids
 // typos.
 class Tokens {
@@ -187,9 +187,9 @@ class Tokens {
 #undef DEFINE_TOKEN_ACCESSOR_WITH_NAME_AND_VALUE
 
  private:
-  // To make Singleton<Tokens, LeakySingletonTraits<Tokens> > work with
+  // To make base::Singleton<Tokens, DefaultSingletonTraits<Tokens> > work with
   // our private constructor.
-  friend struct DefaultSingletonTraits<Tokens>;
+  friend struct base::DefaultSingletonTraits<Tokens>;
 
 #define INITIALIZE_TOKEN_WITH_NAME_ONLY(name) name##_(#name),
 #define INITIALIZE_TOKEN_WITH_NAME_AND_VALUE(name, value) name##_(value),

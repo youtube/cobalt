@@ -37,7 +37,7 @@ class DebugBackend : public script::Wrappable {
   // Callback to forward asynchronous protocol events to the frontend.
   // See: https://chromedevtools.github.io/devtools-protocol/
   typedef base::Callback<void(const std::string& method,
-                              const base::optional<std::string>& params)>
+                              const base::Optional<std::string>& params)>
       OnEventCallback;
 
   DebugBackend(script::GlobalEnvironment* global_environment,
@@ -50,7 +50,7 @@ class DebugBackend : public script::Wrappable {
 
   // Sends a protocol event to the debugger frontend.
   void SendEvent(const std::string& method,
-                 const base::optional<std::string>& params);
+                 const base::Optional<std::string>& params);
 
   // Returns the RemoteObject JSON representation of the given object for the
   // debugger frontend.

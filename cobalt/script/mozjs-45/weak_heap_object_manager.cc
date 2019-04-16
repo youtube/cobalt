@@ -40,8 +40,8 @@ void WeakHeapObjectManager::SweepUnmarkedObjects() {
 }
 
 WeakHeapObjectManager::~WeakHeapObjectManager() {
-  // If this is not empty, that means that some WeakHeapObject may outlive
-  // this class.
+// If this is not empty, that means that some WeakHeapObject may outlive
+// this class.
 #if COBALT_TRACK_WEAK_HEAP_OBJECT_ADDED_FROM_LOCATION
   for (const auto& object : weak_objects_) {
     LOG(INFO) << static_cast<void*>(object);

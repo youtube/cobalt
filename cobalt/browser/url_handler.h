@@ -16,7 +16,7 @@
 #define COBALT_BROWSER_URL_HANDLER_H_
 
 #include "base/callback.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {

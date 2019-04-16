@@ -8,7 +8,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_export.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/csp_delegate_factory.h"
 
 #include "base/lazy_instance.h"
@@ -44,7 +46,7 @@ bool InsecureAllowed(int token) {
 }
 
 CspDelegate* CreateInsecureDelegate(
-    scoped_ptr<CspViolationReporter> /*violation_reporter*/,
+    std::unique_ptr<CspViolationReporter> /*violation_reporter*/,
     const GURL& /*url*/, csp::CSPHeaderPolicy /*requre_csp*/,
     const base::Closure& /*policy_changed_callback*/,
     int insecure_allowed_token) {
@@ -57,11 +59,11 @@ CspDelegate* CreateInsecureDelegate(
 #endif  // !defined(COBALT_FORCE_CSP)
 
 CspDelegate* CreateSecureDelegate(
-    scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+    std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
     csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback,
     int /*insecure_allowed_token*/) {
-  return new CspDelegateSecure(violation_reporter.Pass(), url, require_csp,
+  return new CspDelegateSecure(std::move(violation_reporter), url, require_csp,
                                policy_changed_callback);
 }
 }  // namespace
@@ -73,7 +75,7 @@ int CspDelegateFactory::GetInsecureAllowedToken() {
 #endif  // !defined(COBALT_FORCE_CSP)
 
 CspDelegateFactory* CspDelegateFactory::GetInstance() {
-  return Singleton<CspDelegateFactory>::get();
+  return base::Singleton<CspDelegateFactory>::get();
 }
 
 CspDelegateFactory::CspDelegateFactory() {
@@ -83,15 +85,15 @@ CspDelegateFactory::CspDelegateFactory() {
 #endif  // !defined(COBALT_FORCE_CSP)
 }
 
-scoped_ptr<CspDelegate> CspDelegateFactory::Create(
+std::unique_ptr<CspDelegate> CspDelegateFactory::Create(
     CspEnforcementType type,
-    scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+    std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
     csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback, int insecure_allowed_token) {
-  scoped_ptr<CspDelegate> delegate(
-      method_[type](violation_reporter.Pass(), url, require_csp,
+  std::unique_ptr<CspDelegate> delegate(
+      method_[type](std::move(violation_reporter), url, require_csp,
                     policy_changed_callback, insecure_allowed_token));
-  return delegate.Pass();
+  return delegate;
 }
 
 #if !defined(COBALT_FORCE_CSP)

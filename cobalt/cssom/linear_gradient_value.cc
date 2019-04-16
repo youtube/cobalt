@@ -14,7 +14,7 @@
 
 #include "cobalt/cssom/linear_gradient_value.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 

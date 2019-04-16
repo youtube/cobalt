@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/threading/platform_thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/memory_tracker/tool/util.h"
 #include "nb/analytics/memory_tracker.h"
@@ -33,8 +33,7 @@ namespace memory_tracker {
 namespace {
 
 const nb::analytics::AllocationGroup* FindAllocationGroup(
-    const std::string& name,
-    nb::analytics::MemoryTracker* memory_tracker) {
+    const std::string& name, nb::analytics::MemoryTracker* memory_tracker) {
   std::vector<const nb::analytics::AllocationGroup*> groups;
   memory_tracker->GetAllocationGroups(&groups);
   // Find by exact string match.
@@ -103,7 +102,7 @@ void MemorySizeBinnerTool::Run(Params* params) {
   }
 }
 
-std::string MemorySizeBinnerTool::tool_name() const  {
+std::string MemorySizeBinnerTool::tool_name() const {
   return "MemoryTrackerCompressedTimeSeries";
 }
 

@@ -4,7 +4,7 @@
 
 #include "cobalt/layout/insets_layout_unit.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace layout {

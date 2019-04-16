@@ -273,7 +273,8 @@ TEST_F(UserObjectBindingsTest, CallWrongObjectType) {
   // Calling a function with the wrong object type is a type error.
   EXPECT_FALSE(
       EvaluateScript("obj.arbitraryFunction = arb.arbitraryFunction;\n"
-                     "obj.arbitraryFunction();", &result));
+                     "obj.arbitraryFunction();",
+                     &result));
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 

@@ -33,8 +33,7 @@ class MediaStream : public dom::EventTarget {
   // Constructors.
   MediaStream() = default;
 
-  explicit MediaStream(TrackSequences tracks): tracks_(std::move(tracks)) {
-  }
+  explicit MediaStream(TrackSequences tracks) : tracks_(std::move(tracks)) {}
 
   // Functions.
   script::Sequence<scoped_refptr<MediaStreamTrack>>& GetAudioTracks() {

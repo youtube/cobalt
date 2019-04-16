@@ -17,19 +17,26 @@
 
 #include "base/logging.h"
 #include "base/optional.h"
-#include "net/proxy/proxy_config.h"
-#include "net/proxy/proxy_config_service_fixed.h"
+#include "net/proxy_resolution/proxy_config_service_fixed.h"
+#include "net/proxy_resolution/proxy_config_with_annotation.h"
 
 namespace cobalt {
 namespace network {
-
+namespace {
+constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
+    net::DefineNetworkTrafficAnnotation("proxy_config_service",
+                                        "proxy_config_service");
+}
 class ProxyConfigService : public net::ProxyConfigServiceFixed {
  public:
-  // If the optional ProxyConfig parameter is set, it overrides the system
-  // proxy configuration.
+  // If the optional ProxyConfigWithAnnotation parameter is set, it overrides
+  // the system proxy configuration. We currently do not make use of the network
+  // traffic annotation tag yet.
   explicit ProxyConfigService(
-      const base::optional<net::ProxyConfig>& proxy_config)
-      : ProxyConfigServiceFixed(proxy_config.value_or(GetProxyConfig())) {}
+      const base::Optional<net::ProxyConfig>& proxy_config)
+      : ProxyConfigServiceFixed(net::ProxyConfigWithAnnotation(
+            proxy_config.value_or(GetProxyConfig()),
+            kNetworkTrafficAnnotation)) {}
 
   virtual ~ProxyConfigService();
 

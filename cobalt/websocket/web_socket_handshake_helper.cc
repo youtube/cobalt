@@ -20,9 +20,9 @@
 #include <string>
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_piece.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/websockets/websocket_extension.h"
@@ -46,7 +46,7 @@ enum GetHeaderResult {
 GetHeaderResult GetSingleHeaderValue(const net::HttpResponseHeaders* headers,
                                      const base::StringPiece& name,
                                      std::string* value) {
-  void* iter = NULL;
+  size_t iter = 0;
   size_t num_values = 0;
   std::string temp_value;
   std::string name_string = name.as_string();
@@ -91,7 +91,8 @@ bool ValidateUpgrade(const net::HttpResponseHeaders* headers,
     return false;
   }
 
-  if (!LowerCaseEqualsASCII(value, net::websockets::kWebSocketLowercase)) {
+  if (!base::LowerCaseEqualsASCII(value,
+                                  net::websockets::kWebSocketLowercase)) {
     *failure_message = "'Upgrade' header value is not 'WebSocket': " + value;
     return false;
   }
@@ -136,7 +137,7 @@ bool ValidateSubProtocol(
     const net::HttpResponseHeaders* headers,
     const std::vector<std::string>& requested_sub_protocols,
     std::string* sub_protocol, std::string* failure_message) {
-  void* iter = NULL;
+  size_t iter = 0;
   std::string value;
   std::set<std::string> requested_set(requested_sub_protocols.begin(),
                                       requested_sub_protocols.end());
@@ -180,7 +181,7 @@ bool ValidateSubProtocol(
 
 bool ValidateExtensions(const net::HttpResponseHeaders* headers,
                         std::string* failure_message) {
-  void* iter = NULL;
+  size_t iter = 0;
   std::string header_value;
   while (headers->EnumerateHeader(
       &iter, net::websockets::kSecWebSocketExtensions, &header_value)) {
@@ -226,7 +227,7 @@ void WebSocketHandshakeHelper::GenerateHandshakeRequest(
 
   int effective_port = connect_url.IntPort();
   std::string host_header(connect_url.host());
-  if (effective_port != url_parse::PORT_UNSPECIFIED) {
+  if (effective_port != url::PORT_UNSPECIFIED) {
     host_header += ":" + connect_url.port();
   }
 
@@ -265,7 +266,7 @@ void WebSocketHandshakeHelper::GenerateHandshakeRequest(
 
   if (!desired_sub_protocols.empty()) {
     header_string += "Sec-WebSocket-Protocol:";
-    header_string += JoinString(desired_sub_protocols, ",");
+    header_string += base::JoinString(desired_sub_protocols, ",");
     header_string += "\r\n";
   }
 

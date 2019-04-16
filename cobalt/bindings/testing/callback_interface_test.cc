@@ -76,7 +76,7 @@ TEST_F(CallbackInterfaceTest, ObjectCanImplementInterface) {
   EXPECT_CALL(*callback_arg_, ArbitraryFunction());
   EXPECT_CALL(test_mock(), SomeOperation());
   had_exception_ = true;
-  base::optional<int32_t> return_value =
+  base::Optional<int32_t> return_value =
       interface_owner.reference().value().HandleCallback(
           test_mock_, callback_arg_, &had_exception_);
   EXPECT_FALSE(had_exception_);
@@ -104,7 +104,7 @@ TEST_F(CallbackInterfaceTest, FunctionCanImplementInterface) {
   EXPECT_CALL(*callback_arg_, ArbitraryFunction());
   EXPECT_CALL(test_mock(), SomeOperation());
   had_exception_ = true;
-  base::optional<int32_t> return_value =
+  base::Optional<int32_t> return_value =
       interface_owner.reference().value().HandleCallback(
           test_mock_, callback_arg_, &had_exception_);
   EXPECT_FALSE(had_exception_);

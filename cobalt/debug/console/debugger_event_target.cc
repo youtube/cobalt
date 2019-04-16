@@ -31,29 +31,31 @@ DebuggerEventTarget::~DebuggerEventTarget() {
 }
 
 void DebuggerEventTarget::DispatchEvent(
-    const std::string& method, const base::optional<std::string>& json_params) {
+    const std::string& method, const base::Optional<std::string>& json_params) {
   base::AutoLock auto_lock(lock_);
 
   for (ListenerSet::const_iterator it = listeners_.begin();
        it != listeners_.end(); ++it) {
-    const ListenerInfo* listener = *it;
-    listener->message_loop_proxy->PostTask(
-        FROM_HERE, base::Bind(&DebuggerEventTarget::NotifyListener, this,
-                              listener, method, json_params));
+    ListenerInfo* listener = *it;
+    DCHECK(listener->task_runner);
+    listener->task_runner->PostTask(
+        FROM_HERE,
+        base::Bind(&DebuggerEventTarget::NotifyListener, base::Unretained(this),
+                   base::Unretained(listener), method, json_params));
   }
 }
 
 void DebuggerEventTarget::AddListener(
     const DebuggerEventTarget::DebuggerEventCallbackArg& callback) {
   base::AutoLock auto_lock(lock_);
-  listeners_.insert(
-      new ListenerInfo(this, callback, base::MessageLoopProxy::current()));
+  listeners_.insert(new ListenerInfo(
+      this, callback, base::MessageLoop::current()->task_runner()));
 }
 
 void DebuggerEventTarget::NotifyListener(
     const DebuggerEventTarget::ListenerInfo* listener,
-    const std::string& method, const base::optional<std::string>& json_params) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), listener->message_loop_proxy);
+    const std::string& method, const base::Optional<std::string>& json_params) {
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), listener->task_runner);
   listener->callback.value().Run(method, json_params);
 }
 

@@ -15,6 +15,8 @@
 #ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 #define COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 
+#include <memory>
+
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
@@ -49,7 +51,7 @@ class InputDeviceManager {
  public:
   // Creates an instance using a SystemWindow parameter.
   // This allows us to hook up keyboard events on desktop systems.
-  static scoped_ptr<InputDeviceManager> CreateFromWindow(
+  static std::unique_ptr<InputDeviceManager> CreateFromWindow(
       const KeyboardEventCallback& keyboard_event_callback,
       const PointerEventCallback& pointer_event_callback,
       const WheelEventCallback& wheel_event_callback,

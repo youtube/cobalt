@@ -15,8 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_CACHED_SOFTWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_CACHED_SOFTWARE_RASTERIZER_H_
 
-#include "base/containers/linked_hash_map.h"
-#include "base/hash_tables.h"
+#include <unordered_map>
+
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/render_tree/node.h"
@@ -116,7 +117,7 @@ class CachedSoftwareRasterizer {
   }
 
  private:
-  typedef base::linked_hash_map<render_tree::Node*, Surface> CacheMap;
+  typedef std::unordered_map<render_tree::Node*, Surface> CacheMap;
 
   // Release surfaces until we have |space_needed| free bytes in the cache.
   // This function will never release surfaces that were referenced this frame.

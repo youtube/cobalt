@@ -16,12 +16,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/timer.h"
+#include "base/memory/ptr_util.h"
+#include "base/timer/timer.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/html_body_element.h"
@@ -77,7 +78,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   const scoped_refptr<dom::Window> window_;
   const icu::Locale locale_;
-  const scoped_ptr<UsedStyleProvider> used_style_provider_;
+  const std::unique_ptr<UsedStyleProvider> used_style_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const OnLayoutCallback on_layout_callback_;
   const LayoutTrigger layout_trigger_;
@@ -96,10 +97,10 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // in the layout manager in order to reuse them with all layouts happening
   // in the context of one |WebModule|.
   //   http://userguide.icu-project.org/boundaryanalysis#TOC-Reuse
-  scoped_ptr<icu::BreakIterator> line_break_iterator_;
-  scoped_ptr<icu::BreakIterator> character_break_iterator_;
+  std::unique_ptr<icu::BreakIterator> line_break_iterator_;
+  std::unique_ptr<icu::BreakIterator> character_break_iterator_;
 
-  base::Timer layout_timer_;
+  base::RepeatingTimer layout_timer_;
   int dom_max_element_depth_;
   float layout_refresh_rate_;
 
@@ -178,9 +179,8 @@ LayoutManager::Impl::Impl(
       produced_render_tree_(false),
       are_computed_styles_and_box_tree_dirty_(true),
       is_render_tree_pending_(
-          StringPrintf("%s.Layout.IsRenderTreePending", name.c_str()), true,
-          "Non-zero when a new render tree is pending."),
-      layout_timer_(true, true, true),
+          base::StringPrintf("%s.Layout.IsRenderTreePending", name.c_str()),
+          true, "Non-zero when a new render tree is pending."),
       dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
       layout_stat_tracker_(layout_stat_tracker),
@@ -194,10 +194,10 @@ LayoutManager::Impl::Impl(
 
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ =
-      make_scoped_ptr(icu::BreakIterator::createLineInstance(locale_, status));
+      base::WrapUnique(icu::BreakIterator::createLineInstance(locale_, status));
   CHECK(U_SUCCESS(status));
   status = U_ZERO_ERROR;
-  character_break_iterator_ = make_scoped_ptr(
+  character_break_iterator_ = base::WrapUnique(
       icu::BreakIterator::createCharacterInstance(locale_, status));
   CHECK(U_SUCCESS(status));
 
@@ -229,7 +229,7 @@ void LayoutManager::Impl::OnLoad() {
     DirtyLayout();
 
     // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
-    MessageLoop::current()->PostTask(
+    base::MessageLoop::current()->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&LayoutManager::Impl::DoLayoutAndProduceRenderTree,
                    base::Unretained(this)));
@@ -254,9 +254,9 @@ LayoutManager::Impl::DoSynchronousLayoutAndGetRenderTree() {
                                             layout_stat_tracker_,
                                             &initial_containing_block_);
 
-  base::optional<double> current_time_milliseconds =
+  base::Optional<double> current_time_milliseconds =
       this->window_->document()->timeline()->current_time();
-  DCHECK(current_time_milliseconds.has_engaged());
+  DCHECK(current_time_milliseconds.has_value());
   base::TimeDelta current_time =
       base::TimeDelta::FromMillisecondsD(*current_time_milliseconds);
 

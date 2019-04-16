@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_PRINT_TOOL_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_PRINT_TOOL_H_
 
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -38,7 +39,7 @@ class PrintTool : public AbstractTool {
 
  private:
   class CvalsMap;
-  scoped_ptr<CvalsMap> cvals_map_;
+  std::unique_ptr<CvalsMap> cvals_map_;
 };
 
 }  // namespace memory_tracker

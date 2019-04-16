@@ -51,11 +51,9 @@ std::vector<MemorySetting*> FilterSettings(
 // constraining values are stored in this vector.
 // Returns: The amount of memory in bytes that the memory settings vector will
 //          consume at the given global_constraining_factor.
-int64_t SumMemoryConsumption(
-    double global_constraining_factor,
-    const std::vector<MemorySetting*>& memory_settings,
-    std::vector<double>* constrained_values_out) {
-
+int64_t SumMemoryConsumption(double global_constraining_factor,
+                             const std::vector<MemorySetting*>& memory_settings,
+                             std::vector<double>* constrained_values_out) {
   if (constrained_values_out) {
     constrained_values_out->clear();
   }
@@ -137,16 +135,13 @@ void ConstrainToMemoryLimit(int64_t memory_limit,
   // 1-1 mapping.
   constrained_sizes.resize(memory_settings->size());
   for (double global_constraining_factor = 1.0;
-       global_constraining_factor >= 0.0;
-       global_constraining_factor -= kStep) {
+       global_constraining_factor >= 0.0; global_constraining_factor -= kStep) {
     global_constraining_factor = std::max(0.0, global_constraining_factor);
-    const int64_t new_global_memory_consumption =
-        SumMemoryConsumption(global_constraining_factor, *memory_settings,
-                             &constrained_sizes);
+    const int64_t new_global_memory_consumption = SumMemoryConsumption(
+        global_constraining_factor, *memory_settings, &constrained_sizes);
 
-    const bool finished =
-        (global_constraining_factor == 0.0) ||
-        (new_global_memory_consumption <= memory_limit);
+    const bool finished = (global_constraining_factor == 0.0) ||
+                          (new_global_memory_consumption <= memory_limit);
 
     if (finished) {
       break;
@@ -164,9 +159,8 @@ void ConstrainToMemoryLimit(int64_t memory_limit,
 
       // If the memory doesn't actually change as predicted by the constraining
       // value then this check will catch it here.
-      CheckMemoryChange(setting->name(),
-                        old_memory_consumption, new_memory_consumption,
-                        local_constraining_factor);
+      CheckMemoryChange(setting->name(), old_memory_consumption,
+                        new_memory_consumption, local_constraining_factor);
     }
   }
 }
@@ -181,9 +175,18 @@ void ConstrainMemoryType(MemorySetting::MemoryType memory_type,
   DCHECK_NE(MemorySetting::kNotApplicable, memory_type);
   const char* memory_type_str = "UNKNOWN";
   switch (memory_type) {
-    case MemorySetting::kCPU: { memory_type_str = "CPU"; break; }
-    case MemorySetting::kGPU: { memory_type_str = "GPU"; break; }
-    case MemorySetting::kNotApplicable: { memory_type_str = "ERROR"; break; }
+    case MemorySetting::kCPU: {
+      memory_type_str = "CPU";
+      break;
+    }
+    case MemorySetting::kGPU: {
+      memory_type_str = "GPU";
+      break;
+    }
+    case MemorySetting::kNotApplicable: {
+      memory_type_str = "ERROR";
+      break;
+    }
   }
 
   std::vector<MemorySetting*> filtered_settings =
@@ -198,14 +201,14 @@ void ConstrainMemoryType(MemorySetting::MemoryType memory_type,
 
   ConstrainToMemoryLimit(max_memory, &filtered_settings);
 
-  const int64_t new_memory_size = SumMemoryConsumption(memory_type,
-                                                       *memory_settings);
+  const int64_t new_memory_size =
+      SumMemoryConsumption(memory_type, *memory_settings);
 
   if (new_memory_size > max_memory) {
     std::stringstream ss;
     ss << "WARNING - ATTEMPTED TO CONSTRAIN " << memory_type_str
-       << " MEMORY FROM " << ToMegabyteString(current_consumption, 2)
-       << " TO " << ToMegabyteString(max_memory, 2) << ".\nBUT STOPPED"
+       << " MEMORY FROM " << ToMegabyteString(current_consumption, 2) << " TO "
+       << ToMegabyteString(max_memory, 2) << ".\nBUT STOPPED"
        << " AT " << ToMegabyteString(new_memory_size, 2) << " because"
        << " there was nothing left to\n"
        << "constrain (settings refused to reduce any more memory). Try\n"
@@ -217,16 +220,15 @@ void ConstrainMemoryType(MemorySetting::MemoryType memory_type,
 
 }  // namespace.
 
-void ConstrainToMemoryLimits(int64_t max_cpu_memory,
-                             int64_t max_gpu_memory,
+void ConstrainToMemoryLimits(int64_t max_cpu_memory, int64_t max_gpu_memory,
                              std::vector<MemorySetting*>* memory_settings,
                              std::vector<std::string>* error_msgs) {
   // Constrain cpu memory.
-  ConstrainMemoryType(MemorySetting::kCPU, max_cpu_memory,
-                      memory_settings, error_msgs);
+  ConstrainMemoryType(MemorySetting::kCPU, max_cpu_memory, memory_settings,
+                      error_msgs);
   // Constrain gpu memory.
-  ConstrainMemoryType(MemorySetting::kGPU, max_gpu_memory,
-                      memory_settings, error_msgs);
+  ConstrainMemoryType(MemorySetting::kGPU, max_gpu_memory, memory_settings,
+                      error_msgs);
 }
 
 }  // namespace memory_settings

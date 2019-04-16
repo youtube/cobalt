@@ -68,7 +68,7 @@ class LogMessageHandler {
   typedef std::map<LogMessageHandler::CallbackId,
                    LogMessageHandler::OnLogMessageCallback> CallbackMap;
 
-  // This class should only be instanced by the Singleton.
+  // This class should only be instanced by the base::Singleton.
   LogMessageHandler();
   ~LogMessageHandler();
 
@@ -76,7 +76,7 @@ class LogMessageHandler {
   static bool OnLogMessage(int severity, const char* file, int line,
                            size_t message_start, const std::string& str);
 
-  friend struct StaticMemorySingletonTraits<LogMessageHandler>;
+  friend struct base::StaticMemorySingletonTraits<LogMessageHandler>;
 
   // The previous global log message handler, restored when the singleton
   // instance is destroyed.

@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_INTERFACE_WITH_ANY_H_
 #define COBALT_BINDINGS_TESTING_INTERFACE_WITH_ANY_H_
 
+#include <memory>
+
 #include "base/compiler_specific.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
@@ -43,7 +45,7 @@ class InterfaceWithAny : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(InterfaceWithAny);
 
  private:
-  scoped_ptr<script::ValueHandleHolder::Reference> value_;
+  std::unique_ptr<script::ValueHandleHolder::Reference> value_;
 };
 
 }  // namespace testing

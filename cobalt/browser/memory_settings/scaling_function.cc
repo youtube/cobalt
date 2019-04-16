@@ -34,8 +34,8 @@ class JavaScriptGCMemoryScaler {
   JavaScriptGCMemoryScaler(int64_t min_memory, int64_t max_memory) {
     DCHECK_LE(min_memory, max_memory);
     min_memory = std::min(min_memory, max_memory);
-    const double min_factor = static_cast<double>(min_memory) /
-                              static_cast<double>(max_memory);
+    const double min_factor =
+        static_cast<double>(min_memory) / static_cast<double>(max_memory);
     // From 95% -> 0%, the memory will stay the same. This effectivly
     // clamps the minimum value.
     interp_table_.Add(0.0, min_factor);
@@ -59,8 +59,7 @@ class JavaScriptGCMemoryScaler {
 double LinearFunctionWithClampValue(double min_clamp_value,
                                     double max_clamp_value,
                                     double requested_memory_scale) {
-  return math::Clamp(requested_memory_scale,
-                     min_clamp_value, max_clamp_value);
+  return math::Clamp(requested_memory_scale, min_clamp_value, max_clamp_value);
 }
 
 double SkiaAtlasGlyphTextureConstrainer(double requested_memory_scale) {
@@ -75,14 +74,13 @@ double SkiaAtlasGlyphTextureConstrainer(double requested_memory_scale) {
 
 ScalingFunction MakeLinearMemoryScaler(double min_clamp_value,
                                        double max_clamp_value) {
-  ScalingFunction function =
-      base::Bind(&LinearFunctionWithClampValue,
-                  min_clamp_value, max_clamp_value);
+  ScalingFunction function = base::Bind(&LinearFunctionWithClampValue,
+                                        min_clamp_value, max_clamp_value);
   return function;
 }
 
-ScalingFunction MakeJavaScriptGCScaler(
-    int64_t min_consumption, int64_t max_consumption) {
+ScalingFunction MakeJavaScriptGCScaler(int64_t min_consumption,
+                                       int64_t max_consumption) {
   JavaScriptGCMemoryScaler* constrainer =
       new JavaScriptGCMemoryScaler(min_consumption, max_consumption);
   // Note that Bind() will implicitly ref-count the constrainer pointer.

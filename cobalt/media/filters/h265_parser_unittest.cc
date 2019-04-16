@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/filters/h265_parser.h"
+
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "cobalt/media/base/test_data_util.h"
-#include "cobalt/media/filters/h265_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -17,8 +18,8 @@ TEST(H265ParserTest, RawHevcStreamFileParsing) {
   const int num_nalus = 35;
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
-                                            << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path))
+      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   H265Parser parser;
   parser.SetStream(stream.data(), stream.length());

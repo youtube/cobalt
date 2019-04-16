@@ -107,7 +107,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    line_box.BeginAddChildAndMaybeOverflow(*child_box_iterator);
+    line_box.BeginAddChildAndMaybeOverflow(child_box_iterator->get());
   }
   line_box.EndUpdates();
 
@@ -126,9 +126,9 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   set_width(line_box.shrink_to_fit_width());
 
-  base::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
@@ -201,12 +201,14 @@ WrapResult InlineContainerBox::TryWrapAt(
   }
 }
 
-Box* InlineContainerBox::GetSplitSibling() const { return split_sibling_; }
+Box* InlineContainerBox::GetSplitSibling() const {
+  return split_sibling_.get();
+}
 
 bool InlineContainerBox::DoesFulfillEllipsisPlacementRequirement() const {
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
     if (child_box->DoesFulfillEllipsisPlacementRequirement()) {
       return true;
     }
@@ -235,7 +237,7 @@ bool InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
 
   Boxes::const_iterator child_box_iterator = child_boxes().begin();
   while (child_box_iterator != child_boxes().end()) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
     int current_level = child_box->GetBidiLevel().value_or(last_level);
 
     // If the last level isn't equal to the current level, then check on whether
@@ -268,7 +270,7 @@ bool InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
   return true;
 }
 
-base::optional<int> InlineContainerBox::GetBidiLevel() const {
+base::Optional<int> InlineContainerBox::GetBidiLevel() const {
   if (!child_boxes().empty()) {
     return child_boxes().front()->GetBidiLevel();
   }
@@ -395,7 +397,7 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     for (Boxes::const_reverse_iterator child_box_iterator =
              child_boxes().rbegin();
          child_box_iterator != child_boxes().rend(); ++child_box_iterator) {
-      Box* child_box = *child_box_iterator;
+      Box* child_box = child_box_iterator->get();
       // Out-of-flow boxes are not impacted by ellipses.
       if (child_box->IsAbsolutelyPositioned()) {
         continue;
@@ -407,7 +409,7 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   } else {
     for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
          child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-      Box* child_box = *child_box_iterator;
+      Box* child_box = child_box_iterator->get();
       // Out-of-flow boxes are not impacted by ellipses.
       if (child_box->IsAbsolutelyPositioned()) {
         continue;
@@ -478,7 +480,7 @@ WrapResult InlineContainerBox::TryWrapAtLastOpportunityWithinWidth(
   // set to the number of child boxes.
   size_t overflow_index = 0;
   while (overflow_index < child_boxes().size()) {
-    Box* child_box = child_boxes()[overflow_index];
+    Box* child_box = child_boxes()[overflow_index].get();
     // Absolutely positioned boxes are not included in width calculations.
     if (child_box->IsAbsolutelyPositioned()) {
       continue;
@@ -577,7 +579,7 @@ WrapResult InlineContainerBox::TryWrapAtIndex(
     WrapOpportunityPolicy wrap_opportunity_policy,
     bool is_line_existence_justified, LayoutUnit available_width,
     bool should_collapse_trailing_white_space) {
-  Box* child_box = child_boxes()[wrap_index];
+  Box* child_box = child_boxes()[wrap_index].get();
   // Absolutely positioned boxes are not wrappable.
   if (child_box->IsAbsolutelyPositioned()) {
     return kWrapResultNoWrap;

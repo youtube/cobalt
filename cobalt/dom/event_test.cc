@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/event.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,8 +25,8 @@ TEST(EventTest, DefaultConstructor) {
   scoped_refptr<Event> event = new Event(base::Token("event"));
 
   EXPECT_EQ("event", event->type());
-  EXPECT_EQ(NULL, event->target());
-  EXPECT_EQ(NULL, event->current_target());
+  EXPECT_EQ(NULL, event->target().get());
+  EXPECT_EQ(NULL, event->current_target().get());
   EXPECT_EQ(Event::kNone, event->event_phase());
   EXPECT_FALSE(event->bubbles());
   EXPECT_FALSE(event->cancelable());
@@ -41,8 +41,8 @@ TEST(EventTest, NonDefaultConstructor) {
       new Event(base::Token("event"), Event::kBubbles, Event::kCancelable);
 
   EXPECT_EQ("event", event->type());
-  EXPECT_EQ(NULL, event->target());
-  EXPECT_EQ(NULL, event->current_target());
+  EXPECT_EQ(NULL, event->target().get());
+  EXPECT_EQ(NULL, event->current_target().get());
   EXPECT_EQ(Event::kNone, event->event_phase());
   EXPECT_TRUE(event->bubbles());
   EXPECT_TRUE(event->cancelable());

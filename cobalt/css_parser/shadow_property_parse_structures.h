@@ -17,7 +17,6 @@
 
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 

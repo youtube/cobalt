@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -28,7 +27,7 @@ namespace protocol {
 // Session proxy settings.
 class Proxy {
  public:
-  static base::optional<Proxy> FromValue(const base::Value* value);
+  static base::Optional<Proxy> FromValue(const base::Value* value);
 
   // Rules conforms to the format described in net/proxy/proxy_config.h
   const std::string& rules() { return rules_; }

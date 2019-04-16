@@ -19,8 +19,8 @@
 #include <string>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
-#include "base/time.h"
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 
 namespace base {
@@ -83,15 +83,15 @@ CValTimeIntervalEntryStatsImpl<EntryType, Visibility>::
     CValTimeIntervalEntryStatsImpl(const std::string& name,
                                    int64 time_interval_in_ms)
     : time_interval_in_ms_(time_interval_in_ms),
-      count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
-      average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
+      count_(base::StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
+      average_(base::StringPrintf("%s.Avg", name.c_str()), EntryType(),
                "Average time."),
-      minimum_(StringPrintf("%s.Min", name.c_str()), EntryType(),
+      minimum_(base::StringPrintf("%s.Min", name.c_str()), EntryType(),
                "Minimum time."),
-      maximum_(StringPrintf("%s.Max", name.c_str()), EntryType(),
+      maximum_(base::StringPrintf("%s.Max", name.c_str()), EntryType(),
                "Maximum time."),
-      standard_deviation_(StringPrintf("%s.Std", name.c_str()), EntryType(),
-                          "Standard deviation of times."),
+      standard_deviation_(base::StringPrintf("%s.Std", name.c_str()),
+                          EntryType(), "Standard deviation of times."),
       active_estimated_mean_(0) {
   ResetActiveEntryStats();
 }
@@ -187,8 +187,8 @@ class CValTimeIntervalEntryStatsStub {
  public:
   CValTimeIntervalEntryStatsStub(const std::string& name,
                                  int64 time_interval_in_ms) {
-    UNREFERENCED_PARAMETER(name);
-    UNREFERENCED_PARAMETER(time_interval_in_ms);
+    SB_UNREFERENCED_PARAMETER(name);
+    SB_UNREFERENCED_PARAMETER(time_interval_in_ms);
   }
 
   void AddEntry(const EntryType& value) {}

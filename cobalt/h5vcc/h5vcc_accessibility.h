@@ -15,7 +15,9 @@
 #ifndef COBALT_H5VCC_H5VCC_ACCESSIBILITY_H_
 #define COBALT_H5VCC_H5VCC_ACCESSIBILITY_H_
 
-#include "base/message_loop_proxy.h"
+#include <memory>
+
+#include "base/message_loop/message_loop.h"
 #include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/event_dispatcher.h"
@@ -57,13 +59,14 @@ class H5vccAccessibility : public script::Wrappable {
 
   void InternalOnApplicationEvent();
 
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   base::EventCallback on_application_event_callback_;
   base::EventDispatcher* event_dispatcher_;
-  scoped_ptr<H5vccAccessibilityCallbackReference> high_contrast_text_listener_;
-  scoped_ptr<accessibility::TTSEngine> tts_engine_;
-  scoped_ptr<accessibility::ScreenReader> screen_reader_;
+  std::unique_ptr<H5vccAccessibilityCallbackReference>
+      high_contrast_text_listener_;
+  std::unique_ptr<accessibility::TTSEngine> tts_engine_;
+  std::unique_ptr<accessibility::ScreenReader> screen_reader_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccAccessibility);
 };

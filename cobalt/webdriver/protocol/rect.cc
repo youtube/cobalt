@@ -24,13 +24,13 @@ const char kWidthKey[] = "width";
 const char kHeightKey[] = "height";
 }  // namespace
 
-scoped_ptr<base::Value> Rect::ToValue(const Rect& rect) {
-  scoped_ptr<base::DictionaryValue> rect_value(new base::DictionaryValue());
+std::unique_ptr<base::Value> Rect::ToValue(const Rect& rect) {
+  auto* rect_value = new base::DictionaryValue();
   rect_value->SetDouble(kXKey, rect.x_);
   rect_value->SetDouble(kYKey, rect.y_);
   rect_value->SetDouble(kWidthKey, rect.width_);
   rect_value->SetDouble(kHeightKey, rect.height_);
-  return rect_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(rect_value);
 }
 
 }  // namespace protocol

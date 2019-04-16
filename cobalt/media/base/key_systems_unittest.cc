@@ -9,6 +9,7 @@
 // TODO(sandersd): Add tests to cover codec vectors with empty items.
 // http://crbug.com/417461
 
+#include <memory>
 #include <string>
 #include <vector>
 

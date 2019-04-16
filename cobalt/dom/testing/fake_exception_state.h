@@ -28,7 +28,7 @@ class FakeExceptionState : public script::ExceptionState {
  public:
   void SetException(
       const scoped_refptr<script::ScriptException>& exception) override {
-    dom_exception_ = make_scoped_refptr(
+    dom_exception_ = base::WrapRefCounted(
         base::polymorphic_downcast<dom::DOMException*>(exception.get()));
   }
   void SetSimpleExceptionVA(script::SimpleExceptionType /*type*/,

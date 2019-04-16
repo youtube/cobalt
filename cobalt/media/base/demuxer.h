@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_DEMUXER_H_
 #define COBALT_MEDIA_BASE_DEMUXER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/data_source.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/demuxer_stream_provider.h"
@@ -71,7 +71,8 @@ class MEDIA_EXPORT Demuxer : public DemuxerStreamProvider {
   // Notifies demuxer clients that media track configuration has been updated
   // (e.g. the initial stream metadata has been parsed successfully, or a new
   // init segment has been parsed successfully in MSE case).
-  typedef base::Callback<void(scoped_ptr<MediaTracks>)> MediaTracksUpdatedCB;
+  typedef base::Callback<void(std::unique_ptr<MediaTracks>)>
+      MediaTracksUpdatedCB;
 
   Demuxer();
   ~Demuxer() override;

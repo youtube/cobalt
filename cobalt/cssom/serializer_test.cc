@@ -163,7 +163,7 @@ TEST(SerializerTest, SerializeSelectorsTest) {
   };
   // clang-format on
   base::Token::ScopedAlphabeticalSorting sort_scope;
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   base::SourceLocation loc("[object SelectorTest]", 1, 1);
   for (const TestPair& selector : selectors) {
     scoped_refptr<CSSStyleRule> css_style_rule =

@@ -45,13 +45,34 @@ std::string AddColor(TablePrinter::Color color, const std::string& value) {
 
   std::stringstream ss;
   switch (color) {
-    case TablePrinter::kRed: { ss << RED_START; break; }
-    case TablePrinter::kGreen: { ss << GREEN_START; break; }
-    case TablePrinter::kYellow: { ss << YELLOW_START; break; }
-    case TablePrinter::kBlue: { ss << BLUE_START; break; }
-    case TablePrinter::kMagenta: { ss << MAGENTA_START; break; }
-    case TablePrinter::kCyan: { ss << CYAN_START; break; }
-    case TablePrinter::kDefault: { DCHECK(false) << "Unexpected"; break; }
+    case TablePrinter::kRed: {
+      ss << RED_START;
+      break;
+    }
+    case TablePrinter::kGreen: {
+      ss << GREEN_START;
+      break;
+    }
+    case TablePrinter::kYellow: {
+      ss << YELLOW_START;
+      break;
+    }
+    case TablePrinter::kBlue: {
+      ss << BLUE_START;
+      break;
+    }
+    case TablePrinter::kMagenta: {
+      ss << MAGENTA_START;
+      break;
+    }
+    case TablePrinter::kCyan: {
+      ss << CYAN_START;
+      break;
+    }
+    case TablePrinter::kDefault: {
+      DCHECK(false) << "Unexpected";
+      break;
+    }
   }
 
   ss << value;
@@ -191,7 +212,8 @@ size_t TablePrinterImpl::ColumnPrintSize(const Table& table, size_t which_col) {
 TablePrinterImpl::TablePrinterImpl(const std::vector<size_t>& column_sizes,
                                    TablePrinter::Color text_color,
                                    TablePrinter::Color table_printer)
-    : column_sizes_(column_sizes), text_color_(text_color),
+    : column_sizes_(column_sizes),
+      text_color_(text_color),
       table_color_(table_printer) {}
 
 std::string TablePrinterImpl::MakeHeaderRow(const Row& header_row) const {
@@ -299,12 +321,9 @@ std::string TablePrinterImpl::MakeTopSeparatorRowAbove() const {
 
 }  // namespace.
 
-bool TablePrinter::SystemSupportsColor() {
-  return SbLogIsTty();
-}
+bool TablePrinter::SystemSupportsColor() { return SbLogIsTty(); }
 
-TablePrinter::TablePrinter() : text_color_(kDefault), table_color_(kDefault) {
-}
+TablePrinter::TablePrinter() : text_color_(kDefault), table_color_(kDefault) {}
 
 void TablePrinter::AddRow(const TablePrinter::Row& row) {
   table_.push_back(row);

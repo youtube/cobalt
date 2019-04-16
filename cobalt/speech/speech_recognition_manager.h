@@ -15,6 +15,7 @@
 #ifndef COBALT_SPEECH_SPEECH_RECOGNITION_MANAGER_H_
 #define COBALT_SPEECH_SPEECH_RECOGNITION_MANAGER_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/network/network_module.h"
@@ -59,11 +60,12 @@ class SpeechRecognitionManager {
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
   // order to associate the WeakPtr with the constructing thread.
   base::WeakPtr<SpeechRecognitionManager> weak_this_;
-  scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> const
+      main_message_loop_task_runner_;
 
   // Callback for sending dom events if available.
   EventCallback event_callback_;
-  scoped_ptr<SpeechRecognizer> recognizer_;
+  std::unique_ptr<SpeechRecognizer> recognizer_;
 
   State state_;
 };

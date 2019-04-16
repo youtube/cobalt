@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/rasterizer/blitter/image.h"
 
 #include "base/bind.h"
@@ -67,7 +69,7 @@ SbBlitterPixelData ImageData::TakePixelData() {
   return pixel_data;
 }
 
-SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
+SinglePlaneImage::SinglePlaneImage(std::unique_ptr<ImageData> image_data)
     : size_(image_data->GetDescriptor().size) {
   surface_ = SbBlitterCreateSurfaceFromPixelData(image_data->device(),
                                                  image_data->TakePixelData());

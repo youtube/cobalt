@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/debug/backend/debug_backend.h"
+#include "base/memory/ptr_util.h"
 
 namespace cobalt {
 namespace debug {
@@ -24,11 +25,11 @@ DebugBackend::DebugBackend(script::GlobalEnvironment* global_environment,
     : script_debugger_(script_debugger), on_event_callback_(on_event_callback) {
   // Bind this object to the global object so it can persist state and be
   // accessed from any of the debug agents.
-  global_environment->Bind("debugBackend", make_scoped_refptr(this));
+  global_environment->Bind("debugBackend", scoped_refptr<DebugBackend>(this));
 }
 
 void DebugBackend::SendEvent(const std::string& method,
-                             const base::optional<std::string>& params) {
+                             const base::Optional<std::string>& params) {
   on_event_callback_.Run(method, params);
 }
 

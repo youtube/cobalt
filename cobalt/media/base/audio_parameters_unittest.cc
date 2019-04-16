@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
-#include "base/string_number_conversions.h"
 #include "cobalt/media/base/audio_parameters.h"
+#include "base/basictypes.h"
+#include "base/strings/string_number_conversions.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -201,8 +201,8 @@ TEST(AudioParameters, Compare) {
 
   for (size_t i = 0; i < arraysize(values); ++i) {
     for (size_t j = 0; j < arraysize(values); ++j) {
-      SCOPED_TRACE("i=" + base::SizeTToString(i) + " j=" +
-                   base::SizeTToString(j));
+      SCOPED_TRACE("i=" + base::SizeTToString(i) +
+                   " j=" + base::SizeTToString(j));
       EXPECT_EQ(i < j, values[i] < values[j]);
     }
 

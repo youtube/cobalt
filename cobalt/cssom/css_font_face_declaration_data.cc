@@ -14,7 +14,7 @@
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/property_definitions.h"

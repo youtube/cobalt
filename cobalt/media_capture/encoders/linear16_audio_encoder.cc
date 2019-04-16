@@ -14,9 +14,10 @@
 
 #include "cobalt/media_capture/encoders/linear16_audio_encoder.h"
 
+#include <algorithm>
 #include <string>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 
 namespace {
 // See https://tools.ietf.org/html/rfc2586 for MIME type
@@ -45,7 +46,7 @@ bool Linear16AudioEncoder::IsLinear16MIMEType(
 void Linear16AudioEncoder::Encode(const ShellAudioBus& audio_bus,
                                   base::TimeTicks reference_time) {
   DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
-  DCHECK_EQ(audio_bus.channels(), 1);
+  DCHECK_EQ(audio_bus.channels(), size_t(1));
   auto data = audio_bus.interleaved_data();
   size_t data_size = audio_bus.GetSampleSizeInBytes() * audio_bus.frames();
   PushDataToAllListeners(data, data_size, reference_time);

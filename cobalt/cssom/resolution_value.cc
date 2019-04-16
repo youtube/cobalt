@@ -14,7 +14,7 @@
 
 #include "cobalt/cssom/resolution_value.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {

@@ -21,7 +21,7 @@ namespace debug {
 
 JSONObject JSONParse(const std::string& json, int* parse_error) {
   base::JSONReader json_reader;
-  base::Value* parsed = json_reader.ReadToValue(json);
+  base::Value* parsed = json_reader.ReadToValue(json).release();
   base::DictionaryValue* dictionary = NULL;
   if (parsed) {
     parsed->GetAsDictionary(&dictionary);
@@ -38,7 +38,7 @@ JSONObject JSONParse(const std::string& json) { return JSONParse(json, NULL); }
 std::string JSONStringify(const JSONObject& json_object) {
   DCHECK(json_object);
   std::string json;
-  base::JSONWriter::Write(json_object.get(), &json);
+  base::JSONWriter::Write(*(json_object.get()), &json);
   return json;
 }
 }  // namespace debug

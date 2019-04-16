@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/layout/anonymous_block_box.h"
 
 #include "cobalt/cssom/keyword_value.h"
@@ -49,7 +51,7 @@ void AnonymousBlockBox::SplitBidiLevelRuns() {
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
     if (child_box->TrySplitAtSecondBidiLevelRun()) {
       child_box_iterator = InsertSplitSiblingOfDirectChild(child_box_iterator);
     } else {
@@ -84,7 +86,7 @@ void AnonymousBlockBox::RenderAndAnimateContent(
 
     // Only render the ellipses if the color is not completely transparent.
     if (used_color.a() > 0.0f) {
-      char16 ellipsis_value = used_font_->GetEllipsisValue();
+      base::char16 ellipsis_value = used_font_->GetEllipsisValue();
       scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
           used_font_->CreateGlyphBuffer(&ellipsis_value, 1, false);
 
@@ -122,7 +124,8 @@ void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
 
 #endif  // COBALT_BOX_DUMP_ENABLED
 
-scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
+std::unique_ptr<FormattingContext>
+AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
   // Do any processing needed prior to ellipsis placement on all of the
   // children.
@@ -140,7 +143,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
 
   // Lay out child boxes in the normal flow.
   //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
-  scoped_ptr<InlineFormattingContext> inline_formatting_context(
+  std::unique_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(
           computed_style()->line_height(), used_font_->GetFontMetrics(),
           child_layout_params, GetBaseDirection(),
@@ -150,7 +153,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
 
   Boxes::const_iterator child_box_iterator = child_boxes().begin();
   while (child_box_iterator != child_boxes().end()) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
 
     // Attempt to add the child box to the inline formatting context.
     Box* child_box_before_wrap =
@@ -165,7 +168,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
       // Iterate backwards until the last box added to the line is found, and
       // then increment the iterator, so that it is pointing at the location
       // of the first box to add the next time through the loop.
-      while (*child_box_iterator != child_box_before_wrap) {
+      while (child_box_iterator->get() != child_box_before_wrap) {
         --child_box_iterator;
       }
 
@@ -184,7 +187,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
       Boxes::const_iterator next_child_box_iterator = child_box_iterator + 1;
       if (split_child_after_wrap &&
           (next_child_box_iterator == child_boxes().end() ||
-           *next_child_box_iterator != split_child_after_wrap)) {
+           next_child_box_iterator->get() != split_child_after_wrap)) {
         child_box_iterator =
             InsertSplitSiblingOfDirectChild(child_box_iterator);
         continue;
@@ -204,7 +207,8 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     (*child_ellipsis_iterator)->DoPostEllipsisPlacementProcessing();
   }
 
-  return inline_formatting_context.PassAs<FormattingContext>();
+  return std::unique_ptr<FormattingContext>(
+      inline_formatting_context.release());
 }
 
 bool AnonymousBlockBox::AreEllipsesEnabled() const {

@@ -189,7 +189,7 @@ scoped_refptr<Attr> NamedNodeMap::GetOrCreateAttr(
   }
 
   // We don't have an existing Attr object so we create a new once instead.
-  base::optional<std::string> value = element_->GetAttribute(name);
+  base::Optional<std::string> value = element_->GetAttribute(name);
   scoped_refptr<Attr> attribute = new Attr(name, value.value_or(""), this);
   proxy_attributes_[name] = attribute->AsWeakPtr();
 

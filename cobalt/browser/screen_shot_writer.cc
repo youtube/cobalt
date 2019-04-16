@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/browser/screen_shot_writer.h"
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 
@@ -32,9 +34,9 @@ ScreenShotWriter::ScreenShotWriter(renderer::Pipeline* pipeline)
 
 void ScreenShotWriter::RequestScreenshotToFile(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
-    const FilePath& output_path,
+    const base::FilePath& output_path,
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::optional<math::Rect>& clip_rect,
+    const base::Optional<math::Rect>& clip_rect,
     const base::Closure& complete) {
   base::Callback<void(const scoped_refptr<loader::image::EncodedStaticImage>&)>
       done_encoding_callback =
@@ -49,11 +51,11 @@ void ScreenShotWriter::RequestScreenshotToFile(
 
 void ScreenShotWriter::RequestScreenshotToMemoryUnencoded(
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::optional<math::Rect>& clip_rect,
+    const base::Optional<math::Rect>& clip_rect,
     const renderer::Pipeline::RasterizationCompleteCallback& callback) {
   DCHECK(!callback.is_null());
   if (clip_rect && clip_rect->IsEmpty()) {
-    callback.Run(scoped_array<uint8>(), math::Size());
+    callback.Run(std::unique_ptr<uint8[]>(), math::Size());
   } else {
     pipeline_->RasterizeToRGBAPixels(
         render_tree_root, clip_rect,
@@ -65,7 +67,7 @@ void ScreenShotWriter::RequestScreenshotToMemoryUnencoded(
 void ScreenShotWriter::RequestScreenshotToMemory(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::optional<math::Rect>& clip_rect,
+    const base::Optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   renderer::Pipeline::RasterizationCompleteCallback callback =
       base::Bind(&ScreenShotWriter::EncodeData, base::Unretained(this),
@@ -78,7 +80,7 @@ void ScreenShotWriter::EncodeData(
     const base::Callback<
         void(const scoped_refptr<loader::image::EncodedStaticImage>&)>&
         done_encoding_callback,
-    scoped_array<uint8> pixel_data, const math::Size& image_dimensions) {
+    std::unique_ptr<uint8[]> pixel_data, const math::Size& image_dimensions) {
   TRACE_EVENT0("cobalt::browser", "ScreenshotWriter::EncodeData()");
   scoped_refptr<loader::image::EncodedStaticImage> image_data;
   if (!image_dimensions.IsEmpty()) {
@@ -90,24 +92,24 @@ void ScreenShotWriter::EncodeData(
 
 void ScreenShotWriter::RunOnScreenshotThread(
     const renderer::Pipeline::RasterizationCompleteCallback& callback,
-    scoped_array<uint8> image_data, const math::Size& image_dimensions) {
+    std::unique_ptr<uint8[]> image_data, const math::Size& image_dimensions) {
   DCHECK(image_data);
 
-  if (MessageLoop::current() != screenshot_thread_.message_loop()) {
-    screenshot_thread_.message_loop()->PostTask(
+  if (base::MessageLoop::current() != screenshot_thread_.message_loop()) {
+    screenshot_thread_.message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&ScreenShotWriter::RunOnScreenshotThread,
                               base::Unretained(this), callback,
                               base::Passed(&image_data), image_dimensions));
     return;
   }
 
-  callback.Run(image_data.Pass(), image_dimensions);
+  callback.Run(std::move(image_data), image_dimensions);
 }
 
 void ScreenShotWriter::WriteEncodedImageToFile(
-    const FilePath& output_path, const base::Closure& complete_callback,
+    const base::FilePath& output_path, const base::Closure& complete_callback,
     const scoped_refptr<loader::image::EncodedStaticImage>& image_data) {
-  DCHECK_EQ(MessageLoop::current(), screenshot_thread_.message_loop());
+  DCHECK_EQ(base::MessageLoop::current(), screenshot_thread_.message_loop());
 
   // Blocking write to output_path.
   if (!image_data) {
@@ -115,7 +117,7 @@ void ScreenShotWriter::WriteEncodedImageToFile(
         << "Unable to take screenshot because image data is unavailable.";
   } else {
     int num_bytes = static_cast<int>(image_data->GetEstimatedSizeInBytes());
-    int bytes_written = file_util::WriteFile(
+    int bytes_written = base::WriteFile(
         output_path, reinterpret_cast<char*>(image_data->GetMemory()),
         num_bytes);
     LOG_IF(ERROR, bytes_written != num_bytes)

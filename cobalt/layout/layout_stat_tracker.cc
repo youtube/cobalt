@@ -14,13 +14,13 @@
 
 #include "cobalt/layout/layout_stat_tracker.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace layout {
 
 LayoutStatTracker::LayoutStatTracker(const std::string& name)
-    : count_box_(StringPrintf("Count.%s.Layout.Box", name.c_str()), 0,
+    : count_box_(base::StringPrintf("Count.%s.Layout.Box", name.c_str()), 0,
                  "Total number of layout boxes."),
       count_box_created_(0),
       count_box_destroyed_(0),

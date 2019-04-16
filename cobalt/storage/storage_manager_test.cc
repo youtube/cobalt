@@ -14,12 +14,12 @@
 
 #include "cobalt/storage/storage_manager.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
@@ -41,10 +41,13 @@ namespace {
 // Used to be able to intercept QueueFlush().
 class MockStorageManager : public StorageManager {
  public:
-  MockStorageManager(scoped_ptr<StorageManager::UpgradeHandler> upgrade_handler,
-                     const Options& options)
-      : StorageManager(upgrade_handler.Pass(), options) {}
-  MOCK_METHOD1(QueueFlush, void(const base::Closure& callback));
+  MockStorageManager(
+      std::unique_ptr<StorageManager::UpgradeHandler> upgrade_handler,
+      const Options& options)
+      : StorageManager(std::move(upgrade_handler), options) {}
+#ifndef GMOCK_NO_MOVE_MOCK
+  MOCK_METHOD1(QueueFlush, void(base::OnceClosure callback));
+#endif
 };
 
 class MockUpgradeHandler : public StorageManager::UpgradeHandler {
@@ -54,7 +57,9 @@ class MockUpgradeHandler : public StorageManager::UpgradeHandler {
 
 class CallbackWaiter {
  public:
-  CallbackWaiter() : was_called_event_(true, false) {}
+  CallbackWaiter()
+      : was_called_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                          base::WaitableEvent::InitialState::NOT_SIGNALED) {}
   virtual ~CallbackWaiter() {}
   bool TimedWait() {
     return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(5));
@@ -83,7 +88,7 @@ class MemoryStoreWaiter : public CallbackWaiter {
  public:
   MemoryStoreWaiter() {}
   void OnMemoryStore(MemoryStore* memory_store) {
-    UNREFERENCED_PARAMETER(memory_store);
+    SB_UNREFERENCED_PARAMETER(memory_store);
     Signal();
   }
 
@@ -95,7 +100,7 @@ class ReadOnlyMemoryStoreWaiter : public CallbackWaiter {
  public:
   ReadOnlyMemoryStoreWaiter() {}
   void OnMemoryStore(const MemoryStore& memory_store) {
-    UNREFERENCED_PARAMETER(memory_store);
+    SB_UNREFERENCED_PARAMETER(memory_store);
     Signal();
   }
 
@@ -111,7 +116,7 @@ void FlushCallback(MemoryStore* memory_store) {
 
 class StorageManagerTest : public ::testing::Test {
  protected:
-  StorageManagerTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {}
+  StorageManagerTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {}
 
   ~StorageManagerTest() { storage_manager_.reset(NULL); }
 
@@ -122,7 +127,7 @@ class StorageManagerTest : public ::testing::Test {
     // concurrently.
     storage_manager_.reset(NULL);
 
-    scoped_ptr<StorageManager::UpgradeHandler> upgrade_handler(
+    std::unique_ptr<StorageManager::UpgradeHandler> upgrade_handler(
         new MockUpgradeHandler());
     StorageManager::Options options;
     options.savegame_options.delete_on_destruction = delete_savegame;
@@ -131,7 +136,7 @@ class StorageManagerTest : public ::testing::Test {
       options.savegame_options.test_initial_data = *initial_data;
     }
     storage_manager_.reset(
-        new StorageManagerType(upgrade_handler.Pass(), options));
+        new StorageManagerType(std::move(upgrade_handler), options));
   }
 
   template <typename StorageManagerType>
@@ -139,8 +144,8 @@ class StorageManagerTest : public ::testing::Test {
     storage_manager_->FinishIO();
   }
 
-  MessageLoop message_loop_;
-  scoped_ptr<StorageManager> storage_manager_;
+  base::MessageLoop message_loop_;
+  std::unique_ptr<StorageManager> storage_manager_;
 };
 
 TEST_F(StorageManagerTest, WithMemoryStore) {
@@ -148,7 +153,7 @@ TEST_F(StorageManagerTest, WithMemoryStore) {
   MemoryStoreWaiter waiter;
   storage_manager_->WithMemoryStore(
       base::Bind(&MemoryStoreWaiter::OnMemoryStore, base::Unretained(&waiter)));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(waiter.TimedWait());
 }
 
@@ -157,7 +162,7 @@ TEST_F(StorageManagerTest, WithReadOnlyMemoryStore) {
   ReadOnlyMemoryStoreWaiter waiter;
   storage_manager_->WithReadOnlyMemoryStore(base::Bind(
       &ReadOnlyMemoryStoreWaiter::OnMemoryStore, base::Unretained(&waiter)));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(waiter.TimedWait());
 }
 
@@ -165,20 +170,21 @@ TEST_F(StorageManagerTest, FlushNow) {
   // Ensure the Flush callback is called.
   Init<StorageManager>();
   storage_manager_->WithMemoryStore(base::Bind(&FlushCallback));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   FlushWaiter waiter;
   storage_manager_->FlushNow(
       base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
   EXPECT_TRUE(waiter.TimedWait());
 }
 
+#ifndef GMOCK_NO_MOVE_MOCK
 TEST_F(StorageManagerTest, FlushNowWithFlushOnChange) {
   // Test that the Flush callback is called exactly once, despite calling both
   // FlushOnChange() and FlushNow().
   Init<MockStorageManager>();
 
   storage_manager_->WithMemoryStore(base::Bind(&FlushCallback));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   FlushWaiter waiter;
   MockStorageManager& storage_manager =
@@ -204,7 +210,7 @@ TEST_F(StorageManagerTest, FlushOnChange) {
   Init<MockStorageManager>();
 
   storage_manager_->WithMemoryStore(base::Bind(&FlushCallback));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   FlushWaiter waiter;
   MockStorageManager& storage_manager =
@@ -231,7 +237,7 @@ TEST_F(StorageManagerTest, FlushOnChangeMaxDelay) {
   Init<MockStorageManager>();
 
   storage_manager_->WithMemoryStore(base::Bind(&FlushCallback));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   FlushWaiter waiter;
   MockStorageManager& storage_manager =
@@ -255,7 +261,7 @@ TEST_F(StorageManagerTest, FlushOnShutdown) {
   Init<MockStorageManager>();
 
   storage_manager_->WithMemoryStore(base::Bind(&FlushCallback));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   FlushWaiter waiter;
   MockStorageManager& storage_manager =
@@ -272,6 +278,7 @@ TEST_F(StorageManagerTest, FlushOnShutdown) {
 
   EXPECT_TRUE(waiter.IsSignaled());
 }
+#endif
 
 TEST_F(StorageManagerTest, Upgrade) {
   Savegame::ByteVector initial_data;
@@ -292,7 +299,7 @@ TEST_F(StorageManagerTest, Upgrade) {
   storage_manager_->FlushNow(
       base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
   EXPECT_TRUE(waiter.TimedWait());
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 }
 
 }  // namespace storage

@@ -19,12 +19,12 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/debug/trace_event.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
@@ -50,9 +50,9 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
   DCHECK(codecs);
   static const char kCodecs[] = "codecs=";
 
-  std::vector<std::string> tokens;
   // SplitString will also trim the results.
-  ::base::SplitString(content_type, ';', &tokens);
+  std::vector<std::string> tokens = ::base::SplitString(
+      content_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   // The first one has to be mime type with delimiter '/' like 'video/mp4'.
   if (tokens.size() < 2 || tokens[0].find('/') == tokens[0].npos) {
     return false;
@@ -63,9 +63,10 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
       continue;
     }
     std::string codec_string = tokens[i].substr(strlen("codecs="));
-    TrimString(codec_string, " \"", &codec_string);
+    base::TrimString(codec_string, " \"", &codec_string);
     // SplitString will also trim the results.
-    ::base::SplitString(codec_string, ',', codecs);
+    *codecs = ::base::SplitString(codec_string, ",", base::TRIM_WHITESPACE,
+                                  base::SPLIT_WANT_ALL);
     break;
   }
   return !codecs->empty();
@@ -89,7 +90,7 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
 }
 
 double MediaSource::duration(script::ExceptionState* exception_state) const {
-  UNREFERENCED_PARAMETER(exception_state);
+  SB_UNREFERENCED_PARAMETER(exception_state);
 
   if (ready_state_ == kMediaSourceReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();

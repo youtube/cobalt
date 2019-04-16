@@ -27,8 +27,7 @@ namespace egl {
 // This object handles clearing the current scissor area with the given color.
 class DrawClear : public DrawObject {
  public:
-  DrawClear(GraphicsState* graphics_state,
-            const BaseState& base_state,
+  DrawClear(GraphicsState* graphics_state, const BaseState& base_state,
             const render_tree::ColorRGBA& clear_color);
 
   void ExecuteUpdateVertexBuffer(

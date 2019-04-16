@@ -14,10 +14,12 @@
 
 #include "cobalt/loader/file_fetcher.h"
 
+#include <memory>
 #include <string>
 
-#include "base/file_util.h"
-#include "base/message_loop.h"
+#include "base/files/file_util.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "cobalt/loader/fetcher_test.h"
@@ -37,17 +39,18 @@ class FileFetcherTest : public ::testing::Test {
   FileFetcherTest();
   ~FileFetcherTest() override {}
 
-  FilePath data_dir_;
-  FilePath dir_test_data_;
-  MessageLoop message_loop_;
-  scoped_ptr<FileFetcher> file_fetcher_;
+  base::FilePath data_dir_;
+  base::FilePath dir_test_data_;
+  base::MessageLoop message_loop_;
+  std::unique_ptr<FileFetcher> file_fetcher_;
 };
 
-FileFetcherTest::FileFetcherTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
+FileFetcherTest::FileFetcherTest()
+    : message_loop_(base::MessageLoop::TYPE_DEFAULT) {
   data_dir_ = data_dir_.Append(FILE_PATH_LITERAL("cobalt"))
                   .Append(FILE_PATH_LITERAL("loader"))
                   .Append(FILE_PATH_LITERAL("testdata"));
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &dir_test_data_));
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &dir_test_data_));
 }
 
 TEST_F(FileFetcherTest, NonExisitingPath) {
@@ -56,9 +59,10 @@ TEST_F(FileFetcherTest, NonExisitingPath) {
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
   EXPECT_CALL(fetcher_handler_mock, OnError(_, _));
 
-  const FilePath file_path = data_dir_.Append(FILE_PATH_LITERAL("nonexistent"));
+  const base::FilePath file_path =
+      data_dir_.Append(FILE_PATH_LITERAL("nonexistent"));
   FileFetcher::Options options;
-  file_fetcher_ = make_scoped_ptr(
+  file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   run_loop.Run();
@@ -74,9 +78,10 @@ TEST_F(FileFetcherTest, EmptyFile) {
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
   EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
-  const FilePath file_path = data_dir_.Append(FILE_PATH_LITERAL("empty.txt"));
+  const base::FilePath file_path =
+      data_dir_.Append(FILE_PATH_LITERAL("empty.txt"));
   FileFetcher::Options options;
-  file_fetcher_ = make_scoped_ptr(
+  file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   run_loop.Run();
@@ -98,11 +103,11 @@ TEST_F(FileFetcherTest, ValidFile) {
   EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   // Create a File Fetcher.
-  const FilePath file_path =
+  const base::FilePath file_path =
       data_dir_.Append(FILE_PATH_LITERAL("performance-spike.html"));
   FileFetcher::Options options;
   options.buffer_size = 128;
-  file_fetcher_ = make_scoped_ptr(
+  file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   // Start the message loop, hence the fetching.
@@ -112,8 +117,8 @@ TEST_F(FileFetcherTest, ValidFile) {
   std::string loaded_text = fetcher_handler_mock.data();
 
   std::string expected_text;
-  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data_.Append(file_path),
-                                          &expected_text));
+  EXPECT_TRUE(
+      base::ReadFileToString(dir_test_data_.Append(file_path), &expected_text));
   EXPECT_EQ(expected_text, loaded_text);
 
   EXPECT_EQ(file_fetcher_.get(), fetcher_handler_mock.fetcher());
@@ -131,12 +136,12 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
   EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   // Create a File Fetcher.
-  const FilePath file_path =
+  const base::FilePath file_path =
       data_dir_.Append(FILE_PATH_LITERAL("performance-spike.html"));
   FileFetcher::Options options;
   options.buffer_size = 128;
   options.start_offset = kStartOffset;
-  file_fetcher_ = make_scoped_ptr(
+  file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   // Start the message loop, hence the fetching.
@@ -146,8 +151,8 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
   std::string loaded_text = fetcher_handler_mock.data();
 
   std::string expected_text;
-  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data_.Append(file_path),
-                                          &expected_text));
+  EXPECT_TRUE(
+      base::ReadFileToString(dir_test_data_.Append(file_path), &expected_text));
   expected_text = expected_text.substr(kStartOffset);
   EXPECT_EQ(expected_text, loaded_text);
 
@@ -167,13 +172,13 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
   EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   // Create a File Fetcher.
-  const FilePath file_path =
+  const base::FilePath file_path =
       data_dir_.Append(FILE_PATH_LITERAL("performance-spike.html"));
   FileFetcher::Options options;
   options.buffer_size = 128;
   options.start_offset = kStartOffset;
   options.bytes_to_read = kBytesToRead;
-  file_fetcher_ = make_scoped_ptr(
+  file_fetcher_ = base::WrapUnique(
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   // Start the message loop, hence the fetching.
@@ -183,8 +188,8 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
   std::string loaded_text = fetcher_handler_mock.data();
 
   std::string expected_text;
-  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data_.Append(file_path),
-                                          &expected_text));
+  EXPECT_TRUE(
+      base::ReadFileToString(dir_test_data_.Append(file_path), &expected_text));
   expected_text = expected_text.substr(kStartOffset, kBytesToRead);
   EXPECT_EQ(expected_text, loaded_text);
 

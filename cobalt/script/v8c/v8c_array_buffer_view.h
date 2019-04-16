@@ -82,7 +82,6 @@ inline void ToJSValue(
     v8::Isolate* isolate,
     const ScriptValue<ArrayBufferView>* array_buffer_view_value,
     v8::Local<v8::Value>* out_value) {
-
   if (!array_buffer_view_value) {
     *out_value = v8::Null(isolate);
     return;

@@ -15,12 +15,13 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
@@ -72,7 +73,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object,
-      base::optional<ValueHandleHolder::Reference>* out_value_handle) override;
+      base::Optional<ValueHandleHolder::Reference>* out_value_handle) override;
 
   std::vector<StackFrame> GetStackTrace(int max_frames) override;
   using GlobalEnvironment::GetStackTrace;
@@ -185,12 +186,12 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   int garbage_collection_count_;
   WeakHeapObjectManager weak_object_manager_;
   std::unordered_map<Wrappable*, CountedHeapObject> kept_alive_objects_;
-  scoped_ptr<ReferencedObjectMap> referenced_objects_;
+  std::unique_ptr<ReferencedObjectMap> referenced_objects_;
   std::vector<InterfaceData> cached_interface_data_;
 
   ContextDestructor context_destructor_;
-  scoped_ptr<WrapperFactory> wrapper_factory_;
-  scoped_ptr<MozjsScriptValueFactory> script_value_factory_;
+  std::unique_ptr<WrapperFactory> wrapper_factory_;
+  std::unique_ptr<MozjsScriptValueFactory> script_value_factory_;
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
@@ -202,14 +203,14 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   // changing it to something else later.  Note that this should be removed if
   // we ever rebase to a SpiderMonkey version >= 50, as that is when native
   // promises were added to it.
-  base::optional<JS::PersistentRootedObject> stored_promise_constructor_;
+  base::Optional<JS::PersistentRootedObject> stored_promise_constructor_;
 
   // If non-NULL, the error message from the ReportErrorHandler will get
   // assigned to this instead of being printed.
   std::string* last_error_message_;
 
   bool eval_enabled_;
-  base::optional<std::string> eval_disabled_message_;
+  base::Optional<std::string> eval_disabled_message_;
   base::Closure report_eval_;
   ReportErrorCallback report_error_callback_;
 

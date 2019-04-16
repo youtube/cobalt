@@ -13,9 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""
-A wrapper around the native-trace-members binary
+"""A wrapper around the native-trace-members binary
 
 This script is responsible for:
 
@@ -71,11 +69,12 @@ if not found_dir:
 
 def GetRawClangCommands():
   """Ask ninja to output all the commands that would need to be run in order
-  to build the target "all"."""
-  p = subprocess.Popen(
-      ['ninja', '-t', 'commands', 'all'],
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE)
+
+  to build the target "all".
+  """
+  p = subprocess.Popen(['ninja', '-t', 'commands', 'all'],
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
   stdout, stderr = p.communicate()
   assert len(stderr) == 0
   assert p.returncode == 0
@@ -215,9 +214,10 @@ def main():
 
     if 'fieldClass' in suggestion:
       field_class = suggestion['fieldClass']
-      # scoped_refptr and scoped_ptr are currently the only way to signal
+      # scoped_refptr and std::unique_ptr are currently the only way to signal
       # ownership.
-      if not ('scoped_refptr' in field_class or 'scoped_ptr' in field_class):
+      if not ('scoped_refptr' in field_class or
+              'std::unique_ptr' in field_class):
         continue
 
     if message_type == 'needsTraceMembersDeclaration':
@@ -261,8 +261,9 @@ def main():
       assert False
 
     # TODO: Put this under a verbose output command line argument.
-    print(json.dumps(
-        suggestion, sort_keys=True, indent=4, separators=(',', ': ')))
+    print(
+        json.dumps(
+            suggestion, sort_keys=True, indent=4, separators=(',', ': ')))
     print('')
 
   return 0

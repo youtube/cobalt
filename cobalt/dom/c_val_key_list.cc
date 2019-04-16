@@ -22,7 +22,7 @@ namespace dom {
 
 CValKeyList::CValKeyList() {}
 
-base::optional<std::string> CValKeyList::Item(uint32 item) {
+base::Optional<std::string> CValKeyList::Item(uint32 item) {
   if (item < keys_.size()) {
     return keys_[item];
   }

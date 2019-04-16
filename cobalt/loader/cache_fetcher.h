@@ -16,6 +16,7 @@
 #define COBALT_LOADER_CACHE_FETCHER_H_
 
 #include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -39,9 +40,9 @@ class CacheFetcher : public Fetcher {
   CacheFetcher(
       const GURL& url, const csp::SecurityCallback& security_callback,
       Handler* handler,
-      const base::Callback<int(const std::string&, scoped_array<char>*)>&
-          read_cache_callback =
-              base::Callback<int(const std::string&, scoped_array<char>*)>());
+      const base::Callback<int(const std::string&,
+                               std::unique_ptr<char[]>*)>& read_cache_callback =
+          base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>());
 
   ~CacheFetcher() override;
 
@@ -53,7 +54,7 @@ class CacheFetcher : public Fetcher {
   GURL url_;
   csp::SecurityCallback security_callback_;
   base::WeakPtrFactory<CacheFetcher> weak_ptr_factory_;
-  base::Callback<int(const std::string&, scoped_array<char>*)>
+  base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>
       read_cache_callback_;
 };
 

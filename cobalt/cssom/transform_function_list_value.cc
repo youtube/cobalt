@@ -23,7 +23,7 @@ TransformMatrix TransformFunctionListValue::ToMatrix() const {
   TransformMatrix matrix;
   for (Builder::const_iterator iter = value().begin(); iter != value().end();
        ++iter) {
-    matrix.PostMultiplyByTransform(*iter);
+    matrix.PostMultiplyByTransform(iter->get());
   }
 
   return matrix;

@@ -15,16 +15,15 @@
 #ifndef COBALT_CSP_CONTENT_SECURITY_POLICY_H_
 #define COBALT_CSP_CONTENT_SECURITY_POLICY_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
+#include "base/containers/hash_tables.h"
 #include "cobalt/csp/parsers.h"
-#include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {
@@ -77,7 +76,7 @@ class ResponseHeaders {
 
 class ContentSecurityPolicy {
  public:
-  typedef ScopedVector<DirectiveList> PolicyList;
+  typedef std::vector<std::unique_ptr<DirectiveList>> PolicyList;
 
   // CSP Level 1 Directives
   static const char kConnectSrc[];
@@ -260,7 +259,7 @@ class ContentSecurityPolicy {
                                 HeaderSource source);
 
   PolicyList policies_;
-  scoped_ptr<Source> self_source_;
+  std::unique_ptr<Source> self_source_;
   std::string self_scheme_;
   std::string disable_eval_error_message_;
   GURL url_;

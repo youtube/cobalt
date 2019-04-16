@@ -19,10 +19,11 @@
 #include "cobalt/script/v8c/v8c_engine.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/v8c/isolate_fellowship.h"
@@ -126,8 +127,8 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
 
   isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);
-  isolate_fellowship->platform->RegisterIsolateOnThread(isolate_,
-                                                        MessageLoop::current());
+  isolate_fellowship->platform->RegisterIsolateOnThread(
+      isolate_, base::MessageLoop::current());
 
   // There are 2 total isolate data slots, one for the sole |V8cEngine| (us),
   // and one for the |V8cGlobalEnvironment|.
@@ -200,10 +201,10 @@ HeapStatistics V8cEngine::GetHeapStatistics() {
 }  // namespace v8c
 
 // static
-scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
+std::unique_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
-  return make_scoped_ptr<JavaScriptEngine>(new v8c::V8cEngine(options));
+  return std::unique_ptr<JavaScriptEngine>(new v8c::V8cEngine(options));
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {

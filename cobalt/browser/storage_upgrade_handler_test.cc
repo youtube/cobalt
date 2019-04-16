@@ -13,15 +13,15 @@
 // limitations under the License.
 
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/base_paths.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
+#include "base/files/platform_file.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
-#include "base/platform_file.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/storage_area.h"
@@ -30,10 +30,10 @@
 #include "cobalt/storage/savegame_fake.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/storage/upgrade/upgrade_reader.h"
-#include "googleurl/src/gurl.h"
 #include "net/cookies/canonical_cookie.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -42,7 +42,9 @@ namespace {
 
 class CallbackWaiter {
  public:
-  CallbackWaiter() : was_called_event_(true, false) {}
+  CallbackWaiter()
+      : was_called_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                          base::WaitableEvent::InitialState::NOT_SIGNALED) {}
   virtual ~CallbackWaiter() {}
   bool TimedWait() {
     return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(5));
@@ -69,23 +71,20 @@ class FlushWaiter : public CallbackWaiter {
 class CookieWaiter : public CallbackWaiter {
  public:
   CookieWaiter() {}
-  ~CookieWaiter() {
-    for (size_t i = 0; i < cookies_.size(); i++) {
-      delete cookies_[i];
-    }
-  }
+  ~CookieWaiter() {}
 
-  void OnCookiesLoaded(const std::vector<net::CanonicalCookie*>& cookies) {
-    cookies_ = cookies;
+  void OnCookiesLoaded(
+      std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+    cookies_ = std::move(cookies);
     Signal();
   }
 
-  const std::vector<net::CanonicalCookie*>& GetCookies() const {
+  const std::vector<std::unique_ptr<net::CanonicalCookie>>& GetCookies() const {
     return cookies_;
   }
 
  private:
-  std::vector<net::CanonicalCookie*> cookies_;
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies_;
   DISALLOW_COPY_AND_ASSIGN(CookieWaiter);
 };
 
@@ -94,25 +93,25 @@ class LocalStorageEntryWaiter : public CallbackWaiter {
   LocalStorageEntryWaiter() {}
   ~LocalStorageEntryWaiter() {}
 
-  void OnEntriesLoaded(scoped_ptr<dom::StorageArea::StorageMap> entries) {
-    entries_ = entries.Pass();
+  void OnEntriesLoaded(std::unique_ptr<dom::StorageArea::StorageMap> entries) {
+    entries_ = std::move(entries);
     Signal();
   }
 
   dom::StorageArea::StorageMap* GetEntries() const { return entries_.get(); }
 
  private:
-  scoped_ptr<dom::StorageArea::StorageMap> entries_;
+  std::unique_ptr<dom::StorageArea::StorageMap> entries_;
   DISALLOW_COPY_AND_ASSIGN(LocalStorageEntryWaiter);
 };
 
 void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(pathname);
   EXPECT_TRUE(string_out);
-  FilePath file_path;
-  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &file_path));
+  base::FilePath file_path;
+  EXPECT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &file_path));
   file_path = file_path.Append(pathname);
-  EXPECT_TRUE(file_util::ReadFileToString(file_path, string_out));
+  EXPECT_TRUE(base::ReadFileToString(file_path, string_out));
   const char* data = string_out->c_str();
   const int size = static_cast<int>(string_out->length());
   EXPECT_GT(size, 0);
@@ -120,12 +119,14 @@ void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(storage::upgrade::UpgradeReader::IsUpgradeData(data, size));
 }
 
-int GetNumCookies(storage::StorageManager* storage) {
+int GetNumCookies(storage::StorageManager* storage,
+                  scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
   scoped_refptr<network::PersistentCookieStore> cookie_store(
-      new network::PersistentCookieStore(storage));
+      new network::PersistentCookieStore(storage, task_runner));
   CookieWaiter waiter;
   cookie_store->Load(
-      base::Bind(&CookieWaiter::OnCookiesLoaded, base::Unretained(&waiter)));
+      base::Bind(&CookieWaiter::OnCookiesLoaded, base::Unretained(&waiter)),
+      net::NetLogWithSource());
   EXPECT_EQ(true, waiter.TimedWait());
   return static_cast<int>(waiter.GetCookies().size());
 }
@@ -144,21 +145,27 @@ int GetNumLocalStorageEntries(storage::StorageManager* storage,
 }  // namespace
 
 TEST(StorageUpgradeHandlerTest, UpgradeFullData) {
-  MessageLoop message_loop_(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop_(base::MessageLoop::TYPE_DEFAULT);
+  // Cookie loaded callback will be posted to the separate thread to enable
+  // synchronous test logic.
+  base::Thread separate_thread("Cookie Callback");
+  base::Thread::Options thread_options;
+  thread_options.priority = base::ThreadPriority::HIGHEST;
+  separate_thread.StartWithOptions(thread_options);
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/full_data_v1.json",
                    &file_contents);
-  StorageUpgradeHandler* upgrade_handler =
-      new StorageUpgradeHandler(GURL("https://www.youtube.com"));
+  StorageUpgradeHandler* upgrade_handler = new StorageUpgradeHandler(
+      GURL("https://www.youtube.com"), nullptr, separate_thread.task_runner());
   storage::StorageManager::Options options;
   options.savegame_options.delete_on_destruction = true;
   options.savegame_options.factory = &storage::SavegameFake::Create;
   storage::StorageManager storage(
-      scoped_ptr<storage::StorageManager::UpgradeHandler>(upgrade_handler),
+      std::unique_ptr<storage::StorageManager::UpgradeHandler>(upgrade_handler),
       options);
 
   // Our storage should be empty at this point.
-  EXPECT_EQ(GetNumCookies(&storage), 0);
+  EXPECT_EQ(GetNumCookies(&storage, separate_thread.task_runner()), 0);
   EXPECT_EQ(GetNumLocalStorageEntries(
                 &storage, upgrade_handler->default_local_storage_origin()),
             0);
@@ -172,12 +179,12 @@ TEST(StorageUpgradeHandlerTest, UpgradeFullData) {
   EXPECT_EQ(true, waiter.TimedWait());
 
   // We should now have 2 cookies and 2 local storage entries.
-  EXPECT_EQ(GetNumCookies(&storage), 2);
+  EXPECT_EQ(GetNumCookies(&storage, separate_thread.task_runner()), 2);
   EXPECT_EQ(GetNumLocalStorageEntries(
                 &storage, upgrade_handler->default_local_storage_origin()),
             2);
 
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 }
 
 }  // namespace browser

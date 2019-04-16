@@ -72,33 +72,32 @@ DrawRectTexture::DrawRectTexture(
 }
 
 void DrawRectTexture::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
-    { { rect_.x(), rect_.bottom() },      // uv = (0,1)
-      { texcoord_transform_(0, 1) + texcoord_transform_(0, 2),
-        texcoord_transform_(1, 1) + texcoord_transform_(1, 2) } },
-    { { rect_.right(), rect_.bottom() },  // uv = (1,1)
-      { texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +
-          texcoord_transform_(0, 2),
+      {{rect_.x(), rect_.bottom()},  // uv = (0,1)
+       {texcoord_transform_(0, 1) + texcoord_transform_(0, 2),
+        texcoord_transform_(1, 1) + texcoord_transform_(1, 2)}},
+      {{rect_.right(), rect_.bottom()},  // uv = (1,1)
+       {texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +
+            texcoord_transform_(0, 2),
         texcoord_transform_(1, 0) + texcoord_transform_(1, 1) +
-          texcoord_transform_(1, 2) } },
-    { { rect_.right(), rect_.y() },       // uv = (1,0)
-      { texcoord_transform_(0, 0) + texcoord_transform_(0, 2),
-        texcoord_transform_(1, 0) + texcoord_transform_(1, 2) } },
-    { { rect_.x(), rect_.y() },           // uv = (0,0)
-      { texcoord_transform_(0, 2), texcoord_transform_(1, 2) } },
+            texcoord_transform_(1, 2)}},
+      {{rect_.right(), rect_.y()},  // uv = (1,0)
+       {texcoord_transform_(0, 0) + texcoord_transform_(0, 2),
+        texcoord_transform_(1, 0) + texcoord_transform_(1, 2)}},
+      {{rect_.x(), rect_.y()},  // uv = (0,0)
+       {texcoord_transform_(0, 2), texcoord_transform_(1, 2)}},
   };
   COMPILE_ASSERT(sizeof(attributes) == 4 * sizeof(VertexAttributes),
                  bad_padding);
-  vertex_buffer_ = graphics_state->AllocateVertexData(
-      sizeof(attributes));
+  vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 
   for (int i = 0; i < arraysize(attributes); ++i) {
-    tile_texture_ = tile_texture_ ||
-        attributes[i].texcoord[0] < 0.0f || attributes[i].texcoord[0] > 1.0f ||
-        attributes[i].texcoord[1] < 0.0f || attributes[i].texcoord[1] > 1.0f;
+    tile_texture_ = tile_texture_ || attributes[i].texcoord[0] < 0.0f ||
+                    attributes[i].texcoord[0] > 1.0f ||
+                    attributes[i].texcoord[1] < 0.0f ||
+                    attributes[i].texcoord[1] > 1.0f;
   }
 }
 
@@ -108,7 +107,8 @@ void DrawRectTexture::SetupVertexShader(
   graphics_state->UpdateTransformMatrix(vertex_shader.u_view_matrix(),
                                         base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
       vertex_shader.a_position(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes),

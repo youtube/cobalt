@@ -15,15 +15,15 @@
 #ifndef COBALT_STORAGE_STORAGE_MANAGER_H_
 #define COBALT_STORAGE_STORAGE_MANAGER_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/storage/savegame_thread.h"
 #include "cobalt/storage/store/memory_store.h"
 #include "cobalt/storage/upgrade/upgrade_reader.h"
@@ -59,7 +59,7 @@ class StorageManager {
   typedef base::Callback<void(const MemoryStore&)> ReadOnlyMemoryStoreCallback;
   typedef base::Callback<void(MemoryStore*)> MemoryStoreCallback;
 
-  StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
+  StorageManager(std::unique_ptr<UpgradeHandler> upgrade_handler,
                  const Options& options);
   virtual ~StorageManager();
 
@@ -77,18 +77,24 @@ class StorageManager {
   // |callback|, if provided, will be called when the I/O has completed,
   // and will be run on the storage manager's IO thread.
   // This call returns immediately.
-  void FlushNow(const base::Closure& callback);
+  void FlushNow(base::OnceClosure callback);
 
   const Options& options() const { return options_; }
 
   UpgradeHandler* upgrade_handler() const { return upgrade_handler_.get(); }
+
+  void set_network_task_runner(
+      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner) {
+    DCHECK(network_task_runner);
+    network_task_runner_ = network_task_runner;
+  }
 
  protected:
   // Queues a flush to be executed as soon as possible.  As soon as possible
   // will be as soon as any existing flush completes, or right away if no
   // existing flush is happening.  Note that it is protected and virtual for
   // white box testing purposes.
-  virtual void QueueFlush(const base::Closure& callback);
+  virtual void QueueFlush(base::OnceClosure callback);
 
  private:
   // Give StorageManagerTest access, so we can more easily test some internals.
@@ -125,21 +131,24 @@ class StorageManager {
   void OnDestroy();
 
   // Upgrade handler used if upgrade save data is detected.
-  scoped_ptr<UpgradeHandler> upgrade_handler_;
+  std::unique_ptr<UpgradeHandler> upgrade_handler_;
 
   // Configuration options for the Storage Manager.
   Options options_;
 
   // Storage manager runs on its own thread. This is where store
   // operations are done.
-  scoped_ptr<base::Thread> storage_thread_;
-  scoped_refptr<base::MessageLoopProxy> storage_message_loop_;
+  std::unique_ptr<base::Thread> storage_thread_;
+  scoped_refptr<base::SingleThreadTaskRunner> storage_task_runner_;
 
-  scoped_ptr<MemoryStore> memory_store_;
+  // Cookie operations must be posted to network thread.
+  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+
+  std::unique_ptr<MemoryStore> memory_store_;
 
   // When the savegame is loaded at startup, we keep the raw data around
   // until we can initialize the store on the correct thread.
-  scoped_ptr<Savegame::ByteVector> loaded_raw_bytes_;
+  std::unique_ptr<Savegame::ByteVector> loaded_raw_bytes_;
 
   // Timers that start running when FlushOnChange() is called. When the time
   // elapses, we actually perform the write. This is a simple form of rate
@@ -149,9 +158,8 @@ class StorageManager {
   // |flush_on_change_max_delay_timer_| starts on the first change and is never
   // re-started, ensuring that the flush always occurs within its delay and
   // cannot be pushed back indefinitely.
-  scoped_ptr<base::OneShotTimer<StorageManager> > flush_on_last_change_timer_;
-  scoped_ptr<base::OneShotTimer<StorageManager> >
-      flush_on_change_max_delay_timer_;
+  std::unique_ptr<base::OneShotTimer> flush_on_last_change_timer_;
+  std::unique_ptr<base::OneShotTimer> flush_on_change_max_delay_timer_;
 
   // See comments for for kDatabaseUserVersion.
   int loaded_database_version_;
@@ -166,7 +174,7 @@ class StorageManager {
 
   // The queue of callbacks that are should be called when the current flush
   // completes.  If this is not empty, then |flush_processing_| must be true.
-  std::vector<base::Closure> flush_processing_callbacks_;
+  std::vector<base::OnceClosure> flush_processing_callbacks_;
 
   // True if |flush_processing_| is true, but we would like to perform a new
   // flush as soon as it completes.
@@ -175,13 +183,13 @@ class StorageManager {
   // The queue of callbacks that will be called when the flush that follows
   // the current flush completes.  If this is non-empty, then |flush_pending_|
   // must be true.
-  std::vector<base::Closure> flush_pending_callbacks_;
+  std::vector<base::OnceClosure> flush_pending_callbacks_;
 
   base::WaitableEvent no_flushes_pending_;
 
   // An object that wraps Savegame inside of an I/O thread so that we can
   // flush data asynchronously.
-  scoped_ptr<SavegameThread> savegame_thread_;
+  std::unique_ptr<SavegameThread> savegame_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(StorageManager);
 };

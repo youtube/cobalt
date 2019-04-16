@@ -15,11 +15,13 @@
 #ifndef COBALT_DOM_FONT_FACE_UPDATER_H_
 #define COBALT_DOM_FONT_FACE_UPDATER_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/dom/font_cache.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 
@@ -56,7 +58,7 @@ class FontFaceUpdater : public cssom::CSSRuleVisitor {
 
   const GURL& document_base_url_;
   FontCache* const cache_;
-  scoped_ptr<FontCache::FontFaceMap> font_face_map_;
+  std::unique_ptr<FontCache::FontFaceMap> font_face_map_;
 
   DISALLOW_COPY_AND_ASSIGN(FontFaceUpdater);
 };

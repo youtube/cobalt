@@ -15,10 +15,10 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_RENDER_TREE_NODE_VISITOR_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_RENDER_TREE_NODE_VISITOR_H_
 
+#include <memory>
+
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/animations/animate_node.h"
@@ -101,9 +101,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                           math::RectF* out_content_rect);
 
   bool IsVisible(const math::RectF& bounds);
-  void AddDraw(scoped_ptr<DrawObject> object, const math::RectF& local_bounds,
+  void AddDraw(std::unique_ptr<DrawObject> object,
+               const math::RectF& local_bounds,
                DrawObjectManager::BlendType blend_type);
-  void AddExternalDraw(scoped_ptr<DrawObject> object,
+  void AddExternalDraw(std::unique_ptr<DrawObject> object,
                        const math::RectF& world_bounds, base::TypeId draw_type);
 
   // Helper function to clear the specified |rect| with the specified |color|,

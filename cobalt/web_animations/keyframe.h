@@ -51,8 +51,8 @@ class Keyframe : public script::Wrappable {
     Data(double offset, const scoped_refptr<cssom::TimingFunction>& easing)
         : offset_(offset), easing_(easing) {}
 
-    const base::optional<double>& offset() const { return offset_; }
-    void set_offset(const base::optional<double>& offset) { offset_ = offset; }
+    const base::Optional<double>& offset() const { return offset_; }
+    void set_offset(const base::Optional<double>& offset) { offset_ = offset; }
 
     const scoped_refptr<cssom::TimingFunction>& easing() const {
       return easing_;
@@ -66,7 +66,7 @@ class Keyframe : public script::Wrappable {
     // entries into the Keyframe dictionary, on top of 'offset' and 'easing'.
     // Here though, we explicitly introduce a map for property names to
     // property values at this keyframe.
-    typedef base::SmallMap<
+    typedef base::small_map<
         std::map<cssom::PropertyKey, scoped_refptr<cssom::PropertyValue> >, 2>
         PropertyValueMap;
     const PropertyValueMap& property_values() const { return property_values_; }
@@ -81,15 +81,15 @@ class Keyframe : public script::Wrappable {
     }
 
    private:
-    base::optional<double> offset_;
+    base::Optional<double> offset_;
     scoped_refptr<cssom::TimingFunction> easing_;
     PropertyValueMap property_values_;
   };
 
   Keyframe() {}
 
-  const base::optional<double>& offset() const { return data_.offset(); }
-  void set_offset(const base::optional<double>& offset) {
+  const base::Optional<double>& offset() const { return data_.offset(); }
+  void set_offset(const base::Optional<double>& offset) {
     data_.set_offset(offset);
   }
 
@@ -98,7 +98,7 @@ class Keyframe : public script::Wrappable {
     return std::string("linear");
   }
   void set_easing(const std::string& easing) {
-    UNREFERENCED_PARAMETER(easing);
+    SB_UNREFERENCED_PARAMETER(easing);
     NOTIMPLEMENTED();
   }
 

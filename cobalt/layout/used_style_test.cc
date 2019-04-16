@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/layout/used_style.h"
 
 #include "cobalt/cssom/calc_value.h"
@@ -28,7 +30,7 @@ namespace layout {
 // TODO: Add more tests for other style provider.
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::CalcValue(new cssom::LengthValue(0.0f, cssom::kPixelsUnit),
@@ -37,7 +39,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
       new cssom::CalcValue(new cssom::LengthValue(0.0f, cssom::kPixelsUnit),
                            new cssom::PercentageValue(0.8f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -53,7 +55,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::CalcValue(new cssom::LengthValue(60, cssom::kPixelsUnit),
@@ -62,7 +64,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
       new cssom::CalcValue(new cssom::LengthValue(80, cssom::kPixelsUnit),
                            new cssom::PercentageValue(0.0f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -78,7 +80,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
 
   property_value_builder->push_back(
@@ -88,7 +90,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
       new cssom::CalcValue(new cssom::LengthValue(-80.0f, cssom::kPixelsUnit),
                            new cssom::PercentageValue(1.0f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -160,12 +162,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderCoverWithHeightScale) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithDoubleAutoPropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -182,12 +184,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithDoubleAutoPropertyList) {
 
 TEST(UsedStyleTest,
      UsedBackgroundSizeProviderWithDoublePercentagePropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(new cssom::PercentageValue(0.5f));
   property_value_builder->push_back(new cssom::PercentageValue(0.8f));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 150);
   const math::Size image_size(50, 50);
@@ -204,12 +206,12 @@ TEST(UsedStyleTest,
 
 TEST(UsedStyleTest,
      UsedBackgroundSizeProviderWithAutoAndPercentagePropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   property_value_builder->push_back(new cssom::PercentageValue(0.8f));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 150);
   const math::Size image_size(50, 50);
@@ -226,12 +228,12 @@ TEST(UsedStyleTest,
 
 TEST(UsedStyleTest,
      UsedBackgroundSizeProviderWithPercentageAndAutoPropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(new cssom::PercentageValue(0.5f));
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 100);
   const math::Size image_size(50, 50);
@@ -247,14 +249,14 @@ TEST(UsedStyleTest,
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthValuePropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::LengthValue(30, cssom::kPixelsUnit));
   property_value_builder->push_back(
       new cssom::LengthValue(60, cssom::kPixelsUnit));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 100);
   const math::Size image_size(50, 50);
@@ -270,13 +272,13 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthValuePropertyList) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthAndAutoPropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::LengthValue(30, cssom::kPixelsUnit));
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 100);
   const math::Size image_size(50, 60);
@@ -292,12 +294,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthAndAutoPropertyList) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundRepeatProviderNoRepeatAndRepeat) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(cssom::KeywordValue::GetNoRepeat());
   property_value_builder->push_back(cssom::KeywordValue::GetRepeat());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   UsedBackgroundRepeatProvider used_background_repeat_provider;
   property_value->Accept(&used_background_repeat_provider);

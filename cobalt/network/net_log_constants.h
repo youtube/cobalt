@@ -15,7 +15,8 @@
 #ifndef COBALT_NETWORK_NET_LOG_CONSTANTS_H_
 #define COBALT_NETWORK_NET_LOG_CONSTANTS_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "base/values.h"
 
 namespace cobalt {
@@ -23,7 +24,7 @@ namespace network {
 
 class NetLogConstants {
  public:
-  static scoped_ptr<base::DictionaryValue> GetConstants();
+  static std::unique_ptr<base::DictionaryValue> GetConstants();
 };
 
 }  // namespace network

@@ -14,8 +14,8 @@
 
 #include "cobalt/cssom/css_declared_style_declaration.h"
 
-#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/mutation_observer.h"
@@ -38,8 +38,8 @@ struct NonTrivialStaticFields {
 
 // |non_trivial_static_fields| will be lazily created on the first time it's
 // accessed.
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -97,10 +97,10 @@ unsigned int CSSDeclaredStyleDeclaration::length() const {
 // The item(index) method must return the property name of the CSS declaration
 // at position index.
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
-base::optional<std::string> CSSDeclaredStyleDeclaration::Item(
+base::Optional<std::string> CSSDeclaredStyleDeclaration::Item(
     unsigned int index) const {
   const char* item = data_ ? data_->Item(index) : NULL;
-  return item ? base::optional<std::string>(item) : base::nullopt;
+  return item ? base::Optional<std::string>(item) : base::nullopt;
 }
 
 std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(

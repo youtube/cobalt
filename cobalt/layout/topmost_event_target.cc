@@ -14,8 +14,8 @@
 
 #include "cobalt/layout/topmost_event_target.h"
 
-#include "base/debug/trace_event.h"
 #include "base/optional.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/keyword_value.h"

@@ -38,8 +38,9 @@ class CallbackFunctionInterface : public script::Wrappable {
       double, const std::string&, const scoped_refptr<ArbitraryInterface>&)>
       FunctionWithSeveralParameters;
   typedef script::CallbackFunction<void(
-      base::optional<bool>, const base::optional<std::string>&,
-      const scoped_refptr<ArbitraryInterface>&)> FunctionWithNullableParameters;
+      base::Optional<bool>, const base::Optional<std::string>&,
+      const scoped_refptr<ArbitraryInterface>&)>
+      FunctionWithNullableParameters;
 
   MOCK_METHOD1(TakesVoidFunction,
                void(const script::ScriptValue<VoidFunction>&));
@@ -47,9 +48,8 @@ class CallbackFunctionInterface : public script::Wrappable {
                void(const script::ScriptValue<FunctionThatReturnsString>&));
   MOCK_METHOD1(TakesFunctionWithOneParameter,
                void(const script::ScriptValue<FunctionWithOneParameter>&));
-  MOCK_METHOD1(
-      TakesFunctionWithSeveralParameters,
-      void(const script::ScriptValue<FunctionWithSeveralParameters>&));
+  MOCK_METHOD1(TakesFunctionWithSeveralParameters,
+               void(const script::ScriptValue<FunctionWithSeveralParameters>&));
   MOCK_METHOD1(
       TakesFunctionWithNullableParameters,
       void(const script::ScriptValue<FunctionWithNullableParameters>&));

@@ -21,8 +21,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "starboard/string.h"
 
@@ -171,8 +171,8 @@ bool CORSPreflight::IsSafeRequestHeader(const std::string& name,
   // Safe if header name is 'Content-Type' and value is a match of
   // kAllowedMIMEType.
   if (SbStringCompareNoCase(name.c_str(), kContentType) == 0) {
-    std::vector<std::string> content_type_split;
-    base::SplitString(value, ';', &content_type_split);
+    std::vector<std::string> content_type_split = base::SplitString(
+        value, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     auto begin_iter = content_type_split[0].cbegin();
     auto end_iter = content_type_split[0].cend();
     net::HttpUtil::TrimLWS(&begin_iter, &end_iter);
@@ -230,7 +230,7 @@ bool CORSPreflight::IsSafeResponseHeader(
 void CORSPreflight::GetServerAllowedHeaders(
     const net::HttpResponseHeaders& response_headers,
     std::vector<std::string>* expose_headers) {
-  void* iter = NULL;
+  size_t iter = 0;
   std::string exposable_header;
   while (response_headers.EnumerateHeader(&iter, kAccessControlExposeHeaders,
                                           &exposable_header)) {
@@ -276,10 +276,9 @@ bool CORSPreflight::Send() {
   //    request's type, destination is request's destination, origin is
   //    request's origin, referrer is request's referrer, and referrer
   //    policy is request's referrer policy.
-  url_fetcher_.reset(
-      net::URLFetcher::Create(url_, net::URLFetcher::OPTIONS, this));
+  url_fetcher_ = net::URLFetcher::Create(url_, net::URLFetcher::OPTIONS, this);
   url_fetcher_->SetRequestContext(
-      network_module_->url_request_context_getter());
+      network_module_->url_request_context_getter().get());
   url_fetcher_->AddExtraRequestHeader(kOriginheadername + origin_);
   // 3. Let headers be the names of request's header list's headers,
   //    excluding CORS-safelisted request-headers and duplicates, sorted
@@ -350,9 +349,10 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
                                           &headernames);
     // 5. If methods or headerNames contains `*`, and request's credentials mode
     //    is "include", then return a network error.
-    std::vector<std::string> methods_vec, headernames_vec;
-    base::SplitString(methods, ',', &methods_vec);
-    base::SplitString(headernames, ',', &headernames_vec);
+    std::vector<std::string> methods_vec = base::SplitString(
+        methods, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+    std::vector<std::string> headernames_vec = base::SplitString(
+        headernames, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     if ((HasFieldValue(methods_vec, "*") ||
          HasFieldValue(headernames_vec, "*")) &&
         credentials_mode_is_include_) {
@@ -410,7 +410,7 @@ bool CORSPreflight::CORSCheck(const net::HttpResponseHeaders& response_headers,
   // 1. Let origin be the result of extracting header list values given `Access-
   //    Control-Allow-Origin` and response's header list.
   std::string allowed_origin, empty_container, allow_credentials;
-  void* iter = NULL;
+  size_t iter = 0;
   if (!response_headers.EnumerateHeader(&iter, kAccessControlAllowOrigin,
                                         &allowed_origin)) {
     DLOG(WARNING) << "Insecure cross-origin network request returned response "

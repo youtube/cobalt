@@ -15,14 +15,13 @@
 #ifndef COBALT_NETWORK_NET_POSTER_H_
 #define COBALT_NETWORK_NET_POSTER_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_vector.h"
-#include "base/threading/thread_checker.h"
 #include "cobalt/network_bridge/net_poster.h"
-#include "googleurl/src/gurl.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace network {
@@ -46,8 +45,7 @@ class NetPoster : public network_bridge::NetPoster, net::URLFetcherDelegate {
   void OnURLFetchComplete(const net::URLFetcher* source) override;
 
   NetworkModule* network_module_;
-  ScopedVector<net::URLFetcher> fetchers_;
-  base::ThreadChecker thread_checker_;
+  std::vector<std::unique_ptr<net::URLFetcher>> fetchers_;
 
   DISALLOW_COPY_AND_ASSIGN(NetPoster);
 };

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
@@ -24,10 +25,10 @@ namespace rasterizer {
 namespace skia {
 
 VertexBufferObject::VertexBufferObject(
-    scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+    std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     GLenum draw_mode)
     : vertex_count_(vertices->size()), draw_mode_(draw_mode) {
-  scoped_array<float> buffer(new float[5 * vertex_count_]);
+  std::unique_ptr<float[]> buffer(new float[5 * vertex_count_]);
 
   for (size_t i = 0; i < vertices->size(); i++) {
     buffer[5 * i] = vertices->at(i).x;

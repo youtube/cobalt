@@ -15,11 +15,11 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_IMAGE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/aligned_memory.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/font.h"
@@ -37,9 +37,10 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
-typedef base::Callback<void(const scoped_refptr<render_tree::Node>& render_tree,
-                            const scoped_refptr<backend::RenderTarget>&
-                                render_target)> SubmitOffscreenCallback;
+typedef base::Callback<void(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    const scoped_refptr<backend::RenderTarget>& render_target)>
+    SubmitOffscreenCallback;
 
 // render_tree::ImageData objects are implemented in the Blitter API via the
 // SbBlitterPixelData objects, which is conceptually an exact match for
@@ -63,7 +64,7 @@ class ImageData : public render_tree::ImageData {
  private:
   SbBlitterDevice device_;
   SbBlitterPixelData pixel_data_;
-  base::optional<render_tree::ImageDataDescriptor> descriptor_;
+  base::Optional<render_tree::ImageDataDescriptor> descriptor_;
 };
 
 // render_tree::Image objects are implemented in the Blitter API via
@@ -74,7 +75,7 @@ class ImageData : public render_tree::ImageData {
 // that Skia render tree node visitors can also render it.
 class SinglePlaneImage : public skia::SinglePlaneImage {
  public:
-  explicit SinglePlaneImage(scoped_ptr<ImageData> image_data);
+  explicit SinglePlaneImage(std::unique_ptr<ImageData> image_data);
   // If |delete_function| is provided, it will be called in the destructor
   // instead of manually calling SbBlitterDestroySurface(surface_).
   SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,

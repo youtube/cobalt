@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include "base/hash_tables.h"
-#include "base/message_loop_proxy.h"
+#include "base/containers/hash_tables.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/network_bridge/net_poster.h"
@@ -59,7 +59,7 @@ class CspViolationReporter {
   network_bridge::PostSender post_sender_;
   // Keep track of the message loop the object was created on.
   // We must send violations on the document's message loop.
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  base::MessageLoop* message_loop_;
 
   Document* document_;
 

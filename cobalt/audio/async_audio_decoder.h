@@ -15,9 +15,10 @@
 #ifndef COBALT_AUDIO_ASYNC_AUDIO_DECODER_H_
 #define COBALT_AUDIO_ASYNC_AUDIO_DECODER_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "cobalt/audio/audio_helpers.h"
 
@@ -27,7 +28,7 @@ namespace audio {
 class AsyncAudioDecoder {
  public:
   typedef base::Callback<void(float sample_rate,
-                              scoped_ptr<ShellAudioBus> audio_bus)>
+                              std::unique_ptr<ShellAudioBus> audio_bus)>
       DecodeFinishCallback;
 
   AsyncAudioDecoder();

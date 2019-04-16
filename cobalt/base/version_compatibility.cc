@@ -21,8 +21,9 @@
 namespace base {
 
 VersionCompatibility* VersionCompatibility::GetInstance() {
-  return Singleton<VersionCompatibility,
-                   StaticMemorySingletonTraits<VersionCompatibility> >::get();
+  return base::Singleton<
+      VersionCompatibility,
+      base::StaticMemorySingletonTraits<VersionCompatibility> >::get();
 }
 
 VersionCompatibility::VersionCompatibility()

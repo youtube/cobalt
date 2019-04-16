@@ -19,9 +19,9 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
-#include "base/debug/trace_event.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "starboard/configuration.h"
@@ -82,7 +82,7 @@ void StarboardPlayer::CallbackHelper::ResetPlayer() {
 
 #if SB_HAS(PLAYER_WITH_URL)
 StarboardPlayer::StarboardPlayer(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const std::string& url, SbWindow window, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
@@ -90,7 +90,7 @@ StarboardPlayer::StarboardPlayer(
         on_encrypted_media_init_data_encountered_cb,
     VideoFrameProvider* const video_frame_provider)
     : url_(url),
-      message_loop_(message_loop),
+      task_runner_(task_runner),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       window_(window),
@@ -108,7 +108,7 @@ StarboardPlayer::StarboardPlayer(
 
   CreateUrlPlayer(url_);
 
-  message_loop->PostTask(
+  task_runner->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
@@ -116,14 +116,14 @@ StarboardPlayer::StarboardPlayer(
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 StarboardPlayer::StarboardPlayer(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const AudioDecoderConfig& audio_config,
     const VideoDecoderConfig& video_config, SbWindow window,
     SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
     VideoFrameProvider* const video_frame_provider)
-    : message_loop_(message_loop),
+    : task_runner_(task_runner),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       audio_config_(audio_config),
@@ -150,14 +150,14 @@ StarboardPlayer::StarboardPlayer(
 
   CreatePlayer();
 
-  message_loop->PostTask(
+  task_runner->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
 
 StarboardPlayer::~StarboardPlayer() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayer(NULL);
@@ -171,7 +171,7 @@ StarboardPlayer::~StarboardPlayer() {
 }
 
 void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   frame_width_ = frame_width;
   frame_height_ = frame_height;
@@ -179,7 +179,7 @@ void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                                   const scoped_refptr<DecoderBuffer>& buffer) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(buffer);
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
@@ -211,7 +211,7 @@ void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
 }
 
 void StarboardPlayer::PrepareForSeek() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   seek_pending_ = true;
 
@@ -224,7 +224,7 @@ void StarboardPlayer::PrepareForSeek() {
 }
 
 void StarboardPlayer::Seek(base::TimeDelta time) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   decoder_buffer_cache_.ClearAll();
 
@@ -254,7 +254,7 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
 }
 
 void StarboardPlayer::SetVolume(float volume) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   volume_ = volume;
 
@@ -267,7 +267,7 @@ void StarboardPlayer::SetVolume(float volume) {
 }
 
 void StarboardPlayer::SetPlaybackRate(double playback_rate) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   playback_rate_ = playback_rate;
 
@@ -368,7 +368,7 @@ void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::Suspend() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   // Check if the player is already suspended.
   if (state_ == kSuspended) {
@@ -395,7 +395,7 @@ void StarboardPlayer::Suspend() {
 }
 
 void StarboardPlayer::Resume() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   // Check if the player is already resumed.
   if (state_ != kSuspended) {
@@ -455,7 +455,7 @@ void StarboardPlayer::EncryptedMediaInitDataEncounteredCB(
 
 void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreateUrlPlayer");
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
   DLOG(INFO) << "CreateUrlPlayer passed url " << url;
@@ -482,7 +482,7 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
   SbMediaAudioHeader audio_header;
@@ -676,7 +676,7 @@ void StarboardPlayer::UpdateBounds_Locked() {
 }
 
 void StarboardPlayer::ClearDecoderBufferCache() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (state_ != kResuming) {
     base::TimeDelta media_time;
@@ -684,7 +684,7 @@ void StarboardPlayer::ClearDecoderBufferCache() {
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
 
-  message_loop_->PostDelayedTask(
+  task_runner_->PostDelayedTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_),
@@ -697,7 +697,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (player_ != player || ticket != ticket_) {
     return;
@@ -732,7 +732,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
                                      int ticket) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (player_ != player) {
     return;
@@ -765,7 +765,7 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
 void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
                                     const std::string& message) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (player_ != player) {
     return;
@@ -778,7 +778,7 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
   DCHECK(iter != decoding_buffers_.end());
@@ -798,7 +798,7 @@ void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
                                       SbMediaType type,
                                       SbPlayerDecoderState state, int ticket) {
   StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
-  helper->message_loop_->PostTask(
+  helper->task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::OnDecoderStatus,
                  helper->callback_helper_, player, type, state, ticket));
@@ -808,7 +808,7 @@ void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
 void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
                                      SbPlayerState state, int ticket) {
   StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
-  helper->message_loop_->PostTask(
+  helper->task_runner_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerStatus,
                             helper->callback_helper_, player, state, ticket));
 }
@@ -818,7 +818,7 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
 void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
                                     SbPlayerError error, const char* message) {
   StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
-  helper->message_loop_->PostTask(
+  helper->task_runner_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerError,
                             helper->callback_helper_, player, error,
                             message ? std::string(message) : ""));
@@ -829,7 +829,7 @@ void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
 void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                                          const void* sample_buffer) {
   StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
-  helper->message_loop_->PostTask(
+  helper->task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::OnDeallocateSample,
                  helper->callback_helper_, sample_buffer));

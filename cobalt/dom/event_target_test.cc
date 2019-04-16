@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/event_target.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -40,7 +42,7 @@ using script::testing::FakeScriptValue;
 using script::testing::MockExceptionState;
 using testing::MockEventListener;
 
-base::optional<bool> DispatchEventOnCurrentTarget(
+base::Optional<bool> DispatchEventOnCurrentTarget(
     const scoped_refptr<script::Wrappable>, const scoped_refptr<Event>& event,
     bool*) {
   StrictMock<MockExceptionState> exception_state;
@@ -65,7 +67,8 @@ TEST(EventTargetTest, SingleEventListenerFired) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
 
   event_listener->ExpectHandleEventCall(event, event_target);
   event_target->AddEventListener(
@@ -77,7 +80,8 @@ TEST(EventTargetTest, SingleEventListenerNotFired) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
 
   event_listener->ExpectNoHandleEventCall();
   event_target->AddEventListener(
@@ -91,11 +95,11 @@ TEST(EventTargetTest, MultipleEventListeners) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listenerfired_1 =
+  std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
-  scoped_ptr<MockEventListener> event_listenerfired_2 =
+  std::unique_ptr<MockEventListener> event_listenerfired_2 =
       MockEventListener::Create();
-  scoped_ptr<MockEventListener> event_listenernot_fired =
+  std::unique_ptr<MockEventListener> event_listenernot_fired =
       MockEventListener::Create();
 
   InSequence in_sequence;
@@ -104,14 +108,14 @@ TEST(EventTargetTest, MultipleEventListeners) {
   event_listenernot_fired->ExpectNoHandleEventCall();
 
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired_1.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
+      false);
   event_target->AddEventListener(
-      "notfired",
-      FakeScriptValue<EventListener>(event_listenernot_fired.get()), false);
+      "notfired", FakeScriptValue<EventListener>(event_listenernot_fired.get()),
+      false);
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired_2.get()), true);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
+      true);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -120,7 +124,8 @@ TEST(EventTargetTest, AddRemoveEventListener) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
 
   event_listener->ExpectHandleEventCall(event, event_target);
   event_target->AddEventListener(
@@ -143,17 +148,17 @@ TEST(EventTargetTest, AttributeListener) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> non_attribute_event_listener =
+  std::unique_ptr<MockEventListener> non_attribute_event_listener =
       MockEventListener::Create();
-  scoped_ptr<MockEventListener> attribute_event_listener1 =
+  std::unique_ptr<MockEventListener> attribute_event_listener1 =
       MockEventListener::Create();
-  scoped_ptr<MockEventListener> attribute_event_listener2 =
+  std::unique_ptr<MockEventListener> attribute_event_listener2 =
       MockEventListener::Create();
 
   event_target->AddEventListener(
       "fired",
       FakeScriptValue<EventListener>(non_attribute_event_listener.get()),
-          false);
+      false);
 
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
   attribute_event_listener1->ExpectHandleEventCall(event, event_target);
@@ -184,7 +189,8 @@ TEST(EventTargetTest, EventListenerReuse) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event_1 = new Event(base::Token("fired_1"));
   scoped_refptr<Event> event_2 = new Event(base::Token("fired_2"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
 
   event_listener->ExpectHandleEventCall(event_1, event_target);
   event_listener->ExpectHandleEventCall(event_2, event_target);
@@ -219,9 +225,9 @@ TEST(EventTargetTest, StopPropagation) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listenerfired_1 =
+  std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
-  scoped_ptr<MockEventListener> event_listenerfired_2 =
+  std::unique_ptr<MockEventListener> event_listenerfired_2 =
       MockEventListener::Create();
 
   InSequence in_sequence;
@@ -230,11 +236,11 @@ TEST(EventTargetTest, StopPropagation) {
   event_listenerfired_2->ExpectHandleEventCall(event, event_target);
 
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired_1.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
+      false);
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired_2.get()), true);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
+      true);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -242,9 +248,9 @@ TEST(EventTargetTest, StopImmediatePropagation) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listenerfired_1 =
+  std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
-  scoped_ptr<MockEventListener> event_listenerfired_2 =
+  std::unique_ptr<MockEventListener> event_listenerfired_2 =
       MockEventListener::Create();
 
   event_listenerfired_1->ExpectHandleEventCall(
@@ -252,11 +258,11 @@ TEST(EventTargetTest, StopImmediatePropagation) {
   event_listenerfired_2->ExpectNoHandleEventCall();
 
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired_1.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
+      false);
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired_2.get()), true);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
+      true);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -264,12 +270,12 @@ TEST(EventTargetTest, PreventDefault) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<Event> event;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_ptr<MockEventListener> event_listenerfired =
+  std::unique_ptr<MockEventListener> event_listenerfired =
       MockEventListener::Create();
 
   event_target->AddEventListener(
-      "fired",
-      FakeScriptValue<EventListener>(event_listenerfired.get()), false);
+      "fired", FakeScriptValue<EventListener>(event_listenerfired.get()),
+      false);
   event = new Event(base::Token("fired"), Event::kNotBubbles,
                     Event::kNotCancelable);
   event_listenerfired->ExpectHandleEventCall(
@@ -288,7 +294,8 @@ TEST(EventTargetTest, RaiseException) {
   scoped_refptr<script::ScriptException> exception;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event;
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
 
   EXPECT_CALL(exception_state, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
@@ -323,7 +330,8 @@ TEST(EventTargetTest, AddSameListenerMultipleTimes) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(event_listener.get());
 
   InSequence in_sequence;
@@ -340,7 +348,8 @@ TEST(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(event_listener.get());
 
   InSequence in_sequence;
@@ -357,7 +366,8 @@ TEST(EventTargetTest, SameEventListenerAsAttribute) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(event_listener.get());
 
   InSequence in_sequence;

@@ -30,10 +30,8 @@ namespace egl {
 // Handles drawing a textured rectangle.
 class DrawRectTexture : public DrawObject {
  public:
-  DrawRectTexture(GraphicsState* graphics_state,
-                  const BaseState& base_state,
-                  const math::RectF& rect,
-                  const backend::TextureEGL* texture,
+  DrawRectTexture(GraphicsState* graphics_state, const BaseState& base_state,
+                  const math::RectF& rect, const backend::TextureEGL* texture,
                   const math::Matrix3F& texcoord_transform);
   DrawRectTexture(GraphicsState* graphics_state, const BaseState& base_state,
                   const math::RectF& rect, const backend::TextureEGL* y_texture,

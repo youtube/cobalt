@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_
 #define COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_
 
+#include <memory>
+
 #include "cobalt/dom/event_listener.h"
 
 #include "base/memory/ref_counted.h"
@@ -30,17 +32,17 @@ namespace testing {
 
 class MockEventListener : public EventListener {
  public:
-  typedef base::optional<bool> (*HandleEventFunction)(
+  typedef base::Optional<bool> (*HandleEventFunction)(
       const scoped_refptr<script::Wrappable>&, const scoped_refptr<Event>&,
       bool*);
 
-  static scoped_ptr<MockEventListener> Create() {
-    return make_scoped_ptr<MockEventListener>(
+  static std::unique_ptr<MockEventListener> Create() {
+    return std::unique_ptr<MockEventListener>(
         new ::testing::NiceMock<MockEventListener>());
   }
 
   MOCK_CONST_METHOD3(
-      HandleEvent, base::optional<bool>(const scoped_refptr<script::Wrappable>&,
+      HandleEvent, base::Optional<bool>(const scoped_refptr<script::Wrappable>&,
                                         const scoped_refptr<Event>&, bool*));
 
   void ExpectHandleEventCall(const scoped_refptr<Event>& event,
@@ -94,14 +96,14 @@ class MockEventListener : public EventListener {
     EXPECT_CALL(*this, HandleEvent(_, _, _)).Times(0);
   }
 
-  static base::optional<bool> DoNothing(const scoped_refptr<script::Wrappable>&,
+  static base::Optional<bool> DoNothing(const scoped_refptr<script::Wrappable>&,
                                         const scoped_refptr<Event>&,
                                         bool* had_exception) {
     *had_exception = false;
     return base::nullopt;
   }
 
-  static base::optional<bool> StopPropagation(
+  static base::Optional<bool> StopPropagation(
       const scoped_refptr<script::Wrappable>&,
       const scoped_refptr<Event>& event, bool* had_exception) {
     *had_exception = false;
@@ -109,7 +111,7 @@ class MockEventListener : public EventListener {
     return base::nullopt;
   }
 
-  static base::optional<bool> StopImmediatePropagation(
+  static base::Optional<bool> StopImmediatePropagation(
       const scoped_refptr<script::Wrappable>&,
       const scoped_refptr<Event>& event, bool* had_exception) {
     *had_exception = false;
@@ -117,7 +119,7 @@ class MockEventListener : public EventListener {
     return base::nullopt;
   }
 
-  static base::optional<bool> PreventDefault(
+  static base::Optional<bool> PreventDefault(
       const scoped_refptr<script::Wrappable>&,
       const scoped_refptr<Event>& event, bool* had_exception) {
     *had_exception = false;
@@ -136,7 +138,7 @@ class MockEventListener : public EventListener {
     // No JavaScript exception, and no return value.
     ON_CALL(*this, HandleEvent(_, _, _))
         .WillByDefault(
-            DoAll(SetArgPointee<2>(false), Return(base::optional<bool>())));
+            DoAll(SetArgPointee<2>(false), Return(base::Optional<bool>())));
   }
 };
 }  // namespace testing

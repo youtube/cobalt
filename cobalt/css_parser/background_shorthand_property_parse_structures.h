@@ -15,7 +15,6 @@
 #ifndef COBALT_CSS_PARSER_BACKGROUND_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 #define COBALT_CSS_PARSER_BACKGROUND_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 

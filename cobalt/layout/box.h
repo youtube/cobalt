@@ -185,7 +185,7 @@ class Box : public base::RefCounted<Box> {
   // to this box's computed_style() CSS Style Declaration.
   //   https://w3c.github.io/web-animations
   const web_animations::AnimationSet* animations() const {
-    return css_computed_style_declaration_->animations();
+    return css_computed_style_declaration_->animations().get();
   }
 
   // Specifies the formatting context in which the box should participate.
@@ -427,7 +427,7 @@ class Box : public base::RefCounted<Box> {
   virtual bool TrySplitAtSecondBidiLevelRun() = 0;
 
   // Retrieve the bidi level for the box, if it has one.
-  virtual base::optional<int> GetBidiLevel() const = 0;
+  virtual base::Optional<int> GetBidiLevel() const = 0;
 
   // Sets whether a leading white space in the box or its first non-collapsed
   // descendant should be collapsed.
@@ -701,8 +701,8 @@ class Box : public base::RefCounted<Box> {
   // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width.
   void UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
-      const base::optional<LayoutUnit>& possibly_overconstrained_margin_left,
-      const base::optional<LayoutUnit>& possibly_overconstrained_margin_right);
+      const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
+      const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right);
 
  private:
   struct CachedRenderTreeNodeInfo {
@@ -720,11 +720,11 @@ class Box : public base::RefCounted<Box> {
 
   // Computes the normalized "outer" rounded corners (if there are any) from the
   // border radii.
-  base::optional<render_tree::RoundedCorners> ComputeRoundedCorners() const;
+  base::Optional<render_tree::RoundedCorners> ComputeRoundedCorners() const;
 
   // Computes the corresponding "inner" rounded corners.
-  base::optional<render_tree::RoundedCorners> ComputePaddingRoundedCorners(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners) const;
+  base::Optional<render_tree::RoundedCorners> ComputePaddingRoundedCorners(
+      const base::Optional<render_tree::RoundedCorners>& rounded_corners) const;
 
   // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
   // box is impacted by the ellipsis. This handles both determining the location
@@ -747,14 +747,14 @@ class Box : public base::RefCounted<Box> {
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      const base::Optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateOutline(
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBackgroundColor(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      const base::Optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
   struct RenderAndAnimateBackgroundImageResult {
@@ -767,10 +767,10 @@ class Box : public base::RefCounted<Box> {
     bool is_opaque;
   };
   RenderAndAnimateBackgroundImageResult RenderAndAnimateBackgroundImage(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners);
+      const base::Optional<render_tree::RoundedCorners>& rounded_corners);
   void RenderAndAnimateBoxShadow(
-      const base::optional<render_tree::RoundedCorners>& outer_rounded_corners,
-      const base::optional<render_tree::RoundedCorners>& inner_rounded_corners,
+      const base::Optional<render_tree::RoundedCorners>& outer_rounded_corners,
+      const base::Optional<render_tree::RoundedCorners>& inner_rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
 
@@ -782,7 +782,7 @@ class Box : public base::RefCounted<Box> {
       float opacity, bool opacity_animated);
 
   scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      const base::Optional<render_tree::RoundedCorners>& rounded_corners,
       const scoped_refptr<render_tree::Node>& content_node,
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
@@ -855,11 +855,11 @@ class Box : public base::RefCounted<Box> {
 
   // Referenced and updated by ValidateUpdateSizeInputs() to memoize the
   // parameters we were passed during in last call to UpdateSizes().
-  base::optional<LayoutParams> last_update_size_params_;
+  base::Optional<LayoutParams> last_update_size_params_;
 
   // Render tree node caching is used to prevent the node from needing to be
   // recalculated during each call to RenderAndAnimateContent.
-  base::optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
+  base::Optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
 
   // A value that indicates the drawing order relative to other boxes in the
   // same stacking context. Smaller values indicate boxes that are drawn

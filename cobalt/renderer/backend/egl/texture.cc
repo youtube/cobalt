@@ -37,7 +37,7 @@ void DoNothing() {
 }  // namespace
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
-                       scoped_ptr<TextureDataEGL> texture_source_data,
+                       std::unique_ptr<TextureDataEGL> texture_source_data,
                        bool bgra_supported)
     : graphics_context_(graphics_context),
       size_(texture_source_data->GetSize()),

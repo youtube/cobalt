@@ -19,11 +19,11 @@
 #ifndef COBALT_MEDIA_BASE_INTERLEAVED_SINC_RESAMPLER_H_
 #define COBALT_MEDIA_BASE_INTERLEAVED_SINC_RESAMPLER_H_
 
+#include <memory>
 #include <queue>
 
 #include "base/memory/aligned_memory.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/export.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ class COBALT_EXPORT InterleavedSincResampler {
 
   // Append a buffer to the queue. The samples in the buffer has to be floats.
   void QueueBuffer(const float* data, int frames);
-  void QueueBuffer(scoped_array<float> data, int frames);
+  void QueueBuffer(std::unique_ptr<float[]> data, int frames);
 
   // Resample |frames| of data from enqueued buffers.  Return false if no sample
   // is read.  Return true if all requested samples have been written into
@@ -91,10 +91,10 @@ class COBALT_EXPORT InterleavedSincResampler {
   // Contains kKernelOffsetCount kernels back-to-back, each of size kKernelSize.
   // The kernel offsets are sub-sample shifts of a windowed sinc shifted from
   // 0.0 to 1.0 sample.
-  scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> kernel_storage_;
+  std::unique_ptr<float, base::AlignedFreeDeleter> kernel_storage_;
 
   // Data from the source is copied into this buffer for each processing pass.
-  scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> input_buffer_;
+  std::unique_ptr<float, base::AlignedFreeDeleter> input_buffer_;
 
   // A queue of buffers to be resampled.
   std::queue<scoped_refptr<Buffer>> pending_buffers_;

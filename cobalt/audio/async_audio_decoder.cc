@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/audio/async_audio_decoder.h"
 
 #include "base/bind.h"
@@ -29,14 +31,14 @@ namespace {
 void Decode(
     const uint8* audio_data, size_t size,
     const AsyncAudioDecoder::DecodeFinishCallback& decode_finish_callback) {
-  scoped_ptr<AudioFileReader> reader(AudioFileReader::TryCreate(
+  std::unique_ptr<AudioFileReader> reader(AudioFileReader::TryCreate(
       audio_data, size, GetPreferredOutputSampleType()));
 
   if (reader) {
     decode_finish_callback.Run(reader->sample_rate(),
-                               reader->ResetAndReturnAudioBus().Pass());
+                               reader->ResetAndReturnAudioBus());
   } else {
-    decode_finish_callback.Run(0.f, scoped_ptr<ShellAudioBus>());
+    decode_finish_callback.Run(0.f, std::unique_ptr<ShellAudioBus>());
   }
 }
 
@@ -55,7 +57,7 @@ void AsyncAudioDecoder::AsyncDecode(
   DCHECK(!decode_finish_callback.is_null());
 
   // Queue a decoding operation to be performed on AsyncAudioDecoder thread.
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&Decode, audio_data, size, decode_finish_callback));
 }
 

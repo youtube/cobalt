@@ -27,7 +27,7 @@ class ArbitraryInterface;
 
 class SingleOperationInterface {
  public:
-  virtual base::optional<int32_t> HandleCallback(
+  virtual base::Optional<int32_t> HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
       bool* had_exception) const = 0;

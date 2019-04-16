@@ -15,6 +15,7 @@
 #ifndef COBALT_BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 #define COBALT_BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -72,7 +73,7 @@ class BindingsTestBase : public ::testing::Test {
 
   bool EvaluateScript(const std::string& script,
                       const scoped_refptr<script::Wrappable>& owning_object,
-                      base::optional<script::ValueHandleHolder::Reference>*
+                      base::Optional<script::ValueHandleHolder::Reference>*
                           out_value_handle = NULL) {
     scoped_refptr<script::SourceCode> source =
         script::SourceCode::CreateSourceCode(
@@ -86,8 +87,8 @@ class BindingsTestBase : public ::testing::Test {
   Window* window() { return window_.get(); }
 
  protected:
-  const scoped_ptr<script::EnvironmentSettings> environment_settings_;
-  const scoped_ptr<script::JavaScriptEngine> engine_;
+  const std::unique_ptr<script::EnvironmentSettings> environment_settings_;
+  const std::unique_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalEnvironment> global_environment_;
   const scoped_refptr<Window> window_;
 };
@@ -101,7 +102,7 @@ class InterfaceBindingsTest : public BindingsTestBase {
       // Use StrictMock so TESTING will fail if unexpected method is called.
       : test_mock_(new ::testing::StrictMock<MockT>()) {
     global_environment_->Bind("test",
-                              make_scoped_refptr<BaseClass>((test_mock_)));
+                              base::WrapRefCounted<BaseClass>((test_mock_)));
   }
 
   MockT& test_mock() { return *test_mock_.get(); }

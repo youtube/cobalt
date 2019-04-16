@@ -14,20 +14,20 @@
 
 #include "cobalt/browser/web_module.h"
 
+#include <memory>
 #include <sstream>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/command_line.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
@@ -82,7 +82,7 @@ const int kDOMMaxElementDepth = 32;
 
 bool CacheUrlContent(SplashScreenCache* splash_screen_cache, const GURL& url,
                      const std::string& content) {
-  base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+  base::Optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
   if (key) {
     return splash_screen_cache->SplashScreenCache::CacheSplashScreen(*key,
                                                                      content);
@@ -190,7 +190,7 @@ class WebModule::Impl {
   // is owned by this WebModule instance.
   void CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id,
-      scoped_ptr<webdriver::WindowDriver>* window_driver_out);
+      std::unique_ptr<webdriver::WindowDriver>* window_driver_out);
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUGGER)
@@ -268,7 +268,7 @@ class WebModule::Impl {
   // tree with this callback attached. It includes the time the render tree was
   // produced.
   void OnRenderTreeRasterized(
-      scoped_refptr<base::MessageLoopProxy> web_module_message_loop,
+      scoped_refptr<base::SingleThreadTaskRunner> web_module_message_loop,
       const base::TimeTicks& produced_time);
 
   // WebModule thread handling of the OnRenderTreeRasterized() callback. It
@@ -284,7 +284,7 @@ class WebModule::Impl {
     return global_environment_;
   }
 
-  void OnLoadComplete(const base::optional<std::string>& error) {
+  void OnLoadComplete(const base::Optional<std::string>& error) {
     if (error) error_callback_.Run(window_->location()->url(), *error);
   }
 
@@ -327,64 +327,64 @@ class WebModule::Impl {
   base::TypeId resource_provider_type_id_;
 
   // CSS parser.
-  scoped_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
 
   // DOM (HTML / XML) parser.
-  scoped_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
 
   // FetcherFactory that is used to create a fetcher according to URL.
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
 
   // LoaderFactory that is used to acquire references to resources from a
   // URL.
-  scoped_ptr<loader::LoaderFactory> loader_factory_;
+  std::unique_ptr<loader::LoaderFactory> loader_factory_;
 
-  scoped_ptr<loader::image::AnimatedImageTracker> animated_image_tracker_;
+  std::unique_ptr<loader::image::AnimatedImageTracker> animated_image_tracker_;
 
   // ImageCache that is used to manage image cache logic.
-  scoped_ptr<loader::image::ImageCache> image_cache_;
+  std::unique_ptr<loader::image::ImageCache> image_cache_;
 
   // The reduced cache capacity manager can be used to force a reduced image
   // cache over periods of time where memory is known to be restricted, such
   // as when a video is playing.
-  scoped_ptr<loader::image::ReducedCacheCapacityManager>
+  std::unique_ptr<loader::image::ReducedCacheCapacityManager>
       reduced_image_cache_capacity_manager_;
 
   // RemoteTypefaceCache that is used to manage loading and caching typefaces
   // from URLs.
-  scoped_ptr<loader::font::RemoteTypefaceCache> remote_typeface_cache_;
+  std::unique_ptr<loader::font::RemoteTypefaceCache> remote_typeface_cache_;
 
   // MeshCache that is used to manage mesh cache logic.
-  scoped_ptr<loader::mesh::MeshCache> mesh_cache_;
+  std::unique_ptr<loader::mesh::MeshCache> mesh_cache_;
 
   // Interface between LocalStorage and the Storage Manager.
-  scoped_ptr<dom::LocalStorageDatabase> local_storage_database_;
+  std::unique_ptr<dom::LocalStorageDatabase> local_storage_database_;
 
   // Stats for the web module. Both the dom stat tracker and layout stat
   // tracker are contained within it.
-  scoped_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
+  std::unique_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
 
   // Post and run tasks to notify MutationObservers.
   dom::MutationObserverTaskManager mutation_observer_task_manager_;
 
   // JavaScript engine for the browser.
-  scoped_ptr<script::JavaScriptEngine> javascript_engine_;
+  std::unique_ptr<script::JavaScriptEngine> javascript_engine_;
 
   // JavaScript Global Object for the browser. There should be one per window,
   // but since there is only one window, we can have one per browser.
   scoped_refptr<script::GlobalEnvironment> global_environment_;
 
   // Used by |Console| to obtain a JavaScript stack trace.
-  scoped_ptr<script::ExecutionState> execution_state_;
+  std::unique_ptr<script::ExecutionState> execution_state_;
 
   // Interface for the document to execute JavaScript code.
-  scoped_ptr<script::ScriptRunner> script_runner_;
+  std::unique_ptr<script::ScriptRunner> script_runner_;
 
   // Object to register and retrieve MediaSource object with a string key.
-  scoped_ptr<dom::MediaSource::Registry> media_source_registry_;
+  std::unique_ptr<dom::MediaSource::Registry> media_source_registry_;
 
   // Object to register and retrieve Blob objects with a string key.
-  scoped_ptr<dom::Blob::Registry> blob_registry_;
+  std::unique_ptr<dom::Blob::Registry> blob_registry_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
@@ -396,7 +396,7 @@ class WebModule::Impl {
   base::WeakPtr<dom::Window> window_weak_;
 
   // Environment Settings object
-  scoped_ptr<dom::DOMSettings> environment_settings_;
+  std::unique_ptr<dom::DOMSettings> environment_settings_;
 
   // Called by |OnRenderTreeProduced|.
   OnRenderTreeProducedCallback render_tree_produced_callback_;
@@ -405,28 +405,29 @@ class WebModule::Impl {
   OnErrorCallback error_callback_;
 
   // Triggers layout whenever the document changes.
-  scoped_ptr<layout::LayoutManager> layout_manager_;
+  std::unique_ptr<layout::LayoutManager> layout_manager_;
 
 #if defined(ENABLE_DEBUGGER)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
-  scoped_ptr<debug::backend::RenderOverlay> debug_overlay_;
+  std::unique_ptr<debug::backend::RenderOverlay> debug_overlay_;
 
   // The core of the debugging system.
-  scoped_ptr<debug::backend::DebugModule> debug_module_;
+  std::unique_ptr<debug::backend::DebugModule> debug_module_;
 
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
   base::WaitableEvent wait_for_web_debugger_finished_ = {
-      true /* manual_reset */, false /* initially_signaled */};
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 #endif  // ENABLE_DEBUGGER
 
   // DocumentObserver that observes the loading document.
-  scoped_ptr<DocumentLoadedObserver> document_load_observer_;
+  std::unique_ptr<DocumentLoadedObserver> document_load_observer_;
 
-  scoped_ptr<media_session::MediaSessionClient> media_session_client_;
+  std::unique_ptr<media_session::MediaSessionClient> media_session_client_;
 
-  scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
+  std::unique_ptr<layout::TopmostEventTarget> topmost_event_target_;
 
   base::Closure on_before_unload_fired_but_not_handled_;
 
@@ -440,7 +441,8 @@ class WebModule::Impl {
   // correctly execute, even if there are multiple synchronous loads in queue
   // before the suspend (or other) event handlers.
   base::WaitableEvent synchronous_loader_interrupt_ = {
-      true /* manual_reset */, false /* initially_signaled */};
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -466,7 +468,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
     : name_(data.options.name),
       is_running_(false),
       is_render_tree_rasterization_pending_(
-          StringPrintf("%s.IsRenderTreeRasterizationPending", name_.c_str()),
+          base::StringPrintf("%s.IsRenderTreeRasterizationPending",
+                             name_.c_str()),
           false, "True when a render tree is produced but not yet rasterized."),
       resource_provider_(data.resource_provider),
       resource_provider_type_id_(data.resource_provider->GetTypeId()) {
@@ -504,7 +507,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   blob_registry_.reset(new dom::Blob::Registry);
 
-  base::Callback<int(const std::string&, scoped_array<char>*)>
+  base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>
       read_cache_callback;
   if (data.options.can_fetch_cache) {
     read_cache_callback =
@@ -605,7 +608,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   if (data.options.wait_for_web_debugger) {
     // Post a task that blocks the message loop and waits for the web debugger.
     // This must be posted before the the window's task to load the document.
-    MessageLoop::current()->PostTask(
+    base::MessageLoop::current()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&WebModule::Impl::WaitForWebDebugger,
                               base::Unretained(this)));
   } else {
@@ -616,7 +619,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   bool log_tts = false;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  log_tts = CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
+  log_tts =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
 #endif
 
   window_ = new dom::Window(
@@ -937,7 +941,8 @@ void WebModule::Impl::OnRenderTreeProduced(
   LayoutResults layout_results_with_callback(
       layout_results.render_tree, layout_results.layout_time,
       base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
-                 base::Unretained(this), base::MessageLoopProxy::current(),
+                 base::Unretained(this),
+                 base::MessageLoop::current()->task_runner(),
                  last_render_tree_produced_time_));
 
 #if defined(ENABLE_DEBUGGER)
@@ -948,7 +953,7 @@ void WebModule::Impl::OnRenderTreeProduced(
 }
 
 void WebModule::Impl::OnRenderTreeRasterized(
-    scoped_refptr<base::MessageLoopProxy> web_module_message_loop,
+    scoped_refptr<base::SingleThreadTaskRunner> web_module_message_loop,
     const base::TimeTicks& produced_time) {
   web_module_message_loop->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::ProcessOnRenderTreeRasterized,
@@ -999,7 +1004,7 @@ bool WebModule::Impl::ReportScriptError(
 #if defined(ENABLE_WEBDRIVER)
 void WebModule::Impl::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id,
-    scoped_ptr<webdriver::WindowDriver>* window_driver_out) {
+    std::unique_ptr<webdriver::WindowDriver>* window_driver_out) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
@@ -1012,7 +1017,7 @@ void WebModule::Impl::CreateWindowDriver(
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectPointerEvent, base::Unretained(this)),
-      base::MessageLoopProxy::current()));
+      base::MessageLoop::current()->task_runner()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
@@ -1219,7 +1224,7 @@ void WebModule::Impl::LogScriptError(
     const base::SourceLocation& source_location,
     const std::string& error_message) {
   std::string file_name =
-      FilePath(source_location.file_path).BaseName().value();
+      base::FilePath(source_location.file_path).BaseName().value();
 
   std::stringstream ss;
   base::TimeDelta dt = base::StartupTimer::TimeElapsed();
@@ -1302,9 +1307,9 @@ WebModule::Options::Options()
       csp_insecure_allowed_token(0),
       track_event_stats(false),
       image_cache_capacity_multiplier_when_playing_video(1.0f),
-      thread_priority(base::kThreadPriority_Normal),
-      loader_thread_priority(base::kThreadPriority_Low),
-      animated_image_decode_thread_priority(base::kThreadPriority_Low),
+      thread_priority(base::ThreadPriority::NORMAL),
+      loader_thread_priority(base::ThreadPriority::BACKGROUND),
+      animated_image_decode_thread_priority(base::ThreadPriority::BACKGROUND),
       video_playback_rate_multiplier(1.f),
       enable_image_animations(true),
       should_retain_remote_typeface_cache_on_suspend(false),
@@ -1337,9 +1342,10 @@ WebModule::WebModule(
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  thread_.StartWithOptions(base::Thread::Options(
-      MessageLoop::TYPE_DEFAULT, cobalt::browser::kWebModuleStackSize,
-      options.thread_priority));
+  base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
+                                       cobalt::browser::kWebModuleStackSize);
+  thread_options.priority = options.thread_priority;
+  thread_.StartWithOptions(thread_options);
   DCHECK(message_loop());
 
   // Block this thread until the initialization is complete.
@@ -1348,7 +1354,7 @@ WebModule::WebModule(
   // continue in its own time, but without this wait there is a race condition
   // such that inline scripts may be executed before the document elements they
   // operate on are present.
-  message_loop()->PostBlockingTask(
+  message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Initialize, base::Unretained(this),
                             construction_data));
 }
@@ -1362,8 +1368,8 @@ WebModule::~WebModule() {
   // destroy the internal components before the message loop is set to NULL.
   // No posted tasks will be executed once the thread is stopped.
   DestructionObserver destruction_observer(this);
-  message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&MessageLoop::AddDestructionObserver,
+  message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&base::MessageLoop::AddDestructionObserver,
                             base::Unretained(message_loop()),
                             base::Unretained(&destruction_observer)));
 
@@ -1375,7 +1381,7 @@ WebModule::~WebModule() {
 }
 
 void WebModule::Initialize(const ConstructionData& data) {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::MessageLoop::current(), message_loop());
   impl_.reset(new Impl(data));
 }
 
@@ -1388,7 +1394,7 @@ void WebModule::InjectOnScreenKeyboardInputEvent(
                type.c_str());
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardInputEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
@@ -1400,7 +1406,7 @@ void WebModule::InjectOnScreenKeyboardShownEvent(int ticket) {
                ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardShownEvent,
                             base::Unretained(impl_.get()), ticket));
 }
@@ -1411,7 +1417,7 @@ void WebModule::InjectOnScreenKeyboardHiddenEvent(int ticket) {
                ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardHiddenEvent,
                             base::Unretained(impl_.get()), ticket));
 }
@@ -1422,7 +1428,7 @@ void WebModule::InjectOnScreenKeyboardFocusedEvent(int ticket) {
                ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::InjectOnScreenKeyboardFocusedEvent,
                  base::Unretained(impl_.get()), ticket));
@@ -1434,7 +1440,7 @@ void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
                ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::InjectOnScreenKeyboardBlurredEvent,
                  base::Unretained(impl_.get()), ticket));
@@ -1447,7 +1453,7 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
                "ticket", ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(
           &WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent,
@@ -1462,7 +1468,7 @@ void WebModule::InjectKeyboardEvent(base::Token type,
                type.c_str());
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectKeyboardEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
@@ -1474,7 +1480,7 @@ void WebModule::InjectPointerEvent(base::Token type,
                type.c_str());
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectPointerEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
@@ -1486,7 +1492,7 @@ void WebModule::InjectWheelEvent(base::Token type,
                type.c_str());
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectWheelEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
@@ -1496,9 +1502,9 @@ void WebModule::InjectBeforeUnloadEvent() {
   TRACE_EVENT0("cobalt::browser", "WebModule::InjectBeforeUnloadEvent()");
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::InjectBeforeUnloadEvent,
-                                      base::Unretained(impl_.get())));
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectBeforeUnloadEvent,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::InjectCaptionSettingsChangedEvent() {
@@ -1506,7 +1512,7 @@ void WebModule::InjectCaptionSettingsChangedEvent() {
                "WebModule::InjectCaptionSettingsChangedEvent()");
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
                             base::Unretained(impl_.get())));
 }
@@ -1518,9 +1524,11 @@ std::string WebModule::ExecuteJavascript(
   DCHECK(message_loop());
   DCHECK(impl_);
 
-  base::WaitableEvent got_result(true, false);
+  base::WaitableEvent got_result(
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED);
   std::string result;
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::ExecuteJavascript,
                  base::Unretained(impl_.get()), script_utf8, script_location,
@@ -1535,25 +1543,25 @@ void WebModule::ClearAllIntervalsAndTimeouts() {
   DCHECK(impl_);
 
   if (impl_) {
-    message_loop()->PostTask(
+    message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&WebModule::Impl::ClearAllIntervalsAndTimeouts,
                               base::Unretained(impl_.get())));
   }
 }
 
 #if defined(ENABLE_WEBDRIVER)
-scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
+std::unique_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id) {
   DCHECK(message_loop());
   DCHECK(impl_);
 
-  scoped_ptr<webdriver::WindowDriver> window_driver;
-  message_loop()->PostBlockingTask(
+  std::unique_ptr<webdriver::WindowDriver> window_driver;
+  message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Impl::CreateWindowDriver,
                             base::Unretained(impl_.get()), window_id,
                             base::Unretained(&window_driver)));
 
-  return window_driver.Pass();
+  return window_driver;
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
@@ -1569,7 +1577,7 @@ std::unique_ptr<debug::backend::DebuggerState> WebModule::FreezeDebugger() {
   DCHECK(impl_);
 
   std::unique_ptr<debug::backend::DebuggerState> debugger_state;
-  message_loop()->PostBlockingTask(
+  message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Impl::FreezeDebugger,
                             base::Unretained(impl_.get()),
                             base::Unretained(&debugger_state)));
@@ -1579,69 +1587,69 @@ std::unique_ptr<debug::backend::DebuggerState> WebModule::FreezeDebugger() {
 
 void WebModule::SetSize(const ViewportSize& viewport_size,
                         float video_pixel_ratio) {
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::SetSize, base::Unretained(impl_.get()),
                  viewport_size, video_pixel_ratio));
 }
 
 void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SetCamera3D,
                             base::Unretained(impl_.get()), camera_3d));
 }
 
 void WebModule::SetWebMediaPlayerFactory(
     media::WebMediaPlayerFactory* web_media_player_factory) {
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::SetWebMediaPlayerFactory,
                  base::Unretained(impl_.get()), web_media_player_factory));
 }
 
 void WebModule::SetImageCacheCapacity(int64_t bytes) {
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::SetImageCacheCapacity,
-                                      base::Unretained(impl_.get()), bytes));
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::SetImageCacheCapacity,
+                            base::Unretained(impl_.get()), bytes));
 }
 
 void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SetRemoteTypefaceCacheCapacity,
                             base::Unretained(impl_.get()), bytes));
 }
 
 void WebModule::Prestart() {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   // We must block here so that we don't queue the finish until after
   // SuspendLoaders has run to completion, and therefore has already queued any
   // precipitate tasks.
-  message_loop()->PostBlockingTask(
+  message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SuspendLoaders,
                             base::Unretained(impl_.get()),
                             false /*update_application_state*/));
 
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  message_loop()->PostBlockingTask(FROM_HERE,
-                                   base::Bind(&WebModule::Impl::FinishSuspend,
-                                              base::Unretained(impl_.get())));
+  message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::FinishSuspend,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Start,
                             base::Unretained(impl_.get()), resource_provider));
 }
 
 void WebModule::Pause() {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   impl_->CancelSynchronousLoads();
 
@@ -1658,72 +1666,72 @@ void WebModule::Pause() {
   // letting it eventually run when the debugger connects and the message loop
   // is unblocked again.
   if (!impl_->IsFinishedWaitingForWebDebugger()) {
-    message_loop()->PostTask(FROM_HERE, impl_pause);
+    message_loop()->task_runner()->PostTask(FROM_HERE, impl_pause);
     return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
-  message_loop()->PostBlockingTask(FROM_HERE, impl_pause);
+  message_loop()->task_runner()->PostBlockingTask(FROM_HERE, impl_pause);
 }
 
 void WebModule::Unpause() {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::Unpause, base::Unretained(impl_.get())));
 }
 
 void WebModule::Suspend() {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   impl_->CancelSynchronousLoads();
 
   // We must block here so that we don't queue the finish until after
   // SuspendLoaders has run to completion, and therefore has already queued any
   // precipitate tasks.
-  message_loop()->PostBlockingTask(
+  message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SuspendLoaders,
                             base::Unretained(impl_.get()),
                             true /*update_application_state*/));
 
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  message_loop()->PostBlockingTask(FROM_HERE,
-                                   base::Bind(&WebModule::Impl::FinishSuspend,
-                                              base::Unretained(impl_.get())));
+  message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::FinishSuspend,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
 }
 
 void WebModule::ReduceMemory() {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   impl_->CancelSynchronousLoads();
 
   // We block here so that we block the Low Memory event handler until we have
   // reduced our memory consumption.
-  message_loop()->PostBlockingTask(FROM_HERE,
-                                   base::Bind(&WebModule::Impl::ReduceMemory,
-                                              base::Unretained(impl_.get())));
+  message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::ReduceMemory,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::RequestJavaScriptHeapStatistics(
     const JavaScriptHeapStatisticsCallback& callback) {
   // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
 
-  message_loop()->PostTask(
+  message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::GetJavaScriptHeapStatistics,
                             base::Unretained(impl_.get()), callback));
 }

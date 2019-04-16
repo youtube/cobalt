@@ -27,8 +27,8 @@ void H5vccTraceEvent::Start(const std::string& output_filename) {
   if (trace_to_file_) {
     DLOG(WARNING) << "H5vccTraceEvent is already started.";
   } else {
-    FilePath output_filepath(output_filename.empty() ? kOutputTraceFilename
-                                                     : output_filename);
+    base::FilePath output_filepath(
+        output_filename.empty() ? kOutputTraceFilename : output_filename);
     trace_to_file_.reset(new trace_event::ScopedTraceToFile(output_filepath));
   }
 }

@@ -15,11 +15,12 @@
 #ifndef COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
 #define COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 
 namespace cobalt {
@@ -31,19 +32,21 @@ class CallOnMessageLoopHelper {
  public:
   typedef base::Callback<ReturnValue(void)> CallbackType;
   CallOnMessageLoopHelper(
-      const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const CallbackType& callback)
-      : completed_event_(true, false), success_(false) {
-    DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy);
-    scoped_ptr<DeletionSignaler> dt(new DeletionSignaler(&completed_event_));
-    // Note that while MessageLoopProxy::PostTask returns false
+      : completed_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                         base::WaitableEvent::InitialState::NOT_SIGNALED),
+        success_(false) {
+    DCHECK_NE(base::MessageLoop::current()->task_runner(), task_runner);
+    std::unique_ptr<DeletionSignaler> dt(
+        new DeletionSignaler(&completed_event_));
+    // Note that while base::MessageLoopProxy::PostTask returns false
     // after the message loop has gone away, it still can return true
     // even if tasks are posted during shutdown and will never be run,
     // so we ignore this return value.
-    message_loop_proxy->PostTask(
-        FROM_HERE,
-        base::Bind(&CallOnMessageLoopHelper::Call, base::Unretained(this),
-                   callback, base::Passed(&dt)));
+    task_runner->PostTask(FROM_HERE, base::Bind(&CallOnMessageLoopHelper::Call,
+                                                base::Unretained(this),
+                                                callback, base::Passed(&dt)));
   }
 
   // Waits for result, filling |out| with the return value if successful.
@@ -82,7 +85,7 @@ class CallOnMessageLoopHelper {
   };
 
   void Call(const CallbackType& callback,
-            scoped_ptr<DeletionSignaler> dt ALLOW_UNUSED) {
+            std::unique_ptr<DeletionSignaler> dt ALLOW_UNUSED_TYPE) {
     result_ = callback.Run();
     success_ = true;
   }
@@ -92,9 +95,9 @@ class CallOnMessageLoopHelper {
   bool success_;
 };
 
-// Used with CallWeakOnMessageLoop.
+// Used with CallWeakOnbase::MessageLoop.
 template <typename T, typename ReturnValue>
-base::optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
+base::Optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
                                     const base::Callback<ReturnValue(T*)>& cb) {
   T* weak_object = get_weak.Run();
   if (weak_object) {
@@ -113,24 +116,24 @@ base::optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
 // On success, |out| is set to the result.
 template <class ReturnValue>
 bool TryCallOnMessageLoop(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const base::Callback<ReturnValue(void)>& callback, ReturnValue* out) {
-  internal::CallOnMessageLoopHelper<ReturnValue> call_helper(message_loop_proxy,
+  internal::CallOnMessageLoopHelper<ReturnValue> call_helper(task_runner,
                                                              callback);
   return call_helper.WaitForResult(out);
 }
 
-// Tries to call |callback| on messageloop |message_loop_proxy|,
+// Tries to call |callback| on base::MessageLoop |task_runner|,
 // but returns a CommandResult of |window_disappeared_code| if the
 // message loop has shut down. This can happen if a WebModule shuts
 // down due to a page navigation.
 template <typename ReturnValue>
 util::CommandResult<ReturnValue> CallOnMessageLoop(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const base::Callback<util::CommandResult<ReturnValue>(void)>& callback,
     protocol::Response::StatusCode window_disappeared_code) {
   util::CommandResult<ReturnValue> result;
-  bool success = TryCallOnMessageLoop(message_loop_proxy, callback, &result);
+  bool success = TryCallOnMessageLoop(task_runner, callback, &result);
 
   if (!success) {
     result =
@@ -149,16 +152,16 @@ util::CommandResult<ReturnValue> CallOnMessageLoop(
 // error.
 template <typename T, typename ReturnValue>
 util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const base::Callback<T*()>& get_weak,
     const base::Callback<ReturnValue(T*)>& cb,
     protocol::Response::StatusCode no_such_object_code) {
   typedef util::CommandResult<ReturnValue> CommandResult;
-  typedef base::optional<ReturnValue> InternalResult;
+  typedef base::Optional<ReturnValue> InternalResult;
   InternalResult result;
   bool success = util::TryCallOnMessageLoop(
-      message_loop,
-      base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb), &result);
+      task_runner, base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb),
+      &result);
   if (success && result) {
     return CommandResult(result.value());
   } else {

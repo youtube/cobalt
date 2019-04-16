@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/csp_delegate.h"
 
 #include "base/bind.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -24,14 +26,14 @@ CspDelegate::CspDelegate() {}
 CspDelegate::~CspDelegate() {}
 
 CspDelegateSecure::CspDelegateSecure(
-    scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+    std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
     csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback) {
   require_csp_ = require_csp;
   was_header_received_ = false;
   policy_changed_callback_ = policy_changed_callback;
 
-  reporter_ = violation_reporter.Pass();
+  reporter_ = std::move(violation_reporter);
   csp::ViolationCallback violation_callback;
   if (reporter_) {
     violation_callback = base::Bind(&CspViolationReporter::Report,

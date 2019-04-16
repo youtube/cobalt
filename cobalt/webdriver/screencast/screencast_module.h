@@ -15,13 +15,13 @@
 #ifndef COBALT_WEBDRIVER_SCREENCAST_SCREENCAST_MODULE_H_
 #define COBALT_WEBDRIVER_SCREENCAST_SCREENCAST_MODULE_H_
 
+#include <memory>
 #include <queue>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/webdriver/dispatcher.h"
@@ -33,7 +33,7 @@ namespace webdriver {
 namespace screencast {
 
 struct WaitingRequest : public base::RefCounted<WaitingRequest> {
-  scoped_ptr<webdriver::WebDriverDispatcher::CommandResultHandler>
+  std::unique_ptr<webdriver::WebDriverDispatcher::CommandResultHandler>
       result_handler;
   int request_id;
 };
@@ -65,7 +65,8 @@ class ScreencastModule {
   void PutRequestInQueue(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+      std::unique_ptr<WebDriverDispatcher::CommandResultHandler>
+          result_handler);
 
   // This method will search the queue for the first valid request. A valid
   // request must have an id higher than the last valid request. When an invalid
@@ -83,10 +84,10 @@ class ScreencastModule {
   // Thus command dispatcher is responsible for pattern recognition of the URL
   // request, mapping requests to handler functions, handling invalid requests,
   // and sending response objects.
-  scoped_ptr<WebDriverDispatcher> screenshot_dispatcher_;
+  std::unique_ptr<WebDriverDispatcher> screenshot_dispatcher_;
 
   // The |screenshot_dispatcher_| sends responses through this HTTP server.
-  scoped_ptr<WebDriverServer> screenshot_server_;
+  std::unique_ptr<WebDriverServer> screenshot_server_;
 
   // The id of the last valid request the screencast server responded to.
   int last_served_request_;
@@ -99,7 +100,7 @@ class ScreencastModule {
   GetScreenshotFunction screenshot_function_;
 
   // This timer is responsible for taking screenshots at regular intervals.
-  scoped_ptr<base::Timer> screenshot_timer_;
+  std::unique_ptr<base::RepeatingTimer> screenshot_timer_;
 
   // This event is responsible for a safe shutdown. The event will be signalled
   // only after the timer has been shutdown and will not request any more

@@ -14,6 +14,7 @@
 
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
 
+#include <memory>
 #include <utility>
 
 #include "base/lazy_instance.h"
@@ -46,9 +47,9 @@ JSObject* WrapperFactory::GetWrapperProxy(
       context_,
       MozjsWrapperHandle::GetObjectProxy(GetCachedWrapper(wrappable.get())));
   if (!wrapper_proxy) {
-    scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
+    std::unique_ptr<Wrappable::WeakWrapperHandle> object_handle =
         CreateWrapper(wrappable);
-    SetCachedWrapper(wrappable.get(), object_handle.Pass());
+    SetCachedWrapper(wrappable.get(), std::move(object_handle));
     wrapper_proxy =
         MozjsWrapperHandle::GetObjectProxy(GetCachedWrapper(wrappable.get()));
   }
@@ -59,9 +60,8 @@ JSObject* WrapperFactory::GetWrapperProxy(
 
 bool WrapperFactory::HasWrapperProxy(
     const scoped_refptr<Wrappable>& wrappable) const {
-  return wrappable &&
-         !!MozjsWrapperHandle::GetObjectProxy(
-             GetCachedWrapper(wrappable.get()));
+  return wrappable && !!MozjsWrapperHandle::GetObjectProxy(
+                          GetCachedWrapper(wrappable.get()));
 }
 
 bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
@@ -71,20 +71,20 @@ bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
          JS_GetPrivate(wrapper) != NULL;
 }
 
-scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
+std::unique_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     const scoped_refptr<Wrappable>& wrappable) const {
   WrappableTypeFunctionsHashMap::const_iterator it =
       wrappable_type_functions_.find(wrappable->GetWrappableType());
   if (it == wrappable_type_functions_.end()) {
     NOTREACHED();
-    return scoped_ptr<Wrappable::WeakWrapperHandle>();
+    return std::unique_ptr<Wrappable::WeakWrapperHandle>();
   }
   JS::RootedObject new_proxy(
       context_, it->second.create_wrapper.Run(context_, wrappable));
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromProxyObject(context_, new_proxy);
   DCHECK(wrapper_private);
-  return make_scoped_ptr<Wrappable::WeakWrapperHandle>(
+  return std::unique_ptr<Wrappable::WeakWrapperHandle>(
       new MozjsWrapperHandle(wrapper_private));
 }
 

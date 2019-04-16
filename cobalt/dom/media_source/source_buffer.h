@@ -45,14 +45,14 @@
 #ifndef COBALT_DOM_MEDIA_SOURCE_SOURCE_BUFFER_H_
 #define COBALT_DOM_MEDIA_SOURCE_SOURCE_BUFFER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/event_queue.h"
@@ -85,7 +85,7 @@ class SourceBuffer : public dom::EventTarget {
   // Web API: SourceBuffer
   //
   SourceBufferAppendMode mode(script::ExceptionState* exception_state) const {
-    UNREFERENCED_PARAMETER(exception_state);
+    SB_UNREFERENCED_PARAMETER(exception_state);
     return mode_;
   }
   void set_mode(SourceBufferAppendMode mode,
@@ -94,7 +94,7 @@ class SourceBuffer : public dom::EventTarget {
   scoped_refptr<TimeRanges> buffered(
       script::ExceptionState* exception_state) const;
   double timestamp_offset(script::ExceptionState* exception_state) const {
-    UNREFERENCED_PARAMETER(exception_state);
+    SB_UNREFERENCED_PARAMETER(exception_state);
     return timestamp_offset_;
   }
   void set_timestamp_offset(double offset,
@@ -102,13 +102,13 @@ class SourceBuffer : public dom::EventTarget {
   scoped_refptr<AudioTrackList> audio_tracks() const { return audio_tracks_; }
   scoped_refptr<VideoTrackList> video_tracks() const { return video_tracks_; }
   double append_window_start(script::ExceptionState* exception_state) const {
-    UNREFERENCED_PARAMETER(exception_state);
+    SB_UNREFERENCED_PARAMETER(exception_state);
     return append_window_start_;
   }
   void set_append_window_start(double start,
                                script::ExceptionState* exception_state);
   double append_window_end(script::ExceptionState* exception_state) const {
-    UNREFERENCED_PARAMETER(exception_state);
+    SB_UNREFERENCED_PARAMETER(exception_state);
     return append_window_end_;
   }
   void set_append_window_end(double start,
@@ -122,7 +122,7 @@ class SourceBuffer : public dom::EventTarget {
               script::ExceptionState* exception_state);
   scoped_refptr<TrackDefaultList> track_defaults(
       script::ExceptionState* exception_state) const {
-    UNREFERENCED_PARAMETER(exception_state);
+    SB_UNREFERENCED_PARAMETER(exception_state);
     return track_defaults_;
   }
   void set_track_defaults(const scoped_refptr<TrackDefaultList>& track_defaults,
@@ -139,7 +139,7 @@ class SourceBuffer : public dom::EventTarget {
  private:
   typedef media::MediaTracks MediaTracks;
 
-  void InitSegmentReceived(scoped_ptr<MediaTracks> tracks);
+  void InitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
   void ScheduleEvent(base::Token event_name);
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
@@ -179,12 +179,12 @@ class SourceBuffer : public dom::EventTarget {
   double append_window_start_;
   double append_window_end_;
 
-  base::OneShotTimer<SourceBuffer> append_timer_;
+  base::OneShotTimer append_timer_;
   bool first_initialization_segment_received_;
   std::vector<uint8_t> pending_append_data_;
   size_t pending_append_data_offset_;
 
-  base::OneShotTimer<SourceBuffer> remove_timer_;
+  base::OneShotTimer remove_timer_;
   double pending_remove_start_;
   double pending_remove_end_;
 };

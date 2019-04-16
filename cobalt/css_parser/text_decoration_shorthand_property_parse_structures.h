@@ -15,7 +15,7 @@
 #ifndef COBALT_CSS_PARSER_TEXT_DECORATION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 #define COBALT_CSS_PARSER_TEXT_DECORATION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {

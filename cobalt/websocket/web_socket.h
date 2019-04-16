@@ -14,6 +14,7 @@
 #ifndef COBALT_WEBSOCKET_WEB_SOCKET_H_
 #define COBALT_WEBSOCKET_WEB_SOCKET_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -33,7 +34,6 @@
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
-#include "cobalt/websocket/web_socket_event_interface.h"
 #include "cobalt/websocket/web_socket_impl.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ namespace websocket {
 // This class represents a WebSocket.  It abides by RFC 6455 "The WebSocket
 // Protocol", and implements the The WebSocket API spec at
 // https://www.w3.org/TR/websockets/ (as of Jan 2017).
-class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
+class WebSocket : public dom::EventTarget {
  public:
   // Constants.
   static const uint16 kConnecting = 0;
@@ -89,6 +89,16 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
             script::ExceptionState* exception_state);
   void Send(const script::Handle<script::ArrayBufferView>& data,
             script::ExceptionState* exception_state);
+
+  // API from old cobalt WebSocketEventInterface. They are callbacks to handle
+  // corresponding lower level websocket events.
+  void OnConnected(const std::string& selected_subprotocol);
+
+  void OnDisconnected(bool was_clean, uint16 code, const std::string& reason);
+
+  void OnReceivedData(bool is_text_frame,
+                      scoped_refptr<net::IOBufferWithSize> data);
+  void OnError() { this->DispatchEvent(new dom::Event(base::Tokens::error())); }
 
   // EventHandlers.
   const EventListenerScriptValue* onclose() const {
@@ -153,21 +163,6 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
             script::ExceptionState* exception_state,
             const bool require_network_module);
 
-  void OnConnected(const std::string& selected_subprotocol) override;
-
-  void OnDisconnected(bool was_clean, uint16 code,
-                      const std::string& reason) override;
-
-  void OnSentData(int amount_sent) override {
-    DCHECK_GE(buffered_amount_, amount_sent);
-    buffered_amount_ -= amount_sent;
-    PotentiallyAllowGarbageCollection();
-  }
-  void OnReceivedData(bool is_text_frame,
-                      scoped_refptr<net::IOBufferWithSize> data) override;
-  void OnError() override {
-    this->DispatchEvent(new dom::Event(base::Tokens::error()));
-  }
 
   void Initialize(script::EnvironmentSettings* settings, const std::string& url,
                   const std::vector<std::string>& sub_protocols,
@@ -224,7 +219,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   dom::DOMSettings* settings_;
   scoped_refptr<WebSocketImpl> impl_;
 
-  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_while_listening_;
 
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, BadOrigin);

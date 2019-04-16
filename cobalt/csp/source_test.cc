@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/csp/source.h"
 
 #include "cobalt/csp/content_security_policy.h"
-#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {
@@ -28,7 +30,7 @@ class SourceTest : public ::testing::Test {
   SourceTest() : csp_(new ContentSecurityPolicy(GURL(), ViolationCallback())) {}
 
  protected:
-  scoped_ptr<ContentSecurityPolicy> csp_;
+  std::unique_ptr<ContentSecurityPolicy> csp_;
 };
 
 TEST_F(SourceTest, BasicMatching) {

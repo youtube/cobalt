@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_MESH_MESH_DECODER_H_
 #define COBALT_LOADER_MESH_MESH_DECODER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,11 +36,11 @@ class MeshDecoder : public Decoder {
       MeshAvailableCallback;
 
   // This function is used for binding a callback to create a MeshDecoder.
-  static scoped_ptr<Decoder> Create(
+  static std::unique_ptr<Decoder> Create(
       render_tree::ResourceProvider* resource_provider,
       const MeshAvailableCallback& mesh_available_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback) {
-    return scoped_ptr<Decoder>(new MeshDecoder(
+    return std::unique_ptr<Decoder>(new MeshDecoder(
         resource_provider, mesh_available_callback, load_complete_callback));
   }
 
@@ -61,7 +62,7 @@ class MeshDecoder : public Decoder {
   const MeshAvailableCallback mesh_available_callback_;
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
-  scoped_ptr<std::vector<uint8> > raw_data_;
+  std::unique_ptr<std::vector<uint8> > raw_data_;
 
   bool is_suspended_;
 };

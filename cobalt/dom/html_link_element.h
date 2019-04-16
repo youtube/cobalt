@@ -15,10 +15,10 @@
 #ifndef COBALT_DOM_HTML_LINK_ELEMENT_H_
 #define COBALT_DOM_HTML_LINK_ELEMENT_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/cssom/style_sheet.h"
@@ -54,8 +54,8 @@ class HTMLLinkElement : public HTMLElement {
   std::string href() const { return GetAttribute("href").value_or(""); }
   void set_href(const std::string& value) { SetAttribute("href", value); }
 
-  base::optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::optional<std::string>& value);
+  base::Optional<std::string> cross_origin() const;
+  void set_cross_origin(const base::Optional<std::string>& value);
 
   // Custom, not in any spec.
   //
@@ -76,8 +76,8 @@ class HTMLLinkElement : public HTMLElement {
   void Obtain();
 
   void OnContentProduced(const loader::Origin& last_url_origin,
-                         scoped_ptr<std::string> content);
-  void OnLoadingComplete(const base::optional<std::string>& error);
+                         std::unique_ptr<std::string> content);
+  void OnLoadingComplete(const base::Optional<std::string>& error);
   void OnSplashscreenLoaded(Document* document, const std::string& content);
   void OnStylesheetLoaded(Document* document, const std::string& content);
   void ReleaseLoader();
@@ -89,7 +89,7 @@ class HTMLLinkElement : public HTMLElement {
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
   // The loader.
-  scoped_ptr<loader::Loader> loader_;
+  std::unique_ptr<loader::Loader> loader_;
 
   // Absolute link url.
   GURL absolute_url_;

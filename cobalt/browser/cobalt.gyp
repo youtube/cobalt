@@ -24,6 +24,7 @@
         ['sb_evergreen != 1', {
           'dependencies': [
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+            '<(DEPTH)/net/net.gyp:net',
           ],
           'conditions': [
             ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
@@ -97,6 +98,7 @@
           'dependencies': [
             '<(DEPTH)/cobalt/base/base.gyp:base',
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+            '<(DEPTH)/net/net.gyp:net',
           ],
           'sources': [
             'main.cc',
@@ -138,6 +140,7 @@
           'dependencies': [
             'cobalt',
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+            '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
           ],
         },
         {

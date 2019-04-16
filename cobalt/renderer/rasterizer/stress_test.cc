@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/render_tree/brush.h"
@@ -64,9 +65,9 @@ class StressTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<backend::GraphicsSystem> graphics_system_;
-  scoped_ptr<backend::GraphicsContext> graphics_context_;
-  scoped_ptr<rasterizer::Rasterizer> rasterizer_;
+  std::unique_ptr<backend::GraphicsSystem> graphics_system_;
+  std::unique_ptr<backend::GraphicsContext> graphics_context_;
+  std::unique_ptr<rasterizer::Rasterizer> rasterizer_;
   scoped_refptr<backend::RenderTarget> render_target_;
 };
 
@@ -83,8 +84,8 @@ void StressTest::TestTree(const Size& output_size, scoped_refptr<Node> tree) {
   // Reuse render targets to avoid some rasterizers from thrashing their
   // render target cache.
   if (!render_target_ || render_target_->GetSize() != output_size) {
-    render_target_ = graphics_context_->CreateDownloadableOffscreenRenderTarget(
-        output_size);
+    render_target_ =
+        graphics_context_->CreateDownloadableOffscreenRenderTarget(output_size);
   }
 
   if (!render_target_) {
@@ -103,7 +104,7 @@ TEST_F(StressTest, LargeFramebuffer) {
   Size kLargeFramebufferSize(8000, 8000);
   TestTree(kLargeFramebufferSize,
            new RectNode(RectF(kLargeFramebufferSize),
-                        scoped_ptr<Brush>(new SolidColorBrush(
+                        std::unique_ptr<Brush>(new SolidColorBrush(
                             ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f)))));
 }
 
@@ -113,7 +114,7 @@ TEST_F(StressTest, VeryLargeFramebuffer) {
   Size kLargeFramebufferSize(20000, 20000);
   TestTree(kLargeFramebufferSize,
            new RectNode(RectF(kLargeFramebufferSize),
-                        scoped_ptr<Brush>(new SolidColorBrush(
+                        std::unique_ptr<Brush>(new SolidColorBrush(
                             ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f)))));
 }
 
@@ -128,7 +129,7 @@ scoped_refptr<Node> CreateCascadedRenderTrees(Node* node, int cascade_amount,
         node, Vector2dF(i * offset_amount, i * offset_amount)));
   }
 
-  return new CompositionNode(composition_builder.Pass());
+  return new CompositionNode(std::move(composition_builder));
 }
 
 // Creates and returns a render tree with |num_layers| opacity objects overlaid
@@ -142,13 +143,13 @@ scoped_refptr<Node> CreateOpacityLayers(int num_layers, const Size& size) {
   Size rect_size(size.width() - rect_size_inset,
                  size.height() - rect_size_inset);
 
-  FilterNode* opacity_layer =
-      new FilterNode(OpacityFilter(0.9f),
-                     CreateCascadedRenderTrees(
-                         new RectNode(RectF(rect_size),
-                                      scoped_ptr<Brush>(new SolidColorBrush(
-                                          ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f)))),
-                         kNumCascadedRects, kCascadeOffset));
+  FilterNode* opacity_layer = new FilterNode(
+      OpacityFilter(0.9f),
+      CreateCascadedRenderTrees(
+          new RectNode(RectF(rect_size),
+                       std::unique_ptr<Brush>(new SolidColorBrush(
+                           ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f)))),
+          kNumCascadedRects, kCascadeOffset));
 
   return CreateCascadedRenderTrees(opacity_layer, num_layers, 0.0f);
 }
@@ -193,13 +194,14 @@ TEST_F(StressTest, TooManyTextures) {
     // the image is needed. To exercise running out of GPU memory, try
     // rendering each new image so the CPU allocation can be released before
     // the next image is allocated.
-    scoped_ptr<ImageData> image_data = GetResourceProvider()->AllocateImageData(
-        kTextureSize, pixel_format, render_tree::kAlphaFormatOpaque);
+    std::unique_ptr<ImageData> image_data =
+        GetResourceProvider()->AllocateImageData(
+            kTextureSize, pixel_format, render_tree::kAlphaFormatOpaque);
     if (!image_data) {
       break;
     }
-    images.emplace_back(GetResourceProvider()->CreateImage(
-        image_data.Pass()));
+    images.emplace_back(
+        GetResourceProvider()->CreateImage(std::move(image_data)));
     TestTree(kFramebufferSize, new ImageNode(images.back()));
   }
 }

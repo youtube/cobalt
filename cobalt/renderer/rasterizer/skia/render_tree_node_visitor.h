@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_RENDER_TREE_NODE_VISITOR_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_RENDER_TREE_NODE_VISITOR_H_
 
+#include <memory>
+
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/optional.h"
@@ -57,7 +59,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
     virtual ~ScratchSurface() {}
     virtual SkSurface* GetSurface() = 0;
   };
-  typedef base::Callback<scoped_ptr<ScratchSurface>(const math::Size&)>
+  typedef base::Callback<std::unique_ptr<ScratchSurface>(const math::Size&)>
       CreateScratchSurfaceFunction;
 
   typedef base::Callback<void(const render_tree::ImageNode* image_node,

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/on_screen_keyboard.h"
 
 #include "base/callback.h"
@@ -110,7 +112,6 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
     promise->Reject();
   }
 #else
-  UNREFERENCED_PARAMETER(suggestions);
   LOG(WARNING)
       << "Starboard version " << SB_API_VERSION
       << " does not support on-screen keyboard suggestions on this platform.";

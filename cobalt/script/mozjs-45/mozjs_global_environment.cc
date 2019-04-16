@@ -15,10 +15,11 @@
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "base/lazy_instance.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/embedded_resources.h"
@@ -120,7 +121,7 @@ ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
     NULL, NULL, NULL, NULL, NULL,
 };
 
-static base::LazyInstance<MozjsStubHandler> proxy_handler;
+static base::LazyInstance<MozjsStubHandler>::DestructorAtExit proxy_handler;
 
 }  // namespace
 
@@ -245,7 +246,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
 bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object,
-    base::optional<ValueHandleHolder::Reference>* out_value_handle) {
+    base::Optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   JSAutoRequest auto_request(context_);
@@ -310,8 +311,9 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
   return success;
 }
 
-void MozjsGlobalEnvironment::EvaluateEmbeddedScript(
-    const unsigned char* data, size_t size, const char* filename) {
+void MozjsGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,
+                                                    size_t size,
+                                                    const char* filename) {
   TRACK_MEMORY_SCOPE("Javascript");
   std::string source(reinterpret_cast<const char*>(data), size);
   scoped_refptr<SourceCode> source_code =
@@ -472,10 +474,9 @@ void MozjsGlobalEnvironment::TraceFunction(JSTracer* js_tracer, void* data) {
 }
 
 void MozjsGlobalEnvironment::EvaluateAutomatics() {
-  EvaluateEmbeddedScript(
-      MozjsEmbeddedResources::promise_min_js,
-      sizeof(MozjsEmbeddedResources::promise_min_js),
-      "promise.min.js");
+  EvaluateEmbeddedScript(MozjsEmbeddedResources::promise_min_js,
+                         sizeof(MozjsEmbeddedResources::promise_min_js),
+                         "promise.min.js");
   // Store the |Promise| (currently the only polyfill that needs to be
   // accessed from native code) implemented there in our own handle (as
   // opposed to fetching it from the global object everytime we need it), in
@@ -504,14 +505,11 @@ void MozjsGlobalEnvironment::EvaluateAutomatics() {
       MozjsEmbeddedResources::count_queuing_strategy_js,
       sizeof(MozjsEmbeddedResources::count_queuing_strategy_js),
       "count_queuing_strategy.js");
-  EvaluateEmbeddedScript(
-      MozjsEmbeddedResources::readable_stream_js,
-      sizeof(MozjsEmbeddedResources::readable_stream_js),
-      "readable_stream.js");
-  EvaluateEmbeddedScript(
-      MozjsEmbeddedResources::fetch_js,
-      sizeof(MozjsEmbeddedResources::fetch_js),
-      "fetch.js");
+  EvaluateEmbeddedScript(MozjsEmbeddedResources::readable_stream_js,
+                         sizeof(MozjsEmbeddedResources::readable_stream_js),
+                         "readable_stream.js");
+  EvaluateEmbeddedScript(MozjsEmbeddedResources::fetch_js,
+                         sizeof(MozjsEmbeddedResources::fetch_js), "fetch.js");
 }
 
 InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(int key) {
@@ -568,9 +566,9 @@ void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
 
   DCHECK(wrapper_private);
 
-  scoped_ptr<Wrappable::WeakWrapperHandle> object_handle(
+  std::unique_ptr<Wrappable::WeakWrapperHandle> object_handle(
       new MozjsWrapperHandle(wrapper_private));
-  SetCachedWrapper(wrappable.get(), object_handle.Pass());
+  SetCachedWrapper(wrappable.get(), std::move(object_handle));
 }
 
 void MozjsGlobalEnvironment::ReportError(const char* message,

@@ -15,14 +15,14 @@
 #ifndef COBALT_TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
 #define COBALT_TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
 
-#include "base/file_path.h"
-#include "base/time.h"
+#include "base/files/file_path.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace trace_event {
 
-// When this object is constructed, it will enable base::debug::TraceLog (which
-// should NOT already be enabled), thus enabling the recording of all
+// When this object is constructed, it will enable base::trace_event::TraceLog
+// (which should NOT already be enabled), thus enabling the recording of all
 // TRACE_EVENT annotations.  Finally, when the object is destructed, the output
 // will be written to the specified file in JSON format so that it can
 // subsequently be analyzed by navigating to "about:tracing" in a Chrome
@@ -30,13 +30,16 @@ namespace trace_event {
 // file that was output.
 class ScopedTraceToFile {
  public:
-  explicit ScopedTraceToFile(const FilePath& output_path_relative_to_logs);
+  explicit ScopedTraceToFile(
+      const base::FilePath& output_path_relative_to_logs);
   ~ScopedTraceToFile();
 
-  const FilePath& absolute_output_path() const { return absolute_output_path_; }
+  const base::FilePath& absolute_output_path() const {
+    return absolute_output_path_;
+  }
 
  private:
-  FilePath absolute_output_path_;
+  base::FilePath absolute_output_path_;
 };
 
 // Helper function to make it easy to start a trace and collect results even
@@ -45,7 +48,7 @@ class ScopedTraceToFile {
 // This function will start a trace when it is called, and after the specified
 // amount of time has passed, it will stop tracing and output the results to
 // the specified file.
-void TraceToFileForDuration(const FilePath& output_path_relative_to_logs,
+void TraceToFileForDuration(const base::FilePath& output_path_relative_to_logs,
                             const base::TimeDelta& duration);
 
 }  // namespace trace_event

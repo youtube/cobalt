@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include "cobalt/dom/base64.h"
 
 #include "base/base64.h"
@@ -59,7 +61,7 @@ bool IsNotAsciiWhitespace(char c) {
   return true;
 }
 
-base::optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
+base::Optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
   // Our base64 decoding method does not check for forbidden characters. We use
   // the following method to reject string containing disallowed character or
   // format in atob().
@@ -96,7 +98,7 @@ base::optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
   return output_str;
 }
 
-base::optional<std::string> Utf8ToLatin1(const std::string& input) {
+base::Optional<std::string> Utf8ToLatin1(const std::string& input) {
   std::string output;
   unsigned char current_char_remainder = 0x00;
   for (unsigned char c : input) {
@@ -118,19 +120,22 @@ base::optional<std::string> Utf8ToLatin1(const std::string& input) {
 }
 }  // namespace
 
-base::optional<std::string> ForgivingBase64Encode(
+base::Optional<std::string> ForgivingBase64Encode(
     const std::string& string_to_encode) {
   // https://infra.spec.whatwg.org/#forgiving-base64-encode
   auto maybe_string_to_encode_in_latin1 = Utf8ToLatin1(string_to_encode);
   std::string output;
-  if (!maybe_string_to_encode_in_latin1 ||
-      !base::Base64Encode(*maybe_string_to_encode_in_latin1, &output)) {
+  if (!maybe_string_to_encode_in_latin1) {
+    return base::nullopt;
+  }
+  base::Base64Encode(*maybe_string_to_encode_in_latin1, &output);
+  if (!output.length() && maybe_string_to_encode_in_latin1->length()) {
     return base::nullopt;
   }
   return output;
 }
 
-base::optional<std::vector<uint8_t>> ForgivingBase64Decode(
+base::Optional<std::vector<uint8_t>> ForgivingBase64Decode(
     const std::string& encoded_string) {
   // https://infra.spec.whatwg.org/#forgiving-base64-decode
   // Step 1-4:

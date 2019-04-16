@@ -14,12 +14,13 @@
 
 #include "cobalt/network/persistent_cookie_store.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/message_loop.h"
-#include "googleurl/src/gurl.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace network {
@@ -27,19 +28,26 @@ namespace network {
 namespace {
 const base::TimeDelta kMaxCookieLifetime = base::TimeDelta::FromDays(365 * 2);
 
-std::vector<net::CanonicalCookie*> GetAllCookies(
-    const storage::MemoryStore& memory_store) {
-  std::vector<net::CanonicalCookie*> actual_cookies;
-
-  memory_store.GetAllCookies(&actual_cookies);
-  return actual_cookies;
-}
-
 void CookieStorageInit(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
+    scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
   TRACE_EVENT0("cobalt::network", "PersistentCookieStore::CookieStorageInit()");
-  loaded_callback.Run(GetAllCookies(memory_store));
+
+  std::vector<std::unique_ptr<net::CanonicalCookie>> actual_cookies;
+  memory_store.GetAllCookies(&actual_cookies);
+
+  DCHECK(loaded_callback_task_runner);
+  if (!loaded_callback.is_null()) {
+    loaded_callback_task_runner->PostTask(
+        FROM_HERE,
+        base::Bind(
+            [](const PersistentCookieStore::LoadedCallback& loaded_callback,
+               std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+              loaded_callback.Run(std::move(cookies));
+            },
+            loaded_callback, base::Passed(&actual_cookies)));
+  }
 }
 
 void CookieStorageAddCookie(const net::CanonicalCookie& cc,
@@ -71,33 +79,48 @@ void CookieStorageDeleteCookie(const net::CanonicalCookie& cc,
 
 void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
-    const storage::MemoryStore& memory_store) {
-  UNREFERENCED_PARAMETER(memory_store);
-  std::vector<net::CanonicalCookie*> empty_cookie_list;
-  loaded_callback.Run(empty_cookie_list);
+    scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner,
+    const storage::MemoryStore& /*memory_store*/) {
+  loaded_callback_task_runner->PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](const PersistentCookieStore::LoadedCallback& loaded_callback) {
+            std::vector<std::unique_ptr<net::CanonicalCookie>>
+                empty_cookie_list;
+            loaded_callback.Run(std::move(empty_cookie_list));
+          },
+          loaded_callback));
 }
 
 }  // namespace
 
-PersistentCookieStore::PersistentCookieStore(storage::StorageManager* storage)
-    : storage_(storage) {}
+PersistentCookieStore::PersistentCookieStore(
+    storage::StorageManager* storage,
+    scoped_refptr<base::SingleThreadTaskRunner> network_task_runner)
+    : storage_(storage), loaded_callback_task_runner_(network_task_runner) {}
 
 PersistentCookieStore::~PersistentCookieStore() {}
 
-void PersistentCookieStore::Load(const LoadedCallback& loaded_callback) {
-  storage_->WithReadOnlyMemoryStore(
-      base::Bind(&CookieStorageInit, loaded_callback));
+void PersistentCookieStore::Load(const LoadedCallback& loaded_callback,
+                                 const net::NetLogWithSource& net_log) {
+  net_log.BeginEvent(net::NetLogEventType::COOKIE_PERSISTENT_STORE_LOAD);
+  //  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
+  //            loaded_callback_task_runner_);
+  storage_->WithReadOnlyMemoryStore(base::Bind(
+      &CookieStorageInit, loaded_callback, loaded_callback_task_runner_));
 }
 
 void PersistentCookieStore::LoadCookiesForKey(
     const std::string& key, const LoadedCallback& loaded_callback) {
-  UNREFERENCED_PARAMETER(key);
+  SB_UNREFERENCED_PARAMETER(key);
   // We don't support loading of individual cookies.
   // This is always called after Load(), so just post the callback to the
   // Storage thread to make sure it is run after Load() has finished. See
   // comments in net/cookie_monster.cc for more information.
-  storage_->WithReadOnlyMemoryStore(
-      base::Bind(&SendEmptyCookieList, loaded_callback));
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
+            loaded_callback_task_runner_);
+  storage_->WithReadOnlyMemoryStore(base::Bind(
+      &SendEmptyCookieList, loaded_callback, loaded_callback_task_runner_));
 }
 
 void PersistentCookieStore::AddCookie(const net::CanonicalCookie& cc) {
@@ -120,8 +143,13 @@ void PersistentCookieStore::SetForceKeepSessionState() {
   NOTREACHED();
 }
 
-void PersistentCookieStore::Flush(const base::Closure& callback) {
-  storage_->FlushNow(callback);
+void PersistentCookieStore::SetBeforeFlushCallback(
+    base::RepeatingClosure /*callback*/) {
+  NOTIMPLEMENTED();
+}
+
+void PersistentCookieStore::Flush(base::OnceClosure callback) {
+  storage_->FlushNow(std::move(callback));
 }
 
 }  // namespace network

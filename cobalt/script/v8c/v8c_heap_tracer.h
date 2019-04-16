@@ -59,7 +59,8 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   void MaybeAddToFrontier(Traceable* traceable);
 
   v8::Isolate* const isolate_;
-  v8::Platform* const platform_ = IsolateFellowship::GetInstance()->platform;
+  v8::Platform* const platform_ =
+      IsolateFellowship::GetInstance()->platform.get();
 
   std::vector<Traceable*> frontier_;
   std::unordered_set<Traceable*> visited_;

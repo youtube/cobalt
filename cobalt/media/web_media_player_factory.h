@@ -15,6 +15,8 @@
 #ifndef COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
 #define COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
 
+#include <memory>
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/player/web_media_player.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -31,7 +33,7 @@ class WebMediaPlayerFactory {
   typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
-  virtual scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+  virtual std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebMediaPlayerClient* client) = 0;
 
  protected:

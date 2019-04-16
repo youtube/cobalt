@@ -6,7 +6,7 @@
 
 #include <limits>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace math {

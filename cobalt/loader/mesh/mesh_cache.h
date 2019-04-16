@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_MESH_MESH_CACHE_H_
 #define COBALT_LOADER_MESH_MESH_CACHE_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/loader/loader_factory.h"
@@ -45,10 +46,10 @@ typedef CachedMeshReferenceWithCallbacks::CachedResourceReferenceVector
 typedef ResourceCache<MeshResourceCacheType> MeshCache;
 
 // CreateMeshCache() provides a mechanism for creating an |MeshCache|.
-inline static scoped_ptr<MeshCache> CreateMeshCache(
+inline static std::unique_ptr<MeshCache> CreateMeshCache(
     const std::string& name, uint32 cache_capacity,
     loader::LoaderFactory* loader_factory) {
-  return make_scoped_ptr<MeshCache>(
+  return std::unique_ptr<MeshCache>(
       new MeshCache(name, cache_capacity, false /*are_loading_retries_enabled*/,
                     base::Bind(&loader::LoaderFactory::CreateMeshLoader,
                                base::Unretained(loader_factory))));

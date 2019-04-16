@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/speech/sandbox/speech_sandbox.h"
 
 #include "base/path_service.h"
@@ -29,7 +31,7 @@ const int kDOMMaxElementDepth = 32;
 }  // namespace
 
 SpeechSandbox::SpeechSandbox(const std::string& file_path_string,
-                             const FilePath& trace_log_path) {
+                             const base::FilePath& trace_log_path) {
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
 
   network::NetworkModule::Options network_options;
@@ -42,10 +44,10 @@ SpeechSandbox::SpeechSandbox(const std::string& file_path_string,
         url, network_module_.get(),
         base::Bind(&SpeechSandbox::OnLoadingDone, base::Unretained(this))));
   } else {
-    FilePath file_path(file_path_string);
+    base::FilePath file_path(file_path_string);
     if (!file_path.IsAbsolute()) {
-      FilePath exe_path;
-      PathService::Get(base::FILE_EXE, &exe_path);
+      base::FilePath exe_path;
+      base::PathService::Get(base::FILE_EXE, &exe_path);
       DCHECK(exe_path.IsAbsolute());
       std::string exe_path_string(exe_path.value());
       std::size_t found = exe_path_string.find_last_of("/\\");
@@ -53,7 +55,7 @@ SpeechSandbox::SpeechSandbox(const std::string& file_path_string,
       // Find the executable directory. Using exe_path.DirName() doesn't work
       // on Windows based platforms due to the path is mixed with "/" and "\".
       exe_path_string = exe_path_string.substr(0, found);
-      file_path = FilePath(exe_path_string).Append(file_path_string);
+      file_path = base::FilePath(exe_path_string).Append(file_path_string);
       DCHECK(file_path.IsAbsolute());
     }
 
@@ -73,7 +75,7 @@ SpeechSandbox::~SpeechSandbox() {
 
 void SpeechSandbox::StartRecognition(
     const dom::DOMSettings::Options& dom_settings_options) {
-  scoped_ptr<script::EnvironmentSettings> environment_settings(
+  std::unique_ptr<script::EnvironmentSettings> environment_settings(
       new dom::DOMSettings(kDOMMaxElementDepth, NULL, network_module_.get(),
                            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                            dom_settings_options));

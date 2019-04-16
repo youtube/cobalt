@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/script/script_runner.h"
 
 #include "base/logging.h"
@@ -57,7 +59,7 @@ class ScriptRunnerLog {
   DISALLOW_COPY_AND_ASSIGN(ScriptRunnerLog);
 };
 
-base::LazyInstance<ScriptRunnerLog> script_runner_log =
+base::LazyInstance<ScriptRunnerLog>::DestructorAtExit script_runner_log =
     LAZY_INSTANCE_INITIALIZER;
 
 #endif  // defined(HANDLE_CORE_DUMP)
@@ -72,7 +74,7 @@ class ScriptRunnerImpl : public ScriptRunner {
                       const base::SourceLocation& script_location,
                       bool mute_errors, bool* out_succeeded) override;
   GlobalEnvironment* GetGlobalEnvironment() const override {
-    return global_environment_;
+    return global_environment_.get();
   }
 
  private:
@@ -87,7 +89,7 @@ std::string ScriptRunnerImpl::Execute(
   if (out_succeeded) {
     *out_succeeded = false;
   }
-  if (source_code == NULL) {
+  if (!source_code) {
     NOTREACHED() << "Failed to pre-process JavaScript source.";
     return "";
   }
@@ -110,9 +112,10 @@ std::string ScriptRunnerImpl::Execute(
 
 }  // namespace
 
-scoped_ptr<ScriptRunner> ScriptRunner::CreateScriptRunner(
+std::unique_ptr<ScriptRunner> ScriptRunner::CreateScriptRunner(
     const scoped_refptr<GlobalEnvironment>& global_environment) {
-  return scoped_ptr<ScriptRunner>(new ScriptRunnerImpl(global_environment));
+  return std::unique_ptr<ScriptRunner>(
+      new ScriptRunnerImpl(global_environment));
 }
 
 }  // namespace script

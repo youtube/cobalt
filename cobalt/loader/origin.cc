@@ -22,7 +22,7 @@ bool Origin::Tuple::operator==(const Tuple& rhs) const {
 }
 
 // static
-base::optional<Origin::Tuple> Origin::GetTupleFromURL(
+base::Optional<Origin::Tuple> Origin::GetTupleFromURL(
     const GURL& url, bool recurse_into_blob_paths) {
   if (!url.is_valid()) return base::nullopt;
   if (!url.has_scheme()) return base::nullopt;

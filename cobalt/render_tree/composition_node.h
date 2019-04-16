@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/movable.h"
@@ -51,8 +50,8 @@ namespace render_tree {
 //   CompositionNode::Builder composition_node_builder;
 //   composition_node_builder.AddChild(child1);
 //   composition_node_builder.AddChild(child2);
-//   return make_scoped_refptr(new CompositionNode(
-//       composition_node_builder.Pass()));
+//   return base::WrapRefCounted(new CompositionNode(
+//       std::move(composition_node_builder)));
 // }
 //
 class CompositionNode : public Node {
@@ -114,7 +113,7 @@ class CompositionNode : public Node {
       : data_(builder), cached_bounds_(ComputeBounds()) {}
 
   explicit CompositionNode(Builder&& builder)
-      : data_(builder.Pass()), cached_bounds_(ComputeBounds()) {}
+      : data_(std::move(builder)), cached_bounds_(ComputeBounds()) {}
 
   CompositionNode(Node* node, const math::Vector2dF& offset)
       : data_(node, offset), cached_bounds_(ComputeBounds()) {}

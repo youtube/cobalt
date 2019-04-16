@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 #include "cobalt/dom/global_stats.h"
 #include "nb/memory_scope.h"
 
@@ -49,7 +49,7 @@ unsigned int DOMTokenList::length() const {
 
 // Algorithm for Item:
 //   https://www.w3.org/TR/dom/#dom-domtokenlist-item
-base::optional<std::string> DOMTokenList::Item(unsigned int index) const {
+base::Optional<std::string> DOMTokenList::Item(unsigned int index) const {
   // Custom, not in any spec.
   MaybeRefresh();
 
@@ -197,7 +197,7 @@ DOMTokenList::~DOMTokenList() { GlobalStats::GetInstance()->Remove(this); }
 // Algorithm for RunUpdateSteps:
 //   https://www.w3.org/TR/dom/#concept-dtl-update
 void DOMTokenList::RunUpdateSteps() const {
-    TRACK_MEMORY_SCOPE("DOM");
+  TRACK_MEMORY_SCOPE("DOM");
   // 1. If there is no associated attribute (when the object is a
   // DOMSettableTokenList), terminate these steps.
   // 2. Set an attribute for the associated element using associated attribute's
@@ -222,9 +222,9 @@ void DOMTokenList::MaybeRefresh() const {
   if (element_node_generation_ != element_->node_generation()) {
     element_node_generation_ = element_->node_generation();
     std::string attribute = element_->GetAttribute(attr_name_).value_or("");
-    std::vector<std::string> tokens;
-    tokens.reserve(tokens_.size());
-    base::SplitStringAlongWhitespace(attribute, &tokens);
+    std::vector<std::string> tokens =
+        base::SplitString(attribute, base::kWhitespaceASCII,
+                          base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     tokens_.clear();
     tokens_.reserve(tokens.size());
     for (size_t i = 0; i < tokens.size(); ++i) {

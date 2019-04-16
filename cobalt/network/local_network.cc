@@ -15,8 +15,8 @@
 #include "cobalt/network/local_network.h"
 
 #include "base/logging.h"
-#include "base/string_piece.h"
-#include "net/base/net_util.h"
+#include "base/strings/string_piece.h"
+#include "net/base/ip_address.h"
 
 namespace cobalt {
 namespace network {
@@ -44,11 +44,11 @@ bool IsLocalIP(const SbSocketAddress& ip, const SbSocketAddress& source_address,
   switch (ip.type) {
     case kSbSocketAddressTypeIpv4:
       return CompareNBytesOfAddress(ip, source_address, netmask,
-                                    net::kIPv4AddressSize);
+                                    net::IPAddress::kIPv4AddressSize);
     case kSbSocketAddressTypeIpv6:
 #if SB_HAS(IPV6)
       return CompareNBytesOfAddress(ip, source_address, netmask,
-                                    net::kIPv6AddressSize);
+                                    net::IPAddress::kIPv6AddressSize);
 #else   //  SB_HAS(IPV6)
       NOTREACHED() << "Invalid IP type " << ip.type;
 #endif  //  SB_HAS(IPV6)

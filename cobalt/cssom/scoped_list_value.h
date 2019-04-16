@@ -15,9 +15,10 @@
 #ifndef COBALT_CSSOM_SCOPED_LIST_VALUE_H_
 #define COBALT_CSSOM_SCOPED_LIST_VALUE_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -31,9 +32,9 @@ namespace cssom {
 template <typename T>
 class ScopedListValue : public PropertyValue {
  public:
-  typedef ScopedVector<T> Builder;
+  typedef std::vector<std::unique_ptr<T>> Builder;
 
-  explicit ScopedListValue(Builder value) : value_(value.Pass()) {
+  explicit ScopedListValue(Builder value) : value_(std::move(value)) {
     DCHECK(!value_.empty());
   }
 

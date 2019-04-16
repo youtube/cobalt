@@ -17,7 +17,7 @@
 #include <cmath>
 #include <string>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
@@ -42,11 +42,11 @@ void UpdateEventInit(const system_window::InputEvent* input_event,
                      EventInit* event) {
   if (input_event->timestamp() != 0) {
     // Convert SbTimeMonotonic to DOMTimeStamp.
-    event->set_time_stamp(cobalt::dom::Event::GetEventTime(
-        input_event->timestamp()));
+    event->set_time_stamp(
+        cobalt::dom::Event::GetEventTime(input_event->timestamp()));
   }
 }
-}
+}  // namespace
 
 InputDeviceManagerDesktop::InputDeviceManagerDesktop(
     const KeyboardEventCallback& keyboard_event_callback,

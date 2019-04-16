@@ -66,7 +66,7 @@ H5vccPlatformService::H5vccPlatformService(
     : environment_(environment),
       platform_service_api_(platform_service_api),
       receive_callback_(this, receive_callback),
-      main_message_loop_(base::MessageLoopProxy::current()),
+      main_message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())) {

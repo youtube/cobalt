@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/debug/trace_event.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include <memory>
+
+#include "base/files/file_enumerator.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/time.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
@@ -36,31 +39,31 @@ const int kViewportHeight = 1080;
 using renderer::RendererModule;
 using render_tree::ResourceProvider;
 using system_window::SystemWindow;
-using file_util::FileEnumerator;
+using base::FileEnumerator;
 
 struct ImageDecoderCallback {
   void SuccessCallback(const scoped_refptr<loader::image::Image>& value) {
     image = value;
   }
 
-  void LoadCompleteCallback(const base::optional<std::string>& error) {
+  void LoadCompleteCallback(const base::Optional<std::string>& error) {
     if (error) LOG(ERROR) << *error;
   }
 
   scoped_refptr<loader::image::Image> image;
 };
 
-std::vector<FilePath> GetImagePaths(const char* extention) {
-  FilePath image_path;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &image_path));
+std::vector<base::FilePath> GetImagePaths(const char* extention) {
+  base::FilePath image_path;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &image_path));
   image_path = image_path.Append(FILE_PATH_LITERAL("cobalt"))
                    .Append(FILE_PATH_LITERAL("loader"))
                    .Append(FILE_PATH_LITERAL("testdata"));
 
-  std::vector<FilePath> result;
+  std::vector<base::FilePath> result;
   FileEnumerator file_enumerator(image_path, false /* Not recursive */,
                                  FileEnumerator::FILES);
-  for (FilePath next = file_enumerator.Next(); !next.empty();
+  for (base::FilePath next = file_enumerator.Next(); !next.empty();
        next = file_enumerator.Next()) {
     if (next.Extension() == extention) {
       result.push_back(next);
@@ -69,18 +72,18 @@ std::vector<FilePath> GetImagePaths(const char* extention) {
   return result;
 }
 
-std::vector<uint8> GetFileContent(const FilePath& file_path) {
+std::vector<uint8> GetFileContent(const base::FilePath& file_path) {
   int64 size;
   std::vector<uint8> data;
 
-  bool success = file_util::GetFileSize(file_path, &size);
+  bool success = base::GetFileSize(file_path, &size);
 
   CHECK(success) << "Could not get file size.";
   CHECK_GT(size, 0);
 
   data.resize(static_cast<size_t>(size));
 
-  int num_of_bytes = file_util::ReadFile(
+  int num_of_bytes = base::ReadFile(
       file_path, reinterpret_cast<char*>(&data[0]), static_cast<int>(size));
 
   CHECK_EQ(num_of_bytes, data.size()) << "Could not read '" << file_path.value()
@@ -89,7 +92,7 @@ std::vector<uint8> GetFileContent(const FilePath& file_path) {
 }
 
 void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
-  std::vector<FilePath> paths = GetImagePaths(extension);
+  std::vector<base::FilePath> paths = GetImagePaths(extension);
   base::TimeDelta total_time;
   size_t total_size = 0;
 
@@ -98,7 +101,7 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
     std::vector<uint8> image_data = GetFileContent(paths[i]);
 
     base::Time start = base::Time::Now();
-    scoped_ptr<Decoder> image_decoder(
+    std::unique_ptr<Decoder> image_decoder(
         new ImageDecoder(resource_provider,
                          base::Bind(&ImageDecoderCallback::SuccessCallback,
                                     base::Unretained(&image_decoder_result)),
@@ -126,13 +129,13 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
 
 int SandboxMain(int argc, char** argv) {
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
-      FilePath(FILE_PATH_LITERAL("image_decoder_sandbox_trace.json")));
+      base::FilePath(FILE_PATH_LITERAL("image_decoder_sandbox_trace.json")));
 
   math::Size view_size(kViewportWidth, kViewportHeight);
 
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
-  scoped_ptr<SystemWindow> system_window(
+  std::unique_ptr<SystemWindow> system_window(
       new cobalt::system_window::SystemWindow(&event_dispatcher, view_size));
 
   // Construct a renderer module using default options.

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/time.h"
 #include "cobalt/renderer/smoothed_value.h"
+#include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::renderer::SmoothedValue;

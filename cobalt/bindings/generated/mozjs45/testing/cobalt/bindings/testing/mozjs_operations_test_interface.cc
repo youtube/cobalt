@@ -1,6 +1,6 @@
 
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include "cobalt/bindings/testing/mozjs_operations_test_interface.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
@@ -532,7 +532,7 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments with default values
-  TypeTraits<base::optional<bool > >::ConversionType arg1 =
+  TypeTraits<base::Optional<bool > >::ConversionType arg1 =
       base::nullopt;
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2 =
       NULL;
@@ -1092,7 +1092,7 @@ bool fcn_overloadedNullable2(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<bool > >::ConversionType arg;
+  TypeTraits<base::Optional<bool > >::ConversionType arg;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
