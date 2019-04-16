@@ -246,6 +246,8 @@
         '<(DEPTH)/starboard/shared/nouser/user_get_signed_in.cc',
         '<(DEPTH)/starboard/shared/nouser/user_internal.cc',
         '<(DEPTH)/starboard/shared/nouser/user_internal.h',
+        '<(DEPTH)/starboard/shared/opus/opus_audio_decoder.cc',
+        '<(DEPTH)/starboard/shared/opus/opus_audio_decoder.h',
         '<(DEPTH)/starboard/shared/posix/directory_create.cc',
         '<(DEPTH)/starboard/shared/posix/impl/file_can_open.h',
         '<(DEPTH)/starboard/shared/posix/impl/file_close.h',
@@ -463,6 +465,7 @@
       'dependencies': [
         '<(DEPTH)/starboard/common/common.gyp:common',
         '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+        '<(DEPTH)/third_party/opus/opus.gyp:opus',
         'starboard_base_symbolize',
       ],
     },

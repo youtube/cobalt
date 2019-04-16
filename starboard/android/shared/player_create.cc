@@ -60,12 +60,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   if (audio_codec != kSbMediaAudioCodecNone &&
-      audio_codec != kSbMediaAudioCodecAac) {
+      audio_codec != kSbMediaAudioCodecAac &&
+      audio_codec != kSbMediaAudioCodecOpus) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
   }
 
-  if (audio_codec != kSbMediaAudioCodecNone && !audio_header) {
+  if (audio_codec == kSbMediaAudioCodecAac && !audio_header) {
     SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader "
                   << "when |audio_codec| is not kSbMediaAudioCodecNone";
     return kSbPlayerInvalid;
