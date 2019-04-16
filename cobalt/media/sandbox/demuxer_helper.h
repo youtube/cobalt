@@ -17,10 +17,10 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "googleurl/src/gurl.h"
 #include "media/base/demuxer.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
@@ -34,21 +34,23 @@ class DemuxerHelper {
   typedef ::media::Demuxer Demuxer;
   typedef base::Callback<void(const scoped_refptr<Demuxer>&)> DemuxerReadyCB;
 
-  DemuxerHelper(const scoped_refptr<base::MessageLoopProxy>& media_message_loop,
-                loader::FetcherFactory* fetcher_factory, const GURL& video_url,
-                const DemuxerReadyCB& demuxer_ready_cb);
+  DemuxerHelper(
+      const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
+      loader::FetcherFactory* fetcher_factory, const GURL& video_url,
+      const DemuxerReadyCB& demuxer_ready_cb);
   // This ctor will create an Demuxer internally that caches the media data in
   // memory before calling the callback.  This ensures that there is no I/O
   // incurred during playback.  Note that the amount can cache is subject to
   // the pool size of ShellBufferFactory.
-  DemuxerHelper(const scoped_refptr<base::MessageLoopProxy>& media_message_loop,
-                loader::FetcherFactory* fetcher_factory, const GURL& video_url,
-                const DemuxerReadyCB& demuxer_ready_cb, uint64 bytes_to_cache);
+  DemuxerHelper(
+      const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
+      loader::FetcherFactory* fetcher_factory, const GURL& video_url,
+      const DemuxerReadyCB& demuxer_ready_cb, uint64 bytes_to_cache);
   ~DemuxerHelper();
 
  private:
   void CreateDemuxer(
-      const scoped_refptr<base::MessageLoopProxy>& media_message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
       loader::FetcherFactory* fetcher_factory, const GURL& video_url,
       const DemuxerReadyCB& demuxer_ready_cb, uint64 bytes_to_cache);
   void OnDemuxerReady(const scoped_refptr<Demuxer>& demuxer,

@@ -33,7 +33,6 @@ HTMLDecoder::HTMLDecoder(
           document, parent_node, reference_node, dom_max_element_depth,
           input_location, load_complete_callback, should_run_scripts)),
       document_(document),
-      should_run_scripts_(should_run_scripts),
       require_csp_(require_csp),
       load_complete_callback_(load_complete_callback) {}
 

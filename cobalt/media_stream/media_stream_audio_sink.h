@@ -46,7 +46,7 @@ class MediaStreamAudioSink {
   virtual void OnSetFormat(const media_stream::AudioParameters& params) = 0;
   virtual void OnReadyStateChanged(
       media_stream::MediaStreamTrack::ReadyState new_state) {
-    UNREFERENCED_PARAMETER(new_state);
+    SB_UNREFERENCED_PARAMETER(new_state);
   }
 
  private:

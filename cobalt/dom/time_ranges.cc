@@ -37,7 +37,7 @@ double TimeRanges::Start(uint32 index,
                          script::ExceptionState* exception_state) const {
   if (index >= ranges_.size()) {
     exception_state->SetException(
-        make_scoped_refptr(new DOMException(DOMException::kIndexSizeErr)));
+        base::WrapRefCounted(new DOMException(DOMException::kIndexSizeErr)));
     // Return value should be ignored.
     return 0.0;
   }
@@ -48,7 +48,7 @@ double TimeRanges::End(uint32 index,
                        script::ExceptionState* exception_state) const {
   if (index >= ranges_.size()) {
     exception_state->SetException(
-        make_scoped_refptr(new DOMException(DOMException::kIndexSizeErr)));
+        base::WrapRefCounted(new DOMException(DOMException::kIndexSizeErr)));
     // Return value should be ignored.
     return 0.0;
   }

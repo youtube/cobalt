@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/accessibility/internal/text_alternative_helper.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/test/empty_document.h"
@@ -29,6 +28,8 @@ class TextAlternativeHelperTest : public ::testing::Test {
   dom::Document* document() { return empty_document_.document(); }
 
   TextAlternativeHelper text_alternative_helper_;
+  // For posting tasks by any triggered code.
+  base::MessageLoop message_loop_;
   test::EmptyDocument empty_document_;
 };
 

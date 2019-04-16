@@ -7,12 +7,12 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_codecs.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/demuxer_stream.h"
@@ -40,8 +40,8 @@ class MEDIA_EXPORT SourceBufferState {
   typedef base::Callback<void(ChunkDemuxerStream*, const TextTrackConfig&)>
       NewTextTrackCB;
 
-  SourceBufferState(scoped_ptr<StreamParser> stream_parser,
-                    scoped_ptr<FrameProcessor> frame_processor,
+  SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
+                    std::unique_ptr<FrameProcessor> frame_processor,
                     const CreateDemuxerStreamCB& create_demuxer_stream_cb,
                     const scoped_refptr<MediaLog>& media_log,
                     DecoderBuffer::Allocator* buffer_allocator);
@@ -149,7 +149,8 @@ class MEDIA_EXPORT SourceBufferState {
   // encountered.
   // Returns true on a successful call. Returns false if an error occurred while
   // processing decoder configurations.
-  bool OnNewConfigs(std::string expected_codecs, scoped_ptr<MediaTracks> tracks,
+  bool OnNewConfigs(std::string expected_codecs,
+                    std::unique_ptr<MediaTracks> tracks,
                     const StreamParser::TextTrackConfigMap& text_configs);
 
   // Called by the |stream_parser_| at the beginning of a new media segment.
@@ -198,7 +199,7 @@ class MEDIA_EXPORT SourceBufferState {
   std::map<StreamParser::TrackId, bool> media_segment_has_data_for_track_;
 
   // The object used to parse appended data.
-  scoped_ptr<StreamParser> stream_parser_;
+  std::unique_ptr<StreamParser> stream_parser_;
 
   // Note that ChunkDemuxerStreams are created and owned by the parent
   // ChunkDemuxer. They are not owned by |this|.
@@ -207,7 +208,7 @@ class MEDIA_EXPORT SourceBufferState {
   DemuxerStreamMap video_streams_;
   DemuxerStreamMap text_streams_;
 
-  scoped_ptr<FrameProcessor> frame_processor_;
+  std::unique_ptr<FrameProcessor> frame_processor_;
   scoped_refptr<MediaLog> media_log_;
   StreamParser::InitCB init_cb_;
 

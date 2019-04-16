@@ -15,8 +15,10 @@
 #include "cobalt/layout/inline_formatting_context.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
 #include "cobalt/layout/used_style.h"
@@ -105,7 +107,7 @@ void InlineFormattingContext::CreateLineBox() {
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  line_box_ = make_scoped_ptr(
+  line_box_ = base::WrapUnique(
       new LineBox(auto_height(), false, line_height_, font_metrics_, true, true,
                   layout_params_, base_direction_, text_align_, font_size_,
                   line_indent_offset, ellipsis_width_));

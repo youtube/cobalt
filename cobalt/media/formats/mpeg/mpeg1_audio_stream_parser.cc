@@ -120,19 +120,19 @@ bool MPEG1AudioStreamParser::ParseHeader(
   }
 
   if (layer == kLayer2 && kIsAllowed[bitrate_index][channel_mode]) {
-    MEDIA_LOG(ERROR, media_log) << "Invalid (bitrate_index, channel_mode)"
-                                << " combination :" << std::hex
-                                << " bitrate_index " << bitrate_index
-                                << " channel_mode " << channel_mode;
+    MEDIA_LOG(ERROR, media_log)
+        << "Invalid (bitrate_index, channel_mode)"
+        << " combination :" << std::hex << " bitrate_index " << bitrate_index
+        << " channel_mode " << channel_mode;
     return false;
   }
 
   int bitrate = kBitrateMap[bitrate_index][kVersionLayerMap[version][layer]];
 
   if (bitrate == 0) {
-    MEDIA_LOG(ERROR, media_log) << "Invalid bitrate :" << std::hex
-                                << " version " << version << " layer " << layer
-                                << " bitrate_index " << bitrate_index;
+    MEDIA_LOG(ERROR, media_log)
+        << "Invalid bitrate :" << std::hex << " version " << version
+        << " layer " << layer << " bitrate_index " << bitrate_index;
     return false;
   }
 
@@ -140,9 +140,9 @@ bool MPEG1AudioStreamParser::ParseHeader(
 
   int frame_sample_rate = kSampleRateMap[sample_rate_index][version];
   if (frame_sample_rate == 0) {
-    MEDIA_LOG(ERROR, media_log) << "Invalid sample rate :" << std::hex
-                                << " version " << version
-                                << " sample_rate_index " << sample_rate_index;
+    MEDIA_LOG(ERROR, media_log)
+        << "Invalid sample rate :" << std::hex << " version " << version
+        << " sample_rate_index " << sample_rate_index;
     return false;
   }
   header->sample_rate = frame_sample_rate;

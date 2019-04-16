@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/log_entry.h"
 
 #include "base/logging.h"
@@ -42,8 +44,8 @@ LogEntry::LogEntry(const base::Time& log_time, LogLevel level,
       level_(level),
       message_(message) {}
 
-scoped_ptr<base::Value> LogEntry::ToValue(const LogEntry& log_entry) {
-  scoped_ptr<base::DictionaryValue> log_entry_value(
+std::unique_ptr<base::Value> LogEntry::ToValue(const LogEntry& log_entry) {
+  std::unique_ptr<base::DictionaryValue> log_entry_value(
       new base::DictionaryValue());
   // Format of the Log Entry object can be found here:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Log_Entry_JSON_Object
@@ -52,7 +54,7 @@ scoped_ptr<base::Value> LogEntry::ToValue(const LogEntry& log_entry) {
                               log_entry.timestamp_.InMilliseconds());
   log_entry_value->SetString("level", LevelToString(log_entry.level_));
   log_entry_value->SetString("message", log_entry.message_);
-  return log_entry_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(log_entry_value.release());
 }
 
 }  // namespace protocol

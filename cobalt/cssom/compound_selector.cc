@@ -15,6 +15,7 @@
 #include "cobalt/cssom/compound_selector.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "cobalt/cssom/pseudo_element.h"
 #include "cobalt/cssom/selector_visitor.h"
@@ -23,8 +24,8 @@ namespace cobalt {
 namespace cssom {
 namespace {
 
-bool SimpleSelectorsLessThan(const SimpleSelector* lhs,
-                             const SimpleSelector* rhs) {
+bool SimpleSelectorsLessThan(const std::unique_ptr<SimpleSelector>& lhs,
+                             const std::unique_ptr<SimpleSelector>& rhs) {
   if (lhs->type() < rhs->type()) {
     return true;
   }
@@ -98,7 +99,7 @@ void CompoundSelector::Accept(SelectorVisitor* visitor) {
 }
 
 void CompoundSelector::AppendSelector(
-    scoped_ptr<SimpleSelector> simple_selector) {
+    std::unique_ptr<SimpleSelector> simple_selector) {
   specificity_.AddFrom(simple_selector->GetSpecificity());
   has_pseudo_element_ =
       has_pseudo_element_ || simple_selector->AsPseudoElement() != NULL;
@@ -116,15 +117,15 @@ void CompoundSelector::AppendSelector(
       simple_selector->AlwaysRequiresRuleMatchingVerificationVisit();
 
   // Insert the new selector in sorted order.
-  SimpleSelector* new_selector = simple_selector.release();
   auto pos =
       std::lower_bound(simple_selectors_.begin(), simple_selectors_.end(),
-                       new_selector, SimpleSelectorsLessThan);
-  simple_selectors_.insert(pos, new_selector);
+                       simple_selector, SimpleSelectorsLessThan);
+  simple_selectors_.insert(pos, std::move(simple_selector));
 }
 
-void CompoundSelector::set_right_combinator(scoped_ptr<Combinator> combinator) {
-  right_combinator_ = combinator.Pass();
+void CompoundSelector::set_right_combinator(
+    std::unique_ptr<Combinator> combinator) {
+  right_combinator_ = std::move(combinator);
 }
 
 }  // namespace cssom

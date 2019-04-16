@@ -43,10 +43,10 @@ class SkYUV2RGBShader : public SkShaderBase {
     void shadeSpan(int x, int y, SkPMColor[], int count) override;
 
     void set3DMask(const SkMask* mask) override {
-        // forward to our proxy
-        y_shader_context_->set3DMask(mask);
-        u_shader_context_->set3DMask(mask);
-        v_shader_context_->set3DMask(mask);
+      // forward to our proxy
+      y_shader_context_->set3DMask(mask);
+      u_shader_context_->set3DMask(mask);
+      v_shader_context_->set3DMask(mask);
     }
 
    private:
@@ -60,8 +60,8 @@ class SkYUV2RGBShader : public SkShaderBase {
   };
 
 #if SK_SUPPORT_GPU
-  sk_sp<GrFragmentProcessor> asFragmentProcessor(const AsFPArgs&) const
-      override;
+  sk_sp<GrFragmentProcessor> asFragmentProcessor(
+      const AsFPArgs&) const override;
 #endif
 
   SK_TO_STRING_OVERRIDE()

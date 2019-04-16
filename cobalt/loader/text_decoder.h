@@ -16,13 +16,13 @@
 #define COBALT_LOADER_TEXT_DECODER_H_
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <utility>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/decoder.h"
@@ -34,17 +34,18 @@ namespace loader {
 // results.
 class TextDecoder : public Decoder {
  public:
-  typedef base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
+  typedef base::Callback<void(const loader::Origin&,
+                              std::unique_ptr<std::string>)>
       TextAvailableCallback;
 
   ~TextDecoder() override {}
 
   // This function is used for binding callback for creating TextDecoder.
-  static scoped_ptr<Decoder> Create(
+  static std::unique_ptr<Decoder> Create(
       const TextAvailableCallback& text_available_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback =
           loader::Decoder::OnCompleteFunction()) {
-    return scoped_ptr<Decoder>(
+    return std::unique_ptr<Decoder>(
         new TextDecoder(text_available_callback, load_complete_callback));
   }
 
@@ -60,7 +61,7 @@ class TextDecoder : public Decoder {
     text_->append(data, size);
   }
 
-  void DecodeChunkPassed(scoped_ptr<std::string> data) override {
+  void DecodeChunkPassed(std::unique_ptr<std::string> data) override {
     DCHECK(thread_checker_.CalledOnValidThread());
     DCHECK(data);
     if (suspended_) {
@@ -68,7 +69,7 @@ class TextDecoder : public Decoder {
     }
 
     if (!text_) {
-      text_ = data.Pass();
+      text_ = std::move(data);
     } else {
       text_->append(*data);
     }
@@ -81,7 +82,7 @@ class TextDecoder : public Decoder {
 
     if (!text_) text_.reset(new std::string);
 
-    text_available_callback_.Run(last_url_origin_, text_.Pass());
+    text_available_callback_.Run(last_url_origin_, std::move(text_));
     if (!load_complete_callback_.is_null()) {
       load_complete_callback_.Run(base::nullopt);
     }
@@ -113,7 +114,7 @@ class TextDecoder : public Decoder {
   TextAvailableCallback text_available_callback_;
   loader::Decoder::OnCompleteFunction load_complete_callback_;
   loader::Origin last_url_origin_;
-  scoped_ptr<std::string> text_;
+  std::unique_ptr<std::string> text_;
   bool suspended_;
 };
 

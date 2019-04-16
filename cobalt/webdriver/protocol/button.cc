@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/button.h"
 
 namespace cobalt {
@@ -21,13 +23,14 @@ namespace {
 const char kButtonKey[] = "button";
 }
 
-scoped_ptr<base::Value> Button::ToValue(const Button& button) {
-  scoped_ptr<base::DictionaryValue> button_object(new base::DictionaryValue());
+std::unique_ptr<base::Value> Button::ToValue(const Button& button) {
+  std::unique_ptr<base::DictionaryValue> button_object(
+      new base::DictionaryValue());
   button_object->SetInteger(kButtonKey, button.button_);
-  return button_object.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(button_object.release());
 }
 
-base::optional<Button> Button::FromValue(const base::Value* value) {
+base::Optional<Button> Button::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
     return base::nullopt;

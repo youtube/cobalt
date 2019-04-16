@@ -17,6 +17,7 @@
 #ifndef COBALT_LOADER_MESH_MESH_PROJECTION_H_
 #define COBALT_LOADER_MESH_MESH_PROJECTION_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -36,11 +37,11 @@ class MeshProjection : public base::RefCountedThreadSafe<MeshProjection> {
   // all others reserved, so this vector should only have one mesh. In the
   // future more streams or static images could be represented by the texture
   // IDs.
-  typedef std::vector<scoped_refptr<render_tree::Mesh> > MeshCollection;
+  typedef std::vector<scoped_refptr<render_tree::Mesh>> MeshCollection;
   // Represents a list of mesh collections; in stereo mode, there is either
   // just one collection for both eyes (which undergoes an adjustment per eye)
   // or one for each eye. Mono video will only have one collection in the list.
-  typedef ScopedVector<MeshCollection> MeshCollectionList;
+  typedef std::vector<std::unique_ptr<MeshCollection>> MeshCollectionList;
 
   // Default mesh collection indices to GetMesh().
   enum CollectionIndex {
@@ -49,15 +50,15 @@ class MeshProjection : public base::RefCountedThreadSafe<MeshProjection> {
   };
 
   MeshProjection(MeshCollectionList mesh_collections,
-                 base::optional<uint32> crc = base::nullopt)
-      : mesh_collections_(mesh_collections.Pass()), crc_(crc) {
+                 base::Optional<uint32> crc = base::nullopt)
+      : mesh_collections_(std::move(mesh_collections)), crc_(crc) {
     DCHECK_GT(mesh_collections_.size(), 0UL);
     DCHECK_LE(mesh_collections_.size(), 2UL);
     // Check that the left-eye collection holds at least one mesh.
     DCHECK_GT(mesh_collections_[0]->size(), 0UL);
   }
 
-  const base::optional<uint32>& crc() const { return crc_; }
+  const base::Optional<uint32>& crc() const { return crc_; }
 
   // For stereo mode with distinct per-eye meshes, left eye is collection 0,
   // right is collection 1.
@@ -99,7 +100,7 @@ class MeshProjection : public base::RefCountedThreadSafe<MeshProjection> {
 
  private:
   const MeshCollectionList mesh_collections_;
-  const base::optional<uint32> crc_;
+  const base::Optional<uint32> crc_;
 };
 
 }  // namespace mesh

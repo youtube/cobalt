@@ -16,9 +16,10 @@
 
 #if defined(DIAL_SERVER)
 
+#include <memory>
 #include <utility>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/network/network_module.h"
@@ -31,11 +32,11 @@ namespace dial {
 
 namespace {
 DialServer::Method StringToMethod(const std::string& method) {
-  if (LowerCaseEqualsASCII(method, "get")) {
+  if (base::LowerCaseEqualsASCII(method, "get")) {
     return DialServer::kGet;
-  } else if (LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::LowerCaseEqualsASCII(method, "post")) {
     return DialServer::kPost;
-  } else if (LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
     return DialServer::kDelete;
   }
   NOTREACHED();
@@ -67,7 +68,7 @@ class DialServer::ServiceHandler : public net::DialServiceHandler {
   std::string service_name_;
   // The message loop we should dispatch HandleRequest to. This is the
   // message loop we were constructed on.
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
 
 DialServer::DialServer(script::EnvironmentSettings* settings,
@@ -130,16 +131,16 @@ bool DialServer::AddHandler(
 
 // Transform the net request info into a JS version and run the script
 // callback, if there is one registered. Return the response and status.
-scoped_ptr<net::HttpServerResponseInfo> DialServer::RunCallback(
+std::unique_ptr<net::HttpServerResponseInfo> DialServer::RunCallback(
     const std::string& path, const net::HttpServerRequestInfo& request) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  scoped_ptr<net::HttpServerResponseInfo> response;
+  std::unique_ptr<net::HttpServerResponseInfo> response;
   Method method = StringToMethod(request.method);
   CallbackMap::const_iterator it = callback_map_[method].find(path);
   if (it == callback_map_[method].end()) {
     // No handler for this method. Signal failure.
-    return response.Pass();
+    return response;
   }
 
   scoped_refptr<DialHttpRequestCallbackWrapper> callback = it->second;
@@ -152,14 +153,14 @@ scoped_ptr<net::HttpServerResponseInfo> DialServer::RunCallback(
   if (ret.result) {
     response = dial_response->ToHttpServerResponseInfo();
   }
-  return response.Pass();
+  return response;
 }
 
 DialServer::ServiceHandler::ServiceHandler(
     const base::WeakPtr<DialServer>& dial_server,
     const std::string& service_name)
     : dial_server_(dial_server), service_name_(service_name) {
-  message_loop_proxy_ = base::MessageLoopProxy::current();
+  task_runner_ = base::MessageLoop::current()->task_runner();
 }
 
 DialServer::ServiceHandler::~ServiceHandler() {}
@@ -169,8 +170,8 @@ void DialServer::ServiceHandler::HandleRequest(
     const CompletionCB& completion_cb) {
   // This gets called on the DialService/Network thread.
   // Post it to the WebModule thread.
-  DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy_);
-  message_loop_proxy_->PostTask(
+  DCHECK_NE(base::MessageLoop::current()->task_runner(), task_runner_);
+  task_runner_->PostTask(
       FROM_HERE, base::Bind(&ServiceHandler::OnHandleRequest, this, path,
                             request, completion_cb));
 }
@@ -178,15 +179,15 @@ void DialServer::ServiceHandler::HandleRequest(
 void DialServer::ServiceHandler::OnHandleRequest(
     const std::string& path, const net::HttpServerRequestInfo& request,
     const CompletionCB& completion_cb) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
   if (!dial_server_) {
-    completion_cb.Run(scoped_ptr<net::HttpServerResponseInfo>());
+    completion_cb.Run(std::unique_ptr<net::HttpServerResponseInfo>());
     return;
   }
 
-  scoped_ptr<net::HttpServerResponseInfo> response =
+  std::unique_ptr<net::HttpServerResponseInfo> response =
       dial_server_->RunCallback(path, request);
-  completion_cb.Run(response.Pass());
+  completion_cb.Run(std::move(response));
 }
 
 }  // namespace dial

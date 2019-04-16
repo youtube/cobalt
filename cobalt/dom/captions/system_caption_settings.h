@@ -36,31 +36,31 @@ class SystemCaptionSettings : public EventTarget {
  public:
   SystemCaptionSettings() {}
 
-  base::optional<std::string> background_color();
+  base::Optional<std::string> background_color();
   CaptionState background_color_state();
 
-  base::optional<std::string> background_opacity();
+  base::Optional<std::string> background_opacity();
   CaptionState background_opacity_state();
 
-  base::optional<std::string> character_edge_style();
+  base::Optional<std::string> character_edge_style();
   CaptionState character_edge_style_state();
 
-  base::optional<std::string> font_color();
+  base::Optional<std::string> font_color();
   CaptionState font_color_state();
 
-  base::optional<std::string> font_family();
+  base::Optional<std::string> font_family();
   CaptionState font_family_state();
 
-  base::optional<std::string> font_opacity();
+  base::Optional<std::string> font_opacity();
   CaptionState font_opacity_state();
 
-  base::optional<std::string> font_size();
+  base::Optional<std::string> font_size();
   CaptionState font_size_state();
 
-  base::optional<std::string> window_color();
+  base::Optional<std::string> window_color();
   CaptionState window_color_state();
 
-  base::optional<std::string> window_opacity();
+  base::Optional<std::string> window_opacity();
   CaptionState window_opacity_state();
 
   bool is_enabled();

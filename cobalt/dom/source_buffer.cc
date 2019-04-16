@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/dom/dom_exception.h"
@@ -46,7 +46,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
 
 double SourceBuffer::timestamp_offset(
     script::ExceptionState* exception_state) const {
-  UNREFERENCED_PARAMETER(exception_state);
+  SB_UNREFERENCED_PARAMETER(exception_state);
   return timestamp_offset_;
 }
 

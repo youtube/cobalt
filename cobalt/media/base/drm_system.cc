@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media/base/drm_system.h"
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 
 namespace cobalt {
 namespace media {
@@ -102,9 +105,9 @@ DrmSystem::DrmSystem(const char* key_system)
 #if SB_HAS(DRM_SESSION_CLOSED)
                                             ,
                                             OnSessionClosedFunc
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
+#endif                                           // SB_HAS(DRM_SESSION_CLOSED)
                                             )),  // NOLINT(whitespace/parens)
-      message_loop_(MessageLoop::current()->message_loop_proxy()),
+      message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   DCHECK_NE(kSbDrmSystemInvalid, wrapped_drm_system_);
@@ -112,26 +115,27 @@ DrmSystem::DrmSystem(const char* key_system)
 
 DrmSystem::~DrmSystem() { SbDrmDestroySystem(wrapped_drm_system_); }
 
-scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession(
+std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
 #if SB_HAS(DRM_KEY_STATUSES)
     SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
 #if SB_HAS(DRM_SESSION_CLOSED)
     ,
     SessionClosedCallback session_closed_callback
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
-#endif  // SB_HAS(DRM_KEY_STATUSES)
+#endif   // SB_HAS(DRM_SESSION_CLOSED)
+#endif   // SB_HAS(DRM_KEY_STATUSES)
     ) {  // NOLINT(whitespace/parens)
   DCHECK(message_loop_->BelongsToCurrentThread());
-  return make_scoped_ptr(new Session(this
+  return std::unique_ptr<DrmSystem::Session>(new Session(
+      this
 #if SB_HAS(DRM_KEY_STATUSES)
-                                     ,
-                                     session_update_key_statuses_callback
+      ,
+      session_update_key_statuses_callback
 #if SB_HAS(DRM_SESSION_CLOSED)
-                                     ,
-                                     session_closed_callback
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
-#endif  // SB_HAS(DRM_KEY_STATUSES)
-                                     ));  // NOLINT(whitespace/parens)
+      ,
+      session_closed_callback
+#endif     // SB_HAS(DRM_SESSION_CLOSED)
+#endif     // SB_HAS(DRM_KEY_STATUSES)
+      ));  // NOLINT(whitespace/parens)
 }
 
 #if SB_API_VERSION >= 10
@@ -167,8 +171,9 @@ void DrmSystem::UpdateServerCertificate(
 
 void DrmSystem::GenerateSessionUpdateRequest(
     Session* session, const std::string& type, const uint8_t* init_data,
-    int init_data_length, const SessionUpdateRequestGeneratedCallback&
-                              session_update_request_generated_callback,
+    int init_data_length,
+    const SessionUpdateRequestGeneratedCallback&
+        session_update_request_generated_callback,
     const SessionUpdateRequestDidNotGenerateCallback&
         session_update_request_did_not_generate_callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -216,9 +221,9 @@ void DrmSystem::CloseSession(const std::string& session_id) {
 void DrmSystem::OnSessionUpdateRequestGenerated(
     SessionTicketAndOptionalId ticket_and_optional_id, SbDrmStatus status,
     SbDrmSessionRequestType type, const std::string& error_message,
-    scoped_array<uint8> message, int message_size) {
+    std::unique_ptr<uint8[]> message, int message_size) {
   int ticket = ticket_and_optional_id.ticket;
-  const base::optional<std::string>& session_id = ticket_and_optional_id.id;
+  const base::Optional<std::string>& session_id = ticket_and_optional_id.id;
   if (SbDrmTicketIsValid(ticket)) {
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
 
@@ -242,7 +247,7 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
       id_to_session_map_.insert(
           std::make_pair(*session_id, session_update_request.session));
 
-      session_update_request.generated_callback.Run(type, message.Pass(),
+      session_update_request.generated_callback.Run(type, std::move(message),
                                                     message_size);
     } else {
       // Failure during request generation.
@@ -272,7 +277,7 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
     }
     Session* session = session_iterator->second;
 
-    session->update_request_generated_callback().Run(type, message.Pass(),
+    session->update_request_generated_callback().Run(type, std::move(message),
                                                      message_size);
   }
 }
@@ -366,8 +371,8 @@ void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
 
-  base::optional<std::string> session_id_copy;
-  scoped_array<uint8> content_copy;
+  base::Optional<std::string> session_id_copy;
+  std::unique_ptr<uint8[]> content_copy;
   if (session_id) {
     session_id_copy =
         std::string(static_cast<const char*>(session_id),

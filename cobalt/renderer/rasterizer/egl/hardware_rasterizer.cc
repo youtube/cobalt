@@ -14,12 +14,13 @@
 
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 
+#include <memory>
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_vector.h"
 #include "base/threading/thread_checker.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
@@ -85,10 +86,10 @@ class HardwareRasterizer::Impl {
       bool force_deterministic_rendering,
       const backend::RenderTarget* render_target);
 
-  scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
-  scoped_ptr<GraphicsState> graphics_state_;
-  scoped_ptr<ShaderProgramManager> shader_program_manager_;
-  scoped_ptr<OffscreenTargetManager> offscreen_target_manager_;
+  std::unique_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
+  std::unique_ptr<GraphicsState> graphics_state_;
+  std::unique_ptr<ShaderProgramManager> shader_program_manager_;
+  std::unique_ptr<OffscreenTargetManager> offscreen_target_manager_;
 
   backend::GraphicsContextEGL* graphics_context_;
   base::ThreadChecker thread_checker_;
@@ -199,9 +200,8 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
   }
 
   if (opacity < 1.0f) {
-    scoped_refptr<render_tree::Node> opacity_node =
-        new render_tree::FilterNode(render_tree::OpacityFilter(opacity),
-                                    render_tree);
+    scoped_refptr<render_tree::Node> opacity_node = new render_tree::FilterNode(
+        render_tree::OpacityFilter(opacity), render_tree);
     fallback_rasterizer_->SubmitOffscreen(opacity_node, fallback_render_target);
   } else {
     fallback_rasterizer_->SubmitOffscreen(render_tree, fallback_render_target);
@@ -222,10 +222,10 @@ void HardwareRasterizer::Impl::FlushFallbackOffscreenDraws() {
 void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
   // Perform a minimal reset of the fallback context. Only need to invalidate
   // states that this rasterizer pollutes.
-  uint32_t untouched_states = kMSAAEnable_GrGLBackendState |
-      kStencil_GrGLBackendState | kPixelStore_GrGLBackendState |
-      kFixedFunction_GrGLBackendState | kPathRendering_GrGLBackendState |
-      kMisc_GrGLBackendState;
+  uint32_t untouched_states =
+      kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
+      kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
+      kPathRendering_GrGLBackendState | kMisc_GrGLBackendState;
 
   GetFallbackContext()->resetContext(~untouched_states & kAll_GrBackendState);
 }
@@ -244,8 +244,8 @@ void HardwareRasterizer::Impl::RasterizeTree(
       offscreen_target_manager_.get(),
       base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,
                  base::Unretained(this)),
-      fallback_rasterizer_->GetCachedCanvas(render_target),
-      render_target, content_rect);
+      fallback_rasterizer_->GetCachedCanvas(render_target), render_target,
+      content_rect);
 
   // Traverse the render tree to populate the draw object manager.
   {
@@ -261,14 +261,13 @@ void HardwareRasterizer::Impl::RasterizeTree(
 
     // Ensure the skia context is fully reset.
     GetFallbackContext()->resetContext();
-    draw_object_manager.ExecuteOffscreenRasterize(graphics_state_.get(),
-        shader_program_manager_.get());
+    draw_object_manager.ExecuteOffscreenRasterize(
+        graphics_state_.get(), shader_program_manager_.get());
   }
 
   // Clear the dirty region of the render target.
   graphics_state_->BindFramebuffer(render_target);
-  graphics_state_->Viewport(0, 0,
-                            render_target->GetSize().width(),
+  graphics_state_->Viewport(0, 0, render_target->GetSize().width(),
                             render_target->GetSize().height());
   graphics_state_->Scissor(content_rect.x(), content_rect.y(),
                            content_rect.width(), content_rect.height());
@@ -279,7 +278,7 @@ void HardwareRasterizer::Impl::RasterizeTree(
   {
     TRACE_EVENT0("cobalt::renderer", "OnscreenRasterize");
     draw_object_manager.ExecuteOnscreenRasterize(graphics_state_.get(),
-        shader_program_manager_.get());
+                                                 shader_program_manager_.get());
   }
 
   graphics_context_->ResetCurrentSurface();
@@ -341,9 +340,7 @@ render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
 }
 
-void HardwareRasterizer::MakeCurrent() {
-  return impl_->MakeCurrent();
-}
+void HardwareRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
 
 void HardwareRasterizer::ReleaseContext() { return impl_->ReleaseContext(); }
 

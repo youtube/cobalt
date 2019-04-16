@@ -15,7 +15,6 @@
 #ifndef COBALT_LAYOUT_INITIAL_CONTAINING_BLOCK_H_
 #define COBALT_LAYOUT_INITIAL_CONTAINING_BLOCK_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/window.h"

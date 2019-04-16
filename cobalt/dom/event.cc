@@ -15,27 +15,24 @@
 #include "cobalt/dom/event.h"
 
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/dom/event_target.h"
 
 namespace cobalt {
 namespace dom {
 
 Event::Event(UninitializedFlag /* uninitialized_flag */)
-    : event_phase_(kNone),
-      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(base::Token(), false, false);
 }
 
 Event::Event(const std::string& type)
-    : event_phase_(kNone),
-      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(base::Token(type), false, false);
 }
 
 Event::Event(const std::string& type, const EventInit& init_dict)
-    : event_phase_(kNone),
-      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   SB_DCHECK(init_dict.has_bubbles());
   SB_DCHECK(init_dict.has_cancelable());
   if (init_dict.time_stamp() != 0) {
@@ -46,20 +43,17 @@ Event::Event(const std::string& type, const EventInit& init_dict)
 }
 
 Event::Event(base::Token type)
-    : event_phase_(kNone),
-      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(type, false, false);
 }
 
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
-    : event_phase_(kNone),
-      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(type, bubbles == kBubbles, cancelable == kCancelable);
 }
 
 Event::Event(base::Token type, const EventInit& init_dict)
-    : event_phase_(kNone),
-      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   SB_DCHECK(init_dict.has_bubbles());
   SB_DCHECK(init_dict.has_cancelable());
   if (init_dict.time_stamp() != 0) {

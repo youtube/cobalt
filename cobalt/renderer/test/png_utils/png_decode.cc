@@ -14,11 +14,12 @@
 
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/debug/trace_event.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "third_party/libpng/png.h"
 
 namespace cobalt {
@@ -30,7 +31,7 @@ namespace {
 
 class PNGFileReadContext {
  public:
-  PNGFileReadContext(const FilePath& file_path,
+  PNGFileReadContext(const base::FilePath& file_path,
                      render_tree::PixelFormat pixel_format,
                      render_tree::AlphaFormat alpha_format);
   ~PNGFileReadContext();
@@ -89,12 +90,11 @@ void PNGReadPlatformFile(png_structp png, png_bytep buffer,
   intptr_t temp = reinterpret_cast<intptr_t>(png_get_io_ptr(png));
   base::PlatformFile file = static_cast<base::PlatformFile>(temp);
 #endif
-  int count = base::ReadPlatformFileAtCurrentPos(
-      file, reinterpret_cast<char*>(buffer), buffer_size);
+  int count = SbFileReadAll(file, reinterpret_cast<char*>(buffer), buffer_size);
   DCHECK_EQ(count, buffer_size);
 }
 
-PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
+PNGFileReadContext::PNGFileReadContext(const base::FilePath& file_path,
                                        render_tree::PixelFormat pixel_format,
                                        render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("renderer::test::png_utils",
@@ -103,15 +103,14 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
-  file_ = base::CreatePlatformFile(
-      file_path, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ, NULL,
-      NULL);
-  DCHECK_NE(base::kInvalidPlatformFileValue, file_) << "Unable to open: "
-                                                    << file_path.value();
+  file_ = SbFileOpen(file_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
+                     NULL, NULL);
+  DCHECK_NE(base::kInvalidPlatformFile, file_)
+      << "Unable to open: " << file_path.value();
 
   uint8_t header[8];
-  int count = base::ReadPlatformFileAtCurrentPos(
-      file_, reinterpret_cast<char*>(header), sizeof(header));
+  int count =
+      SbFileReadAll(file_, reinterpret_cast<char*>(header), sizeof(header));
   DCHECK_EQ(sizeof(header), count) << "Invalid file size.";
   DCHECK(!png_sig_cmp(header, 0, 8)) << "Invalid PNG header.";
 
@@ -236,7 +235,7 @@ PNGFileReadContext::~PNGFileReadContext() {
   // Release our png reading context and associated info structs.
   png_destroy_read_struct(&png_, &png_metadata_, &end);
 
-  base::ClosePlatformFile(file_);
+  SbFileClose(file_);
 }
 
 void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {
@@ -246,8 +245,8 @@ void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {
   png_read_image(png_, const_cast<png_bytep*>(&rows[0]));
 }
 
-scoped_array<uint8_t> DecodePNGToRGBAInternal(
-    const FilePath& png_file_path, int* width, int* height,
+std::unique_ptr<uint8_t[]> DecodePNGToRGBAInternal(
+    const base::FilePath& png_file_path, int* width, int* height,
     render_tree::AlphaFormat alpha_format) {
   PNGFileReadContext png_read_context(
       png_file_path, render_tree::kPixelFormatRGBA8, alpha_format);
@@ -258,7 +257,8 @@ scoped_array<uint8_t> DecodePNGToRGBAInternal(
   // We set bpp to 4 because we know that we're dealing with RGBA.
   const int bytes_per_pixel = 4;
   int pitch = png_read_context.width() * 4;
-  scoped_array<uint8_t> data(new uint8_t[pitch * png_read_context.height()]);
+  std::unique_ptr<uint8_t[]> data(
+      new uint8_t[pitch * png_read_context.height()]);
   std::vector<png_bytep> rows(png_read_context.height());
   uint8_t* row = data.get();
   for (int i = 0; i < png_read_context.height(); ++i) {
@@ -274,20 +274,20 @@ scoped_array<uint8_t> DecodePNGToRGBAInternal(
   *width = png_read_context.width();
   *height = png_read_context.height();
 
-  return data.Pass();
+  return std::move(data);
 }
 
 }  // namespace
 
-scoped_array<uint8_t> DecodePNGToRGBA(const FilePath& png_file_path, int* width,
-                                      int* height) {
+std::unique_ptr<uint8_t[]> DecodePNGToRGBA(const base::FilePath& png_file_path,
+                                           int* width, int* height) {
   TRACE_EVENT0("renderer::test::png_utils", "DecodePNGToRGBA()");
   return DecodePNGToRGBAInternal(png_file_path, width, height,
                                  render_tree::kAlphaFormatUnpremultiplied);
 }
 
-scoped_array<uint8_t> DecodePNGToPremultipliedAlphaRGBA(
-    const FilePath& png_file_path, int* width, int* height) {
+std::unique_ptr<uint8_t[]> DecodePNGToPremultipliedAlphaRGBA(
+    const base::FilePath& png_file_path, int* width, int* height) {
   TRACE_EVENT0("renderer::test::png_utils",
                "DecodePNGToPremultipliedAlphaRGBA()");
   return DecodePNGToRGBAInternal(png_file_path, width, height,
@@ -310,7 +310,7 @@ render_tree::PixelFormat ChoosePixelFormat(
 }  // namespace
 
 scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
-    const FilePath& png_file_path,
+    const base::FilePath& png_file_path,
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("renderer::test::png_utils", "DecodePNGToRenderTreeImage()");
 
@@ -321,7 +321,7 @@ scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
   // Setup pointers to the rows in which libpng should read out the decoded png
   // image data to.
   // Currently, we decode all images to RGBA and load those.
-  scoped_ptr<render_tree::ImageData> data =
+  std::unique_ptr<render_tree::ImageData> data =
       resource_provider->AllocateImageData(
           math::Size(png_read_context.width(), png_read_context.height()),
           pixel_format, render_tree::kAlphaFormatPremultiplied);
@@ -335,7 +335,7 @@ scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
   png_read_context.DecodeImageTo(rows);
 
   // And now create a texture out of the image data.
-  return resource_provider->CreateImage(data.Pass());
+  return resource_provider->CreateImage(std::move(data));
 }
 
 }  // namespace png_utils

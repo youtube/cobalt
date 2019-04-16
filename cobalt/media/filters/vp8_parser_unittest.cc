@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/filters/vp8_parser.h"
+
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "cobalt/media/base/test_data_util.h"
 #include "cobalt/media/filters/ivf_parser.h"
-#include "cobalt/media/filters/vp8_parser.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -16,8 +17,8 @@ namespace media {
 TEST(Vp8ParserTest, StreamFileParsing) {
   base::FilePath file_path = GetTestDataFilePath("test-25fps.vp8");
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
-                                            << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path))
+      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   IvfParser ivf_parser;
   IvfFileHeader ivf_file_header = {};

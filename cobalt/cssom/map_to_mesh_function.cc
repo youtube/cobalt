@@ -15,8 +15,8 @@
 #include "cobalt/cssom/map_to_mesh_function.h"
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -105,7 +105,7 @@ const MapToMeshFunction* MapToMeshFunction::ExtractFromFilterList(
       if (filter_list[list_index]->GetTypeId() ==
           base::GetTypeId<cssom::MapToMeshFunction>()) {
         return base::polymorphic_downcast<const cssom::MapToMeshFunction*>(
-            filter_list[list_index]);
+            filter_list[list_index].get());
       }
     }
   }

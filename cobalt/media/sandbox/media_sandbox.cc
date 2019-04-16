@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media/sandbox/media_sandbox.h"
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/size.h"
@@ -42,7 +44,7 @@ const int kViewportHeight = 1080;
 
 class MediaSandbox::Impl {
  public:
-  Impl(int argc, char** argv, const FilePath& trace_log_path);
+  Impl(int argc, char** argv, const base::FilePath& trace_log_path);
 
   void RegisterFrameCB(const MediaSandbox::FrameCB& frame_cb);
   MediaModule* GetMediaModule() { return media_module_.get(); }
@@ -57,21 +59,21 @@ class MediaSandbox::Impl {
                  base::TimeDelta time);
 
   base::Lock lock_;
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
   MediaSandbox::FrameCB frame_cb_;
 
-  scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
-  scoped_ptr<network::NetworkModule> network_module_;
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  std::unique_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
+  std::unique_ptr<network::NetworkModule> network_module_;
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   base::EventDispatcher event_dispatcher_;
   // System window used as a render target.
-  scoped_ptr<system_window::SystemWindow> system_window_;
-  scoped_ptr<renderer::RendererModule> renderer_module_;
-  scoped_ptr<MediaModule> media_module_;
+  std::unique_ptr<system_window::SystemWindow> system_window_;
+  std::unique_ptr<renderer::RendererModule> renderer_module_;
+  std::unique_ptr<MediaModule> media_module_;
 };
 
 MediaSandbox::Impl::Impl(int argc, char** argv,
-                         const FilePath& trace_log_path) {
+                         const base::FilePath& trace_log_path) {
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
   network::NetworkModule::Options network_options;
   network_options.https_requirement = network::kHTTPSOptional;
@@ -87,7 +89,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
       new renderer::RendererModule(system_window_.get(), renderer_options));
   MediaModule::Options media_module_options;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   // Use string literals directly to avoid dependency on browser::switches.
   if (command_line->HasSwitch("audio_decoder_stub")) {
     media_module_options.use_audio_decoder_stub = true;
@@ -135,7 +137,7 @@ void MediaSandbox::Impl::SetupAndSubmitScene() {
 }
 
 MediaSandbox::MediaSandbox(int argc, char** argv,
-                           const FilePath& trace_log_path) {
+                           const base::FilePath& trace_log_path) {
   impl_ = new Impl(argc, argv, trace_log_path);
 }
 

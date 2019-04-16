@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/threading/thread_checker.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"

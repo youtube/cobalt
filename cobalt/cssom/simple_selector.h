@@ -16,7 +16,6 @@
 #define COBALT_CSSOM_SIMPLE_SELECTOR_H_
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/selector.h"

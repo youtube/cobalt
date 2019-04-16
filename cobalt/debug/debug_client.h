@@ -15,6 +15,7 @@
 #ifndef COBALT_DEBUG_DEBUG_CLIENT_H_
 #define COBALT_DEBUG_DEBUG_CLIENT_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -27,7 +28,7 @@ namespace debug {
 namespace backend {
 // Forward declaration of the dispatcher class that DebugClient can connect to.
 class DebugDispatcher;
-}
+}  // namespace backend
 
 // An object that can connect to a debug dispatcher. A debug dispatcher can
 // accept connections from multiple debug clients, for example to support
@@ -59,7 +60,7 @@ class DebugClient {
     // loop if necessary.
     virtual void OnDebugClientEvent(
         const std::string& method,
-        const base::optional<std::string>& json_params) = 0;
+        const base::Optional<std::string>& json_params) = 0;
 
     virtual void OnDebugClientDetach(const std::string& reason) = 0;
 
@@ -68,7 +69,7 @@ class DebugClient {
   };
 
   // Callback to receive a command response from the dispatcher.
-  typedef base::Callback<void(const base::optional<std::string>& response)>
+  typedef base::Callback<void(const base::Optional<std::string>& response)>
       ResponseCallback;
 
   DebugClient(backend::DebugDispatcher* dispatcher, Delegate* delegate);
@@ -93,7 +94,7 @@ class DebugClient {
 
   // Called by the dispatcher when a debugging event occurs.
   void OnEvent(const std::string& method,
-               const base::optional<std::string>& json_params);
+               const base::Optional<std::string>& json_params);
 
   // No ownership. Access must be protected by |dispatcher_lock_|.
   backend::DebugDispatcher* dispatcher_;
@@ -108,7 +109,7 @@ class DebugClient {
 
 // Callback to create a DebugClient that's already attached to the main web
 // module DebugDispatcher, and sends events to the specified Delegate.
-typedef base::Callback<scoped_ptr<DebugClient>(DebugClient::Delegate*)>
+typedef base::Callback<std::unique_ptr<DebugClient>(DebugClient::Delegate*)>
     CreateDebugClientCallback;
 
 }  // namespace debug

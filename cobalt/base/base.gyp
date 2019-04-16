@@ -28,6 +28,8 @@
         'accessibility_changed_event.h',
         'address_sanitizer.h',
         'camera_transform.h',
+        'circular_buffer_shell.cc',
+        'circular_buffer_shell.h',
         'clock.h',
         'cobalt_paths.h',
         'compiler.h',
@@ -100,6 +102,7 @@
       'target_name': 'base_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'circular_buffer_shell_unittest.cc',
         'c_val_collection_entry_stats_test.cc',
         'c_val_collection_timer_stats_test.cc',
         'c_val_test.cc',

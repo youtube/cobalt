@@ -20,7 +20,6 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/mesh.h"
 
@@ -109,7 +108,8 @@ class MapToMeshFilter {
       }
     };
     typedef std::pair<scoped_refptr<render_tree::Mesh>,
-                      scoped_refptr<render_tree::Mesh> > MeshPair;
+                      scoped_refptr<render_tree::Mesh> >
+        MeshPair;
     typedef std::map<math::Size, MeshPair, SizeLessThan> MeshMap;
     MeshMap resolution_matched_meshes_;
     scoped_refptr<render_tree::Mesh> left_eye_default_mesh_;

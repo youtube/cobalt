@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_RESPONSE_H_
 #define COBALT_WEBDRIVER_PROTOCOL_RESPONSE_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/session_id.h"
@@ -81,14 +81,15 @@ class Response {
   // command:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Failed_Commands
   // TODO: Add support for screenshot, stack trace, etc.
-  static scoped_ptr<base::Value> CreateErrorResponse(
+  static std::unique_ptr<base::Value> CreateErrorResponse(
       const std::string& message);
 
   // Create a JSON object that will be used as the response body for a command:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
-  static scoped_ptr<base::Value> CreateResponse(
-      const base::optional<protocol::SessionId>& session_id,
-      StatusCode status_code, scoped_ptr<base::Value> webdriver_response_value);
+  static std::unique_ptr<base::Value> CreateResponse(
+      const base::Optional<protocol::SessionId>& session_id,
+      StatusCode status_code,
+      std::unique_ptr<base::Value> webdriver_response_value);
 };
 
 }  // namespace protocol

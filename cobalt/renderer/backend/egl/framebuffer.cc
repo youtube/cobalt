@@ -70,10 +70,11 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   }
 
   GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-      GL_TEXTURE_2D, color_handle, 0));
+                                 GL_TEXTURE_2D, color_handle, 0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
   color_texture_.reset(new TextureEGL(graphics_context_, color_handle, size_,
-      color_format, GL_TEXTURE_2D, base::Closure()));
+                                      color_format, GL_TEXTURE_2D,
+                                      base::Closure()));
 
   // Create and attach a depth buffer if requested.
   depthbuffer_handle_ = 0;
@@ -135,7 +136,7 @@ bool FramebufferEGL::CreateDepthAttachment(GLenum depth_format) {
     return false;
   }
   GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-      GL_RENDERBUFFER, depthbuffer_handle_));
+                                    GL_RENDERBUFFER, depthbuffer_handle_));
   GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 
   return true;

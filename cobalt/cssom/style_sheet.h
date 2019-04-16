@@ -19,7 +19,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/script/wrappable.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace cssom {

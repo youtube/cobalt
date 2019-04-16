@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/speech/microphone_manager.h"
 
 namespace cobalt {
@@ -36,29 +38,30 @@ MicrophoneManager::MicrophoneManager(
       microphone_creator_(microphone_creator),
       state_(kStopped),
       thread_("microphone_thread") {
-  thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  thread_.StartWithOptions(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 }
 
 MicrophoneManager::~MicrophoneManager() {
-  thread_.message_loop()->PostBlockingTask(
+  thread_.message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&MicrophoneManager::DestroyInternal, base::Unretained(this)));
 }
 
 void MicrophoneManager::Open() {
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&MicrophoneManager::OpenInternal, base::Unretained(this)));
 }
 
 void MicrophoneManager::Close() {
-  thread_.message_loop()->PostBlockingTask(
+  thread_.message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&MicrophoneManager::CloseInternal, base::Unretained(this)));
 }
 
 bool MicrophoneManager::CreateIfNecessary() {
-  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
 
   if (microphone_) {
     return true;
@@ -79,7 +82,7 @@ bool MicrophoneManager::CreateIfNecessary() {
 }
 
 void MicrophoneManager::OpenInternal() {
-  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
 
   // Try to create a valid microphone if necessary.
   if (state_ == kStarted || !CreateIfNecessary()) {
@@ -89,8 +92,7 @@ void MicrophoneManager::OpenInternal() {
   DCHECK(microphone_);
   if (!microphone_->Open()) {
     state_ = kError;
-    error_callback_.Run(MicrophoneError::kAborted,
-                        "Microphone open failed.");
+    error_callback_.Run(MicrophoneError::kAborted, "Microphone open failed.");
     return;
   }
 
@@ -100,14 +102,15 @@ void MicrophoneManager::OpenInternal() {
   poll_mic_events_timer_.emplace();
   // Setup a timer to poll for input events.
   poll_mic_events_timer_->Start(
-      FROM_HERE, base::TimeDelta::FromMicroseconds(static_cast<int64>(
-                     base::Time::kMicrosecondsPerSecond / kMicReadRateInHertz)),
+      FROM_HERE,
+      base::TimeDelta::FromMicroseconds(static_cast<int64>(
+          base::Time::kMicrosecondsPerSecond / kMicReadRateInHertz)),
       this, &MicrophoneManager::Read);
   state_ = kStarted;
 }
 
 void MicrophoneManager::CloseInternal() {
-  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
 
   if (state_ == kStopped) {
     return;
@@ -130,7 +133,7 @@ void MicrophoneManager::CloseInternal() {
 }
 
 void MicrophoneManager::Read() {
-  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
 
   DCHECK(state_ == kStarted);
   DCHECK(microphone_);
@@ -142,21 +145,20 @@ void MicrophoneManager::Read() {
   // If |read_bytes| is zero, nothing should happen.
   if (read_bytes > 0 && read_bytes % sizeof(int16_t) == 0) {
     size_t frames = read_bytes / sizeof(int16_t);
-    scoped_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
+    std::unique_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
         1, frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
     ShellAudioBus source(1, frames, samples);
     output_audio_bus->Assign(source);
-    data_received_callback_.Run(output_audio_bus.Pass());
+    data_received_callback_.Run(std::move(output_audio_bus));
   } else if (read_bytes != 0) {
     state_ = kError;
-    error_callback_.Run(MicrophoneError::kAborted,
-                        "Microphone read failed.");
+    error_callback_.Run(MicrophoneError::kAborted, "Microphone read failed.");
     poll_mic_events_timer_->Stop();
   }
 }
 
 void MicrophoneManager::DestroyInternal() {
-  DCHECK(thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(thread_.task_runner()->BelongsToCurrentThread());
 
   microphone_.reset();
   state_ = kStopped;

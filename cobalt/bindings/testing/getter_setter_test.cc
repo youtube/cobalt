@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/anonymous_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/anonymous_named_getter_interface.h"
 #include "cobalt/bindings/testing/anonymous_named_indexed_getter_interface.h"
@@ -44,7 +44,8 @@ class GetterSetterBindingsTestBase : public BindingsTestBase {
  public:
   GetterSetterBindingsTestBase()
       : test_mock_(new ::testing::NiceMock<MockT>()) {
-    global_environment_->Bind("test", make_scoped_refptr<MockT>((test_mock_)));
+    global_environment_->Bind("test",
+                              base::WrapRefCounted<MockT>((test_mock_)));
   }
 
   MockT& test_mock() { return *test_mock_.get(); }
@@ -76,7 +77,7 @@ class NamedPropertiesEnumerator {
   void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) {
     for (int i = 0; i < num_properties_; ++i) {
       char letter = 'a' + i;
-      enumerator->AddProperty(StringPrintf("property_%c", letter));
+      enumerator->AddProperty(base::StringPrintf("property_%c", letter));
     }
   }
 

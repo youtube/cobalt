@@ -79,27 +79,29 @@ DrawRectColorTexture::DrawRectColorTexture(
 }
 
 void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
-    { { rect_.x(), rect_.bottom() },      // uv = (0,1)
-      { texcoord_transform_(0, 1) + texcoord_transform_(0, 2),
-        texcoord_transform_(1, 1) + texcoord_transform_(1, 2) }, color_ },
-    { { rect_.right(), rect_.bottom() },  // uv = (1,1)
-      { texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +
-          texcoord_transform_(0, 2),
+      {{rect_.x(), rect_.bottom()},  // uv = (0,1)
+       {texcoord_transform_(0, 1) + texcoord_transform_(0, 2),
+        texcoord_transform_(1, 1) + texcoord_transform_(1, 2)},
+       color_},
+      {{rect_.right(), rect_.bottom()},  // uv = (1,1)
+       {texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +
+            texcoord_transform_(0, 2),
         texcoord_transform_(1, 0) + texcoord_transform_(1, 1) +
-          texcoord_transform_(1, 2) }, color_ },
-    { { rect_.right(), rect_.y() },       // uv = (1,0)
-      { texcoord_transform_(0, 0) + texcoord_transform_(0, 2),
-        texcoord_transform_(1, 0) + texcoord_transform_(1, 2) }, color_ },
-    { { rect_.x(), rect_.y() },           // uv = (0,0)
-      { texcoord_transform_(0, 2), texcoord_transform_(1, 2) }, color_ },
+            texcoord_transform_(1, 2)},
+       color_},
+      {{rect_.right(), rect_.y()},  // uv = (1,0)
+       {texcoord_transform_(0, 0) + texcoord_transform_(0, 2),
+        texcoord_transform_(1, 0) + texcoord_transform_(1, 2)},
+       color_},
+      {{rect_.x(), rect_.y()},  // uv = (0,0)
+       {texcoord_transform_(0, 2), texcoord_transform_(1, 2)},
+       color_},
   };
   COMPILE_ASSERT(sizeof(attributes) == 4 * sizeof(VertexAttributes),
                  bad_padding);
-  vertex_buffer_ = graphics_state->AllocateVertexData(
-      sizeof(attributes));
+  vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 
   // Find minimum and maximum texcoord values.

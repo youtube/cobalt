@@ -35,12 +35,11 @@ size_t MaxVertsNeededForAlignedGradient(
   // per color stop in addition to possible start and/or end vertices.
   return 4 + 2 * brush.color_stops().size();
 }
-}
+}  // namespace
 
-DrawRectLinearGradient::DrawRectLinearGradient(GraphicsState* graphics_state,
-    const BaseState& base_state,
-    const math::RectF& rect,
-    const render_tree::LinearGradientBrush& brush)
+DrawRectLinearGradient::DrawRectLinearGradient(
+    GraphicsState* graphics_state, const BaseState& base_state,
+    const math::RectF& rect, const render_tree::LinearGradientBrush& brush)
     : DrawObject(base_state),
       transform_(math::Matrix3F::Identity()),
       include_scissor_(rect),
@@ -48,61 +47,54 @@ DrawRectLinearGradient::DrawRectLinearGradient(GraphicsState* graphics_state,
   attributes_.reserve(MaxVertsNeededForAlignedGradient(brush));
 
   if (brush.IsHorizontal()) {
-    AddRectWithHorizontalGradient(
-        rect, brush.source(), brush.dest(), brush.color_stops());
+    AddRectWithHorizontalGradient(rect, brush.source(), brush.dest(),
+                                  brush.color_stops());
   } else if (brush.IsVertical()) {
-    AddRectWithVerticalGradient(
-        rect, brush.source(), brush.dest(), brush.color_stops());
+    AddRectWithVerticalGradient(rect, brush.source(), brush.dest(),
+                                brush.color_stops());
   } else {
     AddRectWithAngledGradient(rect, brush);
   }
-  graphics_state->ReserveVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
+  graphics_state->ReserveVertexData(attributes_.size() *
+                                    sizeof(VertexAttributes));
 }
 
 void DrawRectLinearGradient::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  vertex_buffer_ = graphics_state->AllocateVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
+                                                      sizeof(VertexAttributes));
   SbMemoryCopy(vertex_buffer_, &attributes_[0],
                attributes_.size() * sizeof(VertexAttributes));
 }
 
 void DrawRectLinearGradient::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  ShaderProgram<ShaderVertexColorOffset,
-                ShaderFragmentColorInclude>* program;
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  ShaderProgram<ShaderVertexColorOffset, ShaderFragmentColorInclude>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());
   graphics_state->UpdateClipAdjustment(
       program->GetVertexShader().u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(
-      program->GetVertexShader().u_view_matrix(),
-      base_state_.transform);
+      program->GetVertexShader().u_view_matrix(), base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
       program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, position));
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
       program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, color));
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, color));
   graphics_state->VertexAttribPointer(
       program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, offset));
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, offset));
   graphics_state->VertexAttribFinish();
 
-  float include[4] = {
-    include_scissor_.x(),
-    include_scissor_.y(),
-    include_scissor_.right(),
-    include_scissor_.bottom()
-  };
+  float include[4] = {include_scissor_.x(), include_scissor_.y(),
+                      include_scissor_.right(), include_scissor_.bottom()};
   GL_CALL(glUniform4fv(program->GetFragmentShader().u_include(), 1, include));
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
@@ -129,8 +121,8 @@ void DrawRectLinearGradient::AddRectWithHorizontalGradient(
       AddVertex(rect.x(), rect.bottom(), color32);
     }
   } else if (position < rect.right()) {
-      AddVertex(rect.right(), rect.y(), color32);
-      AddVertex(rect.right(), rect.bottom(), color32);
+    AddVertex(rect.right(), rect.y(), color32);
+    AddVertex(rect.right(), rect.bottom(), color32);
   }
 
   for (size_t i = 0; i < num_colors; ++i) {
@@ -226,10 +218,7 @@ uint32_t DrawRectLinearGradient::GetGLColor(
 void DrawRectLinearGradient::AddVertex(float x, float y, uint32_t color) {
   math::PointF position = transform_ * math::PointF(x, y);
   VertexAttributes attributes = {
-    { position.x(), position.y() },
-    { position.x(), position.y() },
-    color
-  };
+      {position.x(), position.y()}, {position.x(), position.y()}, color};
   attributes_.push_back(attributes);
 }
 

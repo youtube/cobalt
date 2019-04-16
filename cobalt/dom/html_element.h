@@ -15,15 +15,15 @@
 #ifndef COBALT_DOM_HTML_ELEMENT_H_
 #define COBALT_DOM_HTML_ELEMENT_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/animation_set.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
@@ -185,7 +185,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Custom, not in any spec: Element.
   scoped_refptr<HTMLElement> AsHTMLElement() override { return this; }
 
-  base::optional<std::string> GetStyleAttribute() const override;
+  base::Optional<std::string> GetStyleAttribute() const override;
   void SetStyleAttribute(const std::string& value) override;
   void RemoveStyleAttribute() override;
 
@@ -287,8 +287,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // The LayoutContainerBox gives the HTML Element an interface to the container
   // box that result from it. The BoxList is set when layout is performed for a
   // node.
-  void set_layout_boxes(scoped_ptr<LayoutBoxes> layout_boxes) {
-    layout_boxes_ = layout_boxes.Pass();
+  void set_layout_boxes(std::unique_ptr<LayoutBoxes> layout_boxes) {
+    layout_boxes_ = std::move(layout_boxes);
   }
 
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
@@ -299,7 +299,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   void SetPseudoElement(PseudoElementType type,
-                        scoped_ptr<PseudoElement> pseudo_element);
+                        std::unique_ptr<PseudoElement> pseudo_element);
 
   // Returns true if the element's computed style and all of its pseudo
   // element's computed styles are valid.
@@ -427,7 +427,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   Directionality directionality_;
 
   // Cache the tabindex value.
-  base::optional<int32> tabindex_;
+  base::Optional<int32> tabindex_;
 
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).
@@ -462,9 +462,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::RulesWithCascadePrecedence matching_rules_;
 
   // This contains information about the boxes generated from the element.
-  scoped_ptr<LayoutBoxes> layout_boxes_;
+  std::unique_ptr<LayoutBoxes> layout_boxes_;
 
-  scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
+  std::unique_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   base::WeakPtr<DOMStringMap> dataset_;
 
   std::vector<GURL> active_background_images_;

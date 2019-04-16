@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/threading/thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/input/input_device_manager.h"
 
 namespace cobalt {

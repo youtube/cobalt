@@ -35,7 +35,7 @@ bool NodeCanRenderWithOpacity(render_tree::Node* node) {
   } else if (node_type == base::GetTypeId<render_tree::MatrixTransformNode>()) {
     render_tree::MatrixTransformNode* transform_node =
         base::polymorphic_downcast<render_tree::MatrixTransformNode*>(node);
-    return NodeCanRenderWithOpacity(transform_node->data().source);
+    return NodeCanRenderWithOpacity(transform_node->data().source.get());
   } else if (node_type == base::GetTypeId<render_tree::CompositionNode>()) {
     // If we are a composition of non-overlapping valid children, then we can
     // also be rendered directly onscreen. As a simplification, just check for
@@ -45,7 +45,7 @@ bool NodeCanRenderWithOpacity(render_tree::Node* node) {
     const render_tree::CompositionNode::Children& children =
         composition_node->data().children();
     if (children.size() == 1) {
-      return NodeCanRenderWithOpacity(children[0]);
+      return NodeCanRenderWithOpacity(children[0].get());
     }
   }
 

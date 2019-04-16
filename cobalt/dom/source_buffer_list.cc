@@ -18,7 +18,7 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 

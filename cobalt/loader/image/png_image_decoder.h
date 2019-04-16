@@ -15,10 +15,10 @@
 #ifndef COBALT_LOADER_IMAGE_PNG_IMAGE_DECODER_H_
 #define COBALT_LOADER_IMAGE_PNG_IMAGE_DECODER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "third_party/libpng/png.h"
@@ -56,7 +56,7 @@ class PNGImageDecoder : public ImageDataDecoder {
   bool has_alpha_;
   png_bytep interlace_buffer_;
 
-  scoped_ptr<render_tree::ImageData> decoded_image_data_;
+  std::unique_ptr<render_tree::ImageData> decoded_image_data_;
 };
 
 }  // namespace image

@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/file_path.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
+#include "base/files/file_path.h"
 #include "cobalt/base/log_message_handler.h"
 
 namespace cobalt {
@@ -27,12 +27,12 @@ namespace layout_tests {
 // Returns the root directory that all test input can be found in (e.g.
 // the HTML files that define the tests, and the PNG/TXT files that define
 // the expected output).
-FilePath GetTestInputRootDirectory();
+base::FilePath GetTestInputRootDirectory();
 
 // Returns the root directory that all output will be placed within.  Output
 // is generated when rebaselining test expected output, or when test details
 // have been chosen to be output.
-FilePath GetTestOutputRootDirectory();
+base::FilePath GetTestOutputRootDirectory();
 
 class LogFilter {
  public:

@@ -19,8 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
-#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/font.h"
@@ -107,7 +107,7 @@ struct FontListKey {
 class FontList : public render_tree::FontProvider,
                  public base::RefCounted<FontList> {
  public:
-  typedef base::SmallMap<
+  typedef base::small_map<
       std::map<render_tree::TypefaceId, scoped_refptr<render_tree::Font> >, 7>
       FallbackTypefaceToFontMap;
   typedef base::hash_map<int32, scoped_refptr<render_tree::Typeface> >
@@ -133,12 +133,12 @@ class FontList : public render_tree::FontProvider,
   // the case where |maybe_bounds| is non-NULL, it will also be populated with
   // the bounds of the rect.
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const char16* text_buffer, int32 text_length, bool is_rtl);
+      const base::char16* text_buffer, int32 text_length, bool is_rtl);
 
   // Given a string of text, return its width. This is faster than
   // CreateGlyphBuffer().
-  float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl,
-                     render_tree::FontVector* maybe_used_fonts);
+  float GetTextWidth(const base::char16* text_buffer, int32 text_length,
+                     bool is_rtl, render_tree::FontVector* maybe_used_fonts);
 
   const render_tree::FontMetrics& GetFontMetrics();
 
@@ -148,7 +148,7 @@ class FontList : public render_tree::FontProvider,
   render_tree::FontMetrics GetFontMetrics(const render_tree::FontVector& fonts);
 
   // Returns the text run that signifies an ellipsis code point.
-  char16 GetEllipsisValue() const;
+  base::char16 GetEllipsisValue() const;
   // Returns the first font in the font-list that supports the ellipsis code
   // point. In the case where the ellipsis font has not already been calculated,
   // it lazily generates it.

@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/debug/json_object.h"
 
 namespace {
@@ -58,7 +58,7 @@ JSONObject ScriptDebuggerAgent::Freeze() {
   JSONObject agent_state(new base::DictionaryValue());
   std::string script_debugger_state = script_debugger_->Detach();
   agent_state->SetString(kScriptDebuggerState, script_debugger_state);
-  return agent_state.Pass();
+  return agent_state;
 }
 
 bool ScriptDebuggerAgent::RunCommand(const Command& command) {
@@ -72,7 +72,7 @@ bool ScriptDebuggerAgent::RunCommand(const Command& command) {
   message->SetString(kMethod, command.GetMethod());
   JSONObject params = JSONParse(command.GetParams());
   if (params) {
-    message->Set(kParams, params.release());
+    message->Set(kParams, std::move(params));
   }
 
   // Store the pending command before dispatching it so that we can find it if

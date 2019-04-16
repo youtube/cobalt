@@ -41,7 +41,6 @@ const char* GetLogLevelFromSeverity(int severity) {
     case logging::LOG_WARNING:
       return kWarningLevel;
     case logging::LOG_ERROR:
-    case logging::LOG_ERROR_REPORT:
     case logging::LOG_FATAL:
       return kErrorLevel;
   }
@@ -83,7 +82,7 @@ JSONObject LogAgent::Freeze() {
 
   JSONObject agent_state(new base::DictionaryValue());
   agent_state->SetBoolean(kEnabledState, enabled_);
-  return agent_state.Pass();
+  return agent_state;
 }
 
 void LogAgent::Enable(const Command& command) {
@@ -98,9 +97,9 @@ void LogAgent::Disable(const Command& command) {
 
 bool LogAgent::OnLogMessage(int severity, const char* file, int line,
                             size_t message_start, const std::string& str) {
-  UNREFERENCED_PARAMETER(file);
-  UNREFERENCED_PARAMETER(line);
-  UNREFERENCED_PARAMETER(message_start);
+  SB_UNREFERENCED_PARAMETER(file);
+  SB_UNREFERENCED_PARAMETER(line);
+  SB_UNREFERENCED_PARAMETER(message_start);
   DCHECK(this);
 
   if (enabled_) {

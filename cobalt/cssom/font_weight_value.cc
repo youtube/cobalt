@@ -50,7 +50,7 @@ struct FontWeightValue::NonTrivialStaticFields {
 
 namespace {
 
-base::LazyInstance<FontWeightValue::NonTrivialStaticFields>
+base::LazyInstance<FontWeightValue::NonTrivialStaticFields>::DestructorAtExit
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

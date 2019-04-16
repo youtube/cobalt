@@ -66,7 +66,7 @@ class MediaInitializer {
   DISALLOW_COPY_AND_ASSIGN(MediaInitializer);
 };
 
-static base::LazyInstance<MediaInitializer>::Leaky g_media_library =
+static base::LazyInstance<MediaInitializer>::DestructorAtExit g_media_library =
     LAZY_INSTANCE_INITIALIZER;
 
 void InitializeMediaLibrary() { g_media_library.Get(); }

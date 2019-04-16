@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_WINDOW_ID_H_
 #define COBALT_WEBDRIVER_PROTOCOL_WINDOW_ID_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -28,9 +28,9 @@ namespace protocol {
 // Opaque type that uniquely identifies a window from a WebDriver session.
 class WindowId {
  public:
-  static base::optional<WindowId> FromValue(const base::Value* value);
-  static scoped_ptr<base::Value> ToValue(const WindowId& window_id) {
-    return make_scoped_ptr<base::Value>(new base::StringValue(window_id.id_));
+  static base::Optional<WindowId> FromValue(const base::Value* value);
+  static std::unique_ptr<base::Value> ToValue(const WindowId& window_id) {
+    return std::unique_ptr<base::Value>(new base::Value(window_id.id_));
   }
 
   // Requests can specify "current" as the window ID to get the current window

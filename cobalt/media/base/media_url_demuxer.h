@@ -12,8 +12,8 @@
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/media/base/demuxer.h"
-#include "googleurl/src/gurl.h"
 #include "starboard/types.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {

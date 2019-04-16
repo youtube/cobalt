@@ -22,7 +22,7 @@ namespace network {
 URLRequestContextGetter::URLRequestContextGetter(
     URLRequestContext* url_request_context, base::Thread* io_thread)
     : url_request_context_(url_request_context) {
-  network_task_runner_ = io_thread->message_loop_proxy();
+  network_task_runner_ = io_thread->task_runner();
   DCHECK(network_task_runner_);
 }
 

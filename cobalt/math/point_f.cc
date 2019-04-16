@@ -4,7 +4,7 @@
 
 #include "cobalt/math/point_f.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace math {

@@ -14,7 +14,7 @@
 
 #include "cobalt/h5vcc/h5vcc_system.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 #include "starboard/system.h"

@@ -26,7 +26,7 @@ class H5vccStorage : public script::Wrappable {
  public:
   explicit H5vccStorage(network::NetworkModule* network_module);
   void ClearCookies();
-  void Flush(const base::optional<bool>& sync);
+  void Flush(const base::Optional<bool>& sync);
   bool GetCookiesEnabled();
   void SetCookiesEnabled(bool enabled);
 

@@ -14,7 +14,7 @@
 
 #include "cobalt/renderer/backend/blitter/display.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "cobalt/system_window/system_window.h"

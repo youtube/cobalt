@@ -19,7 +19,7 @@ namespace base {
 
 // This struct is available for cases where a type is required, but will not be
 // used, and causes the type to use 0 bytes. A current use case for this is with
-// base::SmallMap. Because base::SmallSet does not exist, a map must sometimes
+// base::small_map. Because base::SmallSet does not exist, a map must sometimes
 // be used in cases where the desired functionality is that of a set. Providing
 // Unused as the map's value type allows the value to not add additional memory
 // overhead.

@@ -15,10 +15,11 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 
+#include <memory>
+
 #include <GLES2/gl2.h>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
@@ -126,7 +127,8 @@ class GraphicsState {
   // |client_pointer| should be within the range of addresses returned by
   // AllocateVertexData.
   void VertexAttribPointer(GLint index, GLint size, GLenum type,
-      GLboolean normalized, GLsizei stride, const void* client_pointer);
+                           GLboolean normalized, GLsizei stride,
+                           const void* client_pointer);
 
   // Disable any vertex attrib arrays that the previous program used (via
   // VertexAttribPointer), but the current program does not.
@@ -167,12 +169,12 @@ class GraphicsState {
   int frame_index_;
 
   static const size_t kVertexDataAlignment = 4;
-  scoped_array<uint8_t> vertex_data_buffer_;
+  std::unique_ptr<uint8_t[]> vertex_data_buffer_;
   size_t vertex_data_capacity_;
   size_t vertex_data_reserved_;
   size_t vertex_data_allocated_;
   GLuint vertex_data_buffer_handle_[kNumFramesBuffered];
-  scoped_array<uint16_t> vertex_index_buffer_;
+  std::unique_ptr<uint16_t[]> vertex_index_buffer_;
   size_t vertex_index_capacity_;
   size_t vertex_index_reserved_;
   size_t vertex_index_allocated_;

@@ -14,11 +14,12 @@
 
 #include <GLES2/gl2.h>
 #include <algorithm>
+#include <memory>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 
 #include "base/debug/leak_annotations.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -110,8 +111,9 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
 
   ScopedMakeCurrent scoped_make_current(this);
 
-  scoped_ptr<FramebufferEGL> framebuffer(new FramebufferEGL(this,
-      math::Size(kDummyTextureWidth, kDummyTextureHeight), GL_RGBA, GL_NONE));
+  std::unique_ptr<FramebufferEGL> framebuffer(new FramebufferEGL(
+      this, math::Size(kDummyTextureWidth, kDummyTextureHeight), GL_RGBA,
+      GL_NONE));
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->gl_handle()));
 
   {
@@ -235,7 +237,7 @@ GraphicsContextEGL::~GraphicsContextEGL() {
 
   ReleaseCurrentContext();
 
-  null_surface_ = NULL;
+  null_surface_ = nullptr;
 
   EGL_CALL(eglDestroyContext(display_, context_));
 }
@@ -328,11 +330,11 @@ void GraphicsContextEGL::ResetCurrentSurface() {
       EGLSurface egl_surface = null_surface_->GetSurface();
       EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
     } else {
-      SafeEglMakeCurrent(current_surface_);
+      SafeEglMakeCurrent(current_surface_.get());
     }
 
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
-        current_surface_->GetPlatformHandle()));
+                              current_surface_->GetPlatformHandle()));
   }
 }
 
@@ -341,7 +343,7 @@ void GraphicsContextEGL::MakeCurrent() {
   // frame very well, so with this change we avoid making a new surface
   // current if we don't actually care about what surface is current.
   if (!IsCurrent()) {
-    MakeCurrentWithSurface(null_surface_);
+    MakeCurrentWithSurface(null_surface_.get());
   }
 }
 
@@ -354,22 +356,22 @@ void GraphicsContextEGL::ReleaseCurrentContext() {
   is_current_ = false;
 }
 
-scoped_ptr<TextureEGL> GraphicsContextEGL::CreateTexture(
-    scoped_ptr<TextureDataEGL> texture_data) {
-  return make_scoped_ptr(
-      new TextureEGL(this, texture_data.Pass(), bgra_format_supported_));
+std::unique_ptr<TextureEGL> GraphicsContextEGL::CreateTexture(
+    std::unique_ptr<TextureDataEGL> texture_data) {
+  return std::unique_ptr<TextureEGL>(
+      new TextureEGL(this, std::move(texture_data), bgra_format_supported_));
 }
 
-scoped_ptr<TextureEGL> GraphicsContextEGL::CreateTextureFromRawMemory(
+std::unique_ptr<TextureEGL> GraphicsContextEGL::CreateTextureFromRawMemory(
     const scoped_refptr<ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const math::Size& size, GLenum format,
     int pitch_in_bytes) {
   const RawTextureMemoryEGL* texture_memory =
       &(raw_texture_memory->raw_texture_memory());
 
-  return make_scoped_ptr(new TextureEGL(this, texture_memory, offset, size,
-                                        format, pitch_in_bytes,
-                                        bgra_format_supported_));
+  return std::unique_ptr<TextureEGL>(
+      new TextureEGL(this, texture_memory, offset, size, format, pitch_in_bytes,
+                     bgra_format_supported_));
 }
 
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
@@ -385,10 +387,10 @@ scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
 }
 
 scoped_refptr<RenderTarget>
-  GraphicsContextEGL::CreateDownloadableOffscreenRenderTarget(
-      const math::Size& dimensions) {
-  scoped_refptr<RenderTarget> render_target(new FramebufferRenderTargetEGL(
-      this, dimensions));
+GraphicsContextEGL::CreateDownloadableOffscreenRenderTarget(
+    const math::Size& dimensions) {
+  scoped_refptr<RenderTarget> render_target(
+      new FramebufferRenderTargetEGL(this, dimensions));
 
   if (render_target->CreationError()) {
     return scoped_refptr<RenderTarget>();
@@ -415,7 +417,7 @@ void VerticallyFlipPixels(uint8_t* pixels, int pitch_in_bytes, int height) {
 }
 }  // namespace
 
-scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
+std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
     const scoped_refptr<RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
                "GraphicsContextEGL::DownloadPixelDataAsRGBA()");
@@ -423,17 +425,18 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
 
   int pitch_in_bytes =
       render_target->GetSize().width() * BytesPerPixelForGLFormat(GL_RGBA);
-  scoped_array<uint8_t> pixels(
+  std::unique_ptr<uint8_t[]> pixels(
       new uint8_t[render_target->GetSize().height() * pitch_in_bytes]);
 
   if (render_target->GetPlatformHandle() == 0) {
     // Need to bind the PBufferSurface to a framebuffer object in order to
     // read its pixels.
     PBufferRenderTargetEGL* pbuffer_render_target =
-        base::polymorphic_downcast<PBufferRenderTargetEGL*>
-            (render_target.get());
+        base::polymorphic_downcast<PBufferRenderTargetEGL*>(
+            render_target.get());
 
-    scoped_ptr<TextureEGL> texture(new TextureEGL(this, pbuffer_render_target));
+    std::unique_ptr<TextureEGL> texture(
+        new TextureEGL(this, pbuffer_render_target));
     DCHECK(texture->GetSize() == render_target->GetSize());
 
     // This shouldn't be strictly necessary as glReadPixels() should implicitly
@@ -460,8 +463,8 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
     GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
   } else {
     // The render target is a framebuffer object, so just bind it and read.
-    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
-                              render_target->GetPlatformHandle()));
+    GL_CALL(
+        glBindFramebuffer(GL_FRAMEBUFFER, render_target->GetPlatformHandle()));
     GL_CALL(glReadPixels(0, 0, render_target->GetSize().width(),
                          render_target->GetSize().height(), GL_RGBA,
                          GL_UNSIGNED_BYTE, pixels.get()));
@@ -481,7 +484,7 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
                          render_target->GetSize().height());
   }
 
-  return pixels.Pass();
+  return std::move(pixels);
 }
 
 void GraphicsContextEGL::Finish() {
@@ -543,8 +546,8 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
     eglSwapBuffers(display_, surface->GetSurface());
     EGLint swap_err = eglGetError();
     if (swap_err != EGL_SUCCESS) {
-      LOG(WARNING) << "Marking surface bad after swap error "
-                   << std::hex << swap_err;
+      LOG(WARNING) << "Marking surface bad after swap error " << std::hex
+                   << swap_err;
       surface->set_surface_bad();
       return;
     }

@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_NODE_H_
 #define COBALT_DOM_NODE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -124,22 +125,22 @@ class Node : public EventTarget {
   Element* parent_element() const;
   bool HasChildNodes() const;
   scoped_refptr<NodeList> child_nodes() const;
-  Node* first_child() const { return first_child_; }
+  Node* first_child() const { return first_child_.get(); }
   Node* last_child() const { return last_child_; }
-  Node* next_sibling() const { return next_sibling_; }
+  Node* next_sibling() const { return next_sibling_.get(); }
   Node* previous_sibling() const { return previous_sibling_; }
 
-  virtual base::optional<std::string> node_value() const {
+  virtual base::Optional<std::string> node_value() const {
     return base::nullopt;
   }
   virtual void set_node_value(
-      const base::optional<std::string>& /* node_value */) {}
+      const base::Optional<std::string>& /* node_value */) {}
 
-  virtual base::optional<std::string> text_content() const {
+  virtual base::Optional<std::string> text_content() const {
     return base::nullopt;
   }
   virtual void set_text_content(
-      const base::optional<std::string>& /* text_content */) {}
+      const base::Optional<std::string>& /* text_content */) {}
 
   scoped_refptr<Node> CloneNode(bool deep) const;
 
@@ -270,7 +271,7 @@ class Node : public EventTarget {
 
   // Gather a list of RegisteredObservers on this node and its ancestors.
   typedef std::vector<RegisteredObserver> RegisteredObserverVector;
-  scoped_ptr<RegisteredObserverVector> GatherInclusiveAncestorsObservers();
+  std::unique_ptr<RegisteredObserverVector> GatherInclusiveAncestorsObservers();
 
   void ReplaceAll(const scoped_refptr<Node>& node);
 

@@ -19,7 +19,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
@@ -47,11 +47,11 @@ class ReplacedBox : public Box {
               const ReplaceImageCB& replace_image_cb,
               const SetBoundsCB& set_bounds_cb,
               const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-              const base::optional<LayoutUnit>& maybe_intrinsic_width,
-              const base::optional<LayoutUnit>& maybe_intrinsic_height,
-              const base::optional<float>& maybe_intrinsic_ratio,
+              const base::Optional<LayoutUnit>& maybe_intrinsic_width,
+              const base::Optional<LayoutUnit>& maybe_intrinsic_height,
+              const base::Optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
-              base::optional<bool> is_video_punched_out,
+              base::Optional<bool> is_video_punched_out,
               const math::SizeF& content_size,
               LayoutStatTracker* layout_stat_tracker);
 
@@ -64,7 +64,7 @@ class ReplacedBox : public Box {
 
   void SplitBidiLevelRuns() override;
   bool TrySplitAtSecondBidiLevelRun() override;
-  base::optional<int> GetBidiLevel() const override;
+  base::Optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
       bool should_collapse_leading_white_space) override;
@@ -99,12 +99,12 @@ class ReplacedBox : public Box {
   // https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
   virtual void UpdateHorizontalMargins(
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
-      const base::optional<LayoutUnit>& maybe_margin_left,
-      const base::optional<LayoutUnit>& maybe_margin_right) = 0;
+      const base::Optional<LayoutUnit>& maybe_margin_left,
+      const base::Optional<LayoutUnit>& maybe_margin_right) = 0;
 
   // TODO: Make private.
-  const base::optional<LayoutUnit> maybe_intrinsic_width_;
-  const base::optional<LayoutUnit> maybe_intrinsic_height_;
+  const base::Optional<LayoutUnit> maybe_intrinsic_width_;
+  const base::Optional<LayoutUnit> maybe_intrinsic_height_;
   const float intrinsic_ratio_;
 
  private:
@@ -119,7 +119,7 @@ class ReplacedBox : public Box {
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
-  base::optional<bool> is_video_punched_out_;
+  base::Optional<bool> is_video_punched_out_;
   math::SizeF content_size_;
 };
 

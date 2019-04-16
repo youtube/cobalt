@@ -26,14 +26,11 @@ bool RoundedCorner::IsSquare() const {
 }
 
 RoundedCorners RoundedCorners::Scale(float sx, float sy) const {
-  return RoundedCorners(RoundedCorner(top_left.horizontal * sx,
-                                      top_left.vertical * sy),
-                        RoundedCorner(top_right.horizontal * sx,
-                                      top_right.vertical * sy),
-                        RoundedCorner(bottom_right.horizontal * sx,
-                                      bottom_right.vertical * sy),
-                        RoundedCorner(bottom_left.horizontal * sx,
-                                      bottom_left.vertical * sy));
+  return RoundedCorners(
+      RoundedCorner(top_left.horizontal * sx, top_left.vertical * sy),
+      RoundedCorner(top_right.horizontal * sx, top_right.vertical * sy),
+      RoundedCorner(bottom_right.horizontal * sx, bottom_right.vertical * sy),
+      RoundedCorner(bottom_left.horizontal * sx, bottom_left.vertical * sy));
 }
 
 RoundedCorners RoundedCorners::Normalize(const math::RectF& rect) const {

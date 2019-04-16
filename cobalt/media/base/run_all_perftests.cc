@@ -19,6 +19,7 @@ class TestSuiteNoAtExit : public base::TestSuite {
 
 void TestSuiteNoAtExit::Initialize() {
   // Run TestSuite::Initialize first so that logging is initialized.
+  base::AtExitManager exit_manager;
   base::TestSuite::Initialize();
 
   // Run this here instead of main() to ensure an AtExitManager is already

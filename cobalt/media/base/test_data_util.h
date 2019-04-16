@@ -11,7 +11,7 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 
 namespace cobalt {
 namespace media {

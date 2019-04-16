@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -38,7 +37,7 @@ class SearchStrategy {
     kTagName,
     kXPath
   };
-  static base::optional<SearchStrategy> FromValue(const base::Value* value);
+  static base::Optional<SearchStrategy> FromValue(const base::Value* value);
 
   Strategy strategy() const { return strategy_; }
   const std::string parameter() const { return parameter_; }

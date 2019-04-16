@@ -5,17 +5,18 @@
 #ifndef COBALT_MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
 #define COBALT_MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/location.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "base/single_thread_task_runner.h"
-#include "base/thread_task_runner_handle.h"
+#include "base/threading/thread_task_runner_handle.h"
 
 // This is a helper utility for base::Bind()ing callbacks to the current
-// MessageLoop. The typical use is when |a| (of class |A|) wants to hand a
+// base::MessageLoop. The typical use is when |a| (of class |A|) wants to hand a
 // callback such as base::Bind(&A::AMethod, a) to |b|, but needs to ensure that
-// when |b| executes the callback, it does so on |a|'s current MessageLoop.
+// when |b| executes the callback, it does so on |a|'s current
+// base::MessageLoop.
 //
 // Typical usage: request to be called back on the current thread:
 // other->StartAsyncProcessAndCallMeBack(
@@ -37,14 +38,14 @@ T& TrampolineForward(T& t) {
 }
 
 template <typename T, typename R>
-base::internal::PassedWrapper<scoped_ptr<T> > TrampolineForward(
-    scoped_ptr<T>& p) {
+base::internal::PassedWrapper<std::unique_ptr<T>> TrampolineForward(
+    std::unique_ptr<T>& p) {
   return base::Passed(&p);
 }
 
 template <typename T>
-base::internal::PassedWrapper<ScopedVector<T> > TrampolineForward(
-    ScopedVector<T>& p) {
+base::internal::PassedWrapper<std::vector<std::unique_ptr<T>>>
+TrampolineForward(std::vector<std::unique_ptr<T>>& p) {
   return base::Passed(&p);
 }
 

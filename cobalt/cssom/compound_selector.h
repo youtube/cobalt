@@ -15,11 +15,11 @@
 #ifndef COBALT_CSSOM_COMPOUND_SELECTOR_H_
 #define COBALT_CSSOM_COMPOUND_SELECTOR_H_
 
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -36,7 +36,7 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#compound
 class CompoundSelector : public Selector {
  public:
-  typedef ScopedVector<SimpleSelector> SimpleSelectors;
+  typedef std::vector<std::unique_ptr<SimpleSelector>> SimpleSelectors;
 
   CompoundSelector();
   ~CompoundSelector() override;
@@ -50,7 +50,7 @@ class CompoundSelector : public Selector {
 
   // Rest of public methods.
 
-  void AppendSelector(scoped_ptr<SimpleSelector> selector);
+  void AppendSelector(std::unique_ptr<SimpleSelector> selector);
   const SimpleSelectors& simple_selectors() const { return simple_selectors_; }
   PseudoElement* pseudo_element() {
     if (has_pseudo_element_) {
@@ -70,7 +70,7 @@ class CompoundSelector : public Selector {
   }
 
   Combinator* right_combinator() { return right_combinator_.get(); }
-  void set_right_combinator(scoped_ptr<Combinator> combinator);
+  void set_right_combinator(std::unique_ptr<Combinator> combinator);
 
   bool requires_rule_matching_verification_visit() const {
     return requires_rule_matching_verification_visit_;
@@ -78,7 +78,7 @@ class CompoundSelector : public Selector {
 
  private:
   Combinator* left_combinator_;
-  scoped_ptr<Combinator> right_combinator_;
+  std::unique_ptr<Combinator> right_combinator_;
   SimpleSelectors simple_selectors_;
   Specificity specificity_;
   bool has_pseudo_element_;

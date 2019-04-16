@@ -17,8 +17,8 @@
 #include <string>
 
 #include "base/command_line.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 
@@ -55,9 +55,9 @@ const int kTestSurfaceHeight = 200;
 // Returns the directory that all test output files should be placed in (e.g.
 // when kRebaseline, kOutputFailedTestDetails, or
 // kOutputAllTestDetails switches are set).
-FilePath GetTestOutputDirectory() {
-  FilePath out_file_dir;
-  PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &out_file_dir);
+base::FilePath GetTestOutputDirectory() {
+  base::FilePath out_file_dir;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &out_file_dir);
   out_file_dir = out_file_dir.Append(FILE_PATH_LITERAL("cobalt"))
                      .Append(FILE_PATH_LITERAL("renderer"))
                      .Append(FILE_PATH_LITERAL("rasterizer"))
@@ -68,9 +68,9 @@ FilePath GetTestOutputDirectory() {
 
 // Returns the directory that all input expected results test data files should
 // be found in. Files should be placed in this location by the build process.
-FilePath GetTestInputDirectory() {
-  FilePath in_file_dir;
-  PathService::Get(base::DIR_TEST_DATA, &in_file_dir);
+base::FilePath GetTestInputDirectory() {
+  base::FilePath in_file_dir;
+  base::PathService::Get(base::DIR_TEST_DATA, &in_file_dir);
   return in_file_dir.Append(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("renderer"))
       .Append(FILE_PATH_LITERAL("rasterizer"))
@@ -85,10 +85,10 @@ PixelTest::PixelTest() {
   // file.
   RenderTreePixelTester::Options pixel_tester_options;
   pixel_tester_options.output_failed_test_details =
-      CommandLine::ForCurrentProcess()->HasSwitch(
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputFailedTestDetails);
   pixel_tester_options.output_all_test_details =
-      CommandLine::ForCurrentProcess()->HasSwitch(
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputAllTestDetails);
 
   pixel_tester_.emplace(math::Size(kTestSurfaceWidth, kTestSurfaceHeight),
@@ -108,17 +108,17 @@ void PixelTest::TestTree(
       ::testing::UnitTest::GetInstance()->current_test_info()->name());
 
   bool results =
-      pixel_tester_->TestTree(test_tree, FilePath(current_test_name));
+      pixel_tester_->TestTree(test_tree, base::FilePath(current_test_name));
   EXPECT_TRUE(results);
 
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline) ||
-      (!results &&
-       CommandLine::ForCurrentProcess()->HasSwitch(
-           switches::kRebaselineFailedTests))) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kRebaseline) ||
+      (!results && base::CommandLine::ForCurrentProcess()->HasSwitch(
+                       switches::kRebaselineFailedTests))) {
     // If the 'rebase' flag is set, we should not run any actual tests but
     // instead output the results of our tests so that they can be used as
     // expected output for subsequent tests.
-    pixel_tester_->Rebaseline(test_tree, FilePath(current_test_name));
+    pixel_tester_->Rebaseline(test_tree, base::FilePath(current_test_name));
   }
 }
 

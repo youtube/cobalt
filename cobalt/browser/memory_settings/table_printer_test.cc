@@ -63,7 +63,7 @@ TEST(TablePrinter, ToStringWithColor) {
   table.AddRow(MakeRow2("col1", "col2"));
   table.AddRow(MakeRow2("value1", "value2"));
 
-  // These defines will wrap color constants for string literals.
+// These defines will wrap color constants for string literals.
 #define R(STR) RED_START STR COLOR_END
 #define G(STR) GREEN_START STR COLOR_END
 

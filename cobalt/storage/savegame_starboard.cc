@@ -15,10 +15,11 @@
 #include "cobalt/storage/savegame.h"
 
 #include <algorithm>
+#include <memory>
 
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ptr_util.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "cobalt/storage/store_upgrade/upgrade.h"
@@ -36,11 +37,11 @@ using cobalt::storage::store_upgrade::UpgradeStore;
 // filesystem cannot cause us to allocate a fatally large memory buffer.
 size_t kMaxSaveGameSizeBytes = 4 * 1024 * 1024;
 
-bool WriteRecord(const scoped_ptr<starboard::StorageRecord>& record,
+bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
                  const Savegame::ByteVector& bytes);
 
 bool Upgrade(Savegame::ByteVector* bytes_ptr,
-             const scoped_ptr<starboard::StorageRecord>& record) {
+             const std::unique_ptr<starboard::StorageRecord>& record) {
   DLOG(INFO) << "UPGRADING Record with size=" << bytes_ptr->size();
   if (IsUpgradeRequired(*bytes_ptr)) {
     if (!UpgradeStore(bytes_ptr)) {
@@ -55,7 +56,7 @@ bool Upgrade(Savegame::ByteVector* bytes_ptr,
 }
 
 bool ReadRecord(Savegame::ByteVector* bytes_ptr, size_t max_to_read,
-                const scoped_ptr<starboard::StorageRecord>& record) {
+                const std::unique_ptr<starboard::StorageRecord>& record) {
   if (!record->IsValid()) {
     DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord";
     return false;
@@ -94,7 +95,7 @@ bool ReadRecord(Savegame::ByteVector* bytes_ptr, size_t max_to_read,
   return success;
 }
 
-bool WriteRecord(const scoped_ptr<starboard::StorageRecord>& record,
+bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
                  const Savegame::ByteVector& bytes) {
   int64_t byte_count = static_cast<int64_t>(bytes.size());
   bool success =
@@ -105,20 +106,20 @@ bool WriteRecord(const scoped_ptr<starboard::StorageRecord>& record,
   return success;
 }
 
-scoped_ptr<starboard::StorageRecord> CreateRecord(
-    const base::optional<std::string>& id) {
+std::unique_ptr<starboard::StorageRecord> CreateRecord(
+    const base::Optional<std::string>& id) {
 #if SB_API_VERSION >= 6
   if (id) {
-    return make_scoped_ptr(new starboard::StorageRecord(id->c_str()));
+    return base::WrapUnique(new starboard::StorageRecord(id->c_str()));
   }
-#else  // SB_API_VERSION >= 6
-  UNREFERENCED_PARAMETER(id);
+#else   // SB_API_VERSION >= 6
+  SB_UNREFERENCED_PARAMETER(id);
 #endif  // SB_API_VERSION >= 6
-  return make_scoped_ptr(new starboard::StorageRecord());
+  return base::WrapUnique(new starboard::StorageRecord());
 }
 
-bool EnsureRecord(scoped_ptr<starboard::StorageRecord>* record,
-                  const base::optional<std::string>& id) {
+bool EnsureRecord(std::unique_ptr<starboard::StorageRecord>* record,
+                  const base::Optional<std::string>& id) {
   if (!(*record) || !(*record)->IsValid()) {
     // Might have been deleted, so we'll create a new one.
     (*record) = CreateRecord(id);
@@ -143,7 +144,7 @@ class SavegameStarboard : public Savegame {
 
  private:
   bool MigrateFromFallback();
-  scoped_ptr<starboard::StorageRecord> record_;
+  std::unique_ptr<starboard::StorageRecord> record_;
 };
 
 SavegameStarboard::SavegameStarboard(const Options& options)
@@ -198,11 +199,11 @@ bool SavegameStarboard::MigrateFromFallback() {
   ByteVector buffer;
   if (!EnsureRecord(&record_, options_.id)) {
     DLOG(WARNING) << __FUNCTION__ << ": "
-                  << "Failed to ensure record for ID: " << options_.id;
+                  << "Failed to ensure record for ID: " << options_.id.value();
     return false;
   }
 
-  scoped_ptr<starboard::StorageRecord> fallback_record;
+  std::unique_ptr<starboard::StorageRecord> fallback_record;
   if (!EnsureRecord(&fallback_record, base::nullopt)) {
     DLOG(WARNING) << __FUNCTION__ << ": "
                   << "Failed to open default record.";
@@ -224,7 +225,7 @@ bool SavegameStarboard::MigrateFromFallback() {
 
   if (!WriteRecord(record_, buffer)) {
     DLOG(WARNING) << __FUNCTION__ << ": "
-                  << "Failed to write record for ID: " << options_.id;
+                  << "Failed to write record for ID: " << options_.id.value();
     return false;
   }
 
@@ -237,15 +238,15 @@ bool SavegameStarboard::MigrateFromFallback() {
   // Now cleanup the fallback record.
   fallback_record->Delete();
   DLOG(INFO) << "Migrated storage record data successfully for user id: "
-             << options_.id;
+             << options_.id.value();
   return true;
 }
 
 }  // namespace
 
 // static
-scoped_ptr<Savegame> Savegame::Create(const Options& options) {
-  return make_scoped_ptr(new SavegameStarboard(options)).PassAs<Savegame>();
+std::unique_ptr<Savegame> Savegame::Create(const Options& options) {
+  return base::WrapUnique(new SavegameStarboard(options));
 }
 
 }  // namespace storage

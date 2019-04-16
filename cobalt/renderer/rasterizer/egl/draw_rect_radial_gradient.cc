@@ -31,9 +31,9 @@ namespace {
 const int kVertexCount = 4;
 }  // namespace
 
-DrawRectRadialGradient::DrawRectRadialGradient(GraphicsState* graphics_state,
-    const BaseState& base_state, const math::RectF& rect,
-    const render_tree::RadialGradientBrush& brush,
+DrawRectRadialGradient::DrawRectRadialGradient(
+    GraphicsState* graphics_state, const BaseState& base_state,
+    const math::RectF& rect, const render_tree::RadialGradientBrush& brush,
     const GetScratchTextureFunction& get_scratch_texture)
     : DrawObject(base_state),
       lookup_texture_(nullptr),
@@ -44,8 +44,8 @@ DrawRectRadialGradient::DrawRectRadialGradient(GraphicsState* graphics_state,
   // linear filtering, reducing the texture size will only impact accuracy at
   // the color stops (but not between them).
   const float kLookupSizes[] = {
-    // These represent breakpoints that are likely to be used.
-    1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 8.0f, 10.0f, 20.0f, 50.0f, 100.0f,
+      // These represent breakpoints that are likely to be used.
+      1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 8.0f, 10.0f, 20.0f, 50.0f, 100.0f,
   };
   const render_tree::ColorStopList& color_stops = brush.color_stops();
 
@@ -83,14 +83,13 @@ DrawRectRadialGradient::DrawRectRadialGradient(GraphicsState* graphics_state,
     AddVertex(rect.right(), rect.y(), offset_center, offset_scale);
     AddVertex(rect.right(), rect.bottom(), offset_center, offset_scale);
     AddVertex(rect.x(), rect.bottom(), offset_center, offset_scale);
-    graphics_state->ReserveVertexData(
-        attributes_.size() * sizeof(VertexAttributes));
+    graphics_state->ReserveVertexData(attributes_.size() *
+                                      sizeof(VertexAttributes));
   }
 }
 
 void DrawRectRadialGradient::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (attributes_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_.size() * sizeof(VertexAttributes));
@@ -100,40 +99,39 @@ void DrawRectRadialGradient::ExecuteUpdateVertexBuffer(
 }
 
 void DrawRectRadialGradient::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (attributes_.size() > 0) {
-    ShaderProgram<ShaderVertexOffset,
-                  ShaderFragmentOpacityTexcoord1d>* program;
+    ShaderProgram<ShaderVertexOffset, ShaderFragmentOpacityTexcoord1d>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     graphics_state->UpdateClipAdjustment(
         program->GetVertexShader().u_clip_adjustment());
     graphics_state->UpdateTransformMatrix(
-        program->GetVertexShader().u_view_matrix(),
-        base_state_.transform);
+        program->GetVertexShader().u_view_matrix(), base_state_.transform);
     graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-        base_state_.scissor.width(), base_state_.scissor.height());
+                            base_state_.scissor.width(),
+                            base_state_.scissor.height());
     graphics_state->VertexAttribPointer(
         program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
-        sizeof(VertexAttributes), vertex_buffer_ +
-        offsetof(VertexAttributes, position));
+        sizeof(VertexAttributes),
+        vertex_buffer_ + offsetof(VertexAttributes, position));
     graphics_state->VertexAttribPointer(
         program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
-        sizeof(VertexAttributes), vertex_buffer_ +
-        offsetof(VertexAttributes, offset));
+        sizeof(VertexAttributes),
+        vertex_buffer_ + offsetof(VertexAttributes, offset));
     graphics_state->VertexAttribFinish();
 
     // Map radial length [0, 1] to texture coordinates for the lookup texture.
     // |u_texcoord_transform| represents (u-scale, u-add, u-max, v-center).
     const float kTextureWidthScale = 1.0f / lookup_texture_->GetSize().width();
-    GL_CALL(glUniform4f(program->GetFragmentShader().u_texcoord_transform(),
+    GL_CALL(glUniform4f(
+        program->GetFragmentShader().u_texcoord_transform(),
         (lookup_region_.width() - 1.0f) * kTextureWidthScale,
         (lookup_region_.x() + 0.5f) * kTextureWidthScale,
         (lookup_region_.right() - 0.5f) * kTextureWidthScale,
         (lookup_region_.y() + 0.5f) / lookup_texture_->GetSize().height()));
     GL_CALL(glUniform1f(program->GetFragmentShader().u_opacity(),
-        base_state_.opacity));
+                        base_state_.opacity));
     graphics_state->ActiveBindTexture(
         program->GetFragmentShader().u_texture_texunit(),
         lookup_texture_->GetTarget(), lookup_texture_->gl_handle());
@@ -187,8 +185,8 @@ void DrawRectRadialGradient::InitializeLookupTexture(
 
     // Write the blended color to the lookup texture buffer.
     float blend_ratio = (texel - position_prev) * position_scale;
-    render_tree::ColorRGBA color = color_prev * (1.0f - blend_ratio) +
-                                   color_next * blend_ratio;
+    render_tree::ColorRGBA color =
+        color_prev * (1.0f - blend_ratio) + color_next * blend_ratio;
     pixel[0] = color.rgb8_r();
     pixel[1] = color.rgb8_g();
     pixel[2] = color.rgb8_b();
@@ -200,23 +198,23 @@ void DrawRectRadialGradient::InitializeLookupTexture(
   DCHECK_EQ(lookup_texture_->GetFormat(), GL_RGBA);
   GL_CALL(glBindTexture(lookup_texture_->GetTarget(),
                         lookup_texture_->gl_handle()));
-  GL_CALL(glTexSubImage2D(lookup_texture_->GetTarget(), 0,
-                          static_cast<GLint>(lookup_region_.x()),
-                          static_cast<GLint>(lookup_region_.y()),
-                          static_cast<GLsizei>(lookup_region_.width()), 1,
-                          lookup_texture_->GetFormat(), GL_UNSIGNED_BYTE,
-                          lookup_buffer));
+  GL_CALL(glTexSubImage2D(
+      lookup_texture_->GetTarget(), 0, static_cast<GLint>(lookup_region_.x()),
+      static_cast<GLint>(lookup_region_.y()),
+      static_cast<GLsizei>(lookup_region_.width()), 1,
+      lookup_texture_->GetFormat(), GL_UNSIGNED_BYTE, lookup_buffer));
   GL_CALL(glBindTexture(lookup_texture_->GetTarget(), 0));
 
   delete[] lookup_buffer;
 }
 
 void DrawRectRadialGradient::AddVertex(float x, float y,
-    const math::PointF& offset_center, const math::PointF& offset_scale) {
+                                       const math::PointF& offset_center,
+                                       const math::PointF& offset_scale) {
   VertexAttributes attributes = {
-    { x, y },
-    { (x - offset_center.x()) * offset_scale.x(),
-      (y - offset_center.y()) * offset_scale.y() },
+      {x, y},
+      {(x - offset_center.x()) * offset_scale.x(),
+       (y - offset_center.y()) * offset_scale.y()},
   };
   attributes_.push_back(attributes);
 }

@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_CUSTOM_EVENT_H_
 #define COBALT_DOM_CUSTOM_EVENT_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/dom/custom_event_init.h"
@@ -67,7 +68,7 @@ class CustomEvent : public Event {
  protected:
   ~CustomEvent() override {}
 
-  scoped_ptr<script::ValueHandleHolder::Reference> detail_;
+  std::unique_ptr<script::ValueHandleHolder::Reference> detail_;
 };
 
 }  // namespace dom

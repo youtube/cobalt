@@ -7,10 +7,6 @@
     {
       'target_name': 'media2',
       'type': '<(component)',
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/ui/ui.gyp:ui',
-      ],
       'cflags_cc': [
         '-Wno-conversion',
         '-Wno-unused-parameter',
@@ -223,7 +219,9 @@
         ],
       },
       'dependencies': [
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/net/net.gyp:net',
+        '<(DEPTH)/url/url.gyp:url',
         '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],

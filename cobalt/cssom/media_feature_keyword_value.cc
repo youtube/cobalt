@@ -43,8 +43,8 @@ struct MediaFeatureKeywordValue::NonTrivialStaticFields {
 
 namespace {
 
-base::LazyInstance<MediaFeatureKeywordValue::NonTrivialStaticFields>
-    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<MediaFeatureKeywordValue::NonTrivialStaticFields>::
+    DestructorAtExit non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

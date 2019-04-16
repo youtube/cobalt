@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -38,6 +39,8 @@ namespace cobalt {
 namespace webdriver {
 namespace {
 const char kBlankDocument[] = "<html><head/><body/><html>";
+// This number is to match the max element depth in production.
+const int kDOMMaxElementDepth = 32;
 class GetElementTextTest : public ::testing::Test {
  protected:
   GetElementTextTest()
@@ -52,6 +55,7 @@ class GetElementTextTest : public ::testing::Test {
     dom::Document::Options options;
     options.viewport_size = ViewportSize(1920, 1080);
     options.navigation_start_clock = new base::SystemMonotonicClock();
+    options.dom_max_element_depth = kDOMMaxElementDepth;
     document_ = new dom::Document(&html_element_context_, options);
     document_->AppendChild(new dom::HTMLHtmlElement(document_.get()));
     document_->html()->AppendChild(new dom::HTMLHeadElement(document_.get()));
@@ -77,8 +81,8 @@ class GetElementTextTest : public ::testing::Test {
     div_->AppendChild(p);
   }
 
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
   scoped_refptr<dom::HTMLDivElement> div_;

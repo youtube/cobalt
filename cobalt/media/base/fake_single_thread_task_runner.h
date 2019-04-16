@@ -26,13 +26,13 @@ class FakeSingleThreadTaskRunner : public base::SingleThreadTaskRunner {
   void Sleep(base::TimeDelta t);
 
   // base::SingleThreadTaskRunner implementation.
-  bool PostDelayedTask(const tracked_objects::Location& from_here,
+  bool PostDelayedTask(const base::Location& from_here,
                        const base::Closure& task, base::TimeDelta delay) final;
 
   bool RunsTasksOnCurrentThread() const final;
 
   // This function is currently not used, and will return false.
-  bool PostNonNestableDelayedTask(const tracked_objects::Location& from_here,
+  bool PostNonNestableDelayedTask(const base::Location& from_here,
                                   const base::Closure& task,
                                   base::TimeDelta delay) final;
 

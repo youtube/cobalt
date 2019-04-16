@@ -16,8 +16,8 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "nb/memory_scope.h"
 #include "third_party/libjpeg/jpegint.h"
 
@@ -86,12 +86,12 @@ void ErrorManagerExit(j_common_ptr common_ptr) {
 }
 
 void SourceManagerInitSource(j_decompress_ptr decompress_ptr) {
-  UNREFERENCED_PARAMETER(decompress_ptr);
+  SB_UNREFERENCED_PARAMETER(decompress_ptr);
   // no-op.
 }
 
 boolean SourceManagerFillInputBuffer(j_decompress_ptr decompress_ptr) {
-  UNREFERENCED_PARAMETER(decompress_ptr);
+  SB_UNREFERENCED_PARAMETER(decompress_ptr);
   // Normally, this function is called when we need to read more of the encoded
   // buffer into memory and a return false indicates that we have no data to
   // supply yet, but in our case, the encoded buffer is always in memory, so
@@ -102,13 +102,13 @@ boolean SourceManagerFillInputBuffer(j_decompress_ptr decompress_ptr) {
 
 boolean SourceManagerResyncToRestart(j_decompress_ptr decompress_ptr,
                                      int desired) {
-  UNREFERENCED_PARAMETER(decompress_ptr);
-  UNREFERENCED_PARAMETER(desired);
+  SB_UNREFERENCED_PARAMETER(decompress_ptr);
+  SB_UNREFERENCED_PARAMETER(desired);
   return false;
 }
 
 void SourceManagerTermSource(j_decompress_ptr decompress_ptr) {
-  UNREFERENCED_PARAMETER(decompress_ptr);
+  SB_UNREFERENCED_PARAMETER(decompress_ptr);
   // no-op.
 }
 
@@ -241,7 +241,7 @@ scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
   if (output_format_ == kOutputFormatRGBA ||
       output_format_ == kOutputFormatBGRA) {
     SB_DCHECK(decoded_image_data_);
-    return CreateStaticImage(decoded_image_data_.Pass());
+    return CreateStaticImage(std::move(decoded_image_data_));
   }
 
   SB_DCHECK(output_format_ == kOutputFormatYUV);
@@ -274,7 +274,7 @@ scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
                                        uv_plane_width));
 
   auto image = resource_provider()->CreateMultiPlaneImageFromRawMemory(
-      raw_image_memory_.Pass(), descriptor);
+      std::move(raw_image_memory_), descriptor);
   SB_DCHECK(image);
   return new StaticImage(image);
 }

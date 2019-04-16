@@ -18,7 +18,7 @@
 #include <limits>
 #include <vector>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "starboard/types.h"

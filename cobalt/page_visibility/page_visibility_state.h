@@ -28,7 +28,7 @@ class PageVisibilityState {
  public:
   // Pure virtual interface for classes that want to observe page visibility
   // state changes.
-  class Observer {
+  class Observer : public base::CheckedObserver {
    public:
     // Called when the window focus state changes.
     virtual void OnWindowFocusChanged(bool has_focus) = 0;
@@ -85,7 +85,7 @@ class PageVisibilityState {
   base::ApplicationState application_state_;
 
   // The list of registered PageVisibiltyState::Observers;
-  ObserverList<Observer> observer_list_;
+  base::ObserverList<Observer> observer_list_;
 };
 
 }  // namespace page_visibility

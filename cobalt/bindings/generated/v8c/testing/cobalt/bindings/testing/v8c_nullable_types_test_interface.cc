@@ -1,6 +1,6 @@
 
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include "cobalt/bindings/testing/v8c_nullable_types_test_interface.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
@@ -173,7 +173,7 @@ void nullableBooleanPropertyAttributeSetter(
   }
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  TypeTraits<base::optional<bool > >::ConversionType value;
+  TypeTraits<base::Optional<bool > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -249,7 +249,7 @@ void nullableNumericPropertyAttributeSetter(
   }
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  TypeTraits<base::optional<int32_t > >::ConversionType value;
+  TypeTraits<base::Optional<int32_t > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -325,7 +325,7 @@ void nullableStringPropertyAttributeSetter(
   }
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  TypeTraits<base::optional<std::string > >::ConversionType value;
+  TypeTraits<base::Optional<std::string > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -443,7 +443,7 @@ void nullableBooleanArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& in
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<bool > >::ConversionType arg;
+  TypeTraits<base::Optional<bool > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,
@@ -525,7 +525,7 @@ void nullableNumericArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& in
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<int32_t > >::ConversionType arg;
+  TypeTraits<base::Optional<int32_t > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,
@@ -689,7 +689,7 @@ void nullableStringArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& inf
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<std::string > >::ConversionType arg;
+  TypeTraits<base::Optional<std::string > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,

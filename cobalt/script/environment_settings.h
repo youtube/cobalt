@@ -15,8 +15,9 @@
 #ifndef COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
 #define COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace script {
@@ -29,7 +30,7 @@ class EnvironmentSettings {
   virtual ~EnvironmentSettings() {}
 
  protected:
-  friend class scoped_ptr<EnvironmentSettings>;
+  friend std::unique_ptr<EnvironmentSettings>::deleter_type;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);

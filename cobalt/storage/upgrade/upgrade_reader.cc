@@ -14,14 +14,15 @@
 
 #include "cobalt/storage/upgrade/upgrade_reader.h"
 
+#include <memory>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
-#include "googleurl/src/gurl.h"
+#include "base/strings/string_number_conversions.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace storage {
@@ -117,7 +118,7 @@ void UpgradeReader::Parse(const char* data, int size) {
   size -= kHeaderSize;
 
   base::JSONReader json_reader;
-  scoped_ptr<base::Value> parsed(
+  std::unique_ptr<base::Value> parsed(
       json_reader.ReadToValue(std::string(data, static_cast<size_t>(size))));
   base::DictionaryValue* valid_dictionary = NULL;
   if (parsed) {
@@ -172,8 +173,7 @@ void UpgradeReader::AddCookieIfValid(const base::DictionaryValue* cookie) {
   cookie->GetString("path", &path);
   base::Time creation =
       GetSerializedTime(cookie, "creation", base::Time::Now());
-  base::Time expiration =
-      GetSerializedTime(cookie, "expiration", base::Time());
+  base::Time expiration = GetSerializedTime(cookie, "expiration", base::Time());
   base::Time last_access =
       GetSerializedTime(cookie, "last_access", base::Time::Now());
   bool http_only = false;
@@ -190,12 +190,12 @@ void UpgradeReader::AddCookieIfValid(const base::DictionaryValue* cookie) {
     OnNullExpiration();
   }
   LOG_IF(ERROR, expiration < base::Time::UnixEpoch())
-      << "\"" << name << "\" upgrade cookie expiration is "
-      << base::TimeFormatFriendlyDateAndTime(expiration);
+      << "\"" << name.c_str() << "\" upgrade cookie expiration is "
+      << base::TimeFormatFriendlyDateAndTime(expiration).c_str();
 
   cookies_.push_back(net::CanonicalCookie(
-      gurl, name, value, domain, path, mac_key, mac_algorithm, creation,
-      expiration, last_access, secure, http_only));
+      name, value, domain, path, creation, expiration, last_access, secure,
+      http_only, net::CookieSameSite(), net::COOKIE_PRIORITY_DEFAULT));
 }
 
 const UpgradeReader::LocalStorageEntry* UpgradeReader::GetLocalStorageEntry(

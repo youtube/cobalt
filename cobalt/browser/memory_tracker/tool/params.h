@@ -15,10 +15,10 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_PARAMS_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_PARAMS_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "nb/analytics/memory_tracker.h"
 #include "starboard/common/semaphore.h"
 
@@ -44,7 +44,7 @@ class Params {
  private:
   nb::analytics::MemoryTracker* memory_tracker_;
   bool finished_;
-  scoped_ptr<AbstractLogger> logger_;
+  std::unique_ptr<AbstractLogger> logger_;
   base::Time timer_;
   starboard::Semaphore finished_semaphore_;
 };

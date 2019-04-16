@@ -15,9 +15,10 @@
 #ifndef COBALT_RENDERER_RENDER_TREE_PIXEL_TESTER_H_
 #define COBALT_RENDERER_RENDER_TREE_PIXEL_TESTER_H_
 
-#include "base/file_path.h"
+#include <memory>
+
+#include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -65,8 +66,8 @@ class RenderTreePixelTester {
   // If rebaselining or outputting test details, this output will appear in
   // output_directory.
   RenderTreePixelTester(const math::Size& test_surface_dimensions,
-                        const FilePath& expected_results_directory,
-                        const FilePath& output_directory,
+                        const base::FilePath& expected_results_directory,
+                        const base::FilePath& output_directory,
                         const Options& options);
   ~RenderTreePixelTester();
 
@@ -74,7 +75,7 @@ class RenderTreePixelTester {
   // saves it as the expected output file in the directory rooted at
   // output_directory passed into the constructor.
   void Rebaseline(const scoped_refptr<cobalt::render_tree::Node>& test_tree,
-                  const FilePath& expected_base_filename) const;
+                  const base::FilePath& expected_base_filename) const;
 
   // Given the passed in render tree and based on the expected output
   // found in a file based on expected_base_filename and
@@ -84,22 +85,22 @@ class RenderTreePixelTester {
   // this method may have the side-effect of outputting files that describe the
   // details of the comparison (e.g. expected and actual output).
   bool TestTree(const scoped_refptr<cobalt::render_tree::Node>& test_tree,
-                const FilePath& expected_base_filename) const;
+                const base::FilePath& expected_base_filename) const;
 
   render_tree::ResourceProvider* GetResourceProvider() const;
 
-  scoped_array<uint8_t> RasterizeRenderTree(
+  std::unique_ptr<uint8_t[]> RasterizeRenderTree(
       const scoped_refptr<cobalt::render_tree::Node>& test_tree) const;
   const math::Size& GetTargetSize() const { return test_surface_->GetSize(); }
 
  private:
-  scoped_ptr<cobalt::renderer::backend::GraphicsSystem> graphics_system_;
-  scoped_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context_;
-  scoped_ptr<cobalt::renderer::rasterizer::Rasterizer> rasterizer_;
+  std::unique_ptr<cobalt::renderer::backend::GraphicsSystem> graphics_system_;
+  std::unique_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context_;
+  std::unique_ptr<cobalt::renderer::rasterizer::Rasterizer> rasterizer_;
   scoped_refptr<cobalt::renderer::backend::RenderTarget> test_surface_;
 
-  FilePath expected_results_directory_;
-  FilePath output_directory_;
+  base::FilePath expected_results_directory_;
+  base::FilePath output_directory_;
 
   Options options_;
 };

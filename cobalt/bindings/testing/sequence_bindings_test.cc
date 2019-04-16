@@ -35,8 +35,7 @@ TEST_F(SequenceBindingsTest, InterfaceSequence) {
 
   EXPECT_TRUE(EvaluateScript("test.setInterfaceSequence([])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 
   EXPECT_TRUE(
@@ -46,8 +45,7 @@ TEST_F(SequenceBindingsTest, InterfaceSequence) {
                      "      new ArbitraryInterface()])",
                      &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result)) << result;
   EXPECT_STREQ(
       "[object ArbitraryInterface],[object ArbitraryInterface],"
       "[object ArbitraryInterface]",
@@ -85,8 +83,7 @@ TEST_F(SequenceBindingsTest, InterfaceSequence) {
 
   // After all that the value should be unchanged, because the function won't be
   // called.
-  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result)) << result;
   EXPECT_STREQ(
       "[object ArbitraryInterface],[object ArbitraryInterface],"
       "[object ArbitraryInterface]",
@@ -95,8 +92,7 @@ TEST_F(SequenceBindingsTest, InterfaceSequence) {
   // We should be able to clear it out this way.
   EXPECT_TRUE(EvaluateScript("test.setInterfaceSequence([])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getInterfaceSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 }
 
@@ -207,8 +203,8 @@ TEST_F(SequenceBindingsTest, InterfaceSequenceSequenceSequence) {
       << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
-  EXPECT_FALSE(EvaluateScript("test.setInterfaceSequenceSequenceSequence([1])",
-                              &result))
+  EXPECT_FALSE(
+      EvaluateScript("test.setInterfaceSequenceSequenceSequence([1])", &result))
       << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
@@ -250,93 +246,76 @@ TEST_F(SequenceBindingsTest, InterfaceSequenceSequenceSequence) {
 
 TEST_F(SequenceBindingsTest, LongSequence) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript("test.setLongSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setLongSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 
   EXPECT_TRUE(EvaluateScript("test.setLongSequence([99, 88, 77])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result)) << result;
   EXPECT_STREQ("99,88,77", result.c_str());
 
   EXPECT_TRUE(
       EvaluateScript("test.setLongSequence([500, 1000, 10000])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result)) << result;
   EXPECT_STREQ("500,1000,10000", result.c_str());
 
-  EXPECT_FALSE(EvaluateScript("test.setLongSequence(7)", &result))
-      << result;
+  EXPECT_FALSE(EvaluateScript("test.setLongSequence(7)", &result)) << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.setLongSequence(undefined)", &result))
       << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
-  EXPECT_FALSE(EvaluateScript("test.setLongSequence(null)", &result))
-      << result;
+  EXPECT_FALSE(EvaluateScript("test.setLongSequence(null)", &result)) << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   // After all that the value should be unchanged.
-  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result)) << result;
   EXPECT_STREQ("500,1000,10000", result.c_str());
 
   // This is true because a string coerces into a number.
   EXPECT_TRUE(EvaluateScript("test.setLongSequence(['321'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result)) << result;
   EXPECT_STREQ("321", result.c_str());
 
   // We should be able to clear it out this way.
-  EXPECT_TRUE(EvaluateScript("test.setLongSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setLongSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getLongSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 }
 
 TEST_F(SequenceBindingsTest, StringSequence) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript("test.setStringSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setStringSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 
   EXPECT_TRUE(EvaluateScript("test.setStringSequence(['a'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("a", result.c_str());
 
   EXPECT_TRUE(EvaluateScript("test.setStringSequence(['a', 'b'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("a,b", result.c_str());
 
   EXPECT_TRUE(
       EvaluateScript("test.setStringSequence(['a', 'b', 'c'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("a,b,c", result.c_str());
 
   EXPECT_TRUE(
       EvaluateScript("test.setStringSequence(['!', '@', '#'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("!,@,#", result.c_str());
 
-  EXPECT_FALSE(EvaluateScript("test.setStringSequence(7)", &result))
-      << result;
+  EXPECT_FALSE(EvaluateScript("test.setStringSequence(7)", &result)) << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.setStringSequence(undefined)", &result))
@@ -349,36 +328,28 @@ TEST_F(SequenceBindingsTest, StringSequence) {
 
   // After all that the value should be unchanged, because the function won't be
   // called.
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("!,@,#", result.c_str());
 
   // These are true because pretty much everything coerces into a string.
-  EXPECT_TRUE(EvaluateScript("test.setStringSequence([1])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setStringSequence([1])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("1", result.c_str());
 
-  EXPECT_TRUE(
-      EvaluateScript("test.setStringSequence([new Object()])", &result))
+  EXPECT_TRUE(EvaluateScript("test.setStringSequence([new Object()])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("[object Object]", result.c_str());
 
   EXPECT_TRUE(EvaluateScript(
       "test.setStringSequence([new ArbitraryInterface()])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("[object ArbitraryInterface]", result.c_str());
 
   // We should be able to clear it out this way.
-  EXPECT_TRUE(EvaluateScript("test.setStringSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setStringSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 }
 
@@ -390,8 +361,7 @@ TEST_F(SequenceBindingsTest, StringSequenceSequence) {
       << result;
   EXPECT_STREQ("", result.c_str());
 
-  EXPECT_FALSE(
-      EvaluateScript("test.setStringSequenceSequence(['a'])", &result))
+  EXPECT_FALSE(EvaluateScript("test.setStringSequenceSequence(['a'])", &result))
       << result;
   EXPECT_TRUE(
       EvaluateScript("test.setStringSequenceSequence([['a']])", &result))
@@ -400,8 +370,8 @@ TEST_F(SequenceBindingsTest, StringSequenceSequence) {
       << result;
   EXPECT_STREQ("a", result.c_str());
 
-  EXPECT_TRUE(EvaluateScript("test.setStringSequenceSequence([['a'], ['b']])",
-                             &result))
+  EXPECT_TRUE(
+      EvaluateScript("test.setStringSequenceSequence([['a'], ['b']])", &result))
       << result;
   EXPECT_TRUE(EvaluateScript("test.getStringSequenceSequence()", &result))
       << result;
@@ -445,10 +415,8 @@ TEST_F(SequenceBindingsTest, StringSequenceSequence) {
   EXPECT_STREQ("!,@,#", result.c_str());
 
   // We should be able to clear it out this way.
-  EXPECT_TRUE(EvaluateScript("test.setStringSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setStringSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getStringSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 }
 
@@ -538,29 +506,23 @@ TEST_F(SequenceBindingsTest, UnionOfStringAndStringSequence) {
 
 TEST_F(SequenceBindingsTest, SequenceUnion) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript("test.setUnionSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setUnionSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 
   EXPECT_TRUE(EvaluateScript("test.setUnionSequence(['a'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("a", result.c_str());
 
   EXPECT_TRUE(EvaluateScript("test.setUnionSequence(['a', 'b'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("a,b", result.c_str());
 
-  EXPECT_TRUE(
-      EvaluateScript("test.setUnionSequence(['a', 'b', 'c'])", &result))
+  EXPECT_TRUE(EvaluateScript("test.setUnionSequence(['a', 'b', 'c'])", &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("a,b,c", result.c_str());
 
   EXPECT_TRUE(
@@ -570,8 +532,7 @@ TEST_F(SequenceBindingsTest, SequenceUnion) {
                      "      new ArbitraryInterface()])",
                      &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ(
       "[object ArbitraryInterface],[object ArbitraryInterface],"
       "[object ArbitraryInterface]",
@@ -584,13 +545,11 @@ TEST_F(SequenceBindingsTest, SequenceUnion) {
                      "      'c'])",
                      &result))
       << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("a,[object ArbitraryInterface],c", result.c_str());
 
   // Conversion failure cases.
-  EXPECT_FALSE(EvaluateScript("test.setUnionSequence(7)", &result))
-      << result;
+  EXPECT_FALSE(EvaluateScript("test.setUnionSequence(7)", &result)) << result;
   EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.setUnionSequence(undefined)", &result))
@@ -603,15 +562,12 @@ TEST_F(SequenceBindingsTest, SequenceUnion) {
 
   // After all that the value should be unchanged, because the function won't be
   // called.
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("a,[object ArbitraryInterface],c", result.c_str());
 
   // We should be able to clear it out this way.
-  EXPECT_TRUE(EvaluateScript("test.setUnionSequence([])", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result))
-      << result;
+  EXPECT_TRUE(EvaluateScript("test.setUnionSequence([])", &result)) << result;
+  EXPECT_TRUE(EvaluateScript("test.getUnionSequence()", &result)) << result;
   EXPECT_STREQ("", result.c_str());
 }
 

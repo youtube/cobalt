@@ -16,15 +16,18 @@
 #define COBALT_LOADER_FILE_FETCHER_H_
 
 #include <limits>
+#include <memory>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/file_path.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/files/file_proxy.h"
+#include "base/files/platform_file.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
-#include "base/platform_file.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/fetcher.h"
 
@@ -42,23 +45,25 @@ class FileFetcher : public Fetcher {
         : buffer_size(kDefaultBufferSize),
           start_offset(0),
           bytes_to_read(std::numeric_limits<int64>::max()),
-          message_loop_proxy(base::MessageLoopProxy::current()) {}
+          message_loop_proxy(base::MessageLoop::current()->task_runner()) {}
 
     int32 buffer_size;
     int64 start_offset;
     int64 bytes_to_read;
-    scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
-    FilePath extra_search_dir;
+    scoped_refptr<base::SingleThreadTaskRunner> message_loop_proxy;
+    base::FilePath extra_search_dir;
   };
 
-  FileFetcher(const FilePath& file_path, Handler* handler,
+  FileFetcher(const base::FilePath& file_path, Handler* handler,
               const Options& options);
   ~FileFetcher() override;
 
   // This function is used for binding callback for creating FileFetcher.
-  static scoped_ptr<Fetcher> Create(const FilePath& file_path,
-                                    const Options& options, Handler* handler) {
-    return scoped_ptr<Fetcher>(new FileFetcher(file_path, handler, options));
+  static std::unique_ptr<Fetcher> Create(const base::FilePath& file_path,
+                                         const Options& options,
+                                         Handler* handler) {
+    return std::unique_ptr<Fetcher>(
+        new FileFetcher(file_path, handler, options));
   }
 
  private:
@@ -66,20 +71,16 @@ class FileFetcher : public Fetcher {
   static const int32 kDefaultBufferSize = 64 * 1024;
 
   // Builds the search path list, including an optional extra directory.
-  void BuildSearchPath(const FilePath& extra_search_dir);
+  void BuildSearchPath(const base::FilePath& extra_search_dir);
 
   // Tries opening a file using the current entry in the seach path.
   void TryFileOpen();
 
   void ReadNextChunk();
-  void CloseFile();
-  const char* PlatformFileErrorToString(base::PlatformFileError error);
 
-  // Callbacks for FileUtilProxy functions.
-  void DidCreateOrOpen(base::PlatformFileError error,
-                       base::PassPlatformFile file, bool created);
-  void DidRead(base::PlatformFileError error, const char* data,
-               int num_bytes_read);
+  // Callbacks for FileProxy functions.
+  void DidCreateOrOpen(base::File::Error error);
+  void DidRead(base::File::Error error, const char* data, int num_bytes_read);
 
   // Thread checker ensures all calls to the FileFetcher are made from the same
   // thread that it is created in.
@@ -87,22 +88,23 @@ class FileFetcher : public Fetcher {
   // Size of the buffer that FileFetcher will use to load data.
   int32 buffer_size_;
   // Handle of the input file.
-  base::PlatformFile file_;
+  base::File file_;
   // Current offset in the input file.
   int64 file_offset_;
   // How many bytes we are going to read.
   int64 bytes_left_to_read_;
-  // Message loop that is used for actual IO operations in FileUtilProxy.
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  // Message loop that is used for actual IO operations in FileProxy.
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   // Relative (to the current search path entry) file path.
-  FilePath file_path_;
+  base::FilePath file_path_;
   // Paths to search for files. When a file is to be fetched, the fetcher will
   // look at each path in here until the file is found or the end is reached.
-  std::vector<FilePath> search_path_;
+  std::vector<base::FilePath> search_path_;
   // Used internally to support callbacks with weak references to self.
   base::WeakPtrFactory<FileFetcher> weak_ptr_factory_;
   // Current iterator into the search path vector.
-  std::vector<FilePath>::const_iterator curr_search_path_iter_;
+  std::vector<base::FilePath>::const_iterator curr_search_path_iter_;
+  base::FileProxy file_proxy_;
 };
 
 }  // namespace loader

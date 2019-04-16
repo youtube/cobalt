@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_GRAPHICS_CONTEXT_H_
 #define COBALT_RENDERER_BACKEND_EGL_GRAPHICS_CONTEXT_H_
 
+#include <memory>
+
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 
@@ -45,9 +47,10 @@ class GraphicsContextEGL : public GraphicsContext {
 
   EGLContext GetContext() { return context_; }
 
-  scoped_ptr<TextureEGL> CreateTexture(scoped_ptr<TextureDataEGL> texture_data);
+  std::unique_ptr<TextureEGL> CreateTexture(
+      std::unique_ptr<TextureDataEGL> texture_data);
 
-  scoped_ptr<TextureEGL> CreateTextureFromRawMemory(
+  std::unique_ptr<TextureEGL> CreateTextureFromRawMemory(
       const scoped_refptr<ConstRawTextureMemoryEGL>& raw_texture_memory,
       intptr_t offset, const math::Size& size, GLenum format,
       int pitch_in_bytes);
@@ -60,7 +63,7 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void InitializeDebugContext() override;
 
-  scoped_array<uint8_t> DownloadPixelDataAsRGBA(
+  std::unique_ptr<uint8_t[]> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) override;
 
   void Finish() override;
@@ -74,14 +77,14 @@ class GraphicsContextEGL : public GraphicsContext {
     explicit ScopedMakeCurrent(GraphicsContextEGL* graphics_context)
         : graphics_context_(graphics_context),
           was_current_(graphics_context_->is_current_),
-          previous_current_surface_(graphics_context_->current_surface_) {
+          previous_current_surface_(graphics_context_->current_surface_.get()) {
       graphics_context_->MakeCurrent();
     }
     ScopedMakeCurrent(GraphicsContextEGL* graphics_context,
                       RenderTargetEGL* surface)
         : graphics_context_(graphics_context),
           was_current_(graphics_context_->is_current_),
-          previous_current_surface_(graphics_context_->current_surface_) {
+          previous_current_surface_(graphics_context_->current_surface_.get()) {
       graphics_context_->MakeCurrentWithSurface(surface);
     }
     ~ScopedMakeCurrent() {
@@ -179,7 +182,7 @@ class GraphicsContextEGL : public GraphicsContext {
 
   // Lazily evaluate whether we need to do a vertical flip when calling
   // glReadPixels(), and cache the result here when that question is answered.
-  base::optional<bool> read_pixels_needs_vertical_flip_;
+  base::Optional<bool> read_pixels_needs_vertical_flip_;
 
   // When creating and destroying textures, OpenGL calls need to be made with
   // a GL context current.  By making TextureEGL a friend class of

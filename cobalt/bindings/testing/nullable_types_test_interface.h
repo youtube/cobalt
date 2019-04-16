@@ -29,27 +29,27 @@ namespace testing {
 
 class NullableTypesTestInterface : public script::Wrappable {
  public:
-  MOCK_METHOD0(nullable_boolean_property, base::optional<bool>());
-  MOCK_METHOD1(set_nullable_boolean_property, void(base::optional<bool>));
+  MOCK_METHOD0(nullable_boolean_property, base::Optional<bool>());
+  MOCK_METHOD1(set_nullable_boolean_property, void(base::Optional<bool>));
 
-  MOCK_METHOD0(nullable_numeric_property, base::optional<int32_t>());
-  MOCK_METHOD1(set_nullable_numeric_property, void(base::optional<int32_t>));
+  MOCK_METHOD0(nullable_numeric_property, base::Optional<int32_t>());
+  MOCK_METHOD1(set_nullable_numeric_property, void(base::Optional<int32_t>));
 
-  MOCK_METHOD0(nullable_string_property, base::optional<std::string>());
-  MOCK_METHOD1(set_nullable_string_property, void(base::optional<std::string>));
+  MOCK_METHOD0(nullable_string_property, base::Optional<std::string>());
+  MOCK_METHOD1(set_nullable_string_property, void(base::Optional<std::string>));
 
   MOCK_METHOD0(nullable_object_property, scoped_refptr<ArbitraryInterface>());
   MOCK_METHOD1(set_nullable_object_property,
                void(scoped_refptr<ArbitraryInterface>));
 
-  MOCK_METHOD0(NullableBooleanOperation, base::optional<bool>());
-  MOCK_METHOD0(NullableNumericOperation, base::optional<int32_t>());
-  MOCK_METHOD0(NullableStringOperation, base::optional<std::string>());
+  MOCK_METHOD0(NullableBooleanOperation, base::Optional<bool>());
+  MOCK_METHOD0(NullableNumericOperation, base::Optional<int32_t>());
+  MOCK_METHOD0(NullableStringOperation, base::Optional<std::string>());
   MOCK_METHOD0(NullableObjectOperation, scoped_refptr<ArbitraryInterface>());
 
-  MOCK_METHOD1(NullableBooleanArgument, void(base::optional<bool>));
-  MOCK_METHOD1(NullableNumericArgument, void(base::optional<int32_t>));
-  MOCK_METHOD1(NullableStringArgument, void(base::optional<std::string>));
+  MOCK_METHOD1(NullableBooleanArgument, void(base::Optional<bool>));
+  MOCK_METHOD1(NullableNumericArgument, void(base::Optional<int32_t>));
+  MOCK_METHOD1(NullableStringArgument, void(base::Optional<std::string>));
   MOCK_METHOD1(NullableObjectArgument, void(scoped_refptr<ArbitraryInterface>));
 
   DEFINE_WRAPPABLE_TYPE(NullableTypesTestInterface);

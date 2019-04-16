@@ -1,6 +1,6 @@
 
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include "cobalt/bindings/testing/mozjs_nullable_types_test_interface.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
@@ -288,7 +288,7 @@ bool set_nullableBooleanProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  TypeTraits<base::optional<bool > >::ConversionType value;
+  TypeTraits<base::Optional<bool > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -388,7 +388,7 @@ bool set_nullableNumericProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  TypeTraits<base::optional<int32_t > >::ConversionType value;
+  TypeTraits<base::Optional<int32_t > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -488,7 +488,7 @@ bool set_nullableStringProperty(
       WrapperPrivate::GetFromObject(context, object);
   NullableTypesTestInterface* impl =
       wrapper_private->wrappable<NullableTypesTestInterface>().get();
-  TypeTraits<base::optional<std::string > >::ConversionType value;
+  TypeTraits<base::Optional<std::string > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -651,7 +651,7 @@ bool fcn_nullableBooleanArgument(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<bool > >::ConversionType arg;
+  TypeTraits<base::Optional<bool > >::ConversionType arg;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -769,7 +769,7 @@ bool fcn_nullableNumericArgument(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<int32_t > >::ConversionType arg;
+  TypeTraits<base::Optional<int32_t > >::ConversionType arg;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -1005,7 +1005,7 @@ bool fcn_nullableStringArgument(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<base::optional<std::string > >::ConversionType arg;
+  TypeTraits<base::Optional<std::string > >::ConversionType arg;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(

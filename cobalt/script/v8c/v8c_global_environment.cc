@@ -21,9 +21,9 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/embedded_resources.h"
 #include "cobalt/script/v8c/entry_scope.h"
@@ -156,7 +156,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object,
-    base::optional<ValueHandleHolder::Reference>* out_value_handle) {
+    base::Optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK(thread_checker_.CalledOnValidThread());

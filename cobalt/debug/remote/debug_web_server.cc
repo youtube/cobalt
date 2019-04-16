@@ -18,18 +18,18 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/path_service.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/debug/json_object.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/base/tcp_listen_socket.h"
 #include "net/server/http_server_request_info.h"
+#include "net/socket/tcp_server_socket.h"
 #include "starboard/socket.h"
 
 namespace cobalt {
@@ -40,7 +40,7 @@ namespace {
 
 constexpr char kLogBrowserEntryAdded[] = "Log.browserEntryAdded";
 
-std::string GetMimeType(const FilePath& path) {
+std::string GetMimeType(const base::FilePath& path) {
   if (path.MatchesExtension(".html")) {
     return "text/html";
   } else if (path.MatchesExtension(".css")) {
@@ -63,22 +63,23 @@ std::string GetMimeType(const FilePath& path) {
   return "text/plain";
 }
 
-base::optional<FilePath> AppendIndexFile(const FilePath& directory) {
-  DCHECK(file_util::DirectoryExists(directory));
-  FilePath result;
+base::Optional<base::FilePath> AppendIndexFile(
+    const base::FilePath& directory) {
+  DCHECK(base::DirectoryExists(directory));
+  base::FilePath result;
   result = directory.AppendASCII("index.html");
-  if (file_util::PathExists(result)) {
+  if (base::PathExists(result)) {
     return result;
   }
   result = directory.AppendASCII("index.json");
-  if (file_util::PathExists(result)) {
+  if (base::PathExists(result)) {
     return result;
   }
   DLOG(ERROR) << "No index file found at: " << directory.value();
   return base::nullopt;
 }
 
-base::optional<std::string> GetLocalIpAddress() {
+base::Optional<std::string> GetLocalIpAddress() {
   net::IPEndPoint ip_addr;
   SbSocketAddress local_ip;
   SbMemorySet(&local_ip, 0, sizeof(local_ip));
@@ -117,6 +118,9 @@ const char kErrorField[] = "error.message";
 const char kIdField[] = "id";
 const char kMethodField[] = "method";
 const char kParamsField[] = "params";
+constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
+    net::DefineNetworkTrafficAnnotation("cobalt_debug_web_server",
+                                        "cobalt_debug_web_server");
 }  // namespace
 
 DebugWebServer::DebugWebServer(
@@ -128,7 +132,7 @@ DebugWebServer::DebugWebServer(
       local_address_("Cobalt.Server.DevTools", "<NOT RUNNING>",
                      "Address to connect to for remote debugging.") {
   // Construct the content root directory to serve files from.
-  PathService::Get(paths::DIR_COBALT_WEB_ROOT, &content_root_dir_);
+  base::PathService::Get(paths::DIR_COBALT_WEB_ROOT, &content_root_dir_);
   content_root_dir_ = content_root_dir_.AppendASCII(kContentDir);
 
   // Start the Http server thread and create the server on that thread.
@@ -136,15 +140,15 @@ DebugWebServer::DebugWebServer(
   thread_checker_.DetachFromThread();
   const size_t stack_size = 0;
   http_server_thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_IO, stack_size));
-  http_server_thread_.message_loop()->PostTask(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, stack_size));
+  http_server_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&DebugWebServer::StartServer, base::Unretained(this), port));
 }
 
 DebugWebServer::~DebugWebServer() {
   // Destroy the server on its own thread then stop the thread.
-  http_server_thread_.message_loop()->PostTask(
+  http_server_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&DebugWebServer::StopServer, base::Unretained(this)));
   http_server_thread_.Stop();
@@ -171,36 +175,35 @@ void DebugWebServer::OnHttpRequest(int connection_id,
   }
 
   // Construct the local disk path corresponding to the request path.
-  FilePath file_path(content_root_dir_);
-  if (!IsStringASCII(url_path)) {
+  base::FilePath file_path(content_root_dir_);
+  if (!base::IsStringASCII(url_path)) {
     LOG(WARNING) << "Got HTTP request with non-ASCII URL path.";
-    server_->Send404(connection_id);
+    server_->Send404(connection_id, kNetworkTrafficAnnotation);
     return;
   }
   file_path = file_path.AppendASCII(url_path);
 
   // If the disk path is a directory, look for an index file.
-  if (file_util::DirectoryExists(file_path)) {
-    base::optional<FilePath> index_file_path = AppendIndexFile(file_path);
+  if (base::DirectoryExists(file_path)) {
+    base::Optional<base::FilePath> index_file_path = AppendIndexFile(file_path);
     if (index_file_path) {
       file_path = *index_file_path;
     } else {
       DLOG(WARNING) << "No index file in directory: " << file_path.value();
-      server_->Send404(connection_id);
+      server_->Send404(connection_id, kNetworkTrafficAnnotation);
       return;
     }
   }
 
   // If we can read the local file, send its contents, otherwise send a 404.
   std::string data;
-  if (file_util::PathExists(file_path) &&
-      file_util::ReadFileToString(file_path, &data)) {
+  if (base::PathExists(file_path) && base::ReadFileToString(file_path, &data)) {
     DLOG(INFO) << "Sending data from: " << file_path.value();
     std::string mime_type = GetMimeType(file_path);
-    server_->Send200(connection_id, data, mime_type);
+    server_->Send200(connection_id, data, mime_type, kNetworkTrafficAnnotation);
   } else {
     DLOG(WARNING) << "Cannot read file: " << file_path.value();
-    server_->Send404(connection_id);
+    server_->Send404(connection_id, kNetworkTrafficAnnotation);
   }
 }
 
@@ -212,7 +215,7 @@ void DebugWebServer::OnWebSocketRequest(
 
   // Ignore the path and bind any web socket request to the debugger.
   websocket_id_ = connection_id;
-  server_->AcceptWebSocket(connection_id, info);
+  server_->AcceptWebSocket(connection_id, info, kNetworkTrafficAnnotation);
 
   debug_client_ = create_debug_client_callback_.Run(this);
 }
@@ -236,11 +239,12 @@ void DebugWebServer::OnWebSocketMessage(int connection_id,
     return SendErrorResponseOverWebSocket(id, "Missing method");
   }
   // Parameters are optional.
-  base::Value* params_value = NULL;
+  std::unique_ptr<base::Value> params_value;
   std::string json_params;
   if (json_object->Remove(kParamsField, &params_value)) {
     base::DictionaryValue* params_dictionary = NULL;
     params_value->GetAsDictionary(&params_dictionary);
+    params_value.release();
     JSONObject params(params_dictionary);
     DCHECK(params);
     json_params = JSONStringify(params);
@@ -261,19 +265,21 @@ void DebugWebServer::SendErrorResponseOverWebSocket(
   JSONObject response(new base::DictionaryValue());
   response->SetInteger(kIdField, id);
   response->SetString(kErrorField, message);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(response));
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(response),
+                             kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebuggerResponse(
-    int id, const base::optional<std::string>& response) {
+    int id, const base::Optional<std::string>& response) {
   JSONObject response_object = JSONParse(response.value());
   DCHECK(response_object);
   response_object->SetInteger(kIdField, id);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object));
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object),
+                             kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebugClientEvent(
-    const std::string& method, const base::optional<std::string>& json_params) {
+    const std::string& method, const base::Optional<std::string>& json_params) {
   // Squelch the Cobalt-specific log message meant only for the overlay console.
   if (method == kLogBrowserEntryAdded) {
     return;
@@ -281,8 +287,8 @@ void DebugWebServer::OnDebugClientEvent(
 
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (MessageLoop::current() != http_server_thread_.message_loop()) {
-    http_server_thread_.message_loop()->PostTask(
+  if (base::MessageLoop::current() != http_server_thread_.message_loop()) {
+    http_server_thread_.message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientEvent,
                               base::Unretained(this), method, json_params));
     return;
@@ -294,16 +300,17 @@ void DebugWebServer::OnDebugClientEvent(
   if (json_params) params = JSONParse(json_params.value());
   // |params| may be NULL if event does not use them.
   if (params) {
-    event->Set(kParamsField, params.release());
+    event->Set(kParamsField, std::move(params));
   }
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(event));
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
+                             kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (MessageLoop::current() != http_server_thread_.message_loop()) {
-    http_server_thread_.message_loop()->PostTask(
+  if (base::MessageLoop::current() != http_server_thread_.message_loop()) {
+    http_server_thread_.message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientDetach,
                               base::Unretained(this), reason));
     return;
@@ -313,7 +320,8 @@ void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   JSONObject event(new base::DictionaryValue());
   event->SetString(kMethodField, kDetached);
   event->SetString(kDetachReasonField, reason);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(event));
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
+                             kNetworkTrafficAnnotation);
 }
 
 int DebugWebServer::GetLocalAddress(std::string* out) const {
@@ -329,14 +337,18 @@ void DebugWebServer::StartServer(int port) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // Create http server
-  const base::optional<std::string> ip_addr = GetLocalIpAddress();
+  const base::Optional<std::string> ip_addr = GetLocalIpAddress();
   if (!ip_addr) {
     DLOG(WARNING)
         << "Could not get a local IP address for the debug web server.";
     return;
   }
-  factory_.reset(new net::TCPListenSocketFactory(*ip_addr, port));
-  server_ = new net::HttpServer(*factory_, this);
+  auto* server_socket =
+      new net::TCPServerSocket(NULL /*net_log*/, net::NetLogSource());
+  server_socket->ListenWithAddressAndPort(
+      ip_addr.value(), static_cast<uint16_t>(port), 1 /*backlog*/);
+  server_.reset(new net::HttpServer(
+      std::unique_ptr<net::ServerSocket>(server_socket), this));
 
   std::string address;
   int result = GetLocalAddress(&address);

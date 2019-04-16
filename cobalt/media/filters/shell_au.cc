@@ -213,9 +213,9 @@ ShellVideoAU::ShellVideoAU(uint64 offset, size_t size, size_t prepend_size,
 }
 
 bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
-  size_t au_left = size_;                      // bytes left in the AU
-  uint64 au_offset = offset_;                  // offset to read in the reader
-  size_t buf_left = buffer->data_size();       // bytes left in the buffer
+  size_t au_left = size_;                 // bytes left in the AU
+  uint64 au_offset = offset_;             // offset to read in the reader
+  size_t buf_left = buffer->data_size();  // bytes left in the buffer
   // The current write position in the buffer
   int64_t decoder_buffer_offset = prepend_size_;
 

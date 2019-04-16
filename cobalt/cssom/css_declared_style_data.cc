@@ -16,7 +16,7 @@
 
 #include <limits>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 

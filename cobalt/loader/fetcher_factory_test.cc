@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 
 #include "base/optional.h"
@@ -31,23 +32,25 @@ class StubFetcherHandler : public Fetcher::Handler {
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    UNREFERENCED_PARAMETER(data);
-    UNREFERENCED_PARAMETER(size);
+    SB_UNREFERENCED_PARAMETER(data);
+    SB_UNREFERENCED_PARAMETER(size);
     CheckSameFetcher(fetcher);
   }
   void OnDone(Fetcher* fetcher) override {
     CheckSameFetcher(fetcher);
-    MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
+    base::MessageLoop::current()->task_runner()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
   void OnError(Fetcher* fetcher, const std::string& error_message) override {
     CheckSameFetcher(fetcher);
     error_message_ = error_message;
-    MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
+    base::MessageLoop::current()->task_runner()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
 
   Fetcher* fetcher() const { return fetcher_; }
 
-  const base::optional<std::string>& error_message() const {
+  const base::Optional<std::string>& error_message() const {
     return error_message_;
   }
 
@@ -63,7 +66,7 @@ class StubFetcherHandler : public Fetcher::Handler {
 
   base::RunLoop* run_loop_;
   Fetcher* fetcher_;
-  base::optional<std::string> error_message_;
+  base::Optional<std::string> error_message_;
 };
 
 }  // namespace
@@ -71,13 +74,13 @@ class StubFetcherHandler : public Fetcher::Handler {
 class FetcherFactoryTest : public ::testing::Test {
  protected:
   FetcherFactoryTest()
-      : message_loop_(MessageLoop::TYPE_DEFAULT),
+      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         fetcher_factory_(NULL) {}
   ~FetcherFactoryTest() override {}
 
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
   FetcherFactory fetcher_factory_;
-  scoped_ptr<Fetcher> fetcher_;
+  std::unique_ptr<Fetcher> fetcher_;
 };
 
 TEST_F(FetcherFactoryTest, InvalidURL) {
@@ -90,7 +93,7 @@ TEST_F(FetcherFactoryTest, InvalidURL) {
 
   run_loop.Run();
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
-  EXPECT_TRUE(stub_fetcher_handler.error_message().has_engaged());
+  EXPECT_TRUE(stub_fetcher_handler.error_message().has_value());
 }
 
 TEST_F(FetcherFactoryTest, EmptyFileURL) {
@@ -103,7 +106,7 @@ TEST_F(FetcherFactoryTest, EmptyFileURL) {
 
   run_loop.Run();
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
-  EXPECT_TRUE(stub_fetcher_handler.error_message().has_engaged());
+  EXPECT_TRUE(stub_fetcher_handler.error_message().has_value());
 }
 
 TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
@@ -116,7 +119,7 @@ TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
 
   run_loop.Run();
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
-  EXPECT_TRUE(stub_fetcher_handler.error_message().has_engaged());
+  EXPECT_TRUE(stub_fetcher_handler.error_message().has_value());
 }
 
 TEST_F(FetcherFactoryTest, MultipleCreations) {

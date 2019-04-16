@@ -60,7 +60,7 @@ class TestRunner : public script::Wrappable {
                                const TestRunnerCallbackArg& callback_arg);
 
   // Returns the clock controlled by test runner.
-  scoped_refptr<base::Clock> GetClock();
+  scoped_refptr<base::BasicClock> GetClock();
 
   // When this callback is called, a layout should be triggered. Not all
   // triggered layouts should be measured, and the callback function should call

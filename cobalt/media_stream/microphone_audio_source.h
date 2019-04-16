@@ -15,11 +15,12 @@
 #ifndef COBALT_MEDIA_STREAM_MICROPHONE_AUDIO_SOURCE_H_
 #define COBALT_MEDIA_STREAM_MICROPHONE_AUDIO_SOURCE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/speech/microphone_manager.h"
@@ -64,19 +65,19 @@ class MicrophoneAudioSource : public MediaStreamAudioSource {
   void EnsureSourceIsStopped() override;
 
   // MicrophoneManager callbacks.
-  scoped_ptr<cobalt::speech::Microphone> CreateMicrophone(
+  std::unique_ptr<cobalt::speech::Microphone> CreateMicrophone(
       const cobalt::speech::Microphone::Options& options,
       int buffer_size_bytes);
 
   void OnDataReceived(
-      scoped_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus);
+      std::unique_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus);
 
   void OnDataCompletion();
   void OnMicrophoneOpen();
   void OnMicrophoneError(speech::MicrophoneManager::MicrophoneError error,
                          std::string error_message);
 
-  scoped_refptr<base::MessageLoopProxy> javascript_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> javascript_message_loop_;
 
   // These are passed into |microphone_manager_| below, so they must be
   // defined before it.

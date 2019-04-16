@@ -15,7 +15,7 @@
 #ifndef COBALT_RENDERER_TEST_SCENES_IMAGE_WRAP_SCENE_H_
 #define COBALT_RENDERER_TEST_SCENES_IMAGE_WRAP_SCENE_H_
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/test/scenes/scene_helpers.h"

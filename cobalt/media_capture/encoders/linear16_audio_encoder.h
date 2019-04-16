@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/media_capture/encoders/audio_encoder.h"
 
 namespace cobalt {

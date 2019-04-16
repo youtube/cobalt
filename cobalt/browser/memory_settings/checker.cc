@@ -45,19 +45,16 @@ std::string GenerateErrorMessage(const std::string& memory_type,
   return MakeBorder(ss.str(), '*');
 }
 
-void DoCheck(const char* memory_type_str,
-             int64_t curr_memory_consumption,
-             const IntSetting& max_memory_limit,
-             bool* fired_once_flag) {
+void DoCheck(const char* memory_type_str, int64_t curr_memory_consumption,
+             const IntSetting& max_memory_limit, bool* fired_once_flag) {
   if (*fired_once_flag || (max_memory_limit.value() > 0)) {
     return;
   }
   const int64_t max_memory_value = max_memory_limit.value();
 
   if (curr_memory_consumption > max_memory_value) {
-    std::string error_msg = GenerateErrorMessage(memory_type_str,
-                                                 max_memory_limit,
-                                                 curr_memory_consumption);
+    std::string error_msg = GenerateErrorMessage(
+        memory_type_str, max_memory_limit, curr_memory_consumption);
     LOG(ERROR) << error_msg;
     *fired_once_flag = true;
   }
@@ -65,22 +62,16 @@ void DoCheck(const char* memory_type_str,
 
 }  // namespace.
 
-Checker::Checker() : cpu_memory_warning_fired_(false),
-                     gpu_memory_warning_fired_(false) {
-}
+Checker::Checker()
+    : cpu_memory_warning_fired_(false), gpu_memory_warning_fired_(false) {}
 
-void Checker::RunChecks(const AutoMem& auto_mem,
-                        int64_t curr_cpu_memory_usage,
-                        base::optional<int64_t> curr_gpu_memory_usage) {
-  DoCheck("CPU",
-          curr_cpu_memory_usage,
-          *auto_mem.max_cpu_bytes(),
+void Checker::RunChecks(const AutoMem& auto_mem, int64_t curr_cpu_memory_usage,
+                        base::Optional<int64_t> curr_gpu_memory_usage) {
+  DoCheck("CPU", curr_cpu_memory_usage, *auto_mem.max_cpu_bytes(),
           &cpu_memory_warning_fired_);
 
   if (curr_gpu_memory_usage) {
-    DoCheck("GPU",
-            *curr_gpu_memory_usage,
-            *auto_mem.max_gpu_bytes(),
+    DoCheck("GPU", *curr_gpu_memory_usage, *auto_mem.max_gpu_bytes(),
             &gpu_memory_warning_fired_);
   }
 }

@@ -20,7 +20,7 @@
 #include "base/base64.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "starboard/memory.h"
 
 namespace cobalt {

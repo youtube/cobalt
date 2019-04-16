@@ -93,8 +93,7 @@ DrawRRectColorTexture::DrawRRectColorTexture(
 }
 
 void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   const float kWidthScale = 1.0f / rect_.width();
   const float kHeightScale = 1.0f / rect_.height();
 
@@ -103,22 +102,21 @@ void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(
   GetRRectAttributes(rect_, base_state_.rounded_scissor_rect,
                      *base_state_.rounded_scissor_corners, rrect);
   for (int r = 0, v = 0; r < arraysize(rrect); ++r) {
-    attributes[v  ].position[0] = rrect[r].bounds.x();
-    attributes[v  ].position[1] = rrect[r].bounds.y();
-    attributes[v  ].rcorner =
-        RCorner(attributes[v  ].position, rrect[r].rcorner);
-    attributes[v+1].position[0] = rrect[r].bounds.right();
-    attributes[v+1].position[1] = rrect[r].bounds.y();
-    attributes[v+1].rcorner =
-        RCorner(attributes[v+1].position, rrect[r].rcorner);
-    attributes[v+2].position[0] = rrect[r].bounds.x();
-    attributes[v+2].position[1] = rrect[r].bounds.bottom();
-    attributes[v+2].rcorner =
-        RCorner(attributes[v+2].position, rrect[r].rcorner);
-    attributes[v+3].position[0] = rrect[r].bounds.right();
-    attributes[v+3].position[1] = rrect[r].bounds.bottom();
-    attributes[v+3].rcorner =
-        RCorner(attributes[v+3].position, rrect[r].rcorner);
+    attributes[v].position[0] = rrect[r].bounds.x();
+    attributes[v].position[1] = rrect[r].bounds.y();
+    attributes[v].rcorner = RCorner(attributes[v].position, rrect[r].rcorner);
+    attributes[v + 1].position[0] = rrect[r].bounds.right();
+    attributes[v + 1].position[1] = rrect[r].bounds.y();
+    attributes[v + 1].rcorner =
+        RCorner(attributes[v + 1].position, rrect[r].rcorner);
+    attributes[v + 2].position[0] = rrect[r].bounds.x();
+    attributes[v + 2].position[1] = rrect[r].bounds.bottom();
+    attributes[v + 2].rcorner =
+        RCorner(attributes[v + 2].position, rrect[r].rcorner);
+    attributes[v + 3].position[0] = rrect[r].bounds.right();
+    attributes[v + 3].position[1] = rrect[r].bounds.bottom();
+    attributes[v + 3].rcorner =
+        RCorner(attributes[v + 3].position, rrect[r].rcorner);
 
     for (int t = v; t < v + 4; ++t) {
       math::PointF texcoord(
@@ -129,8 +127,8 @@ void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(
       attributes[t].texcoord[1] = texcoord.y();
     }
 
-    attributes[v+4] = attributes[v+1];
-    attributes[v+5] = attributes[v+2];
+    attributes[v + 4] = attributes[v + 1];
+    attributes[v + 5] = attributes[v + 2];
     v += 6;
   }
 

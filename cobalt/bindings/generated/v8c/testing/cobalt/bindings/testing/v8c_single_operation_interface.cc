@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,12 +50,12 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-base::optional<int32_t > V8cSingleOperationInterface::HandleCallback(
+base::Optional<int32_t > V8cSingleOperationInterface::HandleCallback(
     const scoped_refptr<script::Wrappable>& callback_this,
     const scoped_refptr<ArbitraryInterface>& value,
     bool* had_exception) const {
   bool success = false;
-  base::optional<int32_t > cobalt_return_value;
+  base::Optional<int32_t > cobalt_return_value;
 
   DCHECK(isolate_);
   DCHECK(!this->IsEmpty());

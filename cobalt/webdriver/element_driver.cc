@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/element_driver.h"
 
 #include "cobalt/cssom/property_value.h"
@@ -39,7 +41,7 @@ std::string GetTagName(dom::Element* element) {
   return element->tag_name().c_str();
 }
 
-base::optional<std::string> GetAttribute(const std::string& attribute_name,
+base::Optional<std::string> GetAttribute(const std::string& attribute_name,
                                          dom::Element* element) {
   DCHECK(element);
   return element->GetAttribute(attribute_name);
@@ -84,17 +86,17 @@ ElementDriver::ElementDriver(
     const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
     KeyboardEventInjector keyboard_event_injector,
     PointerEventInjector pointer_event_injector,
-    const scoped_refptr<base::MessageLoopProxy>& message_loop)
+    const scoped_refptr<base::SingleThreadTaskRunner>& message_loop)
     : element_id_(element_id),
       element_(element),
       element_mapping_(element_mapping),
       keyboard_event_injector_(keyboard_event_injector),
       pointer_event_injector_(pointer_event_injector),
-      element_message_loop_(message_loop) {}
+      element_task_runner_(message_loop) {}
 
 util::CommandResult<std::string> ElementDriver::GetTagName() {
   return util::CallWeakOnMessageLoopAndReturnResult(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetTagName),
       protocol::Response::kStaleElementReference);
@@ -102,7 +104,7 @@ util::CommandResult<std::string> ElementDriver::GetTagName() {
 
 util::CommandResult<std::string> ElementDriver::GetText() {
   return util::CallWeakOnMessageLoopAndReturnResult(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&algorithms::GetElementText),
       protocol::Response::kStaleElementReference);
@@ -110,7 +112,7 @@ util::CommandResult<std::string> ElementDriver::GetText() {
 
 util::CommandResult<bool> ElementDriver::IsDisplayed() {
   return util::CallWeakOnMessageLoopAndReturnResult(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&algorithms::IsDisplayed),
       protocol::Response::kStaleElementReference);
@@ -118,7 +120,7 @@ util::CommandResult<bool> ElementDriver::IsDisplayed() {
 
 util::CommandResult<protocol::Rect> ElementDriver::GetRect() {
   return util::CallWeakOnMessageLoopAndReturnResult(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetRect),
       protocol::Response::kStaleElementReference);
@@ -148,13 +150,13 @@ util::CommandResult<protocol::Size> ElementDriver::GetSize() {
 
 util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
   // Translate the keys into KeyboardEvents. Reset modifiers.
-  scoped_ptr<Keyboard::KeyboardEventVector> events(
+  std::unique_ptr<Keyboard::KeyboardEventVector> events(
       new Keyboard::KeyboardEventVector());
   Keyboard::TranslateToKeyEvents(keys.utf8_keys(), Keyboard::kReleaseModifiers,
                                  events.get());
   // Dispatch the keyboard events.
   return util::CallOnMessageLoop(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::SendKeysInternal, base::Unretained(this),
                  base::Passed(&events)),
       protocol::Response::kStaleElementReference);
@@ -163,7 +165,7 @@ util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
 util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
   return util::CallOnMessageLoop(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::FindElementsInternal<protocol::ElementId>,
                  base::Unretained(this), strategy),
       protocol::Response::kStaleElementReference);
@@ -172,7 +174,7 @@ util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
 util::CommandResult<std::vector<protocol::ElementId> >
 ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
   return util::CallOnMessageLoop(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::FindElementsInternal<ElementIdVector>,
                  base::Unretained(this), strategy),
       protocol::Response::kNoSuchElement);
@@ -180,25 +182,25 @@ ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
 
 util::CommandResult<void> ElementDriver::SendClick(
     const protocol::Button& button) {
-  return util::CallOnMessageLoop(element_message_loop_,
+  return util::CallOnMessageLoop(element_task_runner_,
                                  base::Bind(&ElementDriver::SendClickInternal,
                                             base::Unretained(this), button),
                                  protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<bool> ElementDriver::Equals(
-    const ElementDriver* other_element_driver) {
+    ElementDriver* other_element_driver) {
   return util::CallOnMessageLoop(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::EqualsInternal, base::Unretained(this),
                  other_element_driver),
       protocol::Response::kStaleElementReference);
 }
 
-util::CommandResult<base::optional<std::string> > ElementDriver::GetAttribute(
+util::CommandResult<base::Optional<std::string> > ElementDriver::GetAttribute(
     const std::string& attribute_name) {
   return util::CallWeakOnMessageLoopAndReturnResult(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetAttribute, attribute_name),
       protocol::Response::kStaleElementReference);
@@ -207,7 +209,7 @@ util::CommandResult<base::optional<std::string> > ElementDriver::GetAttribute(
 util::CommandResult<std::string> ElementDriver::GetCssProperty(
     const std::string& property_name) {
   return util::CallWeakOnMessageLoopAndReturnResult(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetCssProperty, property_name),
       protocol::Response::kStaleElementReference);
@@ -216,21 +218,21 @@ util::CommandResult<std::string> ElementDriver::GetCssProperty(
 util::CommandResult<std::string> ElementDriver::RequestScreenshot(
     Screenshot::GetScreenshotFunction get_screenshot_function) {
   return util::CallOnMessageLoop(
-      element_message_loop_,
+      element_task_runner_,
       base::Bind(&ElementDriver::RequestScreenshotInternal,
                  base::Unretained(this), get_screenshot_function),
       protocol::Response::kStaleElementReference);
 }
 
 dom::Element* ElementDriver::GetWeakElement() {
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
   return element_.get();
 }
 
 util::CommandResult<void> ElementDriver::SendKeysInternal(
-    scoped_ptr<Keyboard::KeyboardEventVector> events) {
+    std::unique_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -255,7 +257,7 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
 util::CommandResult<void> ElementDriver::SendClickInternal(
     const protocol::Button& button) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -329,7 +331,7 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
 util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
     Screenshot::GetScreenshotFunction get_screenshot_function) {
   typedef util::CommandResult<std::string> CommandResult;
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -341,7 +343,7 @@ util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
 template <typename T>
 util::CommandResult<T> ElementDriver::FindElementsInternal(
     const protocol::SearchStrategy& strategy) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
   typedef util::CommandResult<T> CommandResult;
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
@@ -352,7 +354,7 @@ util::CommandResult<T> ElementDriver::FindElementsInternal(
 
 util::CommandResult<bool> ElementDriver::EqualsInternal(
     const ElementDriver* other_element_driver) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
   typedef util::CommandResult<bool> CommandResult;
   base::WeakPtr<dom::Element> other_element = other_element_driver->element_;
   if (!element_ || !other_element) {

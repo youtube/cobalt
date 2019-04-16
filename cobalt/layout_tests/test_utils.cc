@@ -17,9 +17,9 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace layout_tests {
@@ -29,22 +29,23 @@ namespace {
 // Returns the relative path to Cobalt layout tests.  This can be appended
 // to either base::DIR_TEST_DATA to get the input directory or
 // base::DIR_COBALT_TEST_OUT to get the output directory.
-FilePath GetTestDirRelativePath() {
-  return FilePath(FILE_PATH_LITERAL("cobalt"))
+base::FilePath GetTestDirRelativePath() {
+  return base::FilePath(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("layout_tests"));
 }
 
 }  // namespace
 
-FilePath GetTestInputRootDirectory() {
-  FilePath dir_test_data;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &dir_test_data));
+base::FilePath GetTestInputRootDirectory() {
+  base::FilePath dir_test_data;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &dir_test_data));
   return dir_test_data.Append(GetTestDirRelativePath());
 }
 
-FilePath GetTestOutputRootDirectory() {
-  FilePath dir_cobalt_test_out;
-  PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &dir_cobalt_test_out);
+base::FilePath GetTestOutputRootDirectory() {
+  base::FilePath dir_cobalt_test_out;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT,
+                         &dir_cobalt_test_out);
   return dir_cobalt_test_out.Append(GetTestDirRelativePath());
 }
 
@@ -63,7 +64,7 @@ bool LogFilter::OnLogMessage(int /*severity*/, const char* /*file*/,
                              int /*line*/, size_t message_start,
                              const std::string& str) {
   std::string trimmed_message = str.substr(message_start);
-  TrimWhitespaceASCII(trimmed_message, TRIM_ALL, &trimmed_message);
+  TrimWhitespaceASCII(trimmed_message, base::TRIM_ALL, &trimmed_message);
   if (filtered_strings_.find(trimmed_message) != filtered_strings_.end()) {
     return true;
   } else {

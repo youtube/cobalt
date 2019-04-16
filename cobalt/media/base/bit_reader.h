@@ -15,7 +15,7 @@ namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT BitReader
-    : NON_EXPORTED_BASE(private BitReaderCore::ByteStreamProvider) {
+    : MSVC_SUPPRESS_WARNING(4275) private BitReaderCore::ByteStreamProvider {
  public:
   // Initialize the reader to start reading at |data|, |size| being size
   // of |data| in bytes.

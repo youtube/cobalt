@@ -7,14 +7,14 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
@@ -87,8 +87,9 @@ class MEDIA_EXPORT StreamParser {
   // Return value - True if the new configurations are accepted.
   //                False if the new configurations are not supported
   //                and indicates that a parsing error should be signalled.
-  typedef base::Callback<bool(scoped_ptr<MediaTracks>,
-                              const TextTrackConfigMap&)> NewConfigCB;
+  typedef base::Callback<bool(std::unique_ptr<MediaTracks>,
+                              const TextTrackConfigMap&)>
+      NewConfigCB;
 
   // New stream buffers have been parsed.
   // First parameter - A map of track ids to queues of newly parsed buffers.

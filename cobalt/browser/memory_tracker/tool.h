@@ -15,9 +15,9 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace browser {
@@ -30,7 +30,7 @@ class Tool {
 };
 
 // Instantiates the memory tracker tool from the command argument.
-scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg);
+std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg);
 
 }  // namespace memory_tracker
 }  // namespace browser

@@ -341,7 +341,7 @@ ProxyHandler::IndexedPropertyHooks
   {{ "DeleteIndexedProperty" if indexed_property_deleter else "NULL" }},
 };
 
-static base::LazyInstance<{{binding_class}}Handler>
+static base::LazyInstance<{{binding_class}}Handler>::DestructorAtExit
     proxy_handler;
 
 {% if constructor %}

@@ -123,10 +123,11 @@ class AnimateNode : public Node {
     // The primary internal data structure used to organize and store the
     // mapping between target render tree node and animation list.
     // In many cases there are not many active animations, and so we use a
-    // base::SmallMap for this.  std::map was found to be more performant than
+    // base::small_map for this.  std::map was found to be more performant than
     // base::hash_map, so it is used as the fallback map.
-    typedef base::SmallMap<std::map<Node*, scoped_refptr<AnimationListBase> >,
-                           4> InternalMap;
+    typedef base::small_map<std::map<Node*, scoped_refptr<AnimationListBase> >,
+                            4>
+        InternalMap;
     InternalMap node_animation_map_;
     std::vector<scoped_refptr<Node> > node_refs_;
 
@@ -260,7 +261,7 @@ class AnimateNode : public Node {
   // will get set when Apply() is called to produce a new AnimateNode that can
   // then be Apply()d again.  It can be used during the second apply to check
   // if some animations have expired.
-  base::optional<base::TimeDelta> snapshot_time_;
+  base::Optional<base::TimeDelta> snapshot_time_;
 };
 
 }  // namespace animations

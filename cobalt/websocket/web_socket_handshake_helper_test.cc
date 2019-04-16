@@ -16,13 +16,13 @@
 
 #include "cobalt/websocket/web_socket_handshake_helper.h"
 
-#include "base/string_piece.h"
-#include "googleurl/src/gurl.h"
+#include "base/strings/string_piece.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "net/websockets/websocket_frame.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace {
 

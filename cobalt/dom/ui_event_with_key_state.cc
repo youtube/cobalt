@@ -16,7 +16,7 @@
 
 #include <vector>
 
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 #include "cobalt/system_window/input_event.h"
 
 namespace cobalt {
@@ -33,8 +33,9 @@ void UIEventWithKeyState::InitUIEventWithKeyState(
   alt_key_ = false;
   meta_key_ = false;
 
-  std::vector<std::string> modifiers;
-  base::SplitStringAlongWhitespace(modifierslist, &modifiers);
+  std::vector<std::string> modifiers =
+      base::SplitString(modifierslist, base::kWhitespaceASCII,
+                        base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
   for (std::vector<std::string>::const_iterator it = modifiers.begin();
        it != modifiers.end(); ++it) {

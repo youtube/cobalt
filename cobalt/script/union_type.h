@@ -41,7 +41,7 @@
 //
 // Per the specification, there should be either 0 or 1 nullable types in union.
 // In the case that there is one nullable type, the entire union type should
-// be declared as nullable (with base::optional<>). A corollary to this is that
+// be declared as nullable (with base::Optional<>). A corollary to this is that
 // none of the member types in the UnionTypeN template should be nullable.
 
 #include <iosfwd>
@@ -150,8 +150,8 @@ class UnionType2 {
   };
 
   union StorageUnion {
-    base::AlignedMemory<sizeof(T1), ALIGNOF(T1)> t1;
-    base::AlignedMemory<sizeof(T2), ALIGNOF(T2)> t2;
+    base::AlignedMemory<sizeof(T1), alignof(T1)> t1;
+    base::AlignedMemory<sizeof(T2), alignof(T2)> t2;
   };
 
   void ConstructFromOther(const UnionType2& other) {
@@ -184,7 +184,7 @@ class UnionType2 {
     specific_type_ = kUnspecified;
   }
 
-  base::AlignedMemory<sizeof(StorageUnion), ALIGNOF(StorageUnion)> storage_;
+  base::AlignedMemory<sizeof(StorageUnion), alignof(StorageUnion)> storage_;
   SpecificType specific_type_;
 
   // Count the number of numeric types in this union. There can be a max of one.
@@ -197,7 +197,7 @@ class UnionType2 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::optional<UnionTypeN>
+// Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2>
 inline std::ostream& operator<<(
     std::ostream& stream, const UnionType2<T1, T2>& union_value) {
@@ -332,9 +332,9 @@ class UnionType3 {
   };
 
   union StorageUnion {
-    base::AlignedMemory<sizeof(T1), ALIGNOF(T1)> t1;
-    base::AlignedMemory<sizeof(T2), ALIGNOF(T2)> t2;
-    base::AlignedMemory<sizeof(T3), ALIGNOF(T3)> t3;
+    base::AlignedMemory<sizeof(T1), alignof(T1)> t1;
+    base::AlignedMemory<sizeof(T2), alignof(T2)> t2;
+    base::AlignedMemory<sizeof(T3), alignof(T3)> t3;
   };
 
   void ConstructFromOther(const UnionType3& other) {
@@ -373,7 +373,7 @@ class UnionType3 {
     specific_type_ = kUnspecified;
   }
 
-  base::AlignedMemory<sizeof(StorageUnion), ALIGNOF(StorageUnion)> storage_;
+  base::AlignedMemory<sizeof(StorageUnion), alignof(StorageUnion)> storage_;
   SpecificType specific_type_;
 
   // Count the number of numeric types in this union. There can be a max of one.
@@ -387,7 +387,7 @@ class UnionType3 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::optional<UnionTypeN>
+// Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2, typename T3>
 inline std::ostream& operator<<(
     std::ostream& stream, const UnionType3<T1, T2, T3>& union_value) {
@@ -545,10 +545,10 @@ class UnionType4 {
   };
 
   union StorageUnion {
-    base::AlignedMemory<sizeof(T1), ALIGNOF(T1)> t1;
-    base::AlignedMemory<sizeof(T2), ALIGNOF(T2)> t2;
-    base::AlignedMemory<sizeof(T3), ALIGNOF(T3)> t3;
-    base::AlignedMemory<sizeof(T4), ALIGNOF(T4)> t4;
+    base::AlignedMemory<sizeof(T1), alignof(T1)> t1;
+    base::AlignedMemory<sizeof(T2), alignof(T2)> t2;
+    base::AlignedMemory<sizeof(T3), alignof(T3)> t3;
+    base::AlignedMemory<sizeof(T4), alignof(T4)> t4;
   };
 
   void ConstructFromOther(const UnionType4& other) {
@@ -593,7 +593,7 @@ class UnionType4 {
     specific_type_ = kUnspecified;
   }
 
-  base::AlignedMemory<sizeof(StorageUnion), ALIGNOF(StorageUnion)> storage_;
+  base::AlignedMemory<sizeof(StorageUnion), alignof(StorageUnion)> storage_;
   SpecificType specific_type_;
 
   // Count the number of numeric types in this union. There can be a max of one.
@@ -608,7 +608,7 @@ class UnionType4 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::optional<UnionTypeN>
+// Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2, typename T3, typename T4>
 inline std::ostream& operator<<(
     std::ostream& stream, const UnionType4<T1, T2, T3, T4>& union_value) {
@@ -655,9 +655,7 @@ class UnionType5 {
     new (storage_.void_data()) T5(arg);
   }
 
-  UnionType5(const UnionType5& other) {
-    ConstructFromOther(other);
-  }
+  UnionType5(const UnionType5& other) { ConstructFromOther(other); }
 
   UnionType5& operator=(const UnionType5& other) {
     if (&other != this) {
@@ -667,9 +665,7 @@ class UnionType5 {
     return *this;
   }
 
-  ~UnionType5() {
-    Destruct();
-  }
+  ~UnionType5() { Destruct(); }
 
   // Forward these checks to the UnionTypeCheck helper class, which works around
   // being unable to do template specializations in class scope.
@@ -704,12 +700,12 @@ class UnionType5 {
     static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return union_value->specific_type_ == kTypeT1;
     }
-    static typename internal::UnionTypeTraits<T1>::ReturnType
-        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ReturnType AsType(
+        UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
-    static typename internal::UnionTypeTraits<T1>::ConstReturnType
-        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ConstReturnType AsType(
+        const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
     friend class UnionType5<T1, T2, T3, T4, T5>;
@@ -720,12 +716,12 @@ class UnionType5 {
     static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return union_value->specific_type_ == kTypeT2;
     }
-    static typename internal::UnionTypeTraits<T2>::ReturnType
-        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ReturnType AsType(
+        UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
-    static typename internal::UnionTypeTraits<T2>::ConstReturnType
-        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ConstReturnType AsType(
+        const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
     friend class UnionType5<T1, T2, T3, T4, T5>;
@@ -736,12 +732,12 @@ class UnionType5 {
     static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return union_value->specific_type_ == kTypeT3;
     }
-    static typename internal::UnionTypeTraits<T3>::ReturnType
-        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T3>::ReturnType AsType(
+        UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T3>());
     }
-    static typename internal::UnionTypeTraits<T3>::ConstReturnType
-        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T3>::ConstReturnType AsType(
+        const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T3>());
     }
     friend class UnionType5<T1, T2, T3, T4, T5>;
@@ -752,12 +748,12 @@ class UnionType5 {
     static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return union_value->specific_type_ == kTypeT4;
     }
-    static typename internal::UnionTypeTraits<T4>::ReturnType
-        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T4>::ReturnType AsType(
+        UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T4>());
     }
-    static typename internal::UnionTypeTraits<T4>::ConstReturnType
-        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T4>::ConstReturnType AsType(
+        const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T4>());
     }
     friend class UnionType5<T1, T2, T3, T4, T5>;
@@ -768,12 +764,12 @@ class UnionType5 {
     static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return union_value->specific_type_ == kTypeT5;
     }
-    static typename internal::UnionTypeTraits<T5>::ReturnType
-        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T5>::ReturnType AsType(
+        UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T5>());
     }
-    static typename internal::UnionTypeTraits<T5>::ConstReturnType
-        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+    static typename internal::UnionTypeTraits<T5>::ConstReturnType AsType(
+        const UnionType5<T1, T2, T3, T4, T5>* union_value) {
       return *(union_value->storage_.template data_as<T5>());
     }
     friend class UnionType5<T1, T2, T3, T4, T5>;
@@ -789,11 +785,11 @@ class UnionType5 {
   };
 
   union StorageUnion {
-    base::AlignedMemory<sizeof(T1), ALIGNOF(T1)> t1;
-    base::AlignedMemory<sizeof(T2), ALIGNOF(T2)> t2;
-    base::AlignedMemory<sizeof(T3), ALIGNOF(T3)> t3;
-    base::AlignedMemory<sizeof(T4), ALIGNOF(T4)> t4;
-    base::AlignedMemory<sizeof(T5), ALIGNOF(T5)> t5;
+    base::AlignedMemory<sizeof(T1), alignof(T1)> t1;
+    base::AlignedMemory<sizeof(T2), alignof(T2)> t2;
+    base::AlignedMemory<sizeof(T3), alignof(T3)> t3;
+    base::AlignedMemory<sizeof(T4), alignof(T4)> t4;
+    base::AlignedMemory<sizeof(T5), alignof(T5)> t5;
   };
 
   void ConstructFromOther(const UnionType5& other) {
@@ -844,7 +840,7 @@ class UnionType5 {
     specific_type_ = kUnspecified;
   }
 
-  base::AlignedMemory<sizeof(StorageUnion), ALIGNOF(StorageUnion)> storage_;
+  base::AlignedMemory<sizeof(StorageUnion), alignof(StorageUnion)> storage_;
   SpecificType specific_type_;
 
   // Count the number of numeric types in this union. There can be a max of one.
@@ -860,11 +856,10 @@ class UnionType5 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::optional<UnionTypeN>
+// Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 inline std::ostream& operator<<(
     std::ostream& stream, const UnionType5<T1, T2, T3, T4, T5>& union_value) {
-
   if (union_value.template IsType<T1>()) {
     stream << union_value.template AsType<T1>();
   } else if (union_value.template IsType<T2>()) {

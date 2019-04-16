@@ -16,13 +16,13 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
@@ -136,7 +136,7 @@ class DebugDispatcher {
 
   // Sends a protocol event to the frontend.
   void SendEvent(const std::string& method,
-                 const base::optional<std::string>& params);
+                 const base::Optional<std::string>& params);
 
   // Calls |method| in |script_runner_| and creates a response object from
   // the result.
@@ -168,7 +168,7 @@ class DebugDispatcher {
   // received while script execution is paused.
   typedef std::deque<base::Closure> PausedTaskQueue;
 
-  // Destructor should only be called by |scoped_ptr<DebugDispatcher>|.
+  // Destructor should only be called by |std::unique_ptr<DebugDispatcher>|.
   ~DebugDispatcher();
 
   // Dispatches a command received via |SendCommand| by looking up the method
@@ -200,7 +200,7 @@ class DebugDispatcher {
 
   // Message loop of the web module this debug dispatcher is attached to, and
   // thread checker to check access.
-  MessageLoop* message_loop_;
+  base::SingleThreadTaskRunner* task_runner_;
   base::ThreadChecker thread_checker_;
 
   // Whether the debug target (WebModule) is currently paused.
@@ -217,7 +217,7 @@ class DebugDispatcher {
   // Lock to synchronize access to |commands_pending_while_paused|.
   base::Lock command_while_paused_lock_;
 
-  friend class scoped_ptr<DebugDispatcher>;
+  friend std::unique_ptr<DebugDispatcher>::deleter_type;
 };
 
 }  // namespace backend

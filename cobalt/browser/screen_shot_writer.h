@@ -15,11 +15,12 @@
 #ifndef COBALT_BROWSER_SCREEN_SHOT_WRITER_H_
 #define COBALT_BROWSER_SCREEN_SHOT_WRITER_H_
 
+#include <memory>
+
 #include "base/callback.h"
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/files/file_path.h"
 #include "base/optional.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "base/threading/thread.h"
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/loader/image/image.h"
@@ -53,9 +54,9 @@ class ScreenShotWriter {
   // will be called.
   void RequestScreenshotToFile(
       loader::image::EncodedStaticImage::ImageFormat desired_format,
-      const FilePath& output_path,
+      const base::FilePath& output_path,
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::optional<math::Rect>& clip_rect,
+      const base::Optional<math::Rect>& clip_rect,
       const base::Closure& complete);
 
   // Renders the |render_tree_root| and converts it to the image format that is
@@ -63,13 +64,13 @@ class ScreenShotWriter {
   void RequestScreenshotToMemory(
       loader::image::EncodedStaticImage::ImageFormat desired_format,
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::optional<math::Rect>& clip_rect,
+      const base::Optional<math::Rect>& clip_rect,
       const ImageEncodeCompleteCallback& callback);
 
   // Runs callback on screenshot thread.
   void RequestScreenshotToMemoryUnencoded(
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::optional<math::Rect>& clip_rect,
+      const base::Optional<math::Rect>& clip_rect,
       const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
  private:
@@ -79,13 +80,13 @@ class ScreenShotWriter {
   // |encode_complete_callback| will be called.
   void RunOnScreenshotThread(
       const renderer::Pipeline::RasterizationCompleteCallback& cb,
-      scoped_array<uint8> image_data, const math::Size& image_dimensions);
+      std::unique_ptr<uint8[]> image_data, const math::Size& image_dimensions);
 
   void EncodeData(loader::image::EncodedStaticImage::ImageFormat desired_format,
                   const base::Callback<void(
                       const scoped_refptr<loader::image::EncodedStaticImage>&)>&
                       done_encoding_callback,
-                  scoped_array<uint8> pixel_data,
+                  std::unique_ptr<uint8[]> pixel_data,
                   const math::Size& image_dimensions);
 
   // Callback function that will be fired from the RasterizationComplete
@@ -93,7 +94,7 @@ class ScreenShotWriter {
   // |write_complete_cb| will be called when data from |image_data| has been
   // completely written to |output_path|.
   void WriteEncodedImageToFile(
-      const FilePath& output_path, const base::Closure& complete_callback,
+      const base::FilePath& output_path, const base::Closure& complete_callback,
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data);
 
   renderer::Pipeline* pipeline_;

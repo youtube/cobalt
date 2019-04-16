@@ -20,11 +20,11 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/websocket/sec_web_socket_key.h"
-#include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 #include "net/websockets/websocket_frame.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace websocket {

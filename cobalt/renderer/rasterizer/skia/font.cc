@@ -42,8 +42,8 @@ struct NonTrivialStaticFields {
 
 // |non_trivial_static_fields| will be lazily created on the first time it's
 // accessed.
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

@@ -15,8 +15,9 @@
 #ifndef COBALT_SCRIPT_ARRAY_BUFFER_H_
 #define COBALT_SCRIPT_ARRAY_BUFFER_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
@@ -46,8 +47,9 @@ class ArrayBuffer {
 
   // Create a new |ArrayBuffer| from existing block of memory.  See
   // |PreallocatedArrayBufferData| for details.
-  static Handle<ArrayBuffer> New(GlobalEnvironment* global_environment,
-                                 scoped_ptr<PreallocatedArrayBufferData> data);
+  static Handle<ArrayBuffer> New(
+      GlobalEnvironment* global_environment,
+      std::unique_ptr<PreallocatedArrayBufferData> data);
 
   virtual ~ArrayBuffer() {}
 

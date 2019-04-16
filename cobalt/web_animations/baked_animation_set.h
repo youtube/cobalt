@@ -15,9 +15,10 @@
 #ifndef COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
 #define COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_vector.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/web_animations/animation.h"
 #include "cobalt/web_animations/animation_effect_timing_read_only.h"
@@ -74,7 +75,7 @@ class BakedAnimationSet {
   base::TimeDelta end_time() const;
 
  private:
-  typedef ScopedVector<BakedAnimation> AnimationList;
+  typedef std::vector<std::unique_ptr<BakedAnimation>> AnimationList;
   AnimationList animations_;
 };
 

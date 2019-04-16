@@ -4,11 +4,11 @@
 
 #include "cobalt/media/formats/webm/webm_stream_parser.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/media_tracks.h"
@@ -75,10 +75,10 @@ class WebMStreamParserTest : public testing::Test {
 
   MOCK_METHOD1(InitCB, void(const StreamParser::InitParameters& params));
 
-  bool NewConfigCB(scoped_ptr<MediaTracks> tracks,
+  bool NewConfigCB(std::unique_ptr<MediaTracks> tracks,
                    const StreamParser::TextTrackConfigMap& text_track_map) {
     DCHECK(tracks.get());
-    media_tracks_ = tracks.Pass();
+    media_tracks_ = std::move(tracks);
     return true;
   }
 
@@ -90,8 +90,8 @@ class WebMStreamParserTest : public testing::Test {
   MOCK_METHOD0(EndMediaSegmentCB, void());
 
   scoped_refptr<testing::StrictMock<MockMediaLog>> media_log_;
-  scoped_ptr<WebMStreamParser> parser_;
-  scoped_ptr<MediaTracks> media_tracks_;
+  std::unique_ptr<WebMStreamParser> parser_;
+  std::unique_ptr<MediaTracks> media_tracks_;
 };
 
 TEST_F(WebMStreamParserTest, VerifyMediaTrackMetadata) {

@@ -19,6 +19,8 @@
 #error Only for use in non production builds
 #endif
 
+#include <memory>
+
 #include "cobalt/storage/savegame.h"
 
 namespace cobalt {
@@ -39,7 +41,7 @@ class SavegameFake : public Savegame {
   bool PlatformRead(ByteVector* bytes, size_t max_to_read) override;
   bool PlatformWrite(const ByteVector& bytes) override;
   bool PlatformDelete() override;
-  static scoped_ptr<Savegame> Create(const Options& options);
+  static std::unique_ptr<Savegame> Create(const Options& options);
 
  private:
   static ByteVector* s_persistent_data_;

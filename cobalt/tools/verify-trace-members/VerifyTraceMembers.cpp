@@ -15,8 +15,8 @@
 // Note: This file is here for reference only, and is *NOT* part of Cobalt's
 // build system.  See adjacent README.md for build instructions.
 
-#include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"

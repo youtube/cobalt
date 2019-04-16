@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/ui_event_with_key_state.h"
 

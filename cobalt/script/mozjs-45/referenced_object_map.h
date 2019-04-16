@@ -15,7 +15,7 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_REFERENCED_OBJECT_MAP_H_
 #define COBALT_SCRIPT_MOZJS_45_REFERENCED_OBJECT_MAP_H_
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
 #include "cobalt/script/wrappable.h"

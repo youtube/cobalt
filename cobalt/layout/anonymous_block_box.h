@@ -15,6 +15,7 @@
 #ifndef COBALT_LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 #define COBALT_LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/dom/font_list.h"
@@ -68,7 +69,7 @@ class AnonymousBlockBox : public BlockContainerBox {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
   // From |BlockContainerBox|.
-  scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
+  std::unique_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
       const LayoutParams& child_layout_params) override;
 
  private:

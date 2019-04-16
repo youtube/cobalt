@@ -15,15 +15,15 @@
 #ifndef COBALT_BROWSER_BROWSER_MODULE_H_
 #define COBALT_BROWSER_BROWSER_MODULE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
@@ -63,14 +63,13 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
-#include "googleurl/src/gurl.h"
 #include "starboard/configuration.h"
 #include "starboard/window.h"
+#include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/lifecycle_console_commands.h"
-#include "cobalt/browser/trace_manager.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/debugger_state.h"
 #include "cobalt/debug/console/command_manager.h"
@@ -103,8 +102,8 @@ class BrowserModule {
     base::Closure web_module_recreated_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
-    base::optional<GURL> fallback_splash_screen_url;
-    base::optional<cssom::ViewportSize> requested_viewport_size;
+    base::Optional<GURL> fallback_splash_screen_url;
+    base::Optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
   };
@@ -120,7 +119,7 @@ class BrowserModule {
                 const Options& options);
   ~BrowserModule();
 
-  const std::string& GetUserAgent() { return network_module_.GetUserAgent(); }
+  std::string GetUserAgent() { return network_module_.GetUserAgent(); }
 
   // Recreates web module with the given URL. In the case where Cobalt is
   // currently suspended, this defers the navigation and instead sets
@@ -141,24 +140,24 @@ class BrowserModule {
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
   void RequestScreenshotToFile(
-      const FilePath& path,
+      const base::FilePath& path,
       loader::image::EncodedStaticImage::ImageFormat image_format,
-      const base::optional<math::Rect>& clip_rect,
+      const base::Optional<math::Rect>& clip_rect,
       const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
   void RequestScreenshotToMemory(
       loader::image::EncodedStaticImage::ImageFormat image_format,
-      const base::optional<math::Rect>& clip_rect,
+      const base::Optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 
 #if defined(ENABLE_WEBDRIVER)
-  scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
+  std::unique_ptr<webdriver::SessionDriver> CreateSessionDriver(
       const webdriver::protocol::SessionId& session_id);
 #endif
 
 #if defined(ENABLE_DEBUGGER)
-  scoped_ptr<debug::DebugClient> CreateDebugClient(
+  std::unique_ptr<debug::DebugClient> CreateDebugClient(
       debug::DebugClient::Delegate* delegate);
   void GetDebugDispatcherInternal(
       debug::backend::DebugDispatcher** out_debug_dispatcher);
@@ -179,7 +178,7 @@ class BrowserModule {
   void ReduceMemory();
 
   void CheckMemory(const int64_t& used_cpu_memory,
-                   const base::optional<int64_t>& used_gpu_memory);
+                   const base::Optional<int64_t>& used_gpu_memory);
 
   // Post a task to the main web module to update
   // |javascript_reserved_memory_|.
@@ -346,12 +345,12 @@ class BrowserModule {
 #endif  // defined(ENABLE_DEBUGGER)
 
 #if defined(ENABLE_WEBDRIVER)
-  scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
+  std::unique_ptr<webdriver::WindowDriver> CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id);
 
   void CreateWindowDriverInternal(
       const webdriver::protocol::WindowId& window_id,
-      scoped_ptr<webdriver::WindowDriver>* out_window_driver);
+      std::unique_ptr<webdriver::WindowDriver>* out_window_driver);
 #endif
 
   // Called when a renderer submission has been rasterized. Used to hide the
@@ -436,13 +435,13 @@ class BrowserModule {
   base::WeakPtr<BrowserModule> weak_this_;
 
   // Memory configuration tool.
-  scoped_ptr<memory_settings::AutoMem> auto_mem_;
+  std::unique_ptr<memory_settings::AutoMem> auto_mem_;
 
   // A copy of the BrowserModule Options passed into the constructor.
   Options options_;
 
   // The browser module runs on this message loop.
-  MessageLoop* const self_message_loop_;
+  base::MessageLoop* const self_message_loop_;
 
   // Handler for system errors, which is owned by browser module.
   SystemPlatformErrorHandler system_platform_error_handler_;
@@ -461,40 +460,40 @@ class BrowserModule {
 
   // The main system window for our application. This routes input event
   // callbacks, and provides a native window handle on desktop systems.
-  scoped_ptr<system_window::SystemWindow> system_window_;
+  std::unique_ptr<system_window::SystemWindow> system_window_;
 
   // Wraps input device and produces input events that can be passed into
   // the web module.
-  scoped_ptr<input::InputDeviceManager> input_device_manager_;
+  std::unique_ptr<input::InputDeviceManager> input_device_manager_;
 
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
-  scoped_ptr<renderer::RendererModule> renderer_module_;
+  std::unique_ptr<renderer::RendererModule> renderer_module_;
 
   // A stub implementation of ResourceProvider that can be used until a real
   // ResourceProvider is created. Only valid in the Preloading state.
-  base::optional<render_tree::ResourceProviderStub> resource_provider_stub_;
+  base::Optional<render_tree::ResourceProviderStub> resource_provider_stub_;
 
   // Controls all media playback related objects/resources.
-  scoped_ptr<media::MediaModule> media_module_;
+  std::unique_ptr<media::MediaModule> media_module_;
 
   // Allows checking if particular media type can be played.
-  scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
+  std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
 
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
 
   // Manages the three render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
-  scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
-  scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
+  std::unique_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
+  std::unique_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
 #if defined(ENABLE_DEBUGGER)
-  scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
+  std::unique_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
 #endif  // defined(ENABLE_DEBUGGER)
-  scoped_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
+  std::unique_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
 
   // Helper object to create screen shots of the last layout tree.
-  scoped_ptr<ScreenShotWriter> screen_shot_writer_;
+  std::unique_ptr<ScreenShotWriter> screen_shot_writer_;
 
   // Keeps track of all messages containing render tree submissions that will
   // ultimately reference the |render_tree_combiner_| and the
@@ -504,16 +503,16 @@ class BrowserModule {
   base::MessageQueue render_tree_submission_queue_;
 
   // The splash screen cache.
-  scoped_ptr<SplashScreenCache> splash_screen_cache_;
+  std::unique_ptr<SplashScreenCache> splash_screen_cache_;
 
-  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
+  std::unique_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
   bool on_screen_keyboard_show_called_ = false;
 
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
   // into the renderer module.
-  scoped_ptr<WebModule> web_module_;
+  std::unique_ptr<WebModule> web_module_;
 
   // Will be signalled when the WebModule's Window.onload event is fired.
   base::WaitableEvent web_module_loaded_;
@@ -538,12 +537,10 @@ class BrowserModule {
 #if defined(ENABLE_DEBUGGER)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
-  scoped_ptr<input::InputDeviceManager> input_device_manager_fuzzer_;
+  std::unique_ptr<input::InputDeviceManager> input_device_manager_fuzzer_;
 
   // Manages a second web module to implement the debug console.
-  scoped_ptr<DebugConsole> debug_console_;
-
-  TraceManager trace_manager_;
+  std::unique_ptr<DebugConsole> debug_console_;
 
   // Command handler object for toggling the input fuzzer on/off.
   debug::console::ConsoleCommandManager::CommandHandler
@@ -557,7 +554,7 @@ class BrowserModule {
   debug::console::ConsoleCommandManager::CommandHandler
       screenshot_command_handler_;
 
-  base::optional<SuspendFuzzer> suspend_fuzzer_;
+  base::Optional<SuspendFuzzer> suspend_fuzzer_;
 
   // An object that registers and owns console commands for controlling
   // Cobalt's lifecycle.
@@ -566,10 +563,10 @@ class BrowserModule {
 
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
-  scoped_ptr<SplashScreen> splash_screen_;
+  std::unique_ptr<SplashScreen> splash_screen_;
 
   // The qr code overlay to display qr codes on top of all layers.
-  scoped_ptr<overlay_info::QrCodeOverlay> qr_code_overlay_;
+  std::unique_ptr<overlay_info::QrCodeOverlay> qr_code_overlay_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
@@ -598,7 +595,7 @@ class BrowserModule {
   base::TimeTicks on_error_retry_time_;
   // The timer for the next call to OnErrorRetry(). It is started in OnError()
   // when it is not already active.
-  base::OneShotTimer<BrowserModule> on_error_retry_timer_;
+  base::OneShotTimer on_error_retry_timer_;
 
   // Set when we've posted a system error for network failure until we receive
   // the next navigation. This is used to suppress retrying the current URL on
@@ -618,7 +615,7 @@ class BrowserModule {
   base::ApplicationState application_state_;
 
   // The list of LifecycleObserver that need to be managed.
-  ObserverList<LifecycleObserver> lifecycle_observers_;
+  base::ObserverList<LifecycleObserver> lifecycle_observers_;
 
   // Fires memory warning once when memory exceeds specified max cpu/gpu
   // memory.
@@ -626,7 +623,7 @@ class BrowserModule {
 
   // The fallback URL to the splash screen. If empty (the default), no splash
   // screen will be displayed.
-  base::optional<GURL> fallback_splash_screen_url_;
+  base::Optional<GURL> fallback_splash_screen_url_;
 
   // Number of main web modules that have taken place so far, indicating how
   // many navigations have occurred. This is helpful for distinguishing
@@ -647,7 +644,7 @@ class BrowserModule {
   // Remember the first set value for JavaScript's GC threshold setting computed
   // by automem.  We want this so that we can check that it never changes, since
   // we do not have the ability to modify it after startup.
-  base::optional<int64_t> javascript_gc_threshold_in_bytes_;
+  base::Optional<int64_t> javascript_gc_threshold_in_bytes_;
 };
 
 }  // namespace browser

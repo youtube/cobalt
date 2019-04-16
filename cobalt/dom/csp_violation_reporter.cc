@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/csp_violation_reporter.h"
 
 #include "base/hash.h"
@@ -22,7 +24,7 @@
 #include "cobalt/dom/security_policy_violation_event.h"
 #include "cobalt/network/net_poster.h"
 #include "cobalt/script/global_environment.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -112,15 +114,17 @@ void GatherSecurityPolicyViolationEventData(
 CspViolationReporter::CspViolationReporter(
     Document* document, const network_bridge::PostSender& post_sender)
     : post_sender_(post_sender),
-      message_loop_proxy_(base::MessageLoopProxy::current()),
+      message_loop_(base::MessageLoop::current()),
       document_(document) {}
 
 CspViolationReporter::~CspViolationReporter() {}
 
 // https://www.w3.org/TR/CSP2/#violation-reports
 void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
-  if (base::MessageLoopProxy::current() != message_loop_proxy_) {
-    message_loop_proxy_->PostTask(
+  DCHECK(message_loop_);
+  if (base::MessageLoop::current()->task_runner() !=
+      message_loop_->task_runner()) {
+    message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&CspViolationReporter::Report,
                               base::Unretained(this), violation_info));
     return;
@@ -151,7 +155,8 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   // sent explicitly. As for which directive was violated, that's pretty
   // harmless information.
 
-  scoped_ptr<base::DictionaryValue> csp_report(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> csp_report(
+      new base::DictionaryValue());
   csp_report->SetString(kDocumentUri, violation_data.document_uri);
   csp_report->SetString(kReferrer, violation_data.referrer);
   csp_report->SetString(kViolatedDirective, violation_data.violated_directive);
@@ -166,11 +171,13 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   }
   csp_report->SetInteger(kStatusCode, violation_data.status_code);
 
-  scoped_ptr<base::DictionaryValue> report_object(new base::DictionaryValue());
-  report_object->Set(kCspReport, csp_report.release());
+  std::unique_ptr<base::DictionaryValue> report_object(
+      new base::DictionaryValue());
+  report_object->Set(kCspReport, std::move(csp_report));
 
   std::string json_string;
-  base::JSONWriter::Write(report_object.get(), &json_string);
+  base::JSONWriter::Write(*static_cast<base::Value*>(report_object.get()),
+                          &json_string);
 
   SendViolationReports(violation_info.endpoints, json_string);
 }

@@ -17,8 +17,7 @@
 namespace cobalt {
 namespace samples {
 
-SimpleExample::SimpleExample(int multiplier)
-    : multiplier_(multiplier) {}
+SimpleExample::SimpleExample(int multiplier) : multiplier_(multiplier) {}
 
 SimpleExample::~SimpleExample() {}
 

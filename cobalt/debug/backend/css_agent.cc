@@ -39,7 +39,6 @@ CSSAgent::CSSAgent(DebugDispatcher* dispatcher)
 }
 
 void CSSAgent::Thaw(JSONObject agent_state) {
-  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
   script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
   DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;

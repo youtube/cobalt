@@ -28,21 +28,22 @@
 namespace cobalt {
 namespace {
 
-base::LazyInstance<std::string> s_initial_deep_link = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<std::string>::DestructorAtExit::DestructorAtExit
+    s_initial_deep_link = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
 void InitCobalt(int argc, char* argv[], const char* link) {
-  CommandLine::Init(argc, argv);
+  base::CommandLine::Init(argc, argv);
   if (link) {
     s_initial_deep_link.Get() = link;
   }
-  bool icu_initialized = icu_util::Initialize();
+  bool icu_initialized = base::i18n::InitializeICU();
   LOG_IF(ERROR, !icu_initialized) << "ICU initialization failed.";
 
   // Register a path provider for Cobalt-specific paths.
-  PathService::RegisterProvider(&PathProvider, paths::PATH_COBALT_START,
-                                paths::PATH_COBALT_END);
+  base::PathService::RegisterProvider(&PathProvider, paths::PATH_COBALT_START,
+                                      paths::PATH_COBALT_END);
 }
 
 const char* GetInitialDeepLink() { return s_initial_deep_link.Get().c_str(); }

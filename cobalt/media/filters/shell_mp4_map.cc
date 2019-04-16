@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/filters/shell_mp4_parser.h"
 

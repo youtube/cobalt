@@ -4,7 +4,7 @@
 
 #include "cobalt/math/size.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace math {

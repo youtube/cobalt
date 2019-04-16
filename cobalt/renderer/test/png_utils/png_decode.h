@@ -15,7 +15,9 @@
 #ifndef COBALT_RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
 #define COBALT_RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
 
-#include "base/file_path.h"
+#include <memory>
+
+#include "base/files/file_path.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -26,18 +28,18 @@ namespace png_utils {
 // Decodes a PNG file as RGBA directly to CPU memory.  Accepts width and
 // height as output parameters that must not be NULL.  Alpha format will
 // be unpremultiplied.
-scoped_array<uint8_t> DecodePNGToRGBA(const FilePath& png_file_path, int* width,
-                                      int* height);
+std::unique_ptr<uint8_t[]> DecodePNGToRGBA(const base::FilePath& png_file_path,
+                                           int* width, int* height);
 
 // Same as above, however this function will return the results as
 // premultiplied alpha format pixels.
-scoped_array<uint8_t> DecodePNGToPremultipliedAlphaRGBA(
-    const FilePath& png_file_path, int* width, int* height);
+std::unique_ptr<uint8_t[]> DecodePNGToPremultipliedAlphaRGBA(
+    const base::FilePath& png_file_path, int* width, int* height);
 
 // Creates a render_tree::Image object out of a PNG file that can be referenced
 // within a render tree.
 scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
-    const FilePath& png_file_path,
+    const base::FilePath& png_file_path,
     render_tree::ResourceProvider* resource_provider);
 
 }  // namespace png_utils

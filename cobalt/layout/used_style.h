@@ -66,7 +66,8 @@ class UsedStyleProvider {
   // is most minimum.
   typedef base::Callback<scoped_refptr<render_tree::Node>(
       const scoped_refptr<render_tree::Node>&, float max_horizontal_fov_rad,
-      float max_vertical_fov_rad)> AttachCameraNodeFunction;
+      float max_vertical_fov_rad)>
+      AttachCameraNodeFunction;
 
   UsedStyleProvider(dom::HTMLElementContext* html_element_context,
                     dom::FontCache* font_cache,
@@ -269,12 +270,12 @@ class UsedBorderRadiusProvider : public cssom::NotReachedPropertyValueVisitor {
   void VisitLength(cssom::LengthValue* length) override;
   void VisitPercentage(cssom::PercentageValue* percentage) override;
 
-  const base::optional<render_tree::RoundedCorner>& rounded_corner() const {
+  const base::Optional<render_tree::RoundedCorner>& rounded_corner() const {
     return rounded_corner_;
   }
 
  private:
-  base::optional<render_tree::RoundedCorner> rounded_corner_;
+  base::Optional<render_tree::RoundedCorner> rounded_corner_;
 
   const math::SizeF frame_size_;
 
@@ -323,31 +324,31 @@ math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
 cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);
 
 // Functions to calculate used values of box model properties.
-base::optional<LayoutUnit> GetUsedLeftIfNotAuto(
+base::Optional<LayoutUnit> GetUsedLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedTopIfNotAuto(
+base::Optional<LayoutUnit> GetUsedTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedRightIfNotAuto(
+base::Optional<LayoutUnit> GetUsedRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedBottomIfNotAuto(
+base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
+base::Optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const LayoutUnit& flex_container_main_size,
     bool* width_depends_on_flex_container);
-base::optional<LayoutUnit> GetUsedWidthIfNotAuto(
+base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
-base::optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
+base::Optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block);
-base::optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
+base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
@@ -359,19 +360,19 @@ LayoutUnit GetUsedMinWidth(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
-base::optional<LayoutUnit> GetUsedHeightIfNotAuto(
+base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
 LayoutUnit GetUsedBorderLeft(

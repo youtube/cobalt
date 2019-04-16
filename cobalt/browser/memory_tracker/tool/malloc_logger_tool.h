@@ -15,10 +15,11 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_MALLOC_LOGGER_TOOL_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_MALLOC_LOGGER_TOOL_H_
 
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "nb/memory_scope.h"
@@ -33,8 +34,8 @@ class BufferedFileWriter;
 
 // Outputs memory_log_<time_stamp>.csv to the output log location. This log
 // contains allocations and deallocations with a non-symbolized stack trace.
-class MallocLoggerTool: public AbstractTool,
-  public nb::analytics::MemoryTrackerDebugCallback {
+class MallocLoggerTool : public AbstractTool,
+                         public nb::analytics::MemoryTrackerDebugCallback {
  public:
   MallocLoggerTool();
   virtual ~MallocLoggerTool();
@@ -55,9 +56,8 @@ class MallocLoggerTool: public AbstractTool,
 
   // Method to obtain allocation, stack information and generate records
   void LogRecord(const void* memory_block,
-    const nb::analytics::AllocationRecord& record,
-    const nb::analytics::CallStack& callstack,
-    const int type);
+                 const nb::analytics::AllocationRecord& record,
+                 const nb::analytics::CallStack& callstack, const int type);
 
  private:
   static std::string MemoryLogPath();
@@ -66,8 +66,8 @@ class MallocLoggerTool: public AbstractTool,
   int GetTimeSinceStartMs() const;
 
   base::TimeTicks start_time_;
-  scoped_ptr<SbMemoryReporter> memory_reporter_;
-  scoped_ptr<BufferedFileWriter> buffered_file_writer_;
+  std::unique_ptr<SbMemoryReporter> memory_reporter_;
+  std::unique_ptr<BufferedFileWriter> buffered_file_writer_;
   starboard::atomic_int32_t atomic_counter_;
   starboard::atomic_int64_t atomic_used_memory_;
 };

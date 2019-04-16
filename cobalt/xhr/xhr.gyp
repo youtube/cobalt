@@ -31,6 +31,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
+        '<(DEPTH)/net/net.gyp:net',
       ],
       'conditions': [
         ['enable_xhr_header_filtering == 1', {

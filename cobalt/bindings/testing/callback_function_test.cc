@@ -267,8 +267,10 @@ TEST_F(CallbackFunctionTest, GetNullableCallbackAttribute) {
 
   std::string result;
   EXPECT_CALL(test_mock(), nullable_callback_attribute())
-      .WillOnce(Return(static_cast<script::ScriptValue<
-                           CallbackFunctionInterface::VoidFunction>*>(NULL)));
+      .WillOnce(
+          Return(static_cast<
+                 script::ScriptValue<CallbackFunctionInterface::VoidFunction>*>(
+              NULL)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableCallbackAttribute == null;", &result));
   EXPECT_STREQ("true", result.c_str());

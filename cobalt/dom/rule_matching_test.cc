@@ -15,6 +15,7 @@
 #include "cobalt/dom/rule_matching.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "cobalt/css_parser/parser.h"
@@ -68,9 +69,9 @@ class RuleMatchingTest : public ::testing::Test {
     return document_->style_sheets()->Item(index)->AsCSSStyleSheet();
   }
 
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
 
   scoped_refptr<Document> document_;

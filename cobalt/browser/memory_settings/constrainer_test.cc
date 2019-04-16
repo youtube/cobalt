@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include "cobalt/browser/memory_settings/constrainer.h"
 #include "base/bind.h"
 #include "base/callback.h"
-#include "cobalt/browser/memory_settings/constrainer.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "starboard/configuration.h"
@@ -90,8 +90,7 @@ TEST(ConstrainToMemoryLimits, ConstrainerIgnoresNonAutosetVariables) {
 
   // Right now we need to shave off 1MB, but this can only come from the
   // MemorySetting that was autoset.
-  ConstrainToMemoryLimits(kFiveMegabytes, kNoGpuMemory, &settings,
-                          &error_msgs);
+  ConstrainToMemoryLimits(kFiveMegabytes, kNoGpuMemory, &settings, &error_msgs);
 
   EXPECT_EQ(kOneMegabyte, int_setting_autoset.MemoryConsumption());
   EXPECT_EQ(kTwoMegabytes, int_setting_cmdline.MemoryConsumption());

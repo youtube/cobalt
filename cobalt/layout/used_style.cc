@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -465,7 +466,7 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
 
   // Check if the last font list matches the current font list. If it does, then
   // it can simply be returned.
-  if (last_font_list_ != NULL && last_font_list_->size() == font_size &&
+  if (last_font_list_.get() != NULL && last_font_list_->size() == font_size &&
       last_font_family_refptr_.get() == font_family_refptr.get() &&
       last_font_style_refptr_.get() == font_style_refptr.get() &&
       last_font_weight_refptr_.get() == font_weight_refptr.get()) {
@@ -607,7 +608,7 @@ class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
   bool depends_on_containing_block() const {
     return depends_on_containing_block_;
   }
-  const base::optional<LayoutUnit>& used_length() const { return used_length_; }
+  const base::Optional<LayoutUnit>& used_length() const { return used_length_; }
 
  protected:
   bool depends_on_containing_block_;
@@ -616,7 +617,7 @@ class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
   const LayoutUnit percentage_base_;
   const bool calc_permitted_;
 
-  base::optional<LayoutUnit> used_length_;
+  base::Optional<LayoutUnit> used_length_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
 };
@@ -885,12 +886,12 @@ void UsedBackgroundNodeProvider::VisitLinearGradient(
       linear_gradient_value->color_stop_list(),
       (source_and_dest.second - source_and_dest.first).Length());
 
-  scoped_ptr<render_tree::LinearGradientBrush> brush(
+  std::unique_ptr<render_tree::LinearGradientBrush> brush(
       new render_tree::LinearGradientBrush(
           source_and_dest.first, source_and_dest.second, color_stop_list));
 
-  background_node_ =
-      new render_tree::RectNode(frame_, brush.PassAs<render_tree::Brush>());
+  background_node_ = new render_tree::RectNode(
+      frame_, std::unique_ptr<render_tree::Brush>(brush.release()));
 }
 
 namespace {
@@ -1026,7 +1027,7 @@ math::PointF RadialGradientCenterFromCSSOM(
     return math::PointF(frame_size.width() / 2.0f, frame_size.height() / 2.0f);
   }
 
-  DCHECK_EQ(position->value().size(), 2);
+  DCHECK_EQ(position->value().size(), size_t(2));
   return math::PointF(GetUsedLengthPercentageOrCalcValue(
                           position->value()[0].get(), frame_size.width()),
                       GetUsedLengthPercentageOrCalcValue(
@@ -1054,13 +1055,13 @@ void UsedBackgroundNodeProvider::VisitRadialGradient(
   render_tree::ColorStopList color_stop_list = ConvertToRenderTreeColorStopList(
       radial_gradient_value->color_stop_list(), major_and_minor_axes.first);
 
-  scoped_ptr<render_tree::RadialGradientBrush> brush(
+  std::unique_ptr<render_tree::RadialGradientBrush> brush(
       new render_tree::RadialGradientBrush(center, major_and_minor_axes.first,
                                            major_and_minor_axes.second,
                                            color_stop_list));
 
-  background_node_ =
-      new render_tree::RectNode(frame_, brush.PassAs<render_tree::Brush>());
+  background_node_ = new render_tree::RectNode(
+      frame_, std::unique_ptr<render_tree::Brush>(brush.release()));
 }
 
 //   https://www.w3.org/TR/css3-background/#the-background-position
@@ -1070,7 +1071,7 @@ UsedBackgroundPositionProvider::UsedBackgroundPositionProvider(
 
 void UsedBackgroundPositionProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list_value) {
-  DCHECK_EQ(property_list_value->value().size(), 2);
+  DCHECK_EQ(property_list_value->value().size(), size_t(2));
   UsedBackgroundTranslateProvider width_translate_provider(
       frame_size_.width(), image_actual_size_.width());
   property_list_value->value()[0]->Accept(&width_translate_provider);
@@ -1087,7 +1088,7 @@ UsedBackgroundRepeatProvider::UsedBackgroundRepeatProvider()
 
 void UsedBackgroundRepeatProvider::VisitPropertyList(
     cssom::PropertyListValue* background_repeat_list) {
-  DCHECK_EQ(background_repeat_list->value().size(), 2);
+  DCHECK_EQ(background_repeat_list->value().size(), size_t(2));
 
   repeat_x_ =
       background_repeat_list->value()[0] == cssom::KeywordValue::GetRepeat()
@@ -1112,7 +1113,7 @@ UsedBackgroundSizeProvider::UsedBackgroundSizeProvider(
 //   https://www.w3.org/TR/css3-background/#the-background-size
 void UsedBackgroundSizeProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list_value) {
-  DCHECK_EQ(property_list_value->value().size(), 2);
+  DCHECK_EQ(property_list_value->value().size(), size_t(2));
 
   UsedBackgroundSizeScaleProvider used_background_width_provider(
       frame_size_.width(), image_size_.width());
@@ -1535,7 +1536,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
 
 }  // namespace
 
-base::optional<LayoutUnit> GetUsedLeftIfNotAuto(
+base::Optional<LayoutUnit> GetUsedLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1545,7 +1546,7 @@ base::optional<LayoutUnit> GetUsedLeftIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedTopIfNotAuto(
+base::Optional<LayoutUnit> GetUsedTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
@@ -1555,7 +1556,7 @@ base::optional<LayoutUnit> GetUsedTopIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedRightIfNotAuto(
+base::Optional<LayoutUnit> GetUsedRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1565,7 +1566,7 @@ base::optional<LayoutUnit> GetUsedRightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedBottomIfNotAuto(
+base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
@@ -1579,7 +1580,7 @@ base::optional<LayoutUnit> GetUsedBottomIfNotAuto(
 // way as width, except that if a value would resolve to auto for width, it
 // instead resolves to content for flex-basis.
 //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-base::optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
+base::Optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const LayoutUnit& flex_container_main_size,
     bool* width_depends_on_flex_container) {
@@ -1595,7 +1596,7 @@ base::optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedWidthIfNotAuto(
+base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
@@ -1610,7 +1611,7 @@ base::optional<LayoutUnit> GetUsedWidthIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
+base::Optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block) {
@@ -1625,7 +1626,7 @@ base::optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
+base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
@@ -1670,7 +1671,7 @@ LayoutUnit GetUsedMinWidth(
   return *used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedHeightIfNotAuto(
+base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // The percentage is calculated with respect to the height of the generated
@@ -1681,7 +1682,7 @@ base::optional<LayoutUnit> GetUsedHeightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1691,7 +1692,7 @@ base::optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1701,7 +1702,7 @@ base::optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.
@@ -1711,7 +1712,7 @@ base::optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
   return used_length_provider.used_length();
 }
 
-base::optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
+base::Optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to width of containing block.

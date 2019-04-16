@@ -14,8 +14,8 @@
 
 #include "cobalt/page_visibility/page_visibility_state.h"
 
-#include "base/debug/trace_event.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 
 namespace cobalt {
 namespace page_visibility {

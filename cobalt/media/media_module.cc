@@ -31,10 +31,11 @@ void RunClosureAndSignal(const base::Closure& closure,
 }
 
 void RunClosureOnMessageLoopAndWait(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
     const base::Closure& closure) {
-  base::WaitableEvent waitable_event(true, /* manual_reset */
-                                     false /* initially_signaled */);
+  base::WaitableEvent waitable_event(
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED);
   message_loop->PostTask(
       FROM_HERE, base::Bind(&RunClosureAndSignal, closure, &waitable_event));
   waitable_event.Wait();

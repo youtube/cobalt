@@ -15,8 +15,9 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_TOOL_THREAD_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_TOOL_THREAD_H_
 
+#include <memory>
+
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/simple_thread.h"
 
 namespace nb {
@@ -41,12 +42,12 @@ class ToolThread : public base::SimpleThread {
              AbstractLogger* logger);
   virtual ~ToolThread();
 
-  void Join() override;
-  void Run() override;
+  void Join();
+  void Run();
 
  private:
-  scoped_ptr<Params> params_;
-  scoped_ptr<AbstractTool> tool_;
+  std::unique_ptr<Params> params_;
+  std::unique_ptr<AbstractTool> tool_;
 };
 
 }  // namespace memory_tracker

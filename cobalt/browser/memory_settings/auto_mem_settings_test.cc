@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -29,20 +28,21 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
-CommandLine MakeCommandLine(const std::string& name, const std::string& value) {
-  CommandLine command_line(CommandLine::NO_PROGRAM);
+base::CommandLine MakeCommandLine(const std::string& name,
+                                  const std::string& value) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(name, value);
   return command_line;
 }
 
-void TestParseInt(const base::optional<int64_t>& expected,
+void TestParseInt(const base::Optional<int64_t>& expected,
                   const std::string& value, const std::string& name,
-                  base::optional<int64_t>* setting) {
+                  base::Optional<int64_t>* setting) {
 #define TEST_EXTRAS                            \
-  "expected=" << expected << ", "              \
+  "expected=" << expected.value() << ", "      \
               << "name=\"" << name << "\", "   \
               << "value=\"" << value << "\", " \
-              << "setting=" << *setting
+              << "setting=" << setting->value()
 
   if (!expected) {
     EXPECT_FALSE(*setting) << TEST_EXTRAS;
@@ -54,11 +54,11 @@ void TestParseInt(const base::optional<int64_t>& expected,
     // Check and quit so we can continue on failure without a crash.
     return;
   }
-  EXPECT_EQ(expected, **setting) << TEST_EXTRAS;
+  EXPECT_EQ(expected.value(), **setting) << TEST_EXTRAS;
 #undef TEST_EXTRAS
 }
 
-void TestAllParseInt(const base::optional<int64_t>& expected,
+void TestAllParseInt(const base::Optional<int64_t>& expected,
                      const std::string& value) {
 #define TEST_PARSE_INT(expected, value, switch_name, field_name)      \
   {                                                                   \
@@ -90,9 +90,9 @@ void TestAllParseInt(const base::optional<int64_t>& expected,
 #undef TEST_PARSE_INT
 }
 
-void TestParseDimensions(const base::optional<TextureDimensions>& expected,
+void TestParseDimensions(const base::Optional<TextureDimensions>& expected,
                          const std::string& value) {
-  CommandLine command_line(CommandLine::NO_PROGRAM);
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(switches::kSkiaTextureAtlasDimensions, value);
   AutoMemSettings settings = GetSettings(command_line);
   if (!expected) {
@@ -100,18 +100,18 @@ void TestParseDimensions(const base::optional<TextureDimensions>& expected,
     return;
   }
   EXPECT_TRUE(settings.skia_texture_atlas_dimensions)
-      << " value=\"" << value << "\", expected=" << expected;
+      << " value=\"" << value << "\", expected=" << *expected;
   if (!settings.skia_texture_atlas_dimensions) {
     return;
   }
   EXPECT_EQ(expected->width(), settings.skia_texture_atlas_dimensions->width())
-      << " value=\"" << value << "\", expected=" << expected;
+      << " value=\"" << value << "\", expected=" << *expected;
   EXPECT_EQ(expected->height(),
             settings.skia_texture_atlas_dimensions->height())
-      << " value=\"" << value << "\", expected=" << expected;
+      << " value=\"" << value << "\", expected=" << *expected;
   EXPECT_EQ(expected->bytes_per_pixel(),
             settings.skia_texture_atlas_dimensions->bytes_per_pixel())
-      << " value=\"" << value << "\", expected=" << expected;
+      << " value=\"" << value << "\", expected=" << *expected;
 }
 }  // namespace
 

@@ -16,10 +16,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
@@ -50,8 +51,8 @@
 #include "third_party/skia/include/core/SkClipOp.h"
 #include "third_party/skia/include/core/SkFilterQuality.h"
 #include "third_party/skia/include/core/SkPath.h"
-#include "third_party/skia/include/core/SkRegion.h"
 #include "third_party/skia/include/core/SkRRect.h"
+#include "third_party/skia/include/core/SkRegion.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/effects/SkBlurImageFilter.h"
@@ -158,8 +159,8 @@ void RenderTreeNodeVisitor::Visit(
   // our child's), retrieve our current total matrix and canvas viewport
   // rectangle so that we can later check if each child is within or outside
   // the viewport.
-  base::optional<SkRect> canvas_bounds;
-  base::optional<SkMatrix> total_matrix;
+  base::Optional<SkRect> canvas_bounds;
+  base::Optional<SkMatrix> total_matrix;
   if (children.size() > 1) {
     SkIRect canvas_boundsi;
     draw_state_.render_target->getDeviceClipBounds(&canvas_boundsi);
@@ -216,7 +217,7 @@ SkPath RoundedRectToSkiaPath(
 
 void ApplyViewportMask(
     RenderTreeNodeVisitorDrawState* draw_state,
-    const base::optional<render_tree::ViewportFilter>& filter) {
+    const base::Optional<render_tree::ViewportFilter>& filter) {
   if (!filter) {
     return;
   }
@@ -239,7 +240,7 @@ SkColor ToSkColor(const render_tree::ColorRGBA& color) {
 
 void ApplyBlurFilterToPaint(
     SkPaint* paint,
-    const base::optional<render_tree::BlurFilter>& blur_filter) {
+    const base::Optional<render_tree::BlurFilter>& blur_filter) {
   if (blur_filter && blur_filter->blur_sigma() > 0.0f) {
     sk_sp<SkImageFilter> skia_blur_filter(SkBlurImageFilter::Make(
         blur_filter->blur_sigma(), blur_filter->blur_sigma(), nullptr));
@@ -273,7 +274,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   }
 
   // Create a scratch surface upon which we will render the source subtree.
-  scoped_ptr<ScratchSurface> scratch_surface(
+  std::unique_ptr<ScratchSurface> scratch_surface(
       create_scratch_surface_function_->Run(
           math::Size(surface_bounds.width(), surface_bounds.height())));
   if (!scratch_surface) {
@@ -412,7 +413,7 @@ bool TryRenderMapToRect(
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   // If we're dealing with a map-to-mesh filter, handle it all by itself.
   if (filter_node->data().map_to_mesh_filter) {
-    render_tree::Node* source = filter_node->data().source;
+    render_tree::Node* source = filter_node->data().source.get();
     if (!source) {
       return;
     }
@@ -481,7 +482,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       // If an opacity filter is being applied, we must render to a separate
       // texture first.
       (!filter_node->data().opacity_filter ||
-       common::utils::NodeCanRenderWithOpacity(filter_node->data().source)) &&
+       common::utils::NodeCanRenderWithOpacity(
+           filter_node->data().source.get())) &&
       // If transforms are applied to the viewport, then we will render to
       // a separate texture first.
       total_matrix.rectStaysRect() &&
@@ -490,7 +492,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       // shader permutations (brush types * mask types).  However there are
       // some exceptions, for performance reasons.
       (!has_rounded_corners ||
-       SourceCanRenderWithRoundedCorners(filter_node->data().source));
+       SourceCanRenderWithRoundedCorners(filter_node->data().source.get()));
 
   if (can_render_with_clip_mask_directly) {
     RenderTreeNodeVisitorDrawState original_draw_state(draw_state_);
@@ -621,10 +623,10 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
                            RenderTreeNodeVisitorDrawState* draw_state,
                            const math::RectF& destination_rect,
                            const math::Matrix3F* local_transform) {
-  UNREFERENCED_PARAMETER(multi_plane_image);
-  UNREFERENCED_PARAMETER(draw_state);
-  UNREFERENCED_PARAMETER(destination_rect);
-  UNREFERENCED_PARAMETER(local_transform);
+  SB_UNREFERENCED_PARAMETER(multi_plane_image);
+  SB_UNREFERENCED_PARAMETER(draw_state);
+  SB_UNREFERENCED_PARAMETER(destination_rect);
+  SB_UNREFERENCED_PARAMETER(local_transform);
 
   // Multi-plane images like YUV images are not supported when using the
   // software rasterizers.
@@ -975,16 +977,12 @@ void DrawRoundedRectWithBrush(
 }
 
 void DrawUniformSolidNonRoundRectBorder(
-    RenderTreeNodeVisitorDrawState* draw_state,
-    const math::RectF& rect,
-    float border_width,
-    const render_tree::ColorRGBA& border_color,
+    RenderTreeNodeVisitorDrawState* draw_state, const math::RectF& rect,
+    float border_width, const render_tree::ColorRGBA& border_color,
     bool anti_alias) {
   SkPaint paint;
   const float alpha = border_color.a() * draw_state->opacity;
-  paint.setARGB(alpha * 255,
-                border_color.r() * 255,
-                border_color.g() * 255,
+  paint.setARGB(alpha * 255, border_color.r() * 255, border_color.g() * 255,
                 border_color.b() * 255);
   paint.setAntiAlias(anti_alias);
   if (alpha == 1.0f) {
@@ -996,8 +994,7 @@ void DrawUniformSolidNonRoundRectBorder(
   paint.setStrokeWidth(border_width);
   SkRect skrect;
   const float half_border_width = border_width * 0.5f;
-  skrect.set(rect.x() + half_border_width,
-             rect.y() + half_border_width,
+  skrect.set(rect.x() + half_border_width, rect.y() + half_border_width,
              rect.right() - half_border_width,
              rect.bottom() - half_border_width);
   draw_state->render_target->drawRect(skrect, paint);
@@ -1067,8 +1064,8 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
                       border.bottom.width < kAntiAliasWidthThreshold ||
                       border.left.width < kAntiAliasWidthThreshold ||
                       border.right.width < kAntiAliasWidthThreshold;
-    DrawUniformSolidNonRoundRectBorder(draw_state, rect,
-        border.top.width, border.top.color, anti_alias);
+    DrawUniformSolidNonRoundRectBorder(draw_state, rect, border.top.width,
+                                       border.top.color, anti_alias);
     return;
   }
 
@@ -1161,7 +1158,7 @@ bool AllBorderSidesShareSameProperties(const render_tree::Border& border) {
           border.top == border.bottom);
 }
 
-base::optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
+base::Optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
                                                    const SkPoint& b,
                                                    const SkPoint& c,
                                                    const SkPoint& d) {
@@ -1172,7 +1169,7 @@ base::optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
   const float ab_height = b.y() - a.y();
   const float cd_width = d.x() - c.x();
   const float cd_height = d.y() - c.y();
-  base::optional<SkPoint> intersection;
+  base::Optional<SkPoint> intersection;
 
   const float determinant = (ab_width * cd_height) - (ab_height * cd_width);
   if (determinant) {
@@ -1232,7 +1229,7 @@ void DrawSolidRoundedRectBorderByEdge(
   // If no intersection point exists, the transition center is just the inner
   // point.
 
-  base::optional<SkPoint> intersection;
+  base::Optional<SkPoint> intersection;
   // Top Left
   const SkPoint top_left_outer = {rect.x(), rect.y()};
   SkPoint top_left_inner = {rect.x() + border.left.width,
@@ -1430,7 +1427,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   // Apply rounded corners if it exists.
-  base::optional<render_tree::RoundedCorners> inner_rounded_corners;
+  base::Optional<render_tree::RoundedCorners> inner_rounded_corners;
   if (rect_node->data().rounded_corners) {
     if (rect_node->data().border) {
       inner_rounded_corners = rect_node->data().rounded_corners->Inset(
@@ -1473,7 +1470,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 namespace {
 struct RRect {
   RRect(const math::RectF& rect,
-        const base::optional<render_tree::RoundedCorners>& rounded_corners)
+        const base::Optional<render_tree::RoundedCorners>& rounded_corners)
       : rect(rect), rounded_corners(rounded_corners) {}
 
   void Offset(const math::Vector2dF& offset) { rect.Offset(offset); }
@@ -1486,7 +1483,7 @@ struct RRect {
   }
 
   math::RectF rect;
-  base::optional<render_tree::RoundedCorners> rounded_corners;
+  base::Optional<render_tree::RoundedCorners> rounded_corners;
 };
 
 // |shadow_rect| contains the original rect, offset according to the shadow's

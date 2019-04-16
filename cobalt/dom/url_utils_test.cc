@@ -14,8 +14,8 @@
 
 #include "cobalt/dom/url_utils.h"
 
-#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {

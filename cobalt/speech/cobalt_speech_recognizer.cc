@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/speech/cobalt_speech_recognizer.h"
 
 #include "base/bind.h"
@@ -34,35 +36,35 @@ namespace {
 const int kSampleRate = 16000;
 const float kAudioPacketDurationInSeconds = 0.1f;
 
-scoped_ptr<net::URLFetcher> CreateURLFetcher(
+std::unique_ptr<net::URLFetcher> CreateURLFetcher(
     const GURL& url, net::URLFetcher::RequestType request_type,
     net::URLFetcherDelegate* delegate) {
-  return make_scoped_ptr<net::URLFetcher>(
+  return std::unique_ptr<net::URLFetcher>(
       net::URLFetcher::Create(url, request_type, delegate));
 }
 
-scoped_ptr<Microphone> CreateMicrophone(int buffer_size_bytes) {
+std::unique_ptr<Microphone> CreateMicrophone(int buffer_size_bytes) {
 #if defined(SB_USE_SB_MICROPHONE)
-  return make_scoped_ptr<Microphone>(
+  return std::unique_ptr<Microphone>(
       new MicrophoneStarboard(kSampleRate, buffer_size_bytes));
 #else
-  UNREFERENCED_PARAMETER(buffer_size_bytes);
-  return scoped_ptr<Microphone>();
+  SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
+  return std::unique_ptr<Microphone>();
 #endif  // defined(SB_USE_SB_MICROPHONE)
 }
 
 #if defined(SB_USE_SB_MICROPHONE)
 #if defined(ENABLE_FAKE_MICROPHONE)
-scoped_ptr<net::URLFetcher> CreateFakeURLFetcher(
+std::unique_ptr<net::URLFetcher> CreateFakeURLFetcher(
     const GURL& url, net::URLFetcher::RequestType request_type,
     net::URLFetcherDelegate* delegate) {
-  return make_scoped_ptr<net::URLFetcher>(
+  return std::unique_ptr<net::URLFetcher>(
       new URLFetcherFake(url, request_type, delegate));
 }
 
-scoped_ptr<Microphone> CreateFakeMicrophone(const Microphone::Options& options,
-                                            int /*buffer_size_bytes*/) {
-  return make_scoped_ptr<Microphone>(new MicrophoneFake(options));
+std::unique_ptr<Microphone> CreateFakeMicrophone(
+    const Microphone::Options& options, int /*buffer_size_bytes*/) {
+  return std::unique_ptr<Microphone>(new MicrophoneFake(options));
 }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 #endif  // defined(SB_USE_SB_MICROPHONE)
@@ -73,7 +75,7 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
     const Microphone::Options& microphone_options,
     const EventCallback& event_callback)
     : SpeechRecognizer(event_callback), endpointer_delegate_(kSampleRate) {
-  UNREFERENCED_PARAMETER(microphone_options);
+  SB_UNREFERENCED_PARAMETER(microphone_options);
 
   GoogleSpeechService::URLFetcherCreator url_fetcher_creator =
       base::Bind(&CreateURLFetcher);
@@ -123,11 +125,11 @@ void CobaltSpeechRecognizer::Stop() {
 }
 
 void CobaltSpeechRecognizer::OnDataReceived(
-    scoped_ptr<ShellAudioBus> audio_bus) {
+    std::unique_ptr<ShellAudioBus> audio_bus) {
   if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
     RunEventCallback(new dom::Event(base::Tokens::soundstart()));
   }
-  service_->RecognizeAudio(audio_bus.Pass(), false);
+  service_->RecognizeAudio(std::move(audio_bus), false);
 }
 
 void CobaltSpeechRecognizer::OnDataCompletion() {
@@ -135,10 +137,10 @@ void CobaltSpeechRecognizer::OnDataCompletion() {
   // silence at the end in case encoder had no data already.
   size_t dummy_frames =
       static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
-  scoped_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
+  std::unique_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
       1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
   dummy_audio_bus->ZeroAllFrames();
-  service_->RecognizeAudio(dummy_audio_bus.Pass(), true);
+  service_->RecognizeAudio(std::move(dummy_audio_bus), true);
 }
 
 void CobaltSpeechRecognizer::OnRecognizerEvent(

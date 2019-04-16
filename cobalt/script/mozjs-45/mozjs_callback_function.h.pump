@@ -76,7 +76,7 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
   CallbackResult<R> Run($for ARG , [[
 
-      typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
+      typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const override {
     ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");

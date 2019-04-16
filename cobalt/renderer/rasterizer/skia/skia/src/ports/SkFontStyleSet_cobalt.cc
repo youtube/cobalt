@@ -16,11 +16,12 @@
 
 #include <cmath>
 #include <limits>
+#include <memory>
 
 #include "SkOSFile.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "third_party/skia/src/utils/SkOSPath.h"
@@ -258,10 +259,11 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
       // case where the typeface does not end up being created, this enables the
       // stream provider to purge newly created memory chunks, while retaining
       // any pre-existing ones.
-      scoped_ptr<const SkFileMemoryChunks> memory_chunks_snapshot(
+      std::unique_ptr<const SkFileMemoryChunks> memory_chunks_snapshot(
           stream_provider->CreateMemoryChunksSnapshot());
 
-      scoped_ptr<SkFileMemoryChunkStream> stream(stream_provider->OpenStream());
+      std::unique_ptr<SkFileMemoryChunkStream> stream(
+          stream_provider->OpenStream());
       if (GenerateStyleFaceInfo(closest_style, stream.get())) {
         if (CharacterMapContainsCharacter(character)) {
           CreateStreamProviderTypeface(closest_style, stream_provider);
@@ -341,7 +343,8 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
         style_entry->font_file_path.c_str());
   }
 
-  scoped_ptr<SkFileMemoryChunkStream> stream(stream_provider->OpenStream());
+  std::unique_ptr<SkFileMemoryChunkStream> stream(
+      stream_provider->OpenStream());
   if (GenerateStyleFaceInfo(style_entry, stream.get())) {
     LOG(INFO) << "Scanned font from file: " << style_entry->face_name.c_str()
               << "(" << style_entry->face_style << ")";

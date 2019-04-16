@@ -37,6 +37,36 @@ $var MAX_ARITY = 7
 namespace cobalt {
 namespace script {
 
+template <typename T>
+
+// --------------Begin of CallbackParamTraits------------------
+// CallbackParamTraits was originally from m25 Chromium base library.
+template <typename T>
+template <typename T>
+struct CallbackParamTraits {
+  typedef const T& ForwardType;
+  typedef T StorageType;
+};
+
+template <typename T>
+struct CallbackParamTraits<T&> {
+  typedef T& ForwardType;
+  typedef T StorageType;
+};
+
+template <typename T, size_t n>
+struct CallbackParamTraits<T[n]> {
+  typedef const T* ForwardType;
+  typedef const T* StorageType;
+};
+
+template <typename T>
+struct CallbackParamTraits<T[]> {
+  typedef const T* ForwardType;
+  typedef const T* StorageType;
+};
+// -----------------End of CallbackParamTraits---------------
+
 template <typename R>
 struct CallbackResult {
   CallbackResult() : result(R()), exception(false) {}
@@ -79,7 +109,7 @@ class CallbackFunction<R($for ARG , [[A$(ARG)]])> {
 
   virtual CallbackResult<R> Run($for ARG ,[[
 
-      typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
+      typename PassingType<A$(ARG)> a$(ARG)]])
       const = 0;
 
  protected:

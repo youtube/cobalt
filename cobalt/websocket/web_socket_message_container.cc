@@ -93,7 +93,7 @@ WebSocketMessageContainer::GetMessageAsIOBuffer() const {
 
   if ((payload_size_bytes_ > 0) &&
       (payload_size_bytes_ <= kMaxMessagePayloadInBytes)) {
-    buf = make_scoped_refptr(
+    buf = base::WrapRefCounted(
         new net::IOBufferWithSize(static_cast<int>(payload_size_bytes_)));
 
     std::size_t total_bytes_written = 0;

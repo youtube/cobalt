@@ -15,9 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_OFFSCREEN_TARGET_MANAGER_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_OFFSCREEN_TARGET_MANAGER_H_
 
+#include <memory>
+
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/node.h"
@@ -40,9 +40,7 @@ class OffscreenTargetManager {
       CreateFallbackSurfaceFunction;
 
   struct TargetInfo {
-    TargetInfo()
-        : framebuffer(NULL),
-          skia_canvas(NULL) {}
+    TargetInfo() : framebuffer(NULL), skia_canvas(NULL) {}
     backend::FramebufferRenderTargetEGL* framebuffer;
     SkCanvas* skia_canvas;
     math::RectF region;
@@ -59,7 +57,8 @@ class OffscreenTargetManager {
   typedef float ErrorData1D;
   typedef base::Callback<float(const ErrorData1D&)> CacheErrorFunction1D;
 
-  OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
+  OffscreenTargetManager(
+      backend::GraphicsContextEGL* graphics_context,
       const CreateFallbackSurfaceFunction& create_fallback_surface,
       size_t memory_limit);
   ~OffscreenTargetManager();
@@ -81,44 +80,48 @@ class OffscreenTargetManager {
   // otherwise, they are untouched.
   // The returned values are only valid until the next call to Update().
   bool GetCachedTarget(const render_tree::Node* node,
-      const CacheErrorFunction& error_function, TargetInfo* out_target_info);
+                       const CacheErrorFunction& error_function,
+                       TargetInfo* out_target_info);
   bool GetCachedTarget(const render_tree::Node* node,
-      const CacheErrorFunction1D& error_function, TargetInfo* out_target_info);
+                       const CacheErrorFunction1D& error_function,
+                       TargetInfo* out_target_info);
 
   // Allocate a cached offscreen target of the specified size.
   // The returned values are only valid until the next call to Update().
   void AllocateCachedTarget(const render_tree::Node* node,
-      const math::SizeF& size, const ErrorData& error_data,
-      TargetInfo* out_target_info);
-  void AllocateCachedTarget(const render_tree::Node* node,
-      float size, const ErrorData1D& error_data, TargetInfo* out_target_info);
+                            const math::SizeF& size,
+                            const ErrorData& error_data,
+                            TargetInfo* out_target_info);
+  void AllocateCachedTarget(const render_tree::Node* node, float size,
+                            const ErrorData1D& error_data,
+                            TargetInfo* out_target_info);
 
   // Allocate an uncached render target. The contents of the target cannot be
   // reused in subsequent frames.  If there was an error allocating the
   // render target, out_target_info->framebuffer will be set to nullptr.
   void AllocateUncachedTarget(const math::SizeF& size,
-      TargetInfo* out_target_info);
+                              TargetInfo* out_target_info);
 
  private:
   // Use an atlas for offscreen targets.
   struct OffscreenAtlas;
 
   void InitializeTargets(const math::Size& frame_size);
-  scoped_ptr<OffscreenAtlas> CreateOffscreenAtlas(const math::Size& size,
-                                                  bool create_canvas);
-  void SelectAtlasCache(ScopedVector<OffscreenAtlas>* atlases,
-      scoped_ptr<OffscreenAtlas>* cache);
+  std::unique_ptr<OffscreenAtlas> CreateOffscreenAtlas(const math::Size& size,
+                                                       bool create_canvas);
+  void SelectAtlasCache(std::vector<std::unique_ptr<OffscreenAtlas>>* atlases,
+                        std::unique_ptr<OffscreenAtlas>* cache);
 
   backend::GraphicsContextEGL* graphics_context_;
   CreateFallbackSurfaceFunction create_fallback_surface_;
 
-  ScopedVector<OffscreenAtlas> offscreen_atlases_;
-  scoped_ptr<OffscreenAtlas> offscreen_cache_;
+  std::vector<std::unique_ptr<OffscreenAtlas>> offscreen_atlases_;
+  std::unique_ptr<OffscreenAtlas> offscreen_cache_;
 
-  ScopedVector<OffscreenAtlas> offscreen_atlases_1d_;
-  scoped_ptr<OffscreenAtlas> offscreen_cache_1d_;
+  std::vector<std::unique_ptr<OffscreenAtlas>> offscreen_atlases_1d_;
+  std::unique_ptr<OffscreenAtlas> offscreen_cache_1d_;
 
-  ScopedVector<OffscreenAtlas> uncached_targets_;
+  std::vector<std::unique_ptr<OffscreenAtlas>> uncached_targets_;
 
   // Align offscreen targets to a particular size to more efficiently use the
   // offscreen target atlas. Use a power of 2 for the alignment so that a bit

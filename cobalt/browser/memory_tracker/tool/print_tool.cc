@@ -180,9 +180,7 @@ void PrintTool::Run(Params* params) {
   }
 }
 
-std::string PrintTool::tool_name() const  {
-  return "MemoryTrackerPrintThread";
-}
+std::string PrintTool::tool_name() const { return "MemoryTrackerPrintThread"; }
 
 }  // namespace memory_tracker
 }  // namespace browser

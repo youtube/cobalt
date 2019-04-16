@@ -15,74 +15,106 @@
 #ifndef COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
 #define COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
 
+#include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "base/memory/ptr_util.h"
 
 namespace cobalt {
 namespace webdriver {
 namespace util {
 namespace internal {
+namespace {
+template <typename T>
+struct ForwardType {
+  typedef const T& value;
+};
+
+template <typename T>
+struct ForwardType<T&> {
+  typedef T& value;
+};
+
+template <typename T, size_t n>
+struct ForwardType<T[n]> {
+  typedef const T* value;
+};
+
+// See comment for CallbackParamTraits<T[n]>.
+template <typename T>
+struct ForwardType<T[]> {
+  typedef const T* value;
+};
+
+// unique_ptr-like move-only types.
+template <typename T>
+struct ForwardType<std::unique_ptr<T>> {
+  typedef std::unique_ptr<T> value;
+};
+}  // namespace
 
 // Convert a value to a base::Value to return it as a part of the WebDriver
 // response object.
 template <typename T>
-scoped_ptr<base::Value> ToValue(const T& value) {
+std::unique_ptr<base::Value> ToValue(const T& value) {
   return T::ToValue(value);
 }
 
 template <typename T>
-scoped_ptr<base::Value> ToValue(const std::vector<T>& value) {
-  scoped_ptr<base::ListValue> list_value(new base::ListValue());
+std::unique_ptr<base::Value> ToValue(const std::vector<T>& value) {
+  std::unique_ptr<base::ListValue> list_value(new base::ListValue());
   for (int i = 0; i < value.size(); ++i) {
-    list_value->Append(ToValue<T>(value[i]).release());
+    list_value->Append(std::move(ToValue<T>(value[i])));
   }
-  return list_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(list_value.release());
 }
 
 // Partial template specialization for base::optional.
 template <typename T>
-scoped_ptr<base::Value> ToValue(const base::optional<T>& value) {
+std::unique_ptr<base::Value> ToValue(const base::Optional<T>& value) {
   if (value) {
     return ToValue<T>(*value);
   } else {
-    return make_scoped_ptr<base::Value>(base::Value::CreateNullValue());
+    return std::make_unique<base::Value>();
   }
 }
 
 // Template specialization for std::string.
 template <>
-scoped_ptr<base::Value> ToValue(const std::string& value) {
-  return make_scoped_ptr<base::Value>(new base::StringValue(value));
+std::unique_ptr<base::Value> ToValue(const std::string& value) {
+  return std::unique_ptr<base::Value>(new base::Value(value));
 }
 
 // Template specialization for bool.
 template <>
-scoped_ptr<base::Value> ToValue(const bool& value) {
-  return make_scoped_ptr<base::Value>(new base::FundamentalValue(value));
+std::unique_ptr<base::Value> ToValue(const bool& value) {
+  return std::unique_ptr<base::Value>(new base::Value(value));
 }
 
 template <typename R>
-scoped_ptr<base::Value> ToValue(const CommandResult<R>& command_result) {
+std::unique_ptr<base::Value> ToValue(const CommandResult<R>& command_result) {
   return ToValue(command_result.result());
 }
 
 template <>
-scoped_ptr<base::Value> ToValue(const CommandResult<void>& command_result) {
-  return make_scoped_ptr(base::Value::CreateNullValue());
+std::unique_ptr<base::Value> ToValue(
+    const CommandResult<void>& command_result) {
+  return std::make_unique<base::Value>();
 }
 
-// Convert a base::Value to a base::optional<T>. If value could not be converted
+// Convert a base::Value to a base::Optional<T>. If value could not be converted
 // base::nullopt will be returned.
 template <typename T>
-base::optional<T> FromValue(const base::Value* value) {
+base::Optional<T> FromValue(const base::Value* value) {
   return T::FromValue(value);
 }
 
 template <>
-base::optional<GURL> FromValue(const base::Value* value) {
+base::Optional<GURL> FromValue(const base::Value* value) {
   const char kUrlKey[] = "url";
   std::string url;
   const base::DictionaryValue* dictionary_value;
@@ -98,10 +130,10 @@ base::optional<GURL> FromValue(const base::Value* value) {
 // result in the CommandResult instance is converted to a base::Value and
 // returned.
 template <typename R>
-void ReturnResponse(const base::optional<protocol::SessionId>& session_id,
+void ReturnResponse(const base::Optional<protocol::SessionId>& session_id,
                     const util::CommandResult<R>& command_result,
                     WebDriverDispatcher::CommandResultHandler* result_handler) {
-  scoped_ptr<base::Value> result;
+  std::unique_ptr<base::Value> result;
   if (command_result.is_success()) {
     result = internal::ToValue(command_result);
   } else {
@@ -109,7 +141,7 @@ void ReturnResponse(const base::optional<protocol::SessionId>& session_id,
         protocol::Response::CreateErrorResponse(command_result.error_message());
   }
   result_handler->SendResult(session_id, command_result.status_code(),
-                             result.Pass());
+                             std::move(result));
 }
 
 }  // namespace internal
@@ -205,7 +237,7 @@ class DispatchCommandFactory
     // Upon successful completion of the command, the result will be sent to
     // CommandResultHandler.
     typedef base::Callback<void(
-        const base::optional<protocol::SessionId>&, DriverClassT* driver,
+        const base::Optional<protocol::SessionId>&, DriverClassT* driver,
         const base::Value* parameters, CommandResultHandler* result_handler)>
         RunCommandCallback;
 
@@ -217,7 +249,7 @@ class DispatchCommandFactory
     // function with no parameters.
     static void RunCommand(
         const DriverCommandFunction& driver_command,
-        const base::optional<protocol::SessionId>& session_id,
+        const base::Optional<protocol::SessionId>& session_id,
         DriverClassT* driver, const base::Value* parameters,
         CommandResultHandler* result_handler) {
       // Ignore parameters.
@@ -236,16 +268,17 @@ class DispatchCommandFactory
     template <typename A1>
     static void ExtractParameterAndRunCommand(
         const base::Callback<util::CommandResult<R>(
-            DriverClassT*,
-            typename base::internal::CallbackParamTraits<A1>::ForwardType)>&
+            DriverClassT*, typename internal::ForwardType<A1>::value)>&
             driver_command,
-        const base::optional<protocol::SessionId>& session_id,
+        const base::Optional<protocol::SessionId>& session_id,
         DriverClassT* driver, const base::Value* parameters,
         CommandResultHandler* result_handler) {
       // Extract the parameter from |parameters|. If unsuccessful, return a
       // kInvalidParameters error. Otherwise, pass the extracted parameter to
       // the |driver_command|.
-      base::optional<A1> param = internal::FromValue<A1>(parameters);
+      using A1_NO_REF = typename std::remove_reference<A1>::type;
+      base::Optional<A1_NO_REF> param =
+          internal::FromValue<A1_NO_REF>(parameters);
       if (!param) {
         result_handler->SendInvalidRequestResponse(
             WebDriverDispatcher::CommandResultHandler::kInvalidParameters, "");
@@ -286,7 +319,7 @@ class DispatchCommandFactory
     // the appropriate XXXDriver, and execute |run_command_| on it.
     void HandleCommand(const base::Value* value,
                        const PathVariableMap* path_variables,
-                       scoped_ptr<CommandResultHandler> result_handler) {
+                       std::unique_ptr<CommandResultHandler> result_handler) {
       SessionDriver* session =
           get_session_.Run(path_variables, result_handler.get());
       if (session) {

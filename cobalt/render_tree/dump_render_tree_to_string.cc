@@ -164,17 +164,17 @@ class BrushPrinterVisitor : public render_tree::BrushVisitor {
 
   void Visit(
       const cobalt::render_tree::SolidColorBrush* solid_color_brush) override {
-    UNREFERENCED_PARAMETER(solid_color_brush);
+    SB_UNREFERENCED_PARAMETER(solid_color_brush);
     brush_type_ = "(SolidColorBrush)";
   }
   void Visit(const cobalt::render_tree::LinearGradientBrush*
                  linear_gradient_brush) override {
-    UNREFERENCED_PARAMETER(linear_gradient_brush);
+    SB_UNREFERENCED_PARAMETER(linear_gradient_brush);
     brush_type_ = "(LinearGradientBrush)";
   }
   void Visit(const cobalt::render_tree::RadialGradientBrush*
                  radial_gradient_brush) override {
-    UNREFERENCED_PARAMETER(radial_gradient_brush);
+    SB_UNREFERENCED_PARAMETER(radial_gradient_brush);
     brush_type_ = "(RadialGradientBrush)";
   }
 

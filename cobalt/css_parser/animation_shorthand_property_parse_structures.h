@@ -15,6 +15,8 @@
 #ifndef COBALT_CSS_PARSER_ANIMATION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 #define COBALT_CSS_PARSER_ANIMATION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
+#include <memory>
+
 #include "base/optional.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -34,9 +36,9 @@ struct SingleAnimationShorthand {
 
   void ReplaceNullWithInitialValues();
 
-  base::optional<base::TimeDelta> delay;
+  base::Optional<base::TimeDelta> delay;
   scoped_refptr<cssom::PropertyValue> direction;
-  base::optional<base::TimeDelta> duration;
+  base::Optional<base::TimeDelta> duration;
   scoped_refptr<cssom::PropertyValue> fill_mode;
   scoped_refptr<cssom::PropertyValue> iteration_count;
   scoped_refptr<cssom::PropertyValue> name;
@@ -61,13 +63,14 @@ struct AnimationShorthandBuilder {
   // builder is empty if any of its sub-builder arrays are empty.
   bool empty() const { return delay_list_builder->empty(); }
 
-  scoped_ptr<cssom::TimeListValue::Builder> delay_list_builder;
-  scoped_ptr<cssom::PropertyListValue::Builder> direction_list_builder;
-  scoped_ptr<cssom::TimeListValue::Builder> duration_list_builder;
-  scoped_ptr<cssom::PropertyListValue::Builder> fill_mode_list_builder;
-  scoped_ptr<cssom::PropertyListValue::Builder> iteration_count_list_builder;
-  scoped_ptr<cssom::PropertyListValue::Builder> name_list_builder;
-  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+  std::unique_ptr<cssom::TimeListValue::Builder> delay_list_builder;
+  std::unique_ptr<cssom::PropertyListValue::Builder> direction_list_builder;
+  std::unique_ptr<cssom::TimeListValue::Builder> duration_list_builder;
+  std::unique_ptr<cssom::PropertyListValue::Builder> fill_mode_list_builder;
+  std::unique_ptr<cssom::PropertyListValue::Builder>
+      iteration_count_list_builder;
+  std::unique_ptr<cssom::PropertyListValue::Builder> name_list_builder;
+  std::unique_ptr<cssom::TimingFunctionListValue::Builder>
       timing_function_list_builder;
 };
 

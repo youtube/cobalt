@@ -15,14 +15,14 @@
 #ifndef COBALT_DOM_STORAGE_AREA_H_
 #define COBALT_DOM_STORAGE_AREA_H_
 
+#include <memory>
 #include <string>
 
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/loader/origin.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -43,8 +43,8 @@ class StorageArea {
   ~StorageArea();
 
   int length();
-  base::optional<std::string> Key(int index);
-  base::optional<std::string> GetItem(const std::string& key);
+  base::Optional<std::string> Key(int index);
+  base::Optional<std::string> GetItem(const std::string& key);
   void SetItem(const std::string& key, const std::string& value);
   void RemoveItem(const std::string& key);
   void Clear();
@@ -56,9 +56,9 @@ class StorageArea {
 
  private:
   void Init();
-  void OnInitComplete(scoped_ptr<StorageMap> data);
+  void OnInitComplete(std::unique_ptr<StorageMap> data);
 
-  scoped_ptr<StorageMap> storage_map_;
+  std::unique_ptr<StorageMap> storage_map_;
 
   loader::Origin origin_;
   base::WaitableEvent read_event_;

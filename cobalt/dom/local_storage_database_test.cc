@@ -14,13 +14,14 @@
 
 #include "cobalt/dom/local_storage_database.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/file_path.h"
-#include "base/message_loop.h"
+#include "base/files/file_path.h"
+#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
-#include "base/stringprintf.h"
-#include "base/time.h"
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame_fake.h"
 #include "cobalt/storage/storage_manager.h"
@@ -36,7 +37,9 @@ namespace {
 
 class CallbackWaiter {
  public:
-  CallbackWaiter() : was_called_event_(true, false) {}
+  CallbackWaiter()
+      : was_called_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                          base::WaitableEvent::InitialState::NOT_SIGNALED) {}
   virtual ~CallbackWaiter() {}
   bool TimedWait() {
     return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(5));
@@ -65,7 +68,7 @@ class Reader : public CallbackWaiter {
   Reader() {}
   ~Reader() {}
 
-  void OnReadAll(scoped_ptr<StorageArea::StorageMap> data) {
+  void OnReadAll(std::unique_ptr<StorageArea::StorageMap> data) {
     data_ = *data;
     Signal();
   }
@@ -76,8 +79,8 @@ class Reader : public CallbackWaiter {
 };
 
 std::string GetSavePath() {
-  FilePath test_path;
-  CHECK(PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
+  base::FilePath test_path;
+  CHECK(base::PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
   return test_path.Append("local_storage_database_test.bin").value();
 }
 
@@ -89,9 +92,9 @@ class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
 class LocalStorageDatabaseTest : public ::testing::Test {
  protected:
   LocalStorageDatabaseTest()
-      : message_loop_(MessageLoop::TYPE_DEFAULT),
+      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         origin_(GURL("https://www.example.com")) {
-    scoped_ptr<storage::StorageManager::UpgradeHandler> upgrade_handler(
+    std::unique_ptr<storage::StorageManager::UpgradeHandler> upgrade_handler(
         new DummyUpgradeHandler());
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
@@ -99,7 +102,7 @@ class LocalStorageDatabaseTest : public ::testing::Test {
     options.savegame_options.factory = &storage::SavegameFake::Create;
 
     storage_manager_.reset(
-        new storage::StorageManager(upgrade_handler.Pass(), options));
+        new storage::StorageManager(std::move(upgrade_handler), options));
     db_.reset(new LocalStorageDatabase(storage_manager_.get()));
   }
 
@@ -108,10 +111,10 @@ class LocalStorageDatabaseTest : public ::testing::Test {
     storage_manager_.reset();
   }
 
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
   loader::Origin origin_;
-  scoped_ptr<storage::StorageManager> storage_manager_;
-  scoped_ptr<LocalStorageDatabase> db_;
+  std::unique_ptr<storage::StorageManager> storage_manager_;
+  std::unique_ptr<LocalStorageDatabase> db_;
 };
 }  // namespace
 
@@ -120,7 +123,7 @@ TEST_F(LocalStorageDatabaseTest, EmptyRead) {
   Reader reader;
   db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
   EXPECT_EQ(empty, reader.data_);
 }
@@ -144,7 +147,7 @@ TEST_F(LocalStorageDatabaseTest, WritePersists) {
   Reader reader;
   db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
   EXPECT_EQ(test_vals, reader.data_);
 }
@@ -165,7 +168,7 @@ TEST_F(LocalStorageDatabaseTest, Delete) {
   Reader reader;
   db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
   EXPECT_EQ(expected_vals, reader.data_);
 }
@@ -184,7 +187,7 @@ TEST_F(LocalStorageDatabaseTest, Clear) {
   Reader reader;
   db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
   EXPECT_EQ(expected_vals, reader.data_);
 }

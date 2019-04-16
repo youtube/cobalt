@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media_session/media_session.h"
 
 #include "cobalt/bindings/testing/script_object_owner.h"
@@ -24,7 +26,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 
 using ::cobalt::script::testing::FakeScriptValue;
@@ -44,8 +46,9 @@ namespace {
 
 class MockCallbackFunction : public MediaSession::MediaSessionActionHandler {
  public:
-  MOCK_CONST_METHOD1(Run, ReturnValue(
-      const scoped_refptr<MediaSessionActionDetails>& action_details));
+  MOCK_CONST_METHOD1(
+      Run, ReturnValue(
+               const scoped_refptr<MediaSessionActionDetails>& action_details));
 };
 
 class MockMediaSessionClient : public MediaSessionClient {
@@ -54,17 +57,15 @@ class MockMediaSessionClient : public MediaSessionClient {
 };
 
 MATCHER_P(SeekTime, time, "") {
-  return arg->action() ==  kMediaSessionActionSeek
-      && arg->seek_time() == time;
+  return arg->action() == kMediaSessionActionSeek && arg->seek_time() == time;
 }
 
 MATCHER_P2(SeekOffset, action, offset, "") {
-  return arg->action() ==  action
-      && arg->seek_offset() == offset;
+  return arg->action() == action && arg->seek_offset() == offset;
 }
 
 TEST(MediaSessionTest, MediaSessionTest) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
 
   MockMediaSessionClient client;
@@ -85,7 +86,7 @@ TEST(MediaSessionTest, MediaSessionTest) {
 }
 
 TEST(MediaSessionTest, GetActualPlaybackState) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
 
   MockMediaSessionClient client;
@@ -126,7 +127,7 @@ TEST(MediaSessionTest, GetActualPlaybackState) {
 }
 
 TEST(MediaSessionTest, NullActionClears) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
 
   MockMediaSessionClient client;
@@ -158,7 +159,7 @@ TEST(MediaSessionTest, NullActionClears) {
 }
 
 TEST(MediaSessionTest, GetAvailableActions) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
 
   MockMediaSessionClient client;
@@ -232,7 +233,7 @@ TEST(MediaSessionTest, GetAvailableActions) {
 }
 
 TEST(MediaSessionTest, SeekDetails) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
   base::RunLoop run_loop;
 
   MockMediaSessionClient client;
@@ -250,8 +251,7 @@ TEST(MediaSessionTest, SeekDetails) {
   session->SetActionHandler(kMediaSessionActionSeekforward, holder);
   session->SetActionHandler(kMediaSessionActionSeekbackward, holder);
 
-  EXPECT_CALL(cf, Run(SeekTime(0.0)))
-      .WillOnce(Return(CallbackResult<void>()));
+  EXPECT_CALL(cf, Run(SeekTime(0.0))).WillOnce(Return(CallbackResult<void>()));
   client.InvokeAction(kMediaSessionActionSeek);
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 0.0)))
@@ -262,22 +262,21 @@ TEST(MediaSessionTest, SeekDetails) {
       .WillOnce(Return(CallbackResult<void>()));
   client.InvokeAction(kMediaSessionActionSeekbackward);
 
-  EXPECT_CALL(cf, Run(SeekTime(1.2)))
-      .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
+  EXPECT_CALL(cf, Run(SeekTime(1.2))).WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
       new MediaSessionActionDetails::Data(kMediaSessionActionSeek, 1.2)));
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 3.4)))
       .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
-      new MediaSessionActionDetails::Data(
-          kMediaSessionActionSeekforward, 3.4)));
+  client.InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
+      new MediaSessionActionDetails::Data(kMediaSessionActionSeekforward,
+                                          3.4)));
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 5.6)))
       .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
-      new MediaSessionActionDetails::Data(
-          kMediaSessionActionSeekbackward, 5.6)));
+  client.InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
+      new MediaSessionActionDetails::Data(kMediaSessionActionSeekbackward,
+                                          5.6)));
 }
 
 }  // namespace

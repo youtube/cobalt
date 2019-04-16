@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/script/array_buffer.h"
@@ -45,7 +47,7 @@ TEST_F(ArrayBufferTest, ArrayBufferTest) {
   }
 
   {
-    scoped_array<uint8_t> data(new uint8_t[256]);
+    std::unique_ptr<uint8_t[]> data(new uint8_t[256]);
     for (int i = 0; i < 256; i++) {
       data[i] = i;
     }
@@ -59,7 +61,7 @@ TEST_F(ArrayBufferTest, ArrayBufferTest) {
   }
 
   {
-    scoped_ptr<script::PreallocatedArrayBufferData> preallocated_data(
+    std::unique_ptr<script::PreallocatedArrayBufferData> preallocated_data(
         new script::PreallocatedArrayBufferData(256));
     EXPECT_EQ(256, preallocated_data->byte_length());
     for (int i = 0; i < preallocated_data->byte_length(); i++) {
@@ -68,8 +70,8 @@ TEST_F(ArrayBufferTest, ArrayBufferTest) {
 
     void* data_pointer = preallocated_data->data();
 
-    auto array_buffer =
-        script::ArrayBuffer::New(global_environment_, preallocated_data.Pass());
+    auto array_buffer = script::ArrayBuffer::New(global_environment_,
+                                                 std::move(preallocated_data));
     EXPECT_EQ(256, array_buffer->ByteLength());
     EXPECT_EQ(data_pointer, array_buffer->Data());
     for (int i = 0; i < 256; i++) {

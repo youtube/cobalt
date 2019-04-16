@@ -15,9 +15,9 @@
 #ifndef COBALT_CSS_PARSER_STRING_POOL_H_
 #define COBALT_CSS_PARSER_STRING_POOL_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_vector.h"
 
 namespace cobalt {
 namespace css_parser {
@@ -33,14 +33,14 @@ class StringPool {
   std::string* AllocateString();
 
  private:
-  ScopedVector<std::string> strings_;
+  std::vector<std::unique_ptr<std::string>> strings_;
 
   DISALLOW_COPY_AND_ASSIGN(StringPool);
 };
 
 inline std::string* StringPool::AllocateString() {
-  strings_.push_back(new std::string());
-  return strings_.back();
+  strings_.emplace_back(new std::string());
+  return strings_.back().get();
 }
 
 }  // namespace css_parser

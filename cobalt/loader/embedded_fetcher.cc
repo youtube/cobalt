@@ -19,10 +19,10 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/message_loop.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
+#include "base/message_loop/message_loop.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/loader/embedded_resources.h"  // Generated.
 
@@ -92,7 +92,7 @@ void EmbeddedFetcher::GetEmbeddedData(const std::string& key,
   data += start_offset;
 
   // If the key is a template file, localized the strings in the file data.
-  if (EndsWith(key, ".template", true)) {
+  if (base::EndsWith(key, ".template", base::CompareCase::SENSITIVE)) {
     std::string output_file(data);
     LocalizeFileData(&output_file);
     const char* final_data = output_file.c_str();
@@ -119,14 +119,15 @@ bool EmbeddedFetcher::IsAllowedByCsp() {
 void EmbeddedFetcher::LocalizeFileData(std::string* output_file) {
   base::LocalizedStrings* localized_strings =
       base::LocalizedStrings::GetInstance();
-  std::vector<std::string> parts;
   std::string opening_delimiter = "[[";
-  base::SplitStringUsingSubstr(*output_file, opening_delimiter, &parts);
+  std::vector<std::string> parts =
+      base::SplitStringUsingSubstr(*output_file, opening_delimiter,
+                                   base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (size_t idx = 1; idx < parts.size(); ++idx) {
     std::string& value = parts[idx];
-    std::vector<std::string> key_result;
     std::string closing_delimiter = "]]";
-    base::SplitStringUsingSubstr(value, closing_delimiter, &key_result);
+    std::vector<std::string> key_result = base::SplitStringUsingSubstr(
+        value, closing_delimiter, base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     size_t key_results = key_result.size();
 
     if (key_results > 1) {
@@ -139,7 +140,7 @@ void EmbeddedFetcher::LocalizeFileData(std::string* output_file) {
     }
   }
 
-  *output_file = JoinString(parts, std::string());
+  *output_file = base::JoinString(parts, std::string());
 }
 
 }  // namespace loader

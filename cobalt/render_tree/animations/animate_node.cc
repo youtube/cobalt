@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/transform_2d.h"
@@ -30,7 +30,8 @@ namespace animations {
 void AnimateNode::Builder::AddInternal(
     const scoped_refptr<Node>& target_node,
     const scoped_refptr<AnimationListBase>& animation_list) {
-  DCHECK(node_animation_map_.find(target_node) == node_animation_map_.end())
+  DCHECK(node_animation_map_.find(target_node.get()) ==
+         node_animation_map_.end())
       << "The target render tree node already has an associated animation "
          "list.";
 
@@ -373,7 +374,7 @@ AnimateNode::TraverseListEntry AnimateNode::BoundsVisitor::AdvanceIterator(
 }
 
 void AnimateNode::BoundsVisitor::ApplyTransform(Node* node) {
-  UNREFERENCED_PARAMETER(node);
+  SB_UNREFERENCED_PARAMETER(node);
 }
 
 void AnimateNode::BoundsVisitor::ApplyTransform(CompositionNode* node) {
@@ -391,7 +392,7 @@ void AnimateNode::BoundsVisitor::ApplyTransform(MatrixTransformNode* node) {
 class AnimateNode::ApplyVisitor : public NodeVisitor {
  public:
   ApplyVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
-               const base::optional<base::TimeDelta>& snapshot_time);
+               const base::Optional<base::TimeDelta>& snapshot_time);
 
   void Visit(animations::AnimateNode* /* animate */) override {
     // An invariant of AnimateNodes is that they should never contain descendant
@@ -456,12 +457,12 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
 
   // Time at which the existing source render tree was created/last animated
   // at.
-  base::optional<base::TimeDelta> snapshot_time_;
+  base::Optional<base::TimeDelta> snapshot_time_;
 };
 
 AnimateNode::ApplyVisitor::ApplyVisitor(
     const TraverseList& traverse_list, base::TimeDelta time_offset,
-    const base::optional<base::TimeDelta>& snapshot_time)
+    const base::Optional<base::TimeDelta>& snapshot_time)
     : time_offset_(time_offset),
       traverse_list_(traverse_list),
       snapshot_time_(snapshot_time) {
@@ -487,8 +488,8 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
     did_animate = true;
   }
 
-  animated_traverse_list_.push_back(
-      TraverseListEntry(animated_, current_entry.animations, did_animate));
+  animated_traverse_list_.push_back(TraverseListEntry(
+      animated_.get(), current_entry.animations, did_animate));
 }
 
 template <typename T>
@@ -516,7 +517,7 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
       // If one of our children is next up on the path to animation, traverse
       // into it.
       child->Accept(this);
-      if (animated_ != child) {
+      if (animated_.get() != child) {
         // Traversing into the child and seeing |animated_| emerge from the
         // traversal equal to something other than |child| means that the child
         // was animated, and so replaced by an animated node while it was
@@ -530,7 +531,7 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
     child_iterator.Next();
   }
 
-  base::optional<typename T::Builder> builder;
+  base::Optional<typename T::Builder> builder;
   if (children_modified) {
     // Reuse the modified Builder object from child traversal if one of
     // our children was animated.
@@ -563,7 +564,7 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
     }
   }
 
-  animated_traverse_list_[animated_traverse_list_index].node = animated_;
+  animated_traverse_list_[animated_traverse_list_index].node = animated_.get();
   animated_traverse_list_[animated_traverse_list_index].did_animate_previously =
       did_animate;
 }
@@ -645,7 +646,7 @@ math::RectF AnimateNode::GetAnimationBoundsSince(
 namespace {
 // Helper function to always return an empty bounding rectangle.
 math::RectF ReturnTrivialEmptyRectBound(base::TimeDelta since) {
-  UNREFERENCED_PARAMETER(since);
+  SB_UNREFERENCED_PARAMETER(since);
   return math::RectF();
 }
 }  // namespace

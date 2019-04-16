@@ -15,13 +15,13 @@
 #ifndef COBALT_CSP_DIRECTIVE_LIST_H_
 #define COBALT_CSP_DIRECTIVE_LIST_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {
@@ -135,9 +135,9 @@ class DirectiveList {
                                      const std::string& value);
 
   void SetCSPDirective(const std::string& name, const std::string& value,
-                       scoped_ptr<SourceListDirective>*);
+                       std::unique_ptr<SourceListDirective>*);
   void SetCSPDirective(const std::string& name, const std::string& value,
-                       scoped_ptr<MediaListDirective>*);
+                       std::unique_ptr<MediaListDirective>*);
 
   SourceListDirective* OperativeDirective(SourceListDirective* directive) const;
   SourceListDirective* OperativeDirective(
@@ -205,22 +205,22 @@ class DirectiveList {
 
   bool upgrade_insecure_requests_;
 
-  scoped_ptr<MediaListDirective> plugin_types_;
-  scoped_ptr<SourceListDirective> base_uri_;
-  scoped_ptr<SourceListDirective> child_src_;
-  scoped_ptr<SourceListDirective> connect_src_;
-  scoped_ptr<SourceListDirective> default_src_;
-  scoped_ptr<SourceListDirective> font_src_;
-  scoped_ptr<SourceListDirective> form_action_;
-  scoped_ptr<SourceListDirective> frame_ancestors_;
-  scoped_ptr<SourceListDirective> frame_src_;
-  scoped_ptr<SourceListDirective> img_src_;
-  scoped_ptr<SourceListDirective> location_src_;
-  scoped_ptr<SourceListDirective> media_src_;
-  scoped_ptr<SourceListDirective> manifest_src_;
-  scoped_ptr<SourceListDirective> object_src_;
-  scoped_ptr<SourceListDirective> script_src_;
-  scoped_ptr<SourceListDirective> style_src_;
+  std::unique_ptr<MediaListDirective> plugin_types_;
+  std::unique_ptr<SourceListDirective> base_uri_;
+  std::unique_ptr<SourceListDirective> child_src_;
+  std::unique_ptr<SourceListDirective> connect_src_;
+  std::unique_ptr<SourceListDirective> default_src_;
+  std::unique_ptr<SourceListDirective> font_src_;
+  std::unique_ptr<SourceListDirective> form_action_;
+  std::unique_ptr<SourceListDirective> frame_ancestors_;
+  std::unique_ptr<SourceListDirective> frame_src_;
+  std::unique_ptr<SourceListDirective> img_src_;
+  std::unique_ptr<SourceListDirective> location_src_;
+  std::unique_ptr<SourceListDirective> media_src_;
+  std::unique_ptr<SourceListDirective> manifest_src_;
+  std::unique_ptr<SourceListDirective> object_src_;
+  std::unique_ptr<SourceListDirective> script_src_;
+  std::unique_ptr<SourceListDirective> style_src_;
 
   std::vector<std::string> report_endpoints_;
 

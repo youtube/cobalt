@@ -15,12 +15,12 @@
 #ifndef COBALT_DOM_PARSER_HTML_DECODER_H_
 #define COBALT_DOM_PARSER_HTML_DECODER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/document.h"
@@ -68,11 +68,9 @@ class HTMLDecoder : public loader::Decoder {
  private:
   // This subclass is responsible for providing the handlers for the interface
   // of libxml2's SAX parser.
-  scoped_ptr<LibxmlHTMLParserWrapper> libxml_html_parser_wrapper_;
+  std::unique_ptr<LibxmlHTMLParserWrapper> libxml_html_parser_wrapper_;
   scoped_refptr<dom::Document> document_;
   base::ThreadChecker thread_checker_;
-
-  const bool should_run_scripts_;
 
   // If Cobalt user forbids rendering Cobalt without csp headers.
   const csp::CSPHeaderPolicy require_csp_;

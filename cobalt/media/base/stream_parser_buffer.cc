@@ -5,6 +5,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/logging.h"
 #include "cobalt/media/base/timestamp_constants.h"
@@ -13,15 +14,15 @@ namespace cobalt {
 namespace media {
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
-  return make_scoped_refptr(new StreamParserBuffer);
+  return base::WrapRefCounted(new StreamParserBuffer);
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     Allocator* allocator, const uint8_t* data, int data_size, bool is_key_frame,
     Type type, TrackId track_id) {
   scoped_refptr<StreamParserBuffer> stream_parser_buffer =
-      make_scoped_refptr(new StreamParserBuffer(allocator, data, data_size,
-                                                is_key_frame, type, track_id));
+      base::WrapRefCounted(new StreamParserBuffer(
+          allocator, data, data_size, is_key_frame, type, track_id));
   if (!stream_parser_buffer->has_data()) {
     return NULL;
   }
@@ -212,7 +213,7 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::Clone() const {
   clone->set_splice_timestamp(splice_timestamp());
   const DecryptConfig* decrypt_config = this->decrypt_config();
   if (decrypt_config) {
-    clone->set_decrypt_config(scoped_ptr<DecryptConfig>(
+    clone->set_decrypt_config(std::unique_ptr<DecryptConfig>(
         new DecryptConfig(decrypt_config->key_id(), decrypt_config->iv(),
                           decrypt_config->subsamples())));
   }

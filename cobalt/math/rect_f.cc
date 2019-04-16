@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/rect_base_impl.h"
 #include "cobalt/math/safe_integer_conversions.h"

@@ -16,7 +16,7 @@
 
 #include <vector>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -34,7 +34,7 @@ const char kSslProxyKey[] = "sslProxy";
 const char kManualProxyType[] = "manual";
 }  // namespace
 
-base::optional<Proxy> Proxy::FromValue(const base::Value* value) {
+base::Optional<Proxy> Proxy::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
     return base::nullopt;
@@ -43,7 +43,7 @@ base::optional<Proxy> Proxy::FromValue(const base::Value* value) {
   if (!dictionary_value->GetString(kProxyTypeKey, &proxy_type_string)) {
     return base::nullopt;
   }
-  StringToLowerASCII(&proxy_type_string);
+  proxy_type_string = base::ToLowerASCII(proxy_type_string);
   if (proxy_type_string == kManualProxyType) {
     std::vector<std::string> proxy_rules;
     std::string http_proxy;
@@ -55,7 +55,7 @@ base::optional<Proxy> Proxy::FromValue(const base::Value* value) {
       proxy_rules.push_back(std::string("https=") + https_proxy);
     }
     if (!proxy_rules.empty()) {
-      return Proxy(JoinString(proxy_rules, ";"));
+      return Proxy(base::JoinString(proxy_rules, ";"));
     }
   } else {
     // Only manual proxy type is supported.

@@ -14,7 +14,7 @@
 
 #include "cobalt/webdriver/script_executor_params.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/script/source_code.h"
 
 namespace cobalt {
@@ -23,12 +23,12 @@ namespace webdriver {
 ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
     const scoped_refptr<script::GlobalEnvironment>& global_environment,
     const std::string& function_body, const std::string& json_args,
-    base::optional<base::TimeDelta> async_timeout) {
+    base::Optional<base::TimeDelta> async_timeout) {
   scoped_refptr<ScriptExecutorParams> params(new ScriptExecutorParams());
   DCHECK(!params->prevent_gc_until_create_complete_);
   params->prevent_gc_until_create_complete_.reset(
       new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-          global_environment, params));
+          global_environment.get(), params.get()));
   params->json_args_ = json_args;
 
   if (async_timeout) {
@@ -37,7 +37,7 @@ ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
   }
 
   std::string function =
-      StringPrintf("(function() {\n%s\n})", function_body.c_str());
+      base::StringPrintf("(function() {\n%s\n})", function_body.c_str());
   scoped_refptr<script::SourceCode> function_source =
       script::SourceCode::CreateSourceCode(
           function.c_str(), base::SourceLocation("[webdriver]", 1, 1));

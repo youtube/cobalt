@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/text_renderer.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 

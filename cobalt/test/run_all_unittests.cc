@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "base/at_exit.h"
+#include "base/command_line.h"
 #include "base/path_service.h"
-#include "base/test/main_hook.h"
 #include "base/test/test_suite.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/path_provider.h"
@@ -22,12 +22,14 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+
 int InitAndRunAllTests(int argc, char** argv) {
-  MainHook hook(NULL, argc, argv);
+  base::CommandLine::Init(argc, argv);
+  base::AtExitManager exit_manager;
   base::TestSuite test_suite(argc, argv);
-  PathService::RegisterProvider(&cobalt::PathProvider,
-                                cobalt::paths::PATH_COBALT_START,
-                                cobalt::paths::PATH_COBALT_END);
+  base::PathService::RegisterProvider(&cobalt::PathProvider,
+                                      cobalt::paths::PATH_COBALT_START,
+                                      cobalt::paths::PATH_COBALT_END);
 
   return test_suite.Run();
 }

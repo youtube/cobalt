@@ -26,7 +26,7 @@ namespace protocol {
 
 class LogType {
  public:
-  static base::optional<LogType> FromValue(const base::Value* value);
+  static base::Optional<LogType> FromValue(const base::Value* value);
   explicit LogType(const std::string& type) : type_(type) {}
   const std::string& type() const { return type_; }
 

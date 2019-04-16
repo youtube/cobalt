@@ -81,17 +81,16 @@ NodeCollection<NodeIterator>::NodeCollection(
       base_node_generation_(Node::kInvalidNodeGeneration) {}
 
 template <typename NodeIterator>
-void NodeCollection<NodeIterator>::TraceMembers(
-    script::Tracer* tracer) {
+void NodeCollection<NodeIterator>::TraceMembers(script::Tracer* tracer) {
   HTMLCollection::TraceMembers(tracer);
 
-  tracer->Trace(base_);
+  tracer->Trace(base_.get());
   tracer->TraceItems(cached_collection_);
 }
 
 template <typename NodeIterator>
 void NodeCollection<NodeIterator>::MaybeRefreshCollection() const {
-  scoped_refptr<const Node> base(base_);
+  scoped_refptr<const Node> base(base_.get());
   if (!base) {
     return;
   }
@@ -142,7 +141,7 @@ scoped_refptr<Element> NodeCollection<NodeIterator>::NamedItem(
 template <typename NodeIterator>
 bool NodeCollection<NodeIterator>::CanQueryNamedProperty(
     const std::string& name) const {
-  return NamedItem(name) != NULL;
+  return NamedItem(name).get() != NULL;
 }
 
 template <typename NodeIterator>

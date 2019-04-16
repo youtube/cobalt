@@ -5,6 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_DECODER_BUFFER_H_
 #define COBALT_MEDIA_BASE_DECODER_BUFFER_H_
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -12,8 +13,7 @@
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/demuxer_stream.h"
@@ -135,9 +135,9 @@ class MEDIA_EXPORT DecoderBuffer
     return decrypt_config_.get();
   }
 
-  void set_decrypt_config(scoped_ptr<DecryptConfig> decrypt_config) {
+  void set_decrypt_config(std::unique_ptr<DecryptConfig> decrypt_config) {
     DCHECK(!end_of_stream());
-    decrypt_config_ = decrypt_config.Pass();
+    decrypt_config_ = std::move(decrypt_config);
   }
 
   // If there's no data in this buffer, it represents end of stream.
@@ -218,7 +218,7 @@ class MEDIA_EXPORT DecoderBuffer
   base::TimeDelta duration_;
 
   ScopedAllocatorPtr data_;
-  scoped_ptr<DecryptConfig> decrypt_config_;
+  std::unique_ptr<DecryptConfig> decrypt_config_;
   DiscardPadding discard_padding_;
   base::TimeDelta splice_timestamp_;
   bool is_key_frame_;

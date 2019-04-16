@@ -4,13 +4,13 @@
 
 #include "cobalt/media/formats/webm/webm_stream_parser.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/media/base/media_track.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/timestamp_constants.h"
@@ -169,8 +169,8 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
       // We've found the element we are looking for.
       break;
     default: {
-      MEDIA_LOG(ERROR, media_log_) << "Unexpected element ID 0x" << std::hex
-                                   << id;
+      MEDIA_LOG(ERROR, media_log_)
+          << "Unexpected element ID 0x" << std::hex << id;
       return -1;
     }
   }
@@ -218,9 +218,9 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
   if (video_config.is_encrypted())
     OnEncryptedMediaInitData(tracks_parser.video_encryption_key_id());
 
-  scoped_ptr<MediaTracks> media_tracks = tracks_parser.media_tracks();
+  std::unique_ptr<MediaTracks> media_tracks = tracks_parser.media_tracks();
   CHECK(media_tracks.get());
-  if (!config_cb_.Run(media_tracks.Pass(), tracks_parser.text_tracks())) {
+  if (!config_cb_.Run(std::move(media_tracks), tracks_parser.text_tracks())) {
     DVLOG(1) << "New config data isn't allowed.";
     return -1;
   }

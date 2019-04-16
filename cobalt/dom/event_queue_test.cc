@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/event_queue.h"
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
@@ -46,13 +48,14 @@ class EventQueueTest : public ::testing::Test {
                     _))
         .RetiresOnSaturation();
   }
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
 };
 
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event_target->AddEventListener(
@@ -61,13 +64,14 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
                                           event_target);
 
   event_queue.Enqueue(event);
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(EventQueueTest, EventWithTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
@@ -77,13 +81,14 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
                                           event_target);
 
   event_queue.Enqueue(event);
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
@@ -93,7 +98,7 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
 
   event_queue.Enqueue(event);
   event_queue.CancelAllEvents();
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 }
 
 // We only test if the EventQueue doesn't mess up the target we set. The
@@ -103,7 +108,8 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
   scoped_refptr<EventTarget> event_target_1 = new EventTarget;
   scoped_refptr<EventTarget> event_target_2 = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("event"));
-  scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> event_listener =
+      MockEventListener::Create();
 
   EventQueue event_queue(event_target_1.get());
 
@@ -114,7 +120,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
                                           event_target_2);
 
   event_queue.Enqueue(event);
-  message_loop_.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 }
 
 }  // namespace dom

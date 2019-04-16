@@ -14,7 +14,7 @@
 
 #include "cobalt/webdriver/protocol/keys.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -23,7 +23,7 @@ namespace {
 const char kValueKey[] = "value";
 }  // namespace
 
-base::optional<Keys> Keys::FromValue(const base::Value* value) {
+base::Optional<Keys> Keys::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary;
   if (!value->GetAsDictionary(&dictionary)) {
     return base::nullopt;
@@ -45,7 +45,7 @@ base::optional<Keys> Keys::FromValue(const base::Value* value) {
     keys += item;
   }
 
-  if (!IsStringUTF8(keys)) {
+  if (!base::IsStringUTF8(keys)) {
     return base::nullopt;
   }
 

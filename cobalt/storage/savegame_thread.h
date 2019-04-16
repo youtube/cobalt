@@ -15,8 +15,9 @@
 #ifndef COBALT_STORAGE_SAVEGAME_THREAD_H_
 #define COBALT_STORAGE_SAVEGAME_THREAD_H_
 
+#include <memory>
+
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/storage/savegame.h"
@@ -34,12 +35,12 @@ class SavegameThread {
   // Returns the savegame data that existed on disk on startup.  This method
   // should only be called once, as the data will be released after it is
   // called.
-  scoped_ptr<Savegame::ByteVector> GetLoadedRawBytes();
+  std::unique_ptr<Savegame::ByteVector> GetLoadedRawBytes();
 
   // Flush data to be written to the savegame file.  The write will happen
   // asynchronously on SavegameThread's I/O thread, so this method will return
   // immediately.
-  void Flush(scoped_ptr<Savegame::ByteVector> raw_bytes_ptr,
+  void Flush(std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
              const base::Closure& on_flush_complete);
 
  private:
@@ -52,7 +53,7 @@ class SavegameThread {
 
   // Runs on the I/O thread to write the database to the savegame's persistent
   // storage.
-  void FlushOnIOThread(scoped_ptr<Savegame::ByteVector> raw_bytes_ptr,
+  void FlushOnIOThread(std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
                        const base::Closure& on_flush_complete);
 
   // Savegame options passed in to SavegameThread's constructor.
@@ -61,17 +62,17 @@ class SavegameThread {
   // On initialization, we'll read from the existing savegame file to get
   // the latest data.  This holds a reference to that data, but is released
   // as soon as GetLoadedRawBytes() is called for the first time.
-  scoped_ptr<Savegame::ByteVector> loaded_raw_bytes_;
+  std::unique_ptr<Savegame::ByteVector> loaded_raw_bytes_;
 
   // The database gets loaded from disk. We block on returning a SQL context
   // until storage_ready_ is signalled.
   base::WaitableEvent initialized_;
 
   // Storage I/O (savegame reads/writes) runs on a separate thread.
-  scoped_ptr<base::Thread> thread_;
+  std::unique_ptr<base::Thread> thread_;
 
   // Interface to platform-specific savegame data.
-  scoped_ptr<Savegame> savegame_;
+  std::unique_ptr<Savegame> savegame_;
 
   // How many flush failures have occurred since the last successful flush.
   // Flushes (storage writes) may sometimes fail, but we want to make sure

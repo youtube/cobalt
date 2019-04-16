@@ -15,10 +15,11 @@
 #include "cobalt/renderer/submission_queue.h"
 
 #include <cmath>
+#include <memory>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 
@@ -195,10 +196,10 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue(
       // We erase it from our queue before calling the callback in order to
       // ensure that the callback disposes of the Submission object after we
       // do.
-      scoped_ptr<Submission> submission(
+      std::unique_ptr<Submission> submission(
           new Submission(submission_queue_.front()));
       submission_queue_.pop_front();
-      dispose_function_.Run(submission.Pass());
+      dispose_function_.Run(std::move(submission));
     } else {
       // If no callback is passed in to dispose of submissions for us, just
       // delete it immediately.

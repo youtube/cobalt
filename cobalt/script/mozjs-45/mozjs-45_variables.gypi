@@ -20,6 +20,7 @@
         'engine_include_dirs': [],
         'engine_dependencies': [
           '<(DEPTH)/third_party/mozjs-45/mozjs-45.gyp:mozjs-45_lib',
+          '<(DEPTH)/net/net.gyp:net',
         ],
         'engine_defines': [],
         'engine_templates_dir': [

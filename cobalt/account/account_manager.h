@@ -18,7 +18,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/event_dispatcher.h"
 
 namespace cobalt {

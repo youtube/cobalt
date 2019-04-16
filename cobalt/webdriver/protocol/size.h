@@ -15,7 +15,8 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_SIZE_H_
 #define COBALT_WEBDRIVER_PROTOCOL_SIZE_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "base/values.h"
 
 namespace cobalt {
@@ -25,7 +26,7 @@ namespace protocol {
 // A pair of numbers representing the size of an entity.
 class Size {
  public:
-  static scoped_ptr<base::Value> ToValue(const Size& size);
+  static std::unique_ptr<base::Value> ToValue(const Size& size);
 
   Size() : width_(0.f), height_(0.f) {}
   Size(float w, float h) : width_(w), height_(h) {}

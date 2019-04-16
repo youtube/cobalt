@@ -5,7 +5,7 @@
 #include "cobalt/media/base/audio_codecs.h"
 
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 
 namespace cobalt {
 namespace media {
@@ -59,7 +59,8 @@ AudioCodec StringToAudioCodec(const std::string& codec_id) {
   if (codec_id == "flac") return kCodecFLAC;
   if (codec_id == "opus") return kCodecOpus;
   if (codec_id == "vorbis") return kCodecVorbis;
-  if (StartsWithASCII(codec_id, "mp4a.40.", true)) return kCodecAAC;
+  if (StartsWith(codec_id, "mp4a.40.", base::CompareCase::SENSITIVE))
+    return kCodecAAC;
   return kUnknownAudioCodec;
 }
 

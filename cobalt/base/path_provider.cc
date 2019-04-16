@@ -12,35 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/base/path_provider.h"
 
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "starboard/system.h"
 
 namespace {
-FilePath GetOrCreateDirectory(SbSystemPathId path_id) {
-  scoped_array<char> path(new char[SB_FILE_MAX_PATH]);
+base::FilePath GetOrCreateDirectory(SbSystemPathId path_id) {
+  std::unique_ptr<char[]> path(new char[SB_FILE_MAX_PATH]);
   path[0] = '\0';
   if (SbSystemGetPath(path_id, path.get(), SB_FILE_MAX_PATH)) {
-    FilePath directory(path.get());
-    if (file_util::PathExists(directory) ||
-        file_util::CreateDirectory(directory)) {
+    base::FilePath directory(path.get());
+    if (base::PathExists(directory) || base::CreateDirectory(directory)) {
       return directory;
     }
   }
-  return FilePath();
+  return base::FilePath();
 }
 }  // namespace
 
 namespace cobalt {
 
-bool PathProvider(int key, FilePath* result) {
+bool PathProvider(int key, base::FilePath* result) {
   switch (key) {
     case paths::DIR_COBALT_DEBUG_OUT: {
-      FilePath directory =
+      base::FilePath directory =
           GetOrCreateDirectory(kSbSystemPathDebugOutputDirectory);
       if (!directory.empty()) {
         *result = directory;
@@ -54,7 +55,7 @@ bool PathProvider(int key, FilePath* result) {
     case paths::DIR_COBALT_TEST_OUT:
       // TODO: Create a special directory for tests.
       {
-        FilePath directory =
+        base::FilePath directory =
             GetOrCreateDirectory(kSbSystemPathDebugOutputDirectory);
         if (!directory.empty()) {
           *result = directory;
@@ -66,7 +67,8 @@ bool PathProvider(int key, FilePath* result) {
       }
 
     case paths::DIR_COBALT_WEB_ROOT: {
-      FilePath directory = GetOrCreateDirectory(kSbSystemPathContentDirectory);
+      base::FilePath directory =
+          GetOrCreateDirectory(kSbSystemPathContentDirectory);
       if (!directory.empty()) {
         *result = directory.Append("web");
         return true;

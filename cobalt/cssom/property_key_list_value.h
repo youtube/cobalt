@@ -15,11 +15,11 @@
 #ifndef COBALT_CSSOM_PROPERTY_KEY_LIST_VALUE_H_
 #define COBALT_CSSOM_PROPERTY_KEY_LIST_VALUE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/list_value.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -34,8 +34,8 @@ class PropertyValueVisitor;
 class PropertyKeyListValue : public ListValue<PropertyKey> {
  public:
   explicit PropertyKeyListValue(
-      scoped_ptr<ListValue<PropertyKey>::Builder> value)
-      : ListValue<PropertyKey>(value.Pass()) {}
+      std::unique_ptr<ListValue<PropertyKey>::Builder> value)
+      : ListValue<PropertyKey>(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitPropertyKeyList(this);

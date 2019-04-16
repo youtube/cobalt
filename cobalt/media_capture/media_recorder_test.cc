@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media_capture/media_recorder.h"
 
 #include "cobalt/dom/dom_exception.h"
@@ -85,11 +87,12 @@ class MediaRecorderTest : public ::testing::Test {
  protected:
   MediaRecorderTest() {
     audio_track_ = new StrictMock<media_stream::MockMediaStreamAudioTrack>();
-    auto audio_track = make_scoped_refptr(audio_track_);
+    auto audio_track = base::WrapRefCounted(audio_track_);
     media_stream::MediaStream::TrackSequences sequences;
     sequences.push_back(audio_track);
-    audio_track->Start(base::Bind(&base::DoNothing));
-    auto stream = make_scoped_refptr(new media_stream::MediaStream(sequences));
+    audio_track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
+    auto stream =
+        base::WrapRefCounted(new media_stream::MediaStream(sequences));
     media_source_ = new StrictMock<media_stream::FakeMediaStreamAudioSource>();
     EXPECT_CALL(*media_source_, EnsureSourceIsStarted());
     EXPECT_CALL(*media_source_, EnsureSourceIsStopped());
@@ -165,7 +168,7 @@ TEST_F(MediaRecorderTest, ExceptionOnStoppingTwiceWithoutStartingInBetween) {
 }
 
 TEST_F(MediaRecorderTest, RecordL16Frames) {
-  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(listener.get());
   media_recorder_->set_ondataavailable(script_object);
   EXPECT_CALL(*listener,
@@ -196,13 +199,13 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
   current_time += base::TimeDelta::FromSecondsD(frames.size() / kSampleRate);
   media_recorder_->OnData(audio_bus, current_time);
 
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
 }
 
 TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
-  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(listener.get());
   media_recorder_->set_ondataavailable(script_object);
   EXPECT_CALL(*listener,
@@ -215,17 +218,17 @@ TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
 
   base::Thread t("MediaStreamAudioSource thread");
   t.Start();
-  t.message_loop()->PostBlockingTask(FROM_HERE,
-                                     base::Bind(&PushData, media_recorder_));
+  t.message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&PushData, media_recorder_));
   t.Stop();
 
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
   EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
 }
 
 TEST_F(MediaRecorderTest, StartEvent) {
-  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(listener.get());
   media_recorder_->set_onstart(script_object);
   EXPECT_CALL(
@@ -239,7 +242,7 @@ TEST_F(MediaRecorderTest, StartEvent) {
 }
 
 TEST_F(MediaRecorderTest, StopEvent) {
-  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(listener.get());
   media_recorder_->Start(&exception_state_);
   media_recorder_->set_onstop(script_object);

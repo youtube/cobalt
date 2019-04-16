@@ -16,11 +16,11 @@
 #define COBALT_RENDER_TREE_BRUSH_H_
 
 #include <cmath>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
@@ -128,8 +128,7 @@ class LinearGradientBrush : public Brush {
   LinearGradientBrush(const std::pair<math::PointF, math::PointF>& source_dest,
                       const ColorStopList& color_stops)
       : LinearGradientBrush(source_dest.first, source_dest.second,
-                            color_stops)
-      {}
+                            color_stops) {}
 
   // Creates a 2-stop linear gradient from source to dest.
   LinearGradientBrush(const math::PointF& source, const math::PointF& dest,
@@ -138,9 +137,8 @@ class LinearGradientBrush : public Brush {
   LinearGradientBrush(const std::pair<math::PointF, math::PointF>& source_dest,
                       const ColorRGBA& source_color,
                       const ColorRGBA& dest_color)
-      : LinearGradientBrush(source_dest.first, source_dest.second,
-                            source_color, dest_color)
-      {}
+      : LinearGradientBrush(source_dest.first, source_dest.second, source_color,
+                            dest_color) {}
 
   bool operator==(const LinearGradientBrush& other) const {
     return data_ == other.data_;
@@ -247,7 +245,7 @@ class RadialGradientBrush : public Brush {
   ColorStopList color_stops_;
 };
 
-scoped_ptr<Brush> CloneBrush(const Brush* brush);
+std::unique_ptr<Brush> CloneBrush(const Brush* brush);
 
 class EqualsBrushVisitor : public BrushVisitor {
  public:

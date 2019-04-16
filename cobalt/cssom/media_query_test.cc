@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/media_query.h"
 
 #include "base/memory/ref_counted.h"
@@ -49,10 +51,10 @@ TEST(MediaQueryTest, EvaluateMediaTypeFalseAndMediaFeatureTrue) {
   media_feature->set_operator(kEquals);
   EXPECT_TRUE(media_feature->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(false, media_features.Pass()));
+      new MediaQuery(false, std::move(media_features)));
   EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
@@ -64,10 +66,10 @@ TEST(MediaQueryTest, EvaluateMediaTypeFalseAndMediaFeatureFalse) {
   media_feature->set_operator(kEquals);
   EXPECT_FALSE(media_feature->EvaluateConditionValue(ViewportSize(1920, 108)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(false, media_features.Pass()));
+      new MediaQuery(false, std::move(media_features)));
   EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
@@ -79,10 +81,10 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndMediaFeatureTrue) {
   media_feature->set_operator(kEquals);
   EXPECT_TRUE(media_feature->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
   EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
@@ -94,10 +96,10 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndMediaFeatureFalse) {
   media_feature->set_operator(kEquals);
   EXPECT_FALSE(media_feature->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
 
   EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
@@ -119,11 +121,11 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndFalse) {
   EXPECT_FALSE(
       media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
 
   EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
@@ -145,11 +147,11 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndTrue) {
   EXPECT_TRUE(
       media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
   EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
@@ -170,11 +172,11 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesTrueAndFalse) {
   EXPECT_FALSE(
       media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
   EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
@@ -195,11 +197,11 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesTrueAndTrue) {
   EXPECT_TRUE(
       media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
   EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 

@@ -26,6 +26,7 @@ class DocumentTypeTest : public ::testing::Test {
   DocumentTypeTest() : document_(new Document(&html_element_context_)) {}
   ~DocumentTypeTest() override {}
 
+  base::MessageLoop message_loop_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };

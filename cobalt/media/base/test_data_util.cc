@@ -19,7 +19,7 @@ const base::FilePath::CharType kTestDataPath[] =
 
 base::FilePath GetTestDataFilePath(const std::string& name) {
   base::FilePath file_path;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &file_path));
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &file_path));
   return file_path.Append(GetTestDataPath()).AppendASCII(name);
 }
 
@@ -39,15 +39,16 @@ scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name) {
   base::FilePath file_path = GetTestDataFilePath(name);
 
   int64_t tmp = 0;
-  CHECK(base::GetFileSize(file_path, &tmp)) << "Failed to get file size for '"
-                                            << name << "'";
+  CHECK(base::GetFileSize(file_path, &tmp))
+      << "Failed to get file size for '" << name << "'";
 
   int file_size = base::checked_cast<int>(tmp);
 
   scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(file_size));
-  CHECK_EQ(file_size, base::ReadFile(file_path, reinterpret_cast<char*>(
-                                                    buffer->writable_data()),
-                                     file_size))
+  CHECK_EQ(file_size,
+           base::ReadFile(file_path,
+                          reinterpret_cast<char*>(buffer->writable_data()),
+                          file_size))
       << "Failed to read '" << name << "'";
 
   return buffer;

@@ -15,6 +15,7 @@
 #ifndef COBALT_CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
 #define COBALT_CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -29,8 +30,8 @@ namespace cssom {
 class TimingFunctionListValue : public ScopedRefListValue<TimingFunction> {
  public:
   explicit TimingFunctionListValue(
-      scoped_ptr<ScopedRefListValue<TimingFunction>::Builder> value)
-      : ScopedRefListValue<TimingFunction>(value.Pass()) {}
+      std::unique_ptr<ScopedRefListValue<TimingFunction>::Builder> value)
+      : ScopedRefListValue<TimingFunction>(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTimingFunctionList(this);

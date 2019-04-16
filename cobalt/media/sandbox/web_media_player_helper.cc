@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 
 #include "cobalt/media/fetcher_buffered_data_source.h"
@@ -79,11 +81,11 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
-  scoped_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
-      base::MessageLoopProxy::current(), video_url, csp::SecurityCallback(),
-      fetcher_factory->network_module(), loader::kNoCORSMode,
-      loader::Origin()));
-  player_->LoadProgressive(video_url, data_source.Pass());
+  std::unique_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
+      base::MessageLoop::current()->task_runner(), video_url,
+      csp::SecurityCallback(), fetcher_factory->network_module(),
+      loader::kNoCORSMode, loader::Origin()));
+  player_->LoadProgressive(video_url, std::move(data_source));
   player_->Play();
 }
 

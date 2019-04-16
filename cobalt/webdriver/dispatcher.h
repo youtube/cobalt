@@ -15,12 +15,12 @@
 #ifndef COBALT_WEBDRIVER_DISPATCHER_H_
 #define COBALT_WEBDRIVER_DISPATCHER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/response.h"
@@ -79,9 +79,9 @@ class WebDriverDispatcher {
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Failed_Commands
     virtual void SendResult(
-        const base::optional<protocol::SessionId>& session_id,
+        const base::Optional<protocol::SessionId>& session_id,
         protocol::Response::StatusCode status_code,
-        scoped_ptr<base::Value> result) = 0;
+        std::unique_ptr<base::Value> result) = 0;
 
     // Send data as a result of a command to the dispatcher. This is similar to
     // SendResult with the primary difference being the type of data can be of
@@ -102,13 +102,11 @@ class WebDriverDispatcher {
     virtual void SendInvalidRequestResponse(
         RequestError error, const std::string& error_string) = 0;
 
-   protected:
     virtual ~CommandResultHandler() {}
-    friend class scoped_ptr<CommandResultHandler>;
   };
 
   typedef base::Callback<void(const base::Value*, const PathVariableMap*,
-                              scoped_ptr<CommandResultHandler>)>
+                              std::unique_ptr<CommandResultHandler>)>
       DispatchCommandCallback;
 
   // Register the Http method and path (with possible variable components) to
@@ -123,8 +121,8 @@ class WebDriverDispatcher {
   // WebDriverServer::ResponseHandler.
   void HandleWebDriverServerRequest(
       WebDriverServer::HttpMethod method, const std::string& path,
-      scoped_ptr<base::Value> request_body,
-      scoped_ptr<WebDriverServer::ResponseHandler> handler);
+      std::unique_ptr<base::Value> request_body,
+      std::unique_ptr<WebDriverServer::ResponseHandler> handler);
 
  private:
   enum MatchStrategy {

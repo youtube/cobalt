@@ -21,11 +21,11 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
-#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace cssom {
@@ -214,7 +214,7 @@ enum ImpactsBoxCrossReferences {
 // NOTE: The array size of SmallMap and the decision to use std::map as the
 // underlying container type are based on extensive performance testing. Do not
 // change these unless additional profiling data justifies it.
-typedef base::SmallMap<std::map<PropertyKey, GURL>, 1> GURLMap;
+typedef base::small_map<std::map<PropertyKey, GURL>, 1> GURLMap;
 
 const char* GetPropertyName(PropertyKey key);
 

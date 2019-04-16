@@ -60,7 +60,7 @@ class InlineContainerBox : public ContainerBox {
   void DoPostEllipsisPlacementProcessing() override;
 
   bool TrySplitAtSecondBidiLevelRun() override;
-  base::optional<int> GetBidiLevel() const override;
+  base::Optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
       bool should_collapse_leading_white_space) override;

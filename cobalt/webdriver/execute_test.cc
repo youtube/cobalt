@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "base/json/json_reader.h"
@@ -50,13 +51,13 @@ class MockScriptExecutorResult : public ScriptExecutorResult::ResultHandler {
 class JSONScriptExecutorResult : public ScriptExecutorResult::ResultHandler {
  public:
   void OnResult(const std::string& result) {
-    json_result_.reset(base::JSONReader::Read(result.c_str()));
+    json_result_ = base::JSONReader::Read(result.c_str());
   }
   void OnTimeout() { NOTREACHED(); }
   base::Value* json_result() { return json_result_.get(); }
 
  private:
-  scoped_ptr<base::Value> json_result_;
+  std::unique_ptr<base::Value> json_result_;
 };
 
 class ScriptExecutorTest : public ::testing::Test {
@@ -78,7 +79,7 @@ class ScriptExecutorTest : public ::testing::Test {
   }
 
  protected:
-  scoped_ptr<dom::testing::StubWindow> stub_window_;
+  std::unique_ptr<dom::testing::StubWindow> stub_window_;
   MockElementMapping element_mapping_;
   scoped_refptr<ScriptExecutor> script_executor_;
 };
@@ -146,7 +147,7 @@ TEST_F(ScriptExecutorTest, FLAKY_ExecuteAsync) {
   // Let the message loop run for 200ms to allow enough time for the async
   // script to fire the callback.
   base::RunLoop run_loop;
-  MessageLoop::current()->PostDelayedTask(
+  base::MessageLoop::current()->task_runner()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(),
       base::TimeDelta::FromMilliseconds(200));
   run_loop.Run();
@@ -171,7 +172,7 @@ TEST_F(ScriptExecutorTest, AsyncTimeout) {
   // Let the message loop run for 200ms to allow enough time for the async
   // timeout to fire.
   base::RunLoop run_loop;
-  MessageLoop::current()->PostDelayedTask(
+  base::MessageLoop::current()->task_runner()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(),
       base::TimeDelta::FromMilliseconds(200));
   run_loop.Run();

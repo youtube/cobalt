@@ -30,13 +30,13 @@ class Screenshot {
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
       ScreenshotCompleteCallback;
   typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
-                              const base::optional<math::Rect>& clip_rect,
+                              const base::Optional<math::Rect>& clip_rect,
                               const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
 
   static util::CommandResult<std::string> RequestScreenshot(
       const GetScreenshotFunction& screenshot_function,
-      base::optional<math::Rect> clip_rect);
+      base::Optional<math::Rect> clip_rect);
 };
 
 }  // namespace webdriver

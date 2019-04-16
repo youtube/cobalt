@@ -23,7 +23,8 @@ const int ShellDataSourceReader::kReadError = DataSource::kReadError;
 
 ShellDataSourceReader::ShellDataSourceReader()
     : data_source_(NULL),
-      blocking_read_event_(false, false),
+      blocking_read_event_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
+                           base::WaitableEvent::InitialState::NOT_SIGNALED),
       file_size_(-1),
       read_has_failed_(false),
       last_bytes_read_(0) {}

@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
 #define COBALT_WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -32,12 +32,12 @@ class ServerStatus {
  public:
   ServerStatus();
 
-  static scoped_ptr<base::Value> ToValue(const ServerStatus& status);
+  static std::unique_ptr<base::Value> ToValue(const ServerStatus& status);
 
  private:
-  base::optional<std::string> os_name_;
-  base::optional<std::string> os_arch_;
-  base::optional<std::string> os_version_;
+  base::Optional<std::string> os_name_;
+  base::Optional<std::string> os_arch_;
+  base::Optional<std::string> os_version_;
   std::string build_time_;
   std::string build_version_;
 };

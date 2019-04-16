@@ -80,7 +80,8 @@ class LeakFinderTool : public AbstractTool,
   // typedef std::map<const void*, const std::string*> CallFrameMap;
   //
   typedef nb::ConcurrentMap<const void*, const std::string*,
-                            nb::PODHasher<const std::string*> > CallFrameMap;
+                            nb::PODHasher<const std::string*> >
+      CallFrameMap;
 
   // A map from callsite -> allocation data.
   typedef std::map<const std::string*, std::vector<AllocRec> > MapSamples;

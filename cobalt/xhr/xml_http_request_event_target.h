@@ -49,13 +49,13 @@ class XMLHttpRequestEventTarget : public dom::EventTarget {
  protected:
   ~XMLHttpRequestEventTarget() override;
 
-  base::optional<EventListenerScriptValue::Reference> onabort_listener_;
-  base::optional<EventListenerScriptValue::Reference> onerror_listener_;
-  base::optional<EventListenerScriptValue::Reference> onload_listener_;
-  base::optional<EventListenerScriptValue::Reference> onloadend_listener_;
-  base::optional<EventListenerScriptValue::Reference> onloadstart_listener_;
-  base::optional<EventListenerScriptValue::Reference> onprogress_listener_;
-  base::optional<EventListenerScriptValue::Reference> ontimeout_listener_;
+  base::Optional<EventListenerScriptValue::Reference> onabort_listener_;
+  base::Optional<EventListenerScriptValue::Reference> onerror_listener_;
+  base::Optional<EventListenerScriptValue::Reference> onload_listener_;
+  base::Optional<EventListenerScriptValue::Reference> onloadend_listener_;
+  base::Optional<EventListenerScriptValue::Reference> onloadstart_listener_;
+  base::Optional<EventListenerScriptValue::Reference> onprogress_listener_;
+  base::Optional<EventListenerScriptValue::Reference> ontimeout_listener_;
 
  private:
   // From EventTarget.

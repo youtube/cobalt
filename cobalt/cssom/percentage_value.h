@@ -19,7 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 

@@ -5,7 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
 #define COBALT_MEDIA_BASE_MEDIA_CONTENT_TYPE_H_
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/media_export.h"
 
 namespace cobalt {

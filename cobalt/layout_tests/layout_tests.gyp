@@ -23,10 +23,6 @@
   # It uses the TestRunner interface to control when the snapshot is taken.
   'targets': [
     {
-      # TODO: Consider renaming the entire module to something like
-      #       "layout_snapshots" instead of "layout_tests", since the module is
-      #       home to more than just layout_tests (e.g.  layout_benchmarks
-      #       also).
       'target_name': 'layout_test_utils',
       'type': 'static_library',
       'sources': [
@@ -42,6 +38,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+        '<(DEPTH)/net/net.gyp:net',
         'layout_copy_test_data',
       ],
     },
@@ -69,7 +66,7 @@
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:render_tree_pixel_tester',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/url/url.gyp:url',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'layout_test_utils',
@@ -89,34 +86,6 @@
     },
 
     {
-      'target_name': 'layout_benchmarks',
-      'type': '<(final_executable_type)',
-      'sources': [
-        'layout_benchmarks.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-        '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
-        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-        'layout_test_utils',
-      ],
-    },
-    {
-      'target_name': 'layout_benchmarks_deploy',
-      'type': 'none',
-      'dependencies': [
-        'layout_benchmarks',
-      ],
-      'variables': {
-        'executable_name': 'layout_benchmarks',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-    },
-    {
       'target_name': 'web_platform_tests',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -126,7 +95,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/url/url.gyp:url',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'layout_test_utils',

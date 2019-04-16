@@ -14,8 +14,8 @@
 
 #include "cobalt/webdriver/screenshot.h"
 #include "base/base64.h"
-#include "base/debug/trace_event.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -24,7 +24,9 @@ namespace webdriver {
 namespace {
 // Helper struct for getting a PNG screenshot synchronously.
 struct ScreenshotResultContext {
-  ScreenshotResultContext() : complete_event(true, false) {}
+  ScreenshotResultContext()
+      : complete_event(base::WaitableEvent::ResetPolicy::MANUAL,
+                       base::WaitableEvent::InitialState::NOT_SIGNALED) {}
   scoped_refptr<loader::image::EncodedStaticImage> compressed_file;
   base::WaitableEvent complete_event;
 };
@@ -47,7 +49,7 @@ void OnPNGEncodeComplete(ScreenshotResultContext* context,
 
 util::CommandResult<std::string> Screenshot::RequestScreenshot(
     const GetScreenshotFunction& screenshot_function,
-    base::optional<math::Rect> clip_rect) {
+    base::Optional<math::Rect> clip_rect) {
   typedef util::CommandResult<std::string> CommandResult;
 
   // Request the screenshot and wait for the PNG data.

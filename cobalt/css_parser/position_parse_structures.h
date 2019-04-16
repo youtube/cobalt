@@ -15,7 +15,6 @@
 #ifndef COBALT_CSS_PARSER_POSITION_PARSE_STRUCTURES_H_
 #define COBALT_CSS_PARSER_POSITION_PARSE_STRUCTURES_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
 

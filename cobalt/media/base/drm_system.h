@@ -15,14 +15,15 @@
 #ifndef COBALT_MEDIA_BASE_DRM_SYSTEM_H_
 #define COBALT_MEDIA_BASE_DRM_SYSTEM_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/hash_tables.h"
+#include "base/basictypes.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "starboard/drm.h"
 
@@ -36,7 +37,8 @@ namespace media {
 class DrmSystem : public base::RefCounted<DrmSystem> {
  public:
   typedef base::Callback<void(SbDrmSessionRequestType type,
-                              scoped_array<uint8> message, int message_size)>
+                              std::unique_ptr<uint8[]> message,
+                              int message_size)>
       SessionUpdateRequestGeneratedCallback;
   typedef base::Callback<void(SbDrmStatus status,
                               const std::string& error_message)>
@@ -64,7 +66,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
    public:
     ~Session();
 
-    const base::optional<std::string>& id() const { return id_; }
+    const base::Optional<std::string>& id() const { return id_; }
 
     // Wraps |SbDrmGenerateSessionUpdateRequest|.
     //
@@ -103,7 +105,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #if SB_HAS(DRM_KEY_STATUSES)
             ,
             SessionUpdateKeyStatusesCallback update_key_statuses_callback
-#endif          // SB_HAS(DRM_KEY_STATUSES)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_HAS(DRM_SESSION_CLOSED)
             ,
             SessionClosedCallback session_closed_callback
@@ -134,7 +136,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
     SessionClosedCallback session_closed_callback_;
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
     bool closed_;
-    base::optional<std::string> id_;
+    base::Optional<std::string> id_;
     // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
     SessionUpdateRequestGeneratedCallback update_request_generated_callback_;
 
@@ -148,10 +150,10 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 
   SbDrmSystem wrapped_drm_system() { return wrapped_drm_system_; }
 
-  scoped_ptr<Session> CreateSession(
+  std::unique_ptr<Session> CreateSession(
 #if SB_HAS(DRM_KEY_STATUSES)
       SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
-#endif    // SB_HAS(DRM_KEY_STATUSES)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_HAS(DRM_SESSION_CLOSED)
       ,
       SessionClosedCallback session_closed_callback
@@ -189,14 +191,15 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   // base::Bind().
   struct SessionTicketAndOptionalId {
     int ticket;
-    base::optional<std::string> id;
+    base::Optional<std::string> id;
   };
 
   // Private API for |Session|.
   void GenerateSessionUpdateRequest(
       Session* session, const std::string& type, const uint8_t* init_data,
-      int init_data_length, const SessionUpdateRequestGeneratedCallback&
-                                session_update_request_generated_callback,
+      int init_data_length,
+      const SessionUpdateRequestGeneratedCallback&
+          session_update_request_generated_callback,
       const SessionUpdateRequestDidNotGenerateCallback&
           session_update_request_did_not_generate_callback);
   void UpdateSession(
@@ -210,7 +213,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   void OnSessionUpdateRequestGenerated(
       SessionTicketAndOptionalId ticket_and_optional_id, SbDrmStatus status,
       SbDrmSessionRequestType type, const std::string& error_message,
-      scoped_array<uint8> message, int message_size);
+      std::unique_ptr<uint8[]> message, int message_size);
   void OnSessionUpdated(int ticket, SbDrmStatus status,
                         const std::string& error_message);
 #if SB_HAS(DRM_KEY_STATUSES)
@@ -225,7 +228,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #if SB_HAS(DRM_SESSION_CLOSED)
   void OnSessionClosed(const std::string& session_id);
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
-  // Called on any thread, parameters need to be copied immediately.
+// Called on any thread, parameters need to be copied immediately.
 
 #if SB_API_VERSION >= 10
   static void OnSessionUpdateRequestGeneratedFunc(
@@ -258,10 +261,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 
 #if SB_HAS(DRM_SESSION_CLOSED)
-  static void OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
-                                  void* context,
-                                  const void* session_id,
-                                  int session_id_size);
+  static void OnSessionClosedFunc(SbDrmSystem wrapped_drm_system, void* context,
+                                  const void* session_id, int session_id_size);
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
 
 #if SB_API_VERSION >= 10
@@ -272,7 +273,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #endif  // SB_API_VERSION >= 10
 
   const SbDrmSystem wrapped_drm_system_;
-  scoped_refptr<base::MessageLoopProxy> const message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> const message_loop_;
 
   // Factory should only be used to create the initial weak pointer. All
   // subsequent weak pointers are created by copying the initial one. This is

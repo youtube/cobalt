@@ -27,8 +27,8 @@ namespace {
 const int kNumberOfMicrophones = 1;
 
 #if SB_API_VERSION >= 9
-template<std::size_t N>
-bool IsNullTerminated(const char(&str)[N]) {
+template <std::size_t N>
+bool IsNullTerminated(const char (&str)[N]) {
   for (size_t i = 0; i < N; ++i) {
     if (str[i] == '\0') {
       return true;

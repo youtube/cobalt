@@ -50,7 +50,7 @@ class CSSGroupingRule : public CSSRule {
   //
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) override {
-    UNREFERENCED_PARAMETER(visitor);
+    SB_UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
 

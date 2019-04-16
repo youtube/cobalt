@@ -34,6 +34,7 @@ namespace v8c {
 class V8cValueHandle : public ScopedPersistent<v8::Value>, public ValueHandle {
  public:
   typedef ValueHandle BaseType;
+
  private:
   using ScopedPersistent::ScopedPersistent;
 

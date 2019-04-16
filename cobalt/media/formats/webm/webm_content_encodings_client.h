@@ -5,6 +5,7 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -37,7 +38,7 @@ class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
 
  private:
   scoped_refptr<MediaLog> media_log_;
-  scoped_ptr<ContentEncoding> cur_content_encoding_;
+  std::unique_ptr<ContentEncoding> cur_content_encoding_;
   bool content_encryption_encountered_;
   ContentEncodings content_encodings_;
 

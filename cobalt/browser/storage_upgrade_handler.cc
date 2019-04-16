@@ -27,17 +27,13 @@
 
 namespace cobalt {
 namespace browser {
-namespace {
-void OnCookiesLoaded(const std::vector<net::CanonicalCookie*>& cookies) {
-  // We don't care about the local copies of the cookies returned to us.
-  for (size_t i = 0; i < cookies.size(); i++) {
-    delete cookies[i];
-  }
-}
-}  // namespace
 
-StorageUpgradeHandler::StorageUpgradeHandler(const GURL& url)
-    : default_local_storage_origin_(loader::Origin(url)) {}
+StorageUpgradeHandler::StorageUpgradeHandler(
+    const GURL& url, net::NetLog* net_log,
+    scoped_refptr<base::SingleThreadTaskRunner> cookie_callback_thread)
+    : default_local_storage_origin_(loader::Origin(url)),
+      net_log_(net_log),
+      cookie_callback_thread_(cookie_callback_thread) {}
 
 void StorageUpgradeHandler::OnUpgrade(storage::StorageManager* storage,
                                       const char* data, int size) {
@@ -50,9 +46,17 @@ void StorageUpgradeHandler::OnUpgrade(storage::StorageManager* storage,
 
   if (num_cookies > 0) {
     scoped_refptr<network::PersistentCookieStore> cookie_store(
-        new network::PersistentCookieStore(storage));
+        new network::PersistentCookieStore(
+            storage, cookie_callback_thread_
+                         ? cookie_callback_thread_
+                         : base::MessageLoop::current()->task_runner()));
+    // We don't care about the local copies of the cookies returned to us.
+    auto null_loaded_callback =
+        net::CookieMonster::PersistentCookieStore::LoadedCallback();
     // Load the current cookies to ensure the database table is initialized.
-    cookie_store->Load(base::Bind(OnCookiesLoaded));
+    cookie_store->Load(null_loaded_callback,
+                       net::NetLogWithSource::Make(
+                           net_log_, net::NetLogSourceType::COOKIE_STORE));
     for (int i = 0; i < num_cookies; i++) {
       const net::CanonicalCookie* cookie = upgrade_reader.GetCookie(i);
       DCHECK(cookie);

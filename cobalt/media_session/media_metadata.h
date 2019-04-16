@@ -67,8 +67,7 @@ class MediaMetadata : public script::Wrappable {
     script::Sequence<MediaImage> result;
 
     for (std::vector<MediaImage>::iterator it = artwork_.begin();
-         it != artwork_.end();
-         ++it) {
+         it != artwork_.end(); ++it) {
       result.push_back(*it);
     }
     return result;

@@ -89,7 +89,7 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
 }  // namespace
 
 LocalizedStrings* LocalizedStrings::GetInstance() {
-  return Singleton<LocalizedStrings>::get();
+  return base::Singleton<LocalizedStrings>::get();
 }
 
 LocalizedStrings::LocalizedStrings() {

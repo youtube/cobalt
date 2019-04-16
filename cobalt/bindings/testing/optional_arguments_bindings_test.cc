@@ -57,7 +57,7 @@ TEST_F(OptionalArgumentsBindingsTest, SetOptionalArgumentWithDefault) {
 TEST_F(OptionalArgumentsBindingsTest, OptionalNullableArgumentsWithDefaults) {
   EXPECT_CALL(test_mock(),
               OptionalNullableArgumentsWithDefaults(
-                  base::optional<bool>(), scoped_refptr<ArbitraryInterface>()));
+                  base::Optional<bool>(), scoped_refptr<ArbitraryInterface>()));
   EXPECT_TRUE(
       EvaluateScript("test.optionalNullableArgumentsWithDefaults();", NULL));
 }

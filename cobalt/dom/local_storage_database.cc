@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/local_storage_database.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/storage/store/memory_store.h"
@@ -27,7 +29,7 @@ namespace {
 
 void LocalStorageInit(const storage::MemoryStore& memory_store) {
   LOG(INFO) << "local_storage Init";
-  UNREFERENCED_PARAMETER(memory_store);
+  SB_UNREFERENCED_PARAMETER(memory_store);
 }
 
 void LocalStorageReadValues(
@@ -37,10 +39,10 @@ void LocalStorageReadValues(
   LOG(INFO) << "LocalStorageReadValues";
   TRACK_MEMORY_SCOPE("Storage");
 
-  scoped_ptr<storage::MemoryStore::LocalStorageMap> values(
+  std::unique_ptr<storage::MemoryStore::LocalStorageMap> values(
       new storage::MemoryStore::LocalStorageMap);
   memory_store.ReadAllLocalStorage(origin, values.get());
-  callback.Run(values.Pass());
+  callback.Run(std::move(values));
 }
 
 void LocalStorageWrite(const loader::Origin& origin, const std::string& key,

@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val_time_interval_entry_stats.h"
 
 namespace base {

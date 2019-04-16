@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
-#include "base/string_split.h"
-#include "base/stringprintf.h"
-#include "build/build_config.h"
 #include "cobalt/media/base/mime_util.h"
+
+#include "base/basictypes.h"
+#include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "cobalt/media/base/mime_util_internal.h"
 #include "cobalt/media/media_features.h"
 #include "starboard/types.h"

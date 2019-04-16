@@ -9,7 +9,7 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/math/rect_base.h"
 
 namespace cobalt {

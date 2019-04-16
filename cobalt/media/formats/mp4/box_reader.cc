@@ -7,10 +7,10 @@
 #include <string.h>
 
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <utility>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 #include "starboard/types.h"
 
@@ -103,7 +103,8 @@ BoxReader::~BoxReader() {
 BoxReader* BoxReader::ReadTopLevelBox(const uint8_t* buf, const int buf_size,
                                       const scoped_refptr<MediaLog>& media_log,
                                       bool* err) {
-  scoped_ptr<BoxReader> reader(new BoxReader(buf, buf_size, media_log, false));
+  std::unique_ptr<BoxReader> reader(
+      new BoxReader(buf, buf_size, media_log, false));
   if (!reader->ReadHeader(err)) return NULL;
 
   if (!IsValidTopLevelBox(reader->type(), media_log)) {
@@ -162,8 +163,8 @@ bool BoxReader::IsValidTopLevelBox(const FourCC& type,
       return true;
     default:
       // Hex is used to show nonprintable characters and aid in debugging
-      MEDIA_LOG(DEBUG, media_log) << "Unrecognized top-level box type "
-                                  << FourCCToString(type);
+      MEDIA_LOG(DEBUG, media_log)
+          << "Unrecognized top-level box type " << FourCCToString(type);
       return false;
   }
 }

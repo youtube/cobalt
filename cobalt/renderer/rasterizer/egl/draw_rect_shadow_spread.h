@@ -69,8 +69,8 @@ class DrawRectShadowSpread : public DrawObject {
   };
 
   struct VertexAttributesRound {
-    VertexAttributesRound(float x, float y,
-        const RCorner& inner, const RCorner& outer);
+    VertexAttributesRound(float x, float y, const RCorner& inner,
+                          const RCorner& outer);
     float position[2];
     RCorner rcorner_inner;
     RCorner rcorner_outer;
@@ -81,11 +81,9 @@ class DrawRectShadowSpread : public DrawObject {
   void SetupVertexShader(GraphicsState* graphics_state,
                          const ShaderVertexRcorner2& shader);
 
-  void SetGeometry(GraphicsState* graphics_state,
-                   const math::RectF& inner_rect,
+  void SetGeometry(GraphicsState* graphics_state, const math::RectF& inner_rect,
                    const math::RectF& outer_rect);
-  void SetGeometry(GraphicsState* graphics_state,
-                   const math::RectF& inner_rect,
+  void SetGeometry(GraphicsState* graphics_state, const math::RectF& inner_rect,
                    const render_tree::RoundedCorners& inner_corners,
                    const math::RectF& outer_rect,
                    const render_tree::RoundedCorners& outer_corners);

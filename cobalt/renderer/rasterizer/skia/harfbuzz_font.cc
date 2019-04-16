@@ -19,10 +19,10 @@
 
 #include <limits>
 #include <map>
+#include <memory>
 #include <utility>
 
 #include "base/lazy_instance.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/glyph.h"
 
 #include "third_party/skia/include/core/SkPaint.h"
@@ -178,7 +178,7 @@ hb_blob_t* GetFontTable(hb_face_t* face, hb_tag_t tag, void* user_data) {
     return 0;
   }
 
-  scoped_array<char> buffer(new char[table_size]);
+  std::unique_ptr<char[]> buffer(new char[table_size]);
   if (!buffer) {
     return 0;
   }
@@ -215,9 +215,7 @@ void HarfBuzzFontProvider::HarfBuzzFace::Init(
   DCHECK(face_);
 }
 
-hb_face_t* HarfBuzzFontProvider::HarfBuzzFace::get() {
-  return face_;
-}
+hb_face_t* HarfBuzzFontProvider::HarfBuzzFace::get() { return face_; }
 
 hb_font_t* HarfBuzzFontProvider::GetHarfBuzzFont(Font* skia_font) {
   // Retrieve the typeface from the cache. In the case where it does not already

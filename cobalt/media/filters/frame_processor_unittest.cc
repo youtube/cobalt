@@ -3,17 +3,18 @@
 // found in the LICENSE file.
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/mock_filters.h"

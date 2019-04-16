@@ -17,6 +17,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_MESH_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_MESH_H_
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/render_tree/resource_provider.h"
@@ -32,9 +33,10 @@ namespace skia {
 
 class HardwareMesh : public render_tree::Mesh {
  public:
-  HardwareMesh(scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
-               DrawMode draw_mode, backend::GraphicsContextEGL* cobalt_context)
-      : vertices_(vertices.Pass()),
+  HardwareMesh(
+      std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+      DrawMode draw_mode, backend::GraphicsContextEGL* cobalt_context)
+      : vertices_(std::move(vertices)),
         draw_mode_(CheckDrawMode(draw_mode)),
         cobalt_context_(cobalt_context) {
     DCHECK(vertices_);
@@ -85,8 +87,8 @@ class HardwareMesh : public render_tree::Mesh {
 
   // Logically the mesh is the same, but internally upon fetching the VBO,
   // the vertex list has been copied from CPU to GPU memory.
-  mutable scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
-  mutable scoped_ptr<VertexBufferObject> vbo_;
+  mutable std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
+  mutable std::unique_ptr<VertexBufferObject> vbo_;
   const GLenum draw_mode_;
   backend::GraphicsContextEGL* cobalt_context_;
 
@@ -94,7 +96,7 @@ class HardwareMesh : public render_tree::Mesh {
   // object, so that we can ensure that regardless of which thread destroys
   // this HardwareMesh instance, we will always ensure that the owned VBO is
   // destroyed on the thread it was created from.
-  mutable MessageLoop* rasterizer_message_loop_ = nullptr;
+  mutable base::MessageLoop* rasterizer_message_loop_ = nullptr;
 };
 
 }  // namespace skia

@@ -15,10 +15,11 @@
 #include "cobalt/layout/replaced_box.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -98,11 +99,11 @@ ReplacedBox::ReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::optional<LayoutUnit>& maybe_intrinsic_width,
-    const base::optional<LayoutUnit>& maybe_intrinsic_height,
-    const base::optional<float>& maybe_intrinsic_ratio,
+    const base::Optional<LayoutUnit>& maybe_intrinsic_width,
+    const base::Optional<LayoutUnit>& maybe_intrinsic_height,
+    const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::optional<bool> is_video_punched_out, const math::SizeF& content_size,
+    base::Optional<bool> is_video_punched_out, const math::SizeF& content_size,
     LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
@@ -176,7 +177,7 @@ void ReplacedBox::SplitBidiLevelRuns() {}
 
 bool ReplacedBox::TrySplitAtSecondBidiLevelRun() { return false; }
 
-base::optional<int> ReplacedBox::GetBidiLevel() const {
+base::Optional<int> ReplacedBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
@@ -299,7 +300,7 @@ void ReplacedBox::RenderAndAnimateContent(
     // we don't yet know if it is punched out or not, and so render black.
     border_node_builder->AddChild(new RectNode(
         math::RectF(content_box_size()),
-        scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+        std::unique_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
             render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))));
     // Nothing to render.
     return;
@@ -345,13 +346,13 @@ void ReplacedBox::RenderAndAnimateContent(
 
 void ReplacedBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
-  base::optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
+  base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
-  base::optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
+  base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
+  base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
+  base::Optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   if (IsAbsolutelyPositioned()) {
@@ -438,11 +439,11 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // 'height' specified as 'auto', the algorithm is as described in
     // https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
 
-    base::optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
+    base::Optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
     LayoutUnit min_width = GetUsedMinWidth(
         computed_style(), layout_params.containing_block_size, NULL);
-    base::optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
+    base::Optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
     LayoutUnit min_height = GetUsedMinHeight(
         computed_style(), layout_params.containing_block_size, NULL);
@@ -459,14 +460,14 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // Take the max-width and max-height as max(min, max) so that min <= max
     // holds true.
     //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
-    base::optional<LayoutUnit> max_height;
+    base::Optional<LayoutUnit> max_height;
     bool h_greater_than_max_height = false;
     if (maybe_max_height) {
       max_height = std::max(min_height, *maybe_max_height);
       h_greater_than_max_height = h > *max_height;
     }
 
-    base::optional<LayoutUnit> max_width;
+    base::Optional<LayoutUnit> max_width;
     bool w_greater_than_max_width = false;
     if (maybe_max_width) {
       max_width = std::max(min_width, *maybe_max_width);
@@ -576,18 +577,18 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   // versus inline level replaced boxes.
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
   //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
-  base::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
   LayoutUnit border_box_width = GetBorderBoxWidth();
   UpdateHorizontalMargins(layout_params.containing_block_size.width(),
                           border_box_width, maybe_margin_left,
                           maybe_margin_right);
 
-  base::optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
+  base::Optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
+  base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   // If "margin-top", or "margin-bottom" are "auto", their used value is 0.

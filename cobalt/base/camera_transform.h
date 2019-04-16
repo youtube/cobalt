@@ -30,7 +30,7 @@ class CameraTransform {
   };
 
   ProjectionAndView left_eye_or_mono;
-  base::optional<ProjectionAndView> right_eye;  // For stereoscopic cameras.
+  base::Optional<ProjectionAndView> right_eye;  // For stereoscopic cameras.
 
   CameraTransform(glm::mat4 left_eye_or_mono_projection_matrix,
                   glm::mat4 left_eye_or_mono_view_matrix,

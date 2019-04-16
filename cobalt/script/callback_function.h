@@ -32,6 +32,33 @@
 namespace cobalt {
 namespace script {
 
+// --------------Begin of CallbackParamTraits------------------
+// CallbackParamTraits was originally from m25 Chromium base library.
+template <typename T>
+struct CallbackParamTraits {
+  typedef const T& ForwardType;
+  typedef T StorageType;
+};
+
+template <typename T>
+struct CallbackParamTraits<T&> {
+  typedef T& ForwardType;
+  typedef T StorageType;
+};
+
+template <typename T, size_t n>
+struct CallbackParamTraits<T[n]> {
+  typedef const T* ForwardType;
+  typedef const T* StorageType;
+};
+
+template <typename T>
+struct CallbackParamTraits<T[]> {
+  typedef const T* ForwardType;
+  typedef const T* StorageType;
+};
+// -----------------End of CallbackParamTraits---------------
+
 template <typename R>
 struct CallbackResult {
   CallbackResult() : result(R()), exception(false) {}
@@ -72,8 +99,7 @@ class CallbackFunction<R(A1)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -85,9 +111,8 @@ class CallbackFunction<R(A1, A2)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -99,10 +124,9 @@ class CallbackFunction<R(A1, A2, A3)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -114,11 +138,10 @@ class CallbackFunction<R(A1, A2, A3, A4)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -131,12 +154,11 @@ class CallbackFunction<R(A1, A2, A3, A4, A5)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -149,13 +171,12 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
-      typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -168,14 +189,13 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
   typedef CallbackResult<R> ReturnValue;
 
   virtual CallbackResult<R> Run(
-      typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
-      typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
-      typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
-      const = 0;
+      typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7) const = 0;
 
  protected:
   virtual ~CallbackFunction() {}

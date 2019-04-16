@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/csp/directive.h"
 

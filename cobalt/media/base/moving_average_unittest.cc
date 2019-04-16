@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/time.h"
 #include "cobalt/media/base/moving_average.h"
+
+#include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

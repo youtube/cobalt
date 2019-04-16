@@ -39,8 +39,7 @@ class FragmentationProcessor : private AllocationVisitor {
   explicit FragmentationProcessor(uintptr_t page_size)
       : page_size_(page_size) {}
 
-  void Process(MemoryTracker* tracker,
-               size_t* allocated_memory_in_pages,
+  void Process(MemoryTracker* tracker, size_t* allocated_memory_in_pages,
                size_t* used_memory_in_segments) {
     memory_segments_.erase(memory_segments_.begin(), memory_segments_.end());
     *allocated_memory_in_pages = 0;
@@ -131,13 +130,11 @@ class FragmentationProcessor : private AllocationVisitor {
 
 }  // namespace.
 
-InternalFragmentationTool::InternalFragmentationTool() {
-}
+InternalFragmentationTool::InternalFragmentationTool() {}
 
-InternalFragmentationTool::~InternalFragmentationTool() {
-}
+InternalFragmentationTool::~InternalFragmentationTool() {}
 
-std::string InternalFragmentationTool::tool_name() const  {
+std::string InternalFragmentationTool::tool_name() const {
   return "InternalFragmentationTool";
 }
 
@@ -168,8 +165,7 @@ void InternalFragmentationTool::Run(Params* params) {
 
       size_t allocated_memory_in_pages = 0;
       size_t used_memory = 0;
-      visitor.Process(params->memory_tracker(),
-                      &allocated_memory_in_pages,
+      visitor.Process(params->memory_tracker(), &allocated_memory_in_pages,
                       &used_memory);
 
       SB_DCHECK(allocated_memory_in_pages > used_memory)
@@ -178,8 +174,7 @@ void InternalFragmentationTool::Run(Params* params) {
 
       histogram_table.AddRowValue("TotalReservedCpuMemoryInPages(MB)",
                                   allocated_memory_in_pages);
-      histogram_table.AddRowValue("TotalCpuMemoryInUse(MB)",
-                                  used_memory);
+      histogram_table.AddRowValue("TotalCpuMemoryInUse(MB)", used_memory);
       histogram_table.FinalizeRow();
     }
 
