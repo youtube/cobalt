@@ -35,7 +35,7 @@ class CSSFontFaceDeclarationData : public CSSDeclarationData {
   void SetPropertyValueAndImportance(
       PropertyKey key, const scoped_refptr<PropertyValue>& property_value,
       bool important) override {
-    UNREFERENCED_PARAMETER(important);
+    SB_UNREFERENCED_PARAMETER(important);
     SetPropertyValue(key, property_value);
   }
   void ClearPropertyValueAndImportance(PropertyKey key) override {

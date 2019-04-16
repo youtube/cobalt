@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/csp/directive_list.h"
 
 #include "base/base64.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/csp/crypto.h"
 #include "cobalt/csp/media_list_directive.h"
 #include "cobalt/csp/source_list_directive.h"
@@ -36,8 +38,8 @@ std::string GetSha256String(const std::string& content) {
   base::StringPiece digest_piece(reinterpret_cast<char*>(&digest[0]),
                                  digest.size());
   std::string encoded;
-  bool ok = base::Base64Encode(digest_piece, &encoded);
-  if (ok) {
+  base::Base64Encode(digest_piece, &encoded);
+  if (!encoded.empty() || digest_piece.empty()) {
     return "'sha256-" + encoded + "'";
   } else {
     DLOG(WARNING) << "Base64Encode failed on " << content;
@@ -141,7 +143,7 @@ bool DirectiveList::CheckMediaType(MediaListDirective* directive,
     return true;
   }
   std::string trimmed_type_attribute;
-  TrimWhitespaceASCII(type_attribute, TRIM_ALL, &trimmed_type_attribute);
+  TrimWhitespaceASCII(type_attribute, base::TRIM_ALL, &trimmed_type_attribute);
 
   if (type_attribute.empty() || trimmed_type_attribute != type) {
     return false;
@@ -167,7 +169,7 @@ bool DirectiveList::CheckEvalAndReportViolation(
   }
 
   std::string suffix;
-  if (directive == default_src_) {
+  if (directive == default_src_.get()) {
     suffix =
         " Note that 'script-src' was not explicitly set, so 'default-src' is "
         "used as a fallback.";
@@ -237,7 +239,7 @@ bool DirectiveList::CheckInlineAndReportViolation(
     suffix =
         " Either the 'unsafe-inline' keyword, a hash (" + hash_value +
         "), or a nonce ('nonce-...') is required to enable inline execution.";
-    if (directive == default_src_)
+    if (directive == default_src_.get())
       suffix = suffix + " Note also that '" +
                std::string(is_script ? "script" : "style") +
                "-src' was not explicitly set, so 'default-src' is used as a "
@@ -297,7 +299,7 @@ bool DirectiveList::CheckSourceAndReportViolation(
   }
 
   std::string suffix = std::string();
-  if (directive == default_src_)
+  if (directive == default_src_.get())
     suffix =
         " Note that '" + effective_directive +
         "' was not explicitly set, so 'default-src' is used as a fallback.";
@@ -556,7 +558,7 @@ bool DirectiveList::ParseDirective(const char* begin, const char* end,
   DCHECK(value && value->empty());
 
   const char* position = begin;
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
 
   // Empty directive (e.g. ";;;"). Exit early.
   if (position == end) {
@@ -579,13 +581,13 @@ bool DirectiveList::ParseDirective(const char* begin, const char* end,
     return true;
   }
 
-  if (!SkipExactly<IsAsciiWhitespace>(&position, end)) {
+  if (!SkipExactly<base::IsAsciiWhitespace>(&position, end)) {
     SkipWhile<IsNotAsciiWhitespace>(&position, end);
     policy_->ReportUnsupportedDirective(ToString(name_begin, position));
     return false;
   }
 
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
 
   const char* value_begin = position;
   SkipWhile<IsCSPDirectiveValueCharacter>(&position, end);
@@ -624,7 +626,7 @@ void DirectiveList::ParseReportURI(const std::string& name,
   const char* end = position + characters.size();
 
   while (position < end) {
-    SkipWhile<IsAsciiWhitespace>(&position, end);
+    SkipWhile<base::IsAsciiWhitespace>(&position, end);
 
     const char* url_begin = position;
     SkipWhile<IsNotAsciiWhitespace>(&position, end);
@@ -638,7 +640,7 @@ void DirectiveList::ParseReportURI(const std::string& name,
 
 void DirectiveList::SetCSPDirective(
     const std::string& name, const std::string& value,
-    scoped_ptr<SourceListDirective>* directive) {
+    std::unique_ptr<SourceListDirective>* directive) {
   DCHECK(directive);
   if (*directive) {
     policy_->ReportDuplicateDirective(name);
@@ -647,9 +649,9 @@ void DirectiveList::SetCSPDirective(
   directive->reset(new SourceListDirective(name, value, policy_));
 }
 
-void DirectiveList::SetCSPDirective(const std::string& name,
-                                    const std::string& value,
-                                    scoped_ptr<MediaListDirective>* directive) {
+void DirectiveList::SetCSPDirective(
+    const std::string& name, const std::string& value,
+    std::unique_ptr<MediaListDirective>* directive) {
   DCHECK(directive);
   if (*directive) {
     policy_->ReportDuplicateDirective(name);
@@ -713,18 +715,18 @@ void DirectiveList::ParseReflectedXSS(const std::string& name,
   const char* position = characters.data();
   const char* end = position + characters.size();
 
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   const char* begin = position;
   SkipWhile<IsNotAsciiWhitespace>(&position, end);
 
   // value1
   //       ^
 
-  if (LowerCaseEqualsASCII(begin, position, "allow")) {
+  if (base::LowerCaseEqualsASCII(begin, position, "allow")) {
     reflected_xss_disposition_ = kAllowReflectedXSS;
-  } else if (LowerCaseEqualsASCII(begin, position, "filter")) {
+  } else if (base::LowerCaseEqualsASCII(begin, position, "filter")) {
     reflected_xss_disposition_ = kFilterReflectedXSS;
-  } else if (LowerCaseEqualsASCII(begin, position, "block")) {
+  } else if (base::LowerCaseEqualsASCII(begin, position, "block")) {
     reflected_xss_disposition_ = kBlockReflectedXSS;
   } else {
     reflected_xss_disposition_ = kReflectedXSSInvalid;
@@ -732,7 +734,7 @@ void DirectiveList::ParseReflectedXSS(const std::string& name,
     return;
   }
 
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   if (position == end && reflected_xss_disposition_ != kReflectedXSSUnset) {
     return;
   }
@@ -764,31 +766,32 @@ void DirectiveList::ParseReferrer(const std::string& name,
   const char* position = characters.begin();
   const char* end = characters.end();
 
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   const char* begin = position;
   SkipWhile<IsNotAsciiWhitespace>(&position, end);
 
   // value1
   //       ^
-  if (LowerCaseEqualsASCII(begin, position, "unsafe-url")) {
+  if (base::LowerCaseEqualsASCII(begin, position, "unsafe-url")) {
     referrer_policy_ = kReferrerPolicyUnsafeUrl;
-  } else if (LowerCaseEqualsASCII(begin, position, "no-referrer")) {
+  } else if (base::LowerCaseEqualsASCII(begin, position, "no-referrer")) {
     referrer_policy_ = kReferrerPolicyNoReferrer;
-  } else if (LowerCaseEqualsASCII(begin, position,
-                                  "no-referrer-when-downgrade")) {
+  } else if (base::LowerCaseEqualsASCII(begin, position,
+                                        "no-referrer-when-downgrade")) {
     referrer_policy_ = kReferrerPolicyDefault;
-  } else if (LowerCaseEqualsASCII(begin, position, "origin")) {
+  } else if (base::LowerCaseEqualsASCII(begin, position, "origin")) {
     referrer_policy_ = kReferrerPolicyOrigin;
-  } else if (LowerCaseEqualsASCII(begin, position,
-                                  "origin-when-cross-origin") ||
-             LowerCaseEqualsASCII(begin, position, "origin-when-crossorigin")) {
+  } else if (base::LowerCaseEqualsASCII(begin, position,
+                                        "origin-when-cross-origin") ||
+             base::LowerCaseEqualsASCII(begin, position,
+                                        "origin-when-crossorigin")) {
     referrer_policy_ = kReferrerPolicyOriginWhenCrossOrigin;
   } else {
     policy_->ReportInvalidReferrer(value);
     return;
   }
 
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   if (position == end) {
     return;
   }
@@ -806,7 +809,7 @@ std::string DirectiveList::ParseSuboriginName(const std::string& policy) {
   const char* end = characters.end();
 
   // Parse the name of the suborigin (no spaces, single string)
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   if (position == end) {
     policy_->ReportInvalidSuboriginFlags("No suborigin name specified.");
     return std::string();
@@ -815,13 +818,13 @@ std::string DirectiveList::ParseSuboriginName(const std::string& policy) {
   const char* begin = position;
 
   SkipWhile<IsAsciiAlphanumeric>(&position, end);
-  if (position != end && !IsAsciiWhitespace(*position)) {
+  if (position != end && !base::IsAsciiWhitespace(*position)) {
     policy_->ReportInvalidSuboriginFlags(
         "Invalid character \'" + std::string(position, 1) + "\' in suborigin.");
     return std::string();
   }
   size_t length = static_cast<size_t>(position - begin);
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   if (position != end) {
     policy_->ReportInvalidSuboriginFlags(
         "Whitespace is not allowed in suborigin names.");
@@ -834,7 +837,7 @@ std::string DirectiveList::ParseSuboriginName(const std::string& policy) {
 void DirectiveList::AddDirective(const std::string& name,
                                  const std::string& value) {
   DCHECK(!name.empty());
-  std::string lower_name = StringToLowerASCII(name);
+  std::string lower_name = base::ToLowerASCII(name);
   if (lower_name == ContentSecurityPolicy::kDefaultSrc) {
     SetCSPDirective(name, value, &default_src_);
   } else if (lower_name == ContentSecurityPolicy::kScriptSrc) {

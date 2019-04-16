@@ -16,14 +16,15 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
-#include "base/debug/trace_event.h"
 #include "base/guid.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
@@ -100,11 +101,11 @@ struct HTMLMediaElementCountLog {
   DISALLOW_COPY_AND_ASSIGN(HTMLMediaElementCountLog);
 };
 
-base::LazyInstance<HTMLMediaElementCountLog> html_media_element_count_log =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<HTMLMediaElementCountLog>::DestructorAtExit
+    html_media_element_count_log = LAZY_INSTANCE_INITIALIZER;
 
 loader::RequestMode GetRequestMode(
-    const base::optional<std::string>& cross_origin_attribute) {
+    const base::Optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
   if (cross_origin_attribute) {
     if (*cross_origin_attribute == "use-credentials") {
@@ -215,8 +216,8 @@ void HTMLMediaElement::set_src(const std::string& src) {
   ScheduleLoad();
 }
 
-base::optional<std::string> HTMLMediaElement::cross_origin() const {
-  base::optional<std::string> cross_origin_attribute =
+base::Optional<std::string> HTMLMediaElement::cross_origin() const {
+  base::Optional<std::string> cross_origin_attribute =
       GetAttribute("crossOrigin");
   if (cross_origin_attribute &&
       (*cross_origin_attribute != "anonymous" &&
@@ -227,7 +228,7 @@ base::optional<std::string> HTMLMediaElement::cross_origin() const {
 }
 
 void HTMLMediaElement::set_cross_origin(
-    const base::optional<std::string>& value) {
+    const base::Optional<std::string>& value) {
   if (value) {
     SetAttribute("crossOrigin", *value);
   } else {
@@ -420,7 +421,7 @@ void HTMLMediaElement::AddKey(
     const std::string& key_system,
     const script::Handle<script::Uint8Array>& key,
     const script::Handle<script::Uint8Array>& init_data,
-    const base::optional<std::string>& session_id,
+    const base::Optional<std::string>& session_id,
     script::ExceptionState* exception_state) {
   MLOG() << key_system;
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
@@ -467,7 +468,7 @@ void HTMLMediaElement::AddKey(
 
 void HTMLMediaElement::CancelKeyRequest(
     const std::string& key_system,
-    const base::optional<std::string>& session_id,
+    const base::Optional<std::string>& session_id,
     script::ExceptionState* exception_state) {
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
   // 1. If the first argument is null, throw a SYNTAX_ERR.
@@ -506,7 +507,7 @@ bool HTMLMediaElement::seeking() const {
 
 float HTMLMediaElement::current_time(
     script::ExceptionState* exception_state) const {
-  UNREFERENCED_PARAMETER(exception_state);
+  SB_UNREFERENCED_PARAMETER(exception_state);
 
   if (!player_) {
     MLOG() << 0 << " (because player is NULL)";
@@ -711,7 +712,7 @@ void HTMLMediaElement::set_controls(bool controls) {
 }
 
 float HTMLMediaElement::volume(script::ExceptionState* exception_state) const {
-  UNREFERENCED_PARAMETER(exception_state);
+  SB_UNREFERENCED_PARAMETER(exception_state);
   MLOG() << volume_;
   return volume_;
 }
@@ -1053,12 +1054,12 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
         base::Unretained(node_document()->csp_delegate()), CspDelegate::kMedia);
     request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
     DCHECK(node_document()->location());
-    scoped_ptr<BufferedDataSource> data_source(
+    std::unique_ptr<BufferedDataSource> data_source(
         new media::FetcherBufferedDataSource(
-            base::MessageLoopProxy::current(), url, csp_callback,
+            base::MessageLoop::current()->task_runner(), url, csp_callback,
             html_element_context()->fetcher_factory()->network_module(),
             request_mode_, node_document()->location()->GetOriginAsObject()));
-    player_->LoadProgressive(url, data_source.Pass());
+    player_->LoadProgressive(url, std::move(data_source));
   }
 }
 
@@ -1114,6 +1115,7 @@ void HTMLMediaElement::NoneSupported(const std::string& message) {
 
 void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
                                           const std::string& message) {
+  DLOG(INFO) << "media loading failed";
   StopPeriodicTimers();
 
   if (error == WebMediaPlayer::kNetworkStateNetworkError &&
@@ -1526,7 +1528,7 @@ void HTMLMediaElement::UpdatePlayState() {
 
     StartPlaybackProgressTimer();
     playing_ = true;
-    if (AsHTMLVideoElement() != NULL) {
+    if (AsHTMLVideoElement().get() != NULL) {
       dom_stat_tracker_->OnHtmlVideoElementPlaying();
     }
   } else {  // Should not be playing right now.

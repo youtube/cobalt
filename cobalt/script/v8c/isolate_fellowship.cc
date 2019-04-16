@@ -15,11 +15,11 @@
 #include "cobalt/script/v8c/isolate_fellowship.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "starboard/file.h"
 
@@ -58,11 +58,11 @@ void V8FlagsInit() {
 IsolateFellowship::IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::IsolateFellowship");
   // TODO: Initialize V8 ICU stuff here as well.
-  platform = new CobaltPlatform(v8::platform::NewDefaultPlatform(
+  platform.reset(new CobaltPlatform(v8::platform::NewDefaultPlatform(
       0 /*thread_pool_size*/, v8::platform::IdleTaskSupport::kDisabled,
       v8::platform::InProcessStackDumping::kEnabled,
-      std::unique_ptr<v8::TracingController>(new V8cTracingController())));
-  v8::V8::InitializePlatform(platform);
+      std::unique_ptr<v8::TracingController>(new V8cTracingController()))));
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();
   array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
@@ -161,7 +161,7 @@ void IsolateFellowship::InitializeStartupData() {
       return false;
     }
 
-    scoped_array<char> data(new char[data_size]);
+    std::unique_ptr<char[]> data(new char[data_size]);
     read = scoped_file.ReadAll(data.get(), data_size);
     if (read == -1 || read != data_size) {
       LOG(ERROR) << "Reading V8 startup snapshot cache file failed for some "

@@ -16,7 +16,7 @@
 
 #include <utility>
 
-#include "base/string_split.h"
+#include "base/strings/string_split.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_image_element.h"
@@ -72,8 +72,8 @@ scoped_refptr<dom::Element> GetElementById(
   // |element|.
   dom::Document* document = element->node_document();
   scoped_refptr<dom::Element> target_element = document->GetElementById(id);
-  DLOG_IF(WARNING, !target_element) << "Could not find aria-labelledby target: "
-                                    << id;
+  DLOG_IF(WARNING, !target_element)
+      << "Could not find aria-labelledby target: " << id;
   return target_element;
 }
 }  // namespace
@@ -194,7 +194,7 @@ void TextAlternativeHelper::AppendTextAlternative(
 }
 
 std::string TextAlternativeHelper::GetTextAlternative() {
-  return JoinString(alternatives_, ' ');
+  return base::JoinString(alternatives_, " ");
 }
 
 bool TextAlternativeHelper::IsAriaHidden(
@@ -202,7 +202,7 @@ bool TextAlternativeHelper::IsAriaHidden(
   if (!element) {
     return false;
   }
-  base::optional<std::string> aria_hidden_attribute =
+  base::Optional<std::string> aria_hidden_attribute =
       element->GetAttribute(base::Tokens::aria_hidden().c_str());
   if (aria_hidden_attribute.value_or("") == base::Tokens::true_token()) {
     return true;
@@ -213,11 +213,12 @@ bool TextAlternativeHelper::IsAriaHidden(
 bool TextAlternativeHelper::TryAppendFromLabelledByOrDescribedBy(
     const scoped_refptr<dom::Element>& element, const base::Token& token) {
   DCHECK(!in_labelled_by_or_described_by_);
-  base::optional<std::string> attributes = element->GetAttribute(token.c_str());
-  std::vector<std::string> ids;
+  base::Optional<std::string> attributes = element->GetAttribute(token.c_str());
   // If aria-labelledby is empty or undefined, the aria-label attribute ... is
   // used (defined below).
-  base::SplitStringAlongWhitespace(attributes.value_or(""), &ids);
+  std::vector<std::string> ids =
+      base::SplitString(attributes.value_or(""), base::kWhitespaceASCII,
+                        base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   const size_t current_num_alternatives = alternatives_.size();
   if (!ids.empty()) {
     in_labelled_by_or_described_by_ = true;
@@ -246,7 +247,7 @@ bool TextAlternativeHelper::TryAppendFromLabelledByOrDescribedBy(
 
 bool TextAlternativeHelper::TryAppendFromLabel(
     const scoped_refptr<dom::Element>& element) {
-  base::optional<std::string> label_attribute =
+  base::Optional<std::string> label_attribute =
       element->GetAttribute(base::Tokens::aria_label().c_str());
   return AppendTextIfNonEmpty(label_attribute.value_or(""));
 }
@@ -258,7 +259,7 @@ bool TextAlternativeHelper::TryAppendFromAltProperty(
   // implements is the <img> element.
   if (element->AsHTMLElement() &&
       element->AsHTMLElement()->AsHTMLImageElement()) {
-    base::optional<std::string> alt_attribute =
+    base::Optional<std::string> alt_attribute =
         element->GetAttribute(base::Tokens::alt().c_str());
     if (alt_attribute) {
       return AppendTextIfNonEmpty(*alt_attribute);
@@ -269,7 +270,7 @@ bool TextAlternativeHelper::TryAppendFromAltProperty(
 
 bool TextAlternativeHelper::AppendTextIfNonEmpty(const std::string& text) {
   std::string trimmed;
-  TrimWhitespaceASCII(text, TRIM_ALL, &trimmed);
+  TrimWhitespaceASCII(text, base::TRIM_ALL, &trimmed);
   if (!trimmed.empty()) {
     alternatives_.push_back(trimmed);
   }

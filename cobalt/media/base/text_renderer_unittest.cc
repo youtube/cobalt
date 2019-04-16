@@ -12,8 +12,7 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "base/memory/scoped_vector.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/decoder_buffer.h"
@@ -189,7 +188,7 @@ class TextRendererTest : public testing::Test {
 
   base::MessageLoop message_loop_;
 
-  typedef ScopedVector<FakeTextTrackStream> TextTrackStreams;
+  typedef std::vector<std::unique_ptr<FakeTextTrackStream>> TextTrackStreams;
   TextTrackStreams text_track_streams_;
 
   typedef std::vector<FakeTextTrack*> TextTracks;

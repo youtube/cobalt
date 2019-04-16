@@ -89,7 +89,7 @@ std::string PrintCSVTool::ToCsvString(const MapAllocationSamples& samples_in) {
 
     const AllocationSamples& samples_ref = it->second;
     if (samples_ref.allocated_bytes_.empty() ||
-      samples_ref.number_allocations_.empty()) {
+        samples_ref.number_allocations_.empty()) {
       SB_NOTREACHED() << "Should not be here";
       return "ERROR";
     }

@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/trace_event/benchmark.h"
+#include <memory>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
@@ -23,6 +24,7 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
 #include "cobalt/system_window/system_window.h"
+#include "cobalt/trace_event/benchmark.h"
 
 using cobalt::math::Size;
 using cobalt::math::SizeF;
@@ -47,7 +49,7 @@ namespace {
 const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
 
-scoped_ptr<Rasterizer> CreateDefaultRasterizer(
+std::unique_ptr<Rasterizer> CreateDefaultRasterizer(
     GraphicsContext* graphics_context) {
   RendererModule::Options render_module_options;
   return render_module_options.create_rasterizer_function.Run(
@@ -74,10 +76,11 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   // Disable tracing so that we can iterate one round without recording
   // results.  This is to trigger any lazy initialization that may need to
   // be done.
-  base::debug::TraceLog::GetInstance()->SetEnabled(false);
+  base::trace_event::TraceLog::GetInstance()->SetDisabled(
+      base::trace_event::TraceLog::RECORDING_MODE);
 
   base::EventDispatcher event_dispatcher;
-  scoped_ptr<SystemWindow> test_system_window;
+  std::unique_ptr<SystemWindow> test_system_window;
   if (output_surface_type == kOutputSurfaceTypeDisplay) {
     Size view_size(kViewportWidth, kViewportHeight);
     test_system_window.reset(
@@ -85,17 +88,17 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   }
 
   // Setup our graphics system.
-  scoped_ptr<GraphicsSystem> graphics_system =
+  std::unique_ptr<GraphicsSystem> graphics_system =
       cobalt::renderer::backend::CreateDefaultGraphicsSystem(
           test_system_window.get());
-  scoped_ptr<GraphicsContext> graphics_context =
+  std::unique_ptr<GraphicsContext> graphics_context =
       graphics_system->CreateGraphicsContext();
 
   // Create the rasterizer using the platform default RenderModule options.
-  scoped_ptr<Rasterizer> rasterizer =
+  std::unique_ptr<Rasterizer> rasterizer =
       CreateDefaultRasterizer(graphics_context.get());
 
-  scoped_ptr<Display> test_display;
+  std::unique_ptr<Display> test_display;
   scoped_refptr<RenderTarget> test_surface;
   if (output_surface_type == kOutputSurfaceTypeDisplay) {
     test_display = graphics_system->CreateDisplay(test_system_window.get());
@@ -131,7 +134,9 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
     if (i == 0) {
       // Enable tracing again after one iteration has passed and any lazy
       // initializations are out of the way.
-      base::debug::TraceLog::GetInstance()->SetEnabled(true);
+      base::trace_event::TraceLog::GetInstance()->SetEnabled(
+          base::trace_event::TraceConfig(),
+          base::trace_event::TraceLog::RECORDING_MODE);
     }
   }
 }
@@ -179,13 +184,13 @@ void SynthesizeImageData(ImageData* image_data) {
 }
 
 void RunCreateImageViaResourceProviderBenchmark(AlphaFormat alpha_format) {
-  scoped_ptr<GraphicsSystem> graphics_system =
+  std::unique_ptr<GraphicsSystem> graphics_system =
       cobalt::renderer::backend::CreateDefaultGraphicsSystem();
-  scoped_ptr<GraphicsContext> graphics_context =
+  std::unique_ptr<GraphicsContext> graphics_context =
       graphics_system->CreateGraphicsContext();
 
   // Create the rasterizer using the platform default RenderModule options.
-  scoped_ptr<Rasterizer> rasterizer =
+  std::unique_ptr<Rasterizer> rasterizer =
       CreateDefaultRasterizer(graphics_context.get());
 
   ResourceProvider* resource_provider = rasterizer->GetResourceProvider();
@@ -211,12 +216,13 @@ void RunCreateImageViaResourceProviderBenchmark(AlphaFormat alpha_format) {
     // Repeatedly allocate memory for an image, write to that memory, and then
     // submit the image data back to the ResourceProvider to have it create
     // an image out of it.
-    scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
-        kImageSize, pixel_format, alpha_format);
+    std::unique_ptr<ImageData> image_data =
+        resource_provider->AllocateImageData(kImageSize, pixel_format,
+                                             alpha_format);
 
     SynthesizeImageData(image_data.get());
 
-    resource_provider->CreateImage(image_data.Pass());
+    resource_provider->CreateImage(std::move(image_data));
   }
 }
 }  // namespace

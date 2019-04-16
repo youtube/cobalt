@@ -68,7 +68,7 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   virtual bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object,
-      base::optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
+      base::Optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
 
   // Returns the stack trace as a vector of individual frames.
   // Set |max_frames| to 0 to retrieve all available frames. Otherwise
@@ -128,7 +128,7 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
                                    Wrappable* wrappable)
         : global_environment(global_environment), wrappable(wrappable) {
       global_environment->PreventGarbageCollection(
-          make_scoped_refptr(wrappable));
+          base::WrapRefCounted(wrappable));
     }
 
     ~ScopedPreventGarbageCollection() {

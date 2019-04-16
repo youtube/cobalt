@@ -22,10 +22,9 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "base/stringprintf.h"
-#include "base/time.h"
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
@@ -396,7 +395,7 @@ inline void FromJSValue(
 // optional<T> -> JSValue
 template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
-                      const base::optional<T>& in_optional,
+                      const base::Optional<T>& in_optional,
                       v8::Local<v8::Value>* out_value) {
   if (in_optional) {
     ToJSValue(isolate, in_optional.value(), out_value);
@@ -409,7 +408,7 @@ inline void ToJSValue(v8::Isolate* isolate,
 template <typename T>
 inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                         int conversion_flags, ExceptionState* exception_state,
-                        base::optional<T>* out_optional) {
+                        base::Optional<T>* out_optional) {
   if (value->IsNullOrUndefined()) {
     *out_optional = base::nullopt;
   } else {
@@ -423,7 +422,7 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 template <>
 inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                         int conversion_flags, ExceptionState* exception_state,
-                        base::optional<std::string>* out_optional) {
+                        base::Optional<std::string>* out_optional) {
   if (value->IsNull()) {
     *out_optional = base::nullopt;
   } else if (value->IsUndefined() &&

@@ -37,13 +37,13 @@ class OnErrorEventListener {
   // translated to the more complicated IDL handleEvent interface which is
   // marked protected.  During that translation, the event parameters may
   // be unpacked if the |unpack_error_events| flag is true.
-  base::optional<bool> HandleEvent(
+  base::Optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<Event>& event, bool* had_exception,
       bool unpack_error_events) const;
 
  protected:
-  virtual base::optional<bool> HandleEvent(
+  virtual base::Optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
       EventOrMessage message, const std::string& filename, uint32 lineno,
       uint32 colno, const script::ValueHandleHolder* error,

@@ -50,7 +50,7 @@ class RenderTargetEGL : public RenderTarget {
     return content_preserved_on_swap_ && !content_cleared_on_swap_;
   }
 
-  int64 swap_count() { return swap_count_; }
+  int64_t swap_count() { return swap_count_; }
   void increment_swap_count() { ++swap_count_; }
 
   bool has_been_made_current() const { return has_been_made_current_; }
@@ -64,7 +64,7 @@ class RenderTargetEGL : public RenderTarget {
  protected:
   virtual ~RenderTargetEGL() {}
 
-  int64 swap_count_;
+  int64_t swap_count_;
   bool has_been_made_current_;
   bool content_preserved_on_swap_;
   bool content_cleared_on_swap_;

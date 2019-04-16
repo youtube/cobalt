@@ -17,14 +17,14 @@
 
 #include <queue>
 #include "base/callback.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
+#include "base/trace_event/trace_event.h"
 
 namespace base {
 
 // A thread safe in-order message queue.  In some situations this can be
-// preferred versus PostTask()ing directly to a MessageLoop since the data
+// preferred versus PostTask()ing directly to a base::MessageLoop since the data
 // stored within the queued Closures can be destroyed on demand, and also the
 // queue messages can be processed at a time of the user's choosing.
 class MessageQueue {

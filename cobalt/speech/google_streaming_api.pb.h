@@ -21,11 +21,11 @@
 
 #include <google/protobuf/arena.h>
 #include <google/protobuf/arenastring.h>
+#include <google/protobuf/extension_set.h>
+#include <google/protobuf/generated_enum_util.h>
 #include <google/protobuf/generated_message_util.h>
 #include <google/protobuf/message_lite.h>
 #include <google/protobuf/repeated_field.h>
-#include <google/protobuf/extension_set.h>
-#include <google/protobuf/generated_enum_util.h>
 // @@protoc_insertion_point(includes)
 
 namespace cobalt {
@@ -53,9 +53,14 @@ enum SpeechRecognitionEvent_StatusCode {
   SpeechRecognitionEvent_StatusCode_STATUS_LANGUAGE_NOT_SUPPORTED = 8
 };
 bool SpeechRecognitionEvent_StatusCode_IsValid(int value);
-const SpeechRecognitionEvent_StatusCode SpeechRecognitionEvent_StatusCode_StatusCode_MIN = SpeechRecognitionEvent_StatusCode_STATUS_SUCCESS;
-const SpeechRecognitionEvent_StatusCode SpeechRecognitionEvent_StatusCode_StatusCode_MAX = SpeechRecognitionEvent_StatusCode_STATUS_LANGUAGE_NOT_SUPPORTED;
-const int SpeechRecognitionEvent_StatusCode_StatusCode_ARRAYSIZE = SpeechRecognitionEvent_StatusCode_StatusCode_MAX + 1;
+const SpeechRecognitionEvent_StatusCode
+    SpeechRecognitionEvent_StatusCode_StatusCode_MIN =
+        SpeechRecognitionEvent_StatusCode_STATUS_SUCCESS;
+const SpeechRecognitionEvent_StatusCode
+    SpeechRecognitionEvent_StatusCode_StatusCode_MAX =
+        SpeechRecognitionEvent_StatusCode_STATUS_LANGUAGE_NOT_SUPPORTED;
+const int SpeechRecognitionEvent_StatusCode_StatusCode_ARRAYSIZE =
+    SpeechRecognitionEvent_StatusCode_StatusCode_MAX + 1;
 
 enum SpeechRecognitionEvent_EndpointerEventType {
   SpeechRecognitionEvent_EndpointerEventType_START_OF_SPEECH = 0,
@@ -64,9 +69,15 @@ enum SpeechRecognitionEvent_EndpointerEventType {
   SpeechRecognitionEvent_EndpointerEventType_END_OF_UTTERANCE = 3
 };
 bool SpeechRecognitionEvent_EndpointerEventType_IsValid(int value);
-const SpeechRecognitionEvent_EndpointerEventType SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MIN = SpeechRecognitionEvent_EndpointerEventType_START_OF_SPEECH;
-const SpeechRecognitionEvent_EndpointerEventType SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MAX = SpeechRecognitionEvent_EndpointerEventType_END_OF_UTTERANCE;
-const int SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_ARRAYSIZE = SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MAX + 1;
+const SpeechRecognitionEvent_EndpointerEventType
+    SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MIN =
+        SpeechRecognitionEvent_EndpointerEventType_START_OF_SPEECH;
+const SpeechRecognitionEvent_EndpointerEventType
+    SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MAX =
+        SpeechRecognitionEvent_EndpointerEventType_END_OF_UTTERANCE;
+const int
+    SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_ARRAYSIZE =
+        SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MAX + 1;
 
 // ===================================================================
 
@@ -94,7 +105,7 @@ class SpeechRecognitionEvent : public ::google::protobuf::MessageLite {
 
   static const SpeechRecognitionEvent& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
@@ -102,7 +113,7 @@ class SpeechRecognitionEvent : public ::google::protobuf::MessageLite {
   static inline const SpeechRecognitionEvent* internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(SpeechRecognitionEvent* other);
 
@@ -124,99 +135,110 @@ class SpeechRecognitionEvent : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(SpeechRecognitionEvent* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
 
   typedef SpeechRecognitionEvent_StatusCode StatusCode;
   static const StatusCode STATUS_SUCCESS =
-    SpeechRecognitionEvent_StatusCode_STATUS_SUCCESS;
+      SpeechRecognitionEvent_StatusCode_STATUS_SUCCESS;
   static const StatusCode STATUS_NO_SPEECH =
-    SpeechRecognitionEvent_StatusCode_STATUS_NO_SPEECH;
+      SpeechRecognitionEvent_StatusCode_STATUS_NO_SPEECH;
   static const StatusCode STATUS_ABORTED =
-    SpeechRecognitionEvent_StatusCode_STATUS_ABORTED;
+      SpeechRecognitionEvent_StatusCode_STATUS_ABORTED;
   static const StatusCode STATUS_AUDIO_CAPTURE =
-    SpeechRecognitionEvent_StatusCode_STATUS_AUDIO_CAPTURE;
+      SpeechRecognitionEvent_StatusCode_STATUS_AUDIO_CAPTURE;
   static const StatusCode STATUS_NETWORK =
-    SpeechRecognitionEvent_StatusCode_STATUS_NETWORK;
+      SpeechRecognitionEvent_StatusCode_STATUS_NETWORK;
   static const StatusCode STATUS_NOT_ALLOWED =
-    SpeechRecognitionEvent_StatusCode_STATUS_NOT_ALLOWED;
+      SpeechRecognitionEvent_StatusCode_STATUS_NOT_ALLOWED;
   static const StatusCode STATUS_SERVICE_NOT_ALLOWED =
-    SpeechRecognitionEvent_StatusCode_STATUS_SERVICE_NOT_ALLOWED;
+      SpeechRecognitionEvent_StatusCode_STATUS_SERVICE_NOT_ALLOWED;
   static const StatusCode STATUS_BAD_GRAMMAR =
-    SpeechRecognitionEvent_StatusCode_STATUS_BAD_GRAMMAR;
+      SpeechRecognitionEvent_StatusCode_STATUS_BAD_GRAMMAR;
   static const StatusCode STATUS_LANGUAGE_NOT_SUPPORTED =
-    SpeechRecognitionEvent_StatusCode_STATUS_LANGUAGE_NOT_SUPPORTED;
+      SpeechRecognitionEvent_StatusCode_STATUS_LANGUAGE_NOT_SUPPORTED;
   static inline bool StatusCode_IsValid(int value) {
     return SpeechRecognitionEvent_StatusCode_IsValid(value);
   }
   static const StatusCode StatusCode_MIN =
-    SpeechRecognitionEvent_StatusCode_StatusCode_MIN;
+      SpeechRecognitionEvent_StatusCode_StatusCode_MIN;
   static const StatusCode StatusCode_MAX =
-    SpeechRecognitionEvent_StatusCode_StatusCode_MAX;
+      SpeechRecognitionEvent_StatusCode_StatusCode_MAX;
   static const int StatusCode_ARRAYSIZE =
-    SpeechRecognitionEvent_StatusCode_StatusCode_ARRAYSIZE;
+      SpeechRecognitionEvent_StatusCode_StatusCode_ARRAYSIZE;
 
   typedef SpeechRecognitionEvent_EndpointerEventType EndpointerEventType;
   static const EndpointerEventType START_OF_SPEECH =
-    SpeechRecognitionEvent_EndpointerEventType_START_OF_SPEECH;
+      SpeechRecognitionEvent_EndpointerEventType_START_OF_SPEECH;
   static const EndpointerEventType END_OF_SPEECH =
-    SpeechRecognitionEvent_EndpointerEventType_END_OF_SPEECH;
+      SpeechRecognitionEvent_EndpointerEventType_END_OF_SPEECH;
   static const EndpointerEventType END_OF_AUDIO =
-    SpeechRecognitionEvent_EndpointerEventType_END_OF_AUDIO;
+      SpeechRecognitionEvent_EndpointerEventType_END_OF_AUDIO;
   static const EndpointerEventType END_OF_UTTERANCE =
-    SpeechRecognitionEvent_EndpointerEventType_END_OF_UTTERANCE;
+      SpeechRecognitionEvent_EndpointerEventType_END_OF_UTTERANCE;
   static inline bool EndpointerEventType_IsValid(int value) {
     return SpeechRecognitionEvent_EndpointerEventType_IsValid(value);
   }
   static const EndpointerEventType EndpointerEventType_MIN =
-    SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MIN;
+      SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MIN;
   static const EndpointerEventType EndpointerEventType_MAX =
-    SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MAX;
+      SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_MAX;
   static const int EndpointerEventType_ARRAYSIZE =
-    SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_ARRAYSIZE;
+      SpeechRecognitionEvent_EndpointerEventType_EndpointerEventType_ARRAYSIZE;
 
   // accessors -------------------------------------------------------
 
-  // optional .cobalt.speech.proto.SpeechRecognitionEvent.StatusCode status = 1 [default = STATUS_SUCCESS];
+  // optional .cobalt.speech.proto.SpeechRecognitionEvent.StatusCode status = 1
+  // [default = STATUS_SUCCESS];
   bool has_status() const;
   void clear_status();
   static const int kStatusFieldNumber = 1;
   ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode status() const;
-  void set_status(::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode value);
+  void set_status(
+      ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode value);
 
   // repeated .cobalt.speech.proto.SpeechRecognitionResult result = 2;
   int result_size() const;
   void clear_result();
   static const int kResultFieldNumber = 2;
-  const ::cobalt::speech::proto::SpeechRecognitionResult& result(int index) const;
+  const ::cobalt::speech::proto::SpeechRecognitionResult& result(
+      int index) const;
   ::cobalt::speech::proto::SpeechRecognitionResult* mutable_result(int index);
   ::cobalt::speech::proto::SpeechRecognitionResult* add_result();
-  ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionResult >*
-      mutable_result();
-  const ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionResult >&
-      result() const;
+  ::google::protobuf::RepeatedPtrField<
+      ::cobalt::speech::proto::SpeechRecognitionResult>*
+  mutable_result();
+  const ::google::protobuf::RepeatedPtrField<
+      ::cobalt::speech::proto::SpeechRecognitionResult>&
+  result() const;
 
-  // optional .cobalt.speech.proto.SpeechRecognitionEvent.EndpointerEventType endpoint = 4;
+  // optional .cobalt.speech.proto.SpeechRecognitionEvent.EndpointerEventType
+  // endpoint = 4;
   bool has_endpoint() const;
   void clear_endpoint();
   static const int kEndpointFieldNumber = 4;
-  ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType endpoint() const;
-  void set_endpoint(::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType value);
+  ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType endpoint()
+      const;
+  void set_endpoint(
+      ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType
+          value);
 
   // @@protoc_insertion_point(class_scope:cobalt.speech.proto.SpeechRecognitionEvent)
  private:
@@ -230,14 +252,16 @@ class SpeechRecognitionEvent : public ::google::protobuf::MessageLite {
 
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
-  ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionResult > result_;
+  ::google::protobuf::RepeatedPtrField<
+      ::cobalt::speech::proto::SpeechRecognitionResult>
+      result_;
   int status_;
   int endpoint_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_google_5fstreaming_5fapi_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_google_5fstreaming_5fapi_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void protobuf_AddDesc_google_5fstreaming_5fapi_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_google_5fstreaming_5fapi_2eproto();
+#endif
   friend void protobuf_AssignDesc_google_5fstreaming_5fapi_2eproto();
   friend void protobuf_ShutdownFile_google_5fstreaming_5fapi_2eproto();
 
@@ -253,7 +277,8 @@ class SpeechRecognitionResult : public ::google::protobuf::MessageLite {
 
   SpeechRecognitionResult(const SpeechRecognitionResult& from);
 
-  inline SpeechRecognitionResult& operator=(const SpeechRecognitionResult& from) {
+  inline SpeechRecognitionResult& operator=(
+      const SpeechRecognitionResult& from) {
     CopyFrom(from);
     return *this;
   }
@@ -270,7 +295,7 @@ class SpeechRecognitionResult : public ::google::protobuf::MessageLite {
 
   static const SpeechRecognitionResult& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
@@ -278,7 +303,7 @@ class SpeechRecognitionResult : public ::google::protobuf::MessageLite {
   static inline const SpeechRecognitionResult* internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(SpeechRecognitionResult* other);
 
@@ -300,20 +325,22 @@ class SpeechRecognitionResult : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(SpeechRecognitionResult* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
@@ -324,13 +351,17 @@ class SpeechRecognitionResult : public ::google::protobuf::MessageLite {
   int alternative_size() const;
   void clear_alternative();
   static const int kAlternativeFieldNumber = 1;
-  const ::cobalt::speech::proto::SpeechRecognitionAlternative& alternative(int index) const;
-  ::cobalt::speech::proto::SpeechRecognitionAlternative* mutable_alternative(int index);
+  const ::cobalt::speech::proto::SpeechRecognitionAlternative& alternative(
+      int index) const;
+  ::cobalt::speech::proto::SpeechRecognitionAlternative* mutable_alternative(
+      int index);
   ::cobalt::speech::proto::SpeechRecognitionAlternative* add_alternative();
-  ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionAlternative >*
-      mutable_alternative();
-  const ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionAlternative >&
-      alternative() const;
+  ::google::protobuf::RepeatedPtrField<
+      ::cobalt::speech::proto::SpeechRecognitionAlternative>*
+  mutable_alternative();
+  const ::google::protobuf::RepeatedPtrField<
+      ::cobalt::speech::proto::SpeechRecognitionAlternative>&
+  alternative() const;
 
   // optional bool final = 2 [default = false];
   bool has_final() const;
@@ -358,14 +389,16 @@ class SpeechRecognitionResult : public ::google::protobuf::MessageLite {
 
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
-  ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionAlternative > alternative_;
+  ::google::protobuf::RepeatedPtrField<
+      ::cobalt::speech::proto::SpeechRecognitionAlternative>
+      alternative_;
   bool final_;
   float stability_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_google_5fstreaming_5fapi_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_google_5fstreaming_5fapi_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void protobuf_AddDesc_google_5fstreaming_5fapi_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_google_5fstreaming_5fapi_2eproto();
+#endif
   friend void protobuf_AssignDesc_google_5fstreaming_5fapi_2eproto();
   friend void protobuf_ShutdownFile_google_5fstreaming_5fapi_2eproto();
 
@@ -381,7 +414,8 @@ class SpeechRecognitionAlternative : public ::google::protobuf::MessageLite {
 
   SpeechRecognitionAlternative(const SpeechRecognitionAlternative& from);
 
-  inline SpeechRecognitionAlternative& operator=(const SpeechRecognitionAlternative& from) {
+  inline SpeechRecognitionAlternative& operator=(
+      const SpeechRecognitionAlternative& from) {
     CopyFrom(from);
     return *this;
   }
@@ -398,15 +432,16 @@ class SpeechRecognitionAlternative : public ::google::protobuf::MessageLite {
 
   static const SpeechRecognitionAlternative& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
   // above instead.
-  static inline const SpeechRecognitionAlternative* internal_default_instance() {
+  static inline const SpeechRecognitionAlternative*
+  internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(SpeechRecognitionAlternative* other);
 
@@ -428,20 +463,22 @@ class SpeechRecognitionAlternative : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(SpeechRecognitionAlternative* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
@@ -481,11 +518,11 @@ class SpeechRecognitionAlternative : public ::google::protobuf::MessageLite {
   mutable int _cached_size_;
   ::google::protobuf::internal::ArenaStringPtr transcript_;
   float confidence_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_google_5fstreaming_5fapi_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_google_5fstreaming_5fapi_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void protobuf_AddDesc_google_5fstreaming_5fapi_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_google_5fstreaming_5fapi_2eproto();
+#endif
   friend void protobuf_AssignDesc_google_5fstreaming_5fapi_2eproto();
   friend void protobuf_ShutdownFile_google_5fstreaming_5fapi_2eproto();
 
@@ -500,7 +537,8 @@ class SpeechRecognitionAlternative : public ::google::protobuf::MessageLite {
 #if !PROTOBUF_INLINE_NOT_IN_HEADERS
 // SpeechRecognitionEvent
 
-// optional .cobalt.speech.proto.SpeechRecognitionEvent.StatusCode status = 1 [default = STATUS_SUCCESS];
+// optional .cobalt.speech.proto.SpeechRecognitionEvent.StatusCode status = 1
+// [default = STATUS_SUCCESS];
 inline bool SpeechRecognitionEvent::has_status() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -514,12 +552,16 @@ inline void SpeechRecognitionEvent::clear_status() {
   status_ = 0;
   clear_has_status();
 }
-inline ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode SpeechRecognitionEvent::status() const {
+inline ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode
+SpeechRecognitionEvent::status() const {
   // @@protoc_insertion_point(field_get:cobalt.speech.proto.SpeechRecognitionEvent.status)
-  return static_cast< ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode >(status_);
+  return static_cast<
+      ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode>(status_);
 }
-inline void SpeechRecognitionEvent::set_status(::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode value) {
-  assert(::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode_IsValid(value));
+inline void SpeechRecognitionEvent::set_status(
+    ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode value) {
+  assert(::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode_IsValid(
+      value));
   set_has_status();
   status_ = value;
   // @@protoc_insertion_point(field_set:cobalt.speech.proto.SpeechRecognitionEvent.status)
@@ -529,33 +571,37 @@ inline void SpeechRecognitionEvent::set_status(::cobalt::speech::proto::SpeechRe
 inline int SpeechRecognitionEvent::result_size() const {
   return result_.size();
 }
-inline void SpeechRecognitionEvent::clear_result() {
-  result_.Clear();
-}
-inline const ::cobalt::speech::proto::SpeechRecognitionResult& SpeechRecognitionEvent::result(int index) const {
+inline void SpeechRecognitionEvent::clear_result() { result_.Clear(); }
+inline const ::cobalt::speech::proto::SpeechRecognitionResult&
+SpeechRecognitionEvent::result(int index) const {
   // @@protoc_insertion_point(field_get:cobalt.speech.proto.SpeechRecognitionEvent.result)
   return result_.Get(index);
 }
-inline ::cobalt::speech::proto::SpeechRecognitionResult* SpeechRecognitionEvent::mutable_result(int index) {
+inline ::cobalt::speech::proto::SpeechRecognitionResult*
+SpeechRecognitionEvent::mutable_result(int index) {
   // @@protoc_insertion_point(field_mutable:cobalt.speech.proto.SpeechRecognitionEvent.result)
   return result_.Mutable(index);
 }
-inline ::cobalt::speech::proto::SpeechRecognitionResult* SpeechRecognitionEvent::add_result() {
+inline ::cobalt::speech::proto::SpeechRecognitionResult*
+SpeechRecognitionEvent::add_result() {
   // @@protoc_insertion_point(field_add:cobalt.speech.proto.SpeechRecognitionEvent.result)
   return result_.Add();
 }
-inline ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionResult >*
+inline ::google::protobuf::RepeatedPtrField<
+    ::cobalt::speech::proto::SpeechRecognitionResult>*
 SpeechRecognitionEvent::mutable_result() {
   // @@protoc_insertion_point(field_mutable_list:cobalt.speech.proto.SpeechRecognitionEvent.result)
   return &result_;
 }
-inline const ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionResult >&
+inline const ::google::protobuf::RepeatedPtrField<
+    ::cobalt::speech::proto::SpeechRecognitionResult>&
 SpeechRecognitionEvent::result() const {
   // @@protoc_insertion_point(field_list:cobalt.speech.proto.SpeechRecognitionEvent.result)
   return result_;
 }
 
-// optional .cobalt.speech.proto.SpeechRecognitionEvent.EndpointerEventType endpoint = 4;
+// optional .cobalt.speech.proto.SpeechRecognitionEvent.EndpointerEventType
+// endpoint = 4;
 inline bool SpeechRecognitionEvent::has_endpoint() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }
@@ -569,12 +615,17 @@ inline void SpeechRecognitionEvent::clear_endpoint() {
   endpoint_ = 0;
   clear_has_endpoint();
 }
-inline ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType SpeechRecognitionEvent::endpoint() const {
+inline ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType
+SpeechRecognitionEvent::endpoint() const {
   // @@protoc_insertion_point(field_get:cobalt.speech.proto.SpeechRecognitionEvent.endpoint)
-  return static_cast< ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType >(endpoint_);
+  return static_cast<
+      ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType>(
+      endpoint_);
 }
-inline void SpeechRecognitionEvent::set_endpoint(::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType value) {
-  assert(::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType_IsValid(value));
+inline void SpeechRecognitionEvent::set_endpoint(
+    ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType value) {
+  assert(::cobalt::speech::proto::
+             SpeechRecognitionEvent_EndpointerEventType_IsValid(value));
   set_has_endpoint();
   endpoint_ = value;
   // @@protoc_insertion_point(field_set:cobalt.speech.proto.SpeechRecognitionEvent.endpoint)
@@ -591,24 +642,29 @@ inline int SpeechRecognitionResult::alternative_size() const {
 inline void SpeechRecognitionResult::clear_alternative() {
   alternative_.Clear();
 }
-inline const ::cobalt::speech::proto::SpeechRecognitionAlternative& SpeechRecognitionResult::alternative(int index) const {
+inline const ::cobalt::speech::proto::SpeechRecognitionAlternative&
+SpeechRecognitionResult::alternative(int index) const {
   // @@protoc_insertion_point(field_get:cobalt.speech.proto.SpeechRecognitionResult.alternative)
   return alternative_.Get(index);
 }
-inline ::cobalt::speech::proto::SpeechRecognitionAlternative* SpeechRecognitionResult::mutable_alternative(int index) {
+inline ::cobalt::speech::proto::SpeechRecognitionAlternative*
+SpeechRecognitionResult::mutable_alternative(int index) {
   // @@protoc_insertion_point(field_mutable:cobalt.speech.proto.SpeechRecognitionResult.alternative)
   return alternative_.Mutable(index);
 }
-inline ::cobalt::speech::proto::SpeechRecognitionAlternative* SpeechRecognitionResult::add_alternative() {
+inline ::cobalt::speech::proto::SpeechRecognitionAlternative*
+SpeechRecognitionResult::add_alternative() {
   // @@protoc_insertion_point(field_add:cobalt.speech.proto.SpeechRecognitionResult.alternative)
   return alternative_.Add();
 }
-inline ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionAlternative >*
+inline ::google::protobuf::RepeatedPtrField<
+    ::cobalt::speech::proto::SpeechRecognitionAlternative>*
 SpeechRecognitionResult::mutable_alternative() {
   // @@protoc_insertion_point(field_mutable_list:cobalt.speech.proto.SpeechRecognitionResult.alternative)
   return &alternative_;
 }
-inline const ::google::protobuf::RepeatedPtrField< ::cobalt::speech::proto::SpeechRecognitionAlternative >&
+inline const ::google::protobuf::RepeatedPtrField<
+    ::cobalt::speech::proto::SpeechRecognitionAlternative>&
 SpeechRecognitionResult::alternative() const {
   // @@protoc_insertion_point(field_list:cobalt.speech.proto.SpeechRecognitionResult.alternative)
   return alternative_;
@@ -677,46 +733,58 @@ inline void SpeechRecognitionAlternative::clear_has_transcript() {
   _has_bits_[0] &= ~0x00000001u;
 }
 inline void SpeechRecognitionAlternative::clear_transcript() {
-  transcript_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  transcript_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
   clear_has_transcript();
 }
 inline const ::std::string& SpeechRecognitionAlternative::transcript() const {
   // @@protoc_insertion_point(field_get:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
-  return transcript_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return transcript_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline void SpeechRecognitionAlternative::set_transcript(const ::std::string& value) {
+inline void SpeechRecognitionAlternative::set_transcript(
+    const ::std::string& value) {
   set_has_transcript();
-  transcript_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  transcript_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
 }
 inline void SpeechRecognitionAlternative::set_transcript(const char* value) {
   set_has_transcript();
-  transcript_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  transcript_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
 }
-inline void SpeechRecognitionAlternative::set_transcript(const char* value, size_t size) {
+inline void SpeechRecognitionAlternative::set_transcript(const char* value,
+                                                         size_t size) {
   set_has_transcript();
-  transcript_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+  transcript_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
 }
 inline ::std::string* SpeechRecognitionAlternative::mutable_transcript() {
   set_has_transcript();
   // @@protoc_insertion_point(field_mutable:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
-  return transcript_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return transcript_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* SpeechRecognitionAlternative::release_transcript() {
   // @@protoc_insertion_point(field_release:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
   clear_has_transcript();
-  return transcript_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return transcript_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline void SpeechRecognitionAlternative::set_allocated_transcript(::std::string* transcript) {
+inline void SpeechRecognitionAlternative::set_allocated_transcript(
+    ::std::string* transcript) {
   if (transcript != NULL) {
     set_has_transcript();
   } else {
     clear_has_transcript();
   }
-  transcript_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), transcript);
+  transcript_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), transcript);
   // @@protoc_insertion_point(field_set_allocated:cobalt.speech.proto.SpeechRecognitionAlternative.transcript)
 }
 
@@ -760,8 +828,14 @@ inline void SpeechRecognitionAlternative::set_confidence(float value) {
 namespace google {
 namespace protobuf {
 
-template <> struct is_proto_enum< ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode> : ::google::protobuf::internal::true_type {};
-template <> struct is_proto_enum< ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType> : ::google::protobuf::internal::true_type {};
+template <>
+struct is_proto_enum<
+    ::cobalt::speech::proto::SpeechRecognitionEvent_StatusCode>
+    : ::google::protobuf::internal::true_type {};
+template <>
+struct is_proto_enum<
+    ::cobalt::speech::proto::SpeechRecognitionEvent_EndpointerEventType>
+    : ::google::protobuf::internal::true_type {};
 
 }  // namespace protobuf
 }  // namespace google

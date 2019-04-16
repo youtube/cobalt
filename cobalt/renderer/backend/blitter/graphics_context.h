@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_BLITTER_GRAPHICS_CONTEXT_H_
 #define COBALT_RENDERER_BACKEND_BLITTER_GRAPHICS_CONTEXT_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
@@ -34,7 +36,7 @@ class GraphicsContextBlitter : public GraphicsContext {
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) override;
-  scoped_array<uint8_t> DownloadPixelDataAsRGBA(
+  std::unique_ptr<uint8_t[]> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) override;
   void Finish() override;
 

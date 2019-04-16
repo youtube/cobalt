@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
 #include "base/bind.h"
-#include "base/debug/trace_event_impl.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/trace_event/json_file_outputter.h"
 
@@ -26,19 +29,23 @@ namespace cobalt {
 namespace trace_event {
 
 ScopedTraceToFile::ScopedTraceToFile(
-    const FilePath& output_path_relative_to_logs) {
-  PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &absolute_output_path_);
+    const base::FilePath& output_path_relative_to_logs) {
+  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT,
+                         &absolute_output_path_);
   absolute_output_path_ =
       absolute_output_path_.Append(output_path_relative_to_logs);
 
-  DCHECK(!base::debug::TraceLog::GetInstance()->IsEnabled());
-  base::debug::TraceLog::GetInstance()->SetEnabled(true);
+  DCHECK(!base::trace_event::TraceLog::GetInstance()->IsEnabled());
+  base::trace_event::TraceLog::GetInstance()->SetEnabled(
+      base::trace_event::TraceConfig(),
+      base::trace_event::TraceLog::RECORDING_MODE);
 }
 
 ScopedTraceToFile::~ScopedTraceToFile() {
-  base::debug::TraceLog* trace_log = base::debug::TraceLog::GetInstance();
+  base::trace_event::TraceLog* trace_log =
+      base::trace_event::TraceLog::GetInstance();
 
-  trace_log->SetEnabled(false);
+  trace_log->SetDisabled(base::trace_event::TraceLog::RECORDING_MODE);
 
   // Output results to absolute_output_path_.
   JSONFileOutputter outputter(absolute_output_path_);
@@ -55,20 +62,19 @@ ScopedTraceToFile::~ScopedTraceToFile() {
 }
 
 namespace {
-void EndTimedTrace(scoped_ptr<ScopedTraceToFile> trace) {
+void EndTimedTrace(std::unique_ptr<ScopedTraceToFile> trace) {
   LOG(INFO) << "Timed trace ended.";
   trace.reset();
 }
 }  // namespace
 
-void TraceToFileForDuration(const FilePath& output_path_relative_to_logs,
+void TraceToFileForDuration(const base::FilePath& output_path_relative_to_logs,
                             const base::TimeDelta& duration) {
-  MessageLoop::current()->PostDelayedTask(
+  base::MessageLoop::current()->task_runner()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(
-          &EndTimedTrace,
-          base::Passed(make_scoped_ptr(
-              new ScopedTraceToFile(output_path_relative_to_logs)))),
+      base::Bind(&EndTimedTrace,
+                 base::Passed(base::WrapUnique(
+                     new ScopedTraceToFile(output_path_relative_to_logs)))),
       duration);
 }
 

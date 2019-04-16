@@ -15,8 +15,8 @@
 #ifndef COBALT_XHR_XHR_MODIFY_HEADERS_H_
 #define COBALT_XHR_XHR_MODIFY_HEADERS_H_
 
-#include "googleurl/src/gurl.h"
 #include "net/http/http_request_headers.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace xhr {

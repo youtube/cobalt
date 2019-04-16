@@ -46,7 +46,6 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
 }
 
 void TracingAgent::Thaw(JSONObject agent_state) {
-  UNREFERENCED_PARAMETER(agent_state);
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
 }
 
@@ -104,7 +103,7 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
 
   JSONObject event = JSONParse(trace_event_json);
   if (event) {
-    collected_events_->Append(event.release());
+    collected_events_->Append(std::move(event));
     collected_size_ += trace_event_json.size();
   }
 
@@ -124,7 +123,7 @@ void TracingAgent::SendDataCollectedEvent() {
     collected_size_ = 0;
     JSONObject params(new base::DictionaryValue());
     // Releasing the list into the value param avoids copying it.
-    params->Set("value", collected_events_.release());
+    params->Set("value", std::move(collected_events_));
     dispatcher_->SendEvent(std::string(kInspectorDomain) + ".dataCollected",
                            params);
   }

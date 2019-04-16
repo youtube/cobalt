@@ -46,7 +46,7 @@ $var MAX_MEMBERS = 5
 //
 // Per the specification, there should be either 0 or 1 nullable types in union.
 // In the case that there is one nullable type, the entire union type should
-// be declared as nullable (with base::optional<>). A corollary to this is that
+// be declared as nullable (with base::Optional<>). A corollary to this is that
 // none of the member types in the UnionTypeN template should be nullable.
 
 #include <iosfwd>
@@ -157,7 +157,7 @@ $for TYPE [[
   union StorageUnion {
 $for TYPE [[
 
-    base::AlignedMemory<sizeof(T$(TYPE)), ALIGNOF(T$(TYPE))> t$(TYPE);
+    base::AlignedMemory<sizeof(T$(TYPE)), SB_ALIGNOF(T$(TYPE))> t$(TYPE);
 ]]
 
   };
@@ -194,7 +194,7 @@ $for TYPE [[
     specific_type_ = kUnspecified;
   }
 
-  base::AlignedMemory<sizeof(StorageUnion), ALIGNOF(StorageUnion)> storage_;
+  base::AlignedMemory<sizeof(StorageUnion), SB_ALIGNOF(StorageUnion)> storage_;
   SpecificType specific_type_;
 
   // Count the number of numeric types in this union. There can be a max of one.
@@ -207,7 +207,7 @@ $for TYPE [[
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::optional<UnionTypeN>
+// Needed to instantiate base::Optional<UnionTypeN>
 template <$for TYPE , [[typename T$(TYPE)]]>
 inline std::ostream& operator<<(
     std::ostream& stream, const UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>& union_value) {

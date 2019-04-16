@@ -15,7 +15,8 @@
 #ifndef COBALT_CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
 #define COBALT_CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -24,7 +25,7 @@ namespace css_parser {
 // A helper used in YYSTYPE to represent the value of shorthand properties such
 // as margin and padding.
 struct MarginOrPaddingShorthand {
-  static scoped_ptr<MarginOrPaddingShorthand> TryCreate(
+  static std::unique_ptr<MarginOrPaddingShorthand> TryCreate(
       const scoped_refptr<cssom::PropertyValue>& top,
       const scoped_refptr<cssom::PropertyValue>& right,
       const scoped_refptr<cssom::PropertyValue>& bottom,

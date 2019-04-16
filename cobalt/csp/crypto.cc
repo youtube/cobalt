@@ -15,7 +15,7 @@
 #include "cobalt/csp/crypto.h"
 
 #include "base/logging.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "crypto/sha2.h"
 
 namespace cobalt {

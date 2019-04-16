@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/css_transitions_adapter.h"
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/base/tokens.h"
@@ -84,7 +85,7 @@ void CSSTransitionsAdapter::OnTransitionStarted(
 
   // Setup an event handler on the animation so we can watch for when it enters
   // the after phase, allowing us to then trigger the transitionend event.
-  scoped_ptr<web_animations::Animation::EventHandler> event_handler =
+  std::unique_ptr<web_animations::Animation::EventHandler> event_handler =
       animation->AttachEventHandler(
           base::Bind(&CSSTransitionsAdapter::HandleAnimationEnterAfterPhase,
                      base::Unretained(this), transition_set));
@@ -95,7 +96,7 @@ void CSSTransitionsAdapter::OnTransitionStarted(
 
   animation_map_.insert(std::make_pair(
       transition.target_property(),
-      new AnimationWithEventHandler(animation, event_handler.Pass())));
+      new AnimationWithEventHandler(animation, std::move(event_handler))));
 
   animation->Play();
 }

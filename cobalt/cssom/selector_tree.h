@@ -16,14 +16,14 @@
 #define COBALT_CSSOM_SELECTOR_TREE_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/combinator.h"
@@ -58,7 +58,7 @@ class SelectorTree {
   // This class holds references to Nodes allocated on the heap that are owned
   // by the same parent Node.  It deletes all contained Nodes on destruction.
   class OwnedNodes
-      : public base::SmallMap<
+      : public base::small_map<
             std::map<CompoundSelector*, Node*, CompoundNodeLessThan>, 2> {
    public:
     ~OwnedNodes() {
@@ -89,7 +89,7 @@ class SelectorTree {
   // selectors. However, they occasionally can number in the hundreds. Using
   // a SmallMap with an array size of 4, allows both cases to be handled
   // quickly.
-  typedef base::SmallMap<base::hash_map<base::Token, SimpleSelectorNodes>, 4>
+  typedef base::small_map<base::hash_map<base::Token, SimpleSelectorNodes>, 4>
       SelectorTextToNodesMap;
 
   class Node {
@@ -162,9 +162,9 @@ class SelectorTree {
     // Sum of specificity from root to this node.
     Specificity cumulative_specificity_;
 
-    // Indexes for the children. This is a scoped_ptr because the majority of
-    // nodes do not contain any children.
-    scoped_ptr<SelectorTextToNodesMap> selector_nodes_map_;
+    // Indexes for the children. This is a std::unique_ptr because the majority
+    // of nodes do not contain any children.
+    std::unique_ptr<SelectorTextToNodesMap> selector_nodes_map_;
     // Bit mask used to quickly reject a certain selector type and combinator
     // combination.
     uint32 selector_mask_;

@@ -36,14 +36,14 @@ class MockStorage : public Storage {
           Return(GURL("https://www.example.com")));
       EXPECT_CALL(*this, origin()).Times(1);
   }
-  MOCK_METHOD3(DispatchEvent, bool(const base::optional<std::string>&,
-                                   const base::optional<std::string>&,
-                                   const base::optional<std::string>&));
+  MOCK_METHOD3(DispatchEvent, bool(const base::Optional<std::string>&,
+                                   const base::Optional<std::string>&,
+                                   const base::Optional<std::string>&));
   MOCK_CONST_METHOD0(origin, GURL());
 };
 
-base::optional<std::string> ToOptStr(const char* str) {
-  return base::optional<std::string>(str);
+base::Optional<std::string> ToOptStr(const char* str) {
+  return base::Optional<std::string>(str);
 }
 
 }  // namespace
@@ -64,9 +64,9 @@ TEST(StorageAreaTest, Identifier) {
 TEST(StorageAreaTest, SetItem) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_CALL(*mock_storage,
-              DispatchEvent(base::optional<std::string>("key"),
-                            base::optional<std::string>(base::nullopt),
-                            base::optional<std::string>("value")));
+              DispatchEvent(base::Optional<std::string>("key"),
+                            base::Optional<std::string>(base::nullopt),
+                            base::Optional<std::string>("value")));
   mock_storage->SetItem("key", "value");
 }
 

@@ -21,6 +21,7 @@
         'engine_dependencies': [
           '<(DEPTH)/v8/src/v8.gyp:v8',
           '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
+          '<(DEPTH)/net/net.gyp:net',
         ],
         'engine_defines': [],
         'engine_templates_dir': [

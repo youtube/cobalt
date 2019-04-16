@@ -20,25 +20,24 @@
 #include "base/compiler_specific.h"
 #include "base/threading/thread.h"
 #include "cobalt/network_bridge/cookie_jar.h"
-#include "net/cookies/cookie_store.h"
 
 namespace cobalt {
 namespace network {
 
 class CookieJarImpl : public network_bridge::CookieJar {
  public:
-  explicit CookieJarImpl(net::CookieStore* cookie_store);
+  explicit CookieJarImpl(::net::CookieStore* cookie_store,
+                         base::TaskRunner* network_task_runner);
 
-  std::string GetCookies(const GURL& origin) override;
+  net::CookieList GetCookies(const GURL& origin) override;
   void SetCookie(const GURL& origin, const std::string& cookie_line) override;
 
  private:
-  // We use a dedicated thread for making GetCookiesWithOptionsAsync() calls in
-  // order to workaround GetCookiesWithOptionsAsync()'s default behavior of
-  // PostTask()ing the completion callback to the message loop that the
-  // GetCookiesWithOptionsAsync() call was made from.
-  base::Thread get_cookies_thread_;
-  net::CookieStore* cookie_store_;
+  ::net::CookieStore* cookie_store_;
+  // Cobalt used to have a dedicated cookie thread for getting cookies. After
+  // the Chromium rebasement in early 2019, CookieMonster can only be accessed
+  // on the same thread which should be the network thread in Cobalt's case.
+  ::base::TaskRunner* network_task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(CookieJarImpl);
 };

@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/renderer_module.h"
 
-#include "base/debug/trace_event.h"
+#include "base/memory/ptr_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
@@ -85,7 +88,7 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
     pipeline_options.enable_fps_stdout = options_.enable_fps_stdout;
     pipeline_options.enable_fps_overlay = options_.enable_fps_overlay;
 
-    pipeline_ = make_scoped_ptr(new renderer::Pipeline(
+    pipeline_ = base::WrapUnique(new renderer::Pipeline(
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
         display_->GetRenderTarget(), graphics_context_.get(),

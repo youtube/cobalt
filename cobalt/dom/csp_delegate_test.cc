@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
+#include "base/strings/stringprintf.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/csp_delegate_factory.h"
-#include "base/stringprintf.h"
-#include "cobalt/base/polymorphic_downcast.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -60,7 +62,7 @@ class MockViolationReporter : public CspViolationReporter {
 class CspDelegateTest : public ::testing::TestWithParam<ResourcePair> {
  protected:
   virtual void SetUp();
-  scoped_ptr<CspDelegateSecure> csp_delegate_;
+  std::unique_ptr<CspDelegateSecure> csp_delegate_;
   StrictMock<MockViolationReporter>* mock_reporter_;
 };
 
@@ -82,10 +84,10 @@ class ScopedLogInterceptor {
 
   static bool LogHandler(int severity, const char* file, int line,
                          size_t message_start, const std::string& str) {
-    UNREFERENCED_PARAMETER(severity);
-    UNREFERENCED_PARAMETER(file);
-    UNREFERENCED_PARAMETER(line);
-    UNREFERENCED_PARAMETER(message_start);
+    SB_UNREFERENCED_PARAMETER(severity);
+    SB_UNREFERENCED_PARAMETER(file);
+    SB_UNREFERENCED_PARAMETER(line);
+    SB_UNREFERENCED_PARAMETER(message_start);
     *log_interceptor_->output_ += str;
     return true;
   }
@@ -105,10 +107,10 @@ void CspDelegateTest::SetUp() {
   std::string default_navigation_policy("h5vcc-location-src 'self'");
 
   mock_reporter_ = new StrictMock<MockViolationReporter>();
-  scoped_ptr<CspViolationReporter> reporter(mock_reporter_);
+  std::unique_ptr<CspViolationReporter> reporter(mock_reporter_);
 
   csp_delegate_.reset(new CspDelegateSecure(
-      reporter.Pass(), origin, csp::kCSPRequired, base::Closure()));
+      std::move(reporter), origin, csp::kCSPRequired, base::Closure()));
   std::string policy =
       base::StringPrintf("default-src none; %s 'self'", GetParam().directive);
   csp_delegate_->OnReceiveHeader(policy, csp::kHeaderTypeEnforce,
@@ -136,9 +138,10 @@ TEST_P(CspDelegateTest, LoadNotOk) {
 INSTANTIATE_TEST_CASE_P(CanLoad, CspDelegateTest, ValuesIn(s_params));
 
 TEST(CspDelegateFactoryTest, Secure) {
-  scoped_ptr<CspDelegate> delegate = CspDelegateFactory::GetInstance()->Create(
-      kCspEnforcementEnable, scoped_ptr<CspViolationReporter>(), GURL(),
-      csp::kCSPRequired, base::Closure());
+  std::unique_ptr<CspDelegate> delegate =
+      CspDelegateFactory::GetInstance()->Create(
+          kCspEnforcementEnable, std::unique_ptr<CspViolationReporter>(),
+          GURL(), csp::kCSPRequired, base::Closure());
   EXPECT_TRUE(delegate != NULL);
 }
 
@@ -148,13 +151,13 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
     // Capture the output, because we should get a FATAL log and we don't
     // want to crash.
     ScopedLogInterceptor li(&output);
-    scoped_ptr<CspDelegate> delegate =
+    std::unique_ptr<CspDelegate> delegate =
         CspDelegateFactory::GetInstance()->Create(
-            kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
-            csp::kCSPRequired, base::Closure());
+            kCspEnforcementDisable, std::unique_ptr<CspViolationReporter>(),
+            GURL(), csp::kCSPRequired, base::Closure());
 
-    scoped_ptr<CspDelegate> empty_delegate;
-    EXPECT_EQ(empty_delegate, delegate.get());
+    std::unique_ptr<CspDelegate> empty_delegate;
+    EXPECT_EQ(empty_delegate.get(), delegate.get());
   }
   EXPECT_THAT(output, HasSubstr("FATAL"));
 }
@@ -163,9 +166,10 @@ TEST(CspDelegateFactoryTest, InsecureAllowed) {
   // This only compiles because this test is a friend of CspDelegateFactory,
   // otherwise GetInsecureAllowedToken is private.
   int token = CspDelegateFactory::GetInstance()->GetInsecureAllowedToken();
-  scoped_ptr<CspDelegate> delegate = CspDelegateFactory::GetInstance()->Create(
-      kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
-      csp::kCSPRequired, base::Closure(), token);
+  std::unique_ptr<CspDelegate> delegate =
+      CspDelegateFactory::GetInstance()->Create(
+          kCspEnforcementDisable, std::unique_ptr<CspViolationReporter>(),
+          GURL(), csp::kCSPRequired, base::Closure(), token);
   EXPECT_TRUE(delegate != NULL);
 }
 

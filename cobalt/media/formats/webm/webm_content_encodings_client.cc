@@ -195,8 +195,8 @@ bool WebMContentEncodingsClient::OnUInt(int id, int64_t val) {
     }
 
     if (val != ContentEncoding::kTypeEncryption) {
-      MEDIA_LOG(ERROR, media_log_) << "Unexpected ContentEncodingType " << val
-                                   << ".";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Unexpected ContentEncodingType " << val << ".";
       return false;
     }
 
@@ -213,8 +213,8 @@ bool WebMContentEncodingsClient::OnUInt(int id, int64_t val) {
 
     if (val < ContentEncoding::kEncAlgoNotEncrypted ||
         val > ContentEncoding::kEncAlgoAes) {
-      MEDIA_LOG(ERROR, media_log_) << "Unexpected ContentEncAlgo " << val
-                                   << ".";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Unexpected ContentEncAlgo " << val << ".";
       return false;
     }
 
@@ -232,8 +232,8 @@ bool WebMContentEncodingsClient::OnUInt(int id, int64_t val) {
     }
 
     if (val != ContentEncoding::kCipherModeCtr) {
-      MEDIA_LOG(ERROR, media_log_) << "Unexpected AESSettingsCipherMode " << val
-                                   << ".";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Unexpected AESSettingsCipherMode " << val << ".";
       return false;
     }
 

@@ -4,12 +4,12 @@
 
 #include "cobalt/media/formats/mp4/box_definitions.h"
 
+#include <memory>
 #include <utility>
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/media/base/video_types.h"
 #include "cobalt/media/base/video_util.h"
 #include "cobalt/media/filters/h264_parser.h"
@@ -493,8 +493,8 @@ bool AVCDecoderConfigurationRecord::ParseInternal(
     RCHECK(sps_list[i].size() > 4);
 
     if (media_log.get()) {
-      MEDIA_LOG(INFO, media_log) << "Video codec: avc1."
-                                 << base::HexEncode(sps_list[i].data() + 1, 3);
+      MEDIA_LOG(INFO, media_log)
+          << "Video codec: avc1." << base::HexEncode(sps_list[i].data() + 1, 3);
     }
   }
 
@@ -537,8 +537,8 @@ bool VPCodecConfigurationRecord::Parse(BoxReader* reader) {
       profile = VP9PROFILE_PROFILE3;
       break;
     default:
-      MEDIA_LOG(ERROR, reader->media_log()) << "Unsupported VP9 profile: "
-                                            << profile_indication;
+      MEDIA_LOG(ERROR, reader->media_log())
+          << "Unsupported VP9 profile: " << profile_indication;
       return false;
   }
   return true;
@@ -658,27 +658,27 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
     case FOURCC_AVC3: {
       DVLOG(2) << __FUNCTION__
                << " reading AVCDecoderConfigurationRecord (avcC)";
-      scoped_ptr<AVCDecoderConfigurationRecord> avcConfig(
+      std::unique_ptr<AVCDecoderConfigurationRecord> avcConfig(
           new AVCDecoderConfigurationRecord());
       RCHECK(reader->ReadChild(avcConfig.get()));
       video_codec = kCodecH264;
       video_codec_profile = H264Parser::ProfileIDCToVideoCodecProfile(
           avcConfig->profile_indication);
       frame_bitstream_converter =
-          make_scoped_refptr(new AVCBitstreamConverter(avcConfig.Pass()));
+          base::WrapRefCounted(new AVCBitstreamConverter(std::move(avcConfig)));
       break;
     }
     case FOURCC_HEV1:
     case FOURCC_HVC1: {
       DVLOG(2) << __FUNCTION__
                << " parsing HEVCDecoderConfigurationRecord (hvcC)";
-      scoped_ptr<HEVCDecoderConfigurationRecord> hevcConfig(
+      std::unique_ptr<HEVCDecoderConfigurationRecord> hevcConfig(
           new HEVCDecoderConfigurationRecord());
       RCHECK(reader->ReadChild(hevcConfig.get()));
       video_codec = kCodecHEVC;
       video_codec_profile = hevcConfig->GetVideoProfile();
-      frame_bitstream_converter =
-          make_scoped_refptr(new HEVCBitstreamConverter(hevcConfig.Pass()));
+      frame_bitstream_converter = base::WrapRefCounted(
+          new HEVCBitstreamConverter(std::move(hevcConfig)));
       break;
     }
     case FOURCC_AV01: {
@@ -692,9 +692,9 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
     }
     default:
       // Unknown/unsupported format
-      MEDIA_LOG(ERROR, reader->media_log()) << __FUNCTION__
-                                            << " unsupported video format "
-                                            << FourCCToString(actual_format);
+      MEDIA_LOG(ERROR, reader->media_log())
+          << __FUNCTION__ << " unsupported video format "
+          << FourCCToString(actual_format);
       return false;
   }
 
@@ -735,8 +735,8 @@ bool ElementaryStreamDescriptor::Parse(BoxReader* reader) {
   object_type = es_desc.object_type();
 
   if (object_type != 0x40) {
-    MEDIA_LOG(INFO, reader->media_log()) << "Audio codec: mp4a." << std::hex
-                                         << static_cast<int>(object_type);
+    MEDIA_LOG(INFO, reader->media_log())
+        << "Audio codec: mp4a." << std::hex << static_cast<int>(object_type);
   }
 
   if (es_desc.IsAAC(object_type))

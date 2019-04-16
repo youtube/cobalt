@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_
 
+#include <memory>
 #include <stack>
 
 #include "base/callback.h"
@@ -97,9 +98,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // offscreen SbBlitterSurface which is then returned.
   struct OffscreenRender {
     math::RectF destination_rect;
-    scoped_ptr<CachedScratchSurface> scratch_surface;
+    std::unique_ptr<CachedScratchSurface> scratch_surface;
   };
-  scoped_ptr<OffscreenRender> RenderToOffscreenSurface(render_tree::Node* node);
+  std::unique_ptr<OffscreenRender> RenderToOffscreenSurface(
+      render_tree::Node* node);
 
   SbBlitterDevice device_;
   SbBlitterContext context_;

@@ -15,8 +15,9 @@
 #ifndef COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_H_
 #define COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/render_target.h"
@@ -40,12 +41,12 @@ class GraphicsSystem {
   virtual ~GraphicsSystem() {}
 
   // Creates a display associated with a window.
-  virtual scoped_ptr<Display> CreateDisplay(
+  virtual std::unique_ptr<Display> CreateDisplay(
       system_window::SystemWindow* system_window) = 0;
 
   // Creates a graphics context that can be used to issue graphics commands to
   // the hardware.
-  virtual scoped_ptr<GraphicsContext> CreateGraphicsContext() = 0;
+  virtual std::unique_ptr<GraphicsContext> CreateGraphicsContext() = 0;
 };
 
 }  // namespace backend

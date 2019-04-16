@@ -15,16 +15,16 @@
 #include <cstring>
 
 #include "base/base_paths.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
+#include "base/files/platform_file.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/platform_file.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/storage/upgrade/upgrade_reader.h"
-#include "googleurl/src/gurl.h"
 #include "net/cookies/canonical_cookie.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace storage {
@@ -42,10 +42,10 @@ class MockUpgradeReader : public UpgradeReader {
 void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(pathname);
   EXPECT_TRUE(string_out);
-  FilePath file_path;
-  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &file_path));
+  base::FilePath file_path;
+  EXPECT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &file_path));
   file_path = file_path.Append(pathname);
-  EXPECT_TRUE(file_util::ReadFileToString(file_path, string_out));
+  EXPECT_TRUE(base::ReadFileToString(file_path, string_out));
   const char* data = string_out->c_str();
   const int size = static_cast<int>(string_out->length());
   EXPECT_GT(size, 0);
@@ -53,14 +53,12 @@ void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(UpgradeReader::IsUpgradeData(data, size));
 }
 
-void ValidateCookie(const net::CanonicalCookie* cookie, const std::string& url,
-                    const std::string& name, const std::string& value,
-                    const std::string domain, const std::string& path,
-                    const base::Time& creation, const base::Time expiration,
-                    bool http_only) {
+void ValidateCookie(const net::CanonicalCookie* cookie,
+                    const std::string& /*url*/, const std::string& name,
+                    const std::string& value, const std::string domain,
+                    const std::string& path, const base::Time& creation,
+                    const base::Time expiration, bool http_only) {
   EXPECT_TRUE(cookie);
-  EXPECT_EQ(cookie->Source(),
-            net::CanonicalCookie::GetCookieSourceFromURL(GURL(url)));
   EXPECT_EQ(cookie->Name(), name);
   EXPECT_EQ(cookie->Value(), value);
   EXPECT_EQ(cookie->Domain(), domain);

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/page_visibility/page_visibility_state.h"
 
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/page_visibility/visibility_state.h"
 
@@ -31,8 +32,8 @@ using ::testing::_;
 
 class MockPageVisibilityStateObserver : public PageVisibilityState::Observer {
  public:
-  static scoped_ptr<MockPageVisibilityStateObserver> Create() {
-    return make_scoped_ptr<MockPageVisibilityStateObserver>(
+  static std::unique_ptr<MockPageVisibilityStateObserver> Create() {
+    return std::unique_ptr<MockPageVisibilityStateObserver>(
         new ::testing::StrictMock<MockPageVisibilityStateObserver>());
   }
 
@@ -58,7 +59,7 @@ TEST(PageVisibilityStateTest, InitialStateConstructorStarted) {
 
 TEST(PageVisibilityStateTest, TransitionsAndObservations) {
   PageVisibilityState state(base::kApplicationStateStarted);
-  scoped_ptr<MockPageVisibilityStateObserver> observer =
+  std::unique_ptr<MockPageVisibilityStateObserver> observer =
       MockPageVisibilityStateObserver::Create();
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);

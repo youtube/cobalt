@@ -79,8 +79,7 @@ int GetLocation(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
   return keyboard_event->location();
 }
 
-const int kLocationStandard =
-    dom::KeyboardEvent::kDomKeyLocationStandard;
+const int kLocationStandard = dom::KeyboardEvent::kDomKeyLocationStandard;
 const int kLocationLeft = dom::KeyboardEvent::kDomKeyLocationLeft;
 
 class KeyboardTest : public ::testing::Test {

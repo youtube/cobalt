@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/script.h"
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/memory/ptr_util.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -25,7 +28,7 @@ const char kScriptKey[] = "script";
 const char kArgsKey[] = "args";
 }
 
-base::optional<Script> Script::FromValue(const base::Value* value) {
+base::Optional<Script> Script::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
     return base::nullopt;
@@ -45,18 +48,18 @@ base::optional<Script> Script::FromValue(const base::Value* value) {
   }
 
   // Ensure this is a JSON list.
-  if (!arguments_value->IsType(base::Value::TYPE_LIST)) {
+  if (!arguments_value->is_list()) {
     return base::nullopt;
   }
 
   std::string arguments;
-  base::JSONWriter::Write(arguments_value, &arguments);
+  base::JSONWriter::Write(*arguments_value, &arguments);
   return Script(function_body, arguments);
 }
 
-scoped_ptr<base::Value> ScriptResult::ToValue(
+std::unique_ptr<base::Value> ScriptResult::ToValue(
     const ScriptResult& script_result) {
-  return make_scoped_ptr(base::JSONReader::Read(script_result.result_string_));
+  return base::JSONReader::Read(script_result.result_string_);
 }
 
 }  // namespace protocol

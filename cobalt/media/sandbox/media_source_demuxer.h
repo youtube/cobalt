@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/video_decoder_config.h"

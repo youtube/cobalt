@@ -15,7 +15,6 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_CALLBACK_INTERFACE_HOLDER_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_CALLBACK_INTERFACE_HOLDER_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/callback_interface_traits.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
@@ -37,7 +36,8 @@ class MozjsCallbackInterfaceHolder
 template <typename CallbackInterface>
 struct TypeTraits<CallbackInterfaceTraits<CallbackInterface> > {
   typedef MozjsCallbackInterfaceHolder<typename CallbackInterfaceTraits<
-      CallbackInterface>::MozjsCallbackInterfaceClass> ConversionType;
+      CallbackInterface>::MozjsCallbackInterfaceClass>
+      ConversionType;
   typedef const ScriptValue<CallbackInterface>* ReturnType;
 };
 

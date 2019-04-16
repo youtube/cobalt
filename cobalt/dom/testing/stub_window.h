@@ -15,11 +15,12 @@
 #ifndef COBALT_DOM_TESTING_STUB_WINDOW_H_
 #define COBALT_DOM_TESTING_STUB_WINDOW_H_
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
@@ -33,8 +34,8 @@
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
-#include "googleurl/src/gurl.h"
 #include "starboard/window.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -44,15 +45,15 @@ namespace testing {
 class StubWindow {
  public:
   explicit StubWindow(
-      scoped_ptr<script::EnvironmentSettings> environment_settings =
-          scoped_ptr<script::EnvironmentSettings>())
-      : message_loop_(MessageLoop::TYPE_DEFAULT),
+      std::unique_ptr<script::EnvironmentSettings> environment_settings =
+          std::unique_ptr<script::EnvironmentSettings>())
+      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(
             new dom_parser::Parser(base::Bind(&StubLoadCompleteCallback))),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         loader_factory_(new loader::LoaderFactory(
-            fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
+            fetcher_factory_.get(), NULL, base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
         url_("about:blank"),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
@@ -77,8 +78,8 @@ class StubWindow {
         dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
     environment_settings_ =
         environment_settings.get()
-            ? environment_settings.Pass()
-            : scoped_ptr<script::EnvironmentSettings>(
+            ? std::move(environment_settings)
+            : std::unique_ptr<script::EnvironmentSettings>(
                   new DOMSettings(0, NULL, NULL, window_, NULL, NULL, NULL,
                                   engine_.get(), global_environment(), NULL));
     window_->SetEnvironmentSettings(environment_settings_.get());
@@ -99,18 +100,18 @@ class StubWindow {
 
  private:
   static void StubLoadCompleteCallback(
-      const base::optional<std::string>& /*error*/) {}
+      const base::Optional<std::string>& /*error*/) {}
 
-  MessageLoop message_loop_;
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-  scoped_ptr<loader::LoaderFactory> loader_factory_;
+  base::MessageLoop message_loop_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
+  std::unique_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
-  scoped_ptr<script::EnvironmentSettings> environment_settings_;
-  scoped_ptr<script::JavaScriptEngine> engine_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<script::EnvironmentSettings> environment_settings_;
+  std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   scoped_refptr<dom::Window> window_;
 };

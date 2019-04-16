@@ -15,7 +15,7 @@
 #include "cobalt/samples/simple_example/simple_example.h"
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/wrap_main.h"
 
 namespace {
@@ -24,8 +24,8 @@ void MultiplyAdd(int m, int a, int b) {
   const cobalt::samples::SimpleExample example(m);
   const int result = example.MultiplyAdd(a, b);
 
-  LOG(INFO) << base::StringPrintf("MultiplyAdd(%d*%d + %d) = %d",
-                                  m, a, b, result);
+  LOG(INFO) << base::StringPrintf("MultiplyAdd(%d*%d + %d) = %d", m, a, b,
+                                  result);
 }
 
 void RunCode() {

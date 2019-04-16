@@ -6,13 +6,13 @@
 #define COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
 
 #include <map>
+#include <memory>
 #include <set>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
@@ -114,8 +114,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   // enough bytes to parse all samples and aux_info in the current moof.
   int64_t highest_end_offset_;
 
-  scoped_ptr<mp4::Movie> moov_;
-  scoped_ptr<mp4::TrackRunIterator> runs_;
+  std::unique_ptr<mp4::Movie> moov_;
+  std::unique_ptr<mp4::TrackRunIterator> runs_;
 
   bool has_audio_;
   bool has_video_;

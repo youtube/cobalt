@@ -28,7 +28,7 @@ RenderOverlay::RenderOverlay(
 
 void RenderOverlay::OnRenderTreeProduced(const LayoutResults& layout_results) {
   input_layout_ = layout_results;
-  input_receipt_time_ = base::TimeTicks::HighResNow();
+  input_receipt_time_ = base::TimeTicks::Now();
   Process();
 }
 
@@ -49,7 +49,7 @@ void RenderOverlay::Process() {
     // and the time the input layout was received.
     base::TimeDelta layout_time = input_layout_.layout_time;
     DCHECK(input_receipt_time_);
-    base::TimeTicks now = base::TimeTicks::HighResNow();
+    base::TimeTicks now = base::TimeTicks::Now();
     layout_time += now - input_receipt_time_.value_or(now);
 
     if (overlay_) {

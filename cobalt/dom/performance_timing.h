@@ -17,7 +17,7 @@
 
 #include "cobalt/script/wrappable.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/clock.h"
 
 namespace cobalt {
@@ -27,7 +27,7 @@ namespace dom {
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-navigation-timing-interface
 class PerformanceTiming : public script::Wrappable {
  public:
-  explicit PerformanceTiming(const scoped_refptr<base::Clock>& clock);
+  explicit PerformanceTiming(const scoped_refptr<base::BasicClock>& clock);
 
   // This attribute must return the time immediately after the user agent
   // finishes prompting to unload the previous document. If there is no previous

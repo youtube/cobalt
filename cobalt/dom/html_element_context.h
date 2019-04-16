@@ -15,9 +15,9 @@
 #ifndef COBALT_DOM_HTML_ELEMENT_CONTEXT_H_
 #define COBALT_DOM_HTML_ELEMENT_CONTEXT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/application_state.h"
@@ -171,7 +171,7 @@ class HTMLElementContext {
   base::WaitableEvent* synchronous_loader_interrupt_ = nullptr;
 
   base::Thread sync_load_thread_;
-  scoped_ptr<HTMLElementFactory> html_element_factory_;
+  std::unique_ptr<HTMLElementFactory> html_element_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLElementContext);
 };

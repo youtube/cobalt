@@ -20,7 +20,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_vector.h"
 #include "base/optional.h"
 #include "starboard/types.h"
 #include "third_party/glm/glm/vec2.hpp"

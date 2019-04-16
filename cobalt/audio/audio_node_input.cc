@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/audio/audio_node_input.h"
 
 #include "base/logging.h"
@@ -249,7 +251,7 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   for (std::set<AudioNodeOutput*>::iterator iter = outputs_.begin();
        iter != outputs_.end(); ++iter) {
     bool finished = false;
-    scoped_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
+    std::unique_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
         static_cast<int32>(output_audio_bus->frames()),
         output_audio_bus->sample_type(), &finished);
     *all_finished &= finished;

@@ -8,7 +8,7 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/math/clamp.h"
 #include "cobalt/math/insets.h"
 #include "cobalt/math/rect_base_impl.h"

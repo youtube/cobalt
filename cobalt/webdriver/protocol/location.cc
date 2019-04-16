@@ -22,11 +22,11 @@ const char kXKey[] = "x";
 const char kYKey[] = "y";
 }  // namespace
 
-scoped_ptr<base::Value> Location::ToValue(const Location& location) {
-  scoped_ptr<base::DictionaryValue> location_value(new base::DictionaryValue());
+std::unique_ptr<base::Value> Location::ToValue(const Location& location) {
+  auto* location_value = new base::DictionaryValue();
   location_value->SetDouble(kXKey, location.x_);
   location_value->SetDouble(kYKey, location.y_);
-  return location_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(location_value);
 }
 
 }  // namespace protocol

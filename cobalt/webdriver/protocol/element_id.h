@@ -15,9 +15,9 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_ELEMENT_ID_H_
 #define COBALT_WEBDRIVER_PROTOCOL_ELEMENT_ID_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
 
@@ -32,8 +32,8 @@ class ElementId {
 
   // Convert the ElementId to a WebElement JSON object:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#WebElement_JSON_Object
-  static scoped_ptr<base::Value> ToValue(const ElementId& element_id);
-  static base::optional<ElementId> FromValue(const base::Value* value);
+  static std::unique_ptr<base::Value> ToValue(const ElementId& element_id);
+  static base::Optional<ElementId> FromValue(const base::Value* value);
 
   explicit ElementId(const std::string& id) : id_(id) {}
   const std::string& id() const { return id_; }

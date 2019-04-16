@@ -16,9 +16,10 @@
 #define COBALT_RENDERER_SUBMISSION_QUEUE_H_
 
 #include <list>
+#include <memory>
 #include <string>
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/renderer/smoothed_value.h"
 #include "cobalt/renderer/submission.h"
@@ -89,7 +90,7 @@ namespace renderer {
 
 class SubmissionQueue {
  public:
-  typedef base::Callback<void(scoped_ptr<Submission>)>
+  typedef base::Callback<void(std::unique_ptr<Submission>)>
       DisposeSubmissionFunction;
 
   // |max_queue_size| indicates the maximum size of the submission queue.  If
@@ -143,7 +144,7 @@ class SubmissionQueue {
   // 0.  Theoretically, its actual value doesn't really matter, but this method
   // keeps the origin on the same order as the current clock values in order
   // to avoid the chance of floating point error.
-  base::optional<base::TimeTicks> renderer_time_origin_;
+  base::Optional<base::TimeTicks> renderer_time_origin_;
 
   // The queue of submissions, sorted in ascending order of times.
   SubmissionQueueInternal submission_queue_;
@@ -161,7 +162,7 @@ class SubmissionQueue {
 
   // Debug value to help DCHECK that input |now| values are monotonically
   // increasing.
-  base::optional<base::TimeTicks> last_now_;
+  base::Optional<base::TimeTicks> last_now_;
 
   base::CVal<base::TimeDelta> to_submission_time_cval_;
   base::CVal<size_t> queue_size_;

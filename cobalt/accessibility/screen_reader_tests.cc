@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/base_paths.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/text_alternative.h"
@@ -41,8 +42,7 @@ namespace accessibility {
 namespace {
 struct TestInfo {
   TestInfo(const std::string& html_file_name,
-           const std::string& expected_result,
-           bool screen_reader_enabled)
+           const std::string& expected_result, bool screen_reader_enabled)
       : html_file_name(html_file_name),
         expected_result(expected_result),
         screen_reader_enabled(screen_reader_enabled) {}
@@ -56,27 +56,27 @@ struct TestInfo {
 std::vector<TestInfo> EnumerateTests(bool screen_reader_enabled,
                                      const std::string& subdir) {
   std::vector<TestInfo> infos;
-  FilePath root_directory;
-  PathService::Get(base::DIR_TEST_DATA, &root_directory);
+  base::FilePath root_directory;
+  base::PathService::Get(base::DIR_TEST_DATA, &root_directory);
   root_directory = root_directory.Append("cobalt")
                        .Append("accessibility")
                        .Append("testdata")
                        .Append(subdir);
-  file_util::FileEnumerator enumerator(root_directory, false,
-                                       file_util::FileEnumerator::FILES);
-  for (FilePath html_file = enumerator.Next(); !html_file.empty();
+  base::FileEnumerator enumerator(root_directory, false,
+                                  base::FileEnumerator::FILES);
+  for (base::FilePath html_file = enumerator.Next(); !html_file.empty();
        html_file = enumerator.Next()) {
     if (html_file.Extension() == ".html") {
-      FilePath expected_results_file = html_file.ReplaceExtension(".expected");
+      base::FilePath expected_results_file =
+          html_file.ReplaceExtension(".expected");
       std::string results;
-      if (!file_util::ReadFileToString(expected_results_file, &results)) {
+      if (!base::ReadFileToString(expected_results_file, &results)) {
         DLOG(WARNING) << "Failed to read results from file: "
                       << expected_results_file.value();
         continue;
       }
-      TrimWhitespaceASCII(results, TRIM_ALL, &results);
-      infos.push_back(TestInfo(html_file.BaseName().value(),
-                               results,
+      TrimWhitespaceASCII(results, base::TRIM_ALL, &results);
+      infos.push_back(TestInfo(html_file.BaseName().value(), results,
                                screen_reader_enabled));
     }
   }
@@ -91,12 +91,15 @@ class MockTTSEngine : public TTSEngine {
 
 class TextAlternativeTest : public ::testing::TestWithParam<TestInfo> {
  protected:
+  // For posting tasks by any triggered code.
   test::DocumentLoader document_loader_;
 };
 
 class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
  public:
-  LiveRegionMutationTest() : quit_event_(true, false) {}
+  LiveRegionMutationTest()
+      : quit_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                    base::WaitableEvent::InitialState::NOT_SIGNALED) {}
   void OnError(const GURL&, const std::string& error) {
     DLOG(ERROR) << error;
     Quit();
@@ -106,7 +109,7 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
     screen_reader_.reset();
   }
   void OnClose(base::TimeDelta close_time) {
-    UNREFERENCED_PARAMETER(close_time);
+    SB_UNREFERENCED_PARAMETER(close_time);
     Quit();
   }
 
@@ -114,7 +117,7 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
       const scoped_refptr<dom::Window>& window,
       dom::MutationObserverTaskManager* mutation_observer_task_manager,
       script::GlobalEnvironment* global_environment) {
-    UNREFERENCED_PARAMETER(global_environment);
+    SB_UNREFERENCED_PARAMETER(global_environment);
     screen_reader_.reset(new accessibility::ScreenReader(
         window->document(), &tts_engine_, mutation_observer_task_manager));
     screen_reader_->set_enabled(GetParam().screen_reader_enabled);
@@ -129,7 +132,7 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
  protected:
   MockTTSEngine tts_engine_;
   base::WaitableEvent quit_event_;
-  scoped_ptr<accessibility::ScreenReader> screen_reader_;
+  std::unique_ptr<accessibility::ScreenReader> screen_reader_;
 };
 }  // namespace
 
@@ -192,12 +195,12 @@ INSTANTIATE_TEST_CASE_P(
     TextAlternativeTest, TextAlternativeTest,
     ::testing::ValuesIn(EnumerateTests(true, "text_alternative")));
 
-INSTANTIATE_TEST_CASE_P(
-    LiveRegionMutationTestEnabled, LiveRegionMutationTest,
-    ::testing::ValuesIn(EnumerateTests(true, "live_region")));
+INSTANTIATE_TEST_CASE_P(LiveRegionMutationTestEnabled, LiveRegionMutationTest,
+                        ::testing::ValuesIn(EnumerateTests(true,
+                                                           "live_region")));
 
-INSTANTIATE_TEST_CASE_P(
-    LiveRegionMutationTestDisabled, LiveRegionMutationTest,
-    ::testing::ValuesIn(EnumerateTests(false, "live_region")));
+INSTANTIATE_TEST_CASE_P(LiveRegionMutationTestDisabled, LiveRegionMutationTest,
+                        ::testing::ValuesIn(EnumerateTests(false,
+                                                           "live_region")));
 }  // namespace accessibility
 }  // namespace cobalt

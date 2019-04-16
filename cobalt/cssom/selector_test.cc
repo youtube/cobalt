@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/selector.h"
 
 #include "cobalt/cssom/child_combinator.h"
@@ -30,46 +32,46 @@ namespace cobalt {
 namespace cssom {
 
 TEST(SelectorTest, UniversalSelectorSpecificity) {
-  scoped_ptr<SimpleSelector> universal_selector(new UniversalSelector());
+  std::unique_ptr<SimpleSelector> universal_selector(new UniversalSelector());
   EXPECT_EQ(Specificity(0, 0, 0), universal_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, TypeSelectorSpecificity) {
-  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
+  std::unique_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
   EXPECT_EQ(Specificity(0, 0, 1), type_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, ClassSelectorSpecificity) {
-  scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
+  std::unique_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
   EXPECT_EQ(Specificity(0, 1, 0), class_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, IdSelectorSpecificity) {
-  scoped_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
+  std::unique_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
   EXPECT_EQ(Specificity(1, 0, 0), id_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, EmptyPseudoClassSpecificity) {
-  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
+  std::unique_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
   EXPECT_EQ(Specificity(0, 1, 0), empty_pseudo_class->GetSpecificity());
 }
 
 TEST(SelectorTest, CompoundSelectorSpecificity) {
   // The following compound selector is "div.my-class#my-id:empty".
   //
-  scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
+  std::unique_ptr<CompoundSelector> compound_selector(new CompoundSelector());
 
-  scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
-  compound_selector->AppendSelector(class_selector.Pass());
+  std::unique_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
+  compound_selector->AppendSelector(std::move(class_selector));
 
-  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
-  compound_selector->AppendSelector(empty_pseudo_class.Pass());
+  std::unique_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
+  compound_selector->AppendSelector(std::move(empty_pseudo_class));
 
-  scoped_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
-  compound_selector->AppendSelector(id_selector.Pass());
+  std::unique_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
+  compound_selector->AppendSelector(std::move(id_selector));
 
-  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
-  compound_selector->AppendSelector(type_selector.Pass());
+  std::unique_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
+  compound_selector->AppendSelector(std::move(type_selector));
 
   EXPECT_EQ(Specificity(1, 2, 1), compound_selector->GetSpecificity());
 }
@@ -77,54 +79,58 @@ TEST(SelectorTest, CompoundSelectorSpecificity) {
 TEST(SelectorTest, ComplexSelectorSpecificity) {
   // The following complex selector is "div div > div.my-class#my-id:empty".
   //
-  scoped_ptr<ComplexSelector> complex_selector(new ComplexSelector());
+  std::unique_ptr<ComplexSelector> complex_selector(new ComplexSelector());
 
-  scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
+  std::unique_ptr<CompoundSelector> compound_selector(new CompoundSelector());
 
-  scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
-  compound_selector->AppendSelector(class_selector.Pass());
+  std::unique_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
+  compound_selector->AppendSelector(std::move(class_selector));
 
-  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
-  compound_selector->AppendSelector(empty_pseudo_class.Pass());
+  std::unique_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
+  compound_selector->AppendSelector(std::move(empty_pseudo_class));
 
-  scoped_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
-  compound_selector->AppendSelector(id_selector.Pass());
+  std::unique_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
+  compound_selector->AppendSelector(std::move(id_selector));
 
-  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
-  compound_selector->AppendSelector(type_selector.Pass());
+  std::unique_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
+  compound_selector->AppendSelector(std::move(type_selector));
 
-  scoped_ptr<CompoundSelector> compound_selector2(new CompoundSelector());
+  std::unique_ptr<CompoundSelector> compound_selector2(new CompoundSelector());
   compound_selector2->AppendSelector(
-      make_scoped_ptr<SimpleSelector>(new TypeSelector("div")));
-  complex_selector->AppendSelector(compound_selector2.Pass());
+      std::unique_ptr<SimpleSelector>(new TypeSelector("div")));
+  complex_selector->AppendSelector(std::move(compound_selector2));
 
-  scoped_ptr<CompoundSelector> compound_selector3(new CompoundSelector());
-  scoped_ptr<ChildCombinator> child_combinator(new ChildCombinator());
+  std::unique_ptr<CompoundSelector> compound_selector3(new CompoundSelector());
+  std::unique_ptr<ChildCombinator> child_combinator(new ChildCombinator());
   compound_selector3->AppendSelector(
-      make_scoped_ptr<SimpleSelector>(new TypeSelector("div")));
+      std::unique_ptr<SimpleSelector>(new TypeSelector("div")));
   complex_selector->AppendCombinatorAndSelector(
-      child_combinator.PassAs<Combinator>(), compound_selector3.Pass());
+      std::unique_ptr<Combinator>(child_combinator.release()),
+      std::move(compound_selector3));
 
-  scoped_ptr<DescendantCombinator> descendant_combinator(
+  std::unique_ptr<DescendantCombinator> descendant_combinator(
       new DescendantCombinator());
   complex_selector->AppendCombinatorAndSelector(
-      descendant_combinator.PassAs<Combinator>(), compound_selector.Pass());
+      std::unique_ptr<Combinator>(descendant_combinator.release()),
+      std::move(compound_selector));
 
   EXPECT_EQ(Specificity(1, 2, 3), complex_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, ComplexSelectorAppendCallLimit) {
   {
-    scoped_ptr<ComplexSelector> complex_selector(new ComplexSelector());
+    std::unique_ptr<ComplexSelector> complex_selector(new ComplexSelector());
     complex_selector->AppendSelector(
-        make_scoped_ptr<CompoundSelector>(new CompoundSelector()));
+        std::unique_ptr<CompoundSelector>(new CompoundSelector()));
 
     for (int i = 0; i < ComplexSelector::kCombinatorLimit;
          i++) {
-      scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
-      scoped_ptr<ChildCombinator> child_combinator(new ChildCombinator());
+      std::unique_ptr<CompoundSelector> compound_selector(
+          new CompoundSelector());
+      std::unique_ptr<ChildCombinator> child_combinator(new ChildCombinator());
       complex_selector->AppendCombinatorAndSelector(
-          child_combinator.PassAs<Combinator>(), compound_selector.Pass());
+          std::unique_ptr<Combinator>(child_combinator.release()),
+          std::move(compound_selector));
     }
 
     EXPECT_EQ(complex_selector->combinator_count(),
@@ -132,17 +138,19 @@ TEST(SelectorTest, ComplexSelectorAppendCallLimit) {
   }
 
   {
-    scoped_ptr<ComplexSelector> complex_selector(new ComplexSelector());
+    std::unique_ptr<ComplexSelector> complex_selector(new ComplexSelector());
     complex_selector->AppendSelector(
-        make_scoped_ptr<CompoundSelector>(new CompoundSelector()));
+        std::unique_ptr<CompoundSelector>(new CompoundSelector()));
 
     for (int i = 0;
          i < 2 * ComplexSelector::kCombinatorLimit + 1;
          i++) {
-      scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
-      scoped_ptr<ChildCombinator> child_combinator(new ChildCombinator());
+      std::unique_ptr<CompoundSelector> compound_selector(
+          new CompoundSelector());
+      std::unique_ptr<ChildCombinator> child_combinator(new ChildCombinator());
       complex_selector->AppendCombinatorAndSelector(
-          child_combinator.PassAs<Combinator>(), compound_selector.Pass());
+          std::unique_ptr<Combinator>(child_combinator.release()),
+          std::move(compound_selector));
     }
 
     EXPECT_EQ(complex_selector->combinator_count(),

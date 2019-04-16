@@ -29,8 +29,8 @@ void EsParserTestBase::LoadStream(const char* filename) {
   base::FilePath file_path = GetTestDataFilePath(filename);
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
-                                            << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path))
+      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   stream_.resize(stream.length());
   SbMemoryCopy(&stream_[0], stream.data(), stream_.size());
@@ -43,8 +43,8 @@ std::vector<EsParserTestBase::Packet> EsParserTestBase::LoadPacketsFromFiles(
     base::FilePath file_path =
         GetTestDataFilePath(base::StringPrintf(filename_template, i));
     base::MemoryMappedFile stream;
-    EXPECT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
-                                              << file_path.MaybeAsASCII();
+    EXPECT_TRUE(stream.Initialize(file_path))
+        << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
     Packet packet;
     packet.offset = stream_.size();

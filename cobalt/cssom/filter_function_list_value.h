@@ -31,7 +31,7 @@ class FilterFunctionListValue : public ScopedListValue<FilterFunction> {
  public:
   explicit FilterFunctionListValue(
       ScopedListValue<FilterFunction>::Builder value)
-      : ScopedListValue<FilterFunction>(value.Pass()) {}
+      : ScopedListValue<FilterFunction>(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitFilterFunctionList(this);

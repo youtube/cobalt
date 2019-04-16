@@ -1,5 +1,5 @@
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 #ifndef V8cExceptionObjectInterface_h
 #define V8cExceptionObjectInterface_h
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"

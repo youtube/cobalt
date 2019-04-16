@@ -41,22 +41,22 @@ struct AutoMemSettings {
 
   Type type;
   bool has_blitter;
-  base::optional<int64_t> cobalt_image_cache_size_in_bytes;
-  base::optional<int64_t> javascript_garbage_collection_threshold_in_bytes;
-  base::optional<int64_t> remote_typeface_cache_capacity_in_bytes;
-  base::optional<int64_t> skia_cache_size_in_bytes;
-  base::optional<TextureDimensions> skia_texture_atlas_dimensions;
-  base::optional<int64_t> software_surface_cache_size_in_bytes;
-  base::optional<int64_t> offscreen_target_cache_size_in_bytes;
+  base::Optional<int64_t> cobalt_image_cache_size_in_bytes;
+  base::Optional<int64_t> javascript_garbage_collection_threshold_in_bytes;
+  base::Optional<int64_t> remote_typeface_cache_capacity_in_bytes;
+  base::Optional<int64_t> skia_cache_size_in_bytes;
+  base::Optional<TextureDimensions> skia_texture_atlas_dimensions;
+  base::Optional<int64_t> software_surface_cache_size_in_bytes;
+  base::Optional<int64_t> offscreen_target_cache_size_in_bytes;
 
-  base::optional<int64_t> max_cpu_in_bytes;
-  base::optional<int64_t> max_gpu_in_bytes;
-  base::optional<int64_t> reduce_cpu_memory_by;
-  base::optional<int64_t> reduce_gpu_memory_by;
+  base::Optional<int64_t> max_cpu_in_bytes;
+  base::Optional<int64_t> max_gpu_in_bytes;
+  base::Optional<int64_t> reduce_cpu_memory_by;
+  base::Optional<int64_t> reduce_gpu_memory_by;
 };
 
 AutoMemSettings GetDefaultBuildSettings();
-AutoMemSettings GetSettings(const CommandLine& command_line);
+AutoMemSettings GetSettings(const base::CommandLine& command_line);
 
 }  // namespace memory_settings
 }  // namespace browser

@@ -13,9 +13,10 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <memory>
 
 #include "base/bits.h"
-#include "base/memory/scoped_vector.h"
+#include "base/memory/ptr_util.h"
 #include "cobalt/loader/mesh/mesh_decoder.h"
 #include "cobalt/loader/mesh/projection_codec/projection_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -73,12 +74,12 @@ class MeshDecoderSink : public projection_codec::ProjectionDecoder::Sink {
   uint32* crc_;
 
   // Components of a mesh collection.
-  scoped_ptr<MeshCollection> mesh_collection_;
+  std::unique_ptr<MeshCollection> mesh_collection_;
   std::vector<float> collection_coordinates_;
   std::vector<projection_codec::IndexedVert> collection_vertices_;
 
   // Components of a mesh.
-  scoped_ptr<std::vector<render_tree::Mesh::Vertex> > mesh_vertices_;
+  std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > mesh_vertices_;
   render_tree::Mesh::DrawMode mesh_draw_mode_;
   uint8 mesh_texture_id_;
 
@@ -156,12 +157,12 @@ void MeshDecoderSink::AddVertexIndex(size_t index) {
 }
 
 void MeshDecoderSink::EndMeshInstance() {
-  mesh_collection_->push_back(
-      resource_provider_->CreateMesh(mesh_vertices_.Pass(), mesh_draw_mode_));
+  mesh_collection_->push_back(resource_provider_->CreateMesh(
+      std::move(mesh_vertices_), mesh_draw_mode_));
 }
 
 void MeshDecoderSink::EndMeshCollection() {
-  mesh_collection_list_->push_back(mesh_collection_.release());
+  mesh_collection_list_->emplace_back(mesh_collection_.release());
   collection_vertices_.clear();
   collection_coordinates_.clear();
 }
@@ -188,7 +189,7 @@ MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
   }
 
   return scoped_refptr<MeshProjection>(
-      new MeshProjection(mesh_collection_list.Pass(), crc));
+      new MeshProjection(std::move(mesh_collection_list), crc));
 }
 
 }  // namespace
@@ -212,7 +213,7 @@ void MeshDecoder::DecodeChunk(const char* data, size_t size) {
   }
 
   if (!raw_data_) {
-    raw_data_ = make_scoped_ptr(new std::vector<uint8>());
+    raw_data_ = base::WrapUnique(new std::vector<uint8>());
   }
 
   size_t start_size = raw_data_->size();

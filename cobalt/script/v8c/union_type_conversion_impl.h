@@ -34,10 +34,8 @@ namespace script {
 namespace v8c {
 
 template <typename T1, typename T2>
-void ToJSValue(
-    v8::Isolate* isolate,
-    const script::UnionType2<T1, T2>& in_union,
-    v8::Local<v8::Value>* out_value) {
+void ToJSValue(v8::Isolate* isolate, const script::UnionType2<T1, T2>& in_union,
+               v8::Local<v8::Value>* out_value) {
   if (in_union.template IsType<T1>()) {
     ToJSValue(isolate, in_union.template AsType<T1>(), out_value);
     return;
@@ -254,10 +252,9 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 }
 
 template <typename T1, typename T2, typename T3>
-void ToJSValue(
-    v8::Isolate* isolate,
-    const script::UnionType3<T1, T2, T3>& in_union,
-    v8::Local<v8::Value>* out_value) {
+void ToJSValue(v8::Isolate* isolate,
+               const script::UnionType3<T1, T2, T3>& in_union,
+               v8::Local<v8::Value>* out_value) {
   if (in_union.template IsType<T1>()) {
     ToJSValue(isolate, in_union.template AsType<T1>(), out_value);
     return;
@@ -536,10 +533,9 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 }
 
 template <typename T1, typename T2, typename T3, typename T4>
-void ToJSValue(
-    v8::Isolate* isolate,
-    const script::UnionType4<T1, T2, T3, T4>& in_union,
-    v8::Local<v8::Value>* out_value) {
+void ToJSValue(v8::Isolate* isolate,
+               const script::UnionType4<T1, T2, T3, T4>& in_union,
+               v8::Local<v8::Value>* out_value) {
   if (in_union.template IsType<T1>()) {
     ToJSValue(isolate, in_union.template AsType<T1>(), out_value);
     return;
@@ -880,10 +876,9 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 }
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void ToJSValue(
-    v8::Isolate* isolate,
-    const script::UnionType5<T1, T2, T3, T4, T5>& in_union,
-    v8::Local<v8::Value>* out_value) {
+void ToJSValue(v8::Isolate* isolate,
+               const script::UnionType5<T1, T2, T3, T4, T5>& in_union,
+               v8::Local<v8::Value>* out_value) {
   if (in_union.template IsType<T1>()) {
     ToJSValue(isolate, in_union.template AsType<T1>(), out_value);
     return;

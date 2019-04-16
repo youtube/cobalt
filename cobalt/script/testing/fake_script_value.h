@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/script_value.h"
 
@@ -41,8 +43,8 @@ class FakeScriptValue : public cobalt::script::ScriptValue<T> {
   void AllowGarbageCollection() override {}
   T* GetValue() override { return value_; }
   const T* GetValue() const override { return value_; }
-  scoped_ptr<BaseClass> MakeCopy() const override {
-    return make_scoped_ptr<BaseClass>(new FakeScriptValue(value_));
+  std::unique_ptr<BaseClass> MakeCopy() const override {
+    return std::unique_ptr<BaseClass>(new FakeScriptValue(value_));
   }
 
  private:

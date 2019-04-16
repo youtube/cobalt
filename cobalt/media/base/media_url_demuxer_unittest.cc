@@ -4,6 +4,8 @@
 
 #include "cobalt/media/base/media_url_demuxer.h"
 
+#include <memory>
+
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -55,8 +57,9 @@ TEST_F(MediaUrlDemuxerTest, AcceptsEmptyStrings) {
 
 TEST_F(MediaUrlDemuxerTest, InitializeReturnsPipelineOk) {
   InitializeTest();
-  demuxer_->Initialize(NULL, base::Bind(&MediaUrlDemuxerTest::VerifyCallbackOk,
-                                        base::Unretained(this)),
+  demuxer_->Initialize(NULL,
+                       base::Bind(&MediaUrlDemuxerTest::VerifyCallbackOk,
+                                  base::Unretained(this)),
                        false);
 
   base::RunLoop().RunUntilIdle();

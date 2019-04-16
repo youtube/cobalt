@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/bindings/testing/utils.h"
@@ -44,9 +44,9 @@ namespace cobalt {
 namespace dom {
 
 class MockErrorCallback
-    : public base::Callback<void(const base::optional<std::string>&)> {
+    : public base::Callback<void(const base::Optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
+  MOCK_METHOD1(Run, void(const base::Optional<std::string>&));
 };
 
 class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
@@ -193,12 +193,12 @@ class OnScreenKeyboardTest : public ::testing::Test {
  public:
   OnScreenKeyboardTest()
       : environment_settings_(new script::EnvironmentSettings),
-        message_loop_(MessageLoop::TYPE_DEFAULT),
+        message_loop_(base::MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         loader_factory_(new loader::LoaderFactory(
-            fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
+            fetcher_factory_.get(), NULL, base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
         url_("about:blank"),
         engine_(script::JavaScriptEngine::CreateEngine()),
@@ -259,19 +259,19 @@ class OnScreenKeyboardTest : public ::testing::Test {
   Window* window() const { return window_.get(); }
 
  private:
-  const scoped_ptr<script::EnvironmentSettings> environment_settings_;
-  MessageLoop message_loop_;
+  const std::unique_ptr<script::EnvironmentSettings> environment_settings_;
+  base::MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-  scoped_ptr<loader::LoaderFactory> loader_factory_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
+  std::unique_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
 
-  scoped_ptr<script::JavaScriptEngine> engine_;
+  std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
-  scoped_ptr<OnScreenKeyboardMockBridge> on_screen_keyboard_bridge_;
+  std::unique_ptr<OnScreenKeyboardMockBridge> on_screen_keyboard_bridge_;
   scoped_refptr<Window> window_;
 };
 

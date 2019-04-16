@@ -15,16 +15,15 @@
 #ifndef COBALT_DEBUG_REMOTE_DEBUG_WEB_SERVER_H_
 #define COBALT_DEBUG_REMOTE_DEBUG_WEB_SERVER_H_
 
+#include <memory>
 #include <string>
 
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/files/file_path.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/debug/debug_client.h"
-#include "net/base/stream_listen_socket.h"
 #include "net/server/http_server.h"
 
 namespace cobalt {
@@ -45,6 +44,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
  protected:
   // net::HttpServer::Delegate implementation.
+  void OnConnect(int /*connection_id*/) override {}
   void OnHttpRequest(int connection_id,
                      const net::HttpServerRequestInfo& info) override;
 
@@ -53,17 +53,15 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
   void OnWebSocketMessage(int connection_id, const std::string& json) override;
 
-  void OnClose(int connection_id) override {
-    UNREFERENCED_PARAMETER(connection_id);
-  }
+  void OnClose(int /*connection_id*/) override {}
 
   // Debugger command response handler.
-  void OnDebuggerResponse(int id, const base::optional<std::string>& response);
+  void OnDebuggerResponse(int id, const base::Optional<std::string>& response);
 
   // DebugClient::Delegate implementation.
   void OnDebugClientEvent(
       const std::string& method,
-      const base::optional<std::string>& json_params) override;
+      const base::Optional<std::string>& json_params) override;
 
   void OnDebugClientDetach(const std::string& reason) override;
 
@@ -78,17 +76,16 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
   base::ThreadChecker thread_checker_;
   base::Thread http_server_thread_;
-  scoped_ptr<net::StreamListenSocketFactory> factory_;
   // net::HttpServer is a ref-counted object, so we have to use scoped_refptr.
-  scoped_refptr<net::HttpServer> server_;
+  std::unique_ptr<net::HttpServer> server_;
   CreateDebugClientCallback create_debug_client_callback_;
 
   // The debug client that connects to the dispatcher.
-  scoped_ptr<DebugClient> debug_client_;
+  std::unique_ptr<DebugClient> debug_client_;
 
   int websocket_id_;
   base::CVal<std::string> local_address_;
-  FilePath content_root_dir_;
+  base::FilePath content_root_dir_;
 };
 
 }  // namespace remote

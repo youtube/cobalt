@@ -68,9 +68,8 @@ bool WebMAudioClient::InitializeConfig(
   int codec_delay_in_frames = 0;
   if (codec_delay != -1) {
     codec_delay_in_frames =
-        0.5 +
-        samples_per_second * (static_cast<double>(codec_delay) /
-                              base::Time::kNanosecondsPerSecond);
+        0.5 + samples_per_second * (static_cast<double>(codec_delay) /
+                                    base::Time::kNanosecondsPerSecond);
   }
 
   config->Initialize(audio_codec, sample_format, channel_layout,
@@ -84,9 +83,9 @@ bool WebMAudioClient::InitializeConfig(
 bool WebMAudioClient::OnUInt(int id, int64_t val) {
   if (id == kWebMIdChannels) {
     if (channels_ != -1) {
-      MEDIA_LOG(ERROR, media_log_) << "Multiple values for id " << std::hex
-                                   << id << " specified. (" << channels_
-                                   << " and " << val << ")";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Multiple values for id " << std::hex << id << " specified. ("
+          << channels_ << " and " << val << ")";
       return false;
     }
 
@@ -112,9 +111,9 @@ bool WebMAudioClient::OnFloat(int id, double val) {
   if (val <= 0) return false;
 
   if (*dst != -1) {
-    MEDIA_LOG(ERROR, media_log_) << "Multiple values for id " << std::hex << id
-                                 << " specified (" << *dst << " and " << val
-                                 << ")";
+    MEDIA_LOG(ERROR, media_log_)
+        << "Multiple values for id " << std::hex << id << " specified (" << *dst
+        << " and " << val << ")";
     return false;
   }
 

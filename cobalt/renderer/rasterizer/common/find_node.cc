@@ -25,8 +25,8 @@ namespace common {
 
 class FinderNodeVisitor : public render_tree::NodeVisitor {
  public:
-  FinderNodeVisitor(NodeFilterFunction<render_tree::Node> filter_function,
-                    base::optional<NodeReplaceFunction> replace_function)
+  FinderNodeVisitor(NodeFilterFunction filter_function,
+                    base::Optional<NodeReplaceFunction> replace_function)
       : filter_function_(filter_function),
         replace_function_(replace_function) {}
 
@@ -104,8 +104,8 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
     }
   }
 
-  NodeFilterFunction<render_tree::Node> filter_function_;
-  base::optional<NodeReplaceFunction> replace_function_;
+  NodeFilterFunction filter_function_;
+  base::Optional<NodeReplaceFunction> replace_function_;
 
   scoped_refptr<render_tree::Node> found_node_;
   scoped_refptr<render_tree::Node> replace_with_;
@@ -114,8 +114,8 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
 template <>
 NodeSearchResult<render_tree::Node> FindNode<render_tree::Node>(
     const scoped_refptr<render_tree::Node>& tree,
-    NodeFilterFunction<render_tree::Node> filter_function,
-    base::optional<NodeReplaceFunction> replace_function) {
+    NodeFilterFunction filter_function,
+    base::Optional<NodeReplaceFunction> replace_function) {
   FinderNodeVisitor visitor(filter_function, replace_function);
   tree->Accept(&visitor);
 
@@ -123,13 +123,15 @@ NodeSearchResult<render_tree::Node> FindNode<render_tree::Node>(
   result.found_node = visitor.GetFoundNode();
   result.replaced_tree = visitor.GetReplaceWithNode();
 
-  if (result.replaced_tree == NULL) {
+  if (result.replaced_tree.get() == NULL) {
     result.replaced_tree = tree;
   }
   return result;
 }
 
-bool HasMapToMesh(render_tree::FilterNode* filter_node) {
+bool HasMapToMesh(render_tree::Node* node) {
+  auto* filter_node =
+      base::polymorphic_downcast<render_tree::FilterNode*>(node);
   return static_cast<bool>(filter_node->data().map_to_mesh_filter);
 }
 

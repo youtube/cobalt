@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/file_path.h"
+#include <memory>
+
+#include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "cobalt/trace_event/benchmark.h"
 
 namespace {
-FilePath GetBenchmarkImagePath() {
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+base::FilePath GetBenchmarkImagePath() {
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("test"))
                        .Append(FILE_PATH_LITERAL("png_utils"))
                        .Append(FILE_PATH_LITERAL("png_benchmark_image.png"));
@@ -38,10 +40,9 @@ TRACE_EVENT_BENCHMARK2(
   for (int i = 0; i < kIterationCount; ++i) {
     int width;
     int height;
-    scoped_array<uint8_t> pixel_data =
+    std::unique_ptr<uint8_t[]> pixel_data =
         cobalt::renderer::test::png_utils::DecodePNGToRGBA(
-            GetBenchmarkImagePath(),
-            &width, &height);
+            GetBenchmarkImagePath(), &width, &height);
   }
 }
 
@@ -51,16 +52,15 @@ TRACE_EVENT_BENCHMARK2(
         cobalt::trace_event::IN_SCOPE_DURATION,
     "PNGFileReadContext::DecodeImageTo()",
         cobalt::trace_event::IN_SCOPE_DURATION) {
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
 
   const int kIterationCount = 20;
   for (int i = 0; i < kIterationCount; ++i) {
     int width;
     int height;
-    scoped_array<uint8_t> pixel_data =
+    std::unique_ptr<uint8_t[]> pixel_data =
         cobalt::renderer::test::png_utils::DecodePNGToPremultipliedAlphaRGBA(
-            GetBenchmarkImagePath(),
-            &width, &height);
+            GetBenchmarkImagePath(), &width, &height);
   }
 }

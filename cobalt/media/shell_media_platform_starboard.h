@@ -52,12 +52,12 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 
  private:
   void* AllocateBuffer(size_t size) override {
-    UNREFERENCED_PARAMETER(size);
+    SB_UNREFERENCED_PARAMETER(size);
     NOTREACHED();
     return NULL;
   }
   void FreeBuffer(void* ptr) override {
-    UNREFERENCED_PARAMETER(ptr);
+    SB_UNREFERENCED_PARAMETER(ptr);
     NOTREACHED();
   }
   size_t GetSourceBufferStreamAudioMemoryLimit() const override {

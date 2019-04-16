@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/account/account_manager.h"
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "starboard/user.h"
 
@@ -39,7 +40,7 @@ std::string GetCurrentUserProperty(SbUserPropertyId property_id) {
     return "";
   }
 
-  scoped_array<char> value(new char[size]);
+  std::unique_ptr<char[]> value(new char[size]);
   if (!SbUserGetProperty(user, property_id, value.get(), size)) {
     return "";
   }

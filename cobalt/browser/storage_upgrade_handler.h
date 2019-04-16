@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/storage/storage_manager.h"
+#include "net/log/net_log.h"
 
 namespace cobalt {
 namespace browser {
@@ -25,7 +26,12 @@ namespace browser {
 // Handles save data in upgrade format.
 class StorageUpgradeHandler : public storage::StorageManager::UpgradeHandler {
  public:
-  explicit StorageUpgradeHandler(const GURL& gurl);
+  // cookie_callback_thread is used mainly by test to specify desired thread for
+  // PersistentCookieStore to call the callback after cookie is fetched.
+  explicit StorageUpgradeHandler(const GURL& gurl,
+                                 net::NetLog* net_log = nullptr,
+                                 scoped_refptr<base::SingleThreadTaskRunner>
+                                     cookie_callback_thread = nullptr);
 
   void OnUpgrade(storage::StorageManager* storage, const char* data,
                  int size) override;
@@ -36,6 +42,8 @@ class StorageUpgradeHandler : public storage::StorageManager::UpgradeHandler {
 
  private:
   loader::Origin default_local_storage_origin_;
+  net::NetLog* net_log_;
+  scoped_refptr<base::SingleThreadTaskRunner> cookie_callback_thread_;
 };
 
 }  // namespace browser

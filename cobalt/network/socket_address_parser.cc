@@ -14,33 +14,34 @@
 
 #include "cobalt/network/socket_address_parser.h"
 
+#include "base/basictypes.h"
 #include "base/logging.h"
-#include "googleurl/src/url_canon.h"
-#include "googleurl/src/url_canon_ip.h"
-#include "net/base/net_util.h"
+#include "net/base/ip_address.h"
 #include "starboard/memory.h"
+#include "url/third_party/mozilla/url_parse.h"
+#include "url/url_canon.h"
+#include "url/url_canon_ip.h"
 
 namespace cobalt {
 namespace network {
 
-bool ParseSocketAddress(const char* spec,
-                        const url_parse::Component& host_component,
+bool ParseSocketAddress(const char* spec, const url::Component& host_component,
                         SbSocketAddress* out_socket_address) {
   DCHECK(out_socket_address);
 
-  unsigned char address_v4[net::kIPv4AddressSize];
+  unsigned char address_v4[net::IPAddress::kIPv4AddressSize];
   int num_ipv4_components = 0;
 
   // IPv4AddressToNumber will return either IPV4, BROKEN, or NEUTRAL.  If the
   // input IP address is IPv6, then NEUTRAL will be returned, and a different
   // function will be used to covert the hostname to IPv6 address.
   // If the return value is IPV4, then address will be in network byte order.
-  url_canon::CanonHostInfo::Family family = url_canon::IPv4AddressToNumber(
+  url::CanonHostInfo::Family family = url::IPv4AddressToNumber(
       spec, host_component, address_v4, &num_ipv4_components);
 
   switch (family) {
-    case url_canon::CanonHostInfo::IPV4:
-      if (num_ipv4_components != net::kIPv4AddressSize) {
+    case url::CanonHostInfo::IPV4:
+      if (num_ipv4_components != net::IPAddress::kIPv4AddressSize) {
         return false;
       }
 
@@ -52,24 +53,24 @@ bool ParseSocketAddress(const char* spec,
                    num_ipv4_components);
 
       return true;
-    case url_canon::CanonHostInfo::NEUTRAL:
+    case url::CanonHostInfo::NEUTRAL:
 #if SB_HAS(IPV6)
-      unsigned char address_v6[net::kIPv6AddressSize];
-      if (!url_canon::IPv6AddressToNumber(spec, host_component, address_v6)) {
+      unsigned char address_v6[net::IPAddress::kIPv6AddressSize];
+      if (!url::IPv6AddressToNumber(spec, host_component, address_v6)) {
         break;
       }
 
       SbMemorySet(out_socket_address, 0, sizeof(SbSocketAddress));
       out_socket_address->type = kSbSocketAddressTypeIpv6;
-      COMPILE_ASSERT(sizeof(address_v6), kIPv6AddressLength);
+      static_assert(sizeof(address_v6) == net::IPAddress::kIPv6AddressSize, "");
       SbMemoryCopy(out_socket_address->address, address_v6, sizeof(address_v6));
       return true;
 #else
       return false;
 #endif
-    case url_canon::CanonHostInfo::BROKEN:
+    case url::CanonHostInfo::BROKEN:
       break;
-    case url_canon::CanonHostInfo::IPV6:
+    case url::CanonHostInfo::IPV6:
       NOTREACHED() << "Invalid return value from IPv4AddressToNumber.";
       break;
     default:

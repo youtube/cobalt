@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_SCREENSHOT_MANAGER_H_
 #define COBALT_DOM_SCREENSHOT_MANAGER_H_
 
+#include <memory>
 #include <unordered_map>
 
 #include "base/memory/ref_counted.h"
@@ -40,11 +41,11 @@ class ScreenshotManager {
   using OnEncodedStaticImageCallback = base::Callback<void(
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>;
   using OnUnencodedImageCallback =
-      base::Callback<void(scoped_array<uint8>, const math::Size&)>;
+      base::Callback<void(std::unique_ptr<uint8[]>, const math::Size&)>;
 
   using ProvideScreenshotFunctionCallback =
       base::Callback<void(const scoped_refptr<render_tree::Node>&,
-                          const base::optional<math::Rect>& clip_rect,
+                          const base::Optional<math::Rect>& clip_rect,
                           const OnUnencodedImageCallback&)>;
 
   explicit ScreenshotManager(
@@ -60,9 +61,9 @@ class ScreenshotManager {
  private:
   void FillScreenshot(
       int64_t token,
-      scoped_refptr<base::MessageLoopProxy> expected_message_loop,
+      scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
       loader::image::EncodedStaticImage::ImageFormat desired_format,
-      scoped_array<uint8> image_data, const math::Size& dimensions);
+      std::unique_ptr<uint8[]> image_data, const math::Size& dimensions);
 
   int64_t next_ticket_id_ = 0;
 

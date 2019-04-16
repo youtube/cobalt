@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "build/build_config.h"  // defines OS_STARBOARD
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
+#include "build/build_config.h"  // defines OS_STARBOARD
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

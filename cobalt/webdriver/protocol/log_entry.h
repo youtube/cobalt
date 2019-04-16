@@ -15,10 +15,10 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_LOG_ENTRY_H_
 #define COBALT_WEBDRIVER_PROTOCOL_LOG_ENTRY_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "base/values.h"
 
 namespace cobalt {
@@ -35,7 +35,7 @@ class LogEntry {
     kWarning,
     kSevere,
   };
-  static scoped_ptr<base::Value> ToValue(const LogEntry& log_entry);
+  static std::unique_ptr<base::Value> ToValue(const LogEntry& log_entry);
   LogEntry(const base::Time& log_time, LogLevel level,
            const std::string& message);
 

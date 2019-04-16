@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/audio/audio_device.h"
 
 #include "starboard/configuration.h"
@@ -22,8 +24,7 @@
 #endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
 #endif  // defined(OS_STARBOARD)
 
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/audio/audio_helpers.h"
 
 #if defined(SB_USE_SB_AUDIO_SINK)
@@ -91,7 +92,7 @@ class AudioDevice::Impl {
   // |output_frame_buffer_|.
   ShellAudioBus input_audio_bus_;
 
-  scoped_array<uint8> output_frame_buffer_;
+  std::unique_ptr<uint8[]> output_frame_buffer_;
 
   void* frame_buffers_[1];
   int64 frames_rendered_ = 0;  // Frames retrieved from |render_callback_|.
@@ -165,7 +166,7 @@ void AudioDevice::Impl::ConsumeFramesFunc(int frames_consumed,
 #endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                           void* context) {
 #if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  UNREFERENCED_PARAMETER(frames_consumed_at);
+  SB_UNREFERENCED_PARAMETER(frames_consumed_at);
 #endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   AudioDevice::Impl* impl = reinterpret_cast<AudioDevice::Impl*>(context);
@@ -292,7 +293,7 @@ class AudioDevice::Impl : public ::media::ShellAudioStream {
   void FillOutputAudioBus();
 
   AudioParameters audio_parameters_;
-  scoped_ptr<AudioBus> output_audio_bus_;
+  std::unique_ptr<AudioBus> output_audio_bus_;
 
   uint64 rendered_frame_cursor_;
   uint64 buffered_frame_cursor_;

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/storage/virtual_file.h"
 #include "cobalt/storage/virtual_file_system.h"
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
@@ -151,7 +152,7 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
 
   // First perform a dry run to figure out how much space we need.
   int bytes = vfs_.Serialize(NULL, true /*dry run*/);
-  scoped_array<uint8> buffer(new uint8[static_cast<size_t>(bytes)]);
+  std::unique_ptr<uint8[]> buffer(new uint8[static_cast<size_t>(bytes)]);
 
   // Now serialize and deserialize
   vfs_.Serialize(buffer.get(), false /*dry run*/);
@@ -197,7 +198,7 @@ TEST_F(VirtualFileSystemTest, DeserializeTruncated) {
 
   // First perform a dry run to figure out how much space we need.
   int bytes = vfs_.Serialize(NULL, true /*dry run*/);
-  scoped_array<uint8> buffer(new uint8[static_cast<size_t>(bytes)]);
+  std::unique_ptr<uint8[]> buffer(new uint8[static_cast<size_t>(bytes)]);
 
   // Now serialize and deserialize
   vfs_.Serialize(buffer.get(), false /*dry run*/);
@@ -216,7 +217,7 @@ TEST_F(VirtualFileSystemTest, DeserializeTruncated) {
 }
 
 TEST_F(VirtualFileSystemTest, DeserializeBadData) {
-  scoped_array<uint8> buffer(new uint8[0]);
+  std::unique_ptr<uint8[]> buffer(new uint8[0]);
   EXPECT_FALSE(vfs_.Deserialize(buffer.get(), 0));
   EXPECT_FALSE(vfs_.Deserialize(buffer.get(), -1));
   buffer.reset(new uint8[1]);

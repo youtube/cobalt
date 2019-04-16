@@ -78,7 +78,7 @@ struct OffscreenRenderCoordinateMapping {
 // which can then be subsequently rendered to the main render target.
 OffscreenRenderCoordinateMapping GetOffscreenRenderCoordinateMapping(
     const math::RectF& local_bounds, const math::Matrix3F& transform,
-    const base::optional<math::Rect>& viewport_bounds);
+    const base::Optional<math::Rect>& viewport_bounds);
 
 }  // namespace common
 }  // namespace rasterizer

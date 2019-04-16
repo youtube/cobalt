@@ -8,6 +8,7 @@
 // The temporary home for WebMediaPlayer and WebMediaPlayerClient. They are the
 // interface between the HTMLMediaElement and the media stack.
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -15,16 +16,15 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/buffered_data_source.h"
-#include "googleurl/src/gurl.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
@@ -95,8 +95,8 @@ class WebMediaPlayer {
   virtual void LoadUrl(const GURL& url) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   virtual void LoadMediaSource() = 0;
-  virtual void LoadProgressive(const GURL& url,
-                               scoped_ptr<BufferedDataSource> data_source) = 0;
+  virtual void LoadProgressive(
+      const GURL& url, std::unique_ptr<BufferedDataSource> data_source) = 0;
 
   virtual void CancelLoad() = 0;
 

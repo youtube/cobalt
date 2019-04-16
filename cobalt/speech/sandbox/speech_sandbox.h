@@ -15,9 +15,10 @@
 #ifndef COBALT_SPEECH_SANDBOX_SPEECH_SANDBOX_H_
 #define COBALT_SPEECH_SANDBOX_SPEECH_SANDBOX_H_
 
+#include <memory>
 #include <string>
 
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/threading/thread.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/speech/sandbox/audio_loader.h"
@@ -36,16 +37,16 @@ class SpeechSandbox {
   // The constructor takes a file path string for an audio input and a log path
   // for tracing.
   SpeechSandbox(const std::string& file_path_string,
-                const FilePath& trace_log_path);
+                const base::FilePath& trace_log_path);
   ~SpeechSandbox();
 
  private:
   void StartRecognition(const dom::DOMSettings::Options& dom_settings_options);
   void OnLoadingDone(const uint8* data, int size);
 
-  scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
-  scoped_ptr<network::NetworkModule> network_module_;
-  scoped_ptr<AudioLoader> audio_loader_;
+  std::unique_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
+  std::unique_ptr<network::NetworkModule> network_module_;
+  std::unique_ptr<AudioLoader> audio_loader_;
   scoped_refptr<SpeechRecognition> speech_recognition_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SpeechSandbox);

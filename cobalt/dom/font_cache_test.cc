@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/font_cache.h"
 
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/font_face.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
@@ -26,9 +27,9 @@
 #include "cobalt/render_tree/mock_resource_provider.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
-#include "googleurl/src/gurl.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -40,9 +41,9 @@ const render_tree::FontStyle kNormalUpright(
     render_tree::FontStyle::kNormalWeight,
     render_tree::FontStyle::kUprightSlant);
 
-scoped_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
+std::unique_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
     const std::string& family_name, const base::StringPiece local_font_name) {
-  scoped_ptr<FontCache::FontFaceMap> ffm(new FontCache::FontFaceMap());
+  std::unique_ptr<FontCache::FontFaceMap> ffm(new FontCache::FontFaceMap());
   dom::FontFaceStyleSet ffss;
   dom::FontFaceStyleSet::Entry entry;
   entry.sources.push_back(
@@ -51,7 +52,7 @@ scoped_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
       GURL("https://example.com/Dancing-Regular.woff")));  // url()
   ffss.AddEntry(entry);
   ffm->insert(FontCache::FontFaceMap::value_type(family_name, ffss));
-  return ffm.Pass();
+  return ffm;
 }
 
 class FontCacheTest : public ::testing::Test {
@@ -67,10 +68,10 @@ class FontCacheTest : public ::testing::Test {
   ::testing::StrictMock<cobalt::render_tree::MockResourceProvider>
       mock_resource_provider_;
   cobalt::render_tree::ResourceProvider* mrp;
-  scoped_ptr<loader::font::RemoteTypefaceCache> rtc;
-  scoped_ptr<dom::FontCache> font_cache_;
+  std::unique_ptr<loader::font::RemoteTypefaceCache> rtc;
+  std::unique_ptr<dom::FontCache> font_cache_;
 
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
 };
 
 FontCacheTest::FontCacheTest()
@@ -93,9 +94,9 @@ FontCacheTest::FontCacheTest()
 TEST_F(FontCacheTest, FindPostscriptFont) {
   const std::string family_name("Dancing Script");
   const std::string postscript_font_name("DancingScript");
-  scoped_ptr<FontCache::FontFaceMap> ffm =
+  std::unique_ptr<FontCache::FontFaceMap> ffm =
       CreateFontFaceMapHelper(family_name, postscript_font_name);
-  font_cache_->SetFontFaceMap(ffm.Pass());
+  font_cache_->SetFontFaceMap(std::move(ffm));
 
   EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _, _))
       .Times(0);
@@ -114,9 +115,9 @@ TEST_F(FontCacheTest, FindPostscriptFont) {
 TEST_F(FontCacheTest, UseRemote) {
   std::string invalid_postscript_font_name = "DancingScriptInvalidName";
   const std::string family_name("Dancing Script");
-  scoped_ptr<FontCache::FontFaceMap> ffm =
+  std::unique_ptr<FontCache::FontFaceMap> ffm =
       CreateFontFaceMapHelper(family_name, invalid_postscript_font_name);
-  font_cache_->SetFontFaceMap(ffm.Pass());
+  font_cache_->SetFontFaceMap(std::move(ffm));
 
   EXPECT_CALL(mock_resource_provider_,
               GetLocalTypefaceIfAvailableMock(invalid_postscript_font_name))

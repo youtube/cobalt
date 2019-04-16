@@ -15,13 +15,14 @@
 #ifndef COBALT_LOADER_FETCHER_H_
 #define COBALT_LOADER_FETCHER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
-#include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -47,8 +48,8 @@ class Fetcher {
         Fetcher* fetcher,
         const scoped_refptr<net::HttpResponseHeaders>& headers)
         WARN_UNUSED_RESULT {
-      UNREFERENCED_PARAMETER(fetcher);
-      UNREFERENCED_PARAMETER(headers);
+      SB_UNREFERENCED_PARAMETER(fetcher);
+      SB_UNREFERENCED_PARAMETER(headers);
       return kLoadResponseContinue;
     }
     virtual void OnReceived(Fetcher* fetcher, const char* data,
@@ -56,11 +57,11 @@ class Fetcher {
     virtual void OnDone(Fetcher* fetcher) = 0;
     virtual void OnError(Fetcher* fetcher, const std::string& error) = 0;
 
-    // By default, |OnReceivedPassed| forwards the scoped_ptr<std::string>
+    // By default, |OnReceivedPassed| forwards the std::unique_ptr<std::string>
     // data into |OnReceived|.  Implementations have the opportunity to hold
-    // onto the scoped_ptr through overriding |OnReceivedPassed|.
+    // onto the std::unique_ptr through overriding |OnReceivedPassed|.
     virtual void OnReceivedPassed(Fetcher* fetcher,
-                                  scoped_ptr<std::string> data) {
+                                  std::unique_ptr<std::string> data) {
       OnReceived(fetcher, data->data(), data->length());
     }
 

@@ -7,7 +7,7 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/media/base/mock_media_log.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 #include "cobalt/media/formats/webm/webm_parser.h"

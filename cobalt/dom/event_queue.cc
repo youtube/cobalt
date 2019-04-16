@@ -22,7 +22,7 @@ namespace dom {
 
 EventQueue::EventQueue(EventTarget* event_target)
     : event_target_(event_target),
-      message_loop_(base::MessageLoopProxy::current()) {
+      message_loop_(base::MessageLoop::current()->task_runner()) {
   DCHECK(event_target_);
   DCHECK(message_loop_);
 }
@@ -65,7 +65,8 @@ void EventQueue::DispatchEvents() {
 
   firing_events_.swap(events_);
 
-  for (Events::iterator iter = firing_events_.begin(); iter != firing_events_.end(); ++iter) {
+  for (Events::iterator iter = firing_events_.begin();
+       iter != firing_events_.end(); ++iter) {
     scoped_refptr<Event>& event = *iter;
     EventTarget* target =
         event->target() ? event->target().get() : event_target_;

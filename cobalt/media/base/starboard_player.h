@@ -20,9 +20,9 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
@@ -60,24 +60,24 @@ class StarboardPlayer {
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
   // Create a StarboardPlayer with url-based player.
-  StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-                  const std::string& url, SbWindow window, Host* host,
-                  SbPlayerSetBoundsHelper* set_bounds_helper,
-                  bool allow_resume_after_suspend,
-                  bool prefer_decode_to_texture,
-                  const OnEncryptedMediaInitDataEncounteredCB&
-                      encrypted_media_init_data_encountered_cb,
-                  VideoFrameProvider* const video_frame_provider);
+  StarboardPlayer(
+      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const std::string& url, SbWindow window, Host* host,
+      SbPlayerSetBoundsHelper* set_bounds_helper,
+      bool allow_resume_after_suspend, bool prefer_decode_to_texture,
+      const OnEncryptedMediaInitDataEncounteredCB&
+          encrypted_media_init_data_encountered_cb,
+      VideoFrameProvider* const video_frame_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a StarboardPlayer with normal player
-  StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-                  const AudioDecoderConfig& audio_config,
-                  const VideoDecoderConfig& video_config, SbWindow window,
-                  SbDrmSystem drm_system, Host* host,
-                  SbPlayerSetBoundsHelper* set_bounds_helper,
-                  bool allow_resume_after_suspend,
-                  bool prefer_decode_to_texture,
-                  VideoFrameProvider* const video_frame_provider);
+  StarboardPlayer(
+      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const AudioDecoderConfig& audio_config,
+      const VideoDecoderConfig& video_config, SbWindow window,
+      SbDrmSystem drm_system, Host* host,
+      SbPlayerSetBoundsHelper* set_bounds_helper,
+      bool allow_resume_after_suspend, bool prefer_decode_to_texture,
+      VideoFrameProvider* const video_frame_provider);
 
   ~StarboardPlayer();
 
@@ -210,7 +210,7 @@ class StarboardPlayer {
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  const scoped_refptr<base::MessageLoopProxy> message_loop_;
+  const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   scoped_refptr<CallbackHelper> callback_helper_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
@@ -237,8 +237,8 @@ class StarboardPlayer {
   base::Lock lock_;
 
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
-  base::optional<int> set_bounds_z_index_;
-  base::optional<gfx::Rect> set_bounds_rect_;
+  base::Optional<int> set_bounds_z_index_;
+  base::Optional<gfx::Rect> set_bounds_rect_;
   State state_ = kPlaying;
   SbPlayer player_;
   uint32 cached_video_frames_decoded_;

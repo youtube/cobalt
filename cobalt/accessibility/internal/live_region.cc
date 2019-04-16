@@ -15,10 +15,12 @@
 #include "cobalt/accessibility/internal/live_region.h"
 
 #include <bitset>
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/string_split.h"
+#include "base/memory/ptr_util.h"
+#include "base/strings/string_split.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/element.h"
 
@@ -47,8 +49,9 @@ RelevantMutationsBitset GetRelevantMutations(
   std::string aria_relevant_attribute =
       element->GetAttribute(base::Tokens::aria_relevant().c_str())
           .value_or(kDefaultAriaRelevantValue);
-  std::vector<std::string> tokens;
-  base::SplitStringAlongWhitespace(aria_relevant_attribute, &tokens);
+  std::vector<std::string> tokens =
+      base::SplitString(aria_relevant_attribute, base::kWhitespaceASCII,
+                        base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   for (size_t i = 0; i < tokens.size(); ++i) {
     if (tokens[i] == base::Tokens::additions()) {
       bitset.set(LiveRegion::kMutationTypeAddition);
@@ -68,20 +71,20 @@ RelevantMutationsBitset GetRelevantMutations(
 }  // namespace
 
 // static
-scoped_ptr<LiveRegion> LiveRegion::GetLiveRegionForNode(
+std::unique_ptr<LiveRegion> LiveRegion::GetLiveRegionForNode(
     const scoped_refptr<dom::Node>& node) {
   if (!node) {
-    return make_scoped_ptr<LiveRegion>(NULL);
+    return std::unique_ptr<LiveRegion>(nullptr);
   }
   scoped_refptr<dom::Element> element = node->AsElement();
   if (element && HasValidLiveRegionProperty(element)) {
-    return make_scoped_ptr(new LiveRegion(element));
+    return base::WrapUnique(new LiveRegion(element));
   }
   return GetLiveRegionForNode(node->parent_node());
 }
 
 bool LiveRegion::IsAssertive() const {
-  base::optional<std::string> aria_live_attribute =
+  base::Optional<std::string> aria_live_attribute =
       root_->GetAttribute(base::Tokens::aria_live().c_str());
   if (!aria_live_attribute) {
     NOTREACHED();
@@ -106,7 +109,7 @@ bool LiveRegion::IsAtomic(const scoped_refptr<dom::Node>& node) const {
     // Search ancestors of the changed element to determine if this change is
     // atomic or not, per the algorithm described in the spec.
     // https://www.w3.org/TR/wai-aria/states_and_properties#aria-atomic
-    base::optional<std::string> aria_atomic_attribute =
+    base::Optional<std::string> aria_atomic_attribute =
         element->GetAttribute(base::Tokens::aria_atomic().c_str());
     if (aria_atomic_attribute) {
       if (*aria_atomic_attribute == base::Tokens::true_token()) {

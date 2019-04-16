@@ -15,9 +15,10 @@
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 
 #include <algorithm>
+#include <memory>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 
 namespace cobalt {
 namespace renderer {
@@ -32,17 +33,18 @@ DrawObjectManager::DrawObjectManager(
       current_draw_id_(0) {}
 
 uint32_t DrawObjectManager::AddBatchedExternalDraw(
-    scoped_ptr<DrawObject> draw_object, base::TypeId draw_type,
+    std::unique_ptr<DrawObject> draw_object, base::TypeId draw_type,
     const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
-  external_offscreen_draws_.emplace_back(draw_object.Pass(), draw_type,
-      kBlendExternal, render_target, draw_bounds, ++current_draw_id_);
+  external_offscreen_draws_.emplace_back(std::move(draw_object), draw_type,
+                                         kBlendExternal, render_target,
+                                         draw_bounds, ++current_draw_id_);
   return current_draw_id_;
 }
 
-uint32_t DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
-    BlendType blend_type, base::TypeId draw_type,
-    const backend::RenderTarget* render_target,
+uint32_t DrawObjectManager::AddOnscreenDraw(
+    std::unique_ptr<DrawObject> draw_object, BlendType blend_type,
+    base::TypeId draw_type, const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
   // See if this draw object can be merged with the last one.
   if (!onscreen_draws_.empty()) {
@@ -59,14 +61,14 @@ uint32_t DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
     }
   }
 
-  onscreen_draws_.emplace_back(draw_object.Pass(), draw_type, blend_type,
-      render_target, draw_bounds, ++current_draw_id_);
+  onscreen_draws_.emplace_back(std::move(draw_object), draw_type, blend_type,
+                               render_target, draw_bounds, ++current_draw_id_);
   return current_draw_id_;
 }
 
-uint32_t DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
-    BlendType blend_type, base::TypeId draw_type,
-    const backend::RenderTarget* render_target,
+uint32_t DrawObjectManager::AddOffscreenDraw(
+    std::unique_ptr<DrawObject> draw_object, BlendType blend_type,
+    base::TypeId draw_type, const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
   // See if this draw object can be merged with the last one.
   if (!offscreen_draws_.empty()) {
@@ -83,8 +85,8 @@ uint32_t DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
     }
   }
 
-  offscreen_draws_.emplace_back(draw_object.Pass(), draw_type, blend_type,
-      render_target, draw_bounds, ++current_draw_id_);
+  offscreen_draws_.emplace_back(std::move(draw_object), draw_type, blend_type,
+                                render_target, draw_bounds, ++current_draw_id_);
   return current_draw_id_;
 }
 
@@ -96,7 +98,7 @@ void DrawObjectManager::RemoveDraws(uint32_t last_valid_draw_id) {
 }
 
 void DrawObjectManager::RemoveDraws(DrawList* draw_list,
-    uint32_t last_valid_draw_id) {
+                                    uint32_t last_valid_draw_id) {
   // Objects in the draw list should have ascending draw IDs at this point.
   auto iter = draw_list->end();
   for (; iter != draw_list->begin(); --iter) {
@@ -145,8 +147,8 @@ void DrawObjectManager::AddRenderTargetDependency(
   }
 }
 
-void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+void DrawObjectManager::ExecuteOffscreenRasterize(
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   SortOffscreenDraws(&external_offscreen_draws_,
                      &sorted_external_offscreen_draws_);
 
@@ -185,23 +187,24 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
 void DrawObjectManager::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   for (const DrawInfo* draw : sorted_offscreen_draws_) {
-    draw->draw_object->ExecuteUpdateVertexBuffer(
-        graphics_state, program_manager);
+    draw->draw_object->ExecuteUpdateVertexBuffer(graphics_state,
+                                                 program_manager);
   }
   for (const DrawInfo* draw : sorted_onscreen_draws_) {
-    draw->draw_object->ExecuteUpdateVertexBuffer(
-        graphics_state, program_manager);
+    draw->draw_object->ExecuteUpdateVertexBuffer(graphics_state,
+                                                 program_manager);
   }
   graphics_state->UpdateVertexBuffers();
 }
 
-void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+void DrawObjectManager::ExecuteOnscreenRasterize(
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   Rasterize(sorted_onscreen_draws_, graphics_state, program_manager);
 }
 
 void DrawObjectManager::Rasterize(const SortedDrawList& sorted_draw_list,
-    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+                                  GraphicsState* graphics_state,
+                                  ShaderProgramManager* program_manager) {
   const backend::RenderTarget* current_target = nullptr;
   bool using_native_rasterizer = true;
 
@@ -221,8 +224,7 @@ void DrawObjectManager::Rasterize(const SortedDrawList& sorted_draw_list,
       if (draw->render_target != current_target) {
         current_target = draw->render_target;
         graphics_state->BindFramebuffer(current_target);
-        graphics_state->Viewport(0, 0,
-                                 current_target->GetSize().width(),
+        graphics_state->Viewport(0, 0, current_target->GetSize().width(),
                                  current_target->GetSize().height());
       }
 
@@ -249,7 +251,7 @@ void DrawObjectManager::Rasterize(const SortedDrawList& sorted_draw_list,
 }
 
 void DrawObjectManager::SortOffscreenDraws(DrawList* draw_list,
-    SortedDrawList* sorted_draw_list) {
+                                           SortedDrawList* sorted_draw_list) {
   TRACE_EVENT0("cobalt::renderer", "SortOffscreenDraws");
 
   // Sort offscreen draws to minimize GPU state changes.
@@ -257,7 +259,8 @@ void DrawObjectManager::SortOffscreenDraws(DrawList* draw_list,
   for (size_t draw_pos = 0; draw_pos < draw_list->size(); ++draw_pos) {
     auto* draw = &draw_list->at(draw_pos);
     bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
-    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list->size() &&
+    bool next_uses_native_rasterizer =
+        draw_pos + 1 < draw_list->size() &&
         draw_list->at(draw_pos + 1).blend_type != kBlendExternal;
     auto dependencies =
         dependency_count_.find(draw->render_target->GetSerialNumber());
@@ -319,7 +322,7 @@ void DrawObjectManager::SortOffscreenDraws(DrawList* draw_list,
 }
 
 void DrawObjectManager::SortOnscreenDraws(DrawList* draw_list,
-    SortedDrawList* sorted_draw_list) {
+                                          SortedDrawList* sorted_draw_list) {
   TRACE_EVENT0("cobalt::renderer", "SortOnscreenDraws");
 
   // Sort onscreen draws to minimize GPU state changes.
@@ -327,7 +330,8 @@ void DrawObjectManager::SortOnscreenDraws(DrawList* draw_list,
   for (size_t draw_pos = 0; draw_pos < draw_list->size(); ++draw_pos) {
     auto* draw = &draw_list->at(draw_pos);
     bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
-    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list->size() &&
+    bool next_uses_native_rasterizer =
+        draw_pos + 1 < draw_list->size() &&
         draw_list->at(draw_pos + 1).blend_type != kBlendExternal;
 
     // Find an appropriate sort position for the current draw.

@@ -10,8 +10,8 @@
 
 #include "base/basictypes.h"
 #include "base/memory/aligned_memory.h"
-#include "base/string_number_conversions.h"
 #include "base/stringize_macros.h"
+#include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/vector_math.h"
 #include "cobalt/media/base/vector_math_testing.h"

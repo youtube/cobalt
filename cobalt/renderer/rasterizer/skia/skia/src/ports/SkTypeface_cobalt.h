@@ -15,10 +15,12 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKTYPEFACE_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKTYPEFACE_COBALT_H_
 
-#include "base/memory/ref_counted.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
+#include <memory>
+
 #include "SkStream.h"
 #include "SkString.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "third_party/skia/src/ports/SkFontHost_FreeType_common.h"
 
 class SkFontMgr_Cobalt;
@@ -58,7 +60,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  private:
   typedef SkTypeface_Cobalt INHERITED;
 
-  scoped_ptr<SkStreamAsset> stream_;
+  std::unique_ptr<SkStreamAsset> stream_;
 };
 
 class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {

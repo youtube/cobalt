@@ -15,9 +15,9 @@
 #ifndef COBALT_DEBUG_BACKEND_PAGE_AGENT_H_
 #define COBALT_DEBUG_BACKEND_PAGE_AGENT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
@@ -35,7 +35,7 @@ namespace backend {
 class PageAgent {
  public:
   PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
-            scoped_ptr<RenderLayer> render_layer,
+            std::unique_ptr<RenderLayer> render_layer,
             render_tree::ResourceProvider* resource_provider);
 
   void Thaw(JSONObject agent_state);
@@ -49,7 +49,7 @@ class PageAgent {
   void SetOverlayMessage(const Command& command);
 
   dom::Window* window_;
-  scoped_ptr<RenderLayer> render_layer_;
+  std::unique_ptr<RenderLayer> render_layer_;
   render_tree::ResourceProvider* resource_provider_;
 
   DebugDispatcher* dispatcher_;

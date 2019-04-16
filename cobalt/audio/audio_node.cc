@@ -101,8 +101,8 @@ void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
   // TODO: Detect if there is a cycle when connecting an AudioNode to
   // another AudioNode. A cycle is allowed only if there is at least one
   // DelayNode in the cycle or a NOT_SUPPORTED_ERR exception MUST be thrown.
-  AudioNodeInput* input_node = destination->inputs_[input];
-  AudioNodeOutput* output_node = outputs_[output];
+  AudioNodeInput* input_node = destination->inputs_[input].get();
+  AudioNodeOutput* output_node = outputs_[output].get();
 
   DCHECK(input_node);
   DCHECK(output_node);

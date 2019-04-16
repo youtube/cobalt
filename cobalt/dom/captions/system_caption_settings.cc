@@ -63,23 +63,18 @@ CaptionColor ToCobaltCaptionColor(SbAccessibilityCaptionColor color) {
 }
 
 CaptionCharacterEdgeStyle ToCobaltCaptionCharacterEdgeStyle(
-  SbAccessibilityCaptionCharacterEdgeStyle style) {
+    SbAccessibilityCaptionCharacterEdgeStyle style) {
   switch (style) {
     case kSbAccessibilityCaptionCharacterEdgeStyleNone:
-      return CaptionCharacterEdgeStyle::
-              kCaptionCharacterEdgeStyleNone;
+      return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleNone;
     case kSbAccessibilityCaptionCharacterEdgeStyleRaised:
-      return CaptionCharacterEdgeStyle::
-              kCaptionCharacterEdgeStyleRaised;
+      return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleRaised;
     case kSbAccessibilityCaptionCharacterEdgeStyleDepressed:
-      return CaptionCharacterEdgeStyle::
-              kCaptionCharacterEdgeStyleDepressed;
+      return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleDepressed;
     case kSbAccessibilityCaptionCharacterEdgeStyleUniform:
-      return CaptionCharacterEdgeStyle::
-              kCaptionCharacterEdgeStyleUniform;
+      return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleUniform;
     case kSbAccessibilityCaptionCharacterEdgeStyleDropShadow:
-      return CaptionCharacterEdgeStyle::
-              kCaptionCharacterEdgeStyleDropShadow;
+      return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleDropShadow;
     default:
       NOTREACHED() << "Invalid character edge style conversion";
       return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleNone;
@@ -109,8 +104,7 @@ CaptionFontFamily ToCobaltCaptionFontFamily(
   }
 }
 
-CaptionFontSizePercentage ToCobaltCaptionFontSizePercentage(
-    int font_size) {
+CaptionFontSizePercentage ToCobaltCaptionFontSizePercentage(int font_size) {
   switch (font_size) {
     case kSbAccessibilityCaptionFontSizePercentage25:
       return CaptionFontSizePercentage::kCaptionFontSizePercentage25;
@@ -143,7 +137,7 @@ CaptionFontSizePercentage ToCobaltCaptionFontSizePercentage(
 }
 
 CaptionOpacityPercentage ToCobaltCaptionOpacityPercentage(
-  SbAccessibilityCaptionOpacityPercentage opacity) {
+    SbAccessibilityCaptionOpacityPercentage opacity) {
   switch (opacity) {
     case kSbAccessibilityCaptionOpacityPercentage0:
       return CaptionOpacityPercentage::kCaptionOpacityPercentage0;
@@ -182,11 +176,12 @@ CaptionState ToCobaltCaptionState(SbAccessibilityCaptionState state) {
 #endif  // SB_HAS(CAPTIONS)
 
 void SystemCaptionSettings::OnCaptionSettingsChanged() {
-  DispatchEventNameAndRunCallback(base::Tokens::change(),
-                                  base::Closure(base::Bind(base::DoNothing)));
+  DispatchEventNameAndRunCallback(
+      base::Tokens::change(),
+      base::Closure(base::Bind([]() {} /*Do nothing*/)));
 }
 
-base::optional<std::string> SystemCaptionSettings::background_color() {
+base::Optional<std::string> SystemCaptionSettings::background_color() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -223,8 +218,7 @@ CaptionState SystemCaptionSettings::background_color_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string>
-SystemCaptionSettings::background_opacity() {
+base::Optional<std::string> SystemCaptionSettings::background_opacity() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -234,9 +228,8 @@ SystemCaptionSettings::background_opacity() {
     return base::nullopt;
   }
 
-  const char* opacity =
-    SystemCaptionSettings::CaptionOpacityPercentageToString(
-        ToCobaltCaptionOpacityPercentage(caption_settings.background_opacity));
+  const char* opacity = SystemCaptionSettings::CaptionOpacityPercentageToString(
+      ToCobaltCaptionOpacityPercentage(caption_settings.background_opacity));
   if (opacity == nullptr) {
     return base::nullopt;
   } else {
@@ -262,8 +255,7 @@ CaptionState SystemCaptionSettings::background_opacity_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string>
-SystemCaptionSettings::character_edge_style() {
+base::Optional<std::string> SystemCaptionSettings::character_edge_style() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -274,9 +266,9 @@ SystemCaptionSettings::character_edge_style() {
   }
 
   const char* character_edge_style =
-    SystemCaptionSettings::CaptionCharacterEdgeStyleToString(
-        ToCobaltCaptionCharacterEdgeStyle(
-            caption_settings.character_edge_style));
+      SystemCaptionSettings::CaptionCharacterEdgeStyleToString(
+          ToCobaltCaptionCharacterEdgeStyle(
+              caption_settings.character_edge_style));
   if (character_edge_style == nullptr) {
     return base::nullopt;
   } else {
@@ -293,8 +285,7 @@ CaptionState SystemCaptionSettings::character_edge_style_state() {
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
   if (success) {
-    return ToCobaltCaptionState(
-        caption_settings.character_edge_style_state);
+    return ToCobaltCaptionState(caption_settings.character_edge_style_state);
   } else {
     return CaptionState::kCaptionStateUnsupported;
   }
@@ -303,7 +294,7 @@ CaptionState SystemCaptionSettings::character_edge_style_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string> SystemCaptionSettings::font_color() {
+base::Optional<std::string> SystemCaptionSettings::font_color() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -340,7 +331,7 @@ CaptionState SystemCaptionSettings::font_color_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string> SystemCaptionSettings::font_family() {
+base::Optional<std::string> SystemCaptionSettings::font_family() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -350,9 +341,8 @@ base::optional<std::string> SystemCaptionSettings::font_family() {
     return base::nullopt;
   }
 
-  const char* font_family =
-    SystemCaptionSettings::CaptionFontFamilyToString(
-        ToCobaltCaptionFontFamily(caption_settings.font_family));
+  const char* font_family = SystemCaptionSettings::CaptionFontFamilyToString(
+      ToCobaltCaptionFontFamily(caption_settings.font_family));
   if (font_family == nullptr) {
     return base::nullopt;
   } else {
@@ -378,7 +368,7 @@ CaptionState SystemCaptionSettings::font_family_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string> SystemCaptionSettings::font_opacity() {
+base::Optional<std::string> SystemCaptionSettings::font_opacity() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -388,9 +378,8 @@ base::optional<std::string> SystemCaptionSettings::font_opacity() {
     return base::nullopt;
   }
 
-  const char* opacity =
-    SystemCaptionSettings::CaptionOpacityPercentageToString(
-        ToCobaltCaptionOpacityPercentage(caption_settings.font_opacity));
+  const char* opacity = SystemCaptionSettings::CaptionOpacityPercentageToString(
+      ToCobaltCaptionOpacityPercentage(caption_settings.font_opacity));
   if (opacity == nullptr) {
     return base::nullopt;
   } else {
@@ -416,7 +405,7 @@ CaptionState SystemCaptionSettings::font_opacity_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string> SystemCaptionSettings::font_size() {
+base::Optional<std::string> SystemCaptionSettings::font_size() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -427,8 +416,8 @@ base::optional<std::string> SystemCaptionSettings::font_size() {
   }
 
   const char* font_size =
-    SystemCaptionSettings::CaptionFontSizePercentageToString(
-        ToCobaltCaptionFontSizePercentage(caption_settings.font_size));
+      SystemCaptionSettings::CaptionFontSizePercentageToString(
+          ToCobaltCaptionFontSizePercentage(caption_settings.font_size));
   if (font_size == nullptr) {
     return base::nullopt;
   } else {
@@ -454,7 +443,7 @@ CaptionState SystemCaptionSettings::font_size_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string> SystemCaptionSettings::window_color() {
+base::Optional<std::string> SystemCaptionSettings::window_color() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -491,8 +480,7 @@ CaptionState SystemCaptionSettings::window_color_state() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-base::optional<std::string>
-SystemCaptionSettings::window_opacity() {
+base::Optional<std::string> SystemCaptionSettings::window_opacity() {
 #if SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
@@ -502,9 +490,8 @@ SystemCaptionSettings::window_opacity() {
     return base::nullopt;
   }
 
-  const char* opacity =
-    SystemCaptionSettings::CaptionOpacityPercentageToString(
-        ToCobaltCaptionOpacityPercentage(caption_settings.window_opacity));
+  const char* opacity = SystemCaptionSettings::CaptionOpacityPercentageToString(
+      ToCobaltCaptionOpacityPercentage(caption_settings.window_opacity));
   if (opacity == nullptr) {
     return base::nullopt;
   } else {
@@ -544,7 +531,7 @@ bool SystemCaptionSettings::is_enabled() {
 }
 
 void SystemCaptionSettings::set_is_enabled(bool active) {
-  UNREFERENCED_PARAMETER(active);
+  SB_UNREFERENCED_PARAMETER(active);
 }
 
 bool SystemCaptionSettings::supports_is_enabled() {
@@ -586,8 +573,8 @@ bool SystemCaptionSettings::supports_override() {
 #endif  // SB_HAS(CAPTIONS)
 }
 
-const EventTarget::EventListenerScriptValue*
-SystemCaptionSettings::onchanged() const {
+const EventTarget::EventListenerScriptValue* SystemCaptionSettings::onchanged()
+    const {
   return EventTarget::GetAttributeEventListener(base::Tokens::change());
 }
 

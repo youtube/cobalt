@@ -23,6 +23,8 @@
       'sources': [
         'blob_fetcher.cc',
         'blob_fetcher.h',
+        'cobalt_url_fetcher_string_writer.cc',
+        'cobalt_url_fetcher_string_writer.h',
         'cache_fetcher.cc',
         'cache_fetcher.h',
         'cors_preflight.cc',
@@ -102,7 +104,7 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/test/jpeg_utils/jpeg_utils.gyp:jpeg_utils',
         '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/url/url.gyp:url',
         '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp',

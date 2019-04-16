@@ -22,7 +22,7 @@
 
 namespace base {
 
-// A Singleton that stores the localized string table used by the app.
+// A base::Singleton that stores the localized string table used by the app.
 class LocalizedStrings {
  public:
   static LocalizedStrings* GetInstance();
@@ -36,7 +36,7 @@ class LocalizedStrings {
  private:
   typedef std::map<std::string, std::string> StringMap;
 
-  friend struct DefaultSingletonTraits<LocalizedStrings>;
+  friend struct base::DefaultSingletonTraits<LocalizedStrings>;
 
   LocalizedStrings();
   ~LocalizedStrings();

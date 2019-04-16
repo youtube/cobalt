@@ -15,9 +15,9 @@
 #ifndef COBALT_SSO_SSO_INTERFACE_H_
 #define COBALT_SSO_SSO_INTERFACE_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace sso {
@@ -34,7 +34,7 @@ class SsoInterface {
 
 // Porters should implement this function in the |starboard|
 // directory, and link the definition inside cobalt.
-scoped_ptr<SsoInterface> CreateSSO();
+std::unique_ptr<SsoInterface> CreateSSO();
 
 }  // namespace sso
 }  // namespace cobalt

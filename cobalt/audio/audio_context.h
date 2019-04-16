@@ -15,12 +15,12 @@
 #ifndef COBALT_AUDIO_AUDIO_CONTEXT_H_
 #define COBALT_AUDIO_AUDIO_CONTEXT_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
 #include "base/callback.h"
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
@@ -177,7 +177,7 @@ class AudioContext : public dom::EventTarget {
     script::EnvironmentSettings* env_settings;
     script::ScriptValue<script::ArrayBuffer>::Reference audio_data_reference;
     DecodeSuccessCallbackReference success_callback;
-    base::optional<DecodeErrorCallbackReference> error_callback;
+    base::Optional<DecodeErrorCallbackReference> error_callback;
   };
 
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
@@ -188,9 +188,9 @@ class AudioContext : public dom::EventTarget {
   // From EventTarget.
   std::string GetDebugName() override { return "AudioContext"; }
 
-  void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
+  void DecodeAudioDataInternal(std::unique_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate,
-                    scoped_ptr<ShellAudioBus> audio_bus);
+                    std::unique_ptr<ShellAudioBus> audio_bus);
 
   script::GlobalEnvironment* global_environment_;
 
@@ -213,7 +213,7 @@ class AudioContext : public dom::EventTarget {
   DecodeCallbacks pending_decode_callbacks_;
 
   // The main message loop.
-  scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> const main_message_loop_;
 
   AsyncAudioDecoder audio_decoder_;
 

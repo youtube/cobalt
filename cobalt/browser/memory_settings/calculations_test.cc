@@ -179,8 +179,7 @@ TEST(MemoryCalculations, CalculateSoftwareSurfaceCacheSizeInBytes) {
 
 TEST(MemoryCalculations, CalculateMiscCobaltGpuSize) {
   math::Size ui_resolution = GetDimensions(k1080p);
-  EXPECT_EQ(24 * 1024 * 1024,
-            CalculateMiscCobaltGpuSize(ui_resolution));
+  EXPECT_EQ(24 * 1024 * 1024, CalculateMiscCobaltGpuSize(ui_resolution));
 }
 
 }  // namespace memory_settings

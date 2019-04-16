@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/cascaded_style.h"
 
 #include "cobalt/css_parser/parser.h"
@@ -23,14 +25,14 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
-#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace cssom {
 
 TEST(CascadedStyleTest, PromoteToCascadedStyle) {
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
   GURLMap property_key_to_base_url_map;
@@ -110,7 +112,7 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
 }
 
 TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
   GURLMap property_key_to_base_url_map;
@@ -167,7 +169,7 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
 
 TEST(CascadedStyleTest,
      PromoteToCascadedStyleWithParentStyleSheetLocationUnset) {
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
   GURLMap property_key_to_base_url_map;
@@ -210,7 +212,7 @@ TEST(CascadedStyleTest,
 
 TEST(CascadedStyleTest,
      PromoteToCascadedStyleWithHigherBackgroundImagePriorityInFirstRule) {
-  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
   GURLMap property_key_to_base_url_map;

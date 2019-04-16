@@ -15,8 +15,9 @@
 #ifndef COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
 #define COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/render_target.h"
 
@@ -68,7 +69,7 @@ class GraphicsContext {
   // The pixel format of the returned data is always RGBA8, in that order.
   // Each pixel is 4 bytes.  The output alpha format is always premultiplied
   // alpha.
-  virtual scoped_array<uint8_t> DownloadPixelDataAsRGBA(
+  virtual std::unique_ptr<uint8_t[]> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) = 0;
 
   // Waits until all drawing is finished.

@@ -18,7 +18,8 @@
 #include <vector>
 
 #include "base/path_service.h"
-#include "net/base/net_util.h"
+#include "net/base/filename_util.h"
+#include "net/base/url_util.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
@@ -39,23 +40,23 @@ bool IsFormat(const std::string& path_or_url, const std::string& format) {
          path_or_url.substr(path_or_url.size() - format.size()) == format;
 }
 
-FilePath ResolvePath(const std::string& path) {
-  FilePath result(path);
+base::FilePath ResolvePath(const std::string& path) {
+  base::FilePath result(path);
   if (!result.IsAbsolute()) {
-    FilePath content_path;
-    PathService::Get(base::DIR_TEST_DATA, &content_path);
+    base::FilePath content_path;
+    base::PathService::Get(base::DIR_TEST_DATA, &content_path);
     CHECK(content_path.IsAbsolute());
     result = content_path.Append(result);
   }
   if (SbFileCanOpen(result.value().c_str(), kSbFileOpenOnly | kSbFileRead)) {
     return result;
   }
-  return FilePath();
+  return base::FilePath();
 }
 
 // Read the first 4096 bytes of the local file specified by |path|.  If the size
 // of the size is less than 4096 bytes, the function reads all of its content.
-std::vector<uint8_t> ReadHeader(const FilePath& path) {
+std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
   const int64_t kHeaderSize = 4096;
 
   starboard::ScopedFile file(path.value().c_str(),
@@ -91,7 +92,7 @@ FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url) {
     InitializeAsProgressive(url);
     return;
   }
-  FilePath path = ResolvePath(path_or_url);
+  base::FilePath path = ResolvePath(path_or_url);
   if (path.empty() || !SbFileCanOpen(path.value().c_str(), kSbFileRead)) {
     return;
   }
@@ -112,7 +113,7 @@ void FormatGuesstimator::InitializeAsProgressive(const GURL& url) {
   codecs_ = "avc1.640028, mp4a.40.2";
 }
 
-void FormatGuesstimator::InitializeAsMp4(const FilePath& path) {
+void FormatGuesstimator::InitializeAsMp4(const base::FilePath& path) {
   std::vector<uint8_t> header = ReadHeader(path);
   if (FindString(header, "ftypmp") == 4) {
     progressive_url_ = net::FilePathToFileURL(path);
@@ -137,7 +138,7 @@ void FormatGuesstimator::InitializeAsMp4(const FilePath& path) {
   }
 }
 
-void FormatGuesstimator::InitializeAsWebM(const FilePath& path) {
+void FormatGuesstimator::InitializeAsWebM(const base::FilePath& path) {
   std::vector<uint8_t> header = ReadHeader(path);
   adaptive_path_ = path;
   if (FindString(header, "OpusHead") != -1) {

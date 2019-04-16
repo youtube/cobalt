@@ -15,13 +15,14 @@
 #ifndef COBALT_BROWSER_WEB_MODULE_H_
 #define COBALT_BROWSER_WEB_MODULE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/file_path.h"
-#include "base/hash_tables.h"
-#include "base/message_loop.h"
+#include "base/containers/hash_tables.h"
+#include "base/files/file_path.h"
+#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
@@ -59,7 +60,7 @@
 #include "cobalt/script/script_runner.h"
 #include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/webdriver/session_driver.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/backend/debug_dispatcher.h"
@@ -114,7 +115,7 @@ class WebModule : public LifecycleObserver {
     layout::LayoutManager::LayoutTrigger layout_trigger;
 
     // Optional directory to add to the search path for web files (file://).
-    FilePath extra_web_file_dir;
+    base::FilePath extra_web_file_dir;
 
     // The navigation_callback functor will be called when JavaScript internal
     // to the WebModule requests a page navigation, e.g. by modifying
@@ -164,19 +165,19 @@ class WebModule : public LifecycleObserver {
 
     // Specifies the priority of the web module's thread.  This is the thread
     // that is responsible for executing JavaScript, managing the DOM, and
-    // performing layouts.  The default value is base::kThreadPriority_Normal.
+    // performing layouts.  The default value is base::ThreadPriority::NORMAL.
     base::ThreadPriority thread_priority;
 
     // Specifies the priority that the web module's corresponding loader thread
     // will be assigned.  This is the thread responsible for performing resource
     // decoding, such as image decoding.  The default value is
-    // base::kThreadPriority_Low.
+    // base::ThreadPriority::BACKGROUND.
     base::ThreadPriority loader_thread_priority;
 
     // Specifies the priority tha the web module's animated image decoding
     // thread will be assigned. This thread is responsible for decoding,
     // blending and constructing individual frames from animated images. The
-    // default value is base::kThreadPriority_Low.
+    // default value is base::ThreadPriority::BACKGROUND.
     base::ThreadPriority animated_image_decode_thread_priority;
 
     // To support 3D camera movements.
@@ -331,7 +332,7 @@ class WebModule : public LifecycleObserver {
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
   // is owned by this WebModule instance.
-  scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
+  std::unique_ptr<webdriver::WindowDriver> CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id);
 #endif
 
@@ -443,7 +444,7 @@ class WebModule : public LifecycleObserver {
 
   // Destruction observer used to safely tear down this WebModule after the
   // thread has been stopped.
-  class DestructionObserver : public MessageLoop::DestructionObserver {
+  class DestructionObserver : public base::MessageLoop::DestructionObserver {
    public:
     explicit DestructionObserver(WebModule* web_module);
     void WillDestroyCurrentMessageLoop() override;
@@ -461,10 +462,10 @@ class WebModule : public LifecycleObserver {
   void CancelSynchronousLoads();
 
   // The message loop this object is running on.
-  MessageLoop* message_loop() const { return thread_.message_loop(); }
+  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
 
   // Private implementation object.
-  scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 
   // The thread created and owned by this WebModule.
   // All sub-objects of this object are created on this thread, and all public

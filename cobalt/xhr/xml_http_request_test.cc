@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/xhr/xml_http_request.h"
 
 #include "base/logging.h"
@@ -74,10 +76,10 @@ class ScopedLogInterceptor {
 
   static bool LogHandler(int severity, const char* file, int line,
                          size_t message_start, const std::string& str) {
-    UNREFERENCED_PARAMETER(severity);
-    UNREFERENCED_PARAMETER(file);
-    UNREFERENCED_PARAMETER(line);
-    UNREFERENCED_PARAMETER(message_start);
+    SB_UNREFERENCED_PARAMETER(severity);
+    SB_UNREFERENCED_PARAMETER(file);
+    SB_UNREFERENCED_PARAMETER(line);
+    SB_UNREFERENCED_PARAMETER(message_start);
     *log_interceptor_->output_ += str;
     return true;
   }
@@ -132,7 +134,7 @@ class XhrTest : public ::testing::Test {
   XhrTest();
   ~XhrTest() override;
 
-  scoped_ptr<FakeSettings> settings_;
+  std::unique_ptr<FakeSettings> settings_;
   scoped_refptr<XMLHttpRequest> xhr_;
   StrictMock<MockExceptionState> exception_state_;
 };
@@ -152,7 +154,7 @@ TEST_F(XhrTest, InvalidMethod) {
 }
 
 TEST_F(XhrTest, Open) {
-  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
   FakeScriptValue<EventListener> script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
   EXPECT_CALL(

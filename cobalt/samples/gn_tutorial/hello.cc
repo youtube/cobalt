@@ -6,9 +6,7 @@
 
 #include <stdio.h>
 
-void Hello(const char* who) {
-  printf("Hello, %s.\n", who);
-}
+void Hello(const char* who) { printf("Hello, %s.\n", who); }
 
 #if defined(TWO_PEOPLE)
 void Hello(const char* one, const char* two) {

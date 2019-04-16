@@ -18,13 +18,14 @@
 #include <string>
 
 #include "base/optional.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
+#include "url/url_canon.h"
 
 namespace base {
 
 // Returns a filesystem-safe key that corresponds to the application whose start
 // URL is |url|. Returns nullopt if |url| is not a valid URL.
-optional<std::string> GetApplicationKey(const GURL& url);
+Optional<std::string> GetApplicationKey(const GURL& url);
 
 }  // namespace base
 

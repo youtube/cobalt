@@ -9,7 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "starboard/memory.h"

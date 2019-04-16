@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/document.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -60,8 +62,9 @@ class DocumentTest : public ::testing::Test {
   DocumentTest();
   ~DocumentTest() override;
 
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<DomStatTracker> dom_stat_tracker_;
+  base::MessageLoop message_loop_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
 };
 
@@ -104,7 +107,7 @@ TEST_F(DocumentTest, IsNotXMLDocument) {
 
 TEST_F(DocumentTest, DocumentElement) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
-  EXPECT_EQ(NULL, document->document_element());
+  EXPECT_EQ(NULL, document->document_element().get());
 
   scoped_refptr<Text> text = new Text(document, "test_text");
   scoped_refptr<Element> element =
@@ -300,7 +303,7 @@ TEST_F(DocumentTest, GetElementById) {
   scoped_refptr<Node> d1 =
       a2->AppendChild(new Element(document, base::Token("d1")));
 
-  EXPECT_EQ(NULL, document->GetElementById("id"));
+  EXPECT_EQ(NULL, document->GetElementById("id").get());
 
   d1->AsElement()->set_id("id");
   EXPECT_EQ(d1, document->GetElementById("id"));

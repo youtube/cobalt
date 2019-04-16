@@ -260,7 +260,7 @@ bool TextBox::TrySplitAtSecondBidiLevelRun() {
   }
 }
 
-base::optional<int> TextBox::GetBidiLevel() const {
+base::Optional<int> TextBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_start_position_);
 }
 

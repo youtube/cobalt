@@ -5,11 +5,11 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
 #define COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
@@ -86,7 +86,7 @@ class MEDIA_EXPORT TrackRunIterator {
 
   // Only call when is_encrypted() is true and AuxInfoNeedsToBeCached() is
   // false. Result is owned by caller.
-  scoped_ptr<DecryptConfig> GetDecryptConfig();
+  std::unique_ptr<DecryptConfig> GetDecryptConfig();
 
  private:
   void ResetRun();

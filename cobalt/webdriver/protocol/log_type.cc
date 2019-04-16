@@ -18,7 +18,7 @@ namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
-base::optional<LogType> LogType::FromValue(const base::Value* value) {
+base::Optional<LogType> LogType::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   std::string type;
   if (value->GetAsDictionary(&dictionary_value) &&

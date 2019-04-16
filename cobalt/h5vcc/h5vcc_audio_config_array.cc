@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccAudioConfigArray::H5vccAudioConfigArray() : audio_config_updated_(false) {}
+H5vccAudioConfigArray::H5vccAudioConfigArray() {}
 
 void H5vccAudioConfigArray::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(audio_configs_);

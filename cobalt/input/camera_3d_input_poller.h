@@ -20,6 +20,7 @@
 #include <map>
 #include <utility>
 
+#include "base/basictypes.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/input/camera_3d.h"
@@ -76,7 +77,7 @@ class Camera3DInputPoller : public Camera3D {
   float yaw_in_radians_;
 
   // The time that the last update to the camera's state has occurred.
-  base::optional<base::TimeTicks> last_update_;
+  base::Optional<base::TimeTicks> last_update_;
 
   // A map of keys bound to camera movements.
   KeycodeMap keycode_map_;

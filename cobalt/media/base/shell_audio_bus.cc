@@ -34,9 +34,9 @@ inline void ConvertSample(ShellAudioBus::SampleType src_type,
                           ShellAudioBus::SampleType dest_type,
                           uint8* dest_ptr) {
   if (src_type == dest_type) {
-    SbMemoryCopy(dest_ptr, src_ptr, src_type == ShellAudioBus::kInt16
-                                        ? sizeof(int16)
-                                        : sizeof(float));
+    SbMemoryCopy(
+        dest_ptr, src_ptr,
+        src_type == ShellAudioBus::kInt16 ? sizeof(int16) : sizeof(float));
   } else if (src_type == ShellAudioBus::kFloat32) {
     float sample_in_float = *reinterpret_cast<const float*>(src_ptr);
     int32 sample_in_int32 =

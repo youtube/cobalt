@@ -15,6 +15,7 @@
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 
 #include <algorithm>
+#include <memory>
 #include <unordered_map>
 
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
@@ -49,9 +50,7 @@ int32_t NextPowerOf2(int32_t num) {
   return num + 1;
 }
 
-bool IsPowerOf2(int32_t num) {
-  return (num & (num - 1)) == 0;
-}
+bool IsPowerOf2(int32_t num) { return (num & (num - 1)) == 0; }
 
 size_t GetMemorySize(const math::Size& target_size) {
   // RGBA uses 4 bytes per pixel. Assume no rounding to the nearest power of 2.
@@ -62,9 +61,7 @@ size_t GetMemorySize(const math::Size& target_size) {
 
 struct OffscreenTargetManager::OffscreenAtlas {
   explicit OffscreenAtlas(const math::Size& size)
-      : allocator(size),
-        allocations_used(0),
-        needs_flush(false) {}
+      : allocator(size), allocations_used(0), needs_flush(false) {}
 
   RectAllocator allocator;
   AllocationMap allocation_map;
@@ -82,11 +79,9 @@ OffscreenTargetManager::OffscreenTargetManager(
       create_fallback_surface_(create_fallback_surface),
       offscreen_target_size_mask_(0, 0),
       memory_limit_(memory_limit),
-      cache_error_threshold_(1.0f) {
-}
+      cache_error_threshold_(1.0f) {}
 
-OffscreenTargetManager::~OffscreenTargetManager() {
-}
+OffscreenTargetManager::~OffscreenTargetManager() {}
 
 void OffscreenTargetManager::Update(const math::Size& frame_size) {
   if (offscreen_atlases_.empty()) {
@@ -109,10 +104,10 @@ void OffscreenTargetManager::Update(const math::Size& frame_size) {
 }
 
 void OffscreenTargetManager::SelectAtlasCache(
-    ScopedVector<OffscreenAtlas>* atlases_ptr,
-    scoped_ptr<OffscreenAtlas>* cache_ptr) {
-  ScopedVector<OffscreenAtlas>& atlases = *atlases_ptr;
-  scoped_ptr<OffscreenAtlas>& cache = *cache_ptr;
+    std::vector<std::unique_ptr<OffscreenAtlas>>* atlases_ptr,
+    std::unique_ptr<OffscreenAtlas>* cache_ptr) {
+  std::vector<std::unique_ptr<OffscreenAtlas>>& atlases = *atlases_ptr;
+  std::unique_ptr<OffscreenAtlas>& cache = *cache_ptr;
 
   // If any of the current atlases have more allocations used than the
   // current cache, then use that as the new cache.
@@ -124,18 +119,18 @@ void OffscreenTargetManager::SelectAtlasCache(
     }
   }
 
-  OffscreenAtlas* most_used_atlas = atlases[most_used_atlas_index];
+  OffscreenAtlas* most_used_atlas = atlases[most_used_atlas_index].get();
   if (cache->allocations_used < most_used_atlas->allocations_used) {
     OffscreenAtlas* new_atlas = cache.release();
-    cache.reset(atlases[most_used_atlas_index]);
-    atlases.weak_erase(atlases.begin() + most_used_atlas_index);
-    atlases.push_back(new_atlas);
+    cache = std::move(atlases[most_used_atlas_index]);
+    atlases.erase(atlases.begin() + most_used_atlas_index);
+    atlases.emplace_back(new_atlas);
   }
   cache->allocations_used = 0;
 
   // Reset all current atlases for use this frame.
   for (size_t index = 0; index < atlases.size(); ++index) {
-    OffscreenAtlas* atlas = atlases[index];
+    OffscreenAtlas* atlas = atlases[index].get();
     atlas->allocator.Reset();
     atlas->allocation_map.clear();
     atlas->allocations_used = 0;
@@ -160,8 +155,9 @@ void OffscreenTargetManager::SetCacheErrorThreshold(float threshold) {
   cache_error_threshold_ = threshold;
 }
 
-bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
-    const CacheErrorFunction& error_function, TargetInfo* out_target_info) {
+bool OffscreenTargetManager::GetCachedTarget(
+    const render_tree::Node* node, const CacheErrorFunction& error_function,
+    TargetInfo* out_target_info) {
   // Find the cache of the given node (if any) with the lowest error.
   AllocationMap::iterator best_iter = offscreen_cache_->allocation_map.end();
   float best_error = 2.0f;
@@ -187,8 +183,9 @@ bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
   return false;
 }
 
-bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
-    const CacheErrorFunction1D& error_function, TargetInfo* out_target_info) {
+bool OffscreenTargetManager::GetCachedTarget(
+    const render_tree::Node* node, const CacheErrorFunction1D& error_function,
+    TargetInfo* out_target_info) {
   // Find the cache of the given node (if any) with the lowest error.
   AllocationMap::iterator best_iter = offscreen_cache_1d_->allocation_map.end();
   float best_error = 2.0f;
@@ -214,9 +211,10 @@ bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
   return false;
 }
 
-void OffscreenTargetManager::AllocateCachedTarget(
-    const render_tree::Node* node, const math::SizeF& size,
-    const ErrorData& error_data, TargetInfo* out_target_info) {
+void OffscreenTargetManager::AllocateCachedTarget(const render_tree::Node* node,
+                                                  const math::SizeF& size,
+                                                  const ErrorData& error_data,
+                                                  TargetInfo* out_target_info) {
   // Pad the offscreen target size to prevent interpolation with unwanted
   // texels when rendering the results.
   const int kInterpolatePad = 1;
@@ -226,10 +224,10 @@ void OffscreenTargetManager::AllocateCachedTarget(
   // aligned width or height).
   math::Size target_size(
       (static_cast<int>(std::ceil(size.width())) + 2 * kInterpolatePad +
-          offscreen_target_size_mask_.width()) &
+       offscreen_target_size_mask_.width()) &
           ~offscreen_target_size_mask_.width(),
       (static_cast<int>(std::ceil(size.height())) + 2 * kInterpolatePad +
-          offscreen_target_size_mask_.height()) &
+       offscreen_target_size_mask_.height()) &
           ~offscreen_target_size_mask_.height());
   math::RectF target_rect(0.0f, 0.0f, 0.0f, 0.0f);
   OffscreenAtlas* atlas = NULL;
@@ -241,7 +239,7 @@ void OffscreenTargetManager::AllocateCachedTarget(
   if (target_rect.IsEmpty()) {
     // See if there's room in the other atlases.
     for (size_t index = offscreen_atlases_.size(); index > 0;) {
-      atlas = offscreen_atlases_[--index];
+      atlas = offscreen_atlases_[--index].get();
       target_rect = atlas->allocator.Allocate(target_size);
       if (!target_rect.IsEmpty()) {
         break;
@@ -277,9 +275,10 @@ void OffscreenTargetManager::AllocateCachedTarget(
   }
 }
 
-void OffscreenTargetManager::AllocateCachedTarget(
-    const render_tree::Node* node, float size,
-    const ErrorData1D& error_data, TargetInfo* out_target_info) {
+void OffscreenTargetManager::AllocateCachedTarget(const render_tree::Node* node,
+                                                  float size,
+                                                  const ErrorData1D& error_data,
+                                                  TargetInfo* out_target_info) {
   // 1D targets do not use any padding to avoid interpolation with neighboring
   // allocations in the atlas.
   math::Size target_size(static_cast<int>(std::ceil(size)), 1);
@@ -293,7 +292,7 @@ void OffscreenTargetManager::AllocateCachedTarget(
   if (target_rect.IsEmpty()) {
     // See if there's room in the other atlases.
     for (size_t index = offscreen_atlases_1d_.size(); index > 0;) {
-      atlas = offscreen_atlases_1d_[--index];
+      atlas = offscreen_atlases_1d_[--index].get();
       target_rect = atlas->allocator.Allocate(target_size);
       if (!target_rect.IsEmpty()) {
         break;
@@ -311,8 +310,8 @@ void OffscreenTargetManager::AllocateCachedTarget(
     target_rect.set_width(size);
 
     atlas->allocation_map.insert(AllocationMap::value_type(
-        node->GetId(), AllocationMapValue(
-            ErrorData(error_data, 1), target_rect)));
+        node->GetId(),
+        AllocationMapValue(ErrorData(error_data, 1), target_rect)));
     atlas->allocations_used += 1;
     atlas->needs_flush = false;
 
@@ -322,17 +321,16 @@ void OffscreenTargetManager::AllocateCachedTarget(
   }
 }
 
-void OffscreenTargetManager::AllocateUncachedTarget(const math::SizeF& size,
-    TargetInfo* out_target_info) {
+void OffscreenTargetManager::AllocateUncachedTarget(
+    const math::SizeF& size, TargetInfo* out_target_info) {
   // Align up the requested target size to increase the chances that it can
   // be reused in subsequent frames.
-  math::Size target_size(
-      (static_cast<int>(std::ceil(size.width())) +
-          offscreen_target_size_mask_.width()) &
-          ~offscreen_target_size_mask_.width(),
-      (static_cast<int>(std::ceil(size.height())) +
-          offscreen_target_size_mask_.height()) &
-          ~offscreen_target_size_mask_.height());
+  math::Size target_size((static_cast<int>(std::ceil(size.width())) +
+                          offscreen_target_size_mask_.width()) &
+                             ~offscreen_target_size_mask_.width(),
+                         (static_cast<int>(std::ceil(size.height())) +
+                          offscreen_target_size_mask_.height()) &
+                             ~offscreen_target_size_mask_.height());
 
   // Find a render target that meets the size requirement. However, do not
   // select anything that is too big.
@@ -340,15 +338,15 @@ void OffscreenTargetManager::AllocateUncachedTarget(const math::SizeF& size,
   OffscreenAtlas* atlas = nullptr;
 
   for (size_t index = 0; index < uncached_targets_.size(); ++index) {
-    OffscreenAtlas* current = uncached_targets_[index];
+    OffscreenAtlas* current = uncached_targets_[index].get();
     if (current->allocations_used == 0) {
       const math::Size& current_size = current->framebuffer->GetSize();
       if (current_size.width() >= target_size.width() &&
           current_size.height() >= target_size.height() &&
           current_size.GetArea() <= kMaxTargetSize) {
         // Pick the smallest render target that meets the requirements.
-        if (atlas && atlas->framebuffer->GetSize().GetArea() <
-            current_size.GetArea()) {
+        if (atlas &&
+            atlas->framebuffer->GetSize().GetArea() < current_size.GetArea()) {
           continue;
         }
         atlas = current;
@@ -365,7 +363,7 @@ void OffscreenTargetManager::AllocateUncachedTarget(const math::SizeF& size,
       out_target_info->skia_canvas = nullptr;
       return;
     }
-    uncached_targets_.push_back(atlas);
+    uncached_targets_.emplace_back(atlas);
   }
 
   atlas->allocations_used = 1;
@@ -402,9 +400,8 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
     math::Size next_size(atlas_size);
     if (atlas_size.width() < max_size.width() &&
         (atlas_size.width() <= atlas_size.height() ||
-        atlas_size.height() >= max_size.height())) {
-      next_size.set_width(
-          std::min(atlas_size.width() * 2, max_size.width()));
+         atlas_size.height() >= max_size.height())) {
+      next_size.set_width(std::min(atlas_size.width() * 2, max_size.width()));
     } else if (atlas_size.height() < max_size.height()) {
       next_size.set_height(
           std::min(atlas_size.height() * 2, max_size.height()));
@@ -436,7 +433,7 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
   offscreen_cache_ = CreateOffscreenAtlas(atlas_size, true);
   CHECK(offscreen_cache_);
   for (int i = 1; i < num_atlases; ++i) {
-    offscreen_atlases_.push_back(
+    offscreen_atlases_.emplace_back(
         CreateOffscreenAtlas(atlas_size, true).release());
     CHECK(offscreen_atlases_.back());
   }
@@ -449,9 +446,9 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
   // skia.
   const int kAtlasHeight1D =
       std::min(std::min(16, frame_size.width()), frame_size.height());
-  math::Size atlas_size_1d(
-      std::max(frame_size.width(), frame_size.height()), kAtlasHeight1D);
-  offscreen_atlases_1d_.push_back(
+  math::Size atlas_size_1d(std::max(frame_size.width(), frame_size.height()),
+                           kAtlasHeight1D);
+  offscreen_atlases_1d_.emplace_back(
       CreateOffscreenAtlas(atlas_size_1d, false).release());
   CHECK(offscreen_atlases_1d_.back());
   offscreen_cache_1d_ = CreateOffscreenAtlas(atlas_size_1d, false);
@@ -461,24 +458,25 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
              << atlas_size_1d.height();
 }
 
-scoped_ptr<OffscreenTargetManager::OffscreenAtlas>
+std::unique_ptr<OffscreenTargetManager::OffscreenAtlas>
 OffscreenTargetManager::CreateOffscreenAtlas(const math::Size& size,
                                              bool create_canvas) {
-  scoped_ptr<OffscreenAtlas> atlas(new OffscreenAtlas(size));
+  std::unique_ptr<OffscreenAtlas> atlas(new OffscreenAtlas(size));
 
   // Create a new framebuffer.
-  atlas->framebuffer = new backend::FramebufferRenderTargetEGL(
-      graphics_context_, size);
+  atlas->framebuffer =
+      new backend::FramebufferRenderTargetEGL(graphics_context_, size);
   if (atlas->framebuffer->CreationError()) {
-    return scoped_ptr<OffscreenAtlas>();
+    return std::unique_ptr<OffscreenAtlas>();
   }
 
   if (create_canvas) {
     // Wrap the framebuffer as a skia surface.
-    atlas->skia_surface = create_fallback_surface_.Run(atlas->framebuffer);
+    atlas->skia_surface =
+        create_fallback_surface_.Run(atlas->framebuffer.get());
   }
 
-  return atlas.Pass();
+  return std::move(atlas);
 }
 
 }  // namespace egl

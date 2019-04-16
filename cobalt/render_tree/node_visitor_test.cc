@@ -14,6 +14,7 @@
 
 #include "cobalt/render_tree/node_visitor.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
@@ -106,7 +107,7 @@ class DummyImage : public Image {
 
 class DummyBrush : public Brush {
   void Accept(BrushVisitor* visitor) const override {
-    UNREFERENCED_PARAMETER(visitor);
+    SB_UNREFERENCED_PARAMETER(visitor);
   }
 
   base::TypeId GetTypeId() const override {
@@ -119,7 +120,8 @@ bool SetBounds(const cobalt::math::Rect&) { return false; }
 }  // namespace
 
 TEST(NodeVisitorTest, VisitsAnimate) {
-  scoped_refptr<DummyImage> dummy_image = make_scoped_refptr(new DummyImage());
+  scoped_refptr<DummyImage> dummy_image =
+      base::WrapRefCounted(new DummyImage());
   scoped_refptr<ImageNode> dummy_image_node(new ImageNode(dummy_image));
   scoped_refptr<AnimateNode> animate_node(new AnimateNode(dummy_image_node));
   MockNodeVisitor mock_visitor;
@@ -128,7 +130,7 @@ TEST(NodeVisitorTest, VisitsAnimate) {
 }
 
 TEST(NodeVisitorTest, VisitsImage) {
-  scoped_refptr<DummyImage> image = make_scoped_refptr(new DummyImage());
+  scoped_refptr<DummyImage> image = base::WrapRefCounted(new DummyImage());
   scoped_refptr<ImageNode> image_node(new ImageNode(image));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(image_node.get()));
@@ -163,8 +165,8 @@ TEST(NodeVisitorTest, VisitsPunchThroughVideo) {
 }
 
 TEST(NodeVisitorTest, VisitsRect) {
-  scoped_refptr<RectNode> rect(
-      new RectNode(cobalt::math::RectF(), scoped_ptr<Brush>(new DummyBrush())));
+  scoped_refptr<RectNode> rect(new RectNode(
+      cobalt::math::RectF(), std::unique_ptr<Brush>(new DummyBrush())));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(rect.get()));
   rect->Accept(&mock_visitor);

@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/screenshot_manager.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/dom/screenshot.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/script/array_buffer.h"
@@ -38,10 +40,11 @@ void ScreenshotManager::Screenshot(
   DCHECK(!screenshot_function_callback_.is_null());
 
   // We want to ScreenshotManager::FillScreenshot, on this thread.
-  base::Callback<void(scoped_array<uint8>, const math::Size&)> fill_screenshot =
-      base::Bind(&ScreenshotManager::FillScreenshot, base::Unretained(this),
-                 next_ticket_id_, base::MessageLoopProxy::current(),
-                 desired_format);
+  base::Callback<void(std::unique_ptr<uint8[]>, const math::Size&)>
+      fill_screenshot = base::Bind(&ScreenshotManager::FillScreenshot,
+                                   base::Unretained(this), next_ticket_id_,
+                                   base::MessageLoop::current()->task_runner(),
+                                   desired_format);
   bool was_emplaced =
       ticket_to_screenshot_promise_map_
           .emplace(next_ticket_id_, std::move(promise_reference))
@@ -59,10 +62,11 @@ void ScreenshotManager::SetEnvironmentSettings(
 }
 
 void ScreenshotManager::FillScreenshot(
-    int64_t token, scoped_refptr<base::MessageLoopProxy> expected_message_loop,
+    int64_t token,
+    scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
     loader::image::EncodedStaticImage::ImageFormat desired_format,
-    scoped_array<uint8> image_data, const math::Size& image_dimensions) {
-  if (base::MessageLoopProxy::current() != expected_message_loop) {
+    std::unique_ptr<uint8[]> image_data, const math::Size& image_dimensions) {
+  if (base::MessageLoop::current()->task_runner() != expected_message_loop) {
     expected_message_loop->PostTask(
         FROM_HERE,
         base::Bind(&ScreenshotManager::FillScreenshot, base::Unretained(this),

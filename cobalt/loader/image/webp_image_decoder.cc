@@ -14,8 +14,8 @@
 
 #include "cobalt/loader/image/webp_image_decoder.h"
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/animated_webp_image.h"
 #include "nb/memory_scope.h"
 #include "starboard/configuration.h"
@@ -111,7 +111,7 @@ scoped_refptr<Image> WEBPImageDecoder::FinishInternal() {
     return NULL;
   }
   SB_DCHECK(decoded_image_data_);
-  return CreateStaticImage(decoded_image_data_.Pass());
+  return CreateStaticImage(std::move(decoded_image_data_));
 }
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {

@@ -246,7 +246,6 @@ void Serializer::EscapeCharacter(uint32_t c) {
 }
 
 void Serializer::VisitUniversalSelector(UniversalSelector* universal_selector) {
-  UNREFERENCED_PARAMETER(universal_selector);
   // https://www.w3.org/TR/cssom/#serialize-a-selector
   // If this is a universal selector append "*" (U+002A) to s.
   output_->push_back('*');
@@ -432,25 +431,21 @@ void Serializer::VisitComplexSelector(ComplexSelector* complex_selector) {
 }
 
 void Serializer::VisitChildCombinator(ChildCombinator* child_combinator) {
-  UNREFERENCED_PARAMETER(child_combinator);
   output_->append(" > ");
 }
 
 void Serializer::VisitNextSiblingCombinator(
     NextSiblingCombinator* next_sibling_combinator) {
-  UNREFERENCED_PARAMETER(next_sibling_combinator);
   output_->append(" + ");
 }
 
 void Serializer::VisitDescendantCombinator(
     DescendantCombinator* descendant_combinator) {
-  UNREFERENCED_PARAMETER(descendant_combinator);
   output_->push_back(' ');
 }
 
 void Serializer::VisitFollowingSiblingCombinator(
     FollowingSiblingCombinator* following_sibling_combinator) {
-  UNREFERENCED_PARAMETER(following_sibling_combinator);
   output_->append(" ~ ");
 }
 

@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/optional.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -51,10 +51,10 @@ class Origin {
 
   // Helper function for extracting a tuple from a URL.  If a tuple cannot
   // be extracted, then base::nullopt is returned.
-  static base::optional<Origin::Tuple> GetTupleFromURL(
+  static base::Optional<Origin::Tuple> GetTupleFromURL(
       const GURL& url, bool recurse_into_blob_paths);
 
-  base::optional<Tuple> tuple_;
+  base::Optional<Tuple> tuple_;
 };
 }  // namespace loader
 }  // namespace cobalt

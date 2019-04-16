@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "base/single_thread_task_runner.h"
 #include "cobalt/storage/storage_manager.h"
 #include "net/cookies/cookie_monster.h"
 
@@ -26,11 +27,14 @@ namespace network {
 
 class PersistentCookieStore : public net::CookieMonster::PersistentCookieStore {
  public:
-  explicit PersistentCookieStore(storage::StorageManager* storage);
+  explicit PersistentCookieStore(
+      storage::StorageManager* storage,
+      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner);
   ~PersistentCookieStore() override;
 
   // net::CookieMonster::PersistentCookieStore methods
-  void Load(const LoadedCallback& loaded_callback) override;
+  void Load(const LoadedCallback& loaded_callback,
+            const net::NetLogWithSource& net_log) override;
 
   void LoadCookiesForKey(const std::string& key,
                          const LoadedCallback& loaded_callback) override;
@@ -41,10 +45,14 @@ class PersistentCookieStore : public net::CookieMonster::PersistentCookieStore {
 
   void SetForceKeepSessionState() override;
 
-  void Flush(const base::Closure& callback) override;
+  void SetBeforeFlushCallback(base::RepeatingClosure callback) override;
+  void Flush(base::OnceClosure callback) override;
 
  private:
   storage::StorageManager* storage_;
+  // This is required because for example cookie store callbacks can only be
+  // executed on the network thread.
+  scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(PersistentCookieStore);
 };

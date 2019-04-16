@@ -16,17 +16,17 @@
 
 #include "base/logging.h"
 #include "cobalt/network/socket_address_parser.h"
-#include "googleurl/src/url_parse.h"
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/url_util.h"
 
 namespace cobalt {
 namespace network {
 
 template <size_t N>
-SbSocketAddress ParseSocketAddress(const char(&address)[N]) {
+SbSocketAddress ParseSocketAddress(const char (&address)[N]) {
   const char* spec = address;
-  url_parse::Component component = url_parse::MakeRange(0, N - 1);
+  url::Component component = url::MakeRange(0, N - 1);
   SbSocketAddress out_socket_address;
   SbMemorySet(&out_socket_address, 0, sizeof(SbSocketAddress));
   CHECK(ParseSocketAddress(spec, component, &out_socket_address));

@@ -29,7 +29,7 @@ class MemoryInfo;
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
 class Performance : public script::Wrappable {
  public:
-  explicit Performance(const scoped_refptr<base::Clock>& clock);
+  explicit Performance(const scoped_refptr<base::BasicClock>& clock);
 
   // Web API: Performance
   scoped_refptr<PerformanceTiming> timing() const;

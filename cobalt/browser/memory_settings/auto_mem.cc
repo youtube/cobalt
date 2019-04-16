@@ -18,15 +18,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/debug/trace_event.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/constants.h"
@@ -55,8 +56,8 @@ bool SignalsAutoset(const TextureDimensions& value) {
 }
 
 template <typename MemorySettingType, typename ValueType>
-void SetMemorySetting(const base::optional<ValueType>& command_line_setting,
-                      const base::optional<ValueType>& build_setting,
+void SetMemorySetting(const base::Optional<ValueType>& command_line_setting,
+                      const base::Optional<ValueType>& build_setting,
                       const ValueType& autoset_value,
                       MemorySettingType* setting) {
   const std::string setting_name = setting->name();
@@ -89,42 +90,43 @@ void SetMemorySetting(const base::optional<ValueType>& command_line_setting,
 // Creates the specified memory setting type and binds it to (1) command line or
 // else (2) build setting or else (3) an auto_set value.
 template <typename MemorySettingType, typename ValueType>
-scoped_ptr<MemorySettingType> CreateMemorySetting(
+std::unique_ptr<MemorySettingType> CreateMemorySetting(
     const char* setting_name,
-    const base::optional<ValueType>& command_line_setting,
-    const base::optional<ValueType>& build_setting,
+    const base::Optional<ValueType>& command_line_setting,
+    const base::Optional<ValueType>& build_setting,
     const ValueType& autoset_value) {
-  scoped_ptr<MemorySettingType> output(new MemorySettingType(setting_name));
+  std::unique_ptr<MemorySettingType> output(
+      new MemorySettingType(setting_name));
   SetMemorySetting(command_line_setting, build_setting, autoset_value,
                    output.get());
-  return output.Pass();
+  return std::move(output);
 }
 
-scoped_ptr<IntSetting> CreateSystemMemorySetting(
+std::unique_ptr<IntSetting> CreateSystemMemorySetting(
     const char* setting_name, MemorySetting::MemoryType memory_type,
-    const base::optional<int64_t>& command_line_setting,
-    const base::optional<int64_t>& build_setting,
-    const base::optional<int64_t>& starboard_value) {
-  scoped_ptr<IntSetting> setting(new IntSetting(setting_name));
+    const base::Optional<int64_t>& command_line_setting,
+    const base::Optional<int64_t>& build_setting,
+    const base::Optional<int64_t>& starboard_value) {
+  std::unique_ptr<IntSetting> setting(new IntSetting(setting_name));
   setting->set_memory_type(memory_type);
   if (command_line_setting) {
     setting->set_value(MemorySetting::kCmdLine, *command_line_setting);
-    return setting.Pass();
+    return setting;
   }
 
   if (build_setting) {
     setting->set_value(MemorySetting::kBuildSetting, *build_setting);
-    return setting.Pass();
+    return setting;
   }
 
   if (starboard_value) {
     setting->set_value(MemorySetting::kStarboardAPI, *starboard_value);
-    return setting.Pass();
+    return setting;
   }
 
   // This will mark the value as invalid.
   setting->set_value(MemorySetting::kUnset, -1);
-  return setting.Pass();
+  return setting;
 }
 
 void EnsureValuePositive(IntSetting* setting) {
@@ -177,34 +179,34 @@ int64_t SumMemoryConsumption(
 // Creates the GPU setting.
 // This setting is unique because it may not be defined by command line, or
 // build. In this was, it can be unset.
-scoped_ptr<IntSetting> CreateGpuSetting(
+std::unique_ptr<IntSetting> CreateGpuSetting(
     const AutoMemSettings& command_line_settings,
     const AutoMemSettings& build_settings) {
   // Bind to the starboard api, if applicable.
-  base::optional<int64_t> starboard_setting;
+  base::Optional<int64_t> starboard_setting;
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     starboard_setting = SbSystemGetTotalGPUMemory();
   }
 
-  scoped_ptr<IntSetting> gpu_setting = CreateSystemMemorySetting(
+  std::unique_ptr<IntSetting> gpu_setting = CreateSystemMemorySetting(
       switches::kMaxCobaltGpuUsage, MemorySetting::kGPU,
       command_line_settings.max_gpu_in_bytes, build_settings.max_gpu_in_bytes,
       starboard_setting);
 
   EnsureValuePositive(gpu_setting.get());
-  return gpu_setting.Pass();
+  return gpu_setting;
 }
 
-scoped_ptr<IntSetting> CreateCpuSetting(
+std::unique_ptr<IntSetting> CreateCpuSetting(
     const AutoMemSettings& command_line_settings,
     const AutoMemSettings& build_settings) {
-  scoped_ptr<IntSetting> cpu_setting = CreateSystemMemorySetting(
+  std::unique_ptr<IntSetting> cpu_setting = CreateSystemMemorySetting(
       switches::kMaxCobaltCpuUsage, MemorySetting::kCPU,
       command_line_settings.max_cpu_in_bytes, build_settings.max_cpu_in_bytes,
       SbSystemGetTotalCPUMemory());
 
   EnsureValuePositive(cpu_setting.get());
-  return cpu_setting.Pass();
+  return cpu_setting;
 }
 
 void CheckConstrainingValues(const MemorySetting& memory_setting) {
@@ -216,22 +218,20 @@ void CheckConstrainingValues(const MemorySetting& memory_setting) {
         static_cast<double>(i) / static_cast<double>(kNumTestPoints - 1);
 
     const double actual_constraining_value =
-        memory_setting.ComputeAbsoluteMemoryScale(
-            requested_constraining_value);
+        memory_setting.ComputeAbsoluteMemoryScale(requested_constraining_value);
 
     values.push_back(actual_constraining_value);
   }
 
   DCHECK(base::STLIsSorted(values))
-      << "Constrainer in " << memory_setting.name() << " does not produce "
+      << "Constrainer in " << memory_setting.name()
+      << " does not produce "
          "monotonically decreasing values as input goes from 1.0 -> 0.0";
 }
 
-int64_t GenerateTargetMemoryBytes(
-    int64_t max_memory_bytes,
-    int64_t current_memory_bytes,
-    base::optional<int64_t> reduce_memory_bytes) {
-
+int64_t GenerateTargetMemoryBytes(int64_t max_memory_bytes,
+                                  int64_t current_memory_bytes,
+                                  base::Optional<int64_t> reduce_memory_bytes) {
   // Make sure values are sanitized.
   max_memory_bytes = std::max<int64_t>(0, max_memory_bytes);
   current_memory_bytes = std::max<int64_t>(0, current_memory_bytes);
@@ -275,20 +275,16 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
   TRACE_EVENT0("cobalt::browser", "AutoMem::AutoMem()");
   ConstructSettings(ui_resolution, command_line_settings, build_settings);
 
-  const int64_t target_cpu_memory =
-      GenerateTargetMemoryBytes(max_cpu_bytes_->value(),
-                                SumAllMemoryOfType(MemorySetting::kCPU),
-                                reduced_cpu_bytes_->optional_value());
-  const int64_t target_gpu_memory =
-      GenerateTargetMemoryBytes(max_gpu_bytes_->value(),
-                                SumAllMemoryOfType(MemorySetting::kGPU),
-                                reduced_gpu_bytes_->optional_value());
+  const int64_t target_cpu_memory = GenerateTargetMemoryBytes(
+      max_cpu_bytes_->value(), SumAllMemoryOfType(MemorySetting::kCPU),
+      reduced_cpu_bytes_->optional_value());
+  const int64_t target_gpu_memory = GenerateTargetMemoryBytes(
+      max_gpu_bytes_->value(), SumAllMemoryOfType(MemorySetting::kGPU),
+      reduced_gpu_bytes_->optional_value());
 
   std::vector<MemorySetting*> memory_settings = AllMemorySettingsMutable();
-  ConstrainToMemoryLimits(target_cpu_memory,
-                          target_gpu_memory,
-                          &memory_settings,
-                          &error_msgs_);
+  ConstrainToMemoryLimits(target_cpu_memory, target_gpu_memory,
+                          &memory_settings, &error_msgs_);
 }
 
 AutoMem::~AutoMem() {}
@@ -343,8 +339,7 @@ std::vector<const MemorySetting*> AutoMem::AllMemorySettings() const {
       this_unconst->AllMemorySettingsMutable();
 
   std::vector<const MemorySetting*> all_settings;
-  all_settings.assign(all_settings_mutable.begin(),
-                      all_settings_mutable.end());
+  all_settings.assign(all_settings_mutable.begin(), all_settings_mutable.end());
   return all_settings;
 }
 
@@ -376,8 +371,7 @@ std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
   int64_t gpu_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, all_settings);
 
-  ss << GenerateMemoryTable(use_color_ascii,
-                            *max_cpu_bytes_, *max_gpu_bytes_,
+  ss << GenerateMemoryTable(use_color_ascii, *max_cpu_bytes_, *max_gpu_bytes_,
                             cpu_consumption, gpu_consumption);
 
   // Copy strings and optionally add more.
@@ -389,7 +383,7 @@ std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
     error_msgs.push_back("ERROR - CPU CONSUMED WAS MORE THAN AVAILABLE.");
   }
 
-  const base::optional<int64_t> max_gpu_value =
+  const base::Optional<int64_t> max_gpu_value =
       max_gpu_bytes_->optional_value();
   if (max_gpu_value) {
     if (*max_gpu_value <= 0) {
@@ -473,8 +467,8 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   // Set the misc cobalt size to a specific size.
   misc_cobalt_cpu_size_in_bytes_.reset(
       new IntSetting("misc_cobalt_cpu_size_in_bytes"));
-  misc_cobalt_cpu_size_in_bytes_->set_value(
-      MemorySetting::kAutoSet, kMiscCobaltCpuSizeInBytes);
+  misc_cobalt_cpu_size_in_bytes_->set_value(MemorySetting::kAutoSet,
+                                            kMiscCobaltCpuSizeInBytes);
 
   // Set the misc cobalt size to a specific size.
   misc_cobalt_gpu_size_in_bytes_.reset(

@@ -15,7 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
+#include "base/memory/aligned_memory.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -36,16 +38,16 @@ class SoftwareImageData : public render_tree::ImageData {
   const render_tree::ImageDataDescriptor& GetDescriptor() const override;
   uint8_t* GetMemory() override;
 
-  scoped_array<uint8_t> PassPixelData();
+  std::unique_ptr<uint8_t[]> PassPixelData();
 
  private:
   render_tree::ImageDataDescriptor descriptor_;
-  scoped_array<uint8_t> pixel_data_;
+  std::unique_ptr<uint8_t[]> pixel_data_;
 };
 
 class SoftwareImage : public SinglePlaneImage {
  public:
-  explicit SoftwareImage(scoped_ptr<SoftwareImageData> source_data);
+  explicit SoftwareImage(std::unique_ptr<SoftwareImageData> source_data);
   SoftwareImage(uint8_t* source_data,
                 const render_tree::ImageDataDescriptor& descriptor);
 
@@ -61,7 +63,7 @@ class SoftwareImage : public SinglePlaneImage {
   void Initialize(uint8_t* source_data,
                   const render_tree::ImageDataDescriptor& descriptor);
 
-  scoped_array<uint8_t> owned_pixel_data_;
+  std::unique_ptr<uint8_t[]> owned_pixel_data_;
   sk_sp<SkImage> image_;
   math::Size size_;
   bool is_opaque_;
@@ -74,17 +76,17 @@ class SoftwareRawImageMemory : public render_tree::RawImageMemory {
   size_t GetSizeInBytes() const override;
   uint8_t* GetMemory() override;
 
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> PassPixelData();
+  std::unique_ptr<uint8_t, base::AlignedFreeDeleter> PassPixelData();
 
  private:
   size_t size_in_bytes_;
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> pixel_data_;
+  std::unique_ptr<uint8_t, base::AlignedFreeDeleter> pixel_data_;
 };
 
 class SoftwareMultiPlaneImage : public MultiPlaneImage {
  public:
   SoftwareMultiPlaneImage(
-      scoped_ptr<SoftwareRawImageMemory> raw_image_memory,
+      std::unique_ptr<SoftwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor);
 
   const math::Size& GetSize() const override { return size_; }
@@ -111,7 +113,7 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
   math::Size size_;
   render_tree::MultiPlaneImageFormat format_;
 
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> owned_pixel_data_;
+  std::unique_ptr<uint8_t, base::AlignedFreeDeleter> owned_pixel_data_;
 
   scoped_refptr<SoftwareImage>
       planes_[render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes];

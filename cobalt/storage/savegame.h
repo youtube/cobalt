@@ -15,12 +15,12 @@
 #ifndef COBALT_STORAGE_SAVEGAME_H_
 #define COBALT_STORAGE_SAVEGAME_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/files/file_path.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "sql/connection.h"
@@ -37,20 +37,20 @@ class Savegame {
   typedef std::vector<uint8> ByteVector;
   struct Options;
 
-  typedef scoped_ptr<Savegame>(*Factory)(const Options& options);
+  typedef std::unique_ptr<Savegame> (*Factory)(const Options& options);
 
   struct Options {
     Options()
         : factory(&Create),
           fallback_to_default_id(false),
           delete_on_destruction(false) {}
-    scoped_ptr<Savegame> CreateSavegame() { return factory(*this); }
+    std::unique_ptr<Savegame> CreateSavegame() { return factory(*this); }
 
     // Factory method for constructing a Savegame instance.
     // Defaults to Savegame::Create() but can be overriden for tests.
     Savegame::Factory factory;
     // The unique savegame ID for this Savegame, if any.
-    base::optional<std::string> id;
+    base::Optional<std::string> id;
     // Whether to fallback to the default ID if data for this ID doesn't exist.
     bool fallback_to_default_id;
     // File path the Savegame should read/write from, rather than its default.
@@ -62,7 +62,7 @@ class Savegame {
     ByteVector test_initial_data;
   };
 
-  static scoped_ptr<Savegame> Create(const Options& options);
+  static std::unique_ptr<Savegame> Create(const Options& options);
   virtual ~Savegame();
 
   // Load savegame and return its contents as a vector of bytes.

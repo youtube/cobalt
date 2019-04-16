@@ -48,7 +48,7 @@ class TextureDataCPU : public TextureDataEGL {
   math::Size size_;
   GLenum format_;
 
-  scoped_array<uint8_t> memory_;
+  std::unique_ptr<uint8_t[]> memory_;
 };
 
 class RawTextureMemoryCPU : public RawTextureMemoryEGL {
@@ -71,7 +71,7 @@ class RawTextureMemoryCPU : public RawTextureMemoryEGL {
  private:
   size_t size_in_bytes_;
 
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> memory_;
+  std::unique_ptr<uint8_t, base::AlignedFreeDeleter> memory_;
 };
 
 }  // namespace backend

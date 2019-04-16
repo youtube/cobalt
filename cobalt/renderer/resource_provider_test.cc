@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/threading/simple_thread.h"
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
@@ -58,7 +60,7 @@ class CreateImagesThread : public base::SimpleThread {
 
   void Run() override {
     for (int i = 0; i < num_images_to_create_; ++i) {
-      scoped_ptr<render_tree::ImageData> image_data =
+      std::unique_ptr<render_tree::ImageData> image_data =
           resource_provider_->AllocateImageData(
               image_size_, ChoosePixelFormat(resource_provider_),
               render_tree::kAlphaFormatPremultiplied);
@@ -68,7 +70,7 @@ class CreateImagesThread : public base::SimpleThread {
       for (int i = 0; i < num_bytes; ++i) {
         image_memory[i] = 0;
       }
-      resource_provider_->CreateImage(image_data.Pass());
+      resource_provider_->CreateImage(std::move(image_data));
     }
   }
 
@@ -138,18 +140,24 @@ class ResourceProviderTest : public testing::Test {
   // ResourceProviderTest destructor does not need to run it.
   void SetWillRunRunLoopManually() { run_run_loop_manually_ = true; }
 
+
+  void Quit() {
+    message_loop_.task_runner()->PostTask(FROM_HERE, run_loop_.QuitClosure());
+  }
+
  protected:
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
   base::RunLoop run_loop_;
-  scoped_ptr<backend::GraphicsSystem> graphics_system_;
-  scoped_ptr<backend::GraphicsContext> graphics_context_;
-  scoped_ptr<rasterizer::Rasterizer> rasterizer_;
+  std::unique_ptr<backend::GraphicsSystem> graphics_system_;
+  std::unique_ptr<backend::GraphicsContext> graphics_context_;
+  std::unique_ptr<rasterizer::Rasterizer> rasterizer_;
 
   bool run_run_loop_manually_;
 };
 
 ResourceProviderTest::ResourceProviderTest()
-    : message_loop_(MessageLoop::TYPE_DEFAULT), run_run_loop_manually_(false) {
+    : message_loop_(base::MessageLoop::TYPE_DEFAULT),
+      run_run_loop_manually_(false) {
   graphics_system_ = backend::CreateDefaultGraphicsSystem();
   graphics_context_ = graphics_system_->CreateGraphicsContext();
 
@@ -161,7 +169,7 @@ ResourceProviderTest::ResourceProviderTest()
 
 ResourceProviderTest::~ResourceProviderTest() {
   if (!run_run_loop_manually_) {
-    message_loop_.PostTask(FROM_HERE, run_loop_.QuitClosure());
+    message_loop_.task_runner()->PostTask(FROM_HERE, run_loop_.QuitClosure());
     run_loop_.Run();
   }
 }
@@ -192,8 +200,7 @@ TEST_F(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
   CreateImagesSpawnerThread spawner_thread(
       rasterizer_->GetResourceProvider(), kNumThreads,
       kNumImagesCreatedPerThread, math::Size(1, 1),
-      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop_),
-                 FROM_HERE, run_loop_.QuitClosure()));
+      base::Bind(&ResourceProviderTest::Quit, base::Unretained(this)));
   spawner_thread.Start();
 
   // Run our message loop to process backend image creation/destruction
@@ -230,8 +237,7 @@ TEST_F(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
   CreateImagesSpawnerThread spawner_thread(
       rasterizer_->GetResourceProvider(), kNumThreads,
       kNumImagesCreatedPerThread, math::Size(256, 256),
-      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop_),
-                 FROM_HERE, run_loop_.QuitClosure()));
+      base::Bind(&ResourceProviderTest::Quit, base::Unretained(this)));
   spawner_thread.Start();
 
   // Run our message loop to process backend image creation/destruction
@@ -250,7 +256,7 @@ TEST_F(ResourceProviderTest, NoCrashWhenManyTexturesAreAllocated) {
   const int kNumImages = 5000;
   const math::Size kImageSize = math::Size(32, 32);
 
-  scoped_ptr<render_tree::ImageData> image_datas[kNumImages];
+  std::unique_ptr<render_tree::ImageData> image_datas[kNumImages];
   scoped_refptr<render_tree::Image> images[kNumImages];
 
   for (int i = 0; i < kNumImages; ++i) {
@@ -261,7 +267,7 @@ TEST_F(ResourceProviderTest, NoCrashWhenManyTexturesAreAllocated) {
 
   for (int i = 0; i < kNumImages; ++i) {
     if (image_datas[i]) {
-      images[i] = resource_provider->CreateImage(image_datas[i].Pass());
+      images[i] = resource_provider->CreateImage(std::move(image_datas[i]));
     }
   }
 
@@ -279,13 +285,13 @@ TEST_F(ResourceProviderTest, NoCrashWhenMassiveTextureIsAllocated) {
 
   const math::Size kImageSize = math::Size(16384, 16384);
 
-  scoped_ptr<render_tree::ImageData> image_data =
+  std::unique_ptr<render_tree::ImageData> image_data =
       resource_provider->AllocateImageData(kImageSize,
                                            ChoosePixelFormat(resource_provider),
                                            render_tree::kAlphaFormatOpaque);
   if (image_data) {
     scoped_refptr<render_tree::Image> image =
-        resource_provider->CreateImage(image_data.Pass());
+        resource_provider->CreateImage(std::move(image_data));
   }
 }
 
@@ -298,13 +304,13 @@ TEST_F(ResourceProviderTest,
 
   const math::Size kImageSize = math::Size(1024 * 1024, 32);
 
-  scoped_ptr<render_tree::ImageData> image_data =
+  std::unique_ptr<render_tree::ImageData> image_data =
       resource_provider->AllocateImageData(kImageSize,
                                            ChoosePixelFormat(resource_provider),
                                            render_tree::kAlphaFormatOpaque);
   if (image_data) {
     scoped_refptr<render_tree::Image> image =
-        resource_provider->CreateImage(image_data.Pass());
+        resource_provider->CreateImage(std::move(image_data));
   }
 }
 

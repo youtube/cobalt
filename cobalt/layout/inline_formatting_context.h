@@ -15,10 +15,10 @@
 #ifndef COBALT_LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 #define COBALT_LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
@@ -101,7 +101,7 @@ class InlineFormattingContext : public FormattingContext {
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.
-  scoped_ptr<LineBox> line_box_;
+  std::unique_ptr<LineBox> line_box_;
 
   // Number of lines boxes that affect the layout.
   int line_count_;

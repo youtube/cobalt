@@ -15,7 +15,8 @@
 #ifndef COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_
 #define COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "cobalt/audio/audio_file_reader.h"
 #include "cobalt/audio/audio_helpers.h"
 
@@ -26,16 +27,17 @@ namespace audio {
 //   http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 class AudioFileReaderWAV : public AudioFileReader {
  public:
-  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
-                                               SampleType sample_type);
+  static std::unique_ptr<AudioFileReader> TryCreate(const uint8* data,
+                                                    size_t size,
+                                                    SampleType sample_type);
 
   float sample_rate() const override { return sample_rate_; }
   int32 number_of_frames() const override { return number_of_frames_; }
   int32 number_of_channels() const override { return number_of_channels_; }
   SampleType sample_type() const override { return sample_type_; }
 
-  scoped_ptr<ShellAudioBus> ResetAndReturnAudioBus() override {
-    return audio_bus_.Pass();
+  std::unique_ptr<ShellAudioBus> ResetAndReturnAudioBus() override {
+    return std::move(audio_bus_);
   }
 
  private:
@@ -50,7 +52,7 @@ class AudioFileReaderWAV : public AudioFileReader {
 
   bool is_valid() { return audio_bus_ != NULL; }
 
-  scoped_ptr<ShellAudioBus> audio_bus_;
+  std::unique_ptr<ShellAudioBus> audio_bus_;
   float sample_rate_;
   int32 number_of_frames_;
   int32 number_of_channels_;

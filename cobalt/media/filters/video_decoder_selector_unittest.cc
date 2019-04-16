@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/gmock_callback_support.h"
@@ -147,7 +148,7 @@ class VideoDecoderSelectorTest : public ::testing::Test {
 
   StrictMock<MockVideoDecoder>* decoder_1_;
   StrictMock<MockVideoDecoder>* decoder_2_;
-  ScopedVector<VideoDecoder> all_decoders_;
+  std::vector<std::unique_ptr<VideoDecoder>> all_decoders_;
   std::unique_ptr<VideoDecoder> selected_decoder_;
 
   base::MessageLoop message_loop_;

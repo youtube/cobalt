@@ -14,10 +14,11 @@
 #include "cobalt/dom/window.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
@@ -165,7 +166,7 @@ Window::Window(
               view_size, cookie_jar, post_sender, require_csp,
               csp_enforcement_mode, csp_policy_changed_callback,
               csp_insecure_allowed_token, dom_max_element_depth)))),
-      document_loader_(NULL),
+      document_loader_(nullptr),
       history_(new History()),
       navigator_(new Navigator(user_agent, language, media_session, captions,
                                script_value_factory)),
@@ -199,7 +200,7 @@ Window::Window(
       screenshot_manager_(screenshot_function_callback),
       ui_nav_root_(ui_nav_root) {
 #if !defined(ENABLE_TEST_RUNNER)
-  UNREFERENCED_PARAMETER(clock_type);
+  SB_UNREFERENCED_PARAMETER(clock_type);
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);
@@ -212,9 +213,10 @@ Window::Window(
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&Window::StartDocumentLoad, this, fetcher_factory,
-                            url, dom_parser, load_complete_callback));
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
+                 fetcher_factory, url, dom_parser, load_complete_callback));
 }
 
 void Window::StartDocumentLoad(
@@ -229,7 +231,8 @@ void Window::StartDocumentLoad(
       load_complete_callback));
 }
 
-scoped_refptr<base::Clock> Window::MakePerformanceClock(ClockType clock_type) {
+scoped_refptr<base::BasicClock> Window::MakePerformanceClock(
+    ClockType clock_type) {
   switch (clock_type) {
     case kClockTypeTestRunner: {
 #if defined(ENABLE_TEST_RUNNER)
@@ -249,7 +252,7 @@ scoped_refptr<base::Clock> Window::MakePerformanceClock(ClockType clock_type) {
     } break;
   }
   NOTREACHED();
-  return scoped_refptr<base::Clock>();
+  return scoped_refptr<base::BasicClock>();
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
@@ -301,7 +304,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
     const scoped_refptr<Element>& elt) {
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
   if (html_element) {
-    document_->UpdateComputedStyleOnElementAndAncestor(html_element);
+    document_->UpdateComputedStyleOnElementAndAncestor(html_element.get());
     return html_element->css_computed_style_declaration();
   }
   return NULL;
@@ -320,15 +323,15 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
   scoped_refptr<cssom::CSSComputedStyleDeclaration> obj;
   if (html_element) {
-    document_->UpdateComputedStyleOnElementAndAncestor(html_element);
+    document_->UpdateComputedStyleOnElementAndAncestor(html_element.get());
 
     // 2. Let obj be elt.
     obj = html_element->css_computed_style_declaration();
 
     // 3. If pseudoElt is as an ASCII case-insensitive match for either
     // ':before' or '::before' let obj be the ::before pseudo-element of elt.
-    if (LowerCaseEqualsASCII(pseudo_elt, ":before") ||
-        LowerCaseEqualsASCII(pseudo_elt, "::before")) {
+    if (base::LowerCaseEqualsASCII(pseudo_elt, ":before") ||
+        base::LowerCaseEqualsASCII(pseudo_elt, "::before")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kBeforePseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -337,8 +340,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 4. If pseudoElt is as an ASCII case-insensitive match for either ':after'
     // or '::after' let obj be the ::after pseudo-element of elt.
-    if (LowerCaseEqualsASCII(pseudo_elt, ":after") ||
-        LowerCaseEqualsASCII(pseudo_elt, "::after")) {
+    if (base::LowerCaseEqualsASCII(pseudo_elt, ":after") ||
+        base::LowerCaseEqualsASCII(pseudo_elt, "::after")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kAfterPseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -365,7 +368,7 @@ scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
   scoped_refptr<cssom::MediaList> media_list =
       html_element_context_->css_parser()->ParseMediaList(
           query, GetInlineSourceLocation());
-  return make_scoped_refptr(new MediaQueryList(media_list, screen_));
+  return base::WrapRefCounted(new MediaQueryList(media_list, screen_));
 }
 
 const scoped_refptr<Screen>& Window::screen() { return screen_; }
@@ -494,8 +497,8 @@ void Window::RunAnimationFrameCallbacks() {
 
     // First grab the current list of frame request callbacks and hold on to it
     // here locally.
-    scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
-        animation_frame_request_callback_list_.Pass();
+    std::unique_ptr<AnimationFrameRequestCallbackList> frame_request_list =
+        std::move(animation_frame_request_callback_list_);
 
     // Then setup the Window's frame request callback list with a freshly
     // created and empty one.

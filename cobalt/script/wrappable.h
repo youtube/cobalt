@@ -15,10 +15,11 @@
 #ifndef COBALT_SCRIPT_WRAPPABLE_H_
 #define COBALT_SCRIPT_WRAPPABLE_H_
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/sequence.h"
@@ -38,7 +39,7 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
     virtual ~WeakWrapperHandle() {}
 
    private:
-    friend class scoped_ptr<WeakWrapperHandle>;
+    friend std::unique_ptr<WeakWrapperHandle>::deleter_type;
   };
 
   // A class that creates ValueHandles should inherit from this interface
@@ -49,8 +50,8 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
       return wrappable->cached_wrapper_.get();
     }
     void SetCachedWrapper(Wrappable* wrappable,
-                          scoped_ptr<WeakWrapperHandle> wrapper) const {
-      wrappable->cached_wrapper_ = wrapper.Pass();
+                          std::unique_ptr<WeakWrapperHandle> wrapper) const {
+      wrappable->cached_wrapper_ = std::move(wrapper);
     }
   };
 
@@ -73,7 +74,7 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
   // A cached weak reference to the interface's corresponding wrapper object.
   // This may get garbage-collected before the associated Wrappable is
   // destroyed.
-  scoped_ptr<WeakWrapperHandle> cached_wrapper_;
+  std::unique_ptr<WeakWrapperHandle> cached_wrapper_;
 
   friend class base::RefCounted<Wrappable>;
 };

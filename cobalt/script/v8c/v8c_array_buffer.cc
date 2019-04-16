@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/script/v8c/v8c_array_buffer.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -49,7 +51,7 @@ Handle<ArrayBuffer> ArrayBuffer::New(GlobalEnvironment* global_environment,
 // static
 Handle<ArrayBuffer> ArrayBuffer::New(
     GlobalEnvironment* global_environment,
-    scoped_ptr<PreallocatedArrayBufferData> data) {
+    std::unique_ptr<PreallocatedArrayBufferData> data) {
   auto* v8c_global_environment =
       base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(
           global_environment);

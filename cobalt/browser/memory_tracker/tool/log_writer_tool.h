@@ -15,10 +15,11 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_LOG_WRITER_TOOL_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_LOG_WRITER_TOOL_H_
 
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "starboard/memory_reporter.h"
@@ -61,8 +62,8 @@ class LogWriterTool : public AbstractTool {
   void InitAndRegisterMemoryReporter();
 
   base::TimeTicks start_time_;
-  scoped_ptr<SbMemoryReporter> memory_reporter_;
-  scoped_ptr<BufferedFileWriter> buffered_file_writer_;
+  std::unique_ptr<SbMemoryReporter> memory_reporter_;
+  std::unique_ptr<BufferedFileWriter> buffered_file_writer_;
 };
 
 }  // namespace memory_tracker

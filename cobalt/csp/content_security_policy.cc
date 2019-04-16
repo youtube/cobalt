@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/csp/content_security_policy.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "base/values.h"
 #include "cobalt/csp/directive_list.h"
 #include "cobalt/csp/source.h"
@@ -68,7 +70,7 @@ bool IsAllowedByAllWithHash(const ContentSecurityPolicy::PolicyList& policies,
                             const HashValue& hash_value) {
   for (ContentSecurityPolicy::PolicyList::const_iterator it = policies.begin();
        it != policies.end(); ++it) {
-    if (!(*it->*allowed)(hash_value)) {
+    if (!((*it).get()->*allowed)(hash_value)) {
       return false;
     }
   }
@@ -156,7 +158,7 @@ const char ContentSecurityPolicy::kSuborigin[] = "suborigin";
 
 // clang-format off
 bool ContentSecurityPolicy::IsDirectiveName(const std::string& name) {
-  std::string lower_name = StringToLowerASCII(name);
+  std::string lower_name = base::ToLowerASCII(name);
   return (lower_name == kConnectSrc ||
           lower_name == kDefaultSrc ||
           lower_name == kFontSrc ||
@@ -219,7 +221,7 @@ bool ContentSecurityPolicy::UrlMatchesSelf(const GURL& url) const {
 bool ContentSecurityPolicy::SchemeMatchesSelf(const GURL& url) const {
   // https://www.w3.org/TR/CSP2/#match-source-expression, section 4.5.1
   // Allow "upgrade" to https if our document is http.
-  if (LowerCaseEqualsASCII(self_scheme_, "http")) {
+  if (base::LowerCaseEqualsASCII(self_scheme_, "http")) {
     return url.SchemeIs("http") || url.SchemeIs("https");
   } else {
     return self_scheme_ == url.scheme();
@@ -312,7 +314,7 @@ void ContentSecurityPolicy::ReportInvalidSourceExpression(
       "The source list for Content Security Policy directive '" +
       directive_name + "' contains an invalid source: '" + source +
       "'. It will be ignored.";
-  if (LowerCaseEqualsASCII(source.c_str(), "'none'")) {
+  if (base::LowerCaseEqualsASCII(source.c_str(), "'none'")) {
     message = message +
               " Note that 'none' has no effect unless it is the only "
               "expression in the source list.";
@@ -393,7 +395,7 @@ void ContentSecurityPolicy::ReportInvalidSuboriginFlags(
 
 void ContentSecurityPolicy::ReportUnsupportedDirective(
     const std::string& name) {
-  std::string lower_name = StringToLowerASCII(name);
+  std::string lower_name = base::ToLowerASCII(name);
   std::string message;
   if (lower_name == "allow") {
     message =
@@ -613,7 +615,7 @@ void ContentSecurityPolicy::AddPolicyFromHeaderValue(const std::string& header,
     // header1,header2 OR header1
     //        ^                  ^
     base::StringPiece begin_piece(begin, static_cast<size_t>(position - begin));
-    scoped_ptr<DirectiveList> policy(
+    std::unique_ptr<DirectiveList> policy(
         new DirectiveList(this, begin_piece, type, source));
     if (type != kHeaderTypeReport && policy->did_set_referrer_policy()) {
       // FIXME: We need a 'ReferrerPolicyUnset' enum to avoid confusing code
@@ -629,7 +631,7 @@ void ContentSecurityPolicy::AddPolicyFromHeaderValue(const std::string& header,
       disable_eval_error_message_ = policy->eval_disabled_error_message();
     }
 
-    policies_.push_back(policy.release());
+    policies_.emplace_back(policy.release());
 
     // Skip the comma, and begin the next header from the current position.
     DCHECK(position == end || *position == ',');

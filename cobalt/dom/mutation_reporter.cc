@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/mutation_reporter.h"
 
-#include "base/debug/trace_event.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/mutation_observer.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/node.h"
@@ -41,7 +43,7 @@ class MutationRecordBuilder {
 class AttributeMutationRecordBuilder : public MutationRecordBuilder {
  public:
   AttributeMutationRecordBuilder(const std::string& attribute_name,
-                                 const base::optional<std::string>& old_value)
+                                 const base::Optional<std::string>& old_value)
       : attribute_name_(attribute_name), old_value_(old_value) {}
 
   scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
@@ -51,7 +53,7 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
       return NULL;
     }
 
-    base::optional<std::string> old_value;
+    base::Optional<std::string> old_value;
     if (options.has_attribute_old_value() && options.attribute_old_value()) {
       old_value = old_value_;
     }
@@ -84,7 +86,7 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
   }
 
   std::string attribute_name_;
-  base::optional<std::string> old_value_;
+  base::Optional<std::string> old_value_;
 };
 
 // MutationRecordBuild for character data mutations.
@@ -104,7 +106,7 @@ class CharacterDataMutationRecordBuilder : public MutationRecordBuilder {
       return NULL;
     }
 
-    base::optional<std::string> old_value;
+    base::Optional<std::string> old_value;
     if (options.has_character_data_old_value() &&
         options.character_data_old_value()) {
       old_value = old_character_data_;
@@ -190,8 +192,8 @@ void ReportToInterestedObservers(
 
 MutationReporter::MutationReporter(
     dom::Node* target,
-    scoped_ptr<RegisteredObserverVector> registered_observers)
-    : target_(target), observers_(registered_observers.Pass()) {}
+    std::unique_ptr<RegisteredObserverVector> registered_observers)
+    : target_(target), observers_(std::move(registered_observers)) {}
 
 MutationReporter::~MutationReporter() {}
 
@@ -199,7 +201,7 @@ MutationReporter::~MutationReporter() {}
 // https://www.w3.org/TR/dom/#queue-a-mutation-record
 void MutationReporter::ReportAttributesMutation(
     const std::string& name,
-    const base::optional<std::string>& old_value) const {
+    const base::Optional<std::string>& old_value) const {
   TRACE_EVENT0("cobalt::dom", "MutationReporter::ReportAttributesMutation()");
   AttributeMutationRecordBuilder record_builder(name, old_value);
   ReportToInterestedObservers(target_, observers_.get(), &record_builder);

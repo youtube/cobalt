@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/event.h"
 
 namespace base {

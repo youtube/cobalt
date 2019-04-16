@@ -18,24 +18,23 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
-#include "base/containers/linked_hash_map.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "base/optional.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
-#include "googleurl/src/gurl.h"
+#include "net/base/linked_hash_map.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -68,10 +67,10 @@ class CachedResource
   typedef ResourceCache<CacheType> ResourceCacheType;
   typedef typename CacheType::ResourceType ResourceType;
 
-  typedef base::Callback<scoped_ptr<Loader>(
+  typedef base::Callback<std::unique_ptr<Loader>(
       const GURL&, const Origin&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const base::optional<std::string>&)>&)>
+      const base::Callback<void(const base::Optional<std::string>&)>&)>
       CreateLoaderFunction;
 
   // This class can be used to attach success or error callbacks to
@@ -148,7 +147,7 @@ class CachedResource
   // Notify that the resource is loaded successfully.
   void OnContentProduced(const scoped_refptr<ResourceType>& resource);
   // Notify the loading error.
-  void OnLoadingComplete(const base::optional<std::string>& error);
+  void OnLoadingComplete(const base::Optional<std::string>& error);
 
   // Called by |CachedResourceLoadedCallbackHandler|.
   CallbackListIterator AddCallback(CallbackType type,
@@ -164,7 +163,7 @@ class CachedResource
 
   scoped_refptr<ResourceType> resource_;
   ResourceCacheType* const resource_cache_;
-  scoped_ptr<Loader> loader_;
+  std::unique_ptr<Loader> loader_;
 
   CallbackList callback_lists[kCallbackTypeCount];
 
@@ -181,7 +180,7 @@ class CachedResource
   // When the resource cache is set to allow retries and a transient loading
   // error causes a resource to fail to load, a retry is scheduled.
   int retry_count_;
-  scoped_ptr<base::Timer> retry_timer_;
+  std::unique_ptr<base::RetainingOneShotTimer> retry_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(CachedResource);
 };
@@ -193,8 +192,7 @@ class CachedResource
 template <typename CacheType>
 CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     const scoped_refptr<CachedResource>& cached_resource,
-    const base::Closure& success_callback,
-    const base::Closure& error_callback)
+    const base::Closure& success_callback, const base::Closure& error_callback)
     : cached_resource_(cached_resource),
       success_callback_(success_callback),
       error_callback_(error_callback) {
@@ -310,7 +308,7 @@ void CachedResource<CacheType>::ScheduleLoadingRetry() {
 
   // The retry timer is lazily created the first time that it is needed.
   if (!retry_timer_) {
-    retry_timer_.reset(new base::Timer(false, false));
+    retry_timer_.reset(new base::RetainingOneShotTimer());
   }
   retry_timer_->Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(delay),
@@ -328,7 +326,7 @@ void CachedResource<CacheType>::OnContentProduced(
 
 template <typename CacheType>
 void CachedResource<CacheType>::OnLoadingComplete(
-    const base::optional<std::string>& error) {
+    const base::Optional<std::string>& error) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
   // Success
@@ -425,7 +423,7 @@ class CachedResourceReferenceWithCallbacks {
   typedef typename CachedResourceType::OnLoadedCallbackHandler
       CachedResourceTypeOnLoadedCallbackHandler;
 
-  typedef ScopedVector<CachedResourceReferenceWithCallbacks>
+  typedef std::vector<std::unique_ptr<CachedResourceReferenceWithCallbacks>>
       CachedResourceReferenceVector;
 
   CachedResourceReferenceWithCallbacks(
@@ -446,7 +444,7 @@ class CachedResourceReferenceWithCallbacks {
   // A single cached resource.
   scoped_refptr<CachedResourceType> cached_resource_;
   // This handles adding and removing the resource loaded callbacks.
-  scoped_ptr<CachedResourceTypeOnLoadedCallbackHandler>
+  std::unique_ptr<CachedResourceTypeOnLoadedCallbackHandler>
       cached_resource_loaded_callback_handler_;
 };
 
@@ -515,14 +513,15 @@ class ResourceCache {
   typedef typename CachedResourceMap::iterator CachedResourceMapIterator;
 
   typedef base::hash_set<std::string> ResourceSet;
-  typedef base::linked_hash_map<std::string, ResourceCallbackInfo>
+  typedef net::linked_hash_map<std::string, ResourceCallbackInfo>
       ResourceCallbackMap;
 
-  typedef base::linked_hash_map<std::string, scoped_refptr<ResourceType> >
+  typedef net::linked_hash_map<std::string, scoped_refptr<ResourceType>>
       ResourceMap;
   typedef typename ResourceMap::iterator ResourceMapIterator;
 
-  scoped_ptr<Loader> StartLoadingResource(CachedResourceType* cached_resource);
+  std::unique_ptr<Loader> StartLoadingResource(
+      CachedResourceType* cached_resource);
 
   // Called by CachedResource objects after they finish loading.
   void NotifyResourceLoadingComplete(CachedResourceType* cached_resource,
@@ -589,7 +588,7 @@ class ResourceCache {
   ResourceCallbackMap pending_callback_map_;
   // Timer used to ensure that pending callbacks are handled in a timely manner
   // when callbacks are being blocked by additional loading resources.
-  base::OneShotTimer<ResourceCache<CacheType>> process_pending_callback_timer_;
+  base::OneShotTimer process_pending_callback_timer_;
 
   // Whether or not ProcessPendingCallbacks() is running.
   bool is_processing_pending_callbacks_;
@@ -671,7 +670,7 @@ ResourceCache<CacheType>::ResourceCache(
 }
 
 template <typename CacheType>
-scoped_refptr<CachedResource<CacheType> >
+scoped_refptr<CachedResource<CacheType>>
 ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
                                                const Origin& origin) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
@@ -689,7 +688,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
       unreference_cached_resource_map_.find(url.spec());
   if (resource_iterator != unreference_cached_resource_map_.end()) {
     scoped_refptr<CachedResourceType> cached_resource(
-        new CachedResourceType(url, resource_iterator->second, this));
+        new CachedResourceType(url, resource_iterator->second.get(), this));
     cached_resource_map_.insert(
         std::make_pair(url.spec(), cached_resource.get()));
     unreference_cached_resource_map_.erase(url.spec());
@@ -744,7 +743,8 @@ void ResourceCache<CacheType>::ProcessPendingCallbacks() {
 
     // To avoid the last reference of this object getting deleted in the
     // callbacks.
-    scoped_refptr<CachedResourceType> holder(callback_info.cached_resource);
+    auto* cached_resource_ptr = callback_info.cached_resource;
+    scoped_refptr<CachedResourceType> holder(cached_resource_ptr);
     callback_info.cached_resource->RunCallbacks(callback_info.callback_type);
 
     pending_callback_map_.erase(pending_callback_map_.begin());
@@ -760,7 +760,7 @@ void ResourceCache<CacheType>::DisableCallbacks() {
 }
 
 template <typename CacheType>
-scoped_ptr<Loader> ResourceCache<CacheType>::StartLoadingResource(
+std::unique_ptr<Loader> ResourceCache<CacheType>::StartLoadingResource(
     CachedResourceType* cached_resource) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
   const std::string& url = cached_resource->url().spec();
@@ -972,7 +972,8 @@ void ResourceCache<CacheType>::ProcessPendingCallbacksIfUnblocked() {
         FROM_HERE,
         base::TimeDelta::FromMilliseconds(
             kMaxPendingCallbackDelayInMilliseconds),
-        this, &ResourceCache::ProcessPendingCallbacks);
+        base::BindOnce(&ResourceCache::ProcessPendingCallbacks,
+                       base::Unretained(this)));
   }
 }
 

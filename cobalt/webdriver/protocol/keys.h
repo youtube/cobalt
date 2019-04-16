@@ -27,7 +27,7 @@ namespace protocol {
 // Wraps a utf8 string representing a sequence of key inputs.
 class Keys {
  public:
-  static base::optional<Keys> FromValue(const base::Value* value);
+  static base::Optional<Keys> FromValue(const base::Value* value);
 
   const std::string& utf8_keys() const { return utf8_keys_; }
 

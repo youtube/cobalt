@@ -16,11 +16,11 @@
 
 #include <cstdlib>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
 #include "cobalt/browser/memory_tracker/tool/internal_fragmentation_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
@@ -48,8 +48,8 @@ class NullTool : public Tool {
 };
 
 // Instantiates the memory tracker tool from the command argument.
-scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string&) {
-  return scoped_ptr<Tool>(new NullTool);
+std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string&) {
+  return std::unique_ptr<Tool>(new NullTool);
 }
 
 #else
@@ -150,10 +150,10 @@ class MemoryTrackerThreadImpl : public Tool {
   explicit MemoryTrackerThreadImpl(base::SimpleThread* ptr)
       : thread_ptr_(ptr) {}
   ~MemoryTrackerThreadImpl() override { thread_ptr_.reset(NULL); }
-  scoped_ptr<base::SimpleThread> thread_ptr_;
+  std::unique_ptr<base::SimpleThread> thread_ptr_;
 };
 
-scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
+std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   // The command line switch for memory_tracker was used. Look into the args
   // and determine the mode that the memory_tracker should be used for.
 
@@ -244,8 +244,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       js_leak_tracing_tool;
   switch_map[ParseToolName(internal_fragmentation_tracer_tool.tool_name)] =
       internal_fragmentation_tracer_tool;
-  switch_map[ParseToolName(malloc_logger_tool.tool_name)] =
-      malloc_logger_tool;
+  switch_map[ParseToolName(malloc_logger_tool.tool_name)] = malloc_logger_tool;
 
   switch_map[ParseToolName(malloc_stats_tool.tool_name)] = malloc_stats_tool;
 
@@ -297,7 +296,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
 
   // Tools are expected to instantiate the MemoryTracker if they need it.
   MemoryTracker* memory_tracker = NULL;
-  scoped_ptr<AbstractTool> tool_ptr;
+  std::unique_ptr<AbstractTool> tool_ptr;
 
   const SwitchVal& value = found_it->second;
   switch (value.enum_value) {
@@ -309,8 +308,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       double num_mins = 1.0;
       if (!tool_arg.empty()) {
         if (!base::StringToDouble(tool_arg, &num_mins) ||
-            SbDoubleIsNan(num_mins) ||
-            num_mins <= 0) {
+            SbDoubleIsNan(num_mins) || num_mins <= 0) {
           num_mins = 1.0;
         }
       }
@@ -378,12 +376,12 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       break;
     }
     case kAllocationLogger: {
-      scoped_ptr<LogWriterTool> disk_writer_tool(new LogWriterTool());
+      std::unique_ptr<LogWriterTool> disk_writer_tool(new LogWriterTool());
       tool_ptr.reset(disk_writer_tool.release());
       break;
     }
     case kLeakTracer: {
-      scoped_ptr<LeakFinderTool> leak_finder(
+      std::unique_ptr<LeakFinderTool> leak_finder(
           new LeakFinderTool(LeakFinderTool::kCPlusPlus));
 
       memory_tracker = MemoryTracker::Get();
@@ -393,7 +391,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       break;
     }
     case kJavascriptLeakTracer: {
-      scoped_ptr<LeakFinderTool> leak_finder(
+      std::unique_ptr<LeakFinderTool> leak_finder(
           new LeakFinderTool(LeakFinderTool::kJavascript));
 
       memory_tracker = MemoryTracker::Get();
@@ -413,8 +411,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       break;
     }
     case kMallocLogger: {
-      scoped_ptr<MallocLoggerTool> malloc_logger(
-          new MallocLoggerTool());
+      std::unique_ptr<MallocLoggerTool> malloc_logger(new MallocLoggerTool());
 
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
@@ -429,9 +426,9 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
     base::SimpleThread* thread =
         new ToolThread(memory_tracker,  // May be NULL.
                        tool_ptr.release(), new SbLogger);
-    return scoped_ptr<Tool>(new MemoryTrackerThreadImpl(thread));
+    return std::unique_ptr<Tool>(new MemoryTrackerThreadImpl(thread));
   } else {
-    return scoped_ptr<Tool>();
+    return std::unique_ptr<Tool>();
   }
 }
 

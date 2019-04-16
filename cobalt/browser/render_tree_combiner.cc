@@ -15,12 +15,12 @@
 #include "cobalt/browser/render_tree_combiner.h"
 
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/renderer/submission.h"
@@ -39,18 +39,18 @@ RenderTreeCombiner::Layer::~Layer() {
 }
 
 void RenderTreeCombiner::Layer::Submit(
-    const base::optional<renderer::Submission>& render_tree_submission) {
+    const base::Optional<renderer::Submission>& render_tree_submission) {
   render_tree_ = render_tree_submission;
-  receipt_time_ = base::TimeTicks::HighResNow();
+  receipt_time_ = base::TimeTicks::Now();
 }
 
-base::optional<renderer::Submission>
+base::Optional<renderer::Submission>
 RenderTreeCombiner::Layer::GetCurrentSubmission() {
   if (!render_tree_) {
     return base::nullopt;
   }
 
-  base::optional<base::TimeDelta> current_time_offset = CurrentTimeOffset();
+  base::Optional<base::TimeDelta> current_time_offset = CurrentTimeOffset();
   DCHECK(current_time_offset);
   renderer::Submission submission(render_tree_->render_tree,
                                   *current_time_offset);
@@ -62,26 +62,26 @@ RenderTreeCombiner::Layer::GetCurrentSubmission() {
   return submission;
 }
 
-base::optional<base::TimeDelta> RenderTreeCombiner::Layer::CurrentTimeOffset() {
+base::Optional<base::TimeDelta> RenderTreeCombiner::Layer::CurrentTimeOffset() {
   if (!receipt_time_) {
     return base::nullopt;
   } else {
     return render_tree_->time_offset +
-           (base::TimeTicks::HighResNow() - *receipt_time_);
+           (base::TimeTicks::Now() - *receipt_time_);
   }
 }
 
 RenderTreeCombiner::RenderTreeCombiner() : timeline_layer_(NULL) {}
 
-scoped_ptr<RenderTreeCombiner::Layer> RenderTreeCombiner::CreateLayer(
+std::unique_ptr<RenderTreeCombiner::Layer> RenderTreeCombiner::CreateLayer(
     int z_index) {
   if (layers_.count(z_index) > 0) {
-    return scoped_ptr<RenderTreeCombiner::Layer>(NULL);
+    return std::unique_ptr<RenderTreeCombiner::Layer>();
   }
   RenderTreeCombiner::Layer* layer = new Layer(this);
   layers_[z_index] = layer;
 
-  return scoped_ptr<RenderTreeCombiner::Layer>(layers_[z_index]);
+  return std::unique_ptr<RenderTreeCombiner::Layer>(layers_[z_index]);
 }
 
 void RenderTreeCombiner::SetTimelineLayer(Layer* layer) {
@@ -106,7 +106,7 @@ void RenderTreeCombiner::RemoveLayer(const Layer* layer) {
   }
 }
 
-base::optional<renderer::Submission>
+base::Optional<renderer::Submission>
 RenderTreeCombiner::GetCurrentSubmission() {
   render_tree::CompositionNode::Builder builder;
 

@@ -15,15 +15,16 @@
 #include "cobalt/storage/store/memory_store.h"
 
 #include <map>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/storage.pb.h"
-#include "googleurl/src/gurl.h"
 #include "nb/memory_scope.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace storage {
@@ -50,7 +51,8 @@ class MemoryStore::Impl {
   bool Serialize(std::vector<uint8>* out) const;
 
   // Cookies
-  void GetAllCookies(std::vector<net::CanonicalCookie*>* cookies) const;
+  void GetAllCookies(
+      std::vector<std::unique_ptr<net::CanonicalCookie>>* cookies) const;
   void AddCookie(const net::CanonicalCookie& cc, int64 expiration_time_us);
   void UpdateCookieAccessTime(const net::CanonicalCookie& cc, int64 time_us);
   void DeleteCookie(const net::CanonicalCookie& cc);
@@ -147,22 +149,22 @@ bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) const {
 }
 
 void MemoryStore::Impl::GetAllCookies(
-    std::vector<net::CanonicalCookie*>* cookies) const {
+    std::vector<std::unique_ptr<net::CanonicalCookie>>* cookies) const {
   TRACK_MEMORY_SCOPE("Storage");
   for (const auto& cookie_pair : cookies_map_) {
     // We create a CanonicalCookie directly through its constructor instead of
     // through CanonicalCookie::Create() and its sanitization because these
     // values are just serialized from a former instance of a CanonicalCookie
     // object that *was* created through CanonicalCookie::Create().
-    scoped_ptr<net::CanonicalCookie> cookie(new net::CanonicalCookie(
-        GURL(""), cookie_pair.second.name(), cookie_pair.second.value(),
+    auto cookie = std::make_unique<net::CanonicalCookie>(
+        cookie_pair.second.name(), cookie_pair.second.value(),
         cookie_pair.second.domain(), cookie_pair.second.path(),
-        "" /* mac_key */, "" /* mac_algorithm */,
         base::Time::FromInternalValue(cookie_pair.second.creation_time_us()),
         base::Time::FromInternalValue(cookie_pair.second.expiration_time_us()),
         base::Time::FromInternalValue(cookie_pair.second.last_access_time_us()),
-        cookie_pair.second.secure(), cookie_pair.second.http_only()));
-    cookies->push_back(cookie.release());
+        cookie_pair.second.secure(), cookie_pair.second.http_only(),
+        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT);
+    cookies->push_back(std::move(cookie));
   }
 }
 
@@ -235,7 +237,7 @@ bool MemoryStore::Serialize(std::vector<uint8>* out) const {
 }
 
 void MemoryStore::GetAllCookies(
-    std::vector<net::CanonicalCookie*>* cookies) const {
+    std::vector<std::unique_ptr<net::CanonicalCookie>>* cookies) const {
   impl_->GetAllCookies(cookies);
 }
 

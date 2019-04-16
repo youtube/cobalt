@@ -29,15 +29,15 @@ class StorageEvent : public Event {
  public:
   StorageEvent();
   explicit StorageEvent(const std::string& type);
-  StorageEvent(const base::optional<std::string>& key,
-               const base::optional<std::string>& old_value,
-               const base::optional<std::string>& new_value,
+  StorageEvent(const base::Optional<std::string>& key,
+               const base::Optional<std::string>& old_value,
+               const base::Optional<std::string>& new_value,
                const std::string& url,
                const scoped_refptr<Storage>& storage_area);
 
-  base::optional<std::string> key() const { return key_; }
-  base::optional<std::string> old_value() const { return old_value_; }
-  base::optional<std::string> new_value() const { return new_value_; }
+  base::Optional<std::string> key() const { return key_; }
+  base::Optional<std::string> old_value() const { return old_value_; }
+  base::Optional<std::string> new_value() const { return new_value_; }
   std::string url() const { return url_; }
   scoped_refptr<Storage> storage_area() const;
 
@@ -45,9 +45,9 @@ class StorageEvent : public Event {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  base::optional<std::string> key_;
-  base::optional<std::string> old_value_;
-  base::optional<std::string> new_value_;
+  base::Optional<std::string> key_;
+  base::Optional<std::string> old_value_;
+  base::Optional<std::string> new_value_;
   std::string url_;
   scoped_refptr<Storage> storage_area_;
 

@@ -22,7 +22,7 @@ namespace web_animations {
 
 AnimationEffectTimingReadOnly::Data::IterationProgress
 AnimationEffectTimingReadOnly::Data::ComputeIterationProgressFromLocalTime(
-    const base::optional<base::TimeDelta>& local_time) const {
+    const base::Optional<base::TimeDelta>& local_time) const {
   // Calculating the iteration progress from the local time is summarized nicely
   // here: https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#overview
   // Note that the flowchart from that links concludes with the production of
@@ -31,11 +31,11 @@ AnimationEffectTimingReadOnly::Data::ComputeIterationProgressFromLocalTime(
   // applied to obtain the iteration progress.
   IterationProgress ret;
 
-  base::optional<base::TimeDelta> active_time =
+  base::Optional<base::TimeDelta> active_time =
       ComputeActiveTimeFromLocalTime(local_time);
-  base::optional<base::TimeDelta> scaled_active_time =
+  base::Optional<base::TimeDelta> scaled_active_time =
       ComputeScaledActiveTimeFromActiveTime(active_time);
-  base::optional<base::TimeDelta> iteration_time =
+  base::Optional<base::TimeDelta> iteration_time =
       ComputeIterationTimeFromScaledActiveTime(scaled_active_time);
 
   ret.current_iteration =
@@ -52,7 +52,7 @@ AnimationEffectTimingReadOnly::Data::ComputeIterationProgressFromLocalTime(
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#animation-effect-phases-and-states
 AnimationEffectTimingReadOnly::Data::Phase
 AnimationEffectTimingReadOnly::Data::GetPhase(
-    const base::optional<base::TimeDelta>& local_time) const {
+    const base::Optional<base::TimeDelta>& local_time) const {
   if (!local_time) {
     return kNoPhase;
   }
@@ -94,9 +94,9 @@ base::TimeDelta AnimationEffectTimingReadOnly::Data::start_offset() const {
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-active-time
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeActiveTimeFromLocalTime(
-    const base::optional<base::TimeDelta>& local_time) const {
+    const base::Optional<base::TimeDelta>& local_time) const {
   Phase phase = GetPhase(local_time);
 
   switch (phase) {
@@ -125,18 +125,18 @@ AnimationEffectTimingReadOnly::Data::ComputeActiveTimeFromLocalTime(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-scaled-active-time
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeScaledActiveTimeFromActiveTime(
-    const base::optional<base::TimeDelta>& active_time) const {
+    const base::Optional<base::TimeDelta>& active_time) const {
   if (!active_time) return base::nullopt;
 
   return *active_time + start_offset();
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-iteration-time
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeIterationTimeFromScaledActiveTime(
-    const base::optional<base::TimeDelta>& scaled_active_time) const {
+    const base::Optional<base::TimeDelta>& scaled_active_time) const {
   if (!scaled_active_time) return base::nullopt;
 
   if (duration_ == base::TimeDelta()) return base::TimeDelta();
@@ -154,11 +154,11 @@ AnimationEffectTimingReadOnly::Data::ComputeIterationTimeFromScaledActiveTime(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-current-iteration
-base::optional<double>
+base::Optional<double>
 AnimationEffectTimingReadOnly::Data::ComputeCurrentIteration(
-    const base::optional<base::TimeDelta>& active_time,
-    const base::optional<base::TimeDelta>& scaled_active_time,
-    const base::optional<base::TimeDelta>& iteration_time) const {
+    const base::Optional<base::TimeDelta>& active_time,
+    const base::Optional<base::TimeDelta>& scaled_active_time,
+    const base::Optional<base::TimeDelta>& iteration_time) const {
   // 1.  If the active time is unresolved, return unresolved.
   if (!active_time) return base::nullopt;
   // 2.  If the active time is zero, return floor(iteration start).
@@ -186,10 +186,10 @@ AnimationEffectTimingReadOnly::Data::ComputeCurrentIteration(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-directed-time
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeDirectedTimeFromIterationTime(
-    const base::optional<base::TimeDelta>& iteration_time,
-    const base::optional<double>& current_iteration) const {
+    const base::Optional<base::TimeDelta>& iteration_time,
+    const base::Optional<double>& current_iteration) const {
   // 1.  If the iteration time is unresolved, return unresolved.
   if (!iteration_time) return base::nullopt;
   DCHECK(current_iteration);
@@ -233,9 +233,9 @@ AnimationEffectTimingReadOnly::Data::ComputeDirectedTimeFromIterationTime(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-transformed-time
-base::optional<base::TimeDelta>
+base::Optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeTransformedTimeFromDirectedTime(
-    const base::optional<base::TimeDelta>& directed_time) const {
+    const base::Optional<base::TimeDelta>& directed_time) const {
   if (!directed_time) return base::nullopt;
   if (duration_ == base::TimeDelta::Max()) {
     return directed_time;
@@ -256,9 +256,9 @@ AnimationEffectTimingReadOnly::Data::ComputeTransformedTimeFromDirectedTime(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-iteration-progress
-base::optional<double> AnimationEffectTimingReadOnly::Data::
+base::Optional<double> AnimationEffectTimingReadOnly::Data::
     ComputeIterationProgressFromTransformedTime(
-        const base::optional<base::TimeDelta>& transformed_time) const {
+        const base::Optional<base::TimeDelta>& transformed_time) const {
   if (!transformed_time) return base::nullopt;
   if (duration_ == base::TimeDelta()) {
     // TODO: Support animations with iteration duration set to 0.

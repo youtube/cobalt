@@ -10,7 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
 #include "cobalt/media/base/yuv_convert.h"
@@ -46,7 +46,7 @@ class YUVConvertPerfTest : public testing::Test {
       : yuv_bytes_(new uint8_t[kYUV12Size]),
         rgb_bytes_converted_(new uint8_t[kRGBSize]) {
     base::FilePath path;
-    CHECK(PathService::Get(base::DIR_TEST_DATA, &path));
+    CHECK(base::PathService::Get(base::DIR_TEST_DATA, &path));
     path = path.Append(FILE_PATH_LITERAL("media"))
                .Append(FILE_PATH_LITERAL("test"))
                .Append(FILE_PATH_LITERAL("data"))

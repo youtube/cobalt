@@ -15,13 +15,12 @@
 #ifndef COBALT_CSSOM_MAP_TO_MESH_FUNCTION_H_
 #define COBALT_CSSOM_MAP_TO_MESH_FUNCTION_H_
 
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/filter_function.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -62,7 +61,8 @@ class MapToMeshFunction : public FilterFunction {
     // List of custom binary mesh URLs.
     kUrls
   };
-  typedef ScopedVector<ResolutionMatchedMesh> ResolutionMatchedMeshListBuilder;
+  typedef std::vector<std::unique_ptr<ResolutionMatchedMesh>>
+      ResolutionMatchedMeshListBuilder;
 
   // Contains the specification of the mesh source.
   class MeshSpec {
@@ -77,7 +77,7 @@ class MapToMeshFunction : public FilterFunction {
              ResolutionMatchedMeshListBuilder resolution_matched_meshes)
         : mesh_type_(mesh_type),
           mesh_url_(mesh_url),
-          resolution_matched_meshes_(resolution_matched_meshes.Pass()) {
+          resolution_matched_meshes_(std::move(resolution_matched_meshes)) {
       DCHECK_EQ(mesh_type_, kUrls);
       DCHECK(mesh_url);
     }
@@ -100,11 +100,11 @@ class MapToMeshFunction : public FilterFunction {
     DISALLOW_COPY_AND_ASSIGN(MeshSpec);
   };
 
-  MapToMeshFunction(scoped_ptr<MeshSpec> mesh_spec,
+  MapToMeshFunction(std::unique_ptr<MeshSpec> mesh_spec,
                     float horizontal_fov_in_radians,
                     float vertical_fov_in_radians, const glm::mat4& transform,
                     const scoped_refptr<KeywordValue>& stereo_mode)
-      : mesh_spec_(mesh_spec.Pass()),
+      : mesh_spec_(std::move(mesh_spec)),
         horizontal_fov_in_radians_(horizontal_fov_in_radians),
         vertical_fov_in_radians_(vertical_fov_in_radians),
         transform_(transform),
@@ -120,8 +120,8 @@ class MapToMeshFunction : public FilterFunction {
                     float horizontal_fov_in_radians,
                     float vertical_fov_in_radians, const glm::mat4& transform,
                     const scoped_refptr<KeywordValue>& stereo_mode)
-      : mesh_spec_(
-            new MeshSpec(kUrls, mesh_url, resolution_matched_meshes.Pass())),
+      : mesh_spec_(new MeshSpec(kUrls, mesh_url,
+                                std::move(resolution_matched_meshes))),
         horizontal_fov_in_radians_(horizontal_fov_in_radians),
         vertical_fov_in_radians_(vertical_fov_in_radians),
         transform_(transform),
@@ -174,7 +174,7 @@ class MapToMeshFunction : public FilterFunction {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(MapToMeshFunction);
 
  private:
-  const scoped_ptr<MeshSpec> mesh_spec_;
+  const std::unique_ptr<MeshSpec> mesh_spec_;
   const float horizontal_fov_in_radians_;
   const float vertical_fov_in_radians_;
   const glm::mat4 transform_;

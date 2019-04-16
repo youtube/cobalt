@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/exception_object_interface.h"
 #include "cobalt/bindings/testing/exceptions_interface.h"
@@ -109,7 +109,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromSetter) {
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
   scoped_refptr<ExceptionObjectInterface> exception_object =
-      make_scoped_refptr(new NiceMock<ExceptionObjectInterface>());
+      base::WrapRefCounted(new NiceMock<ExceptionObjectInterface>());
   ExceptionObjectSetter exception_setter(exception_object);
 
   InSequence in_sequence_dummy;

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
 #include "cobalt/media/base/audio_timestamp_helper.h"
+#include "base/basictypes.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,8 +39,8 @@ class AudioTimestampHelperTest : public ::testing::Test {
 
   void TestGetFramesToTargetRange(int frame_count, int start, int end) {
     for (int i = start; i <= end; ++i) {
-      EXPECT_EQ(frame_count, FramesToTarget(i)) << " Failure for timestamp "
-                                                << i << " us.";
+      EXPECT_EQ(frame_count, FramesToTarget(i))
+          << " Failure for timestamp " << i << " us.";
     }
   }
 

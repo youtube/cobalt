@@ -84,13 +84,13 @@ const int kMaximumPendingBuffers = 8;
 class InterleavedSincResampler::Buffer
     : public base::RefCountedThreadSafe<Buffer> {
  public:
-  Buffer() : data_(NULL), frames_(0) {}
+  Buffer() : frames_(0) {}
   Buffer(const float* data, int frames, int channel_count) : frames_(frames) {
     data_.reset(new float[frames * channel_count]);
     SbMemoryCopy(data_.get(), data, frames * channel_count * sizeof(float));
   }
-  Buffer(scoped_array<float> data, int frames)
-      : data_(data.Pass()), frames_(frames) {}
+  Buffer(std::unique_ptr<float[]> data, int frames)
+      : data_(std::move(data)), frames_(frames) {}
 
   const float* GetData() const { return data_.get(); }
 
@@ -99,7 +99,7 @@ class InterleavedSincResampler::Buffer
   bool IsEndOfStream() const { return GetData() == NULL; }
 
  private:
-  scoped_array<float> data_;
+  std::unique_ptr<float[]> data_;
   int frames_;
 
   DISALLOW_COPY_AND_ASSIGN(Buffer);
@@ -217,7 +217,7 @@ void InterleavedSincResampler::QueueBuffer(const float* data, int frames) {
   }
 }
 
-void InterleavedSincResampler::QueueBuffer(scoped_array<float> data,
+void InterleavedSincResampler::QueueBuffer(std::unique_ptr<float[]> data,
                                            int frames) {
   DCHECK(CanQueueBuffer());
 
@@ -231,7 +231,7 @@ void InterleavedSincResampler::QueueBuffer(scoped_array<float> data,
     return;
   } else {
     frames_queued_ += frames;
-    pending_buffers_.push(new Buffer(data.Pass(), frames));
+    pending_buffers_.push(new Buffer(std::move(data), frames));
   }
 }
 

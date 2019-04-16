@@ -14,7 +14,7 @@
 
 #include "cobalt/cssom/css_style_declaration.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_declaration_util.h"
 #include "cobalt/cssom/css_rule.h"

@@ -15,13 +15,14 @@
 #ifndef COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
 #define COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
 
+#include <memory>
+
 #include "base/compiler_specific.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/base/video_resolution.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 
@@ -66,7 +67,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
 
   starboard::Mutex mutex_;
   nb::StarboardMemoryAllocator fallback_allocator_;
-  starboard::scoped_ptr<ReuseAllocator> reuse_allocator_;
+  std::unique_ptr<ReuseAllocator> reuse_allocator_;
   bool using_memory_pool_ = false;
 #if SB_API_VERSION >= 10
   SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/audio/audio_file_reader.h"
 
 #include "cobalt/audio/audio_file_reader_wav.h"
@@ -20,11 +22,10 @@ namespace cobalt {
 namespace audio {
 
 // static
-scoped_ptr<AudioFileReader> AudioFileReader::TryCreate(const uint8* data,
-                                                       size_t size,
-                                                       SampleType sample_type) {
+std::unique_ptr<AudioFileReader> AudioFileReader::TryCreate(
+    const uint8* data, size_t size, SampleType sample_type) {
   // Try to create other type of audio file reader.
-  return AudioFileReaderWAV::TryCreate(data, size, sample_type).Pass();
+  return AudioFileReaderWAV::TryCreate(data, size, sample_type);
 }
 
 }  // namespace audio

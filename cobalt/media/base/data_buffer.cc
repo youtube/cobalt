@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/data_buffer.h"
 
+#include <memory>
 #include <utility>
 
 #include "starboard/memory.h"
@@ -43,12 +44,12 @@ DataBuffer::~DataBuffer() {}
 scoped_refptr<DataBuffer> DataBuffer::CopyFrom(const uint8_t* data, int size) {
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
-  return make_scoped_refptr(new DataBuffer(data, size));
+  return base::WrapRefCounted(new DataBuffer(data, size));
 }
 
 // static
 scoped_refptr<DataBuffer> DataBuffer::CreateEOSBuffer() {
-  return make_scoped_refptr(new DataBuffer(NULL, 0));
+  return base::WrapRefCounted(new DataBuffer(NULL, 0));
 }
 }  // namespace media
 }  // namespace cobalt

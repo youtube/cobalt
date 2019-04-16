@@ -15,12 +15,14 @@
 #include "cobalt/dom/rule_matching.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/debug/trace_event.h"
-#include "base/string_util.h"
+#include "base/memory/ptr_util.h"
+#include "base/strings/string_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/attribute_selector.h"
@@ -307,7 +309,8 @@ class SelectorMatcher : public cssom::SelectorVisitor {
              selector_iterator = compound_selector->simple_selectors().begin();
          selector_iterator != compound_selector->simple_selectors().end();
          ++selector_iterator) {
-      element_ = MatchSelectorAndElement(*selector_iterator, element_, false);
+      element_ =
+          MatchSelectorAndElement(selector_iterator->get(), element_, false);
       if (!element_) {
         return;
       }
@@ -358,7 +361,7 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
            rule->selectors().begin();
        selector_iterator != rule->selectors().end(); ++selector_iterator) {
     DCHECK(*selector_iterator);
-    if (MatchSelectorAndElement(*selector_iterator, element, true)) {
+    if (MatchSelectorAndElement(selector_iterator->get(), element, true)) {
       return true;
     }
   }
@@ -853,7 +856,7 @@ void UpdateElementMatchingRulesFromRuleMatchingState(HTMLElement* element) {
       if (!element->pseudo_element(pseudo_element_type)) {
         element->SetPseudoElement(
             pseudo_element_type,
-            make_scoped_ptr(new dom::PseudoElement(element)));
+            base::WrapUnique(new dom::PseudoElement(element)));
 
         cssom::RulesWithCascadePrecedence* old_pseudo_element_matching_rules =
             element_document->scratchpad_pseudo_element_matching_rules(

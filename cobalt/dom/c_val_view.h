@@ -30,7 +30,7 @@ class CValView : public script::Wrappable {
   CValView();
 
   scoped_refptr<CValKeyList> Keys();
-  base::optional<std::string> GetValue(const std::string& name);
+  base::Optional<std::string> GetValue(const std::string& name);
   std::string GetPrettyValue(const std::string& name);
 
   DEFINE_WRAPPABLE_TYPE(CValView);

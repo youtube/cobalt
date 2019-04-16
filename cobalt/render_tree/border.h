@@ -15,7 +15,6 @@
 #ifndef COBALT_RENDER_TREE_BORDER_H_
 #define COBALT_RENDER_TREE_BORDER_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/brush.h"
 

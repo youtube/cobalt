@@ -15,8 +15,8 @@
 #include "cobalt/network/proxy_config_service.h"
 
 #include "base/logging.h"
-#include "net/proxy/proxy_config.h"
-#include "net/proxy/proxy_server.h"
+#include "net/base/proxy_server.h"
+#include "net/proxy_resolution/proxy_config_with_annotation.h"
 
 namespace cobalt {
 namespace network {

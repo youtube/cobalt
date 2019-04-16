@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_vector.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -39,7 +38,7 @@ class OpusPacket {
 };
 
 // Builds an exhaustive collection of Opus packet configurations.
-ScopedVector<OpusPacket> BuildAllOpusPackets();
+std::vector<std::unique_ptr<OpusPacket>> BuildAllOpusPackets();
 
 }  // namespace media
 }  // namespace cobalt

@@ -14,7 +14,7 @@
 
 #include "cobalt/layout/layout.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/stop_watch.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_style_declaration.h"
@@ -146,7 +146,7 @@ scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
 
     (*initial_containing_block)
         ->RenderAndAnimate(&render_tree_root_builder, math::Vector2dF(0, 0),
-                           (*initial_containing_block));
+                           (initial_containing_block->get()));
   }
 
   // During computed style update and RenderAndAnimate, we get the actual images
@@ -155,7 +155,7 @@ scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
   used_style_provider->UpdateAnimatedImages();
 
   render_tree::CompositionNode* static_root_node =
-      new render_tree::CompositionNode(render_tree_root_builder.Pass());
+      new render_tree::CompositionNode(std::move(render_tree_root_builder));
 
   // Make it easy to animate the entire tree by placing an AnimateNode at the
   // root to merge any sub-AnimateNodes.

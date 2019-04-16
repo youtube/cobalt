@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/debug/backend/debug_module.h"
 
 #include "cobalt/debug/backend/render_layer.h"
@@ -38,25 +40,26 @@ JSONObject RemoveAgentState(const std::string& agent_name,
     return JSONObject();
   }
 
-  base::Value* value;
+  std::unique_ptr<base::Value> value;
   if (!state_dict->Remove(agent_name, &value)) {
     return JSONObject();
   }
 
-  base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  std::unique_ptr<base::DictionaryValue> dictionary_value =
+      base::DictionaryValue::From(std::move(value));
+  if (!dictionary_value) {
     DLOG(ERROR) << "Unexpected state type for " << agent_name;
-    delete value;
     return JSONObject();
   }
 
-  return JSONObject(dictionary_value);
+  return dictionary_value;
 }
 
 void StoreAgentState(base::DictionaryValue* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
   if (agent_state) {
-    state_dict->Set(agent_name, agent_state.release());
+    state_dict->Set(agent_name,
+                    std::unique_ptr<base::Value>(agent_state.release()));
   }
 }
 
@@ -67,9 +70,9 @@ DebugModule::DebugModule(dom::Console* console,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state) {
-  ConstructionData data(console, global_environment, MessageLoop::current(),
-                        render_overlay, resource_provider, window,
-                        debugger_state);
+  ConstructionData data(console, global_environment,
+                        base::MessageLoop::current(), render_overlay,
+                        resource_provider, window, debugger_state);
   Build(data);
 }
 
@@ -78,7 +81,7 @@ DebugModule::DebugModule(dom::Console* console,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state,
-                         MessageLoop* message_loop) {
+                         base::MessageLoop* message_loop) {
   ConstructionData data(console, global_environment, message_loop,
                         render_overlay, resource_provider, window,
                         debugger_state);
@@ -99,11 +102,13 @@ DebugModule::~DebugModule() {
 void DebugModule::Build(const ConstructionData& data) {
   DCHECK(data.message_loop);
 
-  if (MessageLoop::current() == data.message_loop) {
+  if (base::MessageLoop::current() == data.message_loop) {
     BuildInternal(data, NULL);
   } else {
-    base::WaitableEvent created(true, false);
-    data.message_loop->PostTask(
+    base::WaitableEvent created(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    data.message_loop->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&DebugModule::BuildInternal, base::Unretained(this), data,
                    base::Unretained(&created)));
@@ -115,7 +120,7 @@ void DebugModule::Build(const ConstructionData& data) {
 
 void DebugModule::BuildInternal(const ConstructionData& data,
                                 base::WaitableEvent* created) {
-  DCHECK(MessageLoop::current() == data.message_loop);
+  DCHECK(base::MessageLoop::current() == data.message_loop);
   DCHECK(data.console);
   DCHECK(data.global_environment);
   DCHECK(data.render_overlay);
@@ -130,17 +135,17 @@ void DebugModule::BuildInternal(const ConstructionData& data,
                             data.window->document()->csp_delegate()));
   debug_dispatcher_.reset(
       new DebugDispatcher(script_debugger_.get(), script_runner_.get()));
-  debug_backend_ = make_scoped_refptr(new DebugBackend(
+  debug_backend_ = WrapRefCounted(new DebugBackend(
       data.global_environment, script_debugger_.get(),
       base::Bind(&DebugModule::SendEvent, base::Unretained(this))));
 
   // Create render layers for the agents that need them and chain them
   // together. Ownership will be passed to the agent that uses each layer.
   // The layers will be painted in the reverse order they are listed here.
-  scoped_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
+  std::unique_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
       &RenderOverlay::SetOverlay, base::Unretained(data.render_overlay))));
 
-  scoped_ptr<RenderLayer> dom_render_layer(new RenderLayer(
+  std::unique_ptr<RenderLayer> dom_render_layer(new RenderLayer(
       base::Bind(&RenderLayer::SetBackLayer, page_render_layer->AsWeakPtr())));
 
   // Create the agents that implement the various devtools protocol domains by
@@ -152,10 +157,10 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   console_agent_.reset(new ConsoleAgent(debug_dispatcher_.get(), data.console));
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
   dom_agent_.reset(
-      new DOMAgent(debug_dispatcher_.get(), dom_render_layer.Pass()));
-  css_agent_ = make_scoped_refptr(new CSSAgent(debug_dispatcher_.get()));
+      new DOMAgent(debug_dispatcher_.get(), std::move(dom_render_layer)));
+  css_agent_ = WrapRefCounted(new CSSAgent(debug_dispatcher_.get()));
   page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
-                                  page_render_layer.Pass(),
+                                  std::move(page_render_layer),
                                   data.resource_provider));
   tracing_agent_.reset(
       new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
@@ -217,7 +222,7 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
 }
 
 void DebugModule::SendEvent(const std::string& method,
-                            const base::optional<std::string>& params) {
+                            const base::Optional<std::string>& params) {
   DCHECK(debug_dispatcher_);
   debug_dispatcher_->SendEvent(method, params);
 }

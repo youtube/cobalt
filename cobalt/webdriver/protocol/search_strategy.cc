@@ -49,7 +49,7 @@ bool GetSearchStrategyFromString(const std::string& strategy_string,
 }
 }  // namespace
 
-base::optional<SearchStrategy> SearchStrategy::FromValue(
+base::Optional<SearchStrategy> SearchStrategy::FromValue(
     const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {

@@ -15,6 +15,7 @@
 #ifndef COBALT_H5VCC_DIAL_DIAL_HTTP_RESPONSE_H_
 #define COBALT_H5VCC_DIAL_DIAL_HTTP_RESPONSE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -43,7 +44,7 @@ class DialHttpResponse : public script::Wrappable {
 
   void AddHeader(const std::string& header, const std::string& value);
 
-  scoped_ptr<net::HttpServerResponseInfo> ToHttpServerResponseInfo() const;
+  std::unique_ptr<net::HttpServerResponseInfo> ToHttpServerResponseInfo();
 
   DEFINE_WRAPPABLE_TYPE(DialHttpResponse);
 
@@ -54,7 +55,9 @@ class DialHttpResponse : public script::Wrappable {
   std::string body_;
   std::string mime_type_;
 
-  std::vector<std::string> headers_;
+  // Since we do not need to read header, let's just store headers in the
+  // HttpServerResponseInfo.
+  std::unique_ptr<net::HttpServerResponseInfo> info_;
 
   DISALLOW_COPY_AND_ASSIGN(DialHttpResponse);
 };

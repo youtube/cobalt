@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 
+#include <memory>
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -61,7 +63,7 @@ void SoftwareRasterizer::Submit(
     }
     default: { NOTREACHED() << "Unsupported GL color format."; }
   }
-  scoped_ptr<cobalt::renderer::backend::TextureDataEGL> bitmap_pixels =
+  std::unique_ptr<cobalt::renderer::backend::TextureDataEGL> bitmap_pixels =
       context_->system_egl()->AllocateTextureData(
           math::Size(output_image_info.width(), output_image_info.height()),
           gl_format);
@@ -81,8 +83,8 @@ void SoftwareRasterizer::Submit(
   // The rasterized pixels are still on the CPU, ship them off to the GPU
   // for output to the display.  We must first create a backend GPU texture
   // with the data so that it is visible to the GPU.
-  scoped_ptr<backend::TextureEGL> output_texture =
-      context_->CreateTexture(bitmap_pixels.Pass());
+  std::unique_ptr<backend::TextureEGL> output_texture =
+      context_->CreateTexture(std::move(bitmap_pixels));
 
   backend::RenderTargetEGL* render_target_egl =
       base::polymorphic_downcast<backend::RenderTargetEGL*>(

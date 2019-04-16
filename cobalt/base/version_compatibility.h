@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/atomicops.h"
-#include "base/basictypes.h"
 #include "base/memory/singleton.h"
 #include "cobalt/base/c_val.h"
 
@@ -42,7 +41,7 @@ class VersionCompatibility {
   void ReportViolation(const std::string& violation_info);
 
  private:
-  friend struct StaticMemorySingletonTraits<VersionCompatibility>;
+  friend struct base::StaticMemorySingletonTraits<VersionCompatibility>;
 
   VersionCompatibility();
   ~VersionCompatibility() = default;

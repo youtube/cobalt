@@ -49,15 +49,11 @@ class ShaderProgramBase {
 
 // This template ShaderProgram class represents a shader program with specific
 // vertex and fragment shaders. The shaders must inherit from ShaderBase.
-template<typename VertexShader, typename FragmentShader>
+template <typename VertexShader, typename FragmentShader>
 class ShaderProgram : public ShaderProgramBase {
  public:
-  const VertexShader& GetVertexShader() const {
-    return vertex_shader_;
-  }
-  const FragmentShader& GetFragmentShader() const {
-    return fragment_shader_;
-  }
+  const VertexShader& GetVertexShader() const { return vertex_shader_; }
+  const FragmentShader& GetFragmentShader() const { return fragment_shader_; }
   static base::TypeId GetTypeId() {
     return base::GetTypeId<ShaderProgram<VertexShader, FragmentShader> >();
   }
@@ -67,9 +63,7 @@ class ShaderProgram : public ShaderProgramBase {
   // ShaderProgramManager.
   friend class ShaderProgramManager;
 
-  ShaderProgram() {
-    Create(&vertex_shader_, &fragment_shader_);
-  }
+  ShaderProgram() { Create(&vertex_shader_, &fragment_shader_); }
   ~ShaderProgram() override { Destroy(&vertex_shader_, &fragment_shader_); }
 
   VertexShader vertex_shader_;

@@ -5,8 +5,9 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_LOG_EVENT_H_
 #define COBALT_MEDIA_BASE_MEDIA_LOG_EVENT_H_
 
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include <memory>
+
+#include "base/time/time.h"
 #include "base/values.h"
 #include "starboard/types.h"
 
@@ -21,7 +22,7 @@ struct MediaLogEvent {
   MediaLogEvent& operator=(const MediaLogEvent& event) {
     id = event.id;
     type = event.type;
-    scoped_ptr<base::DictionaryValue> event_copy(event.params.DeepCopy());
+    std::unique_ptr<base::DictionaryValue> event_copy(event.params.DeepCopy());
     params.Swap(event_copy.get());
     time = event.time;
     return *this;

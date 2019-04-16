@@ -14,6 +14,7 @@
 
 #include "cobalt/cssom/computed_style.h"
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -350,11 +351,11 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> background_image_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_image_builder(
       new PropertyListValue::Builder());
   background_image_builder->push_back(new URLValue("../test/sample.png"));
   scoped_refptr<PropertyListValue> background_image(
-      new PropertyListValue(background_image_builder.Pass()));
+      new PropertyListValue(std::move(background_image_builder)));
   computed_style->set_background_image(background_image);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -387,11 +388,11 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> background_image_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_image_builder(
       new PropertyListValue::Builder());
   background_image_builder->push_back(KeywordValue::GetNone());
   scoped_refptr<PropertyListValue> background_image(
-      new PropertyListValue(background_image_builder.Pass()));
+      new PropertyListValue(std::move(background_image_builder)));
   computed_style->set_background_image(background_image);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -458,12 +459,12 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
       new CSSComputedStyleData());
 
   // background-position: 3em;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(
       new LengthValue(3, kFontSizesAkaEmUnit));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -500,11 +501,11 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
       new CSSComputedStyleData());
 
   // background-position: bottom;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetBottom());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -541,13 +542,13 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
       new CSSComputedStyleData());
 
   // background-position: 3em 40px;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(
       new LengthValue(3, kFontSizesAkaEmUnit));
   background_position_builder->push_back(new LengthValue(40, kPixelsUnit));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -584,12 +585,12 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithOneKeyword) {
       new CSSComputedStyleData());
 
   // background-position: 67% center;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(new PercentageValue(0.67f));
   background_position_builder->push_back(KeywordValue::GetCenter());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -626,12 +627,12 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoKeywords) {
       new CSSComputedStyleData());
 
   // background-position: right bottom;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetRight());
   background_position_builder->push_back(KeywordValue::GetBottom());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -668,12 +669,12 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoCenterKeywords) {
       new CSSComputedStyleData());
 
   // background-position: center center;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetCenter());
   background_position_builder->push_back(KeywordValue::GetCenter());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -710,13 +711,13 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValues) {
       new CSSComputedStyleData());
 
   // background-position: top 80% left;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetTop());
   background_position_builder->push_back(new PercentageValue(0.8f));
   background_position_builder->push_back(KeywordValue::GetLeft());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -753,13 +754,13 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValuesHaveCenter) {
       new CSSComputedStyleData());
 
   // background-position: center left 80%;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetCenter());
   background_position_builder->push_back(KeywordValue::GetLeft());
   background_position_builder->push_back(new PercentageValue(0.8f));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -796,14 +797,14 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithFourValues) {
       new CSSComputedStyleData());
 
   // background-position: bottom 80% right 50px;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetBottom());
   background_position_builder->push_back(new PercentageValue(0.8f));
   background_position_builder->push_back(KeywordValue::GetRight());
   background_position_builder->push_back(new LengthValue(50, kPixelsUnit));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -839,12 +840,12 @@ TEST(PromoteToComputedStyle, BackgroundSizeEmToPixel) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> background_size_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_size_builder(
       new PropertyListValue::Builder());
   background_size_builder->push_back(new LengthValue(3, kFontSizesAkaEmUnit));
   background_size_builder->push_back(new LengthValue(40, kPixelsUnit));
   scoped_refptr<PropertyListValue> background_size(
-      new PropertyListValue(background_size_builder.Pass()));
+      new PropertyListValue(std::move(background_size_builder)));
   computed_style->set_background_size(background_size);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -998,7 +999,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1009,7 +1010,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
       new ShadowValue(lengths, RGBAColorValue::GetAqua(), false));
   builder->push_back(shadow);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1045,7 +1046,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1056,7 +1057,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
       new ShadowValue(lengths, RGBAColorValue::GetAqua(), true /*has_inset*/));
   builder->push_back(shadow);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1091,7 +1092,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1101,7 +1102,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   scoped_refptr<ShadowValue> shadow(new ShadowValue(lengths, NULL, false));
   builder->push_back(shadow);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1135,7 +1136,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths_1;
@@ -1154,7 +1155,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
 
   builder->push_back(shadow_2);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1333,7 +1334,7 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1344,7 +1345,7 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
       new ShadowValue(lengths, RGBAColorValue::GetAqua(), false));
   builder->push_back(shadow);
 
-  computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_text_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1378,7 +1379,7 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1388,7 +1389,7 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   scoped_refptr<ShadowValue> shadow(new ShadowValue(lengths, NULL, false));
   builder->push_back(shadow);
 
-  computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_text_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1422,7 +1423,7 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths_1;
@@ -1440,7 +1441,7 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
 
   builder->push_back(shadow_2);
 
-  computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_text_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1669,11 +1670,11 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
       new CSSComputedStyleData());
 
   // transform-origin: bottom;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(KeywordValue::GetBottom());
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1715,11 +1716,11 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
       new CSSComputedStyleData());
 
   // transform-origin: 3em;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new LengthValue(3, kFontSizesAkaEmUnit));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1761,12 +1762,12 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
       new CSSComputedStyleData());
 
   // transform-origin: 3em 40px;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new LengthValue(3, kFontSizesAkaEmUnit));
   transform_origin_builder->push_back(new LengthValue(40, kPixelsUnit));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1808,12 +1809,12 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
       new CSSComputedStyleData());
 
   // transform-origin: right 20%;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(KeywordValue::GetRight());
   transform_origin_builder->push_back(new PercentageValue(0.2f));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1855,12 +1856,12 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
       new CSSComputedStyleData());
 
   // transform-origin: 60% 80%;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new PercentageValue(0.6f));
   transform_origin_builder->push_back(new PercentageValue(0.8f));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1902,12 +1903,12 @@ TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
       new CSSComputedStyleData());
 
   // transform-origin: top center;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(KeywordValue::GetTop());
   transform_origin_builder->push_back(KeywordValue::GetCenter());
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1949,13 +1950,13 @@ TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
       new CSSComputedStyleData());
 
   // transform-origin: 30px top 50px;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new LengthValue(30.0f, kPixelsUnit));
   transform_origin_builder->push_back(KeywordValue::GetTop());
   transform_origin_builder->push_back(new LengthValue(50.0f, kPixelsUnit));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1998,10 +1999,10 @@ TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
 
   // transform: translateX(2em);
   TransformFunctionListValue::Builder transform_builder;
-  transform_builder.push_back(new TranslateFunction(
+  transform_builder.emplace_back(new TranslateFunction(
       TranslateFunction::kXAxis, new LengthValue(2.0f, kFontSizesAkaEmUnit)));
   scoped_refptr<TransformFunctionListValue> transform(
-      new TransformFunctionListValue(transform_builder.Pass()));
+      new TransformFunctionListValue(std::move(transform_builder)));
   computed_style->set_transform(transform);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -2021,7 +2022,7 @@ TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
 
   const TranslateFunction* computed_function =
       base::polymorphic_downcast<const TranslateFunction*>(
-          computed_transform->value()[0]);
+          computed_transform->value()[0].get());
   ASSERT_TRUE(computed_function);
   EXPECT_FLOAT_EQ(200.0f, computed_function->offset_as_length()->value());
   EXPECT_EQ(kPixelsUnit, computed_function->offset_as_length()->unit());

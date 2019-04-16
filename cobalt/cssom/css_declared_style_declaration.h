@@ -52,7 +52,7 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
 
   unsigned int length() const override;
 
-  base::optional<std::string> Item(unsigned int index) const override;
+  base::Optional<std::string> Item(unsigned int index) const override;
 
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value,

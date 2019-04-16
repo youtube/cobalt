@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/storage/store/memory_store.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/storage.pb.h"
-#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace storage {
@@ -54,21 +56,22 @@ class MemoryStoreTest : public ::testing::Test {
     memory_store_.Initialize(storage_data_);
 
     cookie_.reset(new net::CanonicalCookie(
-        GURL(""), "name", "value", "domain", "/path/foo", "" /* mac_key */,
-        "" /* mac_algorithm */, current_time, expiration_time_, current_time,
-        true /* secure */, true /* http_only */));
+        "name", "value", "domain", "/path/foo", current_time, expiration_time_,
+        current_time, true /* secure */, true /* http_only */,
+        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
 
     last_access_time_ = current_time + base::TimeDelta::FromDays(50);
 
     updated_cookie_.reset(new net::CanonicalCookie(
-        GURL(""), "name", "value", "domain", "/path/foo", "" /* mac_key */,
-        "" /* mac_algorithm */, current_time, expiration_time_, current_time,
-        true /* secure */, true /* http_only */));
+        "name", "value", "domain", "/path/foo", current_time, expiration_time_,
+        current_time, true /* secure */, true /* http_only */,
+        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
 
     new_cookie_.reset(new net::CanonicalCookie(
-        GURL(""), "name1", "value2", "domain2", "/path/foo2", "" /* mac_key */,
-        "" /* mac_algorithm */, current_time, expiration_time_, current_time,
-        false /* secure */, false /* http_only */));
+        "name1", "value2", "domain2", "/path/foo2", current_time,
+        expiration_time_, current_time, false /* secure */,
+        false /* http_only */, net::CookieSameSite::DEFAULT_MODE,
+        net::COOKIE_PRIORITY_DEFAULT));
   }
   ~MemoryStoreTest() {}
 
@@ -76,9 +79,9 @@ class MemoryStoreTest : public ::testing::Test {
   loader::Origin origin2_;
   Storage storage_proto_;
   std::vector<uint8> storage_data_;
-  scoped_ptr<net::CanonicalCookie> cookie_;
-  scoped_ptr<net::CanonicalCookie> updated_cookie_;
-  scoped_ptr<net::CanonicalCookie> new_cookie_;
+  std::unique_ptr<net::CanonicalCookie> cookie_;
+  std::unique_ptr<net::CanonicalCookie> updated_cookie_;
+  std::unique_ptr<net::CanonicalCookie> new_cookie_;
   base::Time last_access_time_;
   base::Time expiration_time_;
   MemoryStore memory_store_;
@@ -95,25 +98,19 @@ TEST_F(MemoryStoreTest, Serialize) {
 }
 
 TEST_F(MemoryStoreTest, GetAllCookies) {
-  std::vector<net::CanonicalCookie*> cookies;
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
 
   EXPECT_EQ(cookies.size(), 1);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
-  for (auto* cookie : cookies) {
-    delete cookie;
-  }
 }
 
 TEST_F(MemoryStoreTest, AddCookie) {
-  std::vector<net::CanonicalCookie*> cookies;
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
 
   EXPECT_EQ(cookies.size(), 1);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
-  for (auto* cookie : cookies) {
-    delete cookie;
-  }
   cookies.clear();
 
   memory_store_.AddCookie(*new_cookie_, expiration_time_.ToInternalValue());
@@ -122,33 +119,24 @@ TEST_F(MemoryStoreTest, AddCookie) {
   EXPECT_EQ(cookies.size(), 2);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
   EXPECT_TRUE(cookies[1]->IsEquivalent(*new_cookie_));
-  for (auto* cookie : cookies) {
-    delete cookie;
-  }
   cookies.clear();
 }
 
 TEST_F(MemoryStoreTest, UpdateCookieAccessTime) {
   memory_store_.UpdateCookieAccessTime(*cookie_,
                                        last_access_time_.ToInternalValue());
-  std::vector<net::CanonicalCookie*> cookies;
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
 
   EXPECT_EQ(cookies.size(), 1);
 
   EXPECT_TRUE(cookies[0]->IsEquivalent(*updated_cookie_));
-  for (auto* cookie : cookies) {
-    delete cookie;
-  }
 }
 
 TEST_F(MemoryStoreTest, DeleteCookie) {
-  std::vector<net::CanonicalCookie*> cookies;
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
   EXPECT_EQ(cookies.size(), 1);
-  for (auto* cookie : cookies) {
-    delete cookie;
-  }
   cookies.clear();
 
   memory_store_.DeleteCookie(*cookie_);

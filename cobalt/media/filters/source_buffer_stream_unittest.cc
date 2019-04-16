@@ -5,6 +5,7 @@
 #include "cobalt/media/filters/source_buffer_stream.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -12,9 +13,9 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/media_util.h"

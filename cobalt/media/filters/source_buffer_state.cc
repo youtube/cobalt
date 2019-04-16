@@ -5,12 +5,12 @@
 #include "cobalt/media/filters/source_buffer_state.h"
 
 #include <algorithm>
+#include <memory>
 #include <set>
 
 #include "base/callback_helpers.h"
 #include "base/command_line.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/media/base/media_track.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/mime_util.h"
@@ -119,8 +119,8 @@ Ranges<TimeDelta> SourceBufferState::ComputeRangesIntersection(
 }
 
 SourceBufferState::SourceBufferState(
-    scoped_ptr<StreamParser> stream_parser,
-    scoped_ptr<FrameProcessor> frame_processor,
+    std::unique_ptr<StreamParser> stream_parser,
+    std::unique_ptr<FrameProcessor> frame_processor,
     const CreateDemuxerStreamCB& create_demuxer_stream_cb,
     const scoped_refptr<MediaLog>& media_log,
     DecoderBuffer::Allocator* buffer_allocator)
@@ -166,8 +166,8 @@ void SourceBufferState::Init(
       expected_video_codecs_.push_back(vcodec);
       continue;
     }
-    MEDIA_LOG(INFO, media_log_) << "Unrecognized media codec: "
-                                << expected_codecs_parsed[i];
+    MEDIA_LOG(INFO, media_log_)
+        << "Unrecognized media codec: " << expected_codecs_parsed[i];
   }
 
   state_ = PENDING_PARSER_CONFIG;
@@ -586,7 +586,7 @@ bool SourceBufferState::IsSeekWaitingForData() const {
 }
 
 bool SourceBufferState::OnNewConfigs(
-    std::string expected_codecs, scoped_ptr<MediaTracks> tracks,
+    std::string expected_codecs, std::unique_ptr<MediaTracks> tracks,
     const StreamParser::TextTrackConfigMap& text_configs) {
   DCHECK(tracks.get());
   DVLOG(1) << __func__ << " expected_codecs=" << expected_codecs
@@ -631,9 +631,9 @@ bool SourceBufferState::OnNewConfigs(
           std::find(expected_acodecs.begin(), expected_acodecs.end(),
                     audio_config.codec());
       if (it == expected_acodecs.end()) {
-        MEDIA_LOG(ERROR, media_log_) << "Audio stream codec "
-                                     << GetCodecName(audio_config.codec())
-                                     << " doesn't match SourceBuffer codecs.";
+        MEDIA_LOG(ERROR, media_log_)
+            << "Audio stream codec " << GetCodecName(audio_config.codec())
+            << " doesn't match SourceBuffer codecs.";
         return false;
       }
       expected_acodecs.erase(it);
@@ -687,9 +687,9 @@ bool SourceBufferState::OnNewConfigs(
           std::find(expected_vcodecs.begin(), expected_vcodecs.end(),
                     video_config.codec());
       if (it == expected_vcodecs.end()) {
-        MEDIA_LOG(ERROR, media_log_) << "Video stream codec "
-                                     << GetCodecName(video_config.codec())
-                                     << " doesn't match SourceBuffer codecs.";
+        MEDIA_LOG(ERROR, media_log_)
+            << "Video stream codec " << GetCodecName(video_config.codec())
+            << " doesn't match SourceBuffer codecs.";
         return false;
       }
       expected_vcodecs.erase(it);
@@ -742,14 +742,14 @@ bool SourceBufferState::OnNewConfigs(
 
   if (!expected_acodecs.empty() || !expected_vcodecs.empty()) {
     for (size_t i = 0; i < expected_acodecs.size(); ++i) {
-      MEDIA_LOG(ERROR, media_log_) << "Initialization segment misses expected "
-                                   << GetCodecName(expected_acodecs[i])
-                                   << " track.";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Initialization segment misses expected "
+          << GetCodecName(expected_acodecs[i]) << " track.";
     }
     for (size_t i = 0; i < expected_vcodecs.size(); ++i) {
-      MEDIA_LOG(ERROR, media_log_) << "Initialization segment misses expected "
-                                   << GetCodecName(expected_vcodecs[i])
-                                   << " track.";
+      MEDIA_LOG(ERROR, media_log_)
+          << "Initialization segment misses expected "
+          << GetCodecName(expected_vcodecs[i]) << " track.";
     }
     return false;
   }
@@ -817,9 +817,9 @@ bool SourceBufferState::OnNewConfigs(
         TextTrackConfig old_config = stream->text_track_config();
         if (!new_config.Matches(old_config)) {
           success &= false;
-          MEDIA_LOG(ERROR, media_log_) << "New text track config for track ID "
-                                       << config_itr->first
-                                       << " does not match old one.";
+          MEDIA_LOG(ERROR, media_log_)
+              << "New text track config for track ID " << config_itr->first
+              << " does not match old one.";
           break;
         }
       }
@@ -847,7 +847,7 @@ bool SourceBufferState::OnNewConfigs(
   if (success) {
     if (state_ == PENDING_PARSER_CONFIG) state_ = PENDING_PARSER_INIT;
     DCHECK(!init_segment_received_cb_.is_null());
-    init_segment_received_cb_.Run(tracks.Pass());
+    init_segment_received_cb_.Run(std::move(tracks));
   }
 
   return success;
@@ -873,9 +873,10 @@ void SourceBufferState::OnEndOfMediaSegment() {
       LIMITED_MEDIA_LOG(DEBUG, media_log_, num_missing_track_logs_,
                         kMaxMissingTrackInSegmentLogs)
           << "Media segment did not contain any coded frames for track "
-          << it->first << ", mismatching initialization segment. Therefore, MSE"
-                          " coded frame processing may not interoperably detect"
-                          " discontinuities in appended media.";
+          << it->first
+          << ", mismatching initialization segment. Therefore, MSE"
+             " coded frame processing may not interoperably detect"
+             " discontinuities in appended media.";
     }
   }
   for (DemuxerStreamMap::iterator it = video_streams_.begin();
@@ -884,9 +885,10 @@ void SourceBufferState::OnEndOfMediaSegment() {
       LIMITED_MEDIA_LOG(DEBUG, media_log_, num_missing_track_logs_,
                         kMaxMissingTrackInSegmentLogs)
           << "Media segment did not contain any coded frames for track "
-          << it->first << ", mismatching initialization segment. Therefore, MSE"
-                          " coded frame processing may not interoperably detect"
-                          " discontinuities in appended media.";
+          << it->first
+          << ", mismatching initialization segment. Therefore, MSE"
+             " coded frame processing may not interoperably detect"
+             " discontinuities in appended media.";
     }
   }
 }

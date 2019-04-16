@@ -17,7 +17,8 @@
 
 #include <string>
 
-#include "googleurl/src/gurl.h"
+#include "net/cookies/cookie_store.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace network_bridge {
@@ -29,7 +30,7 @@ class CookieJar {
   CookieJar() {}
   virtual ~CookieJar() {}
   // Return all the cookies for this origin in a string, delimited by ';'
-  virtual std::string GetCookies(const GURL& origin) = 0;
+  virtual net::CookieList GetCookies(const GURL& origin) = 0;
   // Set a single cookie for the origin. Format should be as per
   // CookieStore::SetCookieWithOptionsAsync()
   virtual void SetCookie(const GURL& origin,

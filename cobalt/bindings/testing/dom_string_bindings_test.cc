@@ -162,7 +162,7 @@ TEST_F(DOMStringBindingsTest, SetUndefinedAsEmptyString) {
       EvaluateScript("test.undefinedIsEmptyProperty = undefined;", NULL));
 
   EXPECT_CALL(test_mock(), set_nullable_undefined_is_empty_property(
-                               base::optional<std::string>("")));
+                               base::Optional<std::string>("")));
   EXPECT_TRUE(EvaluateScript(
       "test.nullableUndefinedIsEmptyProperty = undefined;", NULL));
 }

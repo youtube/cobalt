@@ -16,22 +16,22 @@
 
 #include <algorithm>
 
-#include "base/message_loop.h"
-#include "base/string_util.h"
+#include "base/message_loop/message_loop.h"
+#include "base/strings/string_util.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 
 namespace {
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
-  if (LowerCaseEqualsASCII(method, "get")) {
+  if (base::LowerCaseEqualsASCII(method, "get")) {
     *request_type = net::URLFetcher::GET;
-  } else if (LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::LowerCaseEqualsASCII(method, "post")) {
     *request_type = net::URLFetcher::POST;
-  } else if (LowerCaseEqualsASCII(method, "head")) {
+  } else if (base::LowerCaseEqualsASCII(method, "head")) {
     *request_type = net::URLFetcher::HEAD;
-  } else if (LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
     *request_type = net::URLFetcher::DELETE_REQUEST;
-  } else if (LowerCaseEqualsASCII(method, "put")) {
+  } else if (base::LowerCaseEqualsASCII(method, "put")) {
     *request_type = net::URLFetcher::PUT;
   } else {
     return false;

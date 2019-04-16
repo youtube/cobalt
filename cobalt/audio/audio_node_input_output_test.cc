@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <math.h>
+#include <memory>
 
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
@@ -54,16 +55,17 @@ class AudioDestinationNodeMock : public AudioNode,
   }
 
   // From AudioNode.
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32, /*number_of_frames*/
-                                                   SampleType, bool*) override {
+  std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32, /*number_of_frames*/
+      SampleType, bool*) override {
     NOTREACHED();
-    return scoped_ptr<ShellAudioBus>();
+    return std::unique_ptr<ShellAudioBus>();
   }
 
   // From AudioDevice::RenderCallback.
   void FillAudioBus(bool all_consumed, ShellAudioBus* audio_bus,
                     bool* silence) override {
-    UNREFERENCED_PARAMETER(all_consumed);
+    SB_UNREFERENCED_PARAMETER(all_consumed);
 
     AudioLock::AutoLock lock(audio_lock());
 
@@ -74,7 +76,7 @@ class AudioDestinationNodeMock : public AudioNode,
 };
 
 void FillAudioBusFromOneSource(
-    scoped_ptr<ShellAudioBus> src_data,
+    std::unique_ptr<ShellAudioBus> src_data,
     const AudioNodeChannelInterpretation& interpretation,
     ShellAudioBus* audio_bus, bool* silence) {
   std::unique_ptr<script::EnvironmentSettings> environment_settings_ =
@@ -86,7 +88,7 @@ void FillAudioBusFromOneSource(
   scoped_refptr<AudioBufferSourceNode> source(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), src_data.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(src_data)));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -125,12 +127,12 @@ class AudioNodeInputOutputTest : public ::testing::Test {
   }
 
  private:
-  scoped_ptr<script::JavaScriptEngine> engine_;
+  std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<script::EnvironmentSettings> environment_settings_;
 
  protected:
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
 };
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
@@ -148,15 +150,15 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -189,16 +191,16 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -228,16 +230,16 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
     src_data_in_float[i] = 50.0f;
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -263,16 +265,16 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
     src_data_in_float[i] = 50.0f;
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -301,16 +303,16 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -343,16 +345,16 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -385,16 +387,16 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -427,16 +429,16 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -469,16 +471,16 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -507,16 +509,16 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -545,16 +547,16 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -583,16 +585,16 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -621,16 +623,16 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -659,16 +661,16 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data(
+  std::unique_ptr<ShellAudioBus> src_data(
       new ShellAudioBus(kNumOfSrcChannels, kNumOfFrames, src_data_in_float));
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(src_data.Pass(), kInterpretation, audio_bus.get(),
-                            &silence);
+  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
+                            audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -700,12 +702,13 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data_1(new ShellAudioBus(
+  std::unique_ptr<ShellAudioBus> src_data_1(new ShellAudioBus(
       kNumOfSrcChannels, kNumOfFrames_1, src_data_in_float_1));
   scoped_refptr<AudioBufferSourceNode> source_1(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_1(
-      new AudioBuffer(audio_context->sample_rate(), src_data_1.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(src_data_1)));
+
   source_1->set_buffer(buffer_1);
 
   constexpr size_t kNumOfFrames_2 = 50;
@@ -717,12 +720,12 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
     }
   }
 
-  scoped_ptr<ShellAudioBus> src_data_2(new ShellAudioBus(
+  std::unique_ptr<ShellAudioBus> src_data_2(new ShellAudioBus(
       kNumOfSrcChannels, kNumOfFrames_2, src_data_in_float_2));
   scoped_refptr<AudioBufferSourceNode> source_2(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_2(
-      new AudioBuffer(audio_context->sample_rate(), src_data_2.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(src_data_2)));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -733,7 +736,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   source_1->Start(0, 0, NULL);
   source_2->Start(0, 0, NULL);
 
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfDestChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
@@ -795,12 +798,12 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32LayoutTest) {
 
   scoped_refptr<AudioContext> audio_context(
       new AudioContext(environment_settings()));
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
   scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(audio_bus)));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -835,12 +838,12 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32LayoutTest) {
 
   scoped_refptr<AudioContext> audio_context(
       new AudioContext(environment_settings()));
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(audio_bus)));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -875,20 +878,21 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16LayoutTest) {
 
   scoped_refptr<AudioContext> audio_context(
       new AudioContext(environment_settings()));
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
+
   scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(audio_bus)));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
   for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
     for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
       if (frame < kNumOfFrames + kOffset && frame >= kOffset) {
-        int16 expected_val = ConvertSample<float, int16>
-            (0.001f * (channel * kNumOfFrames + (frame - kOffset)));
+        int16 expected_val = ConvertSample<float, int16>(
+            0.001f * (channel * kNumOfFrames + (frame - kOffset)));
         EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame),
                   expected_val);
       } else {
@@ -917,20 +921,21 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16LayoutTest) {
 
   scoped_refptr<AudioContext> audio_context(
       new AudioContext(environment_settings()));
-  scoped_ptr<ShellAudioBus> audio_bus(
+  std::unique_ptr<ShellAudioBus> audio_bus(
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
+
   scoped_refptr<AudioBuffer> buffer(
-      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), std::move(audio_bus)));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
   for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
     for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
       if (frame < kNumOfFrames + kOffset && frame >= kOffset) {
-        int16 expected_val = ConvertSample<float, int16>
-            (0.001f * (channel * kNumOfFrames + (frame - kOffset)));
+        int16 expected_val = ConvertSample<float, int16>(
+            0.001f * (channel * kNumOfFrames + (frame - kOffset)));
         EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame),
                   expected_val);
       } else {
@@ -971,12 +976,12 @@ TEST_F(AudioNodeInputOutputTest, ResampleBufferSampleRateLayoutTest) {
 
   for (size_t buffer_sample_rate : kBufferSampleRateArr) {
     for (SampleType sample_type : kSampleTypeArr) {
-      scoped_ptr<ShellAudioBus> src_data(
+      std::unique_ptr<ShellAudioBus> src_data(
           new ShellAudioBus(kNumOfSrcChannels, kNumOfSrcFrames, sample_type,
                             ShellAudioBus::kInterleaved));
       src_data->ZeroAllFrames();
       scoped_refptr<AudioBuffer> buffer(
-          new AudioBuffer(buffer_sample_rate, src_data.Pass()));
+          new AudioBuffer(buffer_sample_rate, std::move(src_data)));
       buffer->CopyToChannel(channel_0_arr, 0, 0, NULL);
       buffer->CopyToChannel(channel_1_arr, 1, 0, NULL);
 
@@ -992,7 +997,7 @@ TEST_F(AudioNodeInputOutputTest, ResampleBufferSampleRateLayoutTest) {
       source->Connect(destination, 0, 0, NULL);
       source->Start(0, 0, NULL);
 
-      scoped_ptr<ShellAudioBus> audio_bus(
+      std::unique_ptr<ShellAudioBus> audio_bus(
           new ShellAudioBus(kNumOfDestChannels, kNumOfDestFrames, sample_type,
                             ShellAudioBus::kInterleaved));
       audio_bus->ZeroAllFrames();

@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/screenshot.h"
 
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "third_party/modp_b64/modp_b64.h"
 
 namespace cobalt {

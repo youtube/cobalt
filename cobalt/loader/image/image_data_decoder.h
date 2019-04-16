@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_IMAGE_IMAGE_DATA_DECODER_H_
 #define COBALT_LOADER_IMAGE_IMAGE_DATA_DECODER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -70,10 +71,10 @@ class ImageDataDecoder {
 
   // Helper functions used by derived classes to create image and various
   // objects to hold decoded image data.
-  scoped_ptr<render_tree::ImageData> AllocateImageData(const math::Size& size,
-                                                       bool has_alpha);
+  std::unique_ptr<render_tree::ImageData> AllocateImageData(
+      const math::Size& size, bool has_alpha);
   scoped_refptr<Image> CreateStaticImage(
-      scoped_ptr<render_tree::ImageData> image_data);
+      std::unique_ptr<render_tree::ImageData> image_data);
 
  private:
   // Called on construction to query the ResourceProvider for the best image

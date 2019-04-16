@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_leaks_poem.h"
 #endif  // defined(STARBOARD)
@@ -81,25 +83,25 @@ void Parser::ParseXMLDocumentFragment(
   xml_decoder.Finish();
 }
 
-scoped_ptr<loader::Decoder> Parser::ParseDocumentAsync(
+std::unique_ptr<loader::Decoder> Parser::ParseDocumentAsync(
     const scoped_refptr<dom::Document>& document,
     const base::SourceLocation& input_location,
     const loader::Decoder::OnCompleteFunction& load_complete_callback) {
-  return scoped_ptr<loader::Decoder>(new HTMLDecoder(
+  return std::unique_ptr<loader::Decoder>(new HTMLDecoder(
       document, document, NULL, dom_max_element_depth_, input_location,
       load_complete_callback, true, require_csp_));
 }
 
-scoped_ptr<loader::Decoder> Parser::ParseXMLDocumentAsync(
+std::unique_ptr<loader::Decoder> Parser::ParseXMLDocumentAsync(
     const scoped_refptr<dom::XMLDocument>& xml_document,
     const base::SourceLocation& input_location) {
-  return scoped_ptr<loader::Decoder>(
+  return std::unique_ptr<loader::Decoder>(
       new XMLDecoder(xml_document, xml_document, NULL, dom_max_element_depth_,
                      input_location, load_complete_callback_));
 }
 
-void Parser::LoadCompleteCallback(const base::optional<std::string>& error) {
-  if (error) LOG(ERROR) << "Error in DOM parsing: " << error;
+void Parser::LoadCompleteCallback(const base::Optional<std::string>& error) {
+  if (error) LOG(ERROR) << "Error in DOM parsing: " << error.value_or("");
 }
 
 }  // namespace dom_parser

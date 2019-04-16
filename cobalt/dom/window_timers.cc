@@ -15,10 +15,11 @@
 #include "cobalt/dom/window_timers.h"
 
 #include <limits>
+#include <memory>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/global_stats.h"
 #include "nb/memory_scope.h"
 
@@ -36,11 +37,12 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
   }
 
   if (callbacks_active_) {
-    scoped_ptr<base::Timer> timer(new base::OneShotTimer<TimerInfo>());
+    auto* timer = new base::OneShotTimer();
     timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
                  base::Bind(&WindowTimers::RunTimerCallback,
                             base::Unretained(this), handle));
-    timers_[handle] = new TimerInfo(owner_, timer.Pass(), handler);
+    timers_[handle] = new TimerInfo(
+        owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
   } else {
     timers_[handle] = nullptr;
   }
@@ -60,11 +62,12 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
   }
 
   if (callbacks_active_) {
-    scoped_ptr<base::Timer> timer(new base::RepeatingTimer<TimerInfo>());
+    auto* timer(new base::RepeatingTimer());
     timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
                  base::Bind(&WindowTimers::RunTimerCallback,
                             base::Unretained(this), handle));
-    timers_[handle] = new TimerInfo(owner_, timer.Pass(), handler);
+    timers_[handle] = new TimerInfo(
+        owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
   } else {
     timers_[handle] = nullptr;
   }

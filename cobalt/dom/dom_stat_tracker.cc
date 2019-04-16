@@ -14,30 +14,33 @@
 
 #include "cobalt/dom/dom_stat_tracker.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace dom {
 
 DomStatTracker::DomStatTracker(const std::string& name)
     : count_html_element_(
-          StringPrintf("Count.%s.DOM.HtmlElement", name.c_str()), 0,
+          base::StringPrintf("Count.%s.DOM.HtmlElement", name.c_str()), 0,
           "Total number of HTML elements."),
       count_html_element_document_(
-          StringPrintf("Count.%s.DOM.HtmlElement.Document", name.c_str()), 0,
-          "Number of HTML elements in the document."),
+          base::StringPrintf("Count.%s.DOM.HtmlElement.Document", name.c_str()),
+          0, "Number of HTML elements in the document."),
       count_html_element_created_(0),
       count_html_element_destroyed_(0),
       count_html_element_document_added_(0),
       count_html_element_document_removed_(0),
       script_element_execute_count_(
-          StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          base::StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute",
+                             name.c_str()),
           0, "Count of HTML script element execute calls."),
       script_element_execute_total_size_(
-          StringPrintf("Memory.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          base::StringPrintf("Memory.%s.DOM.HtmlScriptElement.Execute",
+                             name.c_str()),
           0, "Total size in bytes of HTML script elements executed."),
       script_element_execute_time_(
-          StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          base::StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute",
+                             name.c_str()),
           0, "Time of the last HTML script element execute."),
       is_tracking_event_(false),
       event_initial_count_html_element_(0),
@@ -53,7 +56,8 @@ DomStatTracker::DomStatTracker(const std::string& name)
       event_video_start_delay_stop_watch_(kStopWatchTypeEventVideoStartDelay,
                                           base::StopWatch::kAutoStartOff, this),
       event_video_start_delay_(
-          StringPrintf("Event.Duration.%s.DOM.VideoStartDelay", name.c_str()),
+          base::StringPrintf("Event.Duration.%s.DOM.VideoStartDelay",
+                             name.c_str()),
           base::TimeDelta(), "Total delay between event and video starting.") {
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }

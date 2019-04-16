@@ -12,7 +12,7 @@
 #include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_track.h"

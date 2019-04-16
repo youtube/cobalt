@@ -14,11 +14,11 @@
 
 #include "cobalt/layout/box_generator.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
@@ -69,8 +69,8 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
   if (SbDecodeTargetIsValid(decode_target)) {
 #if SB_HAS(GRAPHICS)
     return resource_provider->CreateImageFromSbDecodeTarget(decode_target);
-#else  // SB_HAS(GRAPHICS)
-    UNREFERENCED_PARAMETER(resource_provider);
+#else   // SB_HAS(GRAPHICS)
+    SB_UNREFERENCED_PARAMETER(resource_provider);
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
   } else {
@@ -110,7 +110,7 @@ BoxGenerator::~BoxGenerator() {
   // boxes become invalidated.
   if (generating_html_element_ && !boxes_.empty()) {
     generating_html_element_->set_layout_boxes(
-        scoped_ptr<dom::LayoutBoxes>(new LayoutBoxes(std::move(boxes_))));
+        std::unique_ptr<dom::LayoutBoxes>(new LayoutBoxes(std::move(boxes_))));
   }
 }
 
@@ -179,11 +179,11 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const ReplacedBox::SetBoundsCB& set_bounds_cb,
                        const scoped_refptr<Paragraph>& paragraph,
                        int32 text_position,
-                       const base::optional<LayoutUnit>& maybe_intrinsic_width,
-                       const base::optional<LayoutUnit>& maybe_intrinsic_height,
-                       const base::optional<float>& maybe_intrinsic_ratio,
+                       const base::Optional<LayoutUnit>& maybe_intrinsic_width,
+                       const base::Optional<LayoutUnit>& maybe_intrinsic_height,
+                       const base::Optional<float>& maybe_intrinsic_ratio,
                        const BoxGenerator::Context* context,
-                       base::optional<bool> is_video_punched_out,
+                       base::Optional<bool> is_video_punched_out,
                        math::SizeF content_size)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
@@ -208,11 +208,11 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const ReplacedBox::SetBoundsCB set_bounds_cb_;
   const scoped_refptr<Paragraph> paragraph_;
   const int32 text_position_;
-  const base::optional<LayoutUnit> maybe_intrinsic_width_;
-  const base::optional<LayoutUnit> maybe_intrinsic_height_;
-  const base::optional<float> maybe_intrinsic_ratio_;
+  const base::Optional<LayoutUnit> maybe_intrinsic_width_;
+  const base::Optional<LayoutUnit> maybe_intrinsic_height_;
+  const base::Optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
-  base::optional<bool> is_video_punched_out_;
+  base::Optional<bool> is_video_punched_out_;
   math::SizeF content_size_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
@@ -224,7 +224,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // Generate a block-level replaced box.
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kFlex:
-      replaced_box_ = make_scoped_refptr(new BlockLevelReplacedBox(
+      replaced_box_ = WrapRefCounted(new BlockLevelReplacedBox(
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
@@ -238,7 +238,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kInlineFlex:
-      replaced_box_ = make_scoped_refptr(new InlineLevelReplacedBox(
+      replaced_box_ = WrapRefCounted(new InlineLevelReplacedBox(
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
@@ -340,7 +340,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   // If the optional is disengaged, then we don't know if punch out is enabled
   // or not.
-  base::optional<bool> is_punch_out;
+  base::Optional<bool> is_punch_out;
   if (video_element->GetVideoFrameProvider()) {
     VideoFrameProvider::OutputMode output_mode =
         video_element->GetVideoFrameProvider()->GetOutputMode();
@@ -362,7 +362,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   scoped_refptr<ReplacedBox> replaced_box =
       replaced_box_generator.replaced_box();
-  if (replaced_box == NULL) {
+  if (replaced_box.get() == NULL) {
     // The element with "display: none" generates no boxes and has no effect
     // on layout. Descendant elements do not generate any boxes either.
     // This behavior cannot be overridden by setting the "display" property on
@@ -506,7 +506,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       // destroyed.
       CreateScopedParagraph(kCloseParagraph);
 
-      container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
+      container_box_ = base::WrapRefCounted(new BlockLevelBlockContainerBox(
           css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
           context_->used_style_provider, context_->layout_stat_tracker));
       break;
@@ -545,7 +545,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
         (*paragraph_)->AppendCodePoint(Paragraph::kNoBreakSpaceCodePoint);
       }
 
-      container_box_ = make_scoped_refptr(new InlineContainerBox(
+      container_box_ = base::WrapRefCounted(new InlineContainerBox(
           css_computed_style_declaration_, context_->used_style_provider,
           context_->layout_stat_tracker));
       break;
@@ -571,7 +571,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       // it will continue once the scope of the inline block ends.
       CreateScopedParagraph(kDoNotCloseParagraph);
 
-      container_box_ = make_scoped_refptr(new InlineLevelBlockContainerBox(
+      container_box_ = base::WrapRefCounted(new InlineLevelBlockContainerBox(
           css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
           prior_paragraph, text_position, context_->used_style_provider,
           context_->layout_stat_tracker));
@@ -875,7 +875,7 @@ void BoxGenerator::AppendPseudoElementToLine(
       pseudo_element_box_generator.container_box();
   // A pseudo element with "display: none" generates no boxes and has no
   // effect on layout.
-  if (pseudo_element_box == NULL) {
+  if (pseudo_element_box.get() == NULL) {
     return;
   }
 
@@ -924,7 +924,7 @@ void BoxGenerator::AppendPseudoElementToLine(
   }
 
   pseudo_element->set_layout_boxes(
-      scoped_ptr<dom::LayoutBoxes>(new LayoutBoxes({pseudo_element_box})));
+      std::unique_ptr<dom::LayoutBoxes>(new LayoutBoxes({pseudo_element_box})));
 
   // Add the box(es) from the pseudo element to the associated element.
   AppendChildBoxToLine(pseudo_element_box);
@@ -961,7 +961,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_refptr<ContainerBox> container_box_before_split =
       container_box_generator.container_box();
-  if (container_box_before_split == NULL) {
+  if (container_box_before_split.get() == NULL) {
     // The element with "display: none" generates no boxes and has no effect
     // on layout. Descendant elements do not generate any boxes either.
     // This behavior cannot be overridden by setting the "display" property on

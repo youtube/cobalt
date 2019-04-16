@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
@@ -47,19 +48,19 @@
 #endif
 #define ANGLE_PLATFORM_WINDOWS 1
 
-#include <d3d11.h>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
+#include <d3d11.h>
 
 #include "third_party/angle/src/libANGLE/Context.h"
 #include "third_party/angle/src/libANGLE/Display.h"
+#include "third_party/angle/src/libANGLE/Surface.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/DisplayD3D.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/SurfaceD3D.h"
 #include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/Blit11.h"
 #include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/Context11.h"
 #include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/Renderer11.h"
 #include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/SwapChain11.h"
-#include "third_party/angle/src/libANGLE/renderer/d3d/DisplayD3D.h"
-#include "third_party/angle/src/libANGLE/renderer/d3d/SurfaceD3D.h"
-#include "third_party/angle/src/libANGLE/Surface.h"
 #endif
 
 COMPILE_ASSERT(
@@ -108,7 +109,7 @@ struct CallbackUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
       return new (instance) Callback(base::Bind(DefaultImplementation));
     }
     static void Delete(Callback* instance) {
-      return base::DefaultLazyInstanceTraits<Callback>::Delete(instance);
+      return base::LazyInstanceTraitsBase<Callback>::CallDestructor(instance);
     }
   };
 
@@ -228,12 +229,12 @@ class ExternalRasterizer::Impl {
   // The main offscreen render target to use when rendering UI or rectangular
   // video.
   scoped_refptr<backend::RenderTarget> main_offscreen_render_target_;
-  scoped_ptr<backend::TextureEGL> main_texture_;
+  std::unique_ptr<backend::TextureEGL> main_texture_;
 
   // TODO: do not actually rasterize offscreen video, but just submit it to the
   // host directly.
   scoped_refptr<backend::RenderTarget> video_offscreen_render_target_;
-  scoped_ptr<backend::TextureEGL> video_texture_;
+  std::unique_ptr<backend::TextureEGL> video_texture_;
   CbLibVideoProjectionType video_projection_type_;
   scoped_refptr<skia::HardwareMesh> left_eye_video_mesh_;
   scoped_refptr<skia::HardwareMesh> right_eye_video_mesh_;
@@ -285,8 +286,9 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
           target_main_render_target_size_);
   main_texture_.reset(new backend::TextureEGL(
       graphics_context_,
-      make_scoped_refptr(base::polymorphic_downcast<backend::RenderTargetEGL*>(
-          main_offscreen_render_target_.get()))));
+      base::WrapRefCounted(
+          base::polymorphic_downcast<backend::RenderTargetEGL*>(
+              main_offscreen_render_target_.get()))));
 
   g_graphics_context_created_callback.Get().Run();
 }
@@ -337,11 +339,14 @@ void ExternalRasterizer::Impl::RenderCobalt() {
 
   // Attempt to find map to mesh filter node, then render video subtree
   // offscreen.
-  auto map_to_mesh_search = common::FindNode<render_tree::FilterNode>(
-      render_tree_temp_, base::Bind(common::HasMapToMesh),
+  base::Optional<common::NodeReplaceFunction> replace_function2(
       base::Bind(common::ReplaceWithEmptyCompositionNode));
-  if (map_to_mesh_search.found_node != NULL) {
-    base::optional<render_tree::MapToMeshFilter> filter =
+  common::NodeFilterFunction filter_function = base::Bind(common::HasMapToMesh);
+  auto map_to_mesh_search = common::FindNode<render_tree::FilterNode>(
+      render_tree_temp_, filter_function, replace_function2);
+
+  if (map_to_mesh_search.found_node.get() != NULL) {
+    base::Optional<render_tree::MapToMeshFilter> filter =
         map_to_mesh_search.found_node->data().map_to_mesh_filter;
 
     CbLibVideoProjectionType new_projection_type;
@@ -451,8 +456,8 @@ void ExternalRasterizer::Impl::CopyBackbuffer(uintptr_t surface,
     EGLSurface egl_window_surface = main_render_target_temp_->GetSurface();
     ::gl::Context* angle_context =
         reinterpret_cast<::gl::Context*>(egl_context);
-    ::egl::Surface* angle_mirror_surface = reinterpret_cast<::egl::Surface*>(
-        egl_mirror_surface);
+    ::egl::Surface* angle_mirror_surface =
+        reinterpret_cast<::egl::Surface*>(egl_mirror_surface);
     ::egl::Surface* angle_window_surface =
         reinterpret_cast<::egl::Surface*>(egl_window_surface);
     ::rx::SurfaceD3D* d3d_mirror_surface =
@@ -547,7 +552,7 @@ void ExternalRasterizer::Impl::SubmitWithUpdatedTextureSize(
     main_texture_.reset();
     main_texture_.reset(new backend::TextureEGL(
         graphics_context_,
-        make_scoped_refptr(
+        base::WrapRefCounted(
             base::polymorphic_downcast<backend::RenderTargetEGL*>(
                 main_offscreen_render_target_.get()))));
   }
@@ -624,7 +629,7 @@ void ExternalRasterizer::Impl::RenderOffscreenVideo(
       video_texture_.reset();
       video_texture_.reset(new backend::TextureEGL(
           graphics_context_,
-          make_scoped_refptr(
+          base::WrapRefCounted(
               base::polymorphic_downcast<backend::RenderTargetEGL*>(
                   video_offscreen_render_target_.get()))));
     }

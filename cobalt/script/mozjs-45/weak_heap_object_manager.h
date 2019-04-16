@@ -17,7 +17,7 @@
 
 #include <vector>
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 
 // Can be locally set to 1 to track the call stack where a weak heap object
 // was tracked from, and then dump the call stacks of any remaining objects in

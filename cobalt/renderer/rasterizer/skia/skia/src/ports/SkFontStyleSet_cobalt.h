@@ -17,13 +17,13 @@
 
 #include <string>
 
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "SkFontMgr.h"
 #include "SkStream.h"
 #include "SkString.h"
 #include "SkTArray.h"
 #include "SkTypeface.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of
 // SkFontStyleSet. It represents a collection of local typefaces that support
@@ -85,8 +85,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   int count() override;
   // NOTE: SkFontStyleSet_Cobalt does not support getStyle(), as publicly
   // accessing styles by index is unsafe.
-  void getStyle(int index, SkFontStyle* style,
-                        SkString* name) override;
+  void getStyle(int index, SkFontStyle* style, SkString* name) override;
   // NOTE: SkFontStyleSet_Cobalt does not support createTypeface(), as
   // publicly accessing styles by index is unsafe.
   SkTypeface* createTypeface(int index) override;

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/path_service.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/speech/sandbox/speech_sandbox.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace speech {
@@ -44,10 +44,10 @@ void StartApplication(int argc, char** argv, const char* /*link*/,
   DCHECK(!g_speech_sandbox);
   g_speech_sandbox = new SpeechSandbox(
       std::string(argv[1]),
-      FilePath(FILE_PATH_LITERAL("speech_sandbox_trace.json")));
+      base::FilePath(FILE_PATH_LITERAL("speech_sandbox_trace.json")));
 
   if (timeout != 0) {
-    MessageLoop::current()->PostDelayedTask(
+    base::MessageLoop::current()->task_runner()->PostDelayedTask(
         FROM_HERE, quit_closure, base::TimeDelta::FromSeconds(timeout));
   }
 }

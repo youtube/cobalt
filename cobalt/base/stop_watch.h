@@ -15,7 +15,7 @@
 #ifndef COBALT_BASE_STOP_WATCH_H_
 #define COBALT_BASE_STOP_WATCH_H_
 
-#include "base/time.h"
+#include "base/time/time.h"
 
 namespace base {
 

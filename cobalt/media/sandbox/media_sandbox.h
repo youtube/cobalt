@@ -17,9 +17,9 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/image.h"
@@ -34,7 +34,7 @@ class MediaSandbox {
   typedef render_tree::Image Image;
   typedef base::Callback<scoped_refptr<Image>(const base::TimeDelta&)> FrameCB;
 
-  MediaSandbox(int argc, char** argv, const FilePath& trace_log_path);
+  MediaSandbox(int argc, char** argv, const base::FilePath& trace_log_path);
   ~MediaSandbox();
 
   // This function registers a callback so the MediaSandbox instance can pull

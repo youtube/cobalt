@@ -31,8 +31,7 @@ namespace egl {
 class DrawRectRadialGradient : public DrawObject {
  public:
   DrawRectRadialGradient(GraphicsState* graphics_state,
-                         const BaseState& base_state,
-                         const math::RectF& rect,
+                         const BaseState& base_state, const math::RectF& rect,
                          const render_tree::RadialGradientBrush& brush,
                          const GetScratchTextureFunction& get_scratch_texture);
 
@@ -53,7 +52,7 @@ class DrawRectRadialGradient : public DrawObject {
 
   void InitializeLookupTexture(const render_tree::RadialGradientBrush& brush);
   void AddVertex(float x, float y, const math::PointF& offset_center,
-      const math::PointF& offset_scale);
+                 const math::PointF& offset_scale);
 
   std::vector<VertexAttributes> attributes_;
   const backend::TextureEGL* lookup_texture_;

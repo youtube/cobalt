@@ -33,7 +33,7 @@ namespace mozjs {
 
 template <typename T1, typename T2>
 void ToJSValue(JSContext* context, const script::UnionType2<T1, T2>& in_union,
-    JS::MutableHandleValue out_value);
+               JS::MutableHandleValue out_value);
 
 template <typename T1, typename T2>
 void FromJSValue(JSContext* context, JS::HandleValue value,
@@ -41,8 +41,9 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType2<T1, T2>* out_union);
 
 template <typename T1, typename T2, typename T3>
-void ToJSValue(JSContext* context, const script::UnionType3<T1, T2,
-    T3>& in_union, JS::MutableHandleValue out_value);
+void ToJSValue(JSContext* context,
+               const script::UnionType3<T1, T2, T3>& in_union,
+               JS::MutableHandleValue out_value);
 
 template <typename T1, typename T2, typename T3>
 void FromJSValue(JSContext* context, JS::HandleValue value,
@@ -50,8 +51,9 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType3<T1, T2, T3>* out_union);
 
 template <typename T1, typename T2, typename T3, typename T4>
-void ToJSValue(JSContext* context, const script::UnionType4<T1, T2, T3,
-    T4>& in_union, JS::MutableHandleValue out_value);
+void ToJSValue(JSContext* context,
+               const script::UnionType4<T1, T2, T3, T4>& in_union,
+               JS::MutableHandleValue out_value);
 
 template <typename T1, typename T2, typename T3, typename T4>
 void FromJSValue(JSContext* context, JS::HandleValue value,
@@ -59,8 +61,9 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType4<T1, T2, T3, T4>* out_union);
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void ToJSValue(JSContext* context, const script::UnionType5<T1, T2, T3, T4,
-    T5>& in_union, JS::MutableHandleValue out_value);
+void ToJSValue(JSContext* context,
+               const script::UnionType5<T1, T2, T3, T4, T5>& in_union,
+               JS::MutableHandleValue out_value);
 
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 void FromJSValue(JSContext* context, JS::HandleValue value,

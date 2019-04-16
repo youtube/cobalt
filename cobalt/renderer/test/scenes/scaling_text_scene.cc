@@ -85,7 +85,7 @@ scoped_refptr<render_tree::Node> CreateScalingTextScene(
   }
 
   scoped_refptr<MatrixTransformNode> scaling_text_node(new MatrixTransformNode(
-      new CompositionNode(text_collection_builder.Pass()),
+      new CompositionNode(std::move(text_collection_builder)),
       Matrix3F::Identity()));
 
   // Setup the scaling animation on the text

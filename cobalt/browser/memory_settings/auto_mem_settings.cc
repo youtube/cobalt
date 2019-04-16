@@ -21,9 +21,9 @@
 #include <vector>
 
 #include "base/optional.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
 
@@ -40,16 +40,16 @@ bool HasBlitter() {
   return has_blitter;
 }
 
-base::optional<int64_t> MakeValidIfGreaterThanOrEqualToZero(int64_t value) {
-  base::optional<int64_t> output;
+base::Optional<int64_t> MakeValidIfGreaterThanOrEqualToZero(int64_t value) {
+  base::Optional<int64_t> output;
   if (value >= 0) {
     output = value;
   }
   return output;
 }
 
-base::optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
-  base::optional<TextureDimensions> output;
+base::Optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
+  base::Optional<TextureDimensions> output;
   if ((td.width() > 0) && (td.height() > 0) && td.bytes_per_pixel() > 0) {
     output = td;
   }
@@ -57,9 +57,8 @@ base::optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
 }
 
 bool StringValueSignalsAutoset(const std::string& value) {
-  return LowerCaseEqualsASCII(value, "auto") ||
-         LowerCaseEqualsASCII(value, "autoset") ||
-         value == "-1";
+  return base::LowerCaseEqualsASCII(value, "auto") ||
+         base::LowerCaseEqualsASCII(value, "autoset") || value == "-1";
 }
 
 struct ParsedIntValue {
@@ -73,11 +72,11 @@ struct ParsedIntValue {
 
 // Parses a string like "1234x5678" to vector of parsed int values.
 std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
-  std::string value_str = StringToLowerASCII(input);
+  std::string value_str = base::ToLowerASCII(input);
   std::vector<ParsedIntValue> output;
 
-  std::vector<std::string> lengths;
-  base::SplitString(value_str, 'x', &lengths);
+  std::vector<std::string> lengths = base::SplitString(
+      value_str, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   for (size_t i = 0; i < lengths.size(); ++i) {
     ParsedIntValue parsed_value;
@@ -93,22 +92,21 @@ std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
 // Handles gigabytes: "1GB"
 // Handles fractional units for kilo/mega/gigabytes
 int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
-  // Use case-insensitive string comparisons.
-  const bool kIgnoreCase = false;
-
   // Filter out the decimal portion from any unit designation in the string.
   std::string number_string;
   double units = 1.0;
-  if (EndsWith(value, "kb", kIgnoreCase)) {
+  if (base::EndsWith(value, "kb", base::CompareCase::INSENSITIVE_ASCII)) {
     units = 1024.0;
     number_string = value.substr(0, value.size() - 2);
-  } else if (EndsWith(value, "mb", kIgnoreCase)) {
+  } else if (base::EndsWith(value, "mb",
+                            base::CompareCase::INSENSITIVE_ASCII)) {
     units = 1024.0 * 1024.0;
     number_string = value.substr(0, value.size() - 2);
-  } else if (EndsWith(value, "gb", kIgnoreCase)) {
+  } else if (base::EndsWith(value, "gb",
+                            base::CompareCase::INSENSITIVE_ASCII)) {
     units = 1024.0 * 1024.0 * 1024.0;
     number_string = value.substr(0, value.size() - 2);
-  } else if (EndsWith(value, "b", kIgnoreCase)) {
+  } else if (base::EndsWith(value, "b", base::CompareCase::INSENSITIVE_ASCII)) {
     number_string = value.substr(0, value.size() - 1);
   } else {
     number_string = value;
@@ -120,11 +118,11 @@ int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
 }
 
 template <typename ValueType>
-bool TryParseValue(base::optional<ValueType>* destination,
+bool TryParseValue(base::Optional<ValueType>* destination,
                    const std::string& string_value);
 
 template <>
-bool TryParseValue<int64_t>(base::optional<int64_t>* destination,
+bool TryParseValue<int64_t>(base::Optional<int64_t>* destination,
                             const std::string& string_value) {
   bool parse_ok = false;
   int64_t int_value = ParseMemoryValue(string_value, &parse_ok);
@@ -140,7 +138,7 @@ bool TryParseValue<int64_t>(base::optional<int64_t>* destination,
 
 template <>
 bool TryParseValue<TextureDimensions>(
-    base::optional<TextureDimensions>* destination,
+    base::Optional<TextureDimensions>* destination,
     const std::string& string_value) {
   std::vector<ParsedIntValue> int_values = ParseDimensions(string_value);
 
@@ -181,8 +179,8 @@ TextureDimensions GetAutosetValue() {
 }
 
 template <typename ValueType>
-bool Set(const CommandLine& command_line, base::optional<ValueType>* setting,
-         const char* setting_name) {
+bool Set(const base::CommandLine& command_line,
+         base::Optional<ValueType>* setting, const char* setting_name) {
   if (!command_line.HasSwitch(setting_name)) {
     return true;
   }
@@ -237,7 +235,7 @@ AutoMemSettings GetDefaultBuildSettings() {
   return settings;
 }
 
-AutoMemSettings GetSettings(const CommandLine& command_line) {
+AutoMemSettings GetSettings(const base::CommandLine& command_line) {
   AutoMemSettings settings(AutoMemSettings::kTypeCommandLine);
   settings.has_blitter = HasBlitter();
 

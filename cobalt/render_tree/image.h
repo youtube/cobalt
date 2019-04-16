@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDER_TREE_IMAGE_H_
 #define COBALT_RENDER_TREE_IMAGE_H_
 
+#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
@@ -205,7 +206,7 @@ class MultiPlaneImageDataDescriptor {
 
   // We keep an array of base::optionals so that we don't have to specify a
   // default constructor for PlaneInformation.
-  base::optional<PlaneInformation> plane_descriptors_[kMaxPlanes];
+  base::Optional<PlaneInformation> plane_descriptors_[kMaxPlanes];
 };
 
 // The Image type is an abstract base class that represents a stored image

@@ -15,7 +15,7 @@
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 
 #include "base/command_line.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/accessibility/starboard_tts_engine.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/accessibility/tts_logger.h"
@@ -32,7 +32,7 @@ namespace {
 bool ShouldForceTextToSpeech() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   // Check for a command-line override to enable TTS.
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kUseTTS)) {
     return true;
   }
@@ -61,7 +61,7 @@ H5vccAccessibility::H5vccAccessibility(
     const scoped_refptr<dom::Window>& window,
     dom::MutationObserverTaskManager* mutation_observer_task_manager)
     : event_dispatcher_(event_dispatcher) {
-  message_loop_proxy_ = base::MessageLoopProxy::current();
+  task_runner_ = base::MessageLoop::current()->task_runner();
   on_application_event_callback_ = base::Bind(
       &H5vccAccessibility::OnApplicationEvent, base::Unretained(this));
   event_dispatcher_->AddEventCallback(
@@ -131,27 +131,27 @@ bool H5vccAccessibility::text_to_speech() const {
   }
 
   return settings.has_text_to_speech_setting &&
-      settings.is_text_to_speech_enabled;
+         settings.is_text_to_speech_enabled;
 }
 
 void H5vccAccessibility::AddHighContrastTextListener(
     const H5vccAccessibilityCallbackHolder& holder) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
   high_contrast_text_listener_.reset(
       new H5vccAccessibilityCallbackReference(this, holder));
 }
 
 void H5vccAccessibility::OnApplicationEvent(const base::Event* event) {
-  UNREFERENCED_PARAMETER(event);
+  SB_UNREFERENCED_PARAMETER(event);
   // This method should be called from the application event thread.
-  DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy_);
-  message_loop_proxy_->PostTask(
+  DCHECK_NE(base::MessageLoop::current()->task_runner(), task_runner_);
+  task_runner_->PostTask(
       FROM_HERE, base::Bind(&H5vccAccessibility::InternalOnApplicationEvent,
                             base::Unretained(this)));
 }
 
 void H5vccAccessibility::InternalOnApplicationEvent() {
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
   if (high_contrast_text_listener_) {
     high_contrast_text_listener_->value().Run();
   }

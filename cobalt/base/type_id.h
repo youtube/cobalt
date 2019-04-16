@@ -15,7 +15,8 @@
 #ifndef COBALT_BASE_TYPE_ID_H_
 #define COBALT_BASE_TYPE_ID_H_
 
-#include "base/hash_tables.h"
+#include "base/basictypes.h"
+#include "base/containers/hash_tables.h"
 
 // This file introduces the template function GetTypeId<T>() as well as the
 // class TypeId.  GetTypeId<T>() will return a TypeId object that is unique
@@ -102,6 +103,7 @@ struct hash<base::TypeId> {
   hash<intptr_t> base_hash;
 };
 
+// TODO(Starboard) Migrate all platforms to use std::hash and deprecate these.
 //
 // Dinkumware-flavored hash functor.
 //
@@ -118,7 +120,7 @@ class hash_compare<base::TypeId, Predicate> {
 
   enum {
     bucket_size = BaseHashCompare::bucket_size,
-#if !defined(COMPILER_MSVC)
+#if !SB_IS(COMPILER_MSVC)
     min_buckets = BaseHashCompare::min_buckets,
 #endif
   };

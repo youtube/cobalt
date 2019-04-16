@@ -14,6 +14,7 @@
 
 #include "cobalt/debug/console/debug_hub.h"
 
+#include <memory>
 #include <set>
 
 #include "base/json/json_writer.h"
@@ -66,10 +67,11 @@ void DebugHub::SendCommand(const std::string& method,
                            const ResponseCallbackArg& callback) {
   last_error_ = base::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
+    std::unique_ptr<base::DictionaryValue> response(new base::DictionaryValue);
     response->SetString("error.message", "Debugger is not connected.");
     std::string json_response;
-    base::JSONWriter::Write(response.get(), &json_response);
+    auto* response_as_value = static_cast<const base::Value*>(response.get());
+    base::JSONWriter::Write(*response_as_value, &json_response);
     ResponseCallbackArg::Reference callback_ref(this, callback);
     callback_ref.value().Run(json_response);
     return;
@@ -115,15 +117,15 @@ void DebugHub::TraceMembers(script::Tracer* tracer) {
 
 void DebugHub::OnCommandResponse(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
-    const base::optional<std::string>& response) const {
+    const base::Optional<std::string>& response) const {
   // Run the script callback on the message loop the command was sent from.
-  callback_info->message_loop_proxy->PostTask(
+  callback_info->task_runner->PostTask(
       FROM_HERE, base::Bind(&DebugHub::RunResponseCallback, this, callback_info,
                             response));
 }
 
 void DebugHub::OnDebugClientEvent(const std::string& method,
-                                  const base::optional<std::string>& params) {
+                                  const base::Optional<std::string>& params) {
   // Pass to the onEvent handler. The handler will notify the JavaScript
   // listener on the message loop the listener was registered on.
   on_event_->DispatchEvent(method, params);
@@ -139,10 +141,10 @@ void DebugHub::OnDebugClientDetach(const std::string& reason) {
 
 void DebugHub::RunResponseCallback(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
-    base::optional<std::string> response) const {
-  DCHECK_EQ(base::MessageLoopProxy::current(),
-            callback_info->message_loop_proxy);
-  callback_info->callback.value().Run(response);
+    base::Optional<std::string> response) const {
+  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
+            callback_info->task_runner);
+  callback_info->callback.value().Run(std::move(response));
 }
 
 }  // namespace console

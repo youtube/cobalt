@@ -15,13 +15,13 @@
 #ifndef COBALT_DOM_HTML_MEDIA_ELEMENT_H_
 #define COBALT_DOM_HTML_MEDIA_ELEMENT_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/media_error.h"
@@ -29,7 +29,7 @@
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/typed_arrays.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_keys.h"
 #include "cobalt/media/player/web_media_player.h"
@@ -70,8 +70,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void set_src(const std::string& src);
   const std::string& current_src() const { return current_src_; }
 
-  base::optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::optional<std::string>& value);
+  base::Optional<std::string> cross_origin() const;
+  void set_cross_origin(const base::Optional<std::string>& value);
 
   enum NetworkState {
     kNetworkEmpty,
@@ -94,7 +94,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   const scoped_refptr<eme::MediaKeys>& media_keys() const {
     return media_keys_;
   }
-  typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
+  typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
   script::Handle<script::Promise<void>> SetMediaKeys(
       const scoped_refptr<eme::MediaKeys>& media_keys);
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
@@ -104,10 +104,10 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void AddKey(const std::string& key_system,
               const script::Handle<script::Uint8Array>& key,
               const script::Handle<script::Uint8Array>& init_data,
-              const base::optional<std::string>& session_id,
+              const base::Optional<std::string>& session_id,
               script::ExceptionState* exception_state);
   void CancelKeyRequest(const std::string& key_system,
-                        const base::optional<std::string>& session_id,
+                        const base::Optional<std::string>& session_id,
                         script::ExceptionState* exception_state);
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
@@ -271,7 +271,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void SetSourceState(MediaSourceReadyState ready_state);
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
-  scoped_ptr<WebMediaPlayer> player_;
+  std::unique_ptr<WebMediaPlayer> player_;
 
   std::string current_src_;
   // Loading state.
@@ -280,9 +280,9 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 
   EventQueue event_queue_;
 
-  base::OneShotTimer<HTMLMediaElement> load_timer_;
-  base::RepeatingTimer<HTMLMediaElement> progress_event_timer_;
-  base::RepeatingTimer<HTMLMediaElement> playback_progress_timer_;
+  base::OneShotTimer load_timer_;
+  base::RepeatingTimer progress_event_timer_;
+  base::RepeatingTimer playback_progress_timer_;
   scoped_refptr<TimeRanges> played_time_ranges_;
   float playback_rate_;
   float default_playback_rate_;
@@ -325,7 +325,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   scoped_refptr<MediaError> error_;
 
   // Helper object to reduce the image capacity while a video is playing.
-  base::optional<loader::image::ReducedCacheCapacityManager::Request>
+  base::Optional<loader::image::ReducedCacheCapacityManager::Request>
       reduced_image_cache_capacity_request_;
 
 #if defined(COBALT_MEDIA_SOURCE_2016)

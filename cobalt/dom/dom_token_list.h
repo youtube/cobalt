@@ -37,7 +37,7 @@ class DOMTokenList : public script::Wrappable {
   //
   unsigned int length() const;
 
-  base::optional<std::string> Item(unsigned int index) const;
+  base::Optional<std::string> Item(unsigned int index) const;
   bool Contains(const std::string& token) const;
   void Add(const std::vector<std::string>& tokens);
   void Remove(const std::vector<std::string>& tokens);

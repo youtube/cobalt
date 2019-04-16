@@ -15,7 +15,7 @@
 #include "cobalt/loader/blob_fetcher.h"
 
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 
 namespace cobalt {
 namespace loader {

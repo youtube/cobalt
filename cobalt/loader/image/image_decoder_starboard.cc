@@ -18,8 +18,8 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/decode_target.h"
 #include "starboard/image.h"
 

@@ -15,7 +15,7 @@
 #include "cobalt/dom/html_video_element.h"
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/window.h"
@@ -56,11 +56,11 @@ uint32 HTMLVideoElement::height() const {
 }
 
 void HTMLVideoElement::set_width(uint32 width) {
-  SetAttribute("width", base::Uint32ToString(width));
+  SetAttribute("width", base::NumberToString(width));
 }
 
 void HTMLVideoElement::set_height(uint32 height) {
-  SetAttribute("height", base::Uint32ToString(height));
+  SetAttribute("height", base::NumberToString(height));
 }
 
 uint32 HTMLVideoElement::video_width() const {

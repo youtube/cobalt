@@ -15,8 +15,9 @@
 #include "cobalt/loader/image/image_data_decoder.h"
 
 #include <algorithm>
+#include <memory>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 
 namespace cobalt {
 namespace loader {
@@ -57,9 +58,8 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
           std::min(kMaxBufferSizeBytes - data_buffer_.size(), size - offset);
 
       // Append new data to data_buffer
-      data_buffer_.insert(
-          data_buffer_.end(),
-          data + offset, data + offset + fill_buffer_size);
+      data_buffer_.insert(data_buffer_.end(), data + offset,
+                          data + offset + fill_buffer_size);
 
       input_bytes = &data_buffer_[0];
       input_size = data_buffer_.size();
@@ -106,7 +106,7 @@ scoped_refptr<Image> ImageDataDecoder::FinishAndMaybeReturnImage() {
   return FinishInternal();
 }
 
-scoped_ptr<render_tree::ImageData> ImageDataDecoder::AllocateImageData(
+std::unique_ptr<render_tree::ImageData> ImageDataDecoder::AllocateImageData(
     const math::Size& size, bool has_alpha) {
   DCHECK(resource_provider_->AlphaFormatSupported(
       render_tree::kAlphaFormatOpaque));
@@ -118,13 +118,14 @@ scoped_ptr<render_tree::ImageData> ImageDataDecoder::AllocateImageData(
                 : render_tree::kAlphaFormatOpaque);
   DLOG_IF(ERROR, !image_data) << "Failed to allocate image data ("
                               << size.width() << "x" << size.height() << ").";
-  return image_data.Pass();
+  return image_data;
 }
 
 scoped_refptr<Image> ImageDataDecoder::CreateStaticImage(
-    scoped_ptr<render_tree::ImageData> image_data) {
+    std::unique_ptr<render_tree::ImageData> image_data) {
   DCHECK(image_data);
-  return new StaticImage(resource_provider()->CreateImage(image_data.Pass()));
+  return new StaticImage(
+      resource_provider()->CreateImage(std::move(image_data)));
 }
 
 void ImageDataDecoder::CalculatePixelFormat() {

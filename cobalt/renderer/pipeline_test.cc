@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <cmath>
+#include <memory>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -75,11 +75,11 @@ class MockRasterizer : public Rasterizer {
 
  private:
   int* submission_count_;
-  base::optional<base::TimeTicks> last_submission_time;
+  base::Optional<base::TimeTicks> last_submission_time;
 };
 
-scoped_ptr<Rasterizer> CreateMockRasterizer(int* submission_count) {
-  return scoped_ptr<Rasterizer>(new MockRasterizer(submission_count));
+std::unique_ptr<Rasterizer> CreateMockRasterizer(int* submission_count) {
+  return std::unique_ptr<Rasterizer>(new MockRasterizer(submission_count));
 }
 }  // namespace
 
@@ -146,7 +146,7 @@ class RendererPipelineTest : public ::testing::Test {
   }
 
   base::TimeTicks start_time_;  // Record the time that we started the pipeline.
-  scoped_ptr<Pipeline> pipeline_;
+  std::unique_ptr<Pipeline> pipeline_;
   int submission_count_;
 };
 

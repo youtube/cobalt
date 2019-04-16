@@ -7,14 +7,13 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/media/base/byte_queue.h"
 #include "cobalt/media/base/decoder_buffer.h"
@@ -34,7 +33,7 @@ class FFmpegURLProtocol;
 
 class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
-  typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<StreamParserBuffer>> BufferQueue;
 
   ChunkDemuxerStream(Type type, bool splice_frames_enabled,
                      MediaTrack::Id media_track_id);
@@ -151,7 +150,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   Liveness liveness_;
 
-  scoped_ptr<SourceBufferStream> stream_;
+  std::unique_ptr<SourceBufferStream> stream_;
 
   const MediaTrack::Id media_track_id_;
 
@@ -418,7 +417,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // http://crbug.com/308226
   PipelineStatusCB seek_cb_;
 
-  typedef ScopedVector<ChunkDemuxerStream> OwnedChunkDemuxerStreamVector;
+  typedef std::vector<std::unique_ptr<ChunkDemuxerStream>>
+      OwnedChunkDemuxerStreamVector;
   OwnedChunkDemuxerStreamVector audio_streams_;
   OwnedChunkDemuxerStreamVector video_streams_;
   OwnedChunkDemuxerStreamVector text_streams_;
@@ -442,7 +442,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   typedef std::map<std::string, SourceBufferState*> SourceBufferStateMap;
   SourceBufferStateMap source_state_map_;
 
-  std::map<std::string, std::vector<ChunkDemuxerStream*> > id_to_streams_map_;
+  std::map<std::string, std::vector<ChunkDemuxerStream*>> id_to_streams_map_;
   // Used to hold alive the demuxer streams that were created for removed /
   // released SourceBufferState objects. Demuxer clients might still have
   // references to these streams, so we need to keep them alive. But they'll be

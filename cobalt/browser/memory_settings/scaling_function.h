@@ -157,14 +157,13 @@ typedef base::Callback<double(double)> ScalingFunction;
 //   EXPECT_EQ(.75, fun(.75));
 //   EXPECT_EQ(.75, fun(.5));
 //   EXPECT_EQ(.75, fun(0));
-ScalingFunction MakeLinearMemoryScaler(
-    double min_clamp_value,
-    double max_clamp_value);
+ScalingFunction MakeLinearMemoryScaler(double min_clamp_value,
+                                       double max_clamp_value);
 
 // Generates a functor that will shed most of the memory of the JavaScriptGC
 // very quickly.
-ScalingFunction MakeJavaScriptGCScaler(
-    int64_t min_consumption, int64_t max_consumption);
+ScalingFunction MakeJavaScriptGCScaler(int64_t min_consumption,
+                                       int64_t max_consumption);
 
 // Generates a functor that will shed 50% of memory when the requested
 // memory scale is .5 or less, otherwise no memory is reduced.

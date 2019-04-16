@@ -18,8 +18,8 @@
 
 #include "base/base64.h"
 #include "base/logging.h"
-#include "base/string_piece.h"
-#include "base/string_util.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 
 namespace base {
 
@@ -31,7 +31,7 @@ GURL GetApplicationOrigin(const GURL& url) {
     return GURL();
   }
 
-  url_canon::Replacements<char> replacements;
+  url::Replacements<char> replacements;
   replacements.ClearUsername();
   replacements.ClearPassword();
   replacements.ClearQuery();
@@ -41,7 +41,7 @@ GURL GetApplicationOrigin(const GURL& url) {
 }
 }  // namespace
 
-optional<std::string> GetApplicationKey(const GURL& url) {
+Optional<std::string> GetApplicationKey(const GURL& url) {
   if (!url.is_valid()) {
     return base::nullopt;
   }
@@ -51,8 +51,8 @@ optional<std::string> GetApplicationKey(const GURL& url) {
   base::Base64Encode(raw_url, &encoded_url);
 
   // Make web-safe.
-  ReplaceChars(encoded_url, "/", "_", &encoded_url);
-  ReplaceChars(encoded_url, "+", "-", &encoded_url);
+  base::ReplaceChars(encoded_url, "/", "_", &encoded_url);
+  base::ReplaceChars(encoded_url, "+", "-", &encoded_url);
 
   return encoded_url;
 }

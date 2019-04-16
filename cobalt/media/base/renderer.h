@@ -8,7 +8,7 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/buffering_state.h"
 #include "cobalt/media/base/cdm_context.h"
 #include "cobalt/media/base/media_export.h"

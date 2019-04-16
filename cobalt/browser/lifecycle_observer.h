@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_LIFECYCLE_OBSERVER_H_
 #define COBALT_BROWSER_LIFECYCLE_OBSERVER_H_
 
+#include "base/observer_list_types.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "starboard/configuration.h"
 
@@ -22,7 +23,7 @@ namespace cobalt {
 namespace browser {
 
 // A pure virtual interface for observers of the application lifecycle.
-class LifecycleObserver {
+class LifecycleObserver : public base::CheckedObserver {
  public:
   // Sent before sending Start when transitioning from Preloading to Started.
   virtual void Prestart() = 0;

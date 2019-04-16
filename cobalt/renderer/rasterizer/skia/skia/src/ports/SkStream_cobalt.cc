@@ -18,21 +18,23 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/memory/ptr_util.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkOSFile_cobalt.h"
 
 SkFileMemoryChunkStreamManager::SkFileMemoryChunkStreamManager(
     const std::string& name, int cache_capacity_in_bytes)
     : available_chunk_count_(cache_capacity_in_bytes /
                              SkFileMemoryChunk::kSizeInBytes),
-      cache_capacity_in_bytes_(StringPrintf("Memory.%s.Capacity", name.c_str()),
-                               cache_capacity_in_bytes,
-                               "The byte capacity of the cache."),
+      cache_capacity_in_bytes_(
+          base::StringPrintf("Memory.%s.Capacity", name.c_str()),
+          cache_capacity_in_bytes, "The byte capacity of the cache."),
       cache_size_in_bytes_(
-          StringPrintf("Memory.%s.Size", name.c_str()), 0,
+          base::StringPrintf("Memory.%s.Size", name.c_str()), 0,
           "Total number of bytes currently used by the cache.") {}
 
 SkFileMemoryChunkStreamProvider*
@@ -51,17 +53,17 @@ SkFileMemoryChunkStreamManager::GetStreamProvider(
   // return it. This stream provider will be returned for any subsequent
   // requests specifying this file, ensuring that memory chunks will be shared.
   stream_provider_array_.push_back(
-      new SkFileMemoryChunkStreamProvider(file_path, this));
+      base::WrapUnique(new SkFileMemoryChunkStreamProvider(file_path, this)));
   SkFileMemoryChunkStreamProvider* stream_provider =
-      *stream_provider_array_.rbegin();
+      stream_provider_array_.rbegin()->get();
   stream_provider_map_[file_path] = stream_provider;
   return stream_provider;
 }
 
 void SkFileMemoryChunkStreamManager::PurgeUnusedMemoryChunks() {
   SkAutoMutexAcquire scoped_mutex(stream_provider_mutex_);
-  for (ScopedVector<SkFileMemoryChunkStreamProvider>::iterator iter =
-           stream_provider_array_.begin();
+  for (std::vector<std::unique_ptr<SkFileMemoryChunkStreamProvider>>::iterator
+           iter = stream_provider_array_.begin();
        iter != stream_provider_array_.end(); ++iter) {
     (*iter)->PurgeUnusedMemoryChunks();
   }
@@ -103,10 +105,10 @@ SkFileMemoryChunkStream* SkFileMemoryChunkStreamProvider::OpenStream() const {
       const_cast<SkFileMemoryChunkStreamProvider*>(this));
 }
 
-scoped_ptr<const SkFileMemoryChunks>
+std::unique_ptr<const SkFileMemoryChunks>
 SkFileMemoryChunkStreamProvider::CreateMemoryChunksSnapshot() {
   SkAutoMutexAcquire scoped_mutex(memory_chunks_mutex_);
-  return make_scoped_ptr<const SkFileMemoryChunks>(
+  return std::unique_ptr<const SkFileMemoryChunks>(
       new SkFileMemoryChunks(memory_chunks_));
 }
 
@@ -174,7 +176,7 @@ SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
   // do not return. Subsequent attempts will also fail, so the map is populated
   // with a NULL value for this index to prevent the attempts from occurring.
   scoped_refptr<SkFileMemoryChunk> new_chunk(new SkFileMemoryChunk);
-  if (!stream->ReadIndexIntoMemoryChunk(index, new_chunk)) {
+  if (!stream->ReadIndexIntoMemoryChunk(index, new_chunk.get())) {
     new_chunk = NULL;
   }
 
@@ -186,8 +188,8 @@ SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
   // between two calls to TryGetMemoryChunk() and the other call won), and the
   // new chunk exists, then set the reference so that it'll be available for
   // subsequent calls.
-  if (chunk == NULL && new_chunk != NULL) {
-    chunk = new_chunk;
+  if (chunk.get() == NULL && new_chunk.get() != NULL) {
+    chunk = new_chunk.get();
   } else {
     // The new chunk will not be retained, so make the reserved chunk
     // available again.
@@ -322,7 +324,7 @@ bool SkFileMemoryChunkStream::move(long offset) {
 }
 
 SkFileMemoryChunkStream* SkFileMemoryChunkStream::fork() const {
-  scoped_ptr<SkFileMemoryChunkStream> that(duplicate());
+  std::unique_ptr<SkFileMemoryChunkStream> that(duplicate());
   that->seek(stream_position_);
   return that.release();
 }

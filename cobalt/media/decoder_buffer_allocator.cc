@@ -20,7 +20,6 @@
 #include "cobalt/media/base/video_resolution.h"
 #include "nb/allocator.h"
 #include "nb/memory_scope.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
@@ -129,8 +128,8 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
         return Allocations();
       }
       LOG_IF(INFO, kEnableAllocationLog)
-          << "Media Allocation Log " << p << " " << size << " "
-          << alignment << " " << context;
+          << "Media Allocation Log " << p << " " << size << " " << alignment
+          << " " << context;
       if (!UpdateAllocationRecord()) {
         // UpdateAllocationRecord may fail with non-NULL p when capacity is
         // exceeded.
@@ -306,8 +305,8 @@ DecoderBufferAllocator::ReuseAllocator::FindBestFreeBlock(
 bool DecoderBufferAllocator::UpdateAllocationRecord(
     std::size_t blocks /*= 1*/) const {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  // This code is not quite multi-thread safe but is safe enough for tracking
-  // purposes.
+// This code is not quite multi-thread safe but is safe enough for tracking
+// purposes.
 #if SB_API_VERSION >= 10
   int initial_capacity = SbMediaGetInitialBufferCapacity();
 #else   // SB_API_VERSION >= 10

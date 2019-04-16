@@ -15,20 +15,21 @@
 #include "cobalt/browser/browser_module.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/command_line.h"
-#include "base/debug/trace_event.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
@@ -56,6 +57,7 @@
 #include "starboard/time.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#include "base/memory/ptr_util.h"
 #include "starboard/ps4/core_dump_handler.h"
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
@@ -82,8 +84,8 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                                static_cast<SbAtomic64>(SbTimeGetNow()));
 }
 
-base::LazyInstance<NonTrivialGlobalVariables> non_trivial_global_variables =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit
+    non_trivial_global_variables = LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 #endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
 
@@ -150,15 +152,15 @@ const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
     "to disk. Logs the filename of the screenshot to the console when done.";
 
-void ScreenshotCompleteCallback(const FilePath& output_path) {
+void ScreenshotCompleteCallback(const base::FilePath& output_path) {
   DLOG(INFO) << "Screenshot written to " << output_path.value();
 }
 
 void OnScreenshotMessage(BrowserModule* browser_module,
                          const std::string& message) {
-  UNREFERENCED_PARAMETER(message);
-  FilePath dir;
-  if (!PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &dir)) {
+  SB_UNREFERENCED_PARAMETER(message);
+  base::FilePath dir;
+  if (!base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &dir)) {
     NOTREACHED() << "Failed to get debug out directory.";
   }
 
@@ -166,11 +168,11 @@ void OnScreenshotMessage(BrowserModule* browser_module,
   base::Time::Now().LocalExplode(&exploded);
   DCHECK(exploded.HasValidValues());
   std::string screenshot_file_name =
-      StringPrintf("screenshot-%04d-%02d-%02d_%02d-%02d-%02d.png",
-                   exploded.year, exploded.month, exploded.day_of_month,
-                   exploded.hour, exploded.minute, exploded.second);
+      base::StringPrintf("screenshot-%04d-%02d-%02d_%02d-%02d-%02d.png",
+                         exploded.year, exploded.month, exploded.day_of_month,
+                         exploded.hour, exploded.minute, exploded.second);
 
-  FilePath output_path = dir.Append(screenshot_file_name);
+  base::FilePath output_path = dir.Append(screenshot_file_name);
   browser_module->RequestScreenshotToFile(
       output_path, loader::image::EncodedStaticImage::ImageFormat::kPNG,
       /*clip_rect=*/base::nullopt,
@@ -184,7 +186,7 @@ scoped_refptr<script::Wrappable> CreateH5VCC(
     const scoped_refptr<dom::Window>& window,
     dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
-  UNREFERENCED_PARAMETER(global_environment);
+  SB_UNREFERENCED_PARAMETER(global_environment);
   return scoped_refptr<script::Wrappable>(
       new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
 }
@@ -193,7 +195,7 @@ scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
     dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
-  UNREFERENCED_PARAMETER(mutation_observer_task_manager);
+  SB_UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   return CreateWebAPIExtensionObject(window, global_environment);
 }
 
@@ -227,10 +229,10 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
       options_(options),
-      self_message_loop_(MessageLoop::current()),
+      self_message_loop_(base::MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
-      storage_manager_(make_scoped_ptr(new StorageUpgradeHandler(url))
-                           .PassAs<storage::StorageManager::UpgradeHandler>(),
+      storage_manager_(std::unique_ptr<storage::StorageManager::UpgradeHandler>(
+                           new StorageUpgradeHandler(url)),
                        options_.storage_manager_options),
       is_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
@@ -246,8 +248,8 @@ BrowserModule::BrowserModule(const GURL& url,
                     &BrowserModule::GetSbWindow, base::Unretained(this)))
               : NULL),
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-      web_module_loaded_(true /* manually_reset */,
-                         false /* initially_signalled */),
+      web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
+                         base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
@@ -272,7 +274,8 @@ BrowserModule::BrowserModule(const GURL& url,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_DEBUGGER)
-      has_resumed_(true, false),
+      has_resumed_(base::WaitableEvent::ResetPolicy::MANUAL,
+                   base::WaitableEvent::InitialState::NOT_SIGNALED),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
       timeout_polling_thread_(kTimeoutPollingThreadName),
       render_timeout_count_(0),
@@ -301,14 +304,14 @@ BrowserModule::BrowserModule(const GURL& url,
 
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
   timeout_polling_thread_.Start();
-  timeout_polling_thread_.message_loop()->PostDelayedTask(
+  timeout_polling_thread_.message_loop()->task_runner()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&BrowserModule::OnPollForRenderTimeout, base::Unretained(this),
                  url),
       base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
 #endif
 
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
   // Create the main web module layer.
   main_web_module_layer_ =
@@ -347,7 +350,7 @@ BrowserModule::BrowserModule(const GURL& url,
       !command_line->HasSwitch(switches::kDisablePartialLayout);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-  base::optional<std::string> extension_object_name =
+  base::Optional<std::string> extension_object_name =
       GetWebAPIExtensionObjectPropertyName();
   if (extension_object_name) {
     options_.web_module_options
@@ -402,7 +405,7 @@ BrowserModule::BrowserModule(const GURL& url,
 }
 
 BrowserModule::~BrowserModule() {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
 
   // Transition into the suspended state from whichever state we happen to
   // currently be in, to prepare for shutdown.
@@ -437,8 +440,8 @@ void BrowserModule::Navigate(const GURL& url) {
   web_module_loaded_.Reset();
 
   // Repost to our own message loop if necessary.
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::Navigate, weak_this_, url));
     return;
   }
@@ -475,8 +478,8 @@ void BrowserModule::Navigate(const GURL& url) {
 #endif  // defined(ENABLE_DEBUGGER)
 
   // Destroy old WebModule first, so we don't get a memory high-watermark after
-  // the second WebModule's constructor runs, but before scoped_ptr::reset() is
-  // run.
+  // the second WebModule's constructor runs, but before
+  // std::unique_ptr::reset() is run.
   if (web_module_) {
     lifecycle_observers_.RemoveObserver(web_module_.get());
   }
@@ -500,7 +503,7 @@ void BrowserModule::Navigate(const GURL& url) {
   DestroySplashScreen(base::TimeDelta());
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
-    base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+    base::Optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
     if (fallback_splash_screen_url_ ||
         (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
       splash_screen_.reset(new SplashScreen(
@@ -527,8 +530,10 @@ void BrowserModule::Navigate(const GURL& url) {
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
 #if defined(ENABLE_FAKE_MICROPHONE)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kFakeMicrophone) ||
-      CommandLine::ForCurrentProcess()->HasSwitch(switches::kInputFuzzer)) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kFakeMicrophone) ||
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kInputFuzzer)) {
     options.dom_settings_options.microphone_options.enable_fake_microphone =
         true;
   }
@@ -556,10 +561,10 @@ void BrowserModule::Navigate(const GURL& url) {
                  base::Unretained(screen_shot_writer_.get()));
 
 #if defined(ENABLE_DEBUGGER)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kWaitForWebDebugger)) {
     int wait_for_generation =
-        SbStringAToI(CommandLine::ForCurrentProcess()
+        SbStringAToI(base::CommandLine::ForCurrentProcess()
                          ->GetSwitchValueASCII(switches::kWaitForWebDebugger)
                          .c_str());
     if (wait_for_generation < 1) wait_for_generation = 1;
@@ -593,7 +598,7 @@ void BrowserModule::Navigate(const GURL& url) {
 
 void BrowserModule::Reload() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Reload()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
       "location.reload();",
@@ -621,8 +626,8 @@ void BrowserModule::OnLoad() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
   // asynchronous access to this object by |web_module_| during destruction.
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnLoad, weak_this_));
     return;
   }
@@ -644,9 +649,9 @@ bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
 }
 
 void BrowserModule::RequestScreenshotToFile(
-    const FilePath& path,
+    const base::FilePath& path,
     loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::optional<math::Rect>& clip_rect,
+    const base::Optional<math::Rect>& clip_rect,
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK(screen_shot_writer_);
@@ -663,7 +668,7 @@ void BrowserModule::RequestScreenshotToFile(
 
 void BrowserModule::RequestScreenshotToMemory(
     loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::optional<math::Rect>& clip_rect,
+    const base::Optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
   DCHECK(screen_shot_writer_);
@@ -680,7 +685,7 @@ void BrowserModule::RequestScreenshotToMemory(
 
 scoped_refptr<render_tree::Node> BrowserModule::GetLastSubmissionAnimated() {
   DCHECK(main_web_module_layer_);
-  base::optional<renderer::Submission> last_submission =
+  base::Optional<renderer::Submission> last_submission =
       main_web_module_layer_->GetCurrentSubmission();
   if (!last_submission) {
     LOG(WARNING) << "Unable to find last submission.";
@@ -700,7 +705,7 @@ scoped_refptr<render_tree::Node> BrowserModule::GetLastSubmissionAnimated() {
 void BrowserModule::ProcessRenderTreeSubmissionQueue() {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::ProcessRenderTreeSubmissionQueue()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   render_tree_submission_queue_.ProcessAll();
 }
 
@@ -711,7 +716,7 @@ void BrowserModule::QueueOnRenderTreeProduced(
   render_tree_submission_queue_.AddMessage(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this),
                  main_web_module_generation, layout_results));
-  self_message_loop_->PostTask(
+  self_message_loop_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
 }
@@ -723,7 +728,7 @@ void BrowserModule::QueueOnSplashScreenRenderTreeProduced(
   render_tree_submission_queue_.AddMessage(
       base::Bind(&BrowserModule::OnSplashScreenRenderTreeProduced,
                  base::Unretained(this), layout_results));
-  self_message_loop_->PostTask(
+  self_message_loop_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
 }
@@ -732,7 +737,7 @@ void BrowserModule::OnRenderTreeProduced(
     int main_web_module_generation,
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
 
   if (main_web_module_generation != main_web_module_generation_) {
     // Ignore render trees produced by old stale web modules.  This might happen
@@ -777,7 +782,7 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnSplashScreenRenderTreeProduced()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
 
   if (application_state_ == base::kApplicationStatePreloading ||
       !splash_screen_) {
@@ -827,7 +832,7 @@ void BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced(
   render_tree_submission_queue_.AddMessage(
       base::Bind(&BrowserModule::OnQrCodeOverlayRenderTreeProduced,
                  base::Unretained(this), render_tree));
-  self_message_loop_->PostTask(
+  self_message_loop_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
 }
@@ -836,7 +841,7 @@ void BrowserModule::OnQrCodeOverlayRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnQrCodeOverlayRenderTreeProduced()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(qr_overlay_info_layer_);
 
   if (application_state_ == base::kApplicationStatePreloading) {
@@ -849,7 +854,6 @@ void BrowserModule::OnQrCodeOverlayRenderTreeProduced(
 }
 
 void BrowserModule::OnWindowClose(base::TimeDelta close_time) {
-  UNREFERENCED_PARAMETER(close_time);
 #if defined(ENABLE_DEBUGGER)
   if (input_device_manager_fuzzer_) {
     return;
@@ -891,7 +895,7 @@ void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   // Only inject shown events to the main WebModule.
   on_screen_keyboard_show_called_ = true;
   if (splash_screen_ && splash_screen_->ShutdownSignaled()) {
@@ -904,7 +908,7 @@ void BrowserModule::OnOnScreenKeyboardShown(
 
 void BrowserModule::OnOnScreenKeyboardHidden(
     const base::OnScreenKeyboardHiddenEvent* event) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   // Only inject hidden events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardHiddenEvent(event->ticket());
@@ -913,7 +917,7 @@ void BrowserModule::OnOnScreenKeyboardHidden(
 
 void BrowserModule::OnOnScreenKeyboardFocused(
     const base::OnScreenKeyboardFocusedEvent* event) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   // Only inject focused events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardFocusedEvent(event->ticket());
@@ -922,7 +926,7 @@ void BrowserModule::OnOnScreenKeyboardFocused(
 
 void BrowserModule::OnOnScreenKeyboardBlurred(
     const base::OnScreenKeyboardBlurredEvent* event) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   // Only inject blurred events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardBlurredEvent(event->ticket());
@@ -932,7 +936,7 @@ void BrowserModule::OnOnScreenKeyboardBlurred(
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
     const base::OnScreenKeyboardSuggestionsUpdatedEvent* event) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   // Only inject updated suggestions events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(event->ticket());
@@ -952,8 +956,8 @@ void BrowserModule::OnCaptionSettingsChanged(
 
 #if defined(ENABLE_DEBUGGER)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&BrowserModule::OnFuzzerToggle, weak_this_, message));
     return;
@@ -961,7 +965,7 @@ void BrowserModule::OnFuzzerToggle(const std::string& message) {
 
   if (!input_device_manager_fuzzer_) {
     // Wire up the input fuzzer key generator to the keyboard event callback.
-    input_device_manager_fuzzer_ = scoped_ptr<input::InputDeviceManager>(
+    input_device_manager_fuzzer_ = std::unique_ptr<input::InputDeviceManager>(
         new input::InputDeviceManagerFuzzer(
             base::Bind(&BrowserModule::InjectKeyEventToMainWebModule,
                        base::Unretained(this))));
@@ -971,15 +975,15 @@ void BrowserModule::OnFuzzerToggle(const std::string& message) {
 }
 
 void BrowserModule::OnSetMediaConfig(const std::string& config) {
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&BrowserModule::OnSetMediaConfig, weak_this_, config));
     return;
   }
 
-  std::vector<std::string> tokens;
-  base::SplitString(config, '=', &tokens);
+  std::vector<std::string> tokens = base::SplitString(
+      config, "=", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   int value;
   if (tokens.size() != 2 || !base::StringToInt(tokens[1], &value)) {
@@ -1001,7 +1005,7 @@ void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
   render_tree_submission_queue_.AddMessage(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this), layout_results));
-  self_message_loop_->PostTask(
+  self_message_loop_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
 }
@@ -1010,7 +1014,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (application_state_ == base::kApplicationStatePreloading) {
     return;
   }
@@ -1037,8 +1041,8 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnOnScreenKeyboardInputEventProduced()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
                    weak_this_, type, event));
@@ -1062,8 +1066,8 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
 void BrowserModule::OnKeyEventProduced(base::Token type,
                                        const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnKeyEventProduced, weak_this_,
                               type, event));
     return;
@@ -1080,8 +1084,8 @@ void BrowserModule::OnKeyEventProduced(base::Token type,
 void BrowserModule::OnPointerEventProduced(base::Token type,
                                            const dom::PointerEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnPointerEventProduced()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnPointerEventProduced,
                               weak_this_, type, event));
     return;
@@ -1096,7 +1100,6 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
     }
   }
 
-  trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
@@ -1106,8 +1109,8 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
 void BrowserModule::OnWheelEventProduced(base::Token type,
                                          const dom::WheelEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnWheelEventProduced()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnWheelEventProduced, weak_this_,
                               type, event));
     return;
@@ -1122,7 +1125,6 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
     }
   }
 
-  trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
@@ -1133,16 +1135,12 @@ void BrowserModule::InjectKeyEventToMainWebModule(
     base::Token type, const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::InjectKeyEventToMainWebModule()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::InjectKeyEventToMainWebModule,
                               weak_this_, type, event));
     return;
   }
-
-#if defined(ENABLE_DEBUGGER)
-  trace_manager_.OnInputEventProduced();
-#endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
   web_module_->InjectKeyboardEvent(type, event);
@@ -1154,18 +1152,14 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
   TRACE_EVENT0(
       "cobalt::browser",
       "BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(
             &BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule,
             weak_this_, type, event));
     return;
   }
-
-#if defined(ENABLE_DEBUGGER)
-  trace_manager_.OnInputEventProduced();
-#endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
@@ -1174,8 +1168,8 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnError, weak_this_, url, error));
     return;
   }
@@ -1183,8 +1177,6 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   on_error_triggered_count_++;
 #endif
-
-  LOG(INFO) << "Network error: " << error;
 
   // Set |pending_navigate_url_| to the url where the error occurred. This will
   // cause the OnError callback to Navigate() to this URL if it receives a
@@ -1270,8 +1262,6 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
 bool BrowserModule::FilterKeyEventForHotkeys(
     base::Token type, const dom::KeyboardEventInit& event) {
 #if !defined(ENABLE_DEBUGGER)
-  UNREFERENCED_PARAMETER(type);
-  UNREFERENCED_PARAMETER(event);
 #else
   if (event.key_code() == dom::keycode::kF1 ||
       (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
@@ -1321,8 +1311,8 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
 
 void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroySplashScreen()");
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::DestroySplashScreen, weak_this_,
                               close_time));
     return;
@@ -1342,19 +1332,19 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
 }
 
 #if defined(ENABLE_WEBDRIVER)
-scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
+std::unique_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
     const webdriver::protocol::SessionId& session_id) {
-  return make_scoped_ptr(new webdriver::SessionDriver(
+  return base::WrapUnique(new webdriver::SessionDriver(
       session_id,
       base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this)),
       base::Bind(&BrowserModule::WaitForLoad, base::Unretained(this))));
 }
 
-scoped_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
+std::unique_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  scoped_ptr<webdriver::WindowDriver> window_driver;
-  self_message_loop_->PostBlockingTask(
+  std::unique_ptr<webdriver::WindowDriver> window_driver;
+  self_message_loop_->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&BrowserModule::CreateWindowDriverInternal,
                             base::Unretained(this), window_id,
                             base::Unretained(&window_driver)));
@@ -1363,35 +1353,35 @@ scoped_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
   // changed unless the corresponding benchmark logic is changed as well.
   LOG(INFO) << "Created WindowDriver: ID=" << window_id.id();
   DCHECK(window_driver);
-  return window_driver.Pass();
+  return window_driver;
 }
 
 void BrowserModule::CreateWindowDriverInternal(
     const webdriver::protocol::WindowId& window_id,
-    scoped_ptr<webdriver::WindowDriver>* out_window_driver) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+    std::unique_ptr<webdriver::WindowDriver>* out_window_driver) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   *out_window_driver = web_module_->CreateWindowDriver(window_id);
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUGGER)
-scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
+std::unique_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
     debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
   debug::backend::DebugDispatcher* debug_dispatcher = NULL;
-  self_message_loop_->PostBlockingTask(
+  self_message_loop_->task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&BrowserModule::GetDebugDispatcherInternal,
                  base::Unretained(this), base::Unretained(&debug_dispatcher)));
   DCHECK(debug_dispatcher);
-  return scoped_ptr<debug::DebugClient>(
+  return std::unique_ptr<debug::DebugClient>(
       new debug::DebugClient(debug_dispatcher, delegate));
 }
 
 void BrowserModule::GetDebugDispatcherInternal(
     debug::backend::DebugDispatcher** out_debug_dispatcher) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   *out_debug_dispatcher = web_module_->GetDebugDispatcher();
 }
@@ -1404,7 +1394,7 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
 
 void BrowserModule::Start() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Start()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStatePreloading);
 
   SuspendInternal(true /*is_start*/);
@@ -1417,7 +1407,7 @@ void BrowserModule::Start() {
 
 void BrowserModule::Pause() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Pause()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Pause());
   application_state_ = base::kApplicationStatePaused;
@@ -1425,7 +1415,7 @@ void BrowserModule::Pause() {
 
 void BrowserModule::Unpause() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Unpause()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStatePaused);
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Unpause());
   application_state_ = base::kApplicationStateStarted;
@@ -1433,7 +1423,7 @@ void BrowserModule::Unpause() {
 
 void BrowserModule::Suspend() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Suspend()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStatePaused ||
          application_state_ == base::kApplicationStatePreloading);
 
@@ -1444,7 +1434,7 @@ void BrowserModule::Suspend() {
 
 void BrowserModule::Resume() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateSuspended);
 
   StartOrResumeInternalPreStateUpdate(false /*is_start*/);
@@ -1455,7 +1445,7 @@ void BrowserModule::Resume() {
 }
 
 void BrowserModule::ReduceMemory() {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (splash_screen_) {
     splash_screen_->ReduceMemory();
   }
@@ -1473,8 +1463,8 @@ void BrowserModule::ReduceMemory() {
 
 void BrowserModule::CheckMemory(
     const int64_t& used_cpu_memory,
-    const base::optional<int64_t>& used_gpu_memory) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+    const base::Optional<int64_t>& used_gpu_memory) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (!auto_mem_) {
     return;
   }
@@ -1535,7 +1525,7 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
       SB_DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
     }
   } else {
-    timeout_polling_thread_.message_loop()->PostDelayedTask(
+    timeout_polling_thread_.message_loop()->task_runner()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&BrowserModule::OnPollForRenderTimeout,
                    base::Unretained(this), url),
@@ -1561,7 +1551,7 @@ void BrowserModule::InitializeSystemWindow() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeSystemWindow()");
   resource_provider_stub_ = base::nullopt;
   DCHECK(!system_window_);
-  base::optional<math::Size> maybe_size;
+  base::Optional<math::Size> maybe_size;
   if (options_.requested_viewport_size) {
     maybe_size = options_.requested_viewport_size->width_height();
   }
@@ -1570,20 +1560,16 @@ void BrowserModule::InitializeSystemWindow() {
   // Reapply automem settings now that we may have a different viewport size.
   ApplyAutoMemSettings();
 
-  input_device_manager_ =
-      input::InputDeviceManager::CreateFromWindow(
-          base::Bind(&BrowserModule::OnKeyEventProduced,
-                     base::Unretained(this)),
-          base::Bind(&BrowserModule::OnPointerEventProduced,
-                     base::Unretained(this)),
-          base::Bind(&BrowserModule::OnWheelEventProduced,
-                     base::Unretained(this)),
+  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
+      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnPointerEventProduced,
+                 base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-          base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
-                     base::Unretained(this)),
+      base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
+                 base::Unretained(this)),
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-          system_window_.get())
-          .Pass();
+      system_window_.get());
   InstantiateRendererModule();
 
 #if SB_API_VERSION >= 10
@@ -1603,7 +1589,7 @@ void BrowserModule::InitializeSystemWindow() {
 }
 
 void BrowserModule::InstantiateRendererModule() {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(system_window_);
   DCHECK(!renderer_module_);
 
@@ -1615,7 +1601,7 @@ void BrowserModule::InstantiateRendererModule() {
 }
 
 void BrowserModule::DestroyRendererModule() {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(renderer_module_);
 
   screen_shot_writer_.reset();
@@ -1815,8 +1801,8 @@ void BrowserModule::ApplyAutoMemSettings() {
 
 void BrowserModule::GetHeapStatisticsCallback(
     const script::HeapStatistics& heap_statistics) {
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::GetHeapStatisticsCallback,
                               base::Unretained(this), heap_statistics));
     return;
@@ -1829,7 +1815,7 @@ void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
     return;
   }
 
-  base::optional<renderer::Submission> submission =
+  base::Optional<renderer::Submission> submission =
       render_tree_combiner_.GetCurrentSubmission();
   if (submission) {
     renderer_module_->pipeline()->Submit(*submission);

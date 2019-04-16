@@ -14,7 +14,7 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 #include "cobalt/browser/switches.h"
@@ -27,9 +27,9 @@ bool g_is_startup_switch_set = false;
 
 // Get the current version if the switch is set
 bool CheckForAndExecuteVersionSwitch() {
-  if (CommandLine::ForCurrentProcess()->HasSwitch(
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           cobalt::browser::switches::kVersion)) {
-    SbLogRaw(StringPrintf("Cobalt version %s\n", COBALT_VERSION).c_str());
+    SbLogRaw(base::StringPrintf("Cobalt version %s\n", COBALT_VERSION).c_str());
     return true;
   }
   return false;
@@ -37,7 +37,7 @@ bool CheckForAndExecuteVersionSwitch() {
 
 // Get the help message if the switch is set
 bool CheckForAndExecuteHelpSwitch() {
-  if (CommandLine::ForCurrentProcess()->HasSwitch(
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           cobalt::browser::switches::kHelp)) {
     SbLogRaw("Options: \n");
     SbLogRaw(cobalt::browser::switches::HelpMessage().c_str());

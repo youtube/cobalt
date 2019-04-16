@@ -40,8 +40,7 @@ DOMSettings::DOMSettings(
       can_play_type_handler_(can_play_type_handler),
       javascript_engine_(engine),
       global_environment_(global_environment),
-      mutation_observer_task_manager_(mutation_observer_task_manager) {
-}
+      mutation_observer_task_manager_(mutation_observer_task_manager) {}
 
 DOMSettings::~DOMSettings() {}
 

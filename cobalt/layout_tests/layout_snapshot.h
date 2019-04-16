@@ -19,7 +19,7 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace layout_tests {

@@ -42,9 +42,9 @@ class OverlayInfoRegistryImpl {
   OverlayInfoRegistryImpl() = default;
 
   // To make our private constructor available to
-  // Singleton<OverlayInfoRegistryImpl,
-  // LeakySingletonTraits<OverlayInfoRegistryImpl>>.
-  friend struct DefaultSingletonTraits<OverlayInfoRegistryImpl>;
+  // base::Singleton<OverlayInfoRegistryImpl,
+  // DefaultSingletonTraits<OverlayInfoRegistryImpl>>.
+  friend struct base::DefaultSingletonTraits<OverlayInfoRegistryImpl>;
 
   bool enabled_ = true;
   starboard::Mutex mutex_;
@@ -53,8 +53,9 @@ class OverlayInfoRegistryImpl {
 
 // static
 OverlayInfoRegistryImpl* OverlayInfoRegistryImpl::GetInstance() {
-  return Singleton<OverlayInfoRegistryImpl,
-                   LeakySingletonTraits<OverlayInfoRegistryImpl>>::get();
+  return base::Singleton<
+      OverlayInfoRegistryImpl,
+      base::DefaultSingletonTraits<OverlayInfoRegistryImpl>>::get();
 }
 
 void OverlayInfoRegistryImpl::Disable() {

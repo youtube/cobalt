@@ -15,9 +15,9 @@
 #ifndef COBALT_TRACE_EVENT_SCOPED_EVENT_PARSER_TRACE_H_
 #define COBALT_TRACE_EVENT_SCOPED_EVENT_PARSER_TRACE_H_
 
-#include "base/file_path.h"
-#include "base/time.h"
-#include "cobalt/trace_event/event_parser.h"
+#include "base/files/file_path.h"
+#include "base/optional.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -27,33 +27,17 @@ namespace trace_event {
 // in event handling callback with the parsed trace events.
 class ScopedEventParserTrace {
  public:
-  explicit ScopedEventParserTrace(
-      const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback);
+  explicit ScopedEventParserTrace();
   // Optionally, a file path can also be provided in which case JSON output
   // of the trace will be written to that file.
-  ScopedEventParserTrace(
-      const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback,
-      const FilePath& log_relative_output_path);
+  ScopedEventParserTrace(const base::FilePath& log_relative_output_path);
   ~ScopedEventParserTrace();
 
  private:
-  void CommonInit(
-      const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback);
+  void CommonInit();
 
-  EventParser::ScopedEventFlowEndCallback flow_end_event_callback_;
-  base::optional<FilePath> absolute_output_path_;
+  base::Optional<base::FilePath> absolute_output_path_;
 };
-
-// Helper function to make it easy to start a trace and collect results even
-// if the scope is hard to define (for example if it is difficult to quit
-// from the application).
-// This function will start a trace when it is called, and after the specified
-// amount of time has passed, it will stop tracing and call the callback with
-// the recorded events.
-void TraceWithEventParserForDuration(
-    const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback,
-    const base::Closure& flow_end_event_finish_callback,
-    const base::TimeDelta& duration);
 
 // Returns whether a trace is started and active right now.
 bool IsTracing();

@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_TEXTURE_STUB_H_
 #define COBALT_RENDERER_BACKEND_TEXTURE_STUB_H_
 
+#include <memory>
+
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/pixel_data_stub.h"
 #include "cobalt/renderer/backend/surface_info.h"
@@ -69,7 +71,7 @@ class RawTextureMemoryStub : public RawTextureMemory {
 
   // TODO: Store memory using a EGL PBuffer object which provides the
   //       implementation control over the memory.
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> memory_;
+  std::unique_ptr<uint8_t, base::AlignedFreeDeleter> memory_;
 };
 
 // Acts as a texture in the stub graphics system.  It does not store any pixel

@@ -15,10 +15,10 @@
 #ifndef COBALT_SCRIPT_SCOPE_H_
 #define COBALT_SCRIPT_SCOPE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/script/value_handle.h"
 
@@ -51,7 +51,7 @@ class Scope {
   virtual Type GetType() = 0;
 
   // The next entry in the scope chain.
-  virtual scoped_ptr<Scope> GetNext() = 0;
+  virtual std::unique_ptr<Scope> GetNext() = 0;
 
   // Converts an enumerated type value to the string expected by devtools.
   static const char* TypeToString(Type type) {

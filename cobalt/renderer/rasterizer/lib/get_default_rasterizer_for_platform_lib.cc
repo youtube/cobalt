@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/renderer/rasterizer/lib/external_rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
@@ -20,10 +22,10 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
-scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  return scoped_ptr<rasterizer::Rasterizer>(
+  return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::lib::ExternalRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),

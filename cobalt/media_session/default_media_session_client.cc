@@ -15,6 +15,8 @@
 #ifndef COBALT_MEDIA_SESSION_DEFAULT_MEDIA_SESSION_CLIENT_H_
 #define COBALT_MEDIA_SESSION_DEFAULT_MEDIA_SESSION_CLIENT_H_
 
+#include <memory>
+
 #include "cobalt/media_session/media_session_client.h"
 
 namespace cobalt {
@@ -30,8 +32,8 @@ class DefaultMediaSessionClient : public MediaSessionClient {
 };
 
 // static
-scoped_ptr<MediaSessionClient> MediaSessionClient::Create() {
-  return make_scoped_ptr<MediaSessionClient>(new DefaultMediaSessionClient());
+std::unique_ptr<MediaSessionClient> MediaSessionClient::Create() {
+  return std::unique_ptr<MediaSessionClient>(new DefaultMediaSessionClient());
 }
 
 }  // namespace media_session

@@ -19,20 +19,22 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_piece.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/websocket/close_event.h"
-#include "googleurl/src/gurl.h"
-#include "googleurl/src/url_canon.h"
-#include "googleurl/src/url_constants.h"
-#include "net/base/net_util.h"
+#include "net/base/port_util.h"
+#include "net/base/url_util.h"
 #include "net/websockets/websocket_errors.h"
+#include "url/gurl.h"
+#include "url/url_canon.h"
+#include "url/url_constants.h"
 
 namespace {
 
@@ -45,23 +47,24 @@ bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
   // This is a requirement for calling spec()
   DCHECK(dom_settings->base_url().is_valid());
 
-  url_canon::RawCanonOutputT<char> whitespace_buffer;
+  url::RawCanonOutputT<char> whitespace_buffer;
   int relative_length;
-  const char* relative =
-      RemoveURLWhitespace(url.c_str(), static_cast<int>(url.size()),
-                          &whitespace_buffer, &relative_length);
+  bool potentially_dangling_markup;
+  const char* relative = RemoveURLWhitespace(
+      url.c_str(), static_cast<int>(url.size()), &whitespace_buffer,
+      &relative_length, &potentially_dangling_markup);
 
-  url_parse::Component relative_component;
+  url::Component relative_component;
 
   const std::string& base_url(dom_settings->base_url().spec());
-  url_parse::Parsed parsed;
+  url::Parsed parsed;
 
-  url_parse::ParseStandardURL(base_url.c_str(),
-                              static_cast<int>(base_url.length()), &parsed);
+  url::ParseStandardURL(base_url.c_str(), static_cast<int>(base_url.length()),
+                        &parsed);
 
   bool is_relative;
-  url_canon::IsRelativeURL(base_url.c_str(), parsed, relative, relative_length,
-                           true, &is_relative, &relative_component);
+  url::IsRelativeURL(base_url.c_str(), parsed, relative, relative_length, true,
+                     &is_relative, &relative_component);
 
   return !is_relative;
 }
@@ -182,7 +185,7 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
 
 WebSocket::~WebSocket() {
   if (impl_) {
-    impl_->SetWebSocketEventDelegate(NULL);
+    impl_->ResetWebSocketEventDelegate();
   }
 }
 
@@ -201,8 +204,9 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& sub_protocol_list,
                      script::ExceptionState* exception_state)
     : require_network_module_(true) {
-  std::vector<std::string> sub_protocols;
-  Tokenize(sub_protocol_list, kComma, &sub_protocols);
+  std::vector<std::string> sub_protocols =
+      base::SplitString(sub_protocol_list, kComma, base::KEEP_WHITESPACE,
+                        base::SPLIT_WANT_NONEMPTY);
   Initialize(settings, url, sub_protocols, exception_state);
 }
 
@@ -256,7 +260,8 @@ void WebSocket::Close(const uint16 code, const std::string& reason,
     return;
   }
 
-  if (!net::IsValidCloseStatusCode(code)) {
+  if (net::WebSocketErrorToNetError(static_cast<net::WebSocketError>(code)) ==
+      net::ERR_UNEXPECTED) {
     dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
                              exception_state);
     return;
@@ -520,7 +525,7 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
     return;
   }
 
-  if (!net::IsPortAllowedByDefault(GetPort())) {
+  if (!net::IsPortAllowedForScheme(GetPort(), resolved_url_.scheme())) {
     std::string error_message = "Connecting to port " + GetPortAsString() +
                                 " using websockets is not allowed.";
     dom::DOMException::Raise(dom::DOMException::kSecurityErr, error_message,
@@ -569,8 +574,8 @@ void WebSocket::Connect(const GURL& url,
   GURL origin_gurl = settings_->base_url().GetOrigin();
   const std::string& origin = origin_gurl.possibly_invalid_spec();
 
-  impl_ =
-      make_scoped_refptr(new WebSocketImpl(settings_->network_module(), this));
+  impl_ = base::WrapRefCounted(
+      new WebSocketImpl(settings_->network_module(), this));
 
   impl_->Connect(origin, url, sub_protocols);
 }

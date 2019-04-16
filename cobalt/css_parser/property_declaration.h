@@ -17,7 +17,6 @@
 
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"

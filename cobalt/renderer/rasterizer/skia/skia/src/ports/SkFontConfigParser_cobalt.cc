@@ -16,6 +16,7 @@
 
 #include <libxml/parser.h>
 #include <limits>
+#include <memory>
 #include <stack>
 #include <string>
 
@@ -25,9 +26,9 @@
 #include "SkStream.h"
 #include "SkTSearch.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
+#include "base/memory/ptr_util.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 
 namespace {
 
@@ -41,7 +42,8 @@ std::string StringPrintVAndTrim(const char* message, va_list arguments) {
   const std::string formatted_message = base::StringPrintV(message, arguments);
 
   std::string trimmed_message;
-  TrimWhitespace(formatted_message, TRIM_ALL, &trimmed_message);
+  base::TrimWhitespaceASCII(formatted_message, base::TRIM_ALL,
+                            &trimmed_message);
 
   return trimmed_message;
 }
@@ -55,7 +57,7 @@ bool ParseNonNegativeInteger(const char* s, T* value) {
   T n = 0;
   for (; *s; ++s) {
     // Check if digit
-    if (!IsAsciiDigit(*s)) {
+    if (!base::IsAsciiDigit(*s)) {
       return false;
     }
     int d = *s - '0';
@@ -116,7 +118,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
     font_character_map::PageRange range_value;
 
     // Skip whitespace
-    while (IsAsciiWhitespace(*s)) {
+    while (base::IsAsciiWhitespace(*s)) {
       ++s;
       if (!*s) {
         return true;
@@ -124,7 +126,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
     }
 
     for (int i = 0; i <= 1; ++i) {
-      if (!IsAsciiDigit(*s)) {
+      if (!base::IsAsciiDigit(*s)) {
         LOG(ERROR)
             << "---- ParsePageRangeList error: non-ascii digit page range";
         return false;
@@ -132,7 +134,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
 
       int16 n = 0;
       for (; *s; ++s) {
-        if (!IsAsciiDigit(*s)) {
+        if (!base::IsAsciiDigit(*s)) {
           break;
         }
         int d = *s - '0';
@@ -179,7 +181,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
 
     if (*s) {
       // Skip whitespace
-      while (IsAsciiWhitespace(*s)) {
+      while (base::IsAsciiWhitespace(*s)) {
         ++s;
         if (!*s) {
           return true;
@@ -264,7 +266,7 @@ struct ParserContext {
   SkTDArray<FontFamilyInfo*>* families;
   // The current family being created. FamilyData owns this object while it is
   // not NULL.
-  scoped_ptr<FontFamilyInfo> current_family;
+  std::unique_ptr<FontFamilyInfo> current_family;
   // The current FontFileInfo being created. It is owned by FontFamilyInfo.
   FontFileInfo* current_font_info;
 
@@ -462,7 +464,7 @@ void StartElement(void* context, const xmlChar* xml_tag,
 
   if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
     parser_context->element_stack.push(kFamilyElementType);
-    parser_context->current_family = make_scoped_ptr(new FontFamilyInfo());
+    parser_context->current_family = base::WrapUnique(new FontFamilyInfo());
     FamilyElementHandler(parser_context->current_family.get(), attribute_pairs);
   } else if (tag_len == 4 && strncmp("font", tag, tag_len) == 0) {
     parser_context->element_stack.push(kFontElementType);

@@ -15,9 +15,9 @@
 #ifndef COBALT_DOM_ERROR_EVENT_H_
 #define COBALT_DOM_ERROR_EVENT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/error_event_init.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/script/value_handle.h"
@@ -81,7 +81,7 @@ class ErrorEvent : public Event {
   std::string filename_;
   uint32 lineno_;
   uint32 colno_;
-  scoped_ptr<script::ValueHandleHolder::Reference> error_;
+  std::unique_ptr<script::ValueHandleHolder::Reference> error_;
 };
 
 }  // namespace dom

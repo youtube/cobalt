@@ -105,6 +105,7 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/net/net.gyp:http_server',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],

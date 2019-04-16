@@ -38,7 +38,7 @@ class ScriptObjectOwner {
 
  private:
   script::Wrappable* owner_;
-  base::optional<typename T::Reference> reference_;
+  base::Optional<typename T::Reference> reference_;
 };
 
 }  // namespace testing

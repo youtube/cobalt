@@ -17,6 +17,7 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <queue>
 #include <string>
 
@@ -24,8 +25,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/optional.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
@@ -50,7 +52,7 @@
 #include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -71,7 +73,7 @@ class Location;
 class Text;
 class Window;
 
-class DocumentObserver {
+class DocumentObserver : public base::CheckedObserver {
  public:
   // Called at most once, when document and all referred resources are loaded.
   virtual void OnLoad() = 0;
@@ -106,10 +108,10 @@ class Document : public Node,
           csp_enforcement_mode(kCspEnforcementEnable) {}
     Options(const GURL& url_value, Window* window,
             const base::Closure& hashchange_callback,
-            const scoped_refptr<base::Clock>& navigation_start_clock_value,
+            const scoped_refptr<base::BasicClock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
-            const base::optional<cssom::ViewportSize>& viewport_size,
+            const base::Optional<cssom::ViewportSize>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             csp::CSPHeaderPolicy require_csp,
@@ -134,10 +136,10 @@ class Document : public Node,
     GURL url;
     Window* window;
     base::Closure hashchange_callback;
-    scoped_refptr<base::Clock> navigation_start_clock;
+    scoped_refptr<base::BasicClock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
-    base::optional<cssom::ViewportSize> viewport_size;
+    base::Optional<cssom::ViewportSize> viewport_size;
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
     csp::CSPHeaderPolicy require_csp;
@@ -341,7 +343,7 @@ class Document : public Node,
   // to the specification above.
   void SampleTimelineTime();
 
-  const scoped_refptr<base::Clock>& navigation_start_clock() const {
+  const scoped_refptr<base::BasicClock>& navigation_start_clock() const {
     return navigation_start_clock_;
   }
 
@@ -430,11 +432,11 @@ class Document : public Node,
   ~Document() override;
 
   page_visibility::PageVisibilityState* page_visibility_state() {
-    return html_element_context_->page_visibility_state();
+    return html_element_context_->page_visibility_state().get();
   }
 
   const page_visibility::PageVisibilityState* page_visibility_state() const {
-    return html_element_context_->page_visibility_state();
+    return html_element_context_->page_visibility_state().get();
   }
 
  private:
@@ -492,23 +494,23 @@ class Document : public Node,
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Viewport size.
-  base::optional<cssom::ViewportSize> viewport_size_;
+  base::Optional<cssom::ViewportSize> viewport_size_;
   // Content Security Policy enforcement for this document.
-  scoped_ptr<CspDelegate> csp_delegate_;
+  std::unique_ptr<CspDelegate> csp_delegate_;
   network_bridge::CookieJar* cookie_jar_;
   // Associated location object.
   scoped_refptr<Location> location_;
   // The font cache for this document.
-  scoped_ptr<FontCache> font_cache_;
+  std::unique_ptr<FontCache> font_cache_;
 
   // Weak reference to the active element.
   base::WeakPtr<Element> active_element_;
   // Weak reference to the indicated element.
   base::WeakPtr<HTMLElement> indicated_element_;
   // List of document observers.
-  ObserverList<DocumentObserver> observers_;
+  base::ObserverList<DocumentObserver> observers_;
   // Selector Tree.
-  scoped_ptr<cssom::SelectorTree> selector_tree_;
+  std::unique_ptr<cssom::SelectorTree> selector_tree_;
   // This is set when the document has a style sheet removed or the order of its
   // style sheets changed. In this case, it is more straightforward to simply
   // recreate the selector tree than to attempt to manage updating all of its
@@ -521,7 +523,7 @@ class Document : public Node,
       scratchpad_pseudo_element_matching_rules_[kMaxPseudoElementType];
   // The document's latest sample from the global clock, used for updating
   // animations.
-  const scoped_refptr<base::Clock> navigation_start_clock_;
+  const scoped_refptr<base::BasicClock> navigation_start_clock_;
   scoped_refptr<DocumentTimeline> default_timeline_;
 
   base::Callback<scoped_refptr<render_tree::Node>()>

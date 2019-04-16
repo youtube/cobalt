@@ -17,8 +17,8 @@
 
 #include <GLES2/gl2.h>
 
+#include <memory>
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 
@@ -38,7 +38,7 @@ class TextureEGL {
  public:
   // Create a texture from source pixel data possibly filled in by the CPU.
   TextureEGL(GraphicsContextEGL* graphics_context,
-             scoped_ptr<TextureDataEGL> texture_source_data,
+             std::unique_ptr<TextureDataEGL> texture_source_data,
              bool bgra_supported);
   // Create a texture from a pre-existing offscreen PBuffer render target.
   TextureEGL(GraphicsContextEGL* graphics_context,

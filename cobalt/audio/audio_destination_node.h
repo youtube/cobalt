@@ -15,9 +15,10 @@
 #ifndef COBALT_AUDIO_AUDIO_DESTINATION_NODE_H_
 #define COBALT_AUDIO_AUDIO_DESTINATION_NODE_H_
 
+#include <memory>
 #include <vector>
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/audio/audio_device.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node.h"
@@ -56,11 +57,11 @@ class AudioDestinationNode : public AudioNode,
 
   // From AudioNode.
   void OnInputNodeConnected() override;
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+  std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(
       int32 /*number_of_frames*/, SampleType /*sample_type*/,
       bool* /*finished*/) override {
     NOTREACHED();
-    return scoped_ptr<ShellAudioBus>();
+    return std::unique_ptr<ShellAudioBus>();
   }
 
   // From AudioDevice::RenderCallback.
@@ -75,10 +76,10 @@ class AudioDestinationNode : public AudioNode,
  private:
   void DestroyAudioDevice();
 
-  MessageLoop* message_loop_;
+  base::MessageLoop* message_loop_;
   uint32 max_channel_count_;
 
-  scoped_ptr<AudioDevice> audio_device_;
+  std::unique_ptr<AudioDevice> audio_device_;
   AudioDevice* audio_device_to_delete_ = NULL;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDestinationNode);

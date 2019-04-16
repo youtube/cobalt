@@ -6,12 +6,11 @@
 #define COBALT_MEDIA_BASE_MEDIA_TRACKS_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_track.h"
 
@@ -23,7 +22,7 @@ class VideoDecoderConfig;
 
 class MEDIA_EXPORT MediaTracks {
  public:
-  typedef ScopedVector<MediaTrack> MediaTracksCollection;
+  typedef std::vector<std::unique_ptr<MediaTrack>> MediaTracksCollection;
 
   MediaTracks();
   ~MediaTracks();

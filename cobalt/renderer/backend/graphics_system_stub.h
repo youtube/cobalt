@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
 #define COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
 
+#include <memory>
+
 #include "cobalt/renderer/backend/display_stub.h"
 #include "cobalt/renderer/backend/graphics_context_stub.h"
 #include "cobalt/renderer/backend/graphics_system.h"
@@ -34,14 +36,14 @@ namespace backend {
 // for new platforms for which the graphics system has not yet been implemented.
 class GraphicsSystemStub : public GraphicsSystem {
  public:
-  scoped_ptr<Display> CreateDisplay(
+  std::unique_ptr<Display> CreateDisplay(
       system_window::SystemWindow* system_window) override {
-    UNREFERENCED_PARAMETER(system_window);
-    return scoped_ptr<Display>(new DisplayStub());
+    SB_UNREFERENCED_PARAMETER(system_window);
+    return std::unique_ptr<Display>(new DisplayStub());
   }
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext() override {
-    return scoped_ptr<GraphicsContext>(new GraphicsContextStub(this));
+  std::unique_ptr<GraphicsContext> CreateGraphicsContext() override {
+    return std::unique_ptr<GraphicsContext>(new GraphicsContextStub(this));
   }
 };
 

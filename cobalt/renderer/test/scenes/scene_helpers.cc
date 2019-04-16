@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/test/scenes/scene_helpers.h"
 
 #include "cobalt/math/matrix3_f.h"
@@ -40,13 +42,13 @@ scoped_refptr<render_tree::Node> AddBlankBackgroundToScene(
   // Declare a rectangle that fills the background to effectively clear the
   // screen.
   CompositionNode::Builder with_background_scene_builder;
-  with_background_scene_builder.AddChild(make_scoped_refptr(new RectNode(
-      RectF(output_dimensions),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f))))));
+  with_background_scene_builder.AddChild(base::WrapRefCounted(new RectNode(
+      RectF(output_dimensions), std::unique_ptr<Brush>(new SolidColorBrush(
+                                    ColorRGBA(1.0f, 1.0f, 1.0f))))));
   with_background_scene_builder.AddChild(scene);
 
   return new render_tree::animations::AnimateNode(
-      new CompositionNode(with_background_scene_builder.Pass()));
+      new CompositionNode(std::move(with_background_scene_builder)));
 }
 
 }  // namespace scenes

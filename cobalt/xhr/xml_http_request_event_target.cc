@@ -34,8 +34,7 @@ XMLHttpRequestEventTarget::onerror() const {
 }
 const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onload() const {
-  return onload_listener_ ? &onload_listener_.value().referenced_value()
-                          : NULL;
+  return onload_listener_ ? &onload_listener_.value().referenced_value() : NULL;
 }
 const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onloadend() const {
@@ -50,9 +49,8 @@ XMLHttpRequestEventTarget::onloadstart() const {
 }
 const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onprogress() const {
-  return onprogress_listener_
-             ? &onprogress_listener_.value().referenced_value()
-             : NULL;
+  return onprogress_listener_ ? &onprogress_listener_.value().referenced_value()
+                              : NULL;
 }
 const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::ontimeout() const {

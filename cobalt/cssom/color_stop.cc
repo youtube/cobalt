@@ -14,7 +14,7 @@
 
 #include "cobalt/cssom/color_stop.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace cssom {

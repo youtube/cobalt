@@ -34,7 +34,7 @@ const uint32 kMaxChannelCount = 2;
 // numberOfOutputs : 0
 AudioDestinationNode::AudioDestinationNode(AudioContext* context)
     : AudioNode(context),
-      message_loop_(MessageLoop::current()),
+      message_loop_(base::MessageLoop::current()),
       max_channel_count_(kMaxChannelCount) {
   AudioLock::AutoLock lock(audio_lock());
 
@@ -75,14 +75,14 @@ void AudioDestinationNode::FillAudioBus(bool all_consumed,
   Input(0)->FillAudioBus(audio_bus, silence, &all_finished);
   if (all_consumed && all_finished) {
     audio_device_to_delete_ = audio_device_.get();
-    message_loop_->PostTask(
+    message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&AudioDestinationNode::DestroyAudioDevice,
                               base::Unretained(this)));
   }
 }
 
 void AudioDestinationNode::DestroyAudioDevice() {
-  if (audio_device_ == audio_device_to_delete_) {
+  if (audio_device_.get() == audio_device_to_delete_) {
     audio_device_.reset();
     context()->AllowGarbageCollection();
   }

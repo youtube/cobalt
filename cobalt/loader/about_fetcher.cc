@@ -15,7 +15,7 @@
 #include "cobalt/loader/about_fetcher.h"
 
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 
 namespace cobalt {
 namespace loader {
@@ -23,7 +23,7 @@ namespace loader {
 AboutFetcher::AboutFetcher(Handler* handler)
     : Fetcher(handler),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
-  MessageLoop::current()->PostTask(
+  base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&AboutFetcher::Fetch, weak_ptr_factory_.GetWeakPtr()));
 }

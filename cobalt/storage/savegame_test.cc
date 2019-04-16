@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/file_path.h"
+#include <memory>
+
+#include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -26,19 +28,19 @@ namespace cobalt {
 namespace storage {
 
 namespace {
-scoped_ptr<Savegame> CreateSavegame() {
+std::unique_ptr<Savegame> CreateSavegame() {
   Savegame::Options options;
-  FilePath test_path;
-  CHECK(PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
+  base::FilePath test_path;
+  CHECK(base::PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
   options.path_override = test_path.Append("test.db").value();
-  scoped_ptr<Savegame> savegame = Savegame::Create(options);
-  return savegame.Pass();
+  std::unique_ptr<Savegame> savegame = Savegame::Create(options);
+  return savegame;
 }
 
 }  // namespace
 
 TEST(Savegame, Basic) {
-  scoped_ptr<Savegame> savegame = CreateSavegame();
+  std::unique_ptr<Savegame> savegame = CreateSavegame();
 
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {
@@ -54,7 +56,7 @@ TEST(Savegame, Basic) {
 }
 
 TEST(Savegame, MaxReadExceeded) {
-  scoped_ptr<Savegame> savegame = CreateSavegame();
+  std::unique_ptr<Savegame> savegame = CreateSavegame();
 
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {
@@ -71,7 +73,7 @@ TEST(Savegame, MaxReadExceeded) {
 
 TEST(Savegame, DoubleRead) {
   // Verify that reading the save twice gives us the same data.
-  scoped_ptr<Savegame> savegame = CreateSavegame();
+  std::unique_ptr<Savegame> savegame = CreateSavegame();
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {
     buf.push_back(static_cast<uint8>(i % 256));
@@ -89,7 +91,7 @@ TEST(Savegame, DoubleRead) {
 
 TEST(Savegame, ReadAfterDelete) {
   // Verify that reading after delete fails.
-  scoped_ptr<Savegame> savegame = CreateSavegame();
+  std::unique_ptr<Savegame> savegame = CreateSavegame();
 
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {
@@ -103,7 +105,7 @@ TEST(Savegame, ReadAfterDelete) {
 }
 
 TEST(Savegame, DoubleDelete) {
-  scoped_ptr<Savegame> savegame = CreateSavegame();
+  std::unique_ptr<Savegame> savegame = CreateSavegame();
 
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {

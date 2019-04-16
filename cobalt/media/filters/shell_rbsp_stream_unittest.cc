@@ -15,10 +15,10 @@
 #include "cobalt/media/filters/shell_rbsp_stream.h"
 
 #include <list>
+#include <memory>
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -78,9 +78,9 @@ class ShellRBSPStreamTest : public testing::Test {
   // after building a bitlist in various fun ways call this method to
   // create a buffer on the heap that can be passed to ShellRBSPStream
   // for deserialization.
-  scoped_array<uint8> SerializeToBuffer(const std::list<bool>& bitlist,
-                                        bool add_sequence_bytes,
-                                        size_t& buffer_size_out) {
+  std::unique_ptr<uint8[]> SerializeToBuffer(const std::list<bool>& bitlist,
+                                             bool add_sequence_bytes,
+                                             size_t& buffer_size_out) {
     // start by building a list of bytes, so we can add the
     // 00 00 => 00 00 03 sequence bytes
     std::list<uint8> bytelist;
@@ -138,7 +138,7 @@ class ShellRBSPStreamTest : public testing::Test {
       }
     }
     // alright we can make the final output buffer
-    scoped_array<uint8> buf(new uint8[bytelist.size()]);
+    std::unique_ptr<uint8[]> buf(new uint8[bytelist.size()]);
     int index = 0;
     for (std::list<uint8>::iterator it = bytelist.begin(); it != bytelist.end();
          it++) {
@@ -146,7 +146,7 @@ class ShellRBSPStreamTest : public testing::Test {
       index++;
     }
     buffer_size_out = bytelist.size();
-    return buf.Pass();
+    return std::move(buf);
   }
 };
 
@@ -166,10 +166,10 @@ TEST_F(ShellRBSPStreamTest, ReadUEV) {
   }
   // convert to buffer
   size_t fib_buffer_size = 0;
-  scoped_array<uint8> fib_buffer =
+  std::unique_ptr<uint8[]> fib_buffer =
       SerializeToBuffer(fibbits, true, fib_buffer_size);
   size_t fib_buffer_no_sequence_size;
-  scoped_array<uint8> fib_buffer_no_sequence =
+  std::unique_ptr<uint8[]> fib_buffer_no_sequence =
       SerializeToBuffer(fibbits, false, fib_buffer_no_sequence_size);
   ShellRBSPStream fib_stream(fib_buffer.get(), fib_buffer_size);
   ShellRBSPStream fib_stream_no_sequence(fib_buffer_no_sequence.get(),
@@ -222,10 +222,10 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
   }
   // convert to buffers
   size_t lucas_seq_buffer_size = 0;
-  scoped_array<uint8> lucas_seq_buffer =
+  std::unique_ptr<uint8[]> lucas_seq_buffer =
       SerializeToBuffer(lucasbits, true, lucas_seq_buffer_size);
   size_t lucas_deseq_buffer_size = 0;
-  scoped_array<uint8> lucas_deseq_buffer =
+  std::unique_ptr<uint8[]> lucas_deseq_buffer =
       SerializeToBuffer(lucasbits, false, lucas_deseq_buffer_size);
   ShellRBSPStream lucas_seq_stream(lucas_seq_buffer.get(),
                                    lucas_seq_buffer_size);
@@ -327,12 +327,12 @@ TEST_F(ShellRBSPStreamTest, ReadBit) {
   }
   // build the buffer with sequence bits and without
   size_t sequence_buff_size = 0;
-  scoped_array<uint8> sequence_buff =
+  std::unique_ptr<uint8[]> sequence_buff =
       SerializeToBuffer(padded_ones, true, sequence_buff_size);
   ShellRBSPStream seq_stream(sequence_buff.get(), sequence_buff_size);
 
   size_t desequence_buff_size = 0;
-  scoped_array<uint8> desequence_buff =
+  std::unique_ptr<uint8[]> desequence_buff =
       SerializeToBuffer(padded_ones, false, desequence_buff_size);
   ShellRBSPStream deseq_stream(desequence_buff.get(), desequence_buff_size);
   for (std::list<bool>::iterator it = padded_ones.begin();
@@ -362,7 +362,8 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
   }
   // deseqbuff will be identical due to dense packing of 01 pattern
   size_t aabuff_size = 0;
-  scoped_array<uint8> aabuff = SerializeToBuffer(aa_field, true, aabuff_size);
+  std::unique_ptr<uint8[]> aabuff =
+      SerializeToBuffer(aa_field, true, aabuff_size);
   ShellRBSPStream aa_stream(aabuff.get(), aabuff_size);
   for (int i = 0; i < 16; ++i) {
     uint8 aa = 0;
@@ -394,11 +395,11 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
     }
   }
   size_t zseqbuff_size = 0;
-  scoped_array<uint8> zseqbuff =
+  std::unique_ptr<uint8[]> zseqbuff =
       SerializeToBuffer(zero_field, true, zseqbuff_size);
   ShellRBSPStream zseq_stream(zseqbuff.get(), zseqbuff_size);
   size_t zdseqbuff_size = 0;
-  scoped_array<uint8> zdseqbuff =
+  std::unique_ptr<uint8[]> zdseqbuff =
       SerializeToBuffer(zero_field, false, zdseqbuff_size);
   ShellRBSPStream zdseq_stream(zdseqbuff.get(), zdseqbuff_size);
   for (int i = 0; i < 24; ++i) {
@@ -460,7 +461,7 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
     seventeen_ones.push_back(true);
   }
   size_t seventeen_ones_size = 0;
-  scoped_array<uint8> seventeen_ones_buff =
+  std::unique_ptr<uint8[]> seventeen_ones_buff =
       SerializeToBuffer(seventeen_ones, false, seventeen_ones_size);
   ShellRBSPStream seventeen_ones_stream(seventeen_ones_buff.get(),
                                         seventeen_ones_size);
@@ -477,7 +478,7 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
     }
   }
   size_t pows_size = 0;
-  scoped_array<uint8> pows_buff = SerializeToBuffer(pows, true, pows_size);
+  std::unique_ptr<uint8[]> pows_buff = SerializeToBuffer(pows, true, pows_size);
   ShellRBSPStream pows_stream(pows_buff.get(), pows_size);
   // ReadBits(0) should succeed and not modify the value of the ref output or
   // internal bit iterator
@@ -501,9 +502,10 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
     }
   }
   size_t nines_size = 0;
-  scoped_array<uint8> nines_buff = SerializeToBuffer(nines, true, nines_size);
+  std::unique_ptr<uint8[]> nines_buff =
+      SerializeToBuffer(nines, true, nines_size);
   size_t nines_deseq_size = 0;
-  scoped_array<uint8> nines_deseq_buff =
+  std::unique_ptr<uint8[]> nines_deseq_buff =
       SerializeToBuffer(nines, false, nines_deseq_size);
   ShellRBSPStream nines_stream(nines_buff.get(), nines_size);
   ShellRBSPStream nines_deseq_stream(nines_deseq_buff.get(), nines_deseq_size);
@@ -540,10 +542,10 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
     run_length.push_back(true);
   }
   size_t run_length_size = 0;
-  scoped_array<uint8> run_length_buff =
+  std::unique_ptr<uint8[]> run_length_buff =
       SerializeToBuffer(run_length, true, run_length_size);
   size_t run_length_deseq_size = 0;
-  scoped_array<uint8> run_length_deseq_buff =
+  std::unique_ptr<uint8[]> run_length_deseq_buff =
       SerializeToBuffer(run_length, false, run_length_deseq_size);
   ShellRBSPStream run_length_stream(run_length_buff.get(), run_length_size);
   ShellRBSPStream run_length_deseq_stream(run_length_deseq_buff.get(),
@@ -604,10 +606,10 @@ TEST_F(ShellRBSPStreamTest, SkipBits) {
     }
   }
   size_t skip_ones_size = 0;
-  scoped_array<uint8> skip_ones_buff =
+  std::unique_ptr<uint8[]> skip_ones_buff =
       SerializeToBuffer(one_ohs, true, skip_ones_size);
   size_t skip_ohs_size = 0;
-  scoped_array<uint8> skip_ohs_buff =
+  std::unique_ptr<uint8[]> skip_ohs_buff =
       SerializeToBuffer(one_ohs, false, skip_ohs_size);
   ShellRBSPStream skip_ones(skip_ones_buff.get(), skip_ones_size);
   ShellRBSPStream skip_ohs(skip_ohs_buff.get(), skip_ohs_size);

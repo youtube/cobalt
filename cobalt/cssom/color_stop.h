@@ -15,11 +15,10 @@
 #ifndef COBALT_CSSOM_COLOR_STOP_H_
 #define COBALT_CSSOM_COLOR_STOP_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_value.h"
@@ -60,7 +59,7 @@ class ColorStop {
 // A list of ColorStopValue. Color-stops are points placed along the line
 // defined by gradient line at the beginning of the rule. Color-stops must be
 // specified in order.
-typedef ScopedVector<ColorStop> ColorStopList;
+typedef std::vector<std::unique_ptr<ColorStop>> ColorStopList;
 
 bool ColorStopListsEqual(const ColorStopList& lhs, const ColorStopList& rhs);
 

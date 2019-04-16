@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/csp/source_list.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/csp/source.h"
 #include "cobalt/network/local_network.h"
-#include "googleurl/src/gurl.h"
-#include "net/base/net_util.h"
+#include "net/base/url_util.h"
 #include "starboard/memory.h"
 #include "starboard/socket.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {
@@ -50,7 +51,7 @@ class SourceListTest : public ::testing::Test {
     csp_.reset(new ContentSecurityPolicy(secure_url, violation_callback_));
   }
 
-  scoped_ptr<ContentSecurityPolicy> csp_;
+  std::unique_ptr<ContentSecurityPolicy> csp_;
   MockLocalNetworkChecker checker_;
   ViolationCallback violation_callback_;
 };

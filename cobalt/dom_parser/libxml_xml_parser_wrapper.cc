@@ -14,7 +14,7 @@
 
 #include "cobalt/dom_parser/libxml_xml_parser_wrapper.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 
 namespace cobalt {
 namespace dom_parser {

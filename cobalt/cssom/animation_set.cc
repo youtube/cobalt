@@ -42,7 +42,8 @@ base::TimeDelta GetTimeValue(size_t index, PropertyValue* list_value) {
 Animation::FillMode GetFillMode(size_t index, PropertyValue* list_value) {
   PropertyValue* value =
       base::polymorphic_downcast<PropertyListValue*>(list_value)
-          ->get_item_modulo_size(static_cast<int>(index));
+          ->get_item_modulo_size(static_cast<int>(index))
+          .get();
 
   if (value == KeywordValue::GetNone()) {
     return Animation::kNone;
@@ -62,7 +63,8 @@ Animation::PlaybackDirection GetDirection(size_t index,
                                           PropertyValue* list_value) {
   PropertyValue* value =
       base::polymorphic_downcast<PropertyListValue*>(list_value)
-          ->get_item_modulo_size(static_cast<int>(index));
+          ->get_item_modulo_size(static_cast<int>(index))
+          .get();
 
   if (value == KeywordValue::GetNormal()) {
     return Animation::kNormal;
@@ -81,7 +83,8 @@ Animation::PlaybackDirection GetDirection(size_t index,
 float GetIterationCount(size_t index, PropertyValue* list_value) {
   PropertyValue* value =
       base::polymorphic_downcast<PropertyListValue*>(list_value)
-          ->get_item_modulo_size(static_cast<int>(index));
+          ->get_item_modulo_size(static_cast<int>(index))
+          .get();
 
   if (value == KeywordValue::GetInfinite()) {
     return std::numeric_limits<float>::infinity();
@@ -161,14 +164,15 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
         animations_
             .insert(std::make_pair(
                 name_string,
-                Animation(
-                    name_string, keyframes, current_time,
-                    GetTimeValue(i, style.animation_delay()),
-                    GetTimeValue(i, style.animation_duration()),
-                    GetFillMode(i, style.animation_fill_mode()),
-                    GetIterationCount(i, style.animation_iteration_count()),
-                    GetDirection(i, style.animation_direction()),
-                    GetTimingFunction(i, style.animation_timing_function()))))
+                Animation(name_string, keyframes, current_time,
+                          GetTimeValue(i, style.animation_delay().get()),
+                          GetTimeValue(i, style.animation_duration().get()),
+                          GetFillMode(i, style.animation_fill_mode().get()),
+                          GetIterationCount(
+                              i, style.animation_iteration_count().get()),
+                          GetDirection(i, style.animation_direction().get()),
+                          GetTimingFunction(
+                              i, style.animation_timing_function().get()))))
             .first;
     if (event_handler_) {
       event_handler_->OnAnimationStarted(inserted->second, this);

@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_FONT_TYPEFACE_DECODER_H_
 #define COBALT_LOADER_FONT_TYPEFACE_DECODER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -37,13 +38,13 @@ class TypefaceDecoder : public Decoder {
       TypefaceAvailableCallback;
 
   // This function is used for binding a callback to create a TypefaceDecoder.
-  static scoped_ptr<Decoder> Create(
+  static std::unique_ptr<Decoder> Create(
       render_tree::ResourceProvider* resource_provider,
       const TypefaceAvailableCallback& typeface_available_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback) {
-    return scoped_ptr<Decoder>(new TypefaceDecoder(resource_provider,
-                                                   typeface_available_callback,
-                                                   load_complete_callback));
+    return std::unique_ptr<Decoder>(
+        new TypefaceDecoder(resource_provider, typeface_available_callback,
+                            load_complete_callback));
   }
 
   // From Decoder.
@@ -64,7 +65,8 @@ class TypefaceDecoder : public Decoder {
   const TypefaceAvailableCallback typeface_available_callback_;
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
-  scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data_;
+  std::unique_ptr<render_tree::ResourceProvider::RawTypefaceDataVector>
+      raw_data_;
   bool is_raw_data_too_large_;
 
   bool is_suspended_;

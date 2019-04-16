@@ -14,9 +14,10 @@
 
 #include "cobalt/renderer/test/jpeg_utils/jpeg_encode.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/memory.h"
 #include "third_party/libjpeg-turbo/turbojpeg.h"
 
@@ -25,9 +26,10 @@ namespace renderer {
 namespace test {
 namespace jpeg_utils {
 
-scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
-                                       int height, int pitch_in_bytes,
-                                       size_t* out_size) {
+std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
+                                            int width, int height,
+                                            int pitch_in_bytes,
+                                            size_t* out_size) {
   TRACE_EVENT0("cobalt::renderer", "jpegEncode::EncodeRGBAToBuffer()");
   unsigned char* jpeg_buffer = NULL;
   unsigned long jpegSize = 0;
@@ -37,7 +39,7 @@ scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
   int quality = 50;
 
   tjhandle tjInstance = tjInitCompress();
-  if (tjInstance == nullptr) return scoped_array<uint8>();
+  if (tjInstance == nullptr) return std::unique_ptr<uint8[]>();
 
   int success = tjCompress2(tjInstance, pixel_data, width, pitch_in_bytes,
                             height, TJPF_RGBA, &jpeg_buffer, &jpegSize,
@@ -45,17 +47,17 @@ scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
 
   tjDestroy(tjInstance);
   tjInstance = NULL;
-  if (success < 0) return scoped_array<uint8>();
+  if (success < 0) return std::unique_ptr<uint8[]>();
 
   *out_size = jpegSize;
 
   // Copy the memory to return to the caller.
   // tjCompress2 allocates the data with malloc, and scoped_array deallocates
   // with delete, so the data has to be copied in.
-  scoped_array<uint8> out_buffer(new uint8[jpegSize]);
+  std::unique_ptr<uint8[]> out_buffer(new uint8[jpegSize]);
   memcpy(out_buffer.get(), &(jpeg_buffer[0]), jpegSize);
   SbMemoryDeallocate(jpeg_buffer);
-  return out_buffer.Pass();
+  return std::move(out_buffer);
 }
 
 }  // namespace jpeg_utils

@@ -15,9 +15,9 @@
 #ifndef COBALT_ACCESSIBILITY_INTERNAL_LIVE_REGION_H_
 #define COBALT_ACCESSIBILITY_INTERNAL_LIVE_REGION_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
@@ -34,8 +34,8 @@ class LiveRegion {
   // https://www.w3.org/TR/2011/CR-wai-aria-20110118/states_and_properties#aria-relevant
   enum MutationType {
     kMutationTypeAddition = 1,  // corresponds to "additions"
-    kMutationTypeRemoval,   // corresponds to "removals"
-    kMutationTypeText,      // corresponds to "text"
+    kMutationTypeRemoval,       // corresponds to "removals"
+    kMutationTypeText,          // corresponds to "text"
   };
 
   // Returns a LiveRegion instance describing the live region that this element
@@ -43,7 +43,7 @@ class LiveRegion {
   //
   // Searches the element's ancestors looking for the first element with a
   // valid aria-live attribute.
-  static scoped_ptr<LiveRegion> GetLiveRegionForNode(
+  static std::unique_ptr<LiveRegion> GetLiveRegionForNode(
       const scoped_refptr<dom::Node>& node);
 
   // Returns true if the value of aria-live is "assertive".

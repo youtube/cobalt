@@ -21,7 +21,6 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/color_stop.h"
@@ -48,19 +47,19 @@ class LinearGradientValue : public PropertyValue {
 
   LinearGradientValue(float angle_in_radians, ColorStopList color_stop_list)
       : angle_in_radians_(angle_in_radians),
-        color_stop_list_(color_stop_list.Pass()) {}
+        color_stop_list_(std::move(color_stop_list)) {}
 
   LinearGradientValue(SideOrCorner side_or_corner,
                       ColorStopList color_stop_list)
       : side_or_corner_(side_or_corner),
-        color_stop_list_(color_stop_list.Pass()) {}
+        color_stop_list_(std::move(color_stop_list)) {}
 
   void Accept(PropertyValueVisitor* visitor) override;
 
-  const base::optional<float>& angle_in_radians() const {
+  const base::Optional<float>& angle_in_radians() const {
     return angle_in_radians_;
   }
-  const base::optional<SideOrCorner>& side_or_corner() const {
+  const base::Optional<SideOrCorner>& side_or_corner() const {
     return side_or_corner_;
   }
   const ColorStopList& color_stop_list() const { return color_stop_list_; }
@@ -75,8 +74,8 @@ class LinearGradientValue : public PropertyValue {
   ~LinearGradientValue() override {}
 
   // Exactly one of |angle_in_radians_| and |side_or_corner_| is engaged.
-  const base::optional<float> angle_in_radians_;
-  const base::optional<SideOrCorner> side_or_corner_;
+  const base::Optional<float> angle_in_radians_;
+  const base::Optional<SideOrCorner> side_or_corner_;
   const ColorStopList color_stop_list_;
 
   DISALLOW_COPY_AND_ASSIGN(LinearGradientValue);
