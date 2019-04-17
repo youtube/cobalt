@@ -27,14 +27,20 @@ that the app launcher can be run independent of the Cobalt source tree.
 ################################################################################
 
 
-def CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns=None):
+def CopyAppLauncherTools(repo_root, dest_root,
+                         additional_glob_patterns=None,
+                         include_black_box_tests=True):
   """Copies app launcher related files to the destination root.
   repo_root: The 'src' path that will be used for packaging.
   dest_root: The directory where the src files will be stored.
   additional_glob_patterns: Some platforms may need to include certain
     dependencies beyond the default include file patterns. The results here will
-    be merged in with _INCLUDE_FILE_PATTERNS."""
-  _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns)
+    be merged in with _INCLUDE_FILE_PATTERNS.
+  include_black_box_tests: If True then the resources for the black box tests
+    are included."""
+  _CopyAppLauncherTools(repo_root, dest_root,
+                        additional_glob_patterns,
+                        include_black_box_tests=include_black_box_tests)
 
 
 def MakeZipArchive(src, output_zip):
@@ -67,11 +73,8 @@ import jinja2
 # Default python directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
     ('buildbot', '*.py'),
-    ('buildbot/device_server/shared/ssl_certs', '*.*'),
+    ('buildbot/device_server/shared/ssl_certs', '*'),
     ('cobalt', '*.py'),
-    # For the black blox tests, we don't just want to include the python files,
-    # but also all of the assets necessary to run black box tests.
-    ('cobalt/black_box_tests', '*.*'),
     # TODO: Test and possibly prune.
     ('lbshell', '*.py'),
     ('starboard', '*.py'),
@@ -79,6 +82,17 @@ _INCLUDE_FILE_PATTERNS = [
     ('third_party/jinja2',  '*.py'),
     ('third_party/markupsafe', '*.py'), # Required by third_party/jinja2
 ]
+
+
+_INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
+    # Black box and web platform tests have non-py assets, so everything
+    # is picked up.
+    ('cobalt/black_box_tests', '*'),
+    ('third_party/web_platform_tests', '*'),
+]
+
+# Do not allow .git directories to make it into the build.
+_EXCLUDE_DIRECTORY_PATTERNS = ['.git']
 
 
 def _MakeDir(d):
@@ -108,7 +122,9 @@ def _FindFilesRecursive(src_root, glob_pattern):
   src_root = os.path.normpath(src_root)
   logging.info('Searching in %s for %s type files.', src_root, glob_pattern)
   file_list = []
-  for root, _, files in os.walk(src_root):
+  for root, dirs, files in os.walk(src_root, topdown=True):
+    # Prunes when using os.walk with topdown=True
+    [dirs.remove(d) for d in list(dirs) if d in _EXCLUDE_DIRECTORY_PATTERNS]
     # Eliminate any locally built files under the out directory.
     if _IsOutDir(src_root, root):
       continue
@@ -149,7 +165,8 @@ def _WritePlatformsInfo(repo_root, dest_root):
   logging.info('Finished baking in platform info files.')
 
 
-def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns):
+def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
+                          include_black_box_tests):
   # Step 1: Remove previous output directory if it exists
   if os.path.isdir(dest_root):
     shutil.rmtree(dest_root)
@@ -157,6 +174,8 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns):
   include_glob_patterns = _INCLUDE_FILE_PATTERNS
   if additional_glob_patterns:
     include_glob_patterns += additional_glob_patterns
+  if include_black_box_tests:
+    include_glob_patterns += _INCLUDE_BLACK_BOX_TESTS_PATTERNS
   copy_list = []
   for d, glob_pattern in include_glob_patterns:
     flist = _FindFilesRecursive(os.path.join(repo_root, d), glob_pattern)
