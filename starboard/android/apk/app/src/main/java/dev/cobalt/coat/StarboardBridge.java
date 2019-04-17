@@ -524,8 +524,8 @@ public class StarboardBridge {
     return false;
   }
 
-  public void registerCobaltService(String serviceName, CobaltService.Factory factory) {
-    cobaltServiceFactories.put(serviceName, factory);
+  public void registerCobaltService(CobaltService.Factory factory) {
+    cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
   @SuppressWarnings("unused")
