@@ -181,11 +181,20 @@ class Bundler:
       # Removes the first element which is the root directory, which is not
       # important for symlink creation.
       symlink_dir_list = [l[1:] for l in file_list.symlink_dir_list]
+      # Replace '\\' with '/'
+      symlink_dir_list = [_ToUnixPaths(l) for l in symlink_dir_list]
       decompress_json_str = _JsonDumpPrettyPrint({
         'symlink_dir': symlink_dir_list,
         'symlink_dir_doc': '[link_dir_path, target_dir_path]'
       })
       zf.writestr(_OUT_DECOMP_JSON, decompress_json_str)
+
+
+def _ToUnixPaths(path_list):
+  out = []
+  for p in path_list:
+    out.append(p.replace('\\', '/'))
+  return out
 
 
 def _JsonDumpPrettyPrint(data):
