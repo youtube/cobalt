@@ -18,7 +18,11 @@ package dev.cobalt.coat;
 public abstract class CobaltService {
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
+    /** Create the service. */
     public CobaltService createCobaltService(long nativeService);
+
+    /** Get the name of the service. */
+    public String getServiceName();
   }
   // Lifecycle
   /** Prepare service for start or resume. */
