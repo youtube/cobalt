@@ -62,7 +62,7 @@ def _ExtractSymlinks(cwd, symlink_dir_list):
         os.makedirs(os.path.dirname(link_path))
       assert(os.path.exists(real_path))
       real_path = os.path.relpath(real_path)
-      os.symlink(source=real_path, link_name=link_path)
+      os.symlink(real_path, link_path)
       if not os.path.exists(real_path):
         logging.critical('Error target folder %s does not exist.'
                          % os.path.abspath(real_path))
