@@ -17,6 +17,7 @@
 #include "base/bind.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/speech/speech_configuration.h"
+#include "cobalt/speech/speech_recognition_error.h"
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
 #include "cobalt/speech/starboard_speech_recognizer.h"
 #else
@@ -40,10 +41,12 @@ SpeechRecognitionManager::SpeechRecognitionManager(
   recognizer_.reset(new StarboardSpeechRecognizer(base::Bind(
       &SpeechRecognitionManager::OnEventAvailable, base::Unretained(this))));
 #else
-  recognizer_.reset(new CobaltSpeechRecognizer(
-      network_module, microphone_options,
-      base::Bind(&SpeechRecognitionManager::OnEventAvailable,
-                 base::Unretained(this))));
+  if (GoogleSpeechService::GetSpeechAPIKey()) {
+    recognizer_.reset(new CobaltSpeechRecognizer(
+        network_module, microphone_options,
+        base::Bind(&SpeechRecognitionManager::OnEventAvailable,
+                   base::Unretained(this))));
+  }
 #endif  // defined(SB_USE_SB_SPEECH_RECOGNIZER)
 }
 
@@ -58,6 +61,15 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   if (state_ == kStarted) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
                              exception_state);
+    return;
+  }
+
+  // If no recognizer is available on this platform, immediately generate a
+  // "no-speech" error.
+  //   https://w3c.github.io/speech-api/speechapi.html#speechreco-events
+  if (!recognizer_) {
+    OnEventAvailable(
+        new SpeechRecognitionError(kSpeechRecognitionErrorCodeNoSpeech, ""));
     return;
   }
 
