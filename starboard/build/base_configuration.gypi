@@ -182,7 +182,6 @@
             'linker_flags_host%': [
               '-target', 'i386-unknown-linux-gnu',
               '-pthread',
-              '-fuse-ld=lld',
             ],
           }, {
             'compiler_flags_cc_host%': [
