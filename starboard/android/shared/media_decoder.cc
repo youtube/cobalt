@@ -22,6 +22,7 @@
 #include "starboard/format_string.h"
 #endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/log.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -80,8 +81,7 @@ MediaDecoder::MediaDecoder(Host* host,
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      condition_variable_(mutex_),
-      tick_condition_variable_(tick_mutex_) {
+      condition_variable_(mutex_) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -112,8 +112,7 @@ MediaDecoder::MediaDecoder(Host* host,
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      condition_variable_(mutex_),
-      tick_condition_variable_(tick_mutex_) {
+      condition_variable_(mutex_) {
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
@@ -149,18 +148,13 @@ void MediaDecoder::WriteInputBuffer(
   }
 
   if (!SbThreadIsValid(decoder_thread_)) {
-    decoder_thread_ =
-        SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
-                       GetDecoderName(media_type_),
-                       &MediaDecoder::DecoderThreadEntryPoint, this);
+    decoder_thread_ = SbThreadCreate(
+        0,
+        media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
+                                         : kSbThreadPriorityHigh,
+        kSbThreadNoAffinity, true, GetDecoderName(media_type_),
+        &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
-  }
-
-  if (media_type_ == kSbMediaTypeVideo && !SbThreadIsValid(tick_thread_)) {
-    tick_thread_ = SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity,
-                                  true, "video_ticker",
-                                  &MediaDecoder::TickThreadEntryPoint, this);
-    SB_DCHECK(SbThreadIsValid(tick_thread_));
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -194,59 +188,103 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
 void MediaDecoder::DecoderThreadFunc() {
   SB_DCHECK(error_cb_);
 
-  std::deque<Event> pending_tasks;
-  std::deque<int> input_buffer_indices;
+  if (media_type_ == kSbMediaTypeAudio) {
+    std::deque<Event> pending_tasks;
+    std::vector<int> input_buffer_indices;
 
-  while (!destroying_.load()) {
-    std::deque<DequeueOutputResult> dequeue_output_results;
-    {
-      ScopedLock scoped_lock(mutex_);
-      bool has_input = !pending_tasks.empty() || !pending_tasks_.empty();
-      bool has_input_buffer =
-          !input_buffer_indices.empty() || !input_buffer_indices_.empty();
-      bool can_process_input =
-          pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
-      if (dequeue_output_results.empty() && !can_process_input) {
-        if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
-          SB_LOG_IF(ERROR, !stream_ended_.load())
-              << GetDecoderName(media_type_) << ": Wait() hits timeout.";
+    while (!destroying_.load()) {
+      std::vector<DequeueOutputResult> dequeue_output_results;
+      {
+        ScopedLock scoped_lock(mutex_);
+        bool has_input = !pending_tasks.empty() || !pending_tasks_.empty();
+        bool has_input_buffer =
+            !input_buffer_indices.empty() || !input_buffer_indices_.empty();
+        bool can_process_input =
+            pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
+        if (dequeue_output_results.empty() && !can_process_input) {
+          if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
+            SB_LOG_IF(ERROR, !stream_ended_.load())
+                << GetDecoderName(media_type_) << ": Wait() hits timeout.";
+          }
+        }
+        SB_DCHECK(dequeue_output_results.empty());
+        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+                                  &dequeue_output_results);
+      }
+
+      for (auto dequeue_output_result : dequeue_output_results) {
+        if (dequeue_output_result.index < 0) {
+          host_->RefreshOutputFormat(media_codec_bridge_.get());
+        } else {
+          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                     dequeue_output_result);
         }
       }
-      pending_tasks.insert(pending_tasks.end(), pending_tasks_.begin(),
-                           pending_tasks_.end());
-      pending_tasks_.clear();
 
-      input_buffer_indices.insert(input_buffer_indices.end(),
-                                  input_buffer_indices_.begin(),
-                                  input_buffer_indices_.end());
-      input_buffer_indices_.clear();
-
-      SB_DCHECK(dequeue_output_results.empty());
-      dequeue_output_results.swap(dequeue_output_results_);
-    }
-
-    for (auto dequeue_output_result : dequeue_output_results) {
-      if (dequeue_output_result.index < 0) {
-        host_->RefreshOutputFormat(media_codec_bridge_.get());
-      } else {
-        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
-        if (media_type_ == kSbMediaTypeVideo) {
-          ScopedLock lock(tick_mutex_);
-          tick_condition_variable_.Signal();
+      for (;;) {
+        bool can_process_input =
+            pending_queue_input_buffer_task_ ||
+            (!pending_tasks.empty() && !input_buffer_indices.empty());
+        if (!can_process_input) {
+          break;
+        }
+        if (!ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices)) {
+          break;
         }
       }
     }
+  } else {
+    // While it is possible to consolidate the logic for audio and video
+    // decoders, it is easy to fine tune the behavior of video decoder if they
+    // are separated.
+    std::deque<Event> pending_tasks;
+    std::vector<int> input_buffer_indices;
+    std::vector<DequeueOutputResult> dequeue_output_results;
 
-    for (;;) {
+    while (!destroying_.load()) {
+      bool has_input =
+          pending_queue_input_buffer_task_ ||
+          (!pending_tasks.empty() && !input_buffer_indices.empty());
+      bool has_output = !dequeue_output_results.empty();
+      if (!has_input || !has_output) {
+        ScopedLock scoped_lock(mutex_);
+        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+                                  &dequeue_output_results);
+      }
+
+      if (!dequeue_output_results.empty()) {
+        auto& dequeue_output_result = dequeue_output_results.front();
+        if (dequeue_output_result.index < 0) {
+          host_->RefreshOutputFormat(media_codec_bridge_.get());
+        } else {
+          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                     dequeue_output_result);
+        }
+        dequeue_output_results.erase(dequeue_output_results.begin());
+      }
+      host_->Tick(media_codec_bridge_.get());
+
       bool can_process_input =
           pending_queue_input_buffer_task_ ||
           (!pending_tasks.empty() && !input_buffer_indices.empty());
-      if (!can_process_input) {
-        break;
+      if (can_process_input) {
+        ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices);
       }
-      if (!ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices)) {
-        break;
+
+      bool ticked = host_->Tick(media_codec_bridge_.get());
+
+      can_process_input =
+          pending_queue_input_buffer_task_ ||
+          (!pending_tasks.empty() && !input_buffer_indices.empty());
+      if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+        ScopedLock scoped_lock(mutex_);
+        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+                                  &dequeue_output_results);
+        can_process_input =
+            !pending_tasks.empty() && !input_buffer_indices.empty();
+        if (!can_process_input && dequeue_output_results.empty()) {
+          condition_variable_.WaitTimed(kSbTimeMillisecond);
+        }
       }
     }
   }
@@ -254,31 +292,10 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
-// static
-void* MediaDecoder::TickThreadEntryPoint(void* context) {
-  SB_DCHECK(context);
-  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
-  decoder->TickThreadFunc();
-  return NULL;
-}
-
-void MediaDecoder::TickThreadFunc() {
-  while (!destroying_.load()) {
-    host_->Tick(media_codec_bridge_.get());
-    ScopedLock lock(tick_mutex_);
-    tick_condition_variable_.WaitTimed(10 * kSbTimeMillisecond);
-  }
-
-  SB_LOG(INFO) << "Destroying tick thread.";
-}
-
 void MediaDecoder::JoinOnThreads() {
   destroying_.store(true);
   condition_variable_.Signal();
-  if (SbThreadIsValid(tick_thread_)) {
-    SbThreadJoin(tick_thread_, NULL);
-    tick_thread_ = kSbThreadInvalid;
-  }
+
   if (SbThreadIsValid(decoder_thread_)) {
     SbThreadJoin(decoder_thread_, NULL);
     decoder_thread_ = kSbThreadInvalid;
@@ -295,9 +312,33 @@ void MediaDecoder::JoinOnThreads() {
   }
 }
 
+void MediaDecoder::CollectPendingData_Locked(
+    std::deque<Event>* pending_tasks,
+    std::vector<int>* input_buffer_indices,
+    std::vector<DequeueOutputResult>* dequeue_output_results) {
+  SB_DCHECK(pending_tasks);
+  SB_DCHECK(input_buffer_indices);
+  SB_DCHECK(dequeue_output_results);
+  mutex_.DCheckAcquired();
+
+  pending_tasks->insert(pending_tasks->end(), pending_tasks_.begin(),
+                        pending_tasks_.end());
+  pending_tasks_.clear();
+
+  input_buffer_indices->insert(input_buffer_indices->end(),
+                               input_buffer_indices_.begin(),
+                               input_buffer_indices_.end());
+  input_buffer_indices_.clear();
+
+  dequeue_output_results->insert(dequeue_output_results->end(),
+                                 dequeue_output_results_.begin(),
+                                 dequeue_output_results_.end());
+  dequeue_output_results_.clear();
+}
+
 bool MediaDecoder::ProcessOneInputBuffer(
     std::deque<Event>* pending_tasks,
-    std::deque<int>* input_buffer_indices) {
+    std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
 
   // During secure playback, and only secure playback, is is possible that our
@@ -323,7 +364,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     input_buffer_already_written = true;
   } else {
     dequeue_input_result.index = input_buffer_indices->front();
-    input_buffer_indices->pop_front();
+    input_buffer_indices->erase(input_buffer_indices->begin());
     event = pending_tasks->front();
     pending_tasks->pop_front();
     number_of_pending_tasks_.decrement();
@@ -437,6 +478,12 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+  if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
+    // Set the thread priority of the Handler thread to dispatch the async
+    // decoder callbacks to high.
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    first_call_on_handler_thread_ = false;
+  }
   ScopedLock scoped_lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
