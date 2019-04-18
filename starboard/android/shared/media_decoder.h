@@ -19,6 +19,7 @@
 
 #include <deque>
 #include <string>
+#include <vector>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
@@ -122,14 +123,16 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  static void* TickThreadEntryPoint(void* context);
-  void TickThreadFunc();
   void JoinOnThreads();
 
   void TeardownCodec();
 
+  void CollectPendingData_Locked(
+      std::deque<Event>* pending_tasks,
+      std::vector<int>* input_buffer_indices,
+      std::vector<DequeueOutputResult>* dequeue_output_results);
   bool ProcessOneInputBuffer(std::deque<Event>* pending_tasks,
-                             std::deque<int>* input_buffer_indices);
+                             std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
 
   // MediaCodecBridge::Handler methods
@@ -165,15 +168,13 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   Mutex mutex_;
   ConditionVariable condition_variable_;
   std::deque<Event> pending_tasks_;
-  std::deque<int> input_buffer_indices_;
-  std::deque<DequeueOutputResult> dequeue_output_results_;
+  std::vector<int> input_buffer_indices_;
+  std::vector<DequeueOutputResult> dequeue_output_results_;
 
-  Mutex tick_mutex_;
-  ConditionVariable tick_condition_variable_;
+  bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_ = kSbThreadInvalid;
-  SbThread tick_thread_ = kSbThreadInvalid;
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
