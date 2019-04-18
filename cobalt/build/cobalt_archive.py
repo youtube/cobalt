@@ -37,7 +37,8 @@ def MakeCobaltArchiveFromSource(output_archive_path,
                                 platform_name,
                                 config,
                                 platform_sdk_version,
-                                additional_buildinfo_dict={}):
+                                additional_buildinfo_dict={},
+                                include_black_box_tests=False):
   """ Returns None, failure is signaled via exception. """
   additional_buildinfo_dict = dict(additional_buildinfo_dict)
   _MakeCobaltArchiveFromSource(
@@ -45,7 +46,8 @@ def MakeCobaltArchiveFromSource(output_archive_path,
       platform_name=platform_name,
       config=config,
       platform_sdk_version=platform_sdk_version,
-      additional_buildinfo_dict=additional_buildinfo_dict)
+      additional_buildinfo_dict=additional_buildinfo_dict,
+      include_black_box_tests=include_black_box_tests)
 
 
 def ExtractCobaltArchive(input_zip_path, output_directory_path, outstream=None):
@@ -252,7 +254,8 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
                                  platform_name,
                                  config,
                                  platform_sdk_version,
-                                 additional_buildinfo_dict):
+                                 additional_buildinfo_dict,
+                                 include_black_box_tests):
   _MakeDirs(os.path.dirname(output_archive_path))
   out_directory = BuildOutputDirectory(platform_name, config)
   root_dir = os.path.abspath(os.path.join(out_directory, '..', '..'))
@@ -276,7 +279,10 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
          os.path.abspath(launcher_tools_path))
 
   try:
-    CopyAppLauncherTools(REPOSITORY_ROOT, launcher_tools_path)
+    CopyAppLauncherTools(repo_root=REPOSITORY_ROOT,
+                         dest_root=launcher_tools_path,
+                         additional_glob_patterns=[],
+                         include_black_box_tests=include_black_box_tests)
     flist.AddAllFilesInPath(root_dir=launcher_tools_path,
                             sub_dir=launcher_tools_path)
     print '...done'
@@ -479,7 +485,8 @@ def _UnitTest():
 ################################################################################
 
 
-def _MakeCobaltPlatformArchive(platform, config, output_zip):
+def _MakeCobaltPlatformArchive(platform, config, output_zip,
+                               include_black_box_tests):
   if not platform:
     platform = raw_input('platform: ')
   if not platform in GetAllPlatforms():
@@ -491,14 +498,18 @@ def _MakeCobaltPlatformArchive(platform, config, output_zip):
     output_zip = raw_input('output_zip: ')
   if not output_zip.endswith('.zip'):
     output_zip += '.zip'
-  MakeCobaltArchiveFromSource(output_zip,
-                              platform,
-                              config,
-                              platform_sdk_version='TEST',
-                              additional_buildinfo_dict={})
+  start_time = time.time()
+  MakeCobaltArchiveFromSource(
+      output_zip,
+      platform,
+      config,
+      platform_sdk_version='TEST',
+      additional_buildinfo_dict={},
+      include_black_box_tests=include_black_box_tests)
+  time_delta = time.time() - start_time
   if not os.path.isfile(output_zip):
     raise ValueError('Expected zip file at ' + output_zip)
-  print '\nGenerated:', output_zip
+  print '\nGenerated: %s in %d seconds' % (output_zip, int(time_delta))
 
 # Returns True/False
 def _DecompressArchive(in_zip, out_path):
@@ -559,11 +570,18 @@ def _main():
   parser.add_argument('--in_path', type=str,
                       help='Optional, used for decompress',
                       default=None)
+  parser.add_argument('--include_black_box_tests',
+                      help='Optional, used for --create to add blackbox tests',
+                      action='store_true')
   args = parser.parse_args()
   if args.unit_test:
     sys.exit(_UnitTest())
   elif args.create:
-    _MakeCobaltPlatformArchive(args.platform, args.config, args.out_path)
+    _MakeCobaltPlatformArchive(
+        platform=args.platform,
+        config=args.config,
+        output_zip=args.out_path,
+        include_black_box_tests=args.include_black_box_tests)
     sys.exit(0)
   elif args.extract:
     ok = _DecompressArchive(args.in_path, args.out_path)
