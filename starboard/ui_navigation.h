@@ -134,6 +134,15 @@ typedef struct SbUiNavInterface {
   bool (*get_item_local_transform)(SbUiNavItem item,
       SbUiNavTransform* out_transform);
 
+  // Retrieve a vector representing the focus location within a focused item.
+  // This is used to provide feedback about user input that is too small to
+  // result in a focus change. If there is no focus vector for the navigation
+  // item, then return false and leave |out_x| and |out_y| unchanged. Otherwise,
+  // return true and set the output values in the range of [-1, +1] with
+  // (out_x, out_y) of (-1, -1) being the top-left corner of the navigation
+  // item and (0, 0) being the center.
+  bool (*get_item_focus_vector)(SbUiNavItem item, float* out_x, float* out_y);
+
   // This attaches the given navigation item (which must be a container) to
   // the specified window. This also sets the item's position and size to
   // cover the whole window. Navigation items are only interactable if they
