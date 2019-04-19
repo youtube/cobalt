@@ -58,6 +58,10 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     return GetInterface().get_item_local_transform(nav_item_, out_transform);
   }
 
+  bool GetFocusVector(float* out_x, float* out_y) {
+    return GetInterface().get_item_focus_vector(nav_item_, out_x, out_y);
+  }
+
   void SetContainerWindow(SbWindow window) {
     GetInterface().set_item_container_window(nav_item_, window);
   }
