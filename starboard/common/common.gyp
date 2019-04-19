@@ -26,6 +26,8 @@
       'sources': [
         'common.cc',
         'flat_map.h',
+        'log.h',
+        'log_message.cc',
         'memory.cc',
         'move.h',
         'murmurhash2.h',
