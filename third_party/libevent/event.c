@@ -37,7 +37,6 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
-#include "starboard/time.h"
 #else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -47,7 +46,7 @@
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
+#else 
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
@@ -142,13 +141,8 @@ detect_monotonic(void)
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	struct timespec	ts;
 
-	#if defined(STARBOARD)
-		if (SbTimeGetMonotonicNow() != 0)
-			use_monotonic = 1;
-	#else
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
 		use_monotonic = 1;
-	#endif
 #endif
 }
 
@@ -164,13 +158,8 @@ gettime(struct event_base *base, struct timeval *tp)
 	if (use_monotonic) {
 		struct timespec	ts;
 
-		#if defined(STARBOARD)
-		if (SbTimeGetMonotonicNow() == 0)
-			return (-1);
-		#else
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 			return (-1);
-		#endif
 
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
@@ -203,7 +192,7 @@ event_base_new(void)
 
 	detect_monotonic();
 	gettime(base, &base->event_tv);
-
+	
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
 #ifndef STARBOARD
@@ -220,7 +209,7 @@ event_base_new(void)
 	if (base->evbase == NULL)
 		event_errx(1, "%s: no event mechanism available", __func__);
 
-	if (evutil_getenv("EVENT_SHOW_METHOD"))
+	if (evutil_getenv("EVENT_SHOW_METHOD")) 
 		event_msgx("libevent using: %s\n",
 			   base->evsel->name);
 
@@ -403,7 +392,7 @@ event_process_active(struct event_base *base)
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		else
 			event_del(ev);
-
+		
 		/* Allows deletes to work */
 		ncalls = ev->ev_ncalls;
 		ev->ev_pncalls = &ncalls;
@@ -524,13 +513,13 @@ event_base_loop(struct event_base *base, int flags)
 		if (!base->event_count_active && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
 		} else {
-			/*
+			/* 
 			 * if we have active events, we just poll new events
 			 * without waiting.
 			 */
 			evutil_timerclear(&tv);
 		}
-
+		
 		/* If we have no events, we just exit */
 		if (!event_haveevents(base)) {
 			event_debug(("%s: no events registered.", __func__));
@@ -763,14 +752,14 @@ event_add(struct event *ev, const struct timeval *tv)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
 	}
 
-	/*
+	/* 
 	 * we should change the timout state only if the previous event
 	 * addition succeeded.
 	 */
 	if (res != -1 && tv != NULL) {
 		struct timeval now;
 
-		/*
+		/* 
 		 * we already reserved memory above for the case where we
 		 * are not replacing an exisiting timeout.
 		 */
@@ -789,7 +778,7 @@ event_add(struct event *ev, const struct timeval *tv)
 				/* Abort loop */
 				*ev->ev_pncalls = 0;
 			}
-
+			
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		}
 
@@ -1022,7 +1011,7 @@ event_get_version(void)
 	return (VERSION);
 }
 
-/*
+/* 
  * No thread-safe interface needed - the information should be the same
  * for all threads.
  */
