@@ -70,6 +70,13 @@ bool GetItemLocalTransform(NativeItem item, NativeTransform* out_transform) {
   return false;
 }
 
+bool GetItemFocusVector(NativeItem item, float* out_x, float* out_y) {
+  SB_UNREFERENCED_PARAMETER(item);
+  SB_UNREFERENCED_PARAMETER(out_x);
+  SB_UNREFERENCED_PARAMETER(out_y);
+  return false;
+}
+
 void SetItemContainerWindow(NativeItem item, SbWindow window) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(window);
@@ -101,21 +108,23 @@ void GetItemContentOffset(NativeItem item,
 NativeInterface InitializeInterface() {
   NativeInterface interface = { 0 };
 #if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
-  if (!SbUiNavGetInterface(&interface))
-#endif
-  {
-    interface.create_item = &CreateItem;
-    interface.destroy_item = &DestroyItem;
-    interface.set_focus = &SetFocus;
-    interface.set_item_enabled = &SetItemEnabled;
-    interface.set_item_size = &SetItemSize;
-    interface.set_item_position = &SetItemPosition;
-    interface.get_item_local_transform = &GetItemLocalTransform;
-    interface.set_item_container_window = &SetItemContainerWindow;
-    interface.set_item_container_item = &SetItemContainerItem;
-    interface.set_item_content_offset = &SetItemContentOffset;
-    interface.get_item_content_offset = &GetItemContentOffset;
+  if (SbUiNavGetInterface(&interface)) {
+    return interface;
   }
+#endif
+
+  interface.create_item = &CreateItem;
+  interface.destroy_item = &DestroyItem;
+  interface.set_focus = &SetFocus;
+  interface.set_item_enabled = &SetItemEnabled;
+  interface.set_item_size = &SetItemSize;
+  interface.set_item_position = &SetItemPosition;
+  interface.get_item_local_transform = &GetItemLocalTransform;
+  interface.get_item_focus_vector = &GetItemFocusVector;
+  interface.set_item_container_window = &SetItemContainerWindow;
+  interface.set_item_container_item = &SetItemContainerItem;
+  interface.set_item_content_offset = &SetItemContentOffset;
+  interface.get_item_content_offset = &GetItemContentOffset;
   return interface;
 }
 

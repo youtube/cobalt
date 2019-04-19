@@ -64,6 +64,7 @@ struct NativeInterface {
   void (*set_item_position)(NativeItem item, float x, float y);
   bool (*get_item_local_transform)(NativeItem item,
       NativeTransform* out_transform);
+  bool (*get_item_focus_vector)(NativeItem item, float* out_x, float* out_y);
   void (*set_item_container_window)(NativeItem item, SbWindow window);
   void (*set_item_container_item)(NativeItem item, NativeItem container);
   void (*set_item_content_offset)(NativeItem item,
