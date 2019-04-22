@@ -150,8 +150,13 @@ TryGetSupportedCapabilities(
     if (SbMediaCanPlayMimeAndKeySystem(content_type.c_str(),
                                        key_system.c_str()) ==
         kSbMediaSupportTypeProbably) {
+      LOG(INFO) << "Navigator::RequestMediaKeySystemAccess(" << content_type
+                << ", " << key_system << ") -> supported";
       // 3.13.1. Add requested media capability to supported media capabilities.
       supported_media_capabilities.push_back(requested_media_capability);
+    } else {
+      LOG(INFO) << "Navigator::RequestMediaKeySystemAccess(" << content_type
+                << ", " << key_system << ") -> not supported";
     }
   }
   // 4. If supported media capabilities is empty, return null.
