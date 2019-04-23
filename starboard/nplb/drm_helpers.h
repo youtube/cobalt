@@ -86,7 +86,10 @@ void DummySessionClosedFunc(SbDrmSystem drm_system,
 SbDrmSystem CreateDummyDrmSystem(const char* key_system);
 
 static const char* kKeySystems[] = {
-    "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
+    "com.widevine",
+    "com.widevine.alpha",
+    "com.youtube.playready",
+    "com.youtube.fairplay",
 };
 
 }  // namespace nplb
