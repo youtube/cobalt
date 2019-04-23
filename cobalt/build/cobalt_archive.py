@@ -141,7 +141,7 @@ class Bundler:
     return ok
 
   def ReadMetaData(self):
-    with zipfile.ZipFile(self.archive_zip_path, 'r') as zf:
+    with zipfile.ZipFile(self.archive_zip_path, 'r', allowZip64=True) as zf:
       json_str = zf.read(_OUT_METADATA_PATH)
     return json.loads(json_str)
 
@@ -380,7 +380,7 @@ def _AddFilesAndSymlinksToZip(open_zipfile, archive_file_list):
 # Returns True if all files were extracted, else False.
 def _ExtractFiles(input_zip_path, output_dir, outstream):
   all_ok = True
-  with zipfile.ZipFile(input_zip_path, 'r') as zf:
+  with zipfile.ZipFile(input_zip_path, 'r', allowZip64=True) as zf:
     for zinfo in zf.infolist():
       try:
         zf.extract(zinfo, path=output_dir)
