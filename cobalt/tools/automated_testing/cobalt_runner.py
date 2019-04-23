@@ -306,20 +306,25 @@ class CobaltRunner(object):
     return self.webdriver.execute_script(js_code)
 
   def GetCval(self, cval_name):
-    """Returns the Python object represented by a JSON cval string.
+    """Returns the Python object represented by a cval string.
 
     Args:
       cval_name: Name of the cval.
 
     Returns:
-      Python object represented by the JSON cval string
+      Python object represented by the cval string
     """
     javascript_code = 'return h5vcc.cVal.getValue(\'{}\')'.format(cval_name)
-    json_result = self.ExecuteJavaScript(javascript_code)
-    if json_result is None:
+    cval_string = self.ExecuteJavaScript(javascript_code)
+    if cval_string is None:
       return None
     else:
-      return json.loads(json_result)
+      try:
+        # Try to parse numbers and booleans.
+        return json.loads(cval_string)
+      except ValueError:
+        # If we can't parse a value, return the cval string as-is.
+        return cval_string
 
   def GetCvalBatch(self, cval_name_list):
     """Retrieves a batch of cvals.
