@@ -1,0 +1,4 @@
+This file is here to ensure that the corresponding directory has at least one
+file in it so that base_unittests PathServiceTest::Get() can see it as
+base::DIR_EXE and base::DIR_MODULE (aka kSbSystemPathContentDirectory). See the
+implementation of OpenAndroidAssetDir() for more details.
