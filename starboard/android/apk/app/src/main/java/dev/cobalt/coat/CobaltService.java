@@ -14,6 +14,8 @@
 
 package dev.cobalt.coat;
 
+import dev.cobalt.util.UsedByNative;
+
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
   /** Interface that returns an object that extends CobaltService. */
@@ -36,6 +38,8 @@ public abstract class CobaltService {
 
   // Service API
   /** Receive data from client of the service. */
+  @SuppressWarnings("unused")
+  @UsedByNative
   public abstract byte[] receiveFromClient(byte[] data);
 
   /** Close the service. */
