@@ -548,7 +548,9 @@ public class StarboardBridge {
       return null;
     }
     CobaltService service = factory.createCobaltService(nativeService);
-    cobaltServices.put(serviceName, service);
+    if (service != null) {
+      cobaltServices.put(serviceName, service);
+    }
     return service;
   }
 
