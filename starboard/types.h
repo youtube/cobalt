@@ -57,10 +57,6 @@
 #include <float.h>
 #endif
 
-#if SB_HAS(SSIZE_T)
-#include <sys/types.h>
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
