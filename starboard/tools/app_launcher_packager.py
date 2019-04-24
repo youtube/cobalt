@@ -188,6 +188,7 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
   # Order by file path string and remove any duplicate paths.
   copy_list = list(set(copy_list))
   copy_list.sort()
+  folders_logged = set()
   # Step 3: Copy the src files to the destination directory.
   for src in copy_list:
     tail_path = os.path.relpath(src, repo_root)
@@ -195,7 +196,10 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
     d = os.path.dirname(dst)
     if not os.path.isdir(d):
       os.makedirs(d)
-    logging.info(src + ' -> ' + dst)
+    src_folder = os.path.dirname(src)
+    if not src_folder in folders_logged:
+      folders_logged.add(src_folder)
+      logging.info(src_folder + ' -> ' + os.path.dirname(dst))
     shutil.copy2(src, dst)
   # Step 4: Re-write the platform infos file in the new repo copy.
   _WritePlatformsInfo(repo_root, dest_root)
