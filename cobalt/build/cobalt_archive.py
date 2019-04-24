@@ -24,11 +24,13 @@ def MakeCobaltArchiveFromFileList(output_archive_path,
                                   input_file_list,  # class FileList
                                   platform_name,
                                   platform_sdk_version,
+                                  config,
                                   additional_buildinfo_dict={}):
   additional_buildinfo_dict = dict(additional_buildinfo_dict)
   b = Bundler(archive_zip_path=output_archive_path)
   b.MakeArchive(platform_name=platform_name,
                 platform_sdk_version=platform_sdk_version,
+                config=config,
                 file_list=input_file_list,
                 additional_buildinfo_dict=additional_buildinfo_dict)
 
@@ -148,12 +150,17 @@ class Bundler:
   def MakeArchive(self,
                   platform_name,
                   platform_sdk_version,
+                  config,
                   file_list,  # class FileList
                   additional_buildinfo_dict={}):
-    additional_buildinfo_dict = dict(additional_buildinfo_dict)
+    if not config in GetAllConfigs():
+      raise ValueError('Expected %s to be one of %s'
+                       % (config, GetAllConfigs()))
+    additional_buildinfo_dict = dict(additional_buildinfo_dict)  # Copy
     build_info_str = _GenerateBuildInfoStr(
         platform_name=platform_name,
         platform_sdk_version=platform_sdk_version,
+        config=config,
         additional_buildinfo_dict=additional_buildinfo_dict)
     with zipfile.ZipFile(self.archive_zip_path, mode='w',
                          compression=zipfile.ZIP_DEFLATED,
@@ -287,11 +294,13 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
                             sub_dir=launcher_tools_path)
     print '...done'
     print 'Making cobalt archive...'
-    MakeCobaltArchiveFromFileList(output_archive_path,
-                                  input_file_list=flist,
-                                  platform_name=platform_name,
-                                  platform_sdk_version=platform_sdk_version,
-                                  additional_buildinfo_dict={})
+    MakeCobaltArchiveFromFileList(
+        output_archive_path,
+        input_file_list=flist,
+        platform_name=platform_name,
+        platform_sdk_version=platform_sdk_version,
+        config=config,
+        additional_buildinfo_dict=additional_buildinfo_dict)
     print '...done'
   finally:
     Rmtree(launcher_tools_path)
@@ -348,13 +357,14 @@ def _FoldIdenticalFiles(file_path_list):
 
 
 def _GenerateBuildInfoStr(platform_name, platform_sdk_version,
-                          additional_buildinfo_dict):
+                          config, additional_buildinfo_dict):
   from time import gmtime, strftime
   build_info = dict(additional_buildinfo_dict)  # Copy dict.
   build_info['archive_time_RFC_2822'] = \
       strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
   build_info['archive_time_local'] = time.asctime()
   build_info['platform'] = platform_name
+  build_info['config'] = config
   build_info['sdk_version'] = platform_sdk_version
   # Can be used by clients for caching reasons.
   build_info['random_uint64'] = random.randint(0, 0xffffffffffffffff)
@@ -404,7 +414,10 @@ def _UnitTestBundler_ExtractTo():
   flist.AddSymLink(tf.root_in_tmp, tf.sym_dir)
   bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
   b = Bundler(bundle_zip)
-  b.MakeArchive('fake', 'fake_sdk', flist)
+  b.MakeArchive(platform_name='fake',
+                platform_sdk_version='fake_sdk',
+                config='devel',
+                file_list=flist)
   out_dir = os.path.join(tf.root_tmp, 'out')
   b.ExtractTo(out_dir)
   out_from_dir = os.path.join(out_dir, 'from_dir')
@@ -425,6 +438,7 @@ def _UnitTestBundler_MakesDeployInfo():
   b = Bundler(bundle_zip)
   b.MakeArchive(platform_name='fake',
                 platform_sdk_version='fake_sdk',
+                config='devel',
                 file_list=flist)
   out_dir = os.path.join(tf.root_tmp, 'out')
   b.ExtractTo(out_dir)
@@ -436,6 +450,7 @@ def _UnitTestBundler_MakesDeployInfo():
     assert(js)
     assert(js['sdk_version'] == 'fake_sdk')
     assert(js['platform'] == 'fake')
+    assert(js['config'] == 'devel')
 
 
 def _UnitTest_FoldIdenticalFiles():
