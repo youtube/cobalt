@@ -37,10 +37,15 @@ public abstract class CobaltService {
   public abstract void afterStopped();
 
   // Service API
+  public class ResponseToClient {
+    public boolean invalidState;
+    public byte[] data;
+  }
+
   /** Receive data from client of the service. */
   @SuppressWarnings("unused")
   @UsedByNative
-  public abstract byte[] receiveFromClient(byte[] data);
+  public abstract ResponseToClient receiveFromClient(byte[] data);
 
   /** Close the service. */
   public abstract void close();
