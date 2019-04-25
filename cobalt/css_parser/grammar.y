@@ -4915,7 +4915,10 @@ vertical_align_property_value:
 // are rendered.
 //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
 visibility_property_value:
-    kHiddenToken maybe_whitespace {
+   kCollapseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetCollapse().get());
+  }
+  | kHiddenToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetHidden().get());
   }
   | kVisibleToken maybe_whitespace {
