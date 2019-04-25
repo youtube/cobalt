@@ -1327,7 +1327,7 @@ TEST_F(ParserTest, ParsesLonghandPropertyKeywords) {
     "vertical-align",
       "inherit", "initial", "baseline", "bottom", "middle", "top", nullptr,
     "visibility",
-      "inherit", "initial", "hidden", "visible", nullptr,
+      "inherit", "initial", "collapse", "hidden", "visible", nullptr,
     "white-space",
       "inherit", "initial", "normal", "nowrap", "pre", "pre-line", "pre-wrap",
       nullptr,
