@@ -92,17 +92,30 @@ void Close(CobaltExtensionPlatformService service) {
 void* Send(CobaltExtensionPlatformService service,
            void* data,
            uint64_t length,
-           uint64_t* output_length) {
+           uint64_t* output_length,
+           bool* invalid_state) {
   SB_DCHECK(data);
   SB_DCHECK(output_length);
+  SB_DCHECK(invalid_state);
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> data_byte_array;
   data_byte_array.Reset(
       env->NewByteArrayFromRaw(reinterpret_cast<const jbyte*>(data), length));
+  jobject j_response_from_client =
+      static_cast<jbyteArray>(env->CallObjectMethodOrAbort(
+          service->cobalt_service, "receiveFromClient",
+          "([B)Ldev/cobalt/coat/CobaltService$ResponseToClient;",
+          data_byte_array.Get()));
+  if (!j_response_from_client) {
+    *invalid_state = true;
+    *output_length = 0;
+    return 0;
+  }
+  *invalid_state =
+      env->GetBooleanFieldOrAbort(j_response_from_client, "invalidState", "Z");
   jbyteArray j_out_data_array = static_cast<jbyteArray>(
-      env->CallObjectMethodOrAbort(service->cobalt_service, "receiveFromClient",
-                                   "([B)[B", data_byte_array.Get()));
+      env->GetObjectFieldOrAbort(j_response_from_client, "data", "[B"));
   *output_length = env->GetArrayLength(j_out_data_array);
   char* output = new char[*output_length];
   env->GetByteArrayRegion(j_out_data_array, 0, *output_length,
