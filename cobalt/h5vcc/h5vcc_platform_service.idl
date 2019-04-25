@@ -30,6 +30,8 @@ interface H5vccPlatformService {
   // may optionally synchronously return data. For asynchronous
   // responses the service should utilize the |receive_callback|.
   // If the service has been closed, then kInvalidStateErr is raised.
+  // If the service is open but not currently able to accept data, then
+  // kInvalidStateErr is raised.
   [RaisesException] ArrayBuffer? send(ArrayBuffer data);
 
   // Closes the specified service.  After calling Close(), it is
