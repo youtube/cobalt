@@ -103,14 +103,23 @@ script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
     const script::Handle<script::ArrayBuffer>& data,
     script::ExceptionState* exception_state) {
   if (!IsOpen()) {
-    LOG(ERROR) << "Closed service should not Send.";
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             "Closed service should not Send.",
                              exception_state);
     return script::ArrayBuffer::New(environment_, 0);
   }
   uint64_t output_length = 0;
+  bool invalid_state = 0;
   void* output_data = platform_service_api_->Send(
-      ext_service_, data->Data(), data->ByteLength(), &output_length);
+      ext_service_, data->Data(), data->ByteLength(), &output_length,
+      &invalid_state);
+  if (invalid_state) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             "Service unable to accept data currently.",
+                             exception_state);
+    SbMemoryDeallocate(output_data);
+    return script::ArrayBuffer::New(environment_, 0);
+  }
   auto output_buffer =
       script::ArrayBuffer::New(environment_, output_data, output_length);
   // Deallocate |output_data| which has been copied into the ArrayBuffer.
