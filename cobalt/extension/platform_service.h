@@ -71,9 +71,11 @@ typedef struct CobaltExtensionPlatformServiceApi {
   // to its length. The returned void* will be owned by the caller, and must
   // be deallocated via SbMemoryDeallocate() by the caller when appropriate.
   // If there is no synchronous response, NULL will be returned and
-  // |output_length| will be 0.
+  // |output_length| will be 0. The |invalid_state| will be set to true if the
+  // service is not currently able to accept data, and otherwise will be set to
+  // false.
   void* (*Send)(CobaltExtensionPlatformService service, void* data,
-                uint64_t length, uint64_t* output_length);
+                uint64_t length, uint64_t* output_length, bool* invalid_state);
 } CobaltExtensionPlatformServiceApi;
 
 #ifdef __cplusplus
