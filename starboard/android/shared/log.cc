@@ -23,33 +23,15 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/command_line.h"
-#include "starboard/string.h"
+#include "starboard/configuration.h"
 #include "starboard/thread.h"
+
+#if SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+#include "starboard/shared/starboard/log_mutex.h"
+#endif  // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
-
-namespace {
-  const char kLogSleepTimeSwitch[] = "android_log_sleep_time";
-  SbTime g_log_sleep_time = 0;
-}
-
-namespace starboard {
-namespace android {
-namespace shared {
-
-void LogInit(const starboard::shared::starboard::CommandLine& command_line) {
-  if (command_line.HasSwitch(kLogSleepTimeSwitch)) {
-    g_log_sleep_time =
-        SbStringAToL(command_line.GetSwitchValue(kLogSleepTimeSwitch).c_str());
-    SB_LOG(INFO) << "Android log sleep time: " << g_log_sleep_time;
-  }
-}
-
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
 
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;
@@ -73,11 +55,18 @@ void SbLog(SbLogPriority priority, const char* message) {
       android_priority = ANDROID_LOG_INFO;
       break;
   }
+
+#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
   __android_log_write(android_priority, "starboard", message);
+#else   // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+  starboard::shared::starboard::GetLoggingMutex()->Acquire();
+  __android_log_write(android_priority, "starboard", message);
+  starboard::shared::starboard::GetLoggingMutex()->Release();
+#endif  // SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
 
   // In unit tests the logging is too fast for the android log to be read out
   // and we end up losing crucial logs. The test runner specifies a sleep time.
-  SbThreadSleep(g_log_sleep_time);
+  SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
 }
 
 // Helper to write messages to logcat even when Android non-warning/non-error
