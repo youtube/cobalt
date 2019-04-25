@@ -1226,7 +1226,7 @@ class ComputedFlexBasisProvider : public ComputedWidthValueProvider {
   void VisitKeyword(KeywordValue* keyword) {
     switch (keyword->value()) {
       case KeywordValue::kAuto:
-      case KeywordValue::kNone:
+      case KeywordValue::kContent:
         computed_value_ = keyword;
         break;
 
@@ -1245,7 +1245,6 @@ class ComputedFlexBasisProvider : public ComputedWidthValueProvider {
       case KeywordValue::kColumn:
       case KeywordValue::kColumnReverse:
       case KeywordValue::kContain:
-      case KeywordValue::kContent:
       case KeywordValue::kCover:
       case KeywordValue::kCurrentColor:
       case KeywordValue::kCursive:
@@ -1270,6 +1269,7 @@ class ComputedFlexBasisProvider : public ComputedWidthValueProvider {
       case KeywordValue::kMiddle:
       case KeywordValue::kMonoscopic:
       case KeywordValue::kMonospace:
+      case KeywordValue::kNone:
       case KeywordValue::kNoRepeat:
       case KeywordValue::kNormal:
       case KeywordValue::kNowrap:
