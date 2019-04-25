@@ -45,8 +45,8 @@ class DebuggerCommandError(Exception):
   """Exception when an error response is received for a command."""
 
   def __init__(self, error):
-    msg = '[{}] {}'.format(error['code'], error['message'])
-    super(DebuggerCommandError, self).__init__(msg)
+    code = '[{}] '.format(error['code']) if 'code' in error else ''
+    super(DebuggerCommandError, self).__init__(code + error['message'])
 
 
 class DebuggerConnection(object):
@@ -93,7 +93,9 @@ class DebuggerConnection(object):
     }
     if params:
       msg['params'] = params
-    if _DEBUG: logging.debug('send >>>>>>>> %s', msg)
+    if _DEBUG:
+      logging.debug('send >>>>>>>>\n%s\n>>>>>>>>',
+                    json.dumps(msg, sort_keys=True, indent=4))
     self.ws.send(json.dumps(msg))
     self.commands[self.last_id] = msg
     return self.last_id
@@ -141,7 +143,9 @@ class DebuggerConnection(object):
   def _receive_message(self):
     """Receives one message and stores it in either responses or events."""
     msg = json.loads(self.ws.recv())
-    if _DEBUG: logging.debug('recv <<<<<<<< %s', msg)
+    if _DEBUG:
+      logging.debug('recv <<<<<<<<\n%s\n<<<<<<<<',
+                    json.dumps(msg, sort_keys=True, indent=4))
     if 'id' in msg:
       self.responses[msg['id']] = msg
     elif 'method' in msg:
@@ -197,6 +201,97 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
           debugger.evaluate_js('console.log("hello")')
           console_event = debugger.wait_event('Runtime.consoleAPICalled')
           self.assertEqual('hello', console_event['params']['args'][0]['value'])
+
+          debugger.evaluate_js('onEndTest()')
+          self.assertTrue(runner.JSTestsSucceeded())
+
+  def test_dom(self):
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(file_name='testdata/web_debugger.html')
+      with self.CreateCobaltRunner(url=url) as runner:
+        with self.create_debugger_connection(runner) as debugger:
+          runner.WaitForJSTestsSetup()
+          debugger.enable_runtime()
+          debugger.run_command('DOM.enable')
+
+          doc_response = debugger.run_command('DOM.getDocument')
+          doc_root = doc_response['result']['root']
+          self.assertEqual('#document', doc_root['nodeName'])
+
+          doc_url = doc_root['documentURL']
+          # remove query params (cert_scope, etc.)
+          doc_url = doc_url.split('?')[0]
+          self.assertEqual(url, doc_url)
+
+          # document: <html><head></head><body></body></html>
+          html_node = doc_root['children'][0]
+          body_node = html_node['children'][1]
+          self.assertEqual('BODY', body_node['nodeName'])
+
+          # body:
+          #   <h1><span>Web debugger</span></h1>
+          #   <div#test>
+          #     <div#A><div#A1/><div#A2/></div#A>
+          #     <div#B/>
+          #   </div#test>
+          debugger.run_command(
+              'DOM.requestChildNodes',
+              {'nodeId': body_node['nodeId'], 'depth': 3})
+          child_nodes_event = debugger.wait_event('DOM.setChildNodes')
+
+          h1 = child_nodes_event['params']['nodes'][0]
+          span = h1['children'][0]
+          text = span['children'][0]
+          self.assertEqual('H1', h1['nodeName'])
+          self.assertEqual('SPAN', span['nodeName'])
+          self.assertEqual('#text', text['nodeName'])
+          self.assertEqual('Web debugger', text['nodeValue'])
+
+          test_div = child_nodes_event['params']['nodes'][1]
+          child_a = test_div['children'][0]
+          child_a1 = child_a['children'][0]
+          child_a2 = child_a['children'][1]
+          child_b = test_div['children'][1]
+          self.assertEqual(2, test_div['childNodeCount'])
+          self.assertEqual(2, child_a['childNodeCount'])
+          self.assertEqual(0, child_b['childNodeCount'])
+          self.assertEqual(['id', 'test'], test_div['attributes'])
+          self.assertEqual(['id', 'A'], child_a['attributes'])
+          self.assertEqual(['id', 'A1'], child_a1['attributes'])
+          self.assertEqual(['id', 'A2'], child_a2['attributes'])
+          self.assertEqual(['id', 'B'], child_b['attributes'])
+          self.assertEqual([], child_b['children'])
+
+          # Repeat, but only to depth 2 - not reporting children of A & B.
+          debugger.run_command(
+              'DOM.requestChildNodes',
+              {'nodeId': body_node['nodeId'], 'depth': 2})
+          child_nodes_event = debugger.wait_event('DOM.setChildNodes')
+
+          test_div = child_nodes_event['params']['nodes'][1]
+          child_a = test_div['children'][0]
+          child_b = test_div['children'][1]
+          self.assertFalse('children' in child_a)
+          self.assertFalse('children' in child_b)
+          self.assertEqual(2, test_div['childNodeCount'])
+          self.assertEqual(2, child_a['childNodeCount'])
+          self.assertEqual(0, child_b['childNodeCount'])
+          self.assertEqual(['id', 'test'], test_div['attributes'])
+          self.assertEqual(['id', 'A'], child_a['attributes'])
+          self.assertEqual(['id', 'B'], child_b['attributes'])
+
+          # Repeat, to default depth of 1 - not reporting children of "#test".
+          debugger.run_command(
+              'DOM.requestChildNodes',
+              {'nodeId': body_node['nodeId']})
+          child_nodes_event = debugger.wait_event('DOM.setChildNodes')
+
+          test_div = child_nodes_event['params']['nodes'][1]
+          self.assertFalse('children' in test_div)
+          self.assertEqual(2, test_div['childNodeCount'])
+          self.assertEqual(['id', 'test'], test_div['attributes'])
+
+          # TODO: Test DOM.requestNode() and DOM.resolveNode()
 
           debugger.evaluate_js('onEndTest()')
           self.assertTrue(runner.JSTestsSucceeded())

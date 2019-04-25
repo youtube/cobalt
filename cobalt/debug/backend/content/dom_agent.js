@@ -172,7 +172,7 @@ devtools.Node = function(node) {
   this.nodeName = node.nodeName;
   this.nodeType = node.nodeType;
   this.nodeValue = node.nodeValue || '';
-  this.childNodeCount = node.childNodes.length;
+  this.childNodeCount = _getChildNodes(node, 1).length;
 
   if (node.attributes) {
     this.attributes = [];
