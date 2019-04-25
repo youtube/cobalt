@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <android/log.h>
+#ifndef STARBOARD_SHARED_STARBOARD_LOG_MUTEX_H_
+#define STARBOARD_SHARED_STARBOARD_LOG_MUTEX_H_
 
-#include "starboard/android/shared/log_internal.h"
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
+#include "starboard/common/recursive_mutex.h"
 
-void SbLogRaw(const char* message) {
-  __android_log_write(kSbLogPriorityInfo, "starboard", message);
-  SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
-}
+namespace starboard {
+namespace shared {
+namespace starboard {
+
+// Returns a pointer to a global recursive mutex that will be used as the
+// synchronization primitive for all Starboard logging.
+RecursiveMutex* GetLoggingMutex();
+
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_STARBOARD_LOG_MUTEX_H_
