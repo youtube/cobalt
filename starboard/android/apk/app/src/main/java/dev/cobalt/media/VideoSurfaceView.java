@@ -30,6 +30,8 @@ import dev.cobalt.util.Log;
  */
 public class VideoSurfaceView extends SurfaceView {
 
+  private static Surface currentSurface = null;
+
   public VideoSurfaceView(Context context) {
     super(context);
     initialize(context);
@@ -67,7 +69,8 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      nativeOnVideoSurfaceChanged(holder.getSurface());
+      currentSurface = holder.getSurface();
+      nativeOnVideoSurfaceChanged(currentSurface);
     }
 
     @Override
@@ -81,7 +84,12 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      nativeOnVideoSurfaceChanged(null);
+      currentSurface = null;
+      nativeOnVideoSurfaceChanged(currentSurface);
     }
+  }
+
+  public static Surface getCurrentSurface() {
+    return currentSurface;
   }
 }
