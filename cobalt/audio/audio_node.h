@@ -117,6 +117,8 @@ class AudioNode : public dom::EventTarget {
 
   AudioLock* audio_lock() const { return audio_lock_.get(); }
 
+  void TraceMembers(script::Tracer* tracer) override;
+
   DEFINE_WRAPPABLE_TYPE(AudioNode);
 
  protected:
@@ -141,7 +143,9 @@ class AudioNode : public dom::EventTarget {
   AudioNodeInputVector inputs_;
   AudioNodeOutputVector outputs_;
 
-  AudioContext* audio_context_;
+  // We use a WeakPtr here to break a cyclical dependency caused by AudioContext
+  // storing a set of AudioContext pointers.
+  base::WeakPtr<AudioContext> audio_context_;
 
   scoped_refptr<AudioLock> audio_lock_;
 
