@@ -26,6 +26,7 @@
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_declared_style_data.h"
@@ -6963,6 +6964,25 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
   EXPECT_FLOAT_EQ(0.0f, matrix_function->value().Get(2, 0));
   EXPECT_FLOAT_EQ(0.0f, matrix_function->value().Get(2, 1));
   EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(2, 2));
+}
+
+TEST_F(ParserTest, ParsesCobaltUiNavSpotlightTransform) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "transform: -cobalt-ui-nav-spotlight-transform();",
+          source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->GetPropertyValue(cssom::kTransformProperty).get());
+  ASSERT_TRUE(transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::CobaltUiNavSpotlightTransformFunction* spotlight_function =
+      dynamic_cast<const cssom::CobaltUiNavSpotlightTransformFunction*>(
+          transform_list->value()[0]);
+  ASSERT_TRUE(spotlight_function);
 }
 
 TEST_F(ParserTest, ParsesMultipleTransforms) {

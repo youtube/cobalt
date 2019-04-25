@@ -750,24 +750,44 @@ TEST_F(ScannerTest, ScansUnknownDashFunctionWithoutClosingAtEnd) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+namespace {
+// Array of known dash functions and their associated tokens.
+struct {
+  const char* text;
+  int token;
+} known_dash_functions[] = {
+  { "-cobalt-mtm", kCobaltMtmFunctionToken },
+  { "-cobalt-ui-nav-spotlight-transform",
+    kCobaltUiNavSpotlightTransformFunctionToken },
+};
+}  // namespace
+
 TEST_F(ScannerTest, ScansKnownDashFunction) {
-  Scanner scanner("-cobalt-mtm()", &string_pool_);
+  for (size_t i = 0; i < SB_ARRAY_SIZE(known_dash_functions); ++i) {
+    std::string text(known_dash_functions[i].text);
+    text += "()";
 
-  ASSERT_EQ(kCobaltMtmFunctionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-
-  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+    Scanner scanner(text.c_str(), &string_pool_);
+    ASSERT_EQ(known_dash_functions[i].token,
+              yylex(&token_value_, &token_location_, &scanner)) << text;
+    ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner)) << text;
+    ASSERT_EQ(kEndOfFileToken,
+              yylex(&token_value_, &token_location_, &scanner)) << text;
+  }
 }
 
 TEST_F(ScannerTest, ScansKnownDashFunctionWithoutClosingAtEnd) {
-  Scanner scanner("-cobalt-mtm(", &string_pool_);
+  for (size_t i = 0; i < SB_ARRAY_SIZE(known_dash_functions); ++i) {
+    std::string text(known_dash_functions[i].text);
+    text += "(";
 
-  ASSERT_EQ(kCobaltMtmFunctionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-
-  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+    Scanner scanner(text.c_str(), &string_pool_);
+    ASSERT_EQ(known_dash_functions[i].token,
+              yylex(&token_value_, &token_location_, &scanner)) << text;
+    ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner)) << text;
+    ASSERT_EQ(kEndOfFileToken,
+              yylex(&token_value_, &token_location_, &scanner)) << text;
+  }
 }
 
 TEST_F(ScannerTest, ScansMinusNPlusConstant) {
