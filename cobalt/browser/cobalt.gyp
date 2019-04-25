@@ -103,7 +103,7 @@
           ],
           # TODO: Remove once the log.h is refactored to have only C linkage dependencies.
           'ldflags': [
-            'obj/starboard/shared/starboard/starboard_platform.log_message.cc.o',
+            'obj/starboard/common/common.log_message.cc.o',
           ],
           'ldflags/': [
             ['exclude', '-Wl,--wrap=eglSwapBuffers'],
