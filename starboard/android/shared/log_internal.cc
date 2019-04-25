@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This header provides a mechanism for multiple Android logging
-// formats to share a single log file handle.
+#include "starboard/android/shared/log_internal.h"
 
-#ifndef STARBOARD_ANDROID_SHARED_LOG_INTERNAL_H_
-#define STARBOARD_ANDROID_SHARED_LOG_INTERNAL_H_
+#include "starboard/log.h"
+#include "starboard/string.h"
 
-#include "starboard/shared/starboard/command_line.h"
-#include "starboard/time.h"
+namespace {
+  const char kLogSleepTimeSwitch[] = "android_log_sleep_time";
+  SbTime g_log_sleep_time = 0;
+}
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-void LogInit(const starboard::shared::starboard::CommandLine& command_line);
-SbTime GetLogSleepTime();
+void LogInit(const starboard::shared::starboard::CommandLine& command_line) {
+  if (command_line.HasSwitch(kLogSleepTimeSwitch)) {
+    g_log_sleep_time =
+        SbStringAToL(command_line.GetSwitchValue(kLogSleepTimeSwitch).c_str());
+    SB_LOG(INFO) << "Android log sleep time: " << g_log_sleep_time;
+  }
+}
+
+SbTime GetLogSleepTime() {
+  return g_log_sleep_time;
+}
 
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-
-#endif  // STARBOARD_ANDROID_SHARED_LOG_INTERNAL_H_
