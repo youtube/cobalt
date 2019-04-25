@@ -25,6 +25,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.Log;
@@ -56,6 +57,8 @@ public abstract class CobaltActivity extends NativeActivity {
 
   private VideoSurfaceView videoSurfaceView;
   private KeyboardEditor keyboardEditor;
+
+  private boolean forceCreateNewVideoSurfaceView = false;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -104,6 +107,11 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   protected void onStart() {
+    if (forceCreateNewVideoSurfaceView) {
+      Log.w(TAG, "Force to create a new video surface.");
+      createNewSurfaceView();
+    }
+
     getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
   }
@@ -112,6 +120,10 @@ public abstract class CobaltActivity extends NativeActivity {
   protected void onStop() {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
+
+    if (VideoSurfaceView.getCurrentSurface() != null) {
+      forceCreateNewVideoSurfaceView = true;
+    }
   }
 
   @Override
@@ -242,5 +254,22 @@ public abstract class CobaltActivity extends NativeActivity {
             videoSurfaceView.setLayoutParams(layoutParams);
           }
         });
+  }
+
+  private void createNewSurfaceView() {
+    ViewParent parent = videoSurfaceView.getParent();
+    if (parent instanceof FrameLayout) {
+      FrameLayout frameLayout = (FrameLayout) parent;
+      int index = frameLayout.indexOfChild(videoSurfaceView);
+      frameLayout.removeView(videoSurfaceView);
+      videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(videoSurfaceView);
+      frameLayout.addView(
+          videoSurfaceView,
+          index,
+          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    } else {
+      Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
+    }
   }
 }
