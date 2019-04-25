@@ -165,6 +165,18 @@
 // destination files in the source files and thus prevent breaks.
 #define SB_EXT_API_REFACTORING_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Log synchronization has been moved behind Starboard. The Starboard extended
+// API refactoring causes the mutex and minimum logging level used for Starboard
+// logging to no longer be guaranteed to be consistent with Cobalt. To combat
+// this, log synchronization has been moved behind Starboard and a requirement
+// that logging methods, such as SbLog or SbLogRaw, be thread-safe because they
+// will likely be called from multiple threads.
+//
+// Additionally, the minimum logging level is no longer set by Cobalt, and is
+// instead set by grabbing the value as a command-line argument within
+// Starboard.
+#define SB_LOG_SYNCHRONIZATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

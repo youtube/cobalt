@@ -14,12 +14,23 @@
 
 #include "starboard/common/log.h"
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
+
+#if SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+#include "starboard/shared/starboard/log_mutex.h"
+#endif  // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
 
 void SbLog(SbLogPriority priority, const char* message) {
   SB_UNREFERENCED_PARAMETER(priority);
+#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
   fprintf(stderr, "%s", message);
   fflush(stderr);
+#else   // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+  starboard::shared::starboard::GetLoggingMutex()->Acquire();
+  fprintf(stderr, "%s", message);
+  fflush(stderr);
+  starboard::shared::starboard::GetLoggingMutex()->Release();
+#endif  // SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
 }

@@ -241,6 +241,8 @@
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_open_record.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_read_record.cc',
       '<(DEPTH)/starboard/shared/starboard/log_message.cc',
+      '<(DEPTH)/starboard/shared/starboard/log_mutex.cc',
+      '<(DEPTH)/starboard/shared/starboard/log_mutex.h',
       '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
       '<(DEPTH)/starboard/shared/starboard/log_raw_format.cc',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',

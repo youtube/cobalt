@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/event.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
@@ -34,6 +35,7 @@ namespace {
 
 const char kPreloadSwitch[] = "preload";
 const char kLinkSwitch[] = "link";
+const char kMinLogLevel[] = "min_log_level";
 
 // Dispatches an event of |type| with |data| to the system event handler,
 // calling |destructor| on |data| when finished dispatching. Does all
@@ -101,12 +103,21 @@ int Application::Run(CommandLine command_line, const char* link_data) {
 int Application::Run(CommandLine command_line) {
   Initialize();
   command_line_.reset(new CommandLine(command_line));
+
   if (command_line_->HasSwitch(kLinkSwitch)) {
     std::string value = command_line_->GetSwitchValue(kLinkSwitch);
     if (!value.empty()) {
       SetStartLink(value.c_str());
     }
   }
+#if SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+  if (command_line_->HasSwitch(kMinLogLevel)) {
+    ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
+        command_line_->GetSwitchValue(kMinLogLevel)));
+  } else {
+    ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_INFO);
+  }
+#endif  // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
 
   return RunLoop();
 }

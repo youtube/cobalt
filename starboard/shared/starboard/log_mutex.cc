@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <android/log.h>
+#include "starboard/shared/starboard/log_mutex.h"
 
-#include "starboard/android/shared/log_internal.h"
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
+#include "starboard/configuration.h"
+#include "starboard/once.h"
 
-void SbLogRaw(const char* message) {
-  __android_log_write(kSbLogPriorityInfo, "starboard", message);
-  SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace {
+SB_ONCE_INITIALIZE_FUNCTION(RecursiveMutex, g_log_mutex);
+}  // namespace
+
+RecursiveMutex* GetLoggingMutex() {
+  return g_log_mutex();
 }
+
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
