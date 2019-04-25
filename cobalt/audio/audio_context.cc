@@ -97,6 +97,9 @@ void AudioContext::TraceMembers(script::Tracer* tracer) {
   dom::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(destination_);
+  for (const auto& source : buffer_sources_) {
+    tracer->Trace(source);
+  }
 }
 
 void AudioContext::DecodeAudioData(
