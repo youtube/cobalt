@@ -23,8 +23,10 @@
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -65,6 +67,117 @@ TEST(PromoteToComputedStyle, UnknownPropertyValueShouldBeEmpty) {
 
   EXPECT_EQ(
       computed_style_declaration->GetPropertyValue("cobalt_cobalt_cobalt"), "");
+}
+
+TEST(PromoteToComputedStyle, FlexBasisPercentage) {
+  // The computed value for flex-basis is the specified keyword or a computed
+  // <length-percentage> value.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_flex_basis(new PercentageValue(0.50f));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  EXPECT_EQ(KeywordValue::GetAuto(), parent_computed_style->width());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  PercentageValue* flex_basis = base::polymorphic_downcast<PercentageValue*>(
+      computed_style->flex_basis().get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(0.50f, flex_basis->value());
+}
+
+TEST(PromoteToComputedStyle, FlexBasisKeyword) {
+  // The computed value for flex-basis is the specified keyword or a computed
+  // <length-percentage> value.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_flex_basis(KeywordValue::GetContent());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+  ASSERT_TRUE(computed_style->IsDeclared(PropertyKey::kFlexBasisProperty));
+  EXPECT_EQ(KeywordValue::GetContent(), computed_style->flex_basis());
+}
+
+TEST(PromoteToComputedStyle, FlexBasisLength) {
+  // The computed value for flex-basis is the specified keyword or a computed
+  // <length-percentage> value.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_flex_basis(new LengthValue(100, kPixelsUnit));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  EXPECT_EQ(KeywordValue::GetAuto(), parent_computed_style->width());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  ASSERT_TRUE(computed_style->IsDeclared(PropertyKey::kFlexBasisProperty));
+  LengthValue* flex_basis = base::polymorphic_downcast<LengthValue*>(
+      computed_style->flex_basis().get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_EQ(100, flex_basis->value());
+  EXPECT_EQ(kPixelsUnit, flex_basis->unit());
+}
+
+TEST(PromoteToComputedStyle, FlexGrowNumber) {
+  // The computed value for flex-grow is the specified number.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-grow-property
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_flex_grow(new NumberValue(10.0f));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  ASSERT_TRUE(computed_style->IsDeclared(PropertyKey::kFlexGrowProperty));
+  NumberValue* flex_grow = base::polymorphic_downcast<NumberValue*>(
+      computed_style->flex_grow().get());
+  ASSERT_TRUE(flex_grow);
+  EXPECT_EQ(10.0f, flex_grow->value());
+}
+
+TEST(PromoteToComputedStyle, FlexShrinkNumber) {
+  // The computed value for flex-grow is the specified number.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-shrink-property
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_flex_shrink(new NumberValue(5.0f));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  ASSERT_TRUE(computed_style->IsDeclared(PropertyKey::kFlexShrinkProperty));
+  NumberValue* flex_shrink = base::polymorphic_downcast<NumberValue*>(
+      computed_style->flex_shrink().get());
+  ASSERT_TRUE(flex_shrink);
+  EXPECT_EQ(5.0f, flex_shrink->value());
 }
 
 TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
@@ -1109,6 +1222,27 @@ TEST(PromoteToComputedStyle, BoxShadowWithNone) {
                          parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->box_shadow());
+}
+
+TEST(PromoteToComputedStyle, OrderInteger) {
+  // The computed value for order is the specified integer.
+  //   https://www.w3.org/TR/css-flexbox-1/#order-property
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_order(new IntegerValue(-5));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  IntegerValue* order =
+      base::polymorphic_downcast<IntegerValue*>(computed_style->order().get());
+  ASSERT_TRUE(order);
+  EXPECT_FLOAT_EQ(-5, order->value());
 }
 
 TEST(PromoteToComputedStyle, OutlineColorWithCurrentColorValue) {
