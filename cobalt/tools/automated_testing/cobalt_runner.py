@@ -34,6 +34,8 @@ RE_WEBMODULE_LOADED = re.compile(
 ActionChains = webdriver_utils.import_selenium_module(
     submodule='webdriver.common.action_chains').ActionChains
 keys = webdriver_utils.import_selenium_module('webdriver.common.keys')
+selenium_exceptions = webdriver_utils.import_selenium_module(
+    'common.exceptions')
 
 DEFAULT_STARTUP_TIMEOUT_SECONDS = 2 * 60
 WEBDRIVER_HTTP_TIMEOUT_SECONDS = 2 * 60
@@ -41,6 +43,7 @@ COBALT_EXIT_TIMEOUT_SECONDS = 5
 PAGE_LOAD_WAIT_SECONDS = 30
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
+FIND_ELEMENT_RETRY_LIMIT = 20
 
 COBALT_WEBDRIVER_CAPABILITIES = {
     'browserName': 'cobalt',
@@ -339,12 +342,15 @@ class CobaltRunner(object):
     Returns:
       Python dictionary of values indexed by the cval names provided.
     """
-    javascript_code_list = ['h5vcc.cVal.getValue(\'{}\')'.format(name)
-                            for name in cval_name_list]
+    javascript_code_list = [
+        'h5vcc.cVal.getValue(\'{}\')'.format(name) for name in cval_name_list
+    ]
     javascript_code = 'return [' + ','.join(javascript_code_list) + ']'
     json_results = self.ExecuteJavaScript(javascript_code)
-    cval_value_list = [None if result is None else json.loads(result)
-                       for result in json_results]
+    cval_value_list = [
+        None if result is None else json.loads(result)
+        for result in json_results
+    ]
     return dict(zip(cval_name_list, cval_value_list))
 
   def GetUserAgent(self):
@@ -408,7 +414,19 @@ class CobaltRunner(object):
     Returns:
       Array of selected elements
     """
-    elements = self.webdriver.find_elements_by_css_selector(css_selector)
+    # The retry part below is a temporary workaround to handle command
+    # failures during a short window of stale Cobalt WindowDriver
+    # after navigation. We only introduced it because of limited time budget
+    # at the moment, please don't introduce any code that relies on it.
+    retry_count = 0
+    while retry_count < FIND_ELEMENT_RETRY_LIMIT:
+      retry_count += 1
+      try:
+        elements = self.webdriver.find_elements_by_css_selector(css_selector)
+      except selenium_exceptions.NoSuchElementException:
+        time.sleep(0.2)
+        continue
+      break
     if expected_num is not None and len(elements) != expected_num:
       raise CobaltRunner.AssertException(
           'Expected number of element {} is: {}, got {}'.format(
