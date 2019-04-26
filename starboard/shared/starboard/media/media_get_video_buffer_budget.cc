@@ -26,10 +26,12 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_height,
                                 int bits_per_pixel) {
   SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
   if ((resolution_width <= 1920 && resolution_height <= 1080) ||
       resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
       resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
+    // Specifies the maximum amount of memory used by video buffers of media
+    // source before triggering a garbage collection when the video resolution
+    // is lower than 1080p (1920x1080).
 #if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) && \
     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P != LEGACY_VIDEO_BUDGET_1080P
     SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P will be "
@@ -38,20 +40,38 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     return COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P;
 #else   // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) &&
     // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P != LEGACY_VIDEO_BUDGET_1080P
-    return 16 * 1024 * 1024;
+    return 30 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) &&
         // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P != LEGACY_VIDEO_BUDGET_1080P
   }
+
+  if (resolution_width <= 3840 && resolution_height <= 2160) {
+    if (bits_per_pixel <= 8) {
+      // Specifies the maximum amount of memory used by video buffers of media
+      // source before triggering a garbage collection when the video resolution
+      // is lower than 4k (3840x2160) and bit per pixel is lower than 8.
 #if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K) && \
     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K != LEGACY_VIDEO_BUDGET_4K
-  SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K will be "
-                      "deprecated in a future Starboard version.";
-  // Use define forwarded from GYP variable.
-  return COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
+      SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K will be "
+                          "deprecated in a future Starboard version.";
+      // Use define forwarded from GYP variable.
+      return COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
 #else   // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K) &&
-  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K != LEGACY_VIDEO_BUDGET_4K
-  return 60 * 1024 * 1024;
+      // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K != LEGACY_VIDEO_BUDGET_4K
+      return 100 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K) &&
         // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K != LEGACY_VIDEO_BUDGET_4K
+    } else {
+      // Specifies the maximum amount of memory used by video buffers of media
+      // source before triggering a garbage collection when video resolution is
+      // lower than 4k (3840x2160) and bit per pixel is greater than 8.
+      return 160 * 1024 * 1024;
+    }
+  }
+
+  // Specifies the maximum amount of memory used by video buffers of media
+  // source before triggering a garbage collection when the video resolution is
+  // lower than 8k (7680x4320).
+  return 300 * 1024 * 1024;
 }
 #endif  // SB_API_VERSION >= 10
