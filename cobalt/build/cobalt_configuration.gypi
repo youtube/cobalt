@@ -405,11 +405,11 @@
     # The maximum amount of memory that will be used to store media buffers when
     # video resolution is no larger than 1080p. This must be larger than sum of
     # 1080p video budget and non-video budget.
-    'cobalt_media_buffer_max_capacity_1080p%': 36 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_1080p%': 50 * 1024 * 1024,
     # The maximum amount of memory that will be used to store media buffers when
     # video resolution is 4k. If 0, then memory can grow without bound. This
     # must be larger than sum of 4k video budget and non-video budget.
-    'cobalt_media_buffer_max_capacity_4k%': 100 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_4k%': 140 * 1024 * 1024,
 
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
@@ -448,14 +448,14 @@
     # used by video buffers but will also make JavaScript app less likely to
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
-    'cobalt_media_buffer_video_budget_1080p%': 16 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_1080p%': 30 * 1024 * 1024,
     # Specifies the maximum amount of memory used by video buffers of media
     # source before triggering a garbage collection when the video resolution is
     # lower than 4k (3840x2160).  A large value will cause more memory being
     # used by video buffers but will also make JavaScript app less likely to
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
-    'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_4k%': 100 * 1024 * 1024,
 
     # Specifies the duration threshold of media source garbage collection.  When
     # the accumulated duration in a source buffer exceeds this value, the media
