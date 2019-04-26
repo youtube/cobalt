@@ -31,9 +31,11 @@
 #include "hb-mutex-private.hh"
 #include "hb-object-private.hh"
 
-#if !defined(STARBOARD)  // Still compiles without this include.
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#else  // !defined(STARBOARD)
 #include <locale.h>
-#endif
+#endif  // defined(STARBOARD)
 
 
 /* hb_options_t */
@@ -347,7 +349,11 @@ hb_language_get_default (void)
 
   hb_language_t language = (hb_language_t) hb_atomic_ptr_get (&default_language);
   if (unlikely (language == HB_LANGUAGE_INVALID)) {
+#if defined(STARBOARD)
+    language = hb_language_from_string (SbSystemGetLocaleId(), -1);
+#else  // !defined(STARBOARD)
     language = hb_language_from_string (setlocale (LC_CTYPE, NULL), -1);
+#endif  // defined(STARBOARD)
     (void) hb_atomic_ptr_cmpexch (&default_language, HB_LANGUAGE_INVALID, language);
   }
 
