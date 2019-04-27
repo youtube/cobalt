@@ -37,6 +37,11 @@ std::string DebugBackend::CreateRemoteObject(
   return script_debugger_->CreateRemoteObject(object, group);
 }
 
+const script::ValueHandleHolder* DebugBackend::LookupRemoteObjectId(
+    const std::string& objectId) {
+  return script_debugger_->LookupRemoteObjectId(objectId);
+}
+
 }  // namespace backend
 }  // namespace debug
 }  // namespace cobalt

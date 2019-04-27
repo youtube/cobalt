@@ -195,6 +195,38 @@ std::string V8cScriptDebugger::CreateRemoteObject(
   return FromStringView(remote_object->toJSONString()->string());
 }
 
+const script::ValueHandleHolder* V8cScriptDebugger::LookupRemoteObjectId(
+    const std::string& object_id) {
+  DCHECK(inspector_session_);
+
+  v8::Isolate* isolate = global_environment_->isolate();
+  EntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  V8cExceptionState exception_state(isolate);
+
+  std::unique_ptr<v8_inspector::StringBuffer> error;
+  v8::Local<v8::Value> v8_value;
+  if (!inspector_session_->unwrapObject(&error, ToStringView(object_id),
+                                        &v8_value, &context,
+                                        nullptr /*objectGroup*/)) {
+    std::string err_string = FromStringView(error->string());
+    exception_state.SetSimpleException(kRangeError, "%s", err_string.c_str());
+    return nullptr;
+  }
+
+  scoped_ptr<V8cValueHandleHolder> holder(new V8cValueHandleHolder());
+  FromJSValue(isolate, v8_value, 0 /*conversion_flags*/, &exception_state,
+              holder.get());
+
+  V8cValueHandleHolder* retval = holder.get();
+  // Keep the scoped_ptr alive in a no-op task so the holder stays valid until
+  // the bindings code gets the v8::Value out of it through the raw pointer.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind([](scoped_ptr<V8cValueHandleHolder>) {},
+                            base::Passed(&holder)));
+  return retval;
+}
+
 void V8cScriptDebugger::StartTracing(const std::vector<std::string>& categories,
                                      TraceDelegate* trace_delegate) {
   V8cTracingController* tracing_controller = GetTracingController();

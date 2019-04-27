@@ -54,6 +54,12 @@ class StubScriptDebugger : public ScriptDebugger {
     return "{}";
   }
 
+  const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& object_id) override {
+    NOTIMPLEMENTED();
+    return nullptr;
+  }
+
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) {
     NOTIMPLEMENTED();

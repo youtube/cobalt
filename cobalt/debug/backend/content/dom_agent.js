@@ -77,7 +77,7 @@ commands.resolveNode = function(params) {
   var node = commands._findNode(params);
   var result = {};
   result.object =
-      debugBackend.createRemoteObject(node, params.objectGroup);
+      JSON.parse(debugBackend.createRemoteObject(node, params.objectGroup));
 
   return JSON.stringify(result);
 }
@@ -126,8 +126,7 @@ commands._findNode = function(params) {
   }
 
   if (params.objectId != null) {
-    // TODO: Add an IDL method to debugBackend.
-    return debugBackend.runtime.getObject(params.objectId);
+    return debugBackend.lookupRemoteObjectId(params.objectId);
   }
 
   // Either nodeId or objectId must be specified.
