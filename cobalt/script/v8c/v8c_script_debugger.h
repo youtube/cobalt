@@ -49,6 +49,8 @@ class V8cScriptDebugger : public ScriptDebugger,
 
   std::string CreateRemoteObject(const ValueHandleHolder& object,
                                  const std::string& group) override;
+  const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& object_id) override;
 
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) override;
