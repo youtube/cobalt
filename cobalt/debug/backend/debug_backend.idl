@@ -18,8 +18,9 @@
 interface DebugBackend {
   void sendEvent(DOMString method, DOMString? params);
 
-  // TODO: Move into a RuntimeAgent wrappable.
-  DOMString createRemoteObject(any obj, DOMString group);
+  // Convert between JS objects and a remote representation for the frontend.
+  DOMString createRemoteObject(object obj, DOMString group);
+  object lookupRemoteObjectId(DOMString objectId);
 
   // Expose the native C++ part of hybrid agents for their JS part to use.
   readonly attribute CSSAgent nativeCssAgent;

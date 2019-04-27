@@ -57,6 +57,9 @@ class DebugBackend : public script::Wrappable {
   // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
   std::string CreateRemoteObject(const script::ValueHandleHolder& object,
                                  const std::string& group);
+  // Returns the JavaScript object given the ID of a RemoteObject.
+  const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& objectId);
 
   scoped_refptr<CSSAgent> native_css_agent() { return css_agent_; }
 

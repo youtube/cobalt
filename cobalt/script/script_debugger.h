@@ -114,6 +114,12 @@ class ScriptDebugger {
   virtual std::string CreateRemoteObject(const ValueHandleHolder& object,
                                          const std::string& group) = 0;
 
+  // Lookup the object ID that was in the JSON from |CreateRemoteObject| and
+  // return the JavaScript object that it refers to.
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
+  virtual const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& object_id) = 0;
+
   // For performance tracing of JavaScript methods.
   virtual void StartTracing(const std::vector<std::string>& categories,
                             TraceDelegate* trace_delegate) = 0;
