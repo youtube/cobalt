@@ -1583,14 +1583,14 @@ base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
 base::Optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const LayoutUnit& flex_container_main_size,
-    bool* width_depends_on_flex_container) {
+    bool* flex_basis_depends_on_flex_container) {
   // Percentage values of flex-basis are resolved against the flex item's
   // containing block (i.e. its flex container).
   //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
   UsedLengthProvider used_length_provider(flex_container_main_size);
   computed_style->flex_basis()->Accept(&used_length_provider);
-  if (width_depends_on_flex_container != NULL) {
-    *width_depends_on_flex_container =
+  if (flex_basis_depends_on_flex_container != NULL) {
+    *flex_basis_depends_on_flex_container =
         used_length_provider.depends_on_containing_block();
   }
   return used_length_provider.used_length();
