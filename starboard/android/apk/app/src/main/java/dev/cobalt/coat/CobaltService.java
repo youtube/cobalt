@@ -37,8 +37,11 @@ public abstract class CobaltService {
   public abstract void afterStopped();
 
   // Service API
-  public class ResponseToClient {
+  /** Response to client from calls to receiveFromClient(). */
+  public static class ResponseToClient {
+    /** Indicate if the service was unable to receive data because it is in an invalid state. */
     public boolean invalidState;
+    /** The synchronous response data from the service. */
     public byte[] data;
   }
 
