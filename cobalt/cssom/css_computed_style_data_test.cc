@@ -26,6 +26,202 @@
 namespace cobalt {
 namespace cssom {
 
+TEST(CSSComputedStyleDataTest, AlignContentSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAlignContentProperty),
+            style->align_content());
+  EXPECT_EQ(style->align_content(),
+            style->GetPropertyValue(kAlignContentProperty));
+
+  style->set_align_content(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->align_content());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAlignContentProperty));
+
+  style->SetPropertyValue(kAlignContentProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->align_content());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAlignContentProperty));
+}
+
+TEST(CSSComputedStyleDataTest, AlignItemsSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAlignItemsProperty), style->align_items());
+  EXPECT_EQ(style->align_items(), style->GetPropertyValue(kAlignItemsProperty));
+
+  style->set_align_items(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->align_items());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAlignItemsProperty));
+
+  style->SetPropertyValue(kAlignItemsProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->align_items());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAlignItemsProperty));
+}
+
+TEST(CSSComputedStyleDataTest, AlignSelfSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAlignSelfProperty), style->align_self());
+  EXPECT_EQ(style->align_self(), style->GetPropertyValue(kAlignSelfProperty));
+
+  style->set_align_self(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->align_self());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAlignSelfProperty));
+
+  style->SetPropertyValue(kAlignSelfProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->align_self());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAlignSelfProperty));
+}
+
+TEST(CSSComputedStyleDataTest, AnimationDelaySettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationDelayProperty),
+            style->animation_delay());
+  EXPECT_EQ(style->animation_delay(),
+            style->GetPropertyValue(kAnimationDelayProperty));
+
+  style->set_animation_delay(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_delay());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationDelayProperty));
+
+  style->SetPropertyValue(kAnimationDelayProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_delay());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationDelayProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     AnimationDirectionSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationDirectionProperty),
+            style->animation_direction());
+  EXPECT_EQ(style->animation_direction(),
+            style->GetPropertyValue(kAnimationDirectionProperty));
+
+  style->set_animation_direction(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_direction());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationDirectionProperty));
+
+  style->SetPropertyValue(kAnimationDirectionProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_direction());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationDirectionProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     AnimationDurationSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationDurationProperty),
+            style->animation_duration());
+  EXPECT_EQ(style->animation_duration(),
+            style->GetPropertyValue(kAnimationDurationProperty));
+
+  style->set_animation_duration(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_duration());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationDurationProperty));
+
+  style->SetPropertyValue(kAnimationDurationProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_duration());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationDurationProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     AnimationFillModeSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationFillModeProperty),
+            style->animation_fill_mode());
+  EXPECT_EQ(style->animation_fill_mode(),
+            style->GetPropertyValue(kAnimationFillModeProperty));
+
+  style->set_animation_fill_mode(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_fill_mode());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationFillModeProperty));
+
+  style->SetPropertyValue(kAnimationFillModeProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_fill_mode());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationFillModeProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     AnimationIterationCountSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationIterationCountProperty),
+            style->animation_iteration_count());
+  EXPECT_EQ(style->animation_iteration_count(),
+            style->GetPropertyValue(kAnimationIterationCountProperty));
+
+  style->set_animation_iteration_count(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_iteration_count());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationIterationCountProperty));
+
+  style->SetPropertyValue(kAnimationIterationCountProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_iteration_count());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationIterationCountProperty));
+}
+
+TEST(CSSComputedStyleDataTest, AnimationNameSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationNameProperty),
+            style->animation_name());
+  EXPECT_EQ(style->animation_name(),
+            style->GetPropertyValue(kAnimationNameProperty));
+
+  style->set_animation_name(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_name());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationNameProperty));
+
+  style->SetPropertyValue(kAnimationNameProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_name());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationNameProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     AnimationTimingFunctionSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kAnimationTimingFunctionProperty),
+            style->animation_timing_function());
+  EXPECT_EQ(style->animation_timing_function(),
+            style->GetPropertyValue(kAnimationTimingFunctionProperty));
+
+  style->set_animation_timing_function(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->animation_timing_function());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kAnimationTimingFunctionProperty));
+
+  style->SetPropertyValue(kAnimationTimingFunctionProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->animation_timing_function());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kAnimationTimingFunctionProperty));
+}
+
 TEST(CSSComputedStyleDataTest, BackgroundColorSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -122,74 +318,6 @@ TEST(CSSComputedStyleDataTest, BackgroundSizeSettersAndGettersAreConsistent) {
   EXPECT_EQ(KeywordValue::GetInherit(), style->background_size());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kBackgroundSizeProperty));
-}
-
-TEST(CSSComputedStyleDataTest, BorderRadiusSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
-
-  EXPECT_EQ(GetPropertyInitialValue(kBorderTopLeftRadiusProperty),
-            style->border_top_left_radius());
-  EXPECT_EQ(style->border_top_left_radius(),
-            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
-
-  style->set_border_top_left_radius(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_left_radius());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
-
-  style->SetPropertyValue(kBorderTopLeftRadiusProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_left_radius());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
-
-  EXPECT_EQ(GetPropertyInitialValue(kBorderTopRightRadiusProperty),
-            style->border_top_right_radius());
-  EXPECT_EQ(style->border_top_right_radius(),
-            style->GetPropertyValue(kBorderTopRightRadiusProperty));
-
-  style->set_border_top_right_radius(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_right_radius());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderTopRightRadiusProperty));
-
-  style->SetPropertyValue(kBorderTopRightRadiusProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_right_radius());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderTopRightRadiusProperty));
-
-  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomRightRadiusProperty),
-            style->border_bottom_right_radius());
-  EXPECT_EQ(style->border_bottom_right_radius(),
-            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
-
-  style->set_border_bottom_right_radius(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_right_radius());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
-
-  style->SetPropertyValue(kBorderBottomRightRadiusProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_right_radius());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
-
-  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomLeftRadiusProperty),
-            style->border_bottom_left_radius());
-  EXPECT_EQ(style->border_bottom_left_radius(),
-            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
-
-  style->set_border_bottom_left_radius(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_left_radius());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
-
-  style->SetPropertyValue(kBorderBottomLeftRadiusProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_left_radius());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
 }
 
 TEST(CSSComputedStyleDataTest, BorderTopColorSettersAndGettersAreConsistent) {
@@ -657,6 +785,108 @@ TEST(CSSComputedStyleDataTest, BorderLeftWidthIsZeroWhenStyleIsNoneOrHidden) {
             style->GetPropertyValue(kBorderLeftWidthProperty));
 }
 
+TEST(CSSComputedStyleDataTest, BorderRadiusSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopLeftRadiusProperty),
+            style->border_top_left_radius());
+  EXPECT_EQ(style->border_top_left_radius(),
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
+
+  style->set_border_top_left_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_left_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
+
+  style->SetPropertyValue(kBorderTopLeftRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_left_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopRightRadiusProperty),
+            style->border_top_right_radius());
+  EXPECT_EQ(style->border_top_right_radius(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  style->set_border_top_right_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_right_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  style->SetPropertyValue(kBorderTopRightRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_right_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomRightRadiusProperty),
+            style->border_bottom_right_radius());
+  EXPECT_EQ(style->border_bottom_right_radius(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  style->set_border_bottom_right_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_right_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  style->SetPropertyValue(kBorderBottomRightRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_right_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomLeftRadiusProperty),
+            style->border_bottom_left_radius());
+  EXPECT_EQ(style->border_bottom_left_radius(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
+
+  style->set_border_bottom_left_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_left_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
+
+  style->SetPropertyValue(kBorderBottomLeftRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_left_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
+}
+
+TEST(CSSComputedStyleDataTest, BottomSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBottomProperty), style->bottom());
+  EXPECT_EQ(style->bottom(), style->GetPropertyValue(kBottomProperty));
+
+  style->set_bottom(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->bottom());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBottomProperty));
+
+  style->SetPropertyValue(kBottomProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->bottom());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBottomProperty));
+}
+
+TEST(CSSComputedStyleDataTest, BoxShadowSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBoxShadowProperty), style->box_shadow());
+  EXPECT_EQ(style->box_shadow(), style->GetPropertyValue(kBoxShadowProperty));
+
+  style->set_box_shadow(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->box_shadow());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBoxShadowProperty));
+
+  style->SetPropertyValue(kBoxShadowProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->box_shadow());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBoxShadowProperty));
+}
+
 TEST(CSSComputedStyleDataTest, ColorSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -723,6 +953,93 @@ TEST(CSSComputedStyleDataTest, FilterSettersAndGettersAreConsistent) {
   EXPECT_EQ(KeywordValue::GetInherit(), style->filter());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kFilterProperty));
+}
+
+TEST(CSSComputedStyleDataTest, FlexBasisSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFlexBasisProperty), style->flex_basis());
+  EXPECT_EQ(style->flex_basis(), style->GetPropertyValue(kFlexBasisProperty));
+
+  style->set_flex_basis(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->flex_basis());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFlexBasisProperty));
+
+  style->SetPropertyValue(kFlexBasisProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->flex_basis());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFlexBasisProperty));
+}
+
+TEST(CSSComputedStyleDataTest, FlexDirectionSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFlexDirectionProperty),
+            style->flex_direction());
+  EXPECT_EQ(style->flex_direction(),
+            style->GetPropertyValue(kFlexDirectionProperty));
+
+  style->set_flex_direction(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->flex_direction());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFlexDirectionProperty));
+
+  style->SetPropertyValue(kFlexDirectionProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->flex_direction());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFlexDirectionProperty));
+}
+
+TEST(CSSComputedStyleDataTest, FlexGrowSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFlexGrowProperty), style->flex_grow());
+  EXPECT_EQ(style->flex_grow(), style->GetPropertyValue(kFlexGrowProperty));
+
+  style->set_flex_grow(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->flex_grow());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFlexGrowProperty));
+
+  style->SetPropertyValue(kFlexGrowProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->flex_grow());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFlexGrowProperty));
+}
+
+TEST(CSSComputedStyleDataTest, FlexShrinkSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFlexShrinkProperty), style->flex_shrink());
+  EXPECT_EQ(style->flex_shrink(), style->GetPropertyValue(kFlexShrinkProperty));
+
+  style->set_flex_shrink(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->flex_shrink());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFlexShrinkProperty));
+
+  style->SetPropertyValue(kFlexShrinkProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->flex_shrink());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFlexShrinkProperty));
+}
+
+TEST(CSSComputedStyleDataTest, FlexWrapSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFlexWrapProperty), style->flex_wrap());
+  EXPECT_EQ(style->flex_wrap(), style->GetPropertyValue(kFlexWrapProperty));
+
+  style->set_flex_wrap(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->flex_wrap());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFlexWrapProperty));
+
+  style->SetPropertyValue(kFlexWrapProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->flex_wrap());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFlexWrapProperty));
 }
 
 TEST(CSSComputedStyleDataTest, FontFamilySettersAndGettersAreConsistent) {
@@ -809,6 +1126,40 @@ TEST(CSSComputedStyleDataTest, HeightSettersAndGettersAreConsistent) {
   EXPECT_EQ(KeywordValue::GetInherit(), style->height());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kHeightProperty));
+}
+
+TEST(CSSComputedStyleDataTest, JustifyContentSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kJustifyContentProperty),
+            style->justify_content());
+  EXPECT_EQ(style->justify_content(),
+            style->GetPropertyValue(kJustifyContentProperty));
+
+  style->set_justify_content(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->justify_content());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kJustifyContentProperty));
+
+  style->SetPropertyValue(kJustifyContentProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->justify_content());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kJustifyContentProperty));
+}
+
+TEST(CSSComputedStyleDataTest, LeftSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kLeftProperty), style->left());
+  EXPECT_EQ(style->left(), style->GetPropertyValue(kLeftProperty));
+
+  style->set_left(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->left());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->GetPropertyValue(kLeftProperty));
+
+  style->SetPropertyValue(kLeftProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->left());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->GetPropertyValue(kLeftProperty));
 }
 
 TEST(CSSComputedStyleDataTest, LineHeightSettersAndGettersAreConsistent) {
@@ -983,6 +1334,23 @@ TEST(CSSComputedStyleDataTest, OpacitySettersAndGettersAreConsistent) {
   EXPECT_EQ(KeywordValue::GetInherit(), style->opacity());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kOpacityProperty));
+}
+
+TEST(CSSComputedStyleDataTest, OrderSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kOrderProperty), style->order());
+  EXPECT_EQ(style->order(), style->GetPropertyValue(kOrderProperty));
+
+  style->set_order(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->order());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kOrderProperty));
+
+  style->SetPropertyValue(kOrderProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->order());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kOrderProperty));
 }
 
 TEST(CSSComputedStyleDataTest, OutlineColorSettersAndGettersAreConsistent) {
@@ -1243,6 +1611,23 @@ TEST(CSSComputedStyleDataTest, PositionSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kPositionProperty));
 }
 
+TEST(CSSComputedStyleDataTest, RightSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kRightProperty), style->right());
+  EXPECT_EQ(style->right(), style->GetPropertyValue(kRightProperty));
+
+  style->set_right(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->right());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kRightProperty));
+
+  style->SetPropertyValue(kRightProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->right());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kRightProperty));
+}
+
 TEST(CSSComputedStyleDataTest, TextAlignSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -1338,6 +1723,23 @@ TEST(CSSComputedStyleDataTest, TextOverflowSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kTextOverflowProperty));
 }
 
+TEST(CSSComputedStyleDataTest, TextShadowSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kTextShadowProperty), style->text_shadow());
+  EXPECT_EQ(style->text_shadow(), style->GetPropertyValue(kTextShadowProperty));
+
+  style->set_text_shadow(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->text_shadow());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kTextShadowProperty));
+
+  style->SetPropertyValue(kTextShadowProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->text_shadow());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kTextShadowProperty));
+}
+
 TEST(CSSComputedStyleDataTest, TextTransformSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -1357,6 +1759,21 @@ TEST(CSSComputedStyleDataTest, TextTransformSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kTextTransformProperty));
 }
 
+TEST(CSSComputedStyleDataTest, TopSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kTopProperty), style->top());
+  EXPECT_EQ(style->top(), style->GetPropertyValue(kTopProperty));
+
+  style->set_top(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->top());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->GetPropertyValue(kTopProperty));
+
+  style->SetPropertyValue(kTopProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->top());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->GetPropertyValue(kTopProperty));
+}
+
 TEST(CSSComputedStyleDataTest, TransformSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -1372,6 +1789,25 @@ TEST(CSSComputedStyleDataTest, TransformSettersAndGettersAreConsistent) {
   EXPECT_EQ(KeywordValue::GetInherit(), style->transform());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kTransformProperty));
+}
+
+TEST(CSSComputedStyleDataTest, TransformOriginSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kTransformOriginProperty),
+            style->transform_origin());
+  EXPECT_EQ(style->transform_origin(),
+            style->GetPropertyValue(kTransformOriginProperty));
+
+  style->set_transform_origin(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->transform_origin());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kTransformOriginProperty));
+
+  style->SetPropertyValue(kTransformOriginProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->transform_origin());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kTransformOriginProperty));
 }
 
 TEST(CSSComputedStyleDataTest, TransitionDelaySettersAndGettersAreConsistent) {
