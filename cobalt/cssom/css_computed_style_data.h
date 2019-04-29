@@ -466,13 +466,6 @@ class CSSComputedStyleData
     SetPropertyValue(kLineHeightProperty, line_height);
   }
 
-  const scoped_refptr<PropertyValue>& margin() const {
-    return GetPropertyValueReference(kMarginProperty);
-  }
-  void set_margin(const scoped_refptr<PropertyValue>& margin) {
-    SetPropertyValue(kMarginProperty, margin);
-  }
-
   const scoped_refptr<PropertyValue>& margin_bottom() const {
     return GetPropertyValueReference(kMarginBottomProperty);
   }
