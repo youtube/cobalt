@@ -339,7 +339,7 @@ base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
 base::Optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const LayoutUnit& flex_container_main_size,
-    bool* width_depends_on_flex_container);
+    bool* flex_basis_depends_on_flex_container);
 base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
