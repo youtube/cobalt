@@ -47,7 +47,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                    **kwargs)
     if not self.device_id:
       if socket.has_ipv6:  #  If the device supports IPv6:
-        self.device_id = "::1"  #  Use the only IPv6 loopback address
+        self.device_id = "[::1]"  #  Use IPv6 loopback address (rfc2732 format).
       else:
         self.device_id = socket.gethostbyname("localhost")  # pylint: disable=W6503
 
