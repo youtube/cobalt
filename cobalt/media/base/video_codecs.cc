@@ -516,6 +516,11 @@ VideoCodec StringToVideoCodec(const std::string& codec_id) {
       codec_id == "vp9.2") {
     return kCodecVP9;
   }
+  // We don't parse the full codec string as it must have been checked by
+  // isTypeSupported() before passing into this function.
+  if (codec_id.substr(0, 5) == "vp09.") {
+    return kCodecVP9;
+  }
   gfx::ColorSpace color_space;
   if (ParseAv1CodecId(codec_id, &profile, &level, &color_space))
     return kCodecAV1;
