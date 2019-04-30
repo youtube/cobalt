@@ -17,23 +17,29 @@
 #include "starboard/log.h"
 #include "starboard/once.h"
 
+namespace starboard {
+namespace shared {
+namespace blittergles {
+
 namespace {
 // Keep track of a global device registry that will be accessed by calls to
 // create/destroy devices.
-starboard::shared::blittergles::SbBlitterDeviceRegistry* s_device_registry =
-    NULL;
+SbBlitterDeviceRegistry* s_device_registry = NULL;
 SbOnceControl s_device_registry_once_control = SB_ONCE_INITIALIZER;
 
 void EnsureDeviceRegistryInitialized() {
-  s_device_registry =
-      new starboard::shared::blittergles::SbBlitterDeviceRegistry();
+  s_device_registry = new SbBlitterDeviceRegistry();
   s_device_registry->default_device = NULL;
 }
+
 }  // namespace
 
-starboard::shared::blittergles::SbBlitterDeviceRegistry*
-starboard::shared::blittergles::GetBlitterDeviceRegistry() {
+SbBlitterDeviceRegistry* GetBlitterDeviceRegistry() {
   SbOnce(&s_device_registry_once_control, &EnsureDeviceRegistryInitialized);
 
   return s_device_registry;
 }
+
+}  // namespace blittergles
+}  // namespace shared
+}  // namespace starboard
