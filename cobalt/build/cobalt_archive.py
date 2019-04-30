@@ -170,13 +170,13 @@ class Bundler:
       content_file_list.AddAllFilesInPath(root_dir=_SRC_CONTENT_PATH,
                                           sub_dir=_SRC_CONTENT_PATH)
       for file_path, archive_path in content_file_list.file_list:
-        print file_path, archive_path
+        # Skip the fake metadata.json file because the real one
+        # is a generated in it's place.
+        if os.path.basename(file_path) == 'metadata.json':
+          continue
         zf.write(file_path, arcname=archive_path)
       # Write out the metadata.
       zf.writestr(_OUT_METADATA_PATH, build_info_str)
-      # TODO: Remove line below after device server has been updated and
-      # restarted.
-      zf.writestr('deploy_info.json', build_info_str)
       if file_list.file_list:
         print('  Compressing ' + str(len(file_list.file_list)) + ' files')
       for file_path, archive_path in file_list.file_list:
