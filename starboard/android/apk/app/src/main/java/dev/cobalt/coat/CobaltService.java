@@ -38,10 +38,16 @@ public abstract class CobaltService {
 
   // Service API
   /** Response to client from calls to receiveFromClient(). */
+  @SuppressWarnings("unused")
+  @UsedByNative
   public static class ResponseToClient {
     /** Indicate if the service was unable to receive data because it is in an invalid state. */
+    @SuppressWarnings("unused")
+    @UsedByNative
     public boolean invalidState;
     /** The synchronous response data from the service. */
+    @SuppressWarnings("unused")
+    @UsedByNative
     public byte[] data;
   }
 
