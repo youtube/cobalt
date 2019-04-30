@@ -51,13 +51,25 @@
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.h',
     '<(DEPTH)/third_party/skia/src/ports/SkGlobalInitialization_none.cpp',
   ],
-
-  # Exclude all unused files in skia utils.gypi file
+  # Exclude all unused skia files
   'sources!': [
+    # codec
+    '<(DEPTH)/third_party/skia/src/codec/SkAndroidCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkRawAdapterCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkSampledCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkWebpAdapterCodec.cpp',
+
+    # core
+    '<(DEPTH)/third_party/skia/src/core/SkExecutor.cpp',
+    '<(DEPTH)/third_party/skia/src/core/SkTaskGroup.cpp',
+    '<(DEPTH)/third_party/skia/src/core/SkMultiPictureDraw.cpp',
+
+    # utils concurrency
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.h',
     '<(DEPTH)/third_party/skia/src/utils/SkRunnable.h',
 
+    # utils paint
     '<(DEPTH)/third_party/skia/include/utils/SkBoundaryPatch.h',
     '<(DEPTH)/third_party/skia/include/utils/SkCamera.h',
     '<(DEPTH)/third_party/skia/include/utils/SkCanvasStateUtils.h',
@@ -77,6 +89,7 @@
     '<(DEPTH)/third_party/skia/include/utils/SkRandom.h',
     '<(DEPTH)/third_party/skia/include/utils/SkWGL.h',
 
+    # utils bitmap
     '<(DEPTH)/third_party/skia/src/utils/SkBitmapHasher.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkBitmapHasher.h',
     '<(DEPTH)/third_party/skia/src/utils/SkBoundaryPatch.cpp',
