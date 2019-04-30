@@ -79,6 +79,7 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecAac,
 #if SB_HAS(AC3_AUDIO)
   kSbMediaAudioCodecAc3,
+  kSbMediaAudioCodecEac3,
 #endif  // SB_HAS(AC3_AUDIO)
   kSbMediaAudioCodecOpus,
   kSbMediaAudioCodecVorbis,
@@ -483,11 +484,11 @@ typedef struct SbMediaAudioHeader {
 
   // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1:
   // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
-#if SB_API_VERSION >= 6
+#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   const void* audio_specific_config;
-#else   // SB_API_VERSION >= 6
+#else  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   int8_t audio_specific_config[8];
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 } SbMediaAudioHeader;
 
 #if SB_API_VERSION < 10
@@ -691,8 +692,20 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_width,
                                           int resolution_height,
                                           int bits_per_pixel);
-
 #endif  // SB_API_VERSION >= 10
+
+#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+// Communicate to the platform how far past |current_playback_position| the app
+// will write audio samples. The app will write all samples between
+// |current_playback_position| and |current_playback_position| + |duration|, as
+// soon as they are available. The app may sometimes write more samples than
+// that, but the app only guarantees to write |duration| past
+// |current_playback_position| in general. The platform is responsible for
+// guaranteeing that when only |duration| audio samples are written at a time,
+// no playback issues occur (such as transient or indefinite hanging). The
+// platform may assume |duration| >= 0.5 seconds.
+SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
+#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"

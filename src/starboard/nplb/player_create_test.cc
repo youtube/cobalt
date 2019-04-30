@@ -24,10 +24,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER_WITH_URL)
-// This test does not apply. See player_create_with_url_test.cc instead.
-#else  // SB_HAS(PLAYER_WITH_URL)
-
 using ::starboard::testing::FakeGraphicsContextProvider;
 
 class SbPlayerTest : public ::testing::Test {
@@ -290,9 +286,15 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut};
 
   constexpr SbMediaAudioCodec kAudioCodecs[] = {
-      kSbMediaAudioCodecNone,
+    kSbMediaAudioCodecNone,
 
-      kSbMediaAudioCodecAac, kSbMediaAudioCodecOpus, kSbMediaAudioCodecVorbis,
+    kSbMediaAudioCodecAac,
+#if SB_HAS(AC3_AUDIO)
+    kSbMediaAudioCodecAc3,
+    kSbMediaAudioCodecEac3,
+#endif  // SB_HAS(AC3_AUDIO)
+    kSbMediaAudioCodecOpus,
+    kSbMediaAudioCodecVorbis,
   };
 
   // TODO: turn this into a macro.
@@ -305,6 +307,10 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kAudioCodecs[1]:
     case kAudioCodecs[2]:
     case kAudioCodecs[3]:
+#if SB_HAS(AC3_AUDIO)
+    case kAudioCodecs[4]:
+    case kAudioCodecs[5]:
+#endif  // SB_HAS(AC3_AUDIO)
       break;
   }
 
@@ -374,7 +380,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   }
 }
 #endif  // SB_API_VERSION >= 10
-#endif  // SB_HAS(PLAYER_WITH_URL)
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

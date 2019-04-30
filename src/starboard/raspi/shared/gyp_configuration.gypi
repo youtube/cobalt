@@ -46,6 +46,10 @@
       '-Wno-narrowing',
       '-Wno-unknown-pragmas',
       '-Wno-type-limits',  # TODO: We should actually look into these.
+      # It's OK not to use some input parameters. Note that the order
+      # matters: Wall implies Wunused-parameter and Wno-unused-parameter
+      # has no effect if specified before Wall.
+      '-Wno-unused-parameter',
 
       # Specify the sysroot with all your include dependencies.
       '--sysroot=<(sysroot)',

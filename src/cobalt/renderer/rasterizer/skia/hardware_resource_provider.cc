@@ -321,11 +321,11 @@ scoped_refptr<render_tree::Image>
         info.is_opaque ? render_tree::kAlphaFormatOpaque
                        : render_tree::kAlphaFormatUnpremultiplied;
 
-    scoped_ptr<math::Rect> content_region;
+    scoped_ptr<math::RectF> content_region;
     if (plane.content_region.left != 0 || plane.content_region.top != 0 ||
         plane.content_region.right != plane.width ||
         plane.content_region.bottom != plane.height) {
-      content_region.reset(new math::Rect(
+      content_region.reset(new math::RectF(
           plane.content_region.left, plane.content_region.top,
           plane.content_region.right - plane.content_region.left,
           plane.content_region.bottom - plane.content_region.top));

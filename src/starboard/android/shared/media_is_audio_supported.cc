@@ -25,6 +25,11 @@ using starboard::android::shared::SupportedAudioCodecToMimeType;
 
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                                        int64_t bitrate) {
+  // Android now uses libopus based opus decoder.
+  if (audio_codec == kSbMediaAudioCodecOpus &&
+      bitrate < SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND) {
+    return true;
+  }
   const char* mime = SupportedAudioCodecToMimeType(audio_codec);
   if (!mime) {
     return false;

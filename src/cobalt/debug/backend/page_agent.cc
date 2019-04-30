@@ -31,18 +31,9 @@ namespace debug {
 namespace backend {
 
 namespace {
-// Parameter field names:
-const char kFrameId[] = "result.frameTree.frame.id";
-const char kLoaderId[] = "result.frameTree.frame.loaderId";
-const char kMimeType[] = "result.frameTree.frame.mimeType";
-const char kResources[] = "result.frameTree.resources";
-const char kSecurityOrigin[] = "result.frameTree.frame.securityOrigin";
-const char kUrl[] = "result.frameTree.frame.url";
-
-// Constant parameter values:
-const char kFrameIdValue[] = "Cobalt";
-const char kLoaderIdValue[] = "Cobalt";
-const char kMimeTypeValue[] = "text/html";
+// Definitions from the set specified here:
+// https://chromedevtools.github.io/devtools-protocol/tot/Page
+constexpr char kInspectorDomain[] = "Page";
 }  // namespace
 
 PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
@@ -51,33 +42,52 @@ PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
     : window_(window),
       render_layer_(render_layer.Pass()),
       resource_provider_(resource_provider),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
-  DCHECK(dispatcher);
+      dispatcher_(dispatcher),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+  DCHECK(dispatcher_);
   DCHECK(window_);
   DCHECK(window_->document());
   DCHECK(render_layer_);
   DCHECK(resource_provider_);
 
-  commands_["Page.disable"] = &PageAgent::Disable;
-  commands_["Page.enable"] = &PageAgent::Enable;
-  commands_["Page.getResourceTree"] = &PageAgent::GetResourceTree;
-  commands_["Page.setOverlayMessage"] = &PageAgent::SetOverlayMessage;
+  commands_["disable"] = &PageAgent::Disable;
+  commands_["enable"] = &PageAgent::Enable;
+  commands_["reload"] = &PageAgent::Reload;
+  commands_["getResourceTree"] = &PageAgent::GetResourceTree;
+  commands_["setOverlayMessage"] = &PageAgent::SetOverlayMessage;
+}
 
-  dispatcher->AddDomain("Page", commands_.Bind());
+void PageAgent::Thaw(JSONObject agent_state) {
+  UNREFERENCED_PARAMETER(agent_state);
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+JSONObject PageAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
 }
 
 void PageAgent::Disable(const Command& command) { command.SendResponse(); }
 
 void PageAgent::Enable(const Command& command) { command.SendResponse(); }
 
+void PageAgent::Reload(const Command& command) {
+  // We don't care about the 'ignoreCache' parameter since navigating creates a
+  // new WebModule with a new cache (i.e. cache is always cleared on navigate).
+  window_->location()->Reload();
+  command.SendResponse();
+}
+
 void PageAgent::GetResourceTree(const Command& command) {
   JSONObject response(new base::DictionaryValue());
-  response->SetString(kFrameId, kFrameIdValue);
-  response->SetString(kLoaderId, kLoaderIdValue);
-  response->SetString(kMimeType, kMimeTypeValue);
-  response->SetString(kSecurityOrigin, window_->document()->url());
-  response->SetString(kUrl, window_->document()->url());
-  response->Set(kResources, new base::ListValue());
+  JSONObject frame(new base::DictionaryValue());
+  frame->SetString("id", "Cobalt");
+  frame->SetString("loaderId", "Cobalt");
+  frame->SetString("mimeType", "text/html");
+  frame->SetString("securityOrigin", window_->document()->url());
+  frame->SetString("url", window_->document()->url());
+  response->Set("result.frameTree.frame", frame.release());
+  response->Set("result.frameTree.resources", new base::ListValue());
   command.SendResponse(response);
 }
 
@@ -96,8 +106,8 @@ void PageAgent::SetOverlayMessage(const Command& command) {
     render_tree::ColorRGBA text_color(0.0f, 0.0f, 0.0f, 1.0f);
 
     scoped_refptr<render_tree::Font> font =
-        resource_provider_->GetLocalTypeface("monospace",
-                                             render_tree::FontStyle())
+        resource_provider_
+            ->GetLocalTypeface("monospace", render_tree::FontStyle())
             ->CreateFontWithSize(font_size);
     scoped_refptr<render_tree::GlyphBuffer> glyph_buffer(
         resource_provider_->CreateGlyphBuffer(message, font));

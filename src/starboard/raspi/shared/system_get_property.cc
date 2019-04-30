@@ -18,6 +18,9 @@
 
 #include <string>
 
+#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#include "starboard/format_string.h"
+#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/log.h"
 #include "starboard/string.h"
 
@@ -49,7 +52,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyFirmwareVersion:
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
+#if SB_API_VERSION >= SB_ODM_VERSION
+    case kSbSystemPropertyOriginalDesignManufacturerName:
+#else
     case kSbSystemPropertyNetworkOperatorName:
+#endif
     case kSbSystemPropertySpeechApiKey:
       return false;
 

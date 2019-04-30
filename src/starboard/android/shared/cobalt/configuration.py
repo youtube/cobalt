@@ -22,11 +22,6 @@ from starboard.tools.testing import test_filter
 class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Android Cobalt shared configuration."""
 
-  def __init__(self, platform_configuration, application_name,
-               application_directory):
-    super(CobaltAndroidConfiguration, self).__init__(
-        platform_configuration, application_name, application_directory)
-
   def GetPostIncludes(self):
     # If there isn't a configuration.gypi found in the usual place, we'll
     # supplement with our shared implementation.
@@ -46,7 +41,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltAndroidConfiguration, self).GetTestFilters()
-    for target, tests in self._FAILING_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
@@ -57,15 +52,22 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
         'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
     }
 
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltAndroidConfiguration, self).GetWebPlatformTestFilters()
+    filters += [
+        # Test Name (content-security-policy/media-src/media-src-allowed.html):
+        # Allowed media src
+        # Disabled because of: Fail (Tests do not account for player with url?).
+        ('csp/WebPlatformTest.Run/'
+         'content_security_policy_media_src_media_src_allowed_html'),
+    ]
+    return filters
+
   # A map of failing or crashing tests per target.
-  _FAILING_TESTS = {
+  __FILTERED_TESTS = {
       'net_unittests': [
-          'DialHttpServerTest.AllOtherRequests',
-          'DialHttpServerTest.CallbackExceptionInServiceHandler',
-          'DialHttpServerTest.CallbackHandleRequestReturnsFalse',
-          'DialHttpServerTest.CallbackNormalTest',
-          'DialHttpServerTest.CurrentRunningAppRedirect',
-          'DialHttpServerTest.SendManifest',
+          # This test fails on multiple platforms with our current version of
+          # net library, and will be fixed when net is rebased.
           'HostResolverImplDnsTest.DnsTaskUnspec',
       ],
       'renderer_test': [

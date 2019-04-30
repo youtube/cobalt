@@ -27,15 +27,37 @@ class StubScriptDebugger : public ScriptDebugger {
   }
   ~StubScriptDebugger() override { NOTIMPLEMENTED(); }
 
-  void Attach() override { NOTIMPLEMENTED(); }
-  void Detach() override { NOTIMPLEMENTED(); }
+  void Attach(const std::string& state) override { NOTIMPLEMENTED(); }
+  std::string Detach() override {
+    NOTIMPLEMENTED();
+    return std::string();
+  }
 
-  bool CanDispatchProtocolMethod(const std::string& method) override {
+  bool EvaluateDebuggerScript(const std::string& js_code,
+                              std::string* out_result_utf8) override {
+    return false;
+  }
+
+  std::set<std::string> SupportedProtocolDomains() override {
+    NOTIMPLEMENTED();
+    return std::set<std::string>();
+  }
+  bool DispatchProtocolMessage(const std::string& method,
+                               const std::string& message) override {
     NOTIMPLEMENTED();
     return false;
   }
-  void DispatchProtocolMessage(const std::string& message) override {
+
+  std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                 const std::string& group) override {
     NOTIMPLEMENTED();
+    return "{}";
+  }
+
+  const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& object_id) override {
+    NOTIMPLEMENTED();
+    return nullptr;
   }
 
   void StartTracing(const std::vector<std::string>& categories,
@@ -44,20 +66,11 @@ class StubScriptDebugger : public ScriptDebugger {
   }
   void StopTracing() override { NOTIMPLEMENTED(); }
 
-  void Pause() override { NOTIMPLEMENTED(); }
-  void Resume() override { NOTIMPLEMENTED(); }
-  void SetBreakpoint(const std::string& script_id, int line_number,
-                     int column_number) override {
-    NOTIMPLEMENTED();
-  }
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override {
     NOTIMPLEMENTED();
     return kNone;
   }
-  void StepInto() override { NOTIMPLEMENTED(); }
-  void StepOut() override { NOTIMPLEMENTED(); }
-  void StepOver() override { NOTIMPLEMENTED(); }
 };
 
 // Static factory method declared in public interface.

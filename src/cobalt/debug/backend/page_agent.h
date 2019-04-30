@@ -38,15 +38,21 @@ class PageAgent {
             scoped_ptr<RenderLayer> render_layer,
             render_tree::ResourceProvider* resource_provider);
 
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
  private:
   void Enable(const Command& command);
   void Disable(const Command& command);
+  void Reload(const Command& command);
   void GetResourceTree(const Command& command);
   void SetOverlayMessage(const Command& command);
 
   dom::Window* window_;
   scoped_ptr<RenderLayer> render_layer_;
   render_tree::ResourceProvider* resource_provider_;
+
+  DebugDispatcher* dispatcher_;
 
   // Map of member functions implementing commands.
   CommandMap<PageAgent> commands_;

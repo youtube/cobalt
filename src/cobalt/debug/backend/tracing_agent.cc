@@ -24,16 +24,12 @@ namespace debug {
 namespace backend {
 
 namespace {
+// Definitions from the set specified here:
+// https://chromedevtools.github.io/devtools-protocol/tot/Tracing
+constexpr char kInspectorDomain[] = "Tracing";
+
 // Size in characters of JSON to batch dataCollected events.
 constexpr size_t kDataCollectedSize = 24 * 1024;
-
-// Parameter fields:
-constexpr char kValue[] = "value";
-constexpr char kCategories[] = "categories";
-
-// Events:
-constexpr char kDataCollected[] = "Tracing.dataCollected";
-constexpr char kTracingComplete[] = "Tracing.tracingComplete";
 }  // namespace
 
 TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
@@ -42,13 +38,21 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
       script_debugger_(script_debugger),
       tracing_started_(false),
       collected_size_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
   DCHECK(dispatcher_);
 
-  commands_["Tracing.end"] = &TracingAgent::End;
-  commands_["Tracing.start"] = &TracingAgent::Start;
+  commands_["end"] = &TracingAgent::End;
+  commands_["start"] = &TracingAgent::Start;
+}
 
-  dispatcher_->AddDomain("Tracing", commands_.Bind());
+void TracingAgent::Thaw(JSONObject agent_state) {
+  UNREFERENCED_PARAMETER(agent_state);
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+JSONObject TracingAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
 }
 
 void TracingAgent::End(const Command& command) {
@@ -77,7 +81,7 @@ void TracingAgent::Start(const Command& command) {
   // Parse comma-separated tracing categories parameter.
   std::vector<std::string> categories;
   std::string category_param;
-  if (params->GetString(kCategories, &category_param)) {
+  if (params->GetString("categories", &category_param)) {
     for (size_t pos = 0, comma; pos < category_param.size(); pos = comma + 1) {
       comma = category_param.find(',', pos);
       if (comma == std::string::npos) comma = category_param.size();
@@ -111,7 +115,8 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
 
 void TracingAgent::FlushTraceEvents() {
   SendDataCollectedEvent();
-  dispatcher_->SendEvent(kTracingComplete, JSONObject());
+  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete",
+                         JSONObject());
 }
 
 void TracingAgent::SendDataCollectedEvent() {
@@ -119,8 +124,9 @@ void TracingAgent::SendDataCollectedEvent() {
     collected_size_ = 0;
     JSONObject params(new base::DictionaryValue());
     // Releasing the list into the value param avoids copying it.
-    params->Set(kValue, collected_events_.release());
-    dispatcher_->SendEvent(kDataCollected, params);
+    params->Set("value", collected_events_.release());
+    dispatcher_->SendEvent(std::string(kInspectorDomain) + ".dataCollected",
+                           params);
   }
 }
 

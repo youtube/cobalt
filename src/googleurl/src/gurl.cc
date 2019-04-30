@@ -27,14 +27,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#if defined(STARBOARD)
-#include "starboard/once.h"
-#elif defined(WIN32)
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
-
 #include <algorithm>
 #include <ostream>
 
@@ -44,6 +36,15 @@
 #include "googleurl/src/url_canon_stdstring.h"
 #include "googleurl/src/url_constants.h"
 #include "googleurl/src/url_util.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/once.h"
+#elif defined(WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 namespace {
 
@@ -549,6 +550,11 @@ bool GURL::DomainIs(const char* lower_ascii_domain,
     return false;
 
   return true;
+}
+
+bool GURL::DomainIs(const char* lower_ascii_domain) const {
+  return DomainIs(lower_ascii_domain,
+                  static_cast<int>(strlen(lower_ascii_domain)));
 }
 
 void GURL::Swap(GURL* other) {

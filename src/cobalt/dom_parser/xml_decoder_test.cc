@@ -57,8 +57,8 @@ TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
   const std::string input = "<ELEMENT></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -81,8 +81,8 @@ TEST_F(XMLDecoderTest, CanParseCDATASection) {
       "</ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -104,8 +104,8 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
   const std::string input = "<ELEMENT a=\"1\" b=\"2\"></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -126,8 +126,8 @@ TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
   const std::string input = "<ELEMENT><element></element></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -144,8 +144,8 @@ TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
   const std::string input = "<ELEMENT A=\"1\" a=\"2\"></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -168,8 +168,8 @@ TEST_F(XMLDecoderTest, CanDealWithFileAttack) {
       "<element>&ent;</element>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -184,8 +184,8 @@ TEST_F(XMLDecoderTest, CanDealWithHTMLAttack) {
       "<element>&ent;</element>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -200,8 +200,8 @@ TEST_F(XMLDecoderTest, CanDealWithAttack) {
       "<element>&ent;</element>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -216,8 +216,8 @@ TEST_F(XMLDecoderTest, CanDealWithPEAttack) {
       "<element>hey</element>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -232,8 +232,8 @@ TEST_F(XMLDecoderTest, CanDealWithDTDAttack) {
       "<element>hey</element>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -264,8 +264,8 @@ TEST_F(XMLDecoderTest, CanDealWithLaughsAttack) {
       "<element>&ha15;</element>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -284,8 +284,8 @@ TEST_F(XMLDecoderTest, CanDealWithXIncludeAttack) {
       "</root>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_))));
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 

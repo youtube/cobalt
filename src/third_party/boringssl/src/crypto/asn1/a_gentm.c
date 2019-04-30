@@ -63,6 +63,7 @@
 #include <openssl/mem.h>
 
 #include "asn1_locl.h"
+#include "asn1_internal.h"
 
 int asn1_generalizedtime_to_tm(struct tm *tm, const ASN1_GENERALIZEDTIME *d)
 {
@@ -191,7 +192,7 @@ int ASN1_GENERALIZEDTIME_set_string(ASN1_GENERALIZEDTIME *s, const char *str)
     ASN1_GENERALIZEDTIME t;
 
     t.type = V_ASN1_GENERALIZEDTIME;
-    t.length = strlen(str);
+    t.length = OPENSSL_port_strlen(str);
     t.data = (unsigned char *)str;
     if (ASN1_GENERALIZEDTIME_check(&t)) {
         if (s != NULL) {
@@ -251,7 +252,7 @@ ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_adj(ASN1_GENERALIZEDTIME *s,
     BIO_snprintf(p, len, "%04d%02d%02d%02d%02d%02dZ", ts->tm_year + 1900,
                  ts->tm_mon + 1, ts->tm_mday, ts->tm_hour, ts->tm_min,
                  ts->tm_sec);
-    tmps->length = strlen(p);
+    tmps->length = OPENSSL_port_strlen(p);
     tmps->type = V_ASN1_GENERALIZEDTIME;
     return tmps;
  err:

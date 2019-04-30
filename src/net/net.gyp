@@ -37,9 +37,9 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-        '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'export_dependent_settings': [
@@ -820,8 +820,8 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
-        '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
         'http_server',  # This is needed by dial_http_server in net
         'net',
         'net_copy_test_data',
@@ -1125,7 +1125,7 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:test_support_base',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
+        '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
         'net',
       ],
       'export_dependent_settings': [

@@ -67,17 +67,14 @@ class HTMLImageElement : public HTMLElement {
   void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);
   void AllowGarbageCollectionAfterEventIsDispatched(
       base::Token event_name,
-      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
   void DestroyScopedPreventGC(
-      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
 
   scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
-
-  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
-      prevent_gc_until_event_dispatch_;
 
   scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_load_complete_;

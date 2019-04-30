@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+#endif  // defined(STARBOARD)
+
 #include "cff.h"
 
 #include <cstring>
@@ -10,6 +14,13 @@
 
 #include "maxp.h"
 #include "cff_type2_charstring.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#define STRCHR_OTS strchr
+#else
+#define STRCHR_OTS std::strchr
+#endif
 
 // CFF - PostScript font program (Compact Font Format) table
 // http://www.microsoft.com/typography/otspec/cff.htm
@@ -150,7 +161,7 @@ bool ParseNameData(
         return OTS_FAILURE();
       }
       // [, ], ... are not allowed.
-      if (std::strchr("[](){}<>/% ", name[j])) {
+      if (STRCHR_OTS("[](){}<>/% ", name[j])) {
         return OTS_FAILURE();
       }
     }
@@ -1039,4 +1050,5 @@ OpenTypeCFF::~OpenTypeCFF() {
 
 }  // namespace ots
 
+#undef STRCHR_OTS
 #undef TABLE_NAME

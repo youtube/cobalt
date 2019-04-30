@@ -460,14 +460,14 @@ if (!defined(cobalt_media_buffer_initial_capacity)) {
 # video resolution is no larger than 1080p. This must be larger than sum of
 # 1080p video budget and non-video budget.
 if (!defined(cobalt_media_buffer_max_capacity_1080p)) {
-  cobalt_media_buffer_max_capacity_1080p = "(36 * 1024 * 1024)",
+  cobalt_media_buffer_max_capacity_1080p = "(50 * 1024 * 1024)",
 }
 
 # The maximum amount of memory that will be used to store media buffers when
 # video resolution is no larger than 4k. This must be larger than sum of 4k
 # video budget and non-video budget.
 if (!defined(cobalt_buffer_max_capacity_4k)) {
-  cobalt_media_buffer_max_capacity_4k = "(100 * 1024 * 1024)",
+  cobalt_media_buffer_max_capacity_4k = "(140 * 1024 * 1024)",
 }
 
 # When the media stack needs more memory to store media buffers, it will
@@ -518,7 +518,7 @@ if (!defined(cobalt_media_buffer_non_video_budget)) {
 # re-download video data.  Note that the JavaScript app may experience
 # significant difficulty if this value is too low.
 if (!defined(cobalt_media_buffer_video_budget_1080p)) {
-  cobalt_media_buffer_video_budget_1080p = "(16 * 1024 * 1024)"
+  cobalt_media_buffer_video_budget_1080p = "(30 * 1024 * 1024)"
 }
 # Specifies the maximum amount of memory used by video buffers of media
 # source before triggering a garbage collection when the video resolution is
@@ -527,7 +527,7 @@ if (!defined(cobalt_media_buffer_video_budget_1080p)) {
 # re-download video data.  Note that the JavaScript app may experience
 # significant difficulty if this value is too low.
 if (!defined(cobalt_media_buffer_video_budget_4k)) {
-  cobalt_media_buffer_video_budget_4k = "(60 * 1024 * 1024)"
+  cobalt_media_buffer_video_budget_4k = "(100 * 1024 * 1024)"
 }
 
 # Specifies the duration threshold of media source garbage collection.  When the
@@ -553,8 +553,8 @@ if (!defined(cobalt_enable_lib)) {
 # Clients must copy over all content; to avoid having to copy over extra data,
 # we omit the test data
 _copy_test_data = (cobalt_config != "gold" && !cobalt_enable_lib)
-if (!defined(cobalt_copy_debug_console)) {
-  cobalt_copy_debug_console = _copy_test_data
+if (!defined(enable_debugger)) {
+  enable_debugger = _copy_test_data
 }
 if (!defined(cobalt_copy_test_data)) {
   cobalt_copy_test_data = _copy_test_data
@@ -567,9 +567,6 @@ if (!defined(enable_fake_microphone)) {
 }
 if (!defined(enable_network_logging)) {
   enable_network_logging = _copy_test_data
-}
-if (!defined(enable_remote_debugging)) {
-  enable_remote_debugging = _copy_test_data
 }
 if (!defined(enable_webdriver)) {
   enable_webdriver = _copy_test_data

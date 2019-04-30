@@ -341,7 +341,11 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -349,14 +353,18 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEnd:
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
-    case KeywordValue::kForwards:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -364,7 +372,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -372,16 +380,24 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -439,7 +455,11 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -448,6 +468,9 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -455,15 +478,16 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
-    case KeywordValue::kNoRepeat:
     case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -471,16 +495,24 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -545,7 +577,11 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -554,6 +590,9 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -561,6 +600,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -569,7 +609,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -577,16 +617,24 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -674,7 +722,11 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -683,6 +735,9 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -690,15 +745,16 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonospace:
     case KeywordValue::kMonoscopic:
+    case KeywordValue::kMonospace:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -706,16 +762,24 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -799,15 +863,22 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
-    case KeywordValue::kCursive:
     case KeywordValue::kCurrentColor:
+    case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -815,6 +886,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -822,7 +894,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -830,16 +902,24 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -861,7 +941,7 @@ void ComputedMaxHeightProvider::VisitPercentage(PercentageValue* percentage) {
 //   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
 class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
  public:
-  ComputedMinHeightProvider(const PropertyValue* parent_computed_min_max_height,
+  ComputedMinHeightProvider(const PropertyValue* parent_computed_height,
                             const LengthValue* computed_font_size,
                             const LengthValue* root_computed_font_size,
                             const math::Size& viewport_size, bool out_of_flow);
@@ -875,7 +955,7 @@ class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
   }
 
  private:
-  const PropertyValue* parent_computed_min_max_height_;
+  const PropertyValue* parent_computed_height_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
   const math::Size& viewport_size_;
@@ -887,11 +967,11 @@ class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
 };
 
 ComputedMinHeightProvider::ComputedMinHeightProvider(
-    const PropertyValue* parent_computed_min_max_height,
+    const PropertyValue* parent_computed_height,
     const LengthValue* computed_font_size,
     const LengthValue* root_computed_font_size, const math::Size& viewport_size,
     bool out_of_flow)
-    : parent_computed_min_max_height_(parent_computed_min_max_height),
+    : parent_computed_height_(parent_computed_height),
       computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
       viewport_size_(viewport_size),
@@ -920,15 +1000,22 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
-    case KeywordValue::kEquirectangular:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -936,6 +1023,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -944,7 +1032,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -952,16 +1040,24 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -969,11 +1065,11 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
 void ComputedMinHeightProvider::VisitPercentage(PercentageValue* percentage) {
   const scoped_refptr<PropertyValue>& auto_value = KeywordValue::GetAuto();
 
-  // If the min_height of the containing block is not specified explicitly
-  // (i.e., it depends on content min_height), and this element is not
+  // If the height of the containing block is not specified explicitly
+  // (i.e., it depends on content height), and this element is not
   // absolutely positioned, the percentage value is treated as '0'.
   //   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
-  if (parent_computed_min_max_height_ == auto_value && !out_of_flow_) {
+  if (parent_computed_height_ == auto_value && !out_of_flow_) {
     computed_min_height_ = new LengthValue(0, kPixelsUnit);
   } else {
     computed_min_height_ = percentage;
@@ -982,115 +1078,239 @@ void ComputedMinHeightProvider::VisitPercentage(PercentageValue* percentage) {
 
 // Computed value: the percentage or "auto" as specified or the absolute length.
 //   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
-class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
+class ComputedWidthValueProvider : public NotReachedPropertyValueVisitor {
  public:
-  ComputedWidthProvider(const LengthValue* computed_font_size,
-                        const LengthValue* root_computed_font_size,
-                        const math::Size& viewport_size);
+  ComputedWidthValueProvider(const LengthValue* computed_font_size,
+                             const LengthValue* root_computed_font_size,
+                             const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) override;
   void VisitLength(LengthValue* length) override;
   void VisitPercentage(PercentageValue* percentage) override;
 
-  const scoped_refptr<PropertyValue>& computed_width() const {
-    return computed_width_;
+  const scoped_refptr<PropertyValue>& computed_value() const {
+    return computed_value_;
   }
+
+ protected:
+  scoped_refptr<PropertyValue> computed_value_;
 
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
   const math::Size& viewport_size_;
 
-  scoped_refptr<PropertyValue> computed_width_;
-
-  DISALLOW_COPY_AND_ASSIGN(ComputedWidthProvider);
+  DISALLOW_COPY_AND_ASSIGN(ComputedWidthValueProvider);
 };
 
-ComputedWidthProvider::ComputedWidthProvider(
+ComputedWidthValueProvider::ComputedWidthValueProvider(
     const LengthValue* computed_font_size,
     const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
       viewport_size_(viewport_size) {}
 
-void ComputedWidthProvider::VisitLength(LengthValue* specified_length) {
-  computed_width_ =
+void ComputedWidthValueProvider::VisitLength(LengthValue* specified_length) {
+  computed_value_ =
       ProvideAbsoluteLength(specified_length, computed_font_size_,
                             root_computed_font_size_, viewport_size_);
 }
 
-void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
-  switch (keyword->value()) {
-    case KeywordValue::kAuto:
-      computed_width_ = keyword;
-      break;
+void ComputedWidthValueProvider::VisitPercentage(PercentageValue* percentage) {
+  computed_value_ = percentage;
+}
 
-    case KeywordValue::kAbsolute:
-    case KeywordValue::kAlternate:
-    case KeywordValue::kAlternateReverse:
-    case KeywordValue::kBackwards:
-    case KeywordValue::kBaseline:
-    case KeywordValue::kBlock:
-    case KeywordValue::kBoth:
-    case KeywordValue::kBottom:
-    case KeywordValue::kBreakWord:
-    case KeywordValue::kCenter:
-    case KeywordValue::kClip:
-    case KeywordValue::kContain:
-    case KeywordValue::kCover:
-    case KeywordValue::kCurrentColor:
-    case KeywordValue::kCursive:
-    case KeywordValue::kEllipsis:
-    case KeywordValue::kEnd:
-    case KeywordValue::kEquirectangular:
-    case KeywordValue::kFantasy:
-    case KeywordValue::kFixed:
-    case KeywordValue::kForwards:
-    case KeywordValue::kHidden:
-    case KeywordValue::kInfinite:
-    case KeywordValue::kInherit:
-    case KeywordValue::kInitial:
-    case KeywordValue::kInline:
-    case KeywordValue::kInlineBlock:
-    case KeywordValue::kLeft:
-    case KeywordValue::kLineThrough:
-    case KeywordValue::kMiddle:
-    case KeywordValue::kMonoscopic:
-    case KeywordValue::kMonospace:
-    case KeywordValue::kNone:
-    case KeywordValue::kNoRepeat:
-    case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
-    case KeywordValue::kPre:
-    case KeywordValue::kPreLine:
-    case KeywordValue::kPreWrap:
-    case KeywordValue::kRelative:
-    case KeywordValue::kRepeat:
-    case KeywordValue::kReverse:
-    case KeywordValue::kRight:
-    case KeywordValue::kSansSerif:
-    case KeywordValue::kSerif:
-    case KeywordValue::kSolid:
-    case KeywordValue::kStart:
-    case KeywordValue::kStatic:
-    case KeywordValue::kStereoscopicLeftRight:
-    case KeywordValue::kStereoscopicTopBottom:
-    case KeywordValue::kTop:
-    case KeywordValue::kUppercase:
-    case KeywordValue::kVisible:
-      NOTREACHED();
+// Computed value: For auto the width depends on the values of other properties.
+//  https://www.w3.org/TR/CSS21/visudet.html#the-width-property
+class ComputedWidthProvider : public ComputedWidthValueProvider {
+ public:
+  ComputedWidthProvider(const LengthValue* computed_font_size,
+                        const LengthValue* root_computed_font_size,
+                        const math::Size& viewport_size)
+      : ComputedWidthValueProvider(computed_font_size, root_computed_font_size,
+                                   viewport_size) {}
+
+  void VisitKeyword(KeywordValue* keyword) {
+    switch (keyword->value()) {
+      case KeywordValue::kAuto:
+        computed_value_ = keyword;
+        break;
+
+      case KeywordValue::kAbsolute:
+      case KeywordValue::kAlternate:
+      case KeywordValue::kAlternateReverse:
+      case KeywordValue::kBackwards:
+      case KeywordValue::kBaseline:
+      case KeywordValue::kBlock:
+      case KeywordValue::kBoth:
+      case KeywordValue::kBottom:
+      case KeywordValue::kBreakWord:
+      case KeywordValue::kCenter:
+      case KeywordValue::kClip:
+      case KeywordValue::kCollapse:
+      case KeywordValue::kColumn:
+      case KeywordValue::kColumnReverse:
+      case KeywordValue::kContain:
+      case KeywordValue::kContent:
+      case KeywordValue::kCover:
+      case KeywordValue::kCurrentColor:
+      case KeywordValue::kCursive:
+      case KeywordValue::kEllipsis:
+      case KeywordValue::kEnd:
+      case KeywordValue::kEquirectangular:
+      case KeywordValue::kFantasy:
+      case KeywordValue::kFixed:
+      case KeywordValue::kFlex:
+      case KeywordValue::kFlexEnd:
+      case KeywordValue::kFlexStart:
+      case KeywordValue::kForwards:
+      case KeywordValue::kHidden:
+      case KeywordValue::kInfinite:
+      case KeywordValue::kInherit:
+      case KeywordValue::kInitial:
+      case KeywordValue::kInline:
+      case KeywordValue::kInlineBlock:
+      case KeywordValue::kInlineFlex:
+      case KeywordValue::kLeft:
+      case KeywordValue::kLineThrough:
+      case KeywordValue::kMiddle:
+      case KeywordValue::kMonoscopic:
+      case KeywordValue::kMonospace:
+      case KeywordValue::kNone:
+      case KeywordValue::kNoRepeat:
+      case KeywordValue::kNormal:
+      case KeywordValue::kNowrap:
+      case KeywordValue::kPre:
+      case KeywordValue::kPreLine:
+      case KeywordValue::kPreWrap:
+      case KeywordValue::kRelative:
+      case KeywordValue::kRepeat:
+      case KeywordValue::kReverse:
+      case KeywordValue::kRight:
+      case KeywordValue::kRow:
+      case KeywordValue::kRowReverse:
+      case KeywordValue::kSansSerif:
+      case KeywordValue::kScroll:
+      case KeywordValue::kSerif:
+      case KeywordValue::kSolid:
+      case KeywordValue::kSpaceAround:
+      case KeywordValue::kSpaceBetween:
+      case KeywordValue::kStart:
+      case KeywordValue::kStatic:
+      case KeywordValue::kStereoscopicLeftRight:
+      case KeywordValue::kStereoscopicTopBottom:
+      case KeywordValue::kStretch:
+      case KeywordValue::kTop:
+      case KeywordValue::kUppercase:
+      case KeywordValue::kVisible:
+      case KeywordValue::kWrap:
+      case KeywordValue::kWrapReverse:
+        NOTREACHED();
+    }
   }
-}
 
-void ComputedWidthProvider::VisitPercentage(PercentageValue* percentage) {
-  computed_width_ = percentage;
-}
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ComputedWidthProvider);
+};
+
+// Computed value: For all values other than auto and content, flex-basis is
+// resolved the same way as width.
+//  https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+class ComputedFlexBasisProvider : public ComputedWidthValueProvider {
+ public:
+  ComputedFlexBasisProvider(const LengthValue* computed_font_size,
+                            const LengthValue* root_computed_font_size,
+                            const math::Size& viewport_size)
+      : ComputedWidthValueProvider(computed_font_size, root_computed_font_size,
+                                   viewport_size) {}
+
+  void VisitKeyword(KeywordValue* keyword) {
+    switch (keyword->value()) {
+      case KeywordValue::kAuto:
+      case KeywordValue::kContent:
+        computed_value_ = keyword;
+        break;
+
+      case KeywordValue::kAbsolute:
+      case KeywordValue::kAlternate:
+      case KeywordValue::kAlternateReverse:
+      case KeywordValue::kBackwards:
+      case KeywordValue::kBaseline:
+      case KeywordValue::kBlock:
+      case KeywordValue::kBoth:
+      case KeywordValue::kBottom:
+      case KeywordValue::kBreakWord:
+      case KeywordValue::kCenter:
+      case KeywordValue::kClip:
+      case KeywordValue::kCollapse:
+      case KeywordValue::kColumn:
+      case KeywordValue::kColumnReverse:
+      case KeywordValue::kContain:
+      case KeywordValue::kCover:
+      case KeywordValue::kCurrentColor:
+      case KeywordValue::kCursive:
+      case KeywordValue::kEllipsis:
+      case KeywordValue::kEnd:
+      case KeywordValue::kEquirectangular:
+      case KeywordValue::kFantasy:
+      case KeywordValue::kFixed:
+      case KeywordValue::kFlex:
+      case KeywordValue::kFlexEnd:
+      case KeywordValue::kFlexStart:
+      case KeywordValue::kForwards:
+      case KeywordValue::kHidden:
+      case KeywordValue::kInfinite:
+      case KeywordValue::kInherit:
+      case KeywordValue::kInitial:
+      case KeywordValue::kInline:
+      case KeywordValue::kInlineBlock:
+      case KeywordValue::kInlineFlex:
+      case KeywordValue::kLeft:
+      case KeywordValue::kLineThrough:
+      case KeywordValue::kMiddle:
+      case KeywordValue::kMonoscopic:
+      case KeywordValue::kMonospace:
+      case KeywordValue::kNone:
+      case KeywordValue::kNoRepeat:
+      case KeywordValue::kNormal:
+      case KeywordValue::kNowrap:
+      case KeywordValue::kPre:
+      case KeywordValue::kPreLine:
+      case KeywordValue::kPreWrap:
+      case KeywordValue::kRelative:
+      case KeywordValue::kRepeat:
+      case KeywordValue::kReverse:
+      case KeywordValue::kRight:
+      case KeywordValue::kRow:
+      case KeywordValue::kRowReverse:
+      case KeywordValue::kSansSerif:
+      case KeywordValue::kScroll:
+      case KeywordValue::kSerif:
+      case KeywordValue::kSolid:
+      case KeywordValue::kSpaceAround:
+      case KeywordValue::kSpaceBetween:
+      case KeywordValue::kStart:
+      case KeywordValue::kStatic:
+      case KeywordValue::kStereoscopicLeftRight:
+      case KeywordValue::kStereoscopicTopBottom:
+      case KeywordValue::kStretch:
+      case KeywordValue::kTop:
+      case KeywordValue::kUppercase:
+      case KeywordValue::kVisible:
+      case KeywordValue::kWrap:
+      case KeywordValue::kWrapReverse:
+        NOTREACHED();
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ComputedFlexBasisProvider);
+};
 
 // Computed value: the percentage or "auto" as specified or the absolute length.
 //   https://www.w3.org/TR/CSS2/visudet.html#min-max-widths
 class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
  public:
-  ComputedMinMaxWidthProvider(PropertyValue* parent_computed_min_max_height,
+  ComputedMinMaxWidthProvider(PropertyValue* parent_computed_width,
                               const LengthValue* computed_font_size,
                               const LengthValue* root_computed_font_size,
                               const math::Size& viewport_size);
@@ -1104,7 +1324,7 @@ class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
   }
 
  private:
-  PropertyValue* parent_computed_min_max_width_;
+  PropertyValue* parent_computed_width_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
   const math::Size& viewport_size_;
@@ -1115,10 +1335,9 @@ class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
 };
 
 ComputedMinMaxWidthProvider::ComputedMinMaxWidthProvider(
-    PropertyValue* parent_computed_min_max_width,
-    const LengthValue* computed_font_size,
+    PropertyValue* parent_computed_width, const LengthValue* computed_font_size,
     const LengthValue* root_computed_font_size, const math::Size& viewport_size)
-    : parent_computed_min_max_width_(parent_computed_min_max_width),
+    : parent_computed_width_(parent_computed_width),
       computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
       viewport_size_(viewport_size) {}
@@ -1147,7 +1366,11 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -1156,6 +1379,9 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -1163,14 +1389,15 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
-    case KeywordValue::kMonospace:
     case KeywordValue::kMonoscopic:
+    case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -1178,16 +1405,24 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -1220,7 +1455,7 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
 
 void ComputedMinMaxWidthProvider::VisitPercentage(PercentageValue* percentage) {
   ComputedLengthIsNegativeProvider computed_length_is_negative_provider;
-  parent_computed_min_max_width_->Accept(&computed_length_is_negative_provider);
+  parent_computed_width_->Accept(&computed_length_is_negative_provider);
   // If the containing block's width is negative, the used value is zero.
   //   https://www.w3.org/TR/CSS2/visudet.html#min-max-widths
   if (computed_length_is_negative_provider.computed_length_is_negative()) {
@@ -1546,6 +1781,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kNone:
       computed_background_image_ = keyword;
       break;
+
     case KeywordValue::kAbsolute:
     case KeywordValue::kAlternate:
     case KeywordValue::kAlternateReverse:
@@ -1558,7 +1794,11 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -1567,6 +1807,9 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -1574,6 +1817,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -1581,7 +1825,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -1589,16 +1833,24 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
       break;
   }
@@ -1836,6 +2088,10 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
+    case KeywordValue::kContent:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
@@ -1843,6 +2099,9 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -1850,6 +2109,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -1858,7 +2118,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -1866,16 +2126,24 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -2084,7 +2352,11 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -2092,22 +2364,26 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEnd:
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
-    case KeywordValue::kForwards:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonoscopic:
     case KeywordValue::kMonospace:
-    case KeywordValue::kNormal:
     case KeywordValue::kNoRepeat:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNormal:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -2115,16 +2391,24 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -2456,6 +2740,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNone:
       computed_transform_list_ = keyword;
       break;
+
     case KeywordValue::kAbsolute:
     case KeywordValue::kAlternate:
     case KeywordValue::kAlternateReverse:
@@ -2468,7 +2753,11 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCollapse:
+    case KeywordValue::kColumn:
+    case KeywordValue::kColumnReverse:
     case KeywordValue::kContain:
+    case KeywordValue::kContent:
     case KeywordValue::kCover:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
@@ -2477,6 +2766,9 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kFlex:
+    case KeywordValue::kFlexEnd:
+    case KeywordValue::kFlexStart:
     case KeywordValue::kForwards:
     case KeywordValue::kHidden:
     case KeywordValue::kInfinite:
@@ -2484,6 +2776,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kInlineFlex:
     case KeywordValue::kLeft:
     case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
@@ -2491,7 +2784,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
+    case KeywordValue::kNowrap:
     case KeywordValue::kPre:
     case KeywordValue::kPreLine:
     case KeywordValue::kPreWrap:
@@ -2499,16 +2792,24 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
+    case KeywordValue::kRow:
+    case KeywordValue::kRowReverse:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kSpaceAround:
+    case KeywordValue::kSpaceBetween:
     case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kStereoscopicLeftRight:
     case KeywordValue::kStereoscopicTopBottom:
+    case KeywordValue::kStretch:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
+    case KeywordValue::kWrap:
+    case KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -2824,6 +3125,12 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
         *value = KeywordValue::GetBlock();
       }
     } break;
+    case kFlexBasisProperty: {
+      ComputedFlexBasisProvider flex_basis_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
+      (*value)->Accept(&flex_basis_provider);
+      *value = flex_basis_provider.computed_value();
+    } break;
     case kFontSizeProperty: {
       // Only compute this if computed_font_size_ isn't set, otherwise that
       // is an indication that it was previously computed as a dependency for
@@ -2906,7 +3213,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       ComputedWidthProvider width_provider(GetFontSize(), GetRootFontSize(),
                                            GetViewportSizeOnePercent());
       (*value)->Accept(&width_provider);
-      *value = width_provider.computed_width();
+      *value = width_provider.computed_value();
     } break;
     case kBackgroundImageProperty: {
       if (property_key_to_base_url_map_) {
@@ -2959,6 +3266,12 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       (*value)->Accept(&position_offset_provider);
       *value = position_offset_provider.computed_position_offset();
     } break;
+
+    // The specified value resolves directly to the computed value for these
+    // properties.
+    case kAlignContentProperty:
+    case kAlignItemsProperty:
+    case kAlignSelfProperty:
     case kAnimationDelayProperty:
     case kAnimationDirectionProperty:
     case kAnimationDurationProperty:
@@ -2975,9 +3288,15 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kColorProperty:
     case kContentProperty:
     case kFilterProperty:
+    case kFlexDirectionProperty:
+    case kFlexGrowProperty:
+    case kFlexShrinkProperty:
+    case kFlexWrapProperty:
     case kFontFamilyProperty:
     case kFontStyleProperty:
+    case kJustifyContentProperty:
     case kOpacityProperty:
+    case kOrderProperty:
     case kOutlineStyleProperty:
     case kOverflowProperty:
     case kOverflowWrapProperty:
@@ -2998,7 +3317,9 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kZIndexProperty:
       // Nothing.
       break;
-    case kNoneProperty:
+
+    // Shorthand properties and at-rule properties should not occur here because
+    // they do not have computed values themselves.
     case kAllProperty:
     case kAnimationProperty:
     case kBackgroundProperty:
@@ -3011,8 +3332,11 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderStyleProperty:
     case kBorderTopProperty:
     case kBorderWidthProperty:
+    case kFlexProperty:
+    case kFlexFlowProperty:
     case kFontProperty:
     case kMarginProperty:
+    case kNoneProperty:
     case kOutlineProperty:
     case kPaddingProperty:
     case kSrcProperty:
@@ -3022,7 +3346,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       NOTREACHED();
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 void CalculateComputedStyleContext::OnComputedStyleCalculated(
     PropertyKey key, const scoped_refptr<PropertyValue>& value) {
@@ -3053,6 +3377,9 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
       break;
 
     case kAllProperty:
+    case kAlignContentProperty:
+    case kAlignItemsProperty:
+    case kAlignSelfProperty:
     case kAnimationDelayProperty:
     case kAnimationDirectionProperty:
     case kAnimationDurationProperty:
@@ -3093,11 +3420,19 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kContentProperty:
     case kDisplayProperty:
     case kFilterProperty:
+    case kFlexProperty:
+    case kFlexBasisProperty:
+    case kFlexDirectionProperty:
+    case kFlexFlowProperty:
+    case kFlexGrowProperty:
+    case kFlexShrinkProperty:
+    case kFlexWrapProperty:
     case kFontFamilyProperty:
     case kFontProperty:
     case kFontStyleProperty:
     case kFontWeightProperty:
     case kHeightProperty:
+    case kJustifyContentProperty:
     case kLeftProperty:
     case kLineHeightProperty:
     case kMarginBottomProperty:
@@ -3111,6 +3446,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kMinWidthProperty:
     case kNoneProperty:
     case kOpacityProperty:
+    case kOrderProperty:
     case kOutlineProperty:
     case kOutlineColorProperty:
     case kOutlineWidthProperty:

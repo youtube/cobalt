@@ -20,33 +20,49 @@
     {
       'target_name': 'cobalt',
       'type': '<(final_executable_type)',
-      'dependencies': [
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-      ],
       'conditions': [
-        ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
+        ['sb_evergreen != 1', {
           'dependencies': [
-            '<(DEPTH)/third_party/musl/musl.gyp:c'
+            '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+          ],
+          'conditions': [
+            ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
+              'dependencies': [
+                '<(DEPTH)/third_party/musl/musl.gyp:c'
+              ],
+            }],
+            ['cobalt_enable_lib == 1', {
+              'sources': [
+                'lib/cobalt.def',
+                'lib/main.cc',
+              ],
+            }, {
+              'sources': [
+                'main.cc',
+              ],
+            }],
+            ['cobalt_splash_screen_file != ""', {
+              'dependencies': [
+                '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
+              ],
+            }],
           ],
         }],
-        ['cobalt_enable_lib == 1', {
-          'sources': [
-            'lib/cobalt.def',
-            'lib/main.cc',
+        ['sb_evergreen == 1', {
+          'ldflags': [
+            '-Wl,--dynamic-list=<(DEPTH)/starboard/starboard.syms',
+            '-Wl,--whole-archive',
+            # TODO: Figure out how to take the gyp output from a variable.
+            'obj/starboard/linux/x64x11/evergreen/libstarboard_platform.a',
+            '-Wl,--no-whole-archive',
           ],
-        }, {
-          'sources': [
-            'main.cc',
-          ],
-        }],
-        ['cobalt_splash_screen_file != ""', {
           'dependencies': [
-            '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
+            '<(DEPTH)/starboard/starboard.gyp:starboard_full',
+            '<(DEPTH)/cobalt/browser/cobalt.gyp:cobalt_evergreen',
           ],
         }],
       ],
     },
-
     {
       'target_name': 'cobalt_deploy',
       'type': 'none',
@@ -58,7 +74,6 @@
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
-
     {
       # Convenience target to build cobalt and copy the demos into
       # content/data/test/cobalt/demos
@@ -71,6 +86,47 @@
     },
   ],
   'conditions': [
+    ['sb_evergreen == 1', {
+      'targets': [
+        {
+          'target_name': 'cobalt_evergreen',
+          'type': 'shared_library',
+          'libraries/': [
+            ['exclude', '.*'],
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/base/base.gyp:base',
+            '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+          ],
+          'sources': [
+            'main.cc',
+          ],
+          # TODO: Remove once the log.h is refactored to have only C linkage dependencies.
+          'ldflags': [
+            'obj/starboard/common/common.log_message.cc.o',
+          ],
+          'ldflags/': [
+            ['exclude', '-Wl,--wrap=eglSwapBuffers'],
+          ],
+          'conditions': [
+            ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
+              'dependencies': [
+                '<(DEPTH)/third_party/musl/musl.gyp:c',
+                '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
+                '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
+                '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',
+              ],
+              'includes': [ '<(DEPTH)/cobalt/browser/cobalt_evergreen.gypi' ],
+            }],
+            ['cobalt_splash_screen_file != ""', {
+              'dependencies': [
+                '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
+              ],
+            }],
+          ],
+        },
+      ]
+    }],
     ['build_snapshot_app_stats', {
       'targets': [
         {

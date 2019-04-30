@@ -35,8 +35,10 @@ class AnimationSet {
  public:
   class EventHandler {
    public:
-    virtual void OnAnimationStarted(const Animation& animation) = 0;
-    virtual void OnAnimationRemoved(const Animation& animation) = 0;
+    virtual void OnAnimationStarted(const Animation& animation,
+                                    AnimationSet* animation_set) = 0;
+    virtual void OnAnimationRemoved(const Animation& animation,
+                                    Animation::IsCanceled is_canceled) = 0;
   };
 
   // Create an Animation with the specified EventHandler, whose methods will

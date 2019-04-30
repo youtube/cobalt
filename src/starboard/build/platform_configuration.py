@@ -278,8 +278,9 @@ class PlatformConfiguration(object):
         os.path.join(self.GetLauncherPath(), 'launcher.py'))
     try:
       return imp.load_source('launcher', module_path)
-    except (IOError, ImportError, RuntimeError):
-      logging.warning('Unable to load launcher from %s.', module_path)
+    except (IOError, ImportError, RuntimeError) as error:
+      logging.error('Unable to load launcher module from %s.', module_path)
+      logging.error(error)
       return None
 
   def GetTestEnvVariables(self):
@@ -293,6 +294,16 @@ class PlatformConfiguration(object):
       A list of initialized starboard.tools.testing.TestFilter objects.
     """
     return []
+
+  def GetDeployDirs(self):
+    """Gets directories that need to be deployed to the device.
+
+       Returns:
+         A list of paths within the PRODUCT_DIR (src/out/<PLATFORM>_<CONFIG>)
+         that need to be deployed in order for the platform launcher to run the
+         target executable(s).
+    """
+    raise NotImplementedError()
 
   def GetTestTargets(self):
     """Gets all tests to be run in a unit test run.

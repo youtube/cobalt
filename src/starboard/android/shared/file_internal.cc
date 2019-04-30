@@ -123,6 +123,8 @@ AAsset* OpenAndroidAsset(const char* path) {
 }
 
 AAssetDir* OpenAndroidAssetDir(const char* path) {
+  // Note that the asset directory will not be found if |path| points to a
+  // specific file instead of a directory. |path| should also not end with '/'.
   if (!IsAndroidAssetPath(path) || g_asset_manager == NULL) {
     return NULL;
   }
@@ -130,7 +132,25 @@ AAssetDir* OpenAndroidAssetDir(const char* path) {
   if (*asset_path == '/') {
     asset_path++;
   }
-  return AAssetManager_openDir(g_asset_manager, asset_path);
+  AAssetDir* asset_directory =
+      AAssetManager_openDir(g_asset_manager, asset_path);
+
+  // AAssetManager_openDir() always returns a pointer to an initialized object,
+  // even if the given directory does not exist. To determine if the directory
+  // actually exists, AAssetDir_getNextFileName() is called to check for any
+  // files in the given directory. However, when iterating the contents of a
+  // directory, the NDK Asset Manager does not allow subdirectories to be seen.
+  // So this is not a 100% accurate way to determine if a directory actually
+  // exists and false negatives will be given for directories that contain
+  // subdirectories but no files in their immediate directory.
+  const char* file = AAssetDir_getNextFileName(asset_directory);
+  if (file == NULL) {
+    AAssetDir_close(asset_directory);
+    return NULL;
+  } else {
+    AAssetDir_rewind(asset_directory);
+    return asset_directory;
+  }
 }
 
 }  // namespace shared

@@ -344,10 +344,7 @@ class GURL {
 
   // If function DomainIs only has parameter lower_ascii_domain, which means
   // domain string should be terminate with NULL character.
-  bool DomainIs(const char* lower_ascii_domain) const {
-    return DomainIs(lower_ascii_domain,
-                    static_cast<int>(strlen(lower_ascii_domain)));
-  }
+  bool DomainIs(const char* lower_ascii_domain) const;
 
   // Swaps the contents of this GURL object with the argument without doing
   // any memory allocations.

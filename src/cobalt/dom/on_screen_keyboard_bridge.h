@@ -35,6 +35,7 @@ class OnScreenKeyboardBridge {
   virtual void UpdateSuggestions(
       const script::Sequence<std::string>& suggestions, int ticket) = 0;
   virtual bool IsShown() const = 0;
+  virtual bool SuggestionsSupported() const = 0;
   virtual scoped_refptr<DOMRect> BoundingRect() const = 0;
   virtual void SetKeepFocus(bool keep_focus) = 0;
   virtual bool IsValidTicket(int ticket) const = 0;

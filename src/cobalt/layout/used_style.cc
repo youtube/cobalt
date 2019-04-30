@@ -249,7 +249,11 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kCollapse:
+    case cssom::KeywordValue::kColumn:
+    case cssom::KeywordValue::kColumnReverse:
     case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kContent:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
@@ -257,14 +261,18 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
-    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kFlex:
+    case cssom::KeywordValue::kFlexEnd:
+    case cssom::KeywordValue::kFlexStart:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kInlineFlex:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
@@ -273,7 +281,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kNowrap:
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kPreLine:
     case cssom::KeywordValue::kPreWrap:
@@ -281,16 +289,24 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kRow:
+    case cssom::KeywordValue::kRowReverse:
     case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kSpaceAround:
+    case cssom::KeywordValue::kSpaceBetween:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kStereoscopicLeftRight:
     case cssom::KeywordValue::kStereoscopicTopBottom:
+    case cssom::KeywordValue::kStretch:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
+    case cssom::KeywordValue::kWrap:
+    case cssom::KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -344,12 +360,19 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kCollapse:
+    case cssom::KeywordValue::kColumn:
+    case cssom::KeywordValue::kColumnReverse:
     case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kContent:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kFlex:
+    case cssom::KeywordValue::kFlexEnd:
+    case cssom::KeywordValue::kFlexStart:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
@@ -357,6 +380,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kInlineFlex:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
@@ -364,7 +388,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kNowrap:
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kPreLine:
     case cssom::KeywordValue::kPreWrap:
@@ -372,14 +396,22 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kRow:
+    case cssom::KeywordValue::kRowReverse:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kSpaceAround:
+    case cssom::KeywordValue::kSpaceBetween:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kStereoscopicLeftRight:
     case cssom::KeywordValue::kStereoscopicTopBottom:
+    case cssom::KeywordValue::kStretch:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
+    case cssom::KeywordValue::kWrap:
+    case cssom::KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -1145,19 +1177,26 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kBoth:
     case cssom::KeywordValue::kBottom:
-    case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kCollapse:
+    case cssom::KeywordValue::kColumn:
+    case cssom::KeywordValue::kColumnReverse:
+    case cssom::KeywordValue::kContent:
     case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
-    case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kFlex:
+    case cssom::KeywordValue::kFlexEnd:
+    case cssom::KeywordValue::kFlexStart:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
@@ -1165,6 +1204,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kInlineFlex:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
@@ -1173,7 +1213,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kNowrap:
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kPreLine:
     case cssom::KeywordValue::kPreWrap:
@@ -1181,16 +1221,24 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kRow:
+    case cssom::KeywordValue::kRowReverse:
     case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kSpaceAround:
+    case cssom::KeywordValue::kSpaceBetween:
     case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kStereoscopicLeftRight:
     case cssom::KeywordValue::kStereoscopicTopBottom:
+    case cssom::KeywordValue::kStretch:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
+    case cssom::KeywordValue::kWrap:
+    case cssom::KeywordValue::kWrapReverse:
       NOTREACHED();
   }
 }
@@ -1334,7 +1382,11 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
       case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kCollapse:
+      case cssom::KeywordValue::kColumn:
+      case cssom::KeywordValue::kColumnReverse:
       case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kContent:
       case cssom::KeywordValue::kCover:
       case cssom::KeywordValue::kCurrentColor:
       case cssom::KeywordValue::kCursive:
@@ -1342,14 +1394,18 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kEnd:
       case cssom::KeywordValue::kEquirectangular:
       case cssom::KeywordValue::kFantasy:
-      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kFlex:
+      case cssom::KeywordValue::kFlexEnd:
+      case cssom::KeywordValue::kFlexStart:
+      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInfinite:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kInlineFlex:
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
@@ -1358,7 +1414,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
-      case cssom::KeywordValue::kNoWrap:
+      case cssom::KeywordValue::kNowrap:
       case cssom::KeywordValue::kPre:
       case cssom::KeywordValue::kPreLine:
       case cssom::KeywordValue::kPreWrap:
@@ -1366,16 +1422,24 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kRow:
+      case cssom::KeywordValue::kRowReverse:
       case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
+      case cssom::KeywordValue::kSpaceAround:
+      case cssom::KeywordValue::kSpaceBetween:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kStereoscopicLeftRight:
       case cssom::KeywordValue::kStereoscopicTopBottom:
+      case cssom::KeywordValue::kStretch:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
+      case cssom::KeywordValue::kWrap:
+      case cssom::KeywordValue::kWrapReverse:
         NOTREACHED();
     }
   }
@@ -1407,7 +1471,11 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
       case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kCollapse:
+      case cssom::KeywordValue::kColumn:
+      case cssom::KeywordValue::kColumnReverse:
       case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kContent:
       case cssom::KeywordValue::kCover:
       case cssom::KeywordValue::kCurrentColor:
       case cssom::KeywordValue::kCursive:
@@ -1415,14 +1483,18 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kEnd:
       case cssom::KeywordValue::kEquirectangular:
       case cssom::KeywordValue::kFantasy:
-      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kFlex:
+      case cssom::KeywordValue::kFlexEnd:
+      case cssom::KeywordValue::kFlexStart:
+      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInfinite:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kInlineFlex:
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
@@ -1430,7 +1502,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
-      case cssom::KeywordValue::kNoWrap:
+      case cssom::KeywordValue::kNowrap:
       case cssom::KeywordValue::kPre:
       case cssom::KeywordValue::kPreLine:
       case cssom::KeywordValue::kPreWrap:
@@ -1438,16 +1510,24 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kRow:
+      case cssom::KeywordValue::kRowReverse:
       case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
+      case cssom::KeywordValue::kSpaceAround:
+      case cssom::KeywordValue::kSpaceBetween:
       case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kStereoscopicLeftRight:
       case cssom::KeywordValue::kStereoscopicTopBottom:
+      case cssom::KeywordValue::kStretch:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
+      case cssom::KeywordValue::kWrap:
+      case cssom::KeywordValue::kWrapReverse:
         NOTREACHED();
     }
   }
@@ -1492,6 +1572,26 @@ base::optional<LayoutUnit> GetUsedBottomIfNotAuto(
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
   UsedLengthProvider used_length_provider(containing_block_size.height());
   computed_style->bottom()->Accept(&used_length_provider);
+  return used_length_provider.used_length();
+}
+
+// For all values other than auto and content, flex-basis is resolved the same
+// way as width, except that if a value would resolve to auto for width, it
+// instead resolves to content for flex-basis.
+//   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+base::optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
+    const LayoutUnit& flex_container_main_size,
+    bool* width_depends_on_flex_container) {
+  // Percentage values of flex-basis are resolved against the flex item's
+  // containing block (i.e. its flex container).
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+  UsedLengthProvider used_length_provider(flex_container_main_size);
+  computed_style->flex_basis()->Accept(&used_length_provider);
+  if (width_depends_on_flex_container != NULL) {
+    *width_depends_on_flex_container =
+        used_length_provider.depends_on_containing_block();
+  }
   return used_length_provider.used_length();
 }
 

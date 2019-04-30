@@ -47,7 +47,7 @@ struct PropertyDefinition {
       : name(NULL),
         inherited(kInheritedNo),
         animatable(kAnimatableNo),
-        impacts_child_declared_style(kImpactsChildDeclaredStyleNo),
+        impacts_child_computed_style(kImpactsChildComputedStyleNo),
         impacts_box_generation(kImpactsBoxGenerationNo),
         impacts_box_sizes(kImpactsBoxSizesNo),
         impacts_box_cross_references(kImpactsBoxCrossReferencesNo) {}
@@ -55,7 +55,7 @@ struct PropertyDefinition {
   const char* name;
   Inherited inherited;
   Animatable animatable;
-  ImpactsChildDeclaredStyle impacts_child_declared_style;
+  ImpactsChildComputedStyle impacts_child_computed_style;
   ImpactsBoxGeneration impacts_box_generation;
   ImpactsBoxSizes impacts_box_sizes;
   ImpactsBoxCrossReferences impacts_box_cross_references;
@@ -74,7 +74,7 @@ struct NonTrivialGlobalVariables {
   void SetPropertyDefinition(
       PropertyKey key, const char* name, Inherited inherited,
       Animatable animatable,
-      ImpactsChildDeclaredStyle impacts_child_declared_style,
+      ImpactsChildComputedStyle impacts_child_computed_style,
       ImpactsBoxGeneration impacts_box_generation,
       ImpactsBoxSizes impacts_box_sizes,
       ImpactsBoxCrossReferences impacts_box_cross_references,
@@ -85,7 +85,7 @@ struct NonTrivialGlobalVariables {
     definition.name = name;
     definition.inherited = inherited;
     definition.animatable = animatable;
-    definition.impacts_child_declared_style = impacts_child_declared_style;
+    definition.impacts_child_computed_style = impacts_child_computed_style;
     definition.impacts_box_generation = impacts_box_generation;
     definition.impacts_box_sizes = impacts_box_sizes;
     definition.impacts_box_cross_references = impacts_box_cross_references;
@@ -154,65 +154,85 @@ scoped_refptr<PropertyListValue> CreateSinglePropertyListWithValue(
 }
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
+  // https://www.w3.org/TR/css-flexbox-1/#align-content-property
+  SetPropertyDefinition(kAlignContentProperty, "align-content", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetStretch());
+
+  // https://www.w3.org/TR/css-flexbox-1/#align-items-property
+  SetPropertyDefinition(kAlignItemsProperty, "align-items", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetStretch());
+
+  // https://www.w3.org/TR/css-flexbox-1/#propdef-align-self
+  SetPropertyDefinition(kAlignSelfProperty, "align-self", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
+
   // https://www.w3.org/TR/css3-animations/#animation-delay-property
   SetPropertyDefinition(
       kAnimationDelayProperty, "animation-delay", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, CreateTimeListWithZeroSeconds());
 
   // https://www.w3.org/TR/css3-animations/#animation-direction-property
   SetPropertyDefinition(
       kAnimationDirectionProperty, "animation-direction", kInheritedNo,
-      kAnimatableNo, kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+      kAnimatableNo, kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
       kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNormal()));
 
   // https://www.w3.org/TR/css3-animations/#animation-duration-property
   SetPropertyDefinition(kAnimationDurationProperty, "animation-duration",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         CreateTimeListWithZeroSeconds());
 
   // https://www.w3.org/TR/css3-animations/#animation-fill-mode-property
   SetPropertyDefinition(
       kAnimationFillModeProperty, "animation-fill-mode", kInheritedNo,
-      kAnimatableNo, kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+      kAnimatableNo, kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
       kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
   // https://www.w3.org/TR/css3-animations/#animation-iteration-count-property
   SetPropertyDefinition(
       kAnimationIterationCountProperty, "animation-iteration-count",
-      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kInheritedNo, kAnimatableNo, kImpactsChildComputedStyleNo,
       kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       CreateSinglePropertyListWithValue(new NumberValue(1.0f)));
 
   // https://www.w3.org/TR/css3-animations/#animation-name-property
   SetPropertyDefinition(
       kAnimationNameProperty, "animation-name", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
   // https://www.w3.org/TR/css3-animations/#animation-timing-function-property
   SetPropertyDefinition(
       kAnimationTimingFunctionProperty, "animation-timing-function",
-      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kInheritedNo, kAnimatableNo, kImpactsChildComputedStyleNo,
       kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       CreateTransitionTimingFunctionListWithEase());
 
   // https://www.w3.org/TR/css3-background/#the-background-color
   SetPropertyDefinition(kBackgroundColorProperty, "background-color",
                         kInheritedNo, kAnimatableYes,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         new RGBAColorValue(0x00000000));
 
   // https://www.w3.org/TR/css3-background/#background-image
   SetPropertyDefinition(
       kBackgroundImageProperty, "background-image", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
@@ -228,7 +248,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
       new PropertyListValue(background_position_builder.Pass()));
   SetPropertyDefinition(kBackgroundPositionProperty, "background-position",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         background_position_list);
 
@@ -245,13 +265,13 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
       new PropertyListValue(background_repeat_builder.Pass()));
   SetPropertyDefinition(
       kBackgroundRepeatProperty, "background-repeat", kInheritedNo,
-      kAnimatableNo, kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+      kAnimatableNo, kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
       kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo, background_repeat_list);
 
   // The first value gives the width of the corresponding image, and the second
   // value gives its height. If only one value is given, the second is assumed
   // to be 'auto'.
-  //   https://www.w3.org/TR/css3-background/#background-size
+  //   https://www.w3.org/TR/css-backgrounds-3/#the-background-size
   scoped_ptr<PropertyListValue::Builder> background_size_builder(
       new PropertyListValue::Builder());
   background_size_builder->reserve(2);
@@ -261,7 +281,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
       new PropertyListValue(background_size_builder.Pass()));
   SetPropertyDefinition(
       kBackgroundSizeProperty, "background-size", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, background_size_list);
 
   // This sets the foreground color of the border specified by the border-style
@@ -269,49 +289,49 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   //   https://www.w3.org/TR/css3-background/#border-color
   SetPropertyDefinition(
       kBorderTopColorProperty, "border-top-color", kInheritedNo, kAnimatableYes,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, KeywordValue::GetCurrentColor());
 
   SetPropertyDefinition(kBorderRightColorProperty, "border-right-color",
                         kInheritedNo, kAnimatableYes,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetCurrentColor());
 
   SetPropertyDefinition(kBorderBottomColorProperty, "border-bottom-color",
                         kInheritedNo, kAnimatableYes,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetCurrentColor());
 
   SetPropertyDefinition(kBorderLeftColorProperty, "border-left-color",
                         kInheritedNo, kAnimatableYes,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetCurrentColor());
 
   // https://www.w3.org/TR/css3-background/#border-style
   SetPropertyDefinition(kBorderTopStyleProperty, "border-top-style",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
 
   SetPropertyDefinition(kBorderRightStyleProperty, "border-right-style",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
 
   SetPropertyDefinition(kBorderBottomStyleProperty, "border-bottom-style",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
 
   SetPropertyDefinition(kBorderLeftStyleProperty, "border-left-style",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
 
@@ -322,97 +342,128 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   //   https://www.w3.org/TR/css3-background/#border-width
   SetPropertyDefinition(kBorderTopWidthProperty, "border-top-width",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         new LengthValue(3, kPixelsUnit));
 
   SetPropertyDefinition(kBorderRightWidthProperty, "border-right-width",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         new LengthValue(3, kPixelsUnit));
 
   SetPropertyDefinition(kBorderBottomWidthProperty, "border-bottom-width",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         new LengthValue(3, kPixelsUnit));
 
   SetPropertyDefinition(kBorderLeftWidthProperty, "border-left-width",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         new LengthValue(3, kPixelsUnit));
 
   //   https://www.w3.org/TR/css3-background/#the-border-radius
   SetPropertyDefinition(kBorderTopLeftRadiusProperty, "border-top-left-radius",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   SetPropertyDefinition(kBorderTopRightRadiusProperty,
                         "border-top-right-radius", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   SetPropertyDefinition(
       kBorderBottomRightRadiusProperty, "border-bottom-right-radius",
-      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kInheritedNo, kAnimatableNo, kImpactsChildComputedStyleNo,
       kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       new LengthValue(0, kPixelsUnit));
 
   SetPropertyDefinition(
       kBorderBottomLeftRadiusProperty, "border-bottom-left-radius",
-      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kInheritedNo, kAnimatableNo, kImpactsChildComputedStyleNo,
       kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS2/visuren.html#propdef-bottom
   SetPropertyDefinition(kBottomProperty, "bottom", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleYes, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/css3-background/#the-box-shadow
   SetPropertyDefinition(kBoxShadowProperty, "box-shadow", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // Opaque black in Chromium and Cobalt.
   //   https://www.w3.org/TR/css3-color/#foreground
   SetPropertyDefinition(kColorProperty, "color", kInheritedYes, kAnimatableYes,
-                        kImpactsChildDeclaredStyleYes, kImpactsBoxGenerationYes,
+                        kImpactsChildComputedStyleYes, kImpactsBoxGenerationYes,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         new RGBAColorValue(0x000000ff));
 
   // https://www.w3.org/TR/CSS21/generate.html#content
   SetPropertyDefinition(kContentProperty, "content", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNormal());
 
   // https://www.w3.org/TR/CSS21/visuren.html#display-prop
   SetPropertyDefinition(kDisplayProperty, "display", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetInline());
 
   // https://www.w3.org/TR/filter-effects-1/#FilterProperty
   SetPropertyDefinition(kFilterProperty, "filter", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
+  SetPropertyDefinition(kFlexBasisProperty, "flex-basis", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+  SetPropertyDefinition(kFlexDirectionProperty, "flex-direction", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetRow());
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-grow-property
+  SetPropertyDefinition(kFlexGrowProperty, "flex-grow", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, new NumberValue(0));
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-shrink-property
+  SetPropertyDefinition(kFlexShrinkProperty, "flex-shrink", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, new NumberValue(1));
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property
+  SetPropertyDefinition(kFlexWrapProperty, "flex-wrap", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetNowrap());
 
   // Varies by platform in Chromium, Roboto in Cobalt.
   //   https://www.w3.org/TR/css3-fonts/#font-family-prop
   SetPropertyDefinition(
       kFontFamilyProperty, "font-family", kInheritedYes, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationYes,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationYes,
       kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
       CreateSinglePropertyListWithValue(new StringValue("Roboto")));
 
@@ -420,161 +471,174 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // Cobalt does not support keyword sizes, so we simply hardcode 16px.
   //   https://www.w3.org/TR/css3-fonts/#font-size-prop
   SetPropertyDefinition(kFontSizeProperty, "font-size", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleYes,
+                        kAnimatableNo, kImpactsChildComputedStyleYes,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(16, kPixelsUnit));
 
   // https://www.w3.org/TR/css3-fonts/#font-style-prop
   SetPropertyDefinition(kFontStyleProperty, "font-style", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         FontStyleValue::GetNormal());
 
   // https://www.w3.org/TR/css3-fonts/#font-weight-prop
   SetPropertyDefinition(kFontWeightProperty, "font-weight", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         FontWeightValue::GetNormalAka400());
 
   // https://www.w3.org/TR/CSS21/visudet.html#the-height-property
   SetPropertyDefinition(kHeightProperty, "height", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleYes, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleYes, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
+  // https://www.w3.org/TR/css-flexbox-1/#justify-content-property
+  SetPropertyDefinition(kJustifyContentProperty, "justify-content",
+                        kInheritedNo, kAnimatableNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
+                        KeywordValue::GetFlexStart());
+
   // https://www.w3.org/TR/CSS2/visuren.html#propdef-left
   SetPropertyDefinition(kLeftProperty, "left", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/CSS21/visudet.html#line-height
   SetPropertyDefinition(kLineHeightProperty, "line-height", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNormal());
 
   // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginBottomProperty, "margin-bottom", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginLeftProperty, "margin-left", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginRightProperty, "margin-right", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginTopProperty, "margin-top", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
   SetPropertyDefinition(kMaxHeightProperty, "max-height", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // https://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
   SetPropertyDefinition(kMaxWidthProperty, "max-width", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
   SetPropertyDefinition(kMinHeightProperty, "min-height", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
   SetPropertyDefinition(kMinWidthProperty, "min-width", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/css3-color/#opacity
   SetPropertyDefinition(kOpacityProperty, "opacity", kInheritedNo,
-                        kAnimatableYes, kImpactsChildDeclaredStyleNo,
+                        kAnimatableYes, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesYes, new NumberValue(1.0f));
+
+  // https://www.w3.org/TR/css-flexbox-1/#order-property
+  SetPropertyDefinition(kOrderProperty, "order", kInheritedNo, kAnimatableNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
+                        new IntegerValue(0));
 
   // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-color
   SetPropertyDefinition(
       kOutlineColorProperty, "outline-color", kInheritedNo, kAnimatableYes,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, KeywordValue::GetCurrentColor());
 
   // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-style
   SetPropertyDefinition(kOutlineStyleProperty, "outline-style", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-width
   SetPropertyDefinition(kOutlineWidthProperty, "outline-width", kInheritedNo,
-                        kAnimatableYes, kImpactsChildDeclaredStyleNo,
+                        kAnimatableYes, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(3, kPixelsUnit));
 
   // https://www.w3.org/TR/css-overflow-3/#overflow-properties
   SetPropertyDefinition(kOverflowProperty, "overflow", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesYes,
                         KeywordValue::GetVisible());
 
   // https://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kOverflowWrapProperty, "overflow-wrap", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNormal());
 
   // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingBottomProperty, "padding-bottom", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingLeftProperty, "padding-left", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingRightProperty, "padding-right", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingTopProperty, "padding-top", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
@@ -586,77 +650,77 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // to 'visible').
   //   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
   SetPropertyDefinition(kPointerEventsProperty, "pointer-events", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/css3-positioning/#position-property
   SetPropertyDefinition(kPositionProperty, "position", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesYes,
                         KeywordValue::GetStatic());
 
   // https://www.w3.org/TR/CSS2/visuren.html#propdef-right
   SetPropertyDefinition(kRightProperty, "right", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
-  //   https://www.w3.org/TR/css-text-3/#text-align
+  //   https://www.w3.org/TR/css-text-3/#text-align-property
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetStart());
 
   //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-color
   SetPropertyDefinition(kTextDecorationColorProperty, "text-decoration-color",
                         kInheritedNo, kAnimatableYes,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetCurrentColor());
 
   //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-line
   SetPropertyDefinition(kTextDecorationLineProperty, "text-decoration-line",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNone());
 
   // https://www.w3.org/TR/CSS21/text.html#propdef-text-indent
   SetPropertyDefinition(kTextIndentProperty, "text-indent", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   SetPropertyDefinition(kTextOverflowProperty, "text-overflow", kInheritedNo,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetClip());
 
   // https://www.w3.org/TR/css-text-decor-3/#text-shadow-property
   SetPropertyDefinition(kTextShadowProperty, "text-shadow", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // https://www.w3.org/TR/css3-text/#text-transform-property
   SetPropertyDefinition(kTextTransformProperty, "text-transform", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // https://www.w3.org/TR/CSS2/visuren.html#propdef-top
   SetPropertyDefinition(kTopProperty, "top", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleYes, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/css3-transforms/#transform-property
   SetPropertyDefinition(kTransformProperty, "transform", kInheritedNo,
-                        kAnimatableYes, kImpactsChildDeclaredStyleNo,
+                        kAnimatableYes, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesYes, KeywordValue::GetNone());
 
@@ -671,64 +735,64 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
       new PropertyListValue(transform_origin_builder.Pass()));
   SetPropertyDefinition(
       kTransformOriginProperty, "transform-origin", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, transform_origin_list);
 
   // https://www.w3.org/TR/css3-transitions/#transition-delay-property
   SetPropertyDefinition(
       kTransitionDelayProperty, "transition-delay", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, CreateTimeListWithZeroSeconds());
 
   // https://www.w3.org/TR/css3-transitions/#transition-duration-property
   SetPropertyDefinition(kTransitionDurationProperty, "transition-duration",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         CreateTimeListWithZeroSeconds());
 
   // https://www.w3.org/TR/css3-transitions/#transition-property-property
   SetPropertyDefinition(kTransitionPropertyProperty, "transition-property",
                         kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         CreatePropertyKeyListWithAll());
 
   // https://www.w3.org/TR/css3-transitions/#transition-timing-function-property
   SetPropertyDefinition(
       kTransitionTimingFunctionProperty, "transition-timing-function",
-      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kInheritedNo, kAnimatableNo, kImpactsChildComputedStyleNo,
       kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
       CreateTransitionTimingFunctionListWithEase());
 
   // https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
   SetPropertyDefinition(
       kVerticalAlignProperty, "vertical-align", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, KeywordValue::GetBaseline());
 
   // https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   SetPropertyDefinition(
       kVisibilityProperty, "visibility", kInheritedYes, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, KeywordValue::GetVisible());
 
   // https://www.w3.org/TR/css3-text/#white-space-property
   SetPropertyDefinition(kWhiteSpaceProperty, "white-space", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationYes, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNormal());
 
   // https://www.w3.org/TR/CSS21/visudet.html#the-width-property
   SetPropertyDefinition(kWidthProperty, "width", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleYes, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleYes, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/CSS21/visuren.html#z-index
   SetPropertyDefinition(kZIndexProperty, "z-index", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesYes,
                         KeywordValue::GetAuto());
 
@@ -736,25 +800,25 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // property.
   //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
   SetPropertyDefinition(kAllProperty, "all", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo, NULL);
 
   // This is a descriptor for @font-face at-rules.
   //   https://www.w3.org/TR/css3-fonts/#descdef-src
   SetPropertyDefinition(kSrcProperty, "src", kInheritedNo, kAnimatableNo,
-                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo,
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo, NULL);
 
   //   https://www.w3.org/TR/css3-fonts/#unicode-range-desc
   SetPropertyDefinition(
       kUnicodeRangeProperty, "unicode-range", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsChildComputedStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
       kImpactsBoxCrossReferencesNo, new UnicodeRangeValue(0, 0x10FFFF));
 
   // This is an alias for kOverflowWrap
   //   https://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kWordWrapProperty, "word-wrap", kInheritedYes,
-                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetNormal());
@@ -815,6 +879,8 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderProperty, "border",
                                  border_longhand_properties);
 
+  // Border shorthand properties.
+  //  https://www.w3.org/TR/css-backgrounds-3/#the-border-shorthands
   LonghandPropertySet border_top_longhand_properties;
   border_top_longhand_properties.insert(kBorderTopColorProperty);
   border_top_longhand_properties.insert(kBorderTopStyleProperty);
@@ -842,6 +908,21 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   border_left_longhand_properties.insert(kBorderLeftWidthProperty);
   SetShorthandPropertyDefinition(kBorderLeftProperty, "border-left",
                                  border_left_longhand_properties);
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-property
+  LonghandPropertySet flex_longhand_properties;
+  flex_longhand_properties.insert(kFlexGrowProperty);
+  flex_longhand_properties.insert(kFlexShrinkProperty);
+  flex_longhand_properties.insert(kFlexBasisProperty);
+  SetShorthandPropertyDefinition(kFlexProperty, "flex",
+                                 flex_longhand_properties);
+
+  // https://www.w3.org/TR/css-flexbox-1/#flex-flow-property
+  LonghandPropertySet flex_flow_longhand_properties;
+  flex_flow_longhand_properties.insert(kFlexDirectionProperty);
+  flex_flow_longhand_properties.insert(kFlexWrapProperty);
+  SetShorthandPropertyDefinition(kFlexFlowProperty, "flex-flow",
+                                 flex_flow_longhand_properties);
 
   //   https://www.w3.org/TR/css3-fonts/#font-prop
   LonghandPropertySet font_longhand_properties;
@@ -969,14 +1050,14 @@ Animatable GetPropertyAnimatable(PropertyKey key) {
   return non_trivial_global_variables.Get().properties[key].animatable;
 }
 
-ImpactsChildDeclaredStyle GetPropertyImpactsChildDeclaredStyle(
+ImpactsChildComputedStyle GetPropertyImpactsChildComputedStyle(
     PropertyKey key) {
   DCHECK(!IsShorthandProperty(key));
   DCHECK_GT(key, kNoneProperty);
   DCHECK_LE(key, kMaxEveryPropertyKey);
   return non_trivial_global_variables.Get()
       .properties[key]
-      .impacts_child_declared_style;
+      .impacts_child_computed_style;
 }
 
 ImpactsBoxGeneration GetPropertyImpactsBoxGeneration(PropertyKey key) {
@@ -1039,6 +1120,9 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 4:
+      if (LowerCaseEqualsASCII(property_name, GetPropertyName(kFlexProperty))) {
+        return kFlexProperty;
+      }
       if (LowerCaseEqualsASCII(property_name, GetPropertyName(kFontProperty))) {
         return kFontProperty;
       }
@@ -1051,6 +1135,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kColorProperty))) {
         return kColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kOrderProperty))) {
+        return kOrderProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kRightProperty))) {
@@ -1129,6 +1217,18 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kAnimationProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexFlowProperty))) {
+        return kFlexFlowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexGrowProperty))) {
+        return kFlexGrowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexWrapProperty))) {
+        return kFlexWrapProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontSizeProperty))) {
         return kFontSizeProperty;
       }
@@ -1148,6 +1248,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 10:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAlignSelfProperty))) {
+        return kAlignSelfProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundProperty))) {
         return kBackgroundProperty;
       }
@@ -1158,6 +1262,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBoxShadowProperty))) {
         return kBoxShadowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexBasisProperty))) {
+        return kFlexBasisProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontStyleProperty))) {
@@ -1191,8 +1299,16 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 11:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAlignItemsProperty))) {
+        return kAlignItemsProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBorderLeftProperty))) {
         return kBorderLeftProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexShrinkProperty))) {
+        return kFlexShrinkProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontFamilyProperty))) {
@@ -1257,6 +1373,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 13:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAlignContentProperty))) {
+        return kAlignContentProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBorderBottomProperty))) {
         return kBorderBottomProperty;
       }
@@ -1300,6 +1420,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kAnimationNameProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFlexDirectionProperty))) {
+        return kFlexDirectionProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kPaddingBottomProperty))) {
         return kPaddingBottomProperty;
       }
@@ -1325,6 +1449,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundSizeProperty))) {
         return kBackgroundSizeProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kJustifyContentProperty))) {
+        return kJustifyContentProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextDecorationProperty))) {

@@ -33,6 +33,9 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
   explicit TracingAgent(DebugDispatcher* dispatcher,
                         script::ScriptDebugger* script_debugger);
 
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
   // TraceDelegate
   void AppendTraceEvent(const std::string& trace_event_json) override;
   void FlushTraceEvents() override;

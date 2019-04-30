@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+#endif  // defined(STARBOARD)
+
 #include "cobalt/dom_parser/libxml_parser_wrapper.h"
 
 #include "base/logging.h"
@@ -230,7 +234,8 @@ void LibxmlParserWrapper::OnEndDocument() {
   }
 
   if (IsFullDocument()) {
-    document_->PostToDispatchEvent(FROM_HERE, base::Tokens::domcontentloaded());
+    document_->PostToDispatchEventName(FROM_HERE,
+                                       base::Tokens::domcontentloaded());
   }
 }
 

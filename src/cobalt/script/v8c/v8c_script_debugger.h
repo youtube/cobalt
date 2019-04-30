@@ -14,6 +14,7 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 #define COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -34,28 +35,29 @@ class V8cScriptDebugger : public ScriptDebugger,
                     Delegate* delegate);
   ~V8cScriptDebugger() override;
 
-  // ScriptDebugger implementation.
-  void Attach() override { attached_ = true; }
-  void Detach() override { attached_ = false; }
+  void Attach(const std::string& state) override;
+  std::string Detach() override;
 
-  bool CanDispatchProtocolMethod(const std::string& method) override;
-  void DispatchProtocolMessage(const std::string& message) override;
+  bool EvaluateDebuggerScript(const std::string& js_code,
+                              std::string* out_result_utf8) override;
+
+  std::set<std::string> SupportedProtocolDomains() override {
+    return supported_domains_;
+  }
+  bool DispatchProtocolMessage(const std::string& method,
+                               const std::string& message) override;
+
+  std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                 const std::string& group) override;
+  const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& object_id) override;
 
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) override;
   void StopTracing() override;
 
-  void Pause() override { NOTIMPLEMENTED(); }
-  void Resume() override { NOTIMPLEMENTED(); }
-  void SetBreakpoint(const std::string& script_id, int line_number,
-                     int column_number) override {
-    NOTIMPLEMENTED();
-  }
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override;
-  void StepInto() override { NOTIMPLEMENTED(); }
-  void StepOut() override { NOTIMPLEMENTED(); }
-  void StepOver() override { NOTIMPLEMENTED(); }
 
   // v8_inspector::V8InspectorClient implementation.
   void runMessageLoopOnPause(int contextGroupId) override;
@@ -78,14 +80,14 @@ class V8cScriptDebugger : public ScriptDebugger,
   void flushProtocolNotifications() override {}
 
  private:
-  std::string FromStringView(const v8_inspector::StringView& string_view);
-
   V8cGlobalEnvironment* global_environment_;
   Delegate* delegate_;
+  const std::set<std::string> supported_domains_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
-  std::unique_ptr<v8_inspector::V8InspectorSession> inspector_session_;
   PauseOnExceptionsState pause_on_exception_state_;
-  bool attached_ = false;
+
+  // The session is NULL when not attached.
+  std::unique_ptr<v8_inspector::V8InspectorSession> inspector_session_;
 };
 
 }  // namespace v8c

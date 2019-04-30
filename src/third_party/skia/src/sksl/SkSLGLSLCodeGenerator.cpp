@@ -17,6 +17,11 @@
 #include "ir/SkSLNop.h"
 #include "ir/SkSLVariableReference.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define printf(format, ...) SbLogFormatF(format, __VA_ARGS__)
+#endif
+
 namespace SkSL {
 
 void GLSLCodeGenerator::write(const char* s) {

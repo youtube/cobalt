@@ -1374,6 +1374,7 @@ bool TextureFormatIsValid(GLenum format) {
     case GL_RGBA:
     case GL_LUMINANCE:
     case GL_LUMINANCE_ALPHA:
+    case GL_RED_INTEGER:
       return true;
     default:
       return false;
@@ -1383,6 +1384,7 @@ bool TextureFormatIsValid(GLenum format) {
 bool TextureTypeIsValid(GLenum type) {
   switch (type) {
     case GL_UNSIGNED_BYTE:
+    case GL_UNSIGNED_SHORT:
     case GL_UNSIGNED_SHORT_5_6_5:
     case GL_UNSIGNED_SHORT_4_4_4_4:
     case GL_UNSIGNED_SHORT_5_5_5_1:
@@ -1406,6 +1408,8 @@ PixelFormat PixelFormatFromGLTypeAndFormat(GLenum format, GLenum type) {
       case GL_LUMINANCE_ALPHA:
         return kPixelFormatBA8;
     }
+  } else if (type == GL_UNSIGNED_SHORT && format == GL_RED_INTEGER) {
+    return kPixelFormatA16;
   }
   return kPixelFormatInvalid;
 }
@@ -2210,6 +2214,7 @@ bool ValidReadPixelsFormat(GLenum format) {
   switch (format) {
     case GL_RGBA:
     case GL_RGBA_INTEGER:
+    case GL_RED_INTEGER:
       return true;
       break;
     default:
@@ -2222,6 +2227,7 @@ bool ValidReadPixelsType(GLenum type) {
   switch (type) {
     case GL_UNSIGNED_BYTE:
     case GL_UNSIGNED_INT:
+    case GL_UNSIGNED_SHORT:
     case GL_INT:
     case GL_FLOAT:
       return true;

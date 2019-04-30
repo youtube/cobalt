@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 #define COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -90,31 +91,42 @@ class ScriptDebugger {
   static scoped_ptr<ScriptDebugger> CreateDebugger(
       GlobalEnvironment* global_environment, Delegate* delegate);
 
-  // Attach/detach the script debugger.
-  virtual void Attach() = 0;
-  virtual void Detach() = 0;
+  // Attach/detach the script debugger. Saved state can be passed between
+  // instances as an opaque string..
+  virtual void Attach(const std::string& state) = 0;
+  virtual std::string Detach() = 0;
+
+  // Evaluate JavaScript code that is part of the debugger implementation, such
+  // that it does not get reported as debuggable source. Returns true on
+  // success, false if there is an exception. If out_result_utf8 is non-NULL, it
+  // will be set to hold the result of the script evaluation if the script
+  // succeeds, or an exception message if it fails.
+  virtual bool EvaluateDebuggerScript(const std::string& js_code,
+                                      std::string* out_result_utf8) = 0;
 
   // For engines like V8 that directly handle protocol commands.
-  virtual bool CanDispatchProtocolMethod(const std::string& method) = 0;
-  virtual void DispatchProtocolMessage(const std::string& message) = 0;
+  virtual std::set<std::string> SupportedProtocolDomains() = 0;
+  virtual bool DispatchProtocolMessage(const std::string& method,
+                                       const std::string& message) = 0;
+
+  // Creates a JSON representation of an object.
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
+  virtual std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                         const std::string& group) = 0;
+
+  // Lookup the object ID that was in the JSON from |CreateRemoteObject| and
+  // return the JavaScript object that it refers to.
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
+  virtual const script::ValueHandleHolder* LookupRemoteObjectId(
+      const std::string& object_id) = 0;
 
   // For performance tracing of JavaScript methods.
   virtual void StartTracing(const std::vector<std::string>& categories,
                             TraceDelegate* trace_delegate) = 0;
   virtual void StopTracing() = 0;
 
-  // Code execution control. Implementations may use
-  // |Delegate::OnScriptDebuggerPause| to have the delegate handle the
-  // actual blocking of the thread in an engine-independent way.
-  virtual void Pause() = 0;
-  virtual void Resume() = 0;
-  virtual void SetBreakpoint(const std::string& script_id, int line_number,
-                             int column_number) = 0;
   virtual PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) = 0;  // Returns the previous state.
-  virtual void StepInto() = 0;
-  virtual void StepOut() = 0;
-  virtual void StepOver() = 0;
 
  protected:
   virtual ~ScriptDebugger() {}

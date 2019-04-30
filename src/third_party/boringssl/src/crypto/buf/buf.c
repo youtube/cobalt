@@ -54,12 +54,14 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/buf.h>
-
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
-#include <openssl/mem.h>
+#include <openssl/buf.h>
 #include <openssl/err.h>
+#include <openssl/mem.h>
 
 #include "../internal.h"
 
@@ -150,7 +152,7 @@ char *BUF_strdup(const char *str) {
     return NULL;
   }
 
-  return BUF_strndup(str, strlen(str));
+  return BUF_strndup(str, OPENSSL_port_strlen(str));
 }
 
 size_t BUF_strnlen(const char *str, size_t max_len) {
@@ -204,7 +206,7 @@ size_t BUF_strlcpy(char *dst, const char *src, size_t dst_size) {
     *dst = 0;
   }
 
-  return l + strlen(src);
+  return l + OPENSSL_port_strlen(src);
 }
 
 size_t BUF_strlcat(char *dst, const char *src, size_t dst_size) {

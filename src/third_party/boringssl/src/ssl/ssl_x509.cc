@@ -138,10 +138,13 @@
  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
  * OTHERWISE. */
 
-#include <openssl/ssl.h>
-
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/base.h>
 
+#include <openssl/ssl.h>
 #include <openssl/asn1.h>
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
@@ -711,7 +714,7 @@ int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *ca_file,
 void SSL_set_verify_result(SSL *ssl, long result) {
   check_ssl_x509_method(ssl);
   if (result != X509_V_OK) {
-    abort();
+    OPENSSL_port_abort();
   }
 }
 

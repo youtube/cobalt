@@ -20,12 +20,8 @@
 #include "cobalt/debug/json_object.h"
 
 namespace {
-constexpr const char* kInspectorDomains[] = {
-    "Runtime", "Debugger", "Profiler",
-    // TODO: "HeapProfiler",
-};
-constexpr int kInspectorDomainsCount =
-    sizeof(kInspectorDomains) / sizeof(kInspectorDomains[0]);
+// State keys
+constexpr char kScriptDebuggerState[] = "script_debugger";
 
 // JSON attribute names
 constexpr char kId[] = "id";
@@ -39,28 +35,37 @@ namespace backend {
 
 ScriptDebuggerAgent::ScriptDebuggerAgent(
     DebugDispatcher* dispatcher, script::ScriptDebugger* script_debugger)
-    : dispatcher_(dispatcher), script_debugger_(script_debugger) {
-  for (int i = 0; i < kInspectorDomainsCount; i++) {
-    std::string domain(kInspectorDomains[i]);
-    if (script_debugger_->CanDispatchProtocolMethod(domain + ".enable")) {
-      dispatcher_->AddDomain(
-          domain,
-          base::Bind(&ScriptDebuggerAgent::RunCommand, base::Unretained(this)));
-      registered_domains_.insert(domain);
-    }
+    : dispatcher_(dispatcher),
+      script_debugger_(script_debugger),
+      supported_domains_(script_debugger->SupportedProtocolDomains()) {}
+
+void ScriptDebuggerAgent::Thaw(JSONObject agent_state) {
+  for (auto domain : supported_domains_) {
+    dispatcher_->AddDomain(domain, base::Bind(&ScriptDebuggerAgent::RunCommand,
+                                              base::Unretained(this)));
   }
+  std::string script_debugger_state;
+  if (agent_state) {
+    agent_state->GetString(kScriptDebuggerState, &script_debugger_state);
+  }
+  script_debugger_->Attach(script_debugger_state);
+}
+
+JSONObject ScriptDebuggerAgent::Freeze() {
+  for (auto domain : supported_domains_) {
+    dispatcher_->RemoveDomain(domain);
+  }
+  JSONObject agent_state(new base::DictionaryValue());
+  std::string script_debugger_state = script_debugger_->Detach();
+  agent_state->SetString(kScriptDebuggerState, script_debugger_state);
+  return agent_state.Pass();
 }
 
 bool ScriptDebuggerAgent::RunCommand(const Command& command) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (!script_debugger_->CanDispatchProtocolMethod(command.GetMethod())) {
-    return false;
-  }
-
   // Use an internal ID to store the pending command until we get a response.
   int command_id = ++last_command_id_;
-  pending_commands_.emplace(command_id, command);
 
   JSONObject message(new base::DictionaryValue());
   message->SetInteger(kId, command_id);
@@ -69,7 +74,15 @@ bool ScriptDebuggerAgent::RunCommand(const Command& command) {
   if (params) {
     message->Set(kParams, params.release());
   }
-  script_debugger_->DispatchProtocolMessage(JSONStringify(message));
+
+  // Store the pending command before dispatching it so that we can find it if
+  // the script debugger sends a synchronous response before returning.
+  pending_commands_.emplace(command_id, command);
+  if (!script_debugger_->DispatchProtocolMessage(command.GetMethod(),
+                                                 JSONStringify(message))) {
+    pending_commands_.erase(command_id);
+    return false;
+  }
   return true;
 }
 

@@ -19,9 +19,9 @@
 // block size
 
 #include <openssl/poly1305.h>
+#include <openssl/mem.h>
 
 #include "../internal.h"
-
 
 #if !defined(OPENSSL_WINDOWS) && defined(OPENSSL_X86_64)
 

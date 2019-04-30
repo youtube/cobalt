@@ -1,0 +1,23 @@
+apply plugin: 'java'
+apply plugin: 'com.google.protobuf'
+
+repositories {
+    jcenter()
+}
+
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.7'
+  }
+}
+
+dependencies {
+    compile  "com.google.code.findbugs:jsr305:3.0.0"
+    compile "com.google.protobuf:protobuf-java:3.4.0"
+    compile "com.google.guava:guava:r05"
+}
+
+

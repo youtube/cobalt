@@ -168,7 +168,7 @@ PKCS8_PRIV_KEY_INFO *PKCS8_decrypt(X509_SIG *pkcs8, const char *pass,
                                    int pass_len_in) {
   size_t pass_len;
   if (pass_len_in == -1 && pass != NULL) {
-    pass_len = strlen(pass);
+    pass_len = OPENSSL_port_strlen(pass);
   } else {
     pass_len = (size_t)pass_len_in;
   }
@@ -203,7 +203,7 @@ X509_SIG *PKCS8_encrypt(int pbe_nid, const EVP_CIPHER *cipher, const char *pass,
                         int iterations, PKCS8_PRIV_KEY_INFO *p8inf) {
   size_t pass_len;
   if (pass_len_in == -1 && pass != NULL) {
-    pass_len = strlen(pass);
+    pass_len = OPENSSL_port_strlen(pass);
   } else {
     pass_len = (size_t)pass_len_in;
   }
@@ -663,7 +663,7 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
   ctx.out_key = out_key;
   ctx.out_certs = out_certs;
   ctx.password = password;
-  ctx.password_len = password != NULL ? strlen(password) : 0;
+  ctx.password_len = password != NULL ? OPENSSL_port_strlen(password) : 0;
 
   // Verify the MAC.
   {
@@ -821,7 +821,7 @@ out:
   BUF_MEM_free(buf);
   return ret;
 }
-
+#ifndef OPENSSL_NO_FP_API
 PKCS12* d2i_PKCS12_fp(FILE *fp, PKCS12 **out_p12) {
   BIO *bio;
   PKCS12 *ret;
@@ -835,6 +835,7 @@ PKCS12* d2i_PKCS12_fp(FILE *fp, PKCS12 **out_p12) {
   BIO_free(bio);
   return ret;
 }
+#endif  // OPENSSL_NO_FP_API
 
 int i2d_PKCS12(const PKCS12 *p12, uint8_t **out) {
   if (p12->ber_len > INT_MAX) {
@@ -874,6 +875,7 @@ int i2d_PKCS12_bio(BIO *bio, const PKCS12 *p12) {
   return 1;
 }
 
+#ifndef OPENSSL_NO_FP_API
 int i2d_PKCS12_fp(FILE *fp, const PKCS12 *p12) {
   BIO *bio = BIO_new_fp(fp, 0 /* don't take ownership */);
   if (bio == NULL) {
@@ -884,6 +886,7 @@ int i2d_PKCS12_fp(FILE *fp, const PKCS12 *p12) {
   BIO_free(bio);
   return ret;
 }
+#endif  // OPENSSL_NO_FP_API
 
 int PKCS12_parse(const PKCS12 *p12, const char *password, EVP_PKEY **out_pkey,
                  X509 **out_cert, STACK_OF(X509) **out_ca_certs) {
@@ -974,7 +977,7 @@ static int add_bag_attributes(CBB *bag, const char *name, const uint8_t *key_id,
     }
     // Convert the friendly name to a BMPString.
     CBS name_cbs;
-    CBS_init(&name_cbs, (const uint8_t *)name, strlen(name));
+    CBS_init(&name_cbs, (const uint8_t *)name, OPENSSL_port_strlen(name));
     while (CBS_len(&name_cbs) != 0) {
       uint32_t c;
       if (!cbs_get_utf8(&name_cbs, &c) ||
@@ -1152,7 +1155,7 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
   // Note that |password| may be NULL to specify no password, rather than the
   // empty string. They are encoded differently in PKCS#12. (One is the empty
   // byte array and the other is NUL-terminated UCS-2.)
-  size_t password_len = password != NULL ? strlen(password) : 0;
+  size_t password_len = password != NULL ? OPENSSL_port_strlen(password) : 0;
 
   uint8_t key_id[EVP_MAX_MD_SIZE];
   unsigned key_id_len = 0;

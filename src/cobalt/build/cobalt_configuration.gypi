@@ -405,11 +405,11 @@
     # The maximum amount of memory that will be used to store media buffers when
     # video resolution is no larger than 1080p. This must be larger than sum of
     # 1080p video budget and non-video budget.
-    'cobalt_media_buffer_max_capacity_1080p%': 36 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_1080p%': 50 * 1024 * 1024,
     # The maximum amount of memory that will be used to store media buffers when
     # video resolution is 4k. If 0, then memory can grow without bound. This
     # must be larger than sum of 4k video budget and non-video budget.
-    'cobalt_media_buffer_max_capacity_4k%': 100 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_4k%': 140 * 1024 * 1024,
 
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
@@ -448,14 +448,14 @@
     # used by video buffers but will also make JavaScript app less likely to
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
-    'cobalt_media_buffer_video_budget_1080p%': 16 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_1080p%': 30 * 1024 * 1024,
     # Specifies the maximum amount of memory used by video buffers of media
     # source before triggering a garbage collection when the video resolution is
     # lower than 4k (3840x2160).  A large value will cause more memory being
     # used by video buffers but will also make JavaScript app less likely to
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
-    'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_4k%': 100 * 1024 * 1024,
 
     # Specifies the duration threshold of media source garbage collection.  When
     # the accumulated duration in a source buffer exceeds this value, the media
@@ -481,11 +481,11 @@
       'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
-      'ENABLE_DEBUG_CONSOLE',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
+      'ENABLE_TOKEN_ALPHABETICAL_SORTING',
 
       # TODO: Rename to COBALT_LOGGING_ENABLED.
       '__LB_SHELL__FORCE_LOGGING__',
@@ -500,11 +500,11 @@
       'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
-      'ENABLE_DEBUG_CONSOLE',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
+      'ENABLE_TOKEN_ALPHABETICAL_SORTING',
       '__LB_SHELL__FORCE_LOGGING__',
       'SK_DEVELOPER',
     ],
@@ -515,7 +515,6 @@
       'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
-      'ENABLE_DEBUG_CONSOLE',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
@@ -581,6 +580,11 @@
           'COBALT_DISABLE_SPDY',
         ],
       }],
+      ['enable_debugger == 1', {
+        'defines': [
+          'ENABLE_DEBUGGER',
+        ],
+      }],
       ['cobalt_v8_buildtime_snapshot == "true"', {
         'defines': [
           'COBALT_V8_BUILDTIME_SNAPSHOT=1',
@@ -596,21 +600,17 @@
   'conditions': [
     ['cobalt_config != "gold"', {
       'variables' : {
-        'cobalt_copy_debug_console': 1,
         'enable_about_scheme': 1,
         'enable_fake_microphone': 1,
         'enable_network_logging': 1,
-        'enable_remote_debugging%': 1,
         'enable_webdriver%': 1,
       },
     },
     {
       'variables' : {
-        'cobalt_copy_debug_console': 0,
         'enable_about_scheme': 0,
         'enable_fake_microphone': 0,
         'enable_network_logging': 0,
-        'enable_remote_debugging%': 0,
         'enable_webdriver': 0,
       },
     }],

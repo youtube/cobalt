@@ -133,7 +133,7 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_INFO_ACCESS(
         tret = tmp;
         vtmp = sk_CONF_VALUE_value(tret, i);
         i2t_ASN1_OBJECT(objtmp, sizeof objtmp, desc->method);
-        nlen = strlen(objtmp) + strlen(vtmp->name) + 5;
+        nlen = OPENSSL_port_strlen(objtmp) + OPENSSL_port_strlen(vtmp->name) + 5;
         ntmp = OPENSSL_malloc(nlen);
         if (ntmp == NULL)
             goto err;
@@ -178,7 +178,7 @@ static AUTHORITY_INFO_ACCESS *v2i_AUTHORITY_INFO_ACCESS(X509V3_EXT_METHOD
             OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
             goto err;
         }
-        ptmp = strchr(cnf->name, ';');
+        ptmp = OPENSSL_port_strchr(cnf->name, ';');
         if (!ptmp) {
             OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_SYNTAX);
             goto err;

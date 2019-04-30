@@ -70,8 +70,8 @@
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/ui_navigation/nav_item.h"
 #include "googleurl/src/gurl.h"
-#include "starboard/window.h"
 
 namespace cobalt {
 namespace media_session {
@@ -122,7 +122,6 @@ class Window : public EventTarget,
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
-  typedef base::Callback<SbWindow()> GetSbWindowCallback;
 
   enum ClockType {
     kClockTypeTestRunner,
@@ -172,6 +171,7 @@ class Window : public EventTarget,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
       base::WaitableEvent* synchronous_loader_interrupt,
+      const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
@@ -397,6 +397,10 @@ class Window : public EventTarget,
 
   void SetEnvironmentSettings(script::EnvironmentSettings* settings);
 
+  const scoped_refptr<ui_navigation::NavItem>& GetUiNavRoot() const {
+    return ui_nav_root_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -460,7 +464,6 @@ class Window : public EventTarget,
   const base::Closure ran_animation_frame_callbacks_callback_;
   const CloseCallback window_close_callback_;
   const base::Closure window_minimize_callback_;
-  const GetSbWindowCallback get_sb_window_callback_;
 
   scoped_refptr<OnScreenKeyboard> on_screen_keyboard_;
 
@@ -472,6 +475,10 @@ class Window : public EventTarget,
   ScreenshotManager screenshot_manager_;
 
   script::EnvironmentSettings* environment_settings_ = nullptr;
+
+  // This UI navigation root container should contain all active UI navigation
+  // items for this window.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_root_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

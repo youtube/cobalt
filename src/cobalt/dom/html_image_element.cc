@@ -156,7 +156,7 @@ void HTMLImageElement::UpdateImageData() {
 void HTMLImageElement::OnLoadingSuccess() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingSuccess()");
   AllowGarbageCollectionAfterEventIsDispatched(
-      base::Tokens::load(), &prevent_gc_until_load_complete_);
+      base::Tokens::load(), prevent_gc_until_load_complete_.Pass());
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
@@ -166,7 +166,7 @@ void HTMLImageElement::OnLoadingSuccess() {
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
   AllowGarbageCollectionAfterEventIsDispatched(
-      base::Tokens::error(), &prevent_gc_until_load_complete_);
+      base::Tokens::error(), prevent_gc_until_load_complete_.Pass());
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
@@ -175,29 +175,30 @@ void HTMLImageElement::OnLoadingError() {
 
 void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
     base::Token event_name) {
-  DCHECK(!prevent_gc_until_event_dispatch_);
-  prevent_gc_until_event_dispatch_.reset(
-      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-          html_element_context()->script_runner()->GetGlobalEnvironment(),
-          this));
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_event_dispatch(
+          new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+              html_element_context()->script_runner()->GetGlobalEnvironment(),
+              this));
   AllowGarbageCollectionAfterEventIsDispatched(
-      event_name, &prevent_gc_until_event_dispatch_);
+      event_name, prevent_gc_until_event_dispatch.Pass());
 }
 
 void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
     base::Token event_name,
-    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
-  PostToDispatchEventAndRunCallback(
+  PostToDispatchEventNameAndRunCallback(
       FROM_HERE, event_name,
       base::Bind(&HTMLImageElement::DestroyScopedPreventGC,
-                 base::AsWeakPtr<HTMLImageElement>(this), scoped_prevent_gc));
+                 base::AsWeakPtr<HTMLImageElement>(this),
+                 base::Passed(&scoped_prevent_gc)));
 }
 
 void HTMLImageElement::DestroyScopedPreventGC(
-    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
-  scoped_prevent_gc->reset();
+  scoped_prevent_gc.reset();
 }
 
 }  // namespace dom

@@ -35,6 +35,7 @@
 #include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/clamp.h"
 
 namespace cobalt {
@@ -448,7 +449,9 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
       switches::kImageCacheSizeInBytes,
       command_line_settings.cobalt_image_cache_size_in_bytes,
       build_settings.cobalt_image_cache_size_in_bytes,
-      CalculateImageCacheSize(ui_resolution));
+      CalculateImageCacheSize(
+          ui_resolution,
+          loader::image::ImageDecoder::AllowDecodingToMultiPlane()));
   EnsureValuePositive(image_cache_size_in_bytes_.get());
   image_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
   // ImageCache releases memory linearly until a progress value of 75%, then

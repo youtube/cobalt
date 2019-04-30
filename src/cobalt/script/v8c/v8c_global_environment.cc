@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+#endif  // defined(STARBOARD)
+
 #include "cobalt/script/v8c/v8c_global_environment.h"
 
 #include <algorithm>
@@ -198,10 +202,18 @@ std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
   std::vector<StackFrame> result;
   for (int i = 0; i < stack_trace->GetFrameCount(); i++) {
     v8::Local<v8::StackFrame> stack_frame = stack_trace->GetFrame(i);
-    result.emplace_back(
-        stack_frame->GetLineNumber(), stack_frame->GetColumn(),
-        *v8::String::Utf8Value(isolate_, stack_frame->GetFunctionName()),
-        *v8::String::Utf8Value(isolate_, stack_frame->GetScriptName()));
+    v8::String::Utf8Value function_name(isolate_,
+                                        stack_frame->GetFunctionName());
+    v8::String::Utf8Value script_name(isolate_, stack_frame->GetScriptName());
+    std::string function_name_str, script_name_str;
+    if (*function_name) {
+      function_name_str = std::string(*function_name);
+    }
+    if (*script_name) {
+      script_name_str = std::string(*script_name);
+    }
+    result.emplace_back(stack_frame->GetLineNumber(), stack_frame->GetColumn(),
+                        function_name_str, script_name_str);
   }
 
   return result;

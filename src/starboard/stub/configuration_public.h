@@ -167,6 +167,10 @@
 // headers. It may be removed at some point in favor of a different solution.
 #undef SB_HAS_QUIRK_SOCKET_BSD_HEADERS
 
+// Some platforms don't support gmtime_r. Platforms where this is the case
+// should define the following quirk.
+#undef SB_HAS_QUIRK_NO_GMTIME_R
+
 // --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
@@ -333,9 +337,6 @@
 #define SB_HAS_SPEECH_SYNTHESIS 1
 
 // --- Media Configuration ---------------------------------------------------
-
-// Whether the current platform uses a media player that relies on a URL.
-#define SB_HAS_PLAYER_WITH_URL 0
 
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the

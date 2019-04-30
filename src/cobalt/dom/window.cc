@@ -70,7 +70,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 
   // From DocumentObserver.
   void OnLoad() override {
-    window_->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+    window_->PostToDispatchEventName(FROM_HERE, base::Tokens::load());
   }
   void OnMutation() override {}
   void OnFocusChanged() override {}
@@ -129,6 +129,7 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
@@ -195,13 +196,18 @@ Window::Window(
       splash_screen_cache_callback_(splash_screen_cache_callback),
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
       on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
-      screenshot_manager_(screenshot_function_callback) {
+      screenshot_manager_(screenshot_function_callback),
+      ui_nav_root_(ui_nav_root) {
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);
   SetCamera3D(camera_3d);
+
+  if (ui_nav_root_) {
+    ui_nav_root_->SetEnabled(true);
+  }
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
@@ -369,9 +375,9 @@ scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
-  SB_NOTIMPLEMENTED();
-  LOG(WARNING) << "btoa() can not take a string containing NUL right now. "
-                  "Please avoid using it!";
+  LOG(WARNING) << "In older Cobalt(<19), btoa() can not take a string"
+                  " containing NUL. Be careful that you don't need to stay "
+                  "compatible with old versions of Cobalt if you use btoa.";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
@@ -714,11 +720,14 @@ const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
 void Window::ReleaseOnScreenKeyboard() { on_screen_keyboard_ = nullptr; }
 
 Window::~Window() {
+  if (ui_nav_root_) {
+    ui_nav_root_->SetEnabled(false);
+  }
   html_element_context_->page_visibility_state()->RemoveObserver(this);
 }
 
 void Window::FireHashChangeEvent() {
-  PostToDispatchEvent(FROM_HERE, base::Tokens::hashchange());
+  PostToDispatchEventName(FROM_HERE, base::Tokens::hashchange());
 }
 
 }  // namespace dom

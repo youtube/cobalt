@@ -36,17 +36,10 @@ TEST(SignatureCreatorTest, BasicTest) {
   std::vector<uint8> public_key_info;
   ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));
 
-  // This is the algorithm ID for SHA-1 with RSA encryption.
-  // TODO(aa): Factor this out into some shared location.
-  const uint8 kSHA1WithRSAAlgorithmID[] = {
-    0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-    0xf7, 0x0d, 0x01, 0x01, 0x05, 0x05, 0x00
-  };
   crypto::SignatureVerifier verifier;
   ASSERT_TRUE(verifier.VerifyInit(
-      kSHA1WithRSAAlgorithmID, sizeof(kSHA1WithRSAAlgorithmID),
-      &signature.front(), signature.size(),
-      &public_key_info.front(), public_key_info.size()));
+      crypto::SignatureVerifier::RSA_PKCS1_SHA1, &signature.front(),
+      signature.size(), &public_key_info.front(), public_key_info.size()));
 
   verifier.VerifyUpdate(reinterpret_cast<const uint8*>(data.c_str()),
                         data.size());

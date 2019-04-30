@@ -27,17 +27,12 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/address_sanitizer.h"
-#include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
-#if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/backend/render_overlay.h"
-#endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
@@ -62,8 +57,16 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
+
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debugger_state.h"
+#include "cobalt/debug/backend/render_overlay.h"
+#include "cobalt/debug/console/command_manager.h"
+#endif  // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -244,10 +247,15 @@ class WebModule : public LifecycleObserver {
     bool enable_partial_layout = true;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
     // Whether the debugger should block until remote devtools connects.
     bool wait_for_web_debugger = false;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+    // The debugger state returned from a previous web module's FreezeDebugger()
+    // that should be restored in the new WebModule after navigation. Null if
+    // there is no state to restore.
+    debug::backend::DebuggerState* debugger_state = nullptr;
+#endif  // defined(ENABLE_DEBUGGER)
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -327,12 +335,16 @@ class WebModule : public LifecycleObserver {
       const webdriver::protocol::WindowId& window_id);
 #endif
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Gets a reference to the debug dispatcher that interacts with this web
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
   debug::backend::DebugDispatcher* GetDebugDispatcher();
-#endif  // ENABLE_DEBUG_CONSOLE
+
+  // Moves the debugger state out of this WebModule prior to navigating so that
+  // it can be restored in the new WebModule after the navigation.
+  std::unique_ptr<debug::backend::DebuggerState> FreezeDebugger();
+#endif  // ENABLE_DEBUGGER
 
   // Sets the size and pixel ratio of this web module, possibly causing relayout
   // and re-render with the new parameters. Does nothing if the parameters are
@@ -345,6 +357,12 @@ class WebModule : public LifecycleObserver {
       media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
+
+  // This returns the UI navigation root container which contains all active
+  // UI navigation items created by this web module.
+  const scoped_refptr<ui_navigation::NavItem>& GetUiNavRoot() const {
+    return ui_nav_root_;
+  }
 
   // LifecycleObserver implementation
   void Prestart() override;
@@ -383,6 +401,7 @@ class WebModule : public LifecycleObserver {
         const cssom::ViewportSize& window_dimensions, float video_pixel_ratio,
         render_tree::ResourceProvider* resource_provider,
         int dom_max_element_depth, float layout_refresh_rate,
+        const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
         const Options& options)
         : initial_url(initial_url),
           initial_application_state(initial_application_state),
@@ -398,6 +417,7 @@ class WebModule : public LifecycleObserver {
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
           layout_refresh_rate(layout_refresh_rate),
+          ui_nav_root(ui_nav_root),
           options(options) {}
 
     GURL initial_url;
@@ -414,6 +434,7 @@ class WebModule : public LifecycleObserver {
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
     float layout_refresh_rate;
+    scoped_refptr<ui_navigation::NavItem> ui_nav_root;
     Options options;
   };
 
@@ -449,6 +470,10 @@ class WebModule : public LifecycleObserver {
   // All sub-objects of this object are created on this thread, and all public
   // member functions are re-posted to this thread if necessary.
   base::Thread thread_;
+
+  // This is the root UI navigation container which contains all active UI
+  // navigation items created by this web module.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_root_;
 };
 
 }  // namespace browser

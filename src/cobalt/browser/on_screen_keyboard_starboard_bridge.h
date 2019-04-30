@@ -49,6 +49,8 @@ class OnScreenKeyboardStarboardBridge : public dom::OnScreenKeyboardBridge {
 
   bool IsShown() const override;
 
+  bool SuggestionsSupported() const override;
+
   scoped_refptr<dom::DOMRect> BoundingRect() const override;
 
   bool IsValidTicket(int ticket) const override;

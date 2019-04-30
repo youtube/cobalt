@@ -182,8 +182,8 @@ CaptionState ToCobaltCaptionState(SbAccessibilityCaptionState state) {
 #endif  // SB_HAS(CAPTIONS)
 
 void SystemCaptionSettings::OnCaptionSettingsChanged() {
-  DispatchEventAndRunCallback(base::Tokens::change(),
-                              base::Closure(base::Bind(base::DoNothing)));
+  DispatchEventNameAndRunCallback(base::Tokens::change(),
+                                  base::Closure(base::Bind(base::DoNothing)));
 }
 
 base::optional<std::string> SystemCaptionSettings::background_color() {

@@ -114,7 +114,7 @@
         // }
     ],
     "dependencies": [
-        // "elements",
+        "elements",
         "sources",
         "console"
     ],

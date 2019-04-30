@@ -20,6 +20,10 @@
       # generating PDBs.
       'product_name': 'cobalt_base',
       'type': 'static_library',
+      'defines': ["COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS=1"],
+      'direct_dependent_settings': {
+         'defines': ["COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS=1"],
+      },
       'sources': [
         'accessibility_changed_event.h',
         'address_sanitizer.h',
@@ -27,8 +31,6 @@
         'clock.h',
         'cobalt_paths.h',
         'compiler.h',
-        'console_commands.cc',
-        'console_commands.h',
         'c_val.cc',
         'c_val.h',
         'c_val_collection_entry_stats.h',

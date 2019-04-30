@@ -39,6 +39,10 @@
 
 #include "base/logging.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
+
 namespace url_canon {
 
 namespace {

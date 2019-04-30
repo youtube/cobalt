@@ -68,10 +68,27 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Add SbMediaTransferId* argument |eotf| to SbMediaIsVideoSupported, so the
+// Introduce Cobalt Extensions using the SbSystemGetExtension interface.
+// Cobalt extensions implement app & platform specific functionality.
+#define SB_EXTENSIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce audio write duration
+//   Add a function `SbMediaSetAudioWriteDuration()` to `starboard/media.h`
+//   which communicates to the platform how much audio will be sent to the
+//   platform at a time.
+#define SB_SET_AUDIO_WRITE_DURATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate unused function `SbSystemClearPlatformError()`.
+#define SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate the events of type `kSbEventTypeNetworkDisconnect`,
+// `kSbEventTypeNetworkConnect`.
+#define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add `SbMediaTransferId*` argument |eotf| to `SbMediaIsVideoSupported`, so the
 // platform may indicate support of resolution, bitrate, fps, and codec
 // conditioned on eotf. Also, remove the function
-// SbMediaIsTransferCharacteristicsSupported which is no longer necessary.
+// `SbMediaIsTransferCharacteristicsSupported()` which is no longer necessary.
 #define SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Add support for using C++11 standard unordered maps and sets.
@@ -110,9 +127,43 @@
 // Add support for SbThreadSampler and SbThreadContext to support profiling.
 #define SB_THREAD_SAMPLER_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce a new API in starboard/window.h which declares the function
-// SbWindowUpdateOnScreenKeyboardSuggestions().
+// Introduce a new API in starboard/window.h which declares the functions
+// SbWindowUpdateOnScreenKeyboardSuggestions() and
+// SbWindowOnScreenKeyboardSuggestionsSupported().
 #define SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce new potential starboard/file.h error code value,
+// kSbFileErrorIO to match for example "EIO" on posix platforms.
+#define SB_FILE_ERROR_IO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Move the definition of FormatString() from string.h to a new header
+// format_string.h.
+#define SB_MOVE_FORMAT_STRING_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add support for hybrid navigation.
+#define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Make the decode target content region parameters floats instead of ints.
+// The primary motivation for this change is to make it so that on platforms
+// where it is difficult to obtain the width and height of a texture, we can
+// still correctly identify a precise fractional "normalized" content region
+// with the texture width and height set to 1.
+#define SB_DECODE_TARGET_CONTENT_REGION_FLOATS SB_EXPERIMENTAL_API_VERSION
+
+// Add kSbSystemPropertyOriginalDesignManufacturerName enum value.
+// This change also deprecates kSbSystemPropertyNetworkOperatorName.
+// The kSbSystemPropertyOriginalDesignManufacturerName value will represent
+// the corporate entity responsible for the manufacturing/assembly of the device
+// on behalf of the business entity owning the brand.
+#define SB_ODM_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Cross-platform helper Starboard definitions refactored out of //starboard/
+// and into //starboard/common/. In order to more explicitly identify the core
+// Starboard API, mulitple files, or parts of them, were moved into the static
+// library //starboard/common/. Each of the changes was potentially breaking,
+// and SB_CPP_API_REFACTORING allowed us to conditionally #include the
+// destination files in the source files and thus prevent breaks.
+#define SB_CPP_API_REFACTORING SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -537,10 +588,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
 
-#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < 8
-#error "SB_HAS_PLAYER_WITH_URL is not supported in this API version."
-#endif
-
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
                             SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
     (SB_HAS(1_CORE) &&                                              \
@@ -610,6 +657,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 
 #if SB_API_VERSION >= 6
+
 #if defined(SB_HAS_DRM_KEY_STATUSES)
 #if !SB_HAS(DRM_KEY_STATUSES)
 #error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
@@ -617,6 +665,17 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_KEY_STATUSES)
 #define SB_HAS_DRM_KEY_STATUSES 1
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
+
+#if defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#if !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#error \
+    "SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER is required for Starboard 6 " \
+       "or later."
+#endif  // !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#else   // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
+#endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+
 #endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION
@@ -649,9 +708,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
 #error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
 #endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#if !defined(SB_HAS_PLAYER_WITH_URL)
-#error "Your platform must define SB_HAS_PLAYER_WITH_URL."
-#endif  // !defined(SB_HAS_PLAYER_WITH_URL)
 #endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
@@ -689,13 +745,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
-#if defined(SB_HAS_AC3_SUPPORT)
-#if !SB_HAS(AC3_SUPPORT)
-#error "SB_HAS_AC3_SUPPORT is required in this API version."
-#endif  // !SB_HAS(AC3_SUPPORT)
-#else   // defined(SB_HAS_AC3_SUPPORT)
-#define SB_HAS_AC3_SUPPORT 1
-#endif  // defined(SB_HAS_AC3_SUPPORT)
+#if defined(SB_HAS_AC3_AUDIO)
+#if !SB_HAS(AC3_AUDIO)
+#error "SB_HAS_AC3_AUDIO is required in this API version."
+#endif  // !SB_HAS(AC3_AUDIO)
+#else   // defined(SB_HAS_AC3_AUDIO)
+#define SB_HAS_AC3_AUDIO 1
+#endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
 // --- Derived Configuration -------------------------------------------------
 

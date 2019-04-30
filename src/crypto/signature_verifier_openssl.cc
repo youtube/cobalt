@@ -29,8 +29,7 @@ SignatureVerifier::~SignatureVerifier() {
   Reset();
 }
 
-bool SignatureVerifier::VerifyInit(const uint8* signature_algorithm,
-                                   int signature_algorithm_len,
+bool SignatureVerifier::VerifyInit(SignatureAlgorithm signature_algorithm,
                                    const uint8* signature,
                                    int signature_len,
                                    const uint8* public_key_info,
@@ -39,12 +38,18 @@ bool SignatureVerifier::VerifyInit(const uint8* signature_algorithm,
   verify_context_ = new VerifyContext;
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
-  ScopedOpenSSL<X509_ALGOR, X509_ALGOR_free> algorithm(
-      d2i_X509_ALGOR(NULL, &signature_algorithm, signature_algorithm_len));
-  if (!algorithm.get())
-    return false;
-
-  const EVP_MD* digest = EVP_get_digestbyobj(algorithm.get()->algorithm);
+  const EVP_MD* digest = nullptr;
+  switch (signature_algorithm) {
+    case RSA_PKCS1_SHA1:
+      digest = EVP_sha1();
+      break;
+    case RSA_PKCS1_SHA256:
+      digest = EVP_sha256();
+      break;
+    case ECDSA_SHA256:
+      digest = EVP_sha256();
+      break;
+  }
   DCHECK(digest);
 
   signature_.assign(signature, signature + signature_len);

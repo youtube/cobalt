@@ -28,35 +28,15 @@ namespace backend {
 
 namespace {
 const char kContentDir[] = "cobalt/debug/backend";
-const char kObjectIdentifier[] = "devtoolsBackend";
 }  // namespace
 
 DebugScriptRunner::DebugScriptRunner(
     script::GlobalEnvironment* global_environment,
-    const dom::CspDelegate* csp_delegate,
-    const OnEventCallback& on_event_callback)
+    script::ScriptDebugger* script_debugger,
+    const dom::CspDelegate* csp_delegate)
     : global_environment_(global_environment),
-      csp_delegate_(csp_delegate),
-      on_event_callback_(on_event_callback) {
-  // Bind this object to the global object so it can persist state and be
-  // accessed from any of the debug agents.
-  global_environment_->Bind(kObjectIdentifier, make_scoped_refptr(this));
-}
-
-base::optional<std::string> DebugScriptRunner::CreateRemoteObject(
-    const script::ValueHandleHolder* object, const std::string& params) {
-  // Callback function should have been set by runtime.js.
-  DCHECK(create_remote_object_callback_);
-
-  CreateRemoteObjectCallback::ReturnValue result =
-      create_remote_object_callback_->value().Run(object, params);
-  if (result.exception) {
-    DLOG(WARNING) << "Exception creating remote object.";
-    return base::nullopt;
-  } else {
-    return result.result;
-  }
-}
+      script_debugger_(script_debugger),
+      csp_delegate_(csp_delegate) {}
 
 bool DebugScriptRunner::RunCommand(const std::string& method,
                                    const std::string& json_params,
@@ -66,38 +46,14 @@ bool DebugScriptRunner::RunCommand(const std::string& method,
   // run the method, letting it fail if there's any exception.
   std::string domain(method, 0, method.find('.'));
   std::string script = base::StringPrintf(
-      "(typeof %s.%s === 'undefined' || typeof %s.%s === 'undefined')"
-      "    ? '' : %s.%s(%s);",
-      kObjectIdentifier, domain.c_str(), kObjectIdentifier, method.c_str(),
-      kObjectIdentifier, method.c_str(), json_params.c_str());
-  return EvaluateScript(script, json_result);
+      "(typeof debugBackend.%s === 'undefined' ||"
+      " typeof debugBackend.%s === 'undefined') ? '' : debugBackend.%s(%s);",
+      domain.c_str(), method.c_str(), method.c_str(), json_params.c_str());
+  return EvaluateDebuggerScript(script, json_result) && !json_result->empty();
 }
 
 bool DebugScriptRunner::RunScriptFile(const std::string& filename) {
   std::string result;
-  bool success = EvaluateScriptFile(filename, &result);
-  if (!success) {
-    DLOG(WARNING) << "Failed to run script file " << filename << ": " << result;
-  }
-  return success;
-}
-
-bool DebugScriptRunner::EvaluateScript(const std::string& js_code,
-                                       std::string* result) {
-  DCHECK(global_environment_);
-  DCHECK(result);
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCode(js_code, GetInlineSourceLocation());
-
-  ForceEnableEval();
-  bool succeeded = global_environment_->EvaluateScript(source_code, result);
-  SetEvalAllowedFromCsp();
-  return succeeded;
-}
-
-bool DebugScriptRunner::EvaluateScriptFile(const std::string& filename,
-                                           std::string* result) {
-  DCHECK(result);
 
   FilePath file_path;
   PathService::Get(paths::DIR_COBALT_WEB_ROOT, &file_path);
@@ -110,12 +66,20 @@ bool DebugScriptRunner::EvaluateScriptFile(const std::string& filename,
     return false;
   }
 
-  return EvaluateScript(script, result);
+  if (!EvaluateDebuggerScript(script, nullptr)) {
+    DLOG(ERROR) << "Failed to run script file " << filename << ": " << result;
+    return false;
+  }
+  return true;
 }
 
-void DebugScriptRunner::SendEvent(const std::string& method,
-                                  const base::optional<std::string>& params) {
-  on_event_callback_.Run(method, params);
+bool DebugScriptRunner::EvaluateDebuggerScript(const std::string& script,
+                                               std::string* out_result_utf8) {
+  ForceEnableEval();
+  bool success =
+      script_debugger_->EvaluateDebuggerScript(script, out_result_utf8);
+  SetEvalAllowedFromCsp();
+  return success;
 }
 
 void DebugScriptRunner::ForceEnableEval() {
@@ -134,20 +98,6 @@ void DebugScriptRunner::SetEvalAllowedFromCsp() {
 
   global_environment_->SetReportEvalCallback(base::Bind(
       &dom::CspDelegate::ReportEval, base::Unretained(csp_delegate_)));
-}
-
-const DebugScriptRunner::CreateRemoteObjectCallbackHolder*
-DebugScriptRunner::create_remote_object_callback() {
-  if (create_remote_object_callback_) {
-    return &(create_remote_object_callback_->referenced_value());
-  } else {
-    return NULL;
-  }
-}
-
-void DebugScriptRunner::set_create_remote_object_callback(
-    const CreateRemoteObjectCallbackHolder& callback) {
-  create_remote_object_callback_.emplace(this, callback);
 }
 
 }  // namespace backend

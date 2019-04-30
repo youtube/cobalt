@@ -17,7 +17,7 @@
 // https://developer.chrome.com/extensions/debugger
 
 [
-  Conditional=ENABLE_DEBUG_CONSOLE
+  Conditional=ENABLE_DEBUGGER
 ] interface DebugHub {
   const long DEBUG_CONSOLE_OFF = 0;
   const long DEBUG_CONSOLE_HUD = 1;

@@ -45,6 +45,7 @@ class CSSStyleRule : public CSSRule {
                const scoped_refptr<CSSRuleStyleDeclaration>& style);
 
   // Web API: CSSStyleRule
+  std::string selector_text() const;
   const scoped_refptr<CSSStyleDeclaration> style() const;
 
   // Web API: CSSRule

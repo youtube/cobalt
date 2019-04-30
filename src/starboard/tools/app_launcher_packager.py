@@ -27,16 +27,20 @@ that the app launcher can be run independent of the Cobalt source tree.
 ################################################################################
 
 
-def CopyAppLauncherTools(repo_root, dest_root, additional_sub_dirs=[]):
+def CopyAppLauncherTools(repo_root, dest_root,
+                         additional_glob_patterns=None,
+                         include_black_box_tests=True):
   """Copies app launcher related files to the destination root.
   repo_root: The 'src' path that will be used for packaging.
   dest_root: The directory where the src files will be stored.
-  additional_sub_dirs: Some platforms may need to include certain dependencies
-    beyond the default include directories. Each element in this list will be
-    a path with assumed root at src/. For example ['third_party/X'] would
-    include path 'src/third_party/X/**/*.py' in the packaging operation. For a
-    list of default paths see _PYTHON_SRC_DIRS in this file."""
-  _CopyAppLauncherTools(repo_root, dest_root, additional_sub_dirs)
+  additional_glob_patterns: Some platforms may need to include certain
+    dependencies beyond the default include file patterns. The results here will
+    be merged in with _INCLUDE_FILE_PATTERNS.
+  include_black_box_tests: If True then the resources for the black box tests
+    are included."""
+  _CopyAppLauncherTools(repo_root, dest_root,
+                        additional_glob_patterns,
+                        include_black_box_tests=include_black_box_tests)
 
 
 def MakeZipArchive(src, output_zip):
@@ -52,6 +56,7 @@ def MakeZipArchive(src, output_zip):
 
 
 import argparse
+import fnmatch
 import logging
 import os
 import shutil
@@ -65,15 +70,30 @@ import starboard.tools.platform
 import jinja2
 
 
-# Default python directories to find code.
-_PYTHON_SRC_DIRS = [
-    'starboard',
-    'cobalt',                # TODO: Test and possibly prune.
-    'buildbot',              # Needed because of device_server.
-    'lbshell',               # TODO: Test and possibly prune.
-    'third_party/jinja2',    # Required by this app_launcher_packager.py script.
-    'third_party/markupsafe' # Required by third_party/jinja2
+# Default python directories to app launcher resources.
+_INCLUDE_FILE_PATTERNS = [
+    ('buildbot', '*.py'),
+    ('buildbot/device_server/shared/ssl_certs', '*'),
+    ('cobalt', '*.py'),
+    # TODO: Test and possibly prune.
+    ('lbshell', '*.py'),
+    ('starboard', '*.py'),
+    # jinja2 required by this app_launcher_packager.py script.
+    ('third_party/jinja2',  '*.py'),
+    ('third_party/markupsafe', '*.py'), # Required by third_party/jinja2
 ]
+
+
+_INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
+    # Black box and web platform tests have non-py assets, so everything
+    # is picked up.
+    ('cobalt/black_box_tests', '*'),
+    ('third_party/web_platform_tests', '*'),
+    ('third_party/proxy_py', '*'),
+]
+
+# Do not allow .git directories to make it into the build.
+_EXCLUDE_DIRECTORY_PATTERNS = ['.git']
 
 
 def _MakeDir(d):
@@ -99,16 +119,19 @@ def _IsOutDir(source_root, d):
   return out_dir in d
 
 
-def _FindPythonAndCertFiles(source_root):
-  logging.info('Searching in ' + source_root + ' for python files.')
+def _FindFilesRecursive(src_root, glob_pattern):
+  src_root = os.path.normpath(src_root)
+  logging.info('Searching in %s for %s type files.', src_root, glob_pattern)
   file_list = []
-  for root, _, files in os.walk(source_root):
+  for root, dirs, files in os.walk(src_root, topdown=True):
+    # Prunes when using os.walk with topdown=True
+    [dirs.remove(d) for d in list(dirs) if d in _EXCLUDE_DIRECTORY_PATTERNS]
     # Eliminate any locally built files under the out directory.
-    if _IsOutDir(source_root, root):
+    if _IsOutDir(src_root, root):
       continue
+    files = fnmatch.filter(files, glob_pattern)
     for f in files:
-      if f.endswith('.py') or f.endswith('.crt') or f.endswith('.key'):
-        file_list.append(os.path.join(root, f))
+      file_list.append(os.path.join(root, f))
   return file_list
 
 
@@ -143,15 +166,20 @@ def _WritePlatformsInfo(repo_root, dest_root):
   logging.info('Finished baking in platform info files.')
 
 
-def _CopyAppLauncherTools(repo_root, dest_root, additional_sub_dirs):
+def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
+                          include_black_box_tests):
   # Step 1: Remove previous output directory if it exists
   if os.path.isdir(dest_root):
     shutil.rmtree(dest_root)
-  # Step 2: Find all python files from specified search directories.
-  subdirs = _PYTHON_SRC_DIRS + additional_sub_dirs
+  # Step 2: Find all glob files from specified search directories.
+  include_glob_patterns = _INCLUDE_FILE_PATTERNS
+  if additional_glob_patterns:
+    include_glob_patterns += additional_glob_patterns
+  if include_black_box_tests:
+    include_glob_patterns += _INCLUDE_BLACK_BOX_TESTS_PATTERNS
   copy_list = []
-  for d in subdirs:
-    flist = _FindPythonAndCertFiles(os.path.join(repo_root, d))
+  for d, glob_pattern in include_glob_patterns:
+    flist = _FindFilesRecursive(os.path.join(repo_root, d), glob_pattern)
     copy_list.extend(flist)
   # Copy all src/*.py from repo_root without recursing down.
   for f in os.listdir(repo_root):
@@ -161,6 +189,7 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_sub_dirs):
   # Order by file path string and remove any duplicate paths.
   copy_list = list(set(copy_list))
   copy_list.sort()
+  folders_logged = set()
   # Step 3: Copy the src files to the destination directory.
   for src in copy_list:
     tail_path = os.path.relpath(src, repo_root)
@@ -168,7 +197,10 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_sub_dirs):
     d = os.path.dirname(dst)
     if not os.path.isdir(d):
       os.makedirs(d)
-    logging.info(src + ' -> ' + dst)
+    src_folder = os.path.dirname(src)
+    if not src_folder in folders_logged:
+      folders_logged.add(src_folder)
+      logging.info(src_folder + ' -> ' + os.path.dirname(dst))
     shutil.copy2(src, dst)
   # Step 4: Re-write the platform infos file in the new repo copy.
   _WritePlatformsInfo(repo_root, dest_root)
@@ -191,7 +223,7 @@ def main(command_args):
       '--destination_root',
       required=True,
       help='The path to the root of the destination folder into which the '
-      'python scripts are packaged.')
+           'application resources are packaged.')
   args = parser.parse_args(command_args)
   CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
   return 0

@@ -111,13 +111,12 @@ class WebModule::Impl {
   explicit Impl(const ConstructionData& data);
   ~Impl();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug::backend::DebugDispatcher* debug_dispatcher() {
-    // Proceed if |CreateDebugModuleIfNull| already ran, otherwise wait for it.
-    debug_module_created_.Wait();
+    DCHECK(debug_module_);
     return debug_module_->debug_dispatcher();
   }
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. Event is
@@ -194,16 +193,18 @@ class WebModule::Impl {
       scoped_ptr<webdriver::WindowDriver>* window_driver_out);
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-  void CreateDebugModuleIfNull();
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   void WaitForWebDebugger();
+
   bool IsFinishedWaitingForWebDebugger() {
     return wait_for_web_debugger_finished_.IsSignaled();
   }
-#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+
+  void FreezeDebugger(
+      std::unique_ptr<debug::backend::DebuggerState>* debugger_state) {
+    *debugger_state = debug_module_->Freeze();
+  }
+#endif  // defined(ENABLE_DEBUGGER)
 
   void SetSize(cssom::ViewportSize window_dimensions, float video_pixel_ratio);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
@@ -406,27 +407,19 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
   scoped_ptr<debug::backend::RenderOverlay> debug_overlay_;
 
   // The core of the debugging system.
-  // Created lazily when accessed via |GetDebugDispatcher|.
   scoped_ptr<debug::backend::DebugModule> debug_module_;
 
-  // Blocks threads getting the |DebugDispatcher| until it's ready after the
-  // |CreateDebugModuleIfNull| task has run.
-  base::WaitableEvent debug_module_created_ = {true /* manual_reset */,
-                                               false /* initially_signaled */};
-#endif  // ENABLE_DEBUG_CONSOLE
-
-#if defined(ENABLE_REMOTE_DEBUGGING)
   // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
   // web debugger to connect.
   base::WaitableEvent wait_for_web_debugger_finished_ = {
       true /* manual_reset */, false /* initially_signaled */};
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;
@@ -606,15 +599,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // accessible from |Window|, so we must explicitly add them as roots.
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
+  global_environment_->AddRoot(blob_registry_.get());
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   if (data.options.wait_for_web_debugger) {
-    // Create the |DebugModule| early since we expect a web debugger to connect
-    // and we can't let |GetDebugDispatcher| get blocked when it does. This has
-    // to be done before we block the message loop in |WaitForWebDebugger|.
-    MessageLoop::current()->PostTask(
-        FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
-                              base::Unretained(this)));
     // Post a task that blocks the message loop and waits for the web debugger.
     // This must be posted before the the window's task to load the document.
     MessageLoop::current()->PostTask(
@@ -624,7 +612,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
     // We're not going to wait for the web debugger, so consider it finished.
     wait_for_web_debugger_finished_.Signal();
   }
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+#endif  // defined(ENABLE_DEBUGGER)
 
   bool log_tts = false;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -661,8 +649,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier,
+      data.ui_nav_root, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
@@ -708,11 +696,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.options.clear_window_with_background_color));
   DCHECK(layout_manager_);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-  debug_overlay_.reset(
-      new debug::backend::RenderOverlay(data.render_tree_produced_callback));
-#endif  // ENABLE_DEBUG_CONSOLE
-
 #if !defined(COBALT_FORCE_CSP)
   if (data.options.csp_enforcement_mode == dom::kCspEnforcementDisable) {
     // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
@@ -740,6 +723,15 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_->document()->SetPartialLayout(data.options.enable_partial_layout);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+#if defined(ENABLE_DEBUGGER)
+  debug_overlay_.reset(
+      new debug::backend::RenderOverlay(render_tree_produced_callback_));
+
+  debug_module_.reset(new debug::backend::DebugModule(
+      window_->console(), global_environment_.get(), debug_overlay_.get(),
+      resource_provider_, window_, data.options.debugger_state));
+#endif  // ENABLE_DEBUGGER
+
   is_running_ = true;
 }
 
@@ -754,10 +746,10 @@ WebModule::Impl::~Impl() {
   document_load_observer_.reset();
   media_session_client_.reset();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug_module_.reset();
   debug_overlay_.reset();
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
   // Disable callbacks for the resource caches. Otherwise, it is possible for a
   // callback to occur into a DOM object that is being kept alive by a JS engine
@@ -948,11 +940,11 @@ void WebModule::Impl::OnRenderTreeProduced(
                  base::Unretained(this), base::MessageLoopProxy::current(),
                  last_render_tree_produced_time_));
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
-#else   // ENABLE_DEBUG_CONSOLE
+#else   // ENABLE_DEBUGGER
   render_tree_produced_callback_.Run(layout_results_with_callback);
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 }
 
 void WebModule::Impl::OnRenderTreeRasterized(
@@ -1024,26 +1016,7 @@ void WebModule::Impl::CreateWindowDriver(
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-void WebModule::Impl::CreateDebugModuleIfNull() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(is_running_);
-  DCHECK(window_);
-  DCHECK(global_environment_);
-  DCHECK(resource_provider_);
-
-  if (debug_module_) {
-    return;
-  }
-
-  debug_module_.reset(new debug::backend::DebugModule(
-      window_->console(), global_environment_, debug_overlay_.get(),
-      resource_provider_, window_));
-  debug_module_created_.Signal();
-}
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
 void WebModule::Impl::WaitForWebDebugger() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(debug_module_);
@@ -1054,7 +1027,7 @@ void WebModule::Impl::WaitForWebDebugger() {
   debug_module_->debug_dispatcher()->SetPaused(true);
   wait_for_web_debugger_finished_.Signal();
 }
-#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+#endif  // defined(ENABLE_DEBUGGER)
 
 void WebModule::Impl::InjectCustomWindowAttributes(
     const Options::InjectedWindowAttributes& attributes) {
@@ -1192,7 +1165,7 @@ void WebModule::Impl::FinishSuspend() {
   // still be referenced and won't be cleared from the cache.
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_suspend_);
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // The debug overlay may be holding onto a render tree, clear that out.
   debug_overlay_->ClearInput();
 #endif
@@ -1350,13 +1323,17 @@ WebModule::WebModule(
     const ViewportSize& window_dimensions, float video_pixel_ratio,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
-    : thread_(options.name.c_str()) {
+    : thread_(options.name.c_str()),
+      ui_nav_root_(new ui_navigation::NavItem(
+          ui_navigation::kNativeItemTypeContainer,
+          // Currently, events do not need to be processed for the root item.
+          base::Closure(), base::Closure(), base::Closure())) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
       can_play_type_handler, web_media_player_factory, network_module,
       window_dimensions, video_pixel_ratio, resource_provider,
-      kDOMMaxElementDepth, layout_refresh_rate, options);
+      kDOMMaxElementDepth, layout_refresh_rate, ui_nav_root_, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
@@ -1580,22 +1557,25 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
 // May be called from any thread.
 debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
+  DCHECK(impl_);
+  return impl_->debug_dispatcher();
+}
+
+std::unique_ptr<debug::backend::DebuggerState> WebModule::FreezeDebugger() {
   DCHECK(message_loop());
   DCHECK(impl_);
 
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
-                                      base::Unretained(impl_.get())));
-
-  // This blocks until |CreateDebugModuleIfNull| has run, either waiting for
-  // the one we just posted to run or returning immediately if it previously
-  // ran (making the one we just posted a no-op).
-  return impl_->debug_dispatcher();
+  std::unique_ptr<debug::backend::DebuggerState> debugger_state;
+  message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::FreezeDebugger,
+                            base::Unretained(impl_.get()),
+                            base::Unretained(&debugger_state)));
+  return debugger_state;
 }
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
 void WebModule::SetSize(const ViewportSize& viewport_size,
                         float video_pixel_ratio) {
@@ -1668,7 +1648,7 @@ void WebModule::Pause() {
   auto impl_pause =
       base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get()));
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   // We normally need to block here so that the call doesn't return until the
   // web application has had a chance to process the whole event. However, our
   // message loop is blocked while waiting for the web debugger to connect, so
@@ -1681,7 +1661,7 @@ void WebModule::Pause() {
     message_loop()->PostTask(FROM_HERE, impl_pause);
     return;
   }
-#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+#endif  // defined(ENABLE_DEBUGGER)
 
   message_loop()->PostBlockingTask(FROM_HERE, impl_pause);
 }

@@ -55,7 +55,10 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 #include <openssl/buf.h>
 #include <openssl/err.h>
@@ -99,7 +102,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
     if (a == NULL) {
         if (b) {
             buf = b->data;
-            OPENSSL_free(b);
+          OPENSSL_free(b);
         }
         BUF_strlcpy(buf, "NO X509_NAME", len);
         return buf;
@@ -114,7 +117,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
             i2t_ASN1_OBJECT(tmp_buf, sizeof(tmp_buf), ne->object);
             s = tmp_buf;
         }
-        l1 = strlen(s);
+        l1 = OPENSSL_port_strlen(s);
 
         type = ne->value->type;
         num = ne->value->length;
@@ -184,7 +187,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
     }
     if (b != NULL) {
         p = b->data;
-        OPENSSL_free(b);
+      OPENSSL_free(b);
     } else
         p = buf;
     if (i == 0)

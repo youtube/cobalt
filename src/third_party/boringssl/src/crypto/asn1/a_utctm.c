@@ -63,6 +63,7 @@
 #include <openssl/mem.h>
 
 #include "asn1_locl.h"
+#include "asn1_internal.h"
 
 
 int asn1_utctime_to_tm(struct tm *tm, const ASN1_UTCTIME *d)
@@ -167,7 +168,7 @@ int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, const char *str)
     ASN1_UTCTIME t;
 
     t.type = V_ASN1_UTCTIME;
-    t.length = strlen(str);
+    t.length = OPENSSL_port_strlen(str);
     t.data = (unsigned char *)str;
     if (ASN1_UTCTIME_check(&t)) {
         if (s != NULL) {
@@ -229,7 +230,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
     BIO_snprintf(p, len, "%02d%02d%02d%02d%02d%02dZ", ts->tm_year % 100,
                  ts->tm_mon + 1, ts->tm_mday, ts->tm_hour, ts->tm_min,
                  ts->tm_sec);
-    s->length = strlen(p);
+    s->length = OPENSSL_port_strlen(p);
     s->type = V_ASN1_UTCTIME;
     return (s);
  err:

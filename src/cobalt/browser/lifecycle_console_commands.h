@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/base/console_commands.h"
+#include "cobalt/debug/console/command_manager.h"
 
 #ifndef COBALT_BROWSER_LIFECYCLE_CONSOLE_COMMANDS_H_
 #define COBALT_BROWSER_LIFECYCLE_CONSOLE_COMMANDS_H_
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if !defined(ENABLE_DEBUGGER)
+#error "Debugger is not enabled in this build."
+#endif  // !ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -27,15 +29,15 @@ class LifecycleConsoleCommands {
   LifecycleConsoleCommands();
 
  private:
-  base::ConsoleCommandManager::CommandHandler pause_command_handler_;
-  base::ConsoleCommandManager::CommandHandler unpause_command_handler_;
-  base::ConsoleCommandManager::CommandHandler suspend_command_handler_;
-  base::ConsoleCommandManager::CommandHandler quit_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler pause_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      unpause_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      suspend_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler quit_command_handler_;
 };
 
 }  // namespace browser
 }  // namespace cobalt
-
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 #endif  // COBALT_BROWSER_LIFECYCLE_CONSOLE_COMMANDS_H_

@@ -24,21 +24,11 @@ namespace backend {
 namespace {
 // Definitions from the set specified here:
 // https://chromedevtools.github.io/devtools-protocol/tot/Console
-//
+constexpr char kInspectorDomain[] = "Console";
+
 // The "Console" protocol domain is deprecated, but we still use it to forward
 // console messages from our console web API implementation (used only with
 // mozjs) to avoid blurring the line to the "Runtime" domain implementation.
-
-// Parameter fields:
-const char kMessageText[] = "message.text";
-const char kMessageLevel[] = "message.level";
-const char kMessageSource[] = "message.source";
-
-// Constant parameter values:
-const char kMessageSourceValue[] = "console-api";
-
-// Events:
-const char kMessageAdded[] = "Console.messageAdded";
 }  // namespace
 
 ConsoleAgent::Listener::Listener(dom::Console* console,
@@ -53,12 +43,21 @@ void ConsoleAgent::Listener::OnMessage(const std::string& message,
 ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
     : dispatcher_(dispatcher),
       ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
   DCHECK(dispatcher_);
-  commands_["Console.disable"] = &ConsoleAgent::Disable;
-  commands_["Console.enable"] = &ConsoleAgent::Enable;
 
-  dispatcher_->AddDomain("Console", commands_.Bind());
+  commands_["disable"] = &ConsoleAgent::Disable;
+  commands_["enable"] = &ConsoleAgent::Enable;
+}
+
+void ConsoleAgent::Thaw(JSONObject agent_state) {
+  UNREFERENCED_PARAMETER(agent_state);
+  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+}
+
+JSONObject ConsoleAgent::Freeze() {
+  dispatcher_->RemoveDomain(kInspectorDomain);
+  return JSONObject();
 }
 
 void ConsoleAgent::Disable(const Command& command) { command.SendResponse(); }
@@ -68,10 +67,11 @@ void ConsoleAgent::Enable(const Command& command) { command.SendResponse(); }
 void ConsoleAgent::OnMessageAdded(const std::string& text,
                                   dom::Console::Level level) {
   JSONObject params(new base::DictionaryValue());
-  params->SetString(kMessageText, text);
-  params->SetString(kMessageLevel, dom::Console::GetLevelAsString(level));
-  params->SetString(kMessageSource, kMessageSourceValue);
-  dispatcher_->SendEvent(kMessageAdded, params);
+  params->SetString("message.text", text);
+  params->SetString("message.level", dom::Console::GetLevelAsString(level));
+  params->SetString("message.source", "console-api");
+  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".messageAdded",
+                         params);
 }
 
 }  // namespace backend

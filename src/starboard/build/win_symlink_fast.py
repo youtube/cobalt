@@ -27,6 +27,8 @@ def FastReadReparseLink(path):
 
 
 def FastCreateReparseLink(from_folder, link_folder):
+  """Creates a reparse link. If the operation fails to create the link due to
+  to the operating system not supporting it then an OSError is raised."""
   return _FastCreateReparseLink(from_folder, link_folder)
 
 
@@ -34,9 +36,9 @@ def FastCreateReparseLink(from_folder, link_folder):
 #                                 IMPL                                         #
 ################################################################################
 
-
+import os
 from ctypes import \
-    POINTER, c_buffer, byref, addressof, c_ubyte, Structure, Union
+    POINTER, c_buffer, byref, addressof, c_ubyte, Structure, Union, windll
 from ctypes.wintypes import \
     DWORD, LPCWSTR, HANDLE, LPVOID, BOOL, USHORT, ULONG, WCHAR, WinError, WinDLL
 
@@ -146,14 +148,30 @@ def _ToUnicode(s):
   return s.decode('utf-8')
 
 
+__kdll = None
+def _GetKernel32Dll():
+  global __kdll
+  if __kdll:
+    return __kdll
+  __kdll = windll.LoadLibrary('kernel32.dll')
+  return __kdll
+
+
 def _FastCreateReparseLink(from_folder, link_folder):
+  link_folder = os.path.abspath(link_folder)
   from_folder = _ToUnicode(from_folder)
   link_folder = _ToUnicode(link_folder)
-  from win32file import CreateSymbolicLink
+  par_dir = os.path.dirname(link_folder)
+  if not os.path.isdir(par_dir):
+    os.makedirs(par_dir)
+  kdll = _GetKernel32Dll()
   # Only supported from Windows 10 Insiders build 14972
   flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | \
           SYMBOLIC_LINK_FLAG_DIRECTORY
-  CreateSymbolicLink(link_folder,from_folder, flags)
+  ok = kdll.CreateSymbolicLinkW(link_folder, from_folder, flags)
+  if not ok or not _FastIsReparseLink(link_folder):
+    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
+                  from_folder)
 
 
 def _FastIsReparseLink(path):

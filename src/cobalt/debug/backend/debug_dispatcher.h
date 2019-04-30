@@ -81,12 +81,40 @@ namespace backend {
 
 class DebugDispatcher {
  public:
+  // Move-only set of all attached clients. Allows the set of clients to be
+  // transferred through |DebuggerState| to a new instance of |DebugDispatcher|
+  // when navigating. Attached clients will be notified when the set is finally
+  // destroyed.
+  class ClientsSet {
+   public:
+    ClientsSet() = default;
+    ClientsSet(const ClientsSet&) = delete;
+    ClientsSet(ClientsSet&&) = default;
+    ~ClientsSet();
+
+    ClientsSet& operator=(ClientsSet&) = delete;
+    ClientsSet& operator=(ClientsSet&&) = default;
+
+    // Proxy methods just for what we need to interact with the actual set.
+    void insert(DebugClient* client) { clients_.insert(client); }
+    void erase(DebugClient* client) { clients_.erase(client); }
+    std::set<DebugClient*>::size_type size() { return clients_.size(); }
+    std::set<DebugClient*>::iterator begin() { return clients_.begin(); }
+    std::set<DebugClient*>::iterator end() { return clients_.end(); }
+
+   private:
+    std::set<DebugClient*> clients_;
+  };
+
   // A command execution function stored in the domain registry.
   typedef base::Callback<bool(const Command& command)> CommandHandler;
 
-  DebugDispatcher(script::GlobalEnvironment* global_environment,
-                  const dom::CspDelegate* csp_delegate,
-                  script::ScriptDebugger* script_debugger);
+  DebugDispatcher(script::ScriptDebugger* script_debugger,
+                  DebugScriptRunner* script_runner);
+
+  // Support moving the clients through |DebuggerState| to a new instance.
+  ClientsSet ReleaseClients();
+  void RestoreClients(ClientsSet clients);
 
   // Adds a client to this object. This object does not own the client, but
   // notifies it when debugging events occur, or when this object is destroyed.
@@ -103,18 +131,12 @@ class DebugDispatcher {
   // agents providing the protocol command implementations.
   void RemoveDomain(const std::string& domain);
 
-  // Creates a Runtime.RemoteObject from an engine object.
-  JSONObject CreateRemoteObject(const script::ValueHandleHolder* object);
-
-  // Called by the debug agents when an event occurs.
-  // Serializes the method and params object to a JSON string and
-  // calls |SendEventInternal|.
+  // Sends a protocol event to the frontend.
   void SendEvent(const std::string& method, const JSONObject& params);
 
-  // Runs a JavaScript function with optional JSON parameters, and sends the
-  // event it returns with |SendEvent|.
-  void SendScriptEvent(const std::string& event, const std::string& method,
-                       const std::string& json_params = "");
+  // Sends a protocol event to the frontend.
+  void SendEvent(const std::string& method,
+                 const base::optional<std::string>& params);
 
   // Calls |method| in |script_runner_| and creates a response object from
   // the result.
@@ -149,10 +171,6 @@ class DebugDispatcher {
   // Destructor should only be called by |scoped_ptr<DebugDispatcher>|.
   ~DebugDispatcher();
 
-  // Called by |script_runner_| and |SendEvent|. Notifies the clients.
-  void SendEventInternal(const std::string& method,
-                         const base::optional<std::string>& params);
-
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
   // The response callback will be run on the message loop specified in the
@@ -171,12 +189,11 @@ class DebugDispatcher {
   // Engine-specific debugger implementation.
   script::ScriptDebugger* script_debugger_;
 
-  // Used to run JavaScript commands with persistent state and receive events
-  // from JS.
-  scoped_refptr<DebugScriptRunner> script_runner_;
+  // Runs backend JavaScript.
+  DebugScriptRunner* script_runner_;
 
   // Clients connected to this dispatcher.
-  std::set<DebugClient*> clients_;
+  ClientsSet clients_;
 
   // Map of commands, indexed by method name.
   DomainRegistry domain_registry_;

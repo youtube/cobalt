@@ -91,7 +91,7 @@ void HTMLStyleElement::Process() {
     document->OnStyleSheetsModified();
   } else {
     // Report a violation.
-    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+    PostToDispatchEventName(FROM_HERE, base::Tokens::error());
   }
 }
 

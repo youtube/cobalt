@@ -26,14 +26,10 @@
 
       'sources': [
         '<@(starboard_platform_sources)',
-        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_only.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.h',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.h',
-      ],
-      'sources!': [
-        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc',
       ],
       'defines': [
         'SB_PLAYER_ENABLE_VIDEO_DUMPER',

@@ -112,6 +112,8 @@ void SbPlayerPrivate::WriteSample(
     const SbDrmSampleInfo* sample_drm_info) {
   if (sample_type == kSbMediaTypeVideo) {
     ++total_video_frames_;
+    frame_width_ = video_sample_info->frame_width;
+    frame_height_ = video_sample_info->frame_height;
   }
   starboard::scoped_refptr<InputBuffer> input_buffer = new InputBuffer(
       sample_type, sample_deallocate_func_, this, context_, sample_buffers,

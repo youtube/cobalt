@@ -25,6 +25,7 @@ void SystemPlatformErrorHandler::RaiseSystemPlatformError(
 
   CallbackData* callback_data = new CallbackData{ &mutex_, options.callback };
 
+#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
   SbSystemPlatformError handle = SbSystemRaisePlatformError(options.error_type,
       &SystemPlatformErrorHandler::HandleSystemPlatformErrorResponse,
       callback_data);
@@ -33,6 +34,16 @@ void SystemPlatformErrorHandler::RaiseSystemPlatformError(
     delete callback_data;
     callback_data = nullptr;
   }
+#else   // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+  if (!SbSystemRaisePlatformError(
+          options.error_type,
+          &SystemPlatformErrorHandler::HandleSystemPlatformErrorResponse,
+          callback_data)) {
+    DLOG(WARNING) << "Did not handle error: " << options.error_type;
+    delete callback_data;
+    callback_data = nullptr;
+  }
+#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 
   // In case the response callback is never called, track the callback data
   // for all active errors. When this object is destroyed, all dangling data

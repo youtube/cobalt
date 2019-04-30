@@ -33,7 +33,10 @@
 #ifdef STARBOARD
 #include "libevent-starboard.h"
 
-// Use libevent's local compatibility  versions of these.
+#include <poll.h>
+#include <stdlib.h>
+
+// Use libevent's local compatibility versions of these.
 #include "third_party/libevent/compat/sys/queue.h"
 #include "third_party/libevent/compat/sys/_libevent_time.h"
 

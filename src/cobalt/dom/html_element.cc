@@ -63,6 +63,14 @@ namespace dom {
 
 namespace {
 
+// If an element has a "tabindex" attribute less than -1, it will be considered
+// a UI navigation focus item. The web spec states that all negative tabindex
+// values are treated the same. However, since some apps may want to treat
+// certain elements as HTML focusable but not UI navigation focus items, the
+// commonly used value of -1 is reserved.
+// https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
+const int32 kUiNavFocusTabIndexThreshold = -2;
+
 // This struct manages the user log information for Node count.
 struct HtmlElementCountLog {
  public:
@@ -87,8 +95,8 @@ struct NonTrivialStaticFields {
     for (int i = 0; i <= cssom::kMaxLonghandPropertyKey; ++i) {
       cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
 
-      if (cssom::GetPropertyImpactsChildDeclaredStyle(property_key) ==
-          cssom::kImpactsChildDeclaredStyleYes) {
+      if (cssom::GetPropertyImpactsChildComputedStyle(property_key) ==
+          cssom::kImpactsChildComputedStyleYes) {
         computed_style_invalidation_properties.push_back(property_key);
       }
 
@@ -202,13 +210,13 @@ scoped_refptr<DOMStringMap> HTMLElement::dataset() {
 }
 
 int32 HTMLElement::tab_index() const {
-  int32 tabindex;
-  bool success =
-      base::StringToInt32(GetAttribute("tabindex").value_or(""), &tabindex);
-  if (!success) {
-    LOG(WARNING) << "Element's tabindex is not an integer.";
+  if (tabindex_) {
+    return *tabindex_;
   }
-  return tabindex;
+  LOG(WARNING) << "Element's tabindex is not valid.";
+  // The default value is 0 for focusable elements.
+  // https://html.spec.whatwg.org/multipage/interaction.html#attr-tabindex
+  return 0;
 }
 
 void HTMLElement::set_tab_index(int32 tab_index) {
@@ -545,7 +553,7 @@ void HTMLElement::SetStyleAttribute(const std::string& value) {
     Element::SetStyleAttribute(value);
   } else {
     // Report a violation.
-    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+    PostToDispatchEventName(FROM_HERE, base::Tokens::error());
   }
 }
 
@@ -733,8 +741,14 @@ void HTMLElement::UpdateComputedStyleRecursively(
   // themselves still need to have their computed style updated, in case the
   // value of display is changed.
   if (computed_style()->display() == cssom::KeywordValue::GetNone()) {
+    if (ui_nav_item_) {
+      ui_nav_item_->SetEnabled(false);
+      ui_nav_item_ = nullptr;
+    }
     return;
   }
+
+  RegisterUiNavigationParent();
 
   // Update computed style for this element's descendants. Note that if
   // descendant_computed_styles_valid_ flag is not set, the ancestors should
@@ -862,6 +876,26 @@ void HTMLElement::InvalidateLayoutBoxes() {
   }
 }
 
+void HTMLElement::OnUiNavBlur() {
+  Blur();
+}
+
+void HTMLElement::OnUiNavFocus() {
+  // Ensure the focusing steps do not trigger the UI navigation item to
+  // force focus again.
+  scoped_refptr<ui_navigation::NavItem> temp_item = ui_nav_item_;
+  ui_nav_item_ = nullptr;
+  Focus();
+  ui_nav_item_ = temp_item;
+}
+
+void HTMLElement::OnUiNavScroll() {
+  Document* document = node_document();
+  scoped_refptr<Window> window(document ? document->window() : nullptr);
+  DispatchEvent(new UIEvent(base::Tokens::scroll(),
+                Event::kBubbles, Event::kNotCancelable, window));
+}
+
 HTMLElement::HTMLElement(Document* document, base::Token local_name)
     : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
@@ -888,6 +922,13 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
 }
 
 HTMLElement::~HTMLElement() {
+  // Disable any associated navigation item to prevent callbacks during
+  // destruction.
+  if (ui_nav_item_) {
+    ui_nav_item_->SetEnabled(false);
+    ui_nav_item_ = nullptr;
+  }
+
   --(non_trivial_static_fields.Get().html_element_count_log.count);
   if (IsInDocument()) {
     dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
@@ -937,6 +978,8 @@ void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
   if (name == "dir") {
     SetDirectionality(value);
+  } else if (name == "tabindex") {
+    SetTabIndex(value);
   }
 
   // Always clear the matching state when an attribute changes. Any attribute
@@ -947,6 +990,8 @@ void HTMLElement::OnSetAttribute(const std::string& name,
 void HTMLElement::OnRemoveAttribute(const std::string& name) {
   if (name == "dir") {
     SetDirectionality("");
+  } else if (name == "tabindex") {
+    SetTabIndex("");
   }
 
   // Always clear the matching state when an attribute changes. Any attribute
@@ -963,8 +1008,7 @@ bool HTMLElement::IsFocusable() {
 // Algorithm for HasTabindexFocusFlag:
 //  https://www.w3.org/TR/html5/editing.html#specially-focusable
 bool HTMLElement::HasTabindexFocusFlag() const {
-  int32 tabindex;
-  return base::StringToInt32(GetAttribute("tabindex").value_or(""), &tabindex);
+  return tabindex_.has_engaged();
 }
 
 // An element is being rendered if it has any associated CSS layout boxes, SVG
@@ -1035,6 +1079,11 @@ void HTMLElement::RunFocusingSteps() {
 
   // Custom, not in any spec.
   ClearRuleMatchingState();
+
+  // Set the focus item for the UI navigation system.
+  if (ui_nav_item_ && !ui_nav_item_->IsContainer()) {
+    ui_nav_item_->Focus();
+  }
 }
 
 // Algorithm for RunUnFocusingSteps:
@@ -1086,6 +1135,15 @@ void HTMLElement::SetDirectionality(const std::string& value) {
   if (directionality_ != previous_directionality) {
     InvalidateLayoutBoxesOfNodeAndAncestors();
     InvalidateLayoutBoxesOfDescendants();
+  }
+}
+
+void HTMLElement::SetTabIndex(const std::string& value) {
+  int32 tabindex;
+  if (base::StringToInt32(value, &tabindex)) {
+    tabindex_ = tabindex;
+  } else {
+    tabindex_ = base::nullopt;
   }
 }
 
@@ -1445,6 +1503,9 @@ void HTMLElement::UpdateComputedStyle(
     }
   }
 
+  // Update the UI navigation item.
+  UpdateUiNavigationType();
+
   computed_style_valid_ = true;
   pseudo_elements_computed_styles_valid_ = true;
 }
@@ -1480,6 +1541,96 @@ bool HTMLElement::IsDesignated() const {
 bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
   return computed_style()->pointer_events() != cssom::KeywordValue::GetNone() &&
          computed_style()->visibility() == cssom::KeywordValue::GetVisible();
+}
+
+void HTMLElement::UpdateUiNavigationType() {
+  base::optional<ui_navigation::NativeItemType> ui_nav_item_type;
+  if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
+      computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
+    ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
+  } else if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold) {
+    ui_nav_item_type = ui_navigation::kNativeItemTypeFocus;
+  }
+
+  if (ui_nav_item_type) {
+    if (ui_nav_item_) {
+      if (ui_nav_item_->GetType() == *ui_nav_item_type) {
+        // Keep using the existing navigation item.
+        return;
+      }
+      // The current navigation item isn't of the correct type. Disable it so
+      // that callbacks won't be invoked for it. The object will be destroyed
+      // when all references to it are released.
+      ui_nav_item_->SetEnabled(false);
+    }
+    ui_nav_item_ = new ui_navigation::NavItem(*ui_nav_item_type,
+        base::Bind(&MessageLoop::PostTask,
+                   base::Unretained(MessageLoop::current()), FROM_HERE,
+                   base::Bind(&HTMLElement::OnUiNavBlur,
+                              base::AsWeakPtr(this))),
+        base::Bind(&MessageLoop::PostTask,
+                   base::Unretained(MessageLoop::current()), FROM_HERE,
+                   base::Bind(&HTMLElement::OnUiNavFocus,
+                              base::AsWeakPtr(this))),
+        base::Bind(&MessageLoop::PostTask,
+                   base::Unretained(MessageLoop::current()), FROM_HERE,
+                   base::Bind(&HTMLElement::OnUiNavScroll,
+                              base::AsWeakPtr(this))));
+  } else if (ui_nav_item_) {
+    // This navigation item is no longer relevant.
+    ui_nav_item_->SetEnabled(false);
+    ui_nav_item_ = nullptr;
+  }
+}
+
+void HTMLElement::RegisterUiNavigationParent() {
+  if (!ui_nav_item_) {
+    return;
+  }
+
+  // Register this HTML element's UI navigation item as a content of its parent
+  // UI navigation item. Walk up the containing block chain.
+  // https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
+  scoped_refptr<ui_navigation::NavItem> parent_item;
+  scoped_refptr<cssom::PropertyValue> position = computed_style()->position();
+
+  for (Node* ancestor_node = parent_node();;
+       ancestor_node = ancestor_node->parent_node()) {
+    if (!ancestor_node || position == cssom::KeywordValue::GetFixed()) {
+      if (node_document() && node_document()->window()) {
+        parent_item = node_document()->window()->GetUiNavRoot();
+      }
+      break;
+    }
+
+    Element* ancestor_element = ancestor_node->AsElement();
+    if (!ancestor_element) {
+      continue;
+    }
+
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
+    if (!ancestor_html_element) {
+      continue;
+    }
+
+    if (position == cssom::KeywordValue::GetAbsolute() &&
+        ancestor_html_element->computed_style()->position() ==
+            cssom::KeywordValue::GetStatic()) {
+      continue;
+    }
+
+    const scoped_refptr<ui_navigation::NavItem>& potential_parent_item =
+        ancestor_html_element->GetUiNavItem();
+    if (potential_parent_item && potential_parent_item->IsContainer()) {
+      parent_item = potential_parent_item;
+      break;
+    }
+
+    // Look for this ancestor's containing block.
+    position = ancestor_html_element->computed_style()->position();
+  }
+
+  ui_nav_item_->SetContainerItem(parent_item);
 }
 
 void HTMLElement::ClearActiveBackgroundImages() {

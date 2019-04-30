@@ -106,7 +106,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
       scoped_ptr<backend::TextureEGL> texture,
       render_tree::AlphaFormat alpha_format,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      scoped_ptr<math::Rect> content_region,
+      scoped_ptr<math::RectF> content_region,
       MessageLoop* rasterizer_message_loop,
       base::optional<AlternateRgbaFormat> alternate_rgba_format);
   HardwareFrontendImage(
@@ -127,7 +127,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
 
   const backend::TextureEGL* GetTextureEGL() const override;
 
-  const math::Rect* GetContentRegion() const override {
+  const math::RectF* GetContentRegion() const override {
     return content_region_.get();
   }
 
@@ -154,7 +154,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // An optional rectangle, in pixel coordinates (with the top-left as the
   // origin) that indicates where in this image the valid content is contained.
   // Usually this is only set from platform-specific SbDecodeTargets.
-  scoped_ptr<math::Rect> content_region_;
+  scoped_ptr<math::RectF> content_region_;
 
   // In some cases where HardwareFrontendImage wraps a RGBA texture, the texture
   // actually contains pixel data in a non-RGBA format, like UYVY for example.

@@ -2,10 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+#endif  // defined(STARBOARD)
+
 #include "name.h"
 
 #include <algorithm>
 #include <cstring>
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#define STRCHR_OTS strchr
+#else
+#define STRCHR_OTS std::strchr
+#endif
 
 // name - Naming Table
 // http://www.microsoft.com/typography/otspec/name.htm
@@ -13,7 +24,7 @@
 namespace {
 
 bool ValidInPsName(char c) {
-  return (c > 0x20 && c < 0x7f && !std::strchr("[](){}<>/%", c));
+  return (c > 0x20 && c < 0x7f && !STRCHR_OTS("[](){}<>/%", c));
 }
 
 bool CheckPsNameAscii(const std::string& name) {
@@ -353,3 +364,5 @@ bool OpenTypeNAME::IsValidNameId(uint16_t nameID, bool addIfMissing) {
 }
 
 }  // namespace
+
+#undef STRCHR_OTS

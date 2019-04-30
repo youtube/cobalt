@@ -14,6 +14,11 @@
 #include <sstream>
 #include <string>
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 namespace SkSL {
 
 String String::printf(const char* fmt, ...) {
@@ -131,22 +136,23 @@ String to_string(uint64_t value) {
 }
 
 String to_string(double value) {
-#ifdef SKSL_BUILD_FOR_WIN
-    #define SNPRINTF    _snprintf
-#else
-    #define SNPRINTF    snprintf
-#endif
-#define MAX_DOUBLE_CHARS 25
-    char buffer[MAX_DOUBLE_CHARS];
-    SKSL_DEBUGCODE(int len = )SNPRINTF(buffer, sizeof(buffer), "%.17g", value);
-    ASSERT(len < MAX_DOUBLE_CHARS);
-    String result(buffer);
-    if (!strchr(buffer, '.') && !strchr(buffer, 'e')) {
-        result += ".0";
+    std::stringstream buffer;
+    buffer.imbue(std::locale::classic());
+    buffer.precision(17);
+    buffer << value;
+    bool needsDotZero = true;
+    const std::string str = buffer.str();
+    for (int i = str.size() - 1; i >= 0; --i) {
+        char c = str[i];
+        if (c == '.' || c == 'e') {
+            needsDotZero = false;
+            break;
+        }
     }
-    return result;
-#undef SNPRINTF
-#undef MAX_DOUBLE_CHARS
+    if (needsDotZero) {
+        buffer << ".0";
+    }
+    return String(buffer.str().c_str());
 }
 
 int stoi(String s) {

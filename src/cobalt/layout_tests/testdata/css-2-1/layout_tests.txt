@@ -65,6 +65,10 @@
 10-8-margin-box-should-be-used-for-vertical-align-with-most-boxes
 10-8-vertical-align-top-and-bottom-affect-height-and-baseline
 11-1-1-overflow-from-non-positioned-containing-block-should-affect-relative-positioned-child
+11-1-1-overflow-auto
+11-1-1-overflow-auto-div-with-position-absolute-children
+11-1-1-overflow-auto-from-non-positioned-containing-block-should-affect-relative-positioned-child
+11-1-1-overflow-auto-transform
 11-1-1-overflow-hidden
 11-1-1-overflow-hidden-and-opacity
 11-1-1-overflow-hidden-and-position-absolute-div-with-position-absolute-children
@@ -75,12 +79,21 @@
 11-1-1-overflow-hidden-masks-padding-box-only
 11-1-1-overflow-hidden-transform
 11-1-1-overflow-hidden-translate
+11-1-1-overflow-scroll
+# These tests are disabled until "scrollLeft" is implemented.
+#11-1-1-overflow-scroll-absolute-positioned-elements-positioned-scroller
+#11-1-1-overflow-scroll-absolute-positioned-elements-unpositioned-scroller
+#11-1-1-overflow-scroll-container-scrolled
+#11-1-1-overflow-scroll-fixed-positioned-elements-positioned-scroller
+11-1-1-overflow-scroll-should-affect-descendants-with-z-index
+11-1-1-overflow-scroll-transform
 11-1-1-overflow-should-affect-descendants-with-z-index
 11-1-1-overflow-should-not-affect-descendants-contained-in-another-block
 11-1-1-overflow-visible
 11-1-absolutely-positioned-children-of-overflow-hidden
 11-1-absolutely-positioned-children-of-overflow-hidden-to-left
 11-1-absolutely-positioned-children-of-overflow-hidden-to-right
+11-1-absolutely-positioned-children-of-overflow-scroll
 11-2-visibility-hidden-renders-generated-box-invisible
 11-2-visibility-hidden-should-be-overridable
 11-2-visibility-hidden-still-affects-layout

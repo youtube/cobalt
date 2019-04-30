@@ -29,6 +29,7 @@ const int kBytesPerPixel[] = {
     2,  // kPixelFormatRGB565
     2,  // kPixelFormatBA8
     1,  // kPixelFormatA8
+    2,  // kPixelFormatA16
 };
 
 }  // namespace

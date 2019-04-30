@@ -41,7 +41,7 @@ CSSTransitionsAdapter::~CSSTransitionsAdapter() {
 }
 
 void CSSTransitionsAdapter::OnTransitionStarted(
-    const cssom::Transition& transition) {
+    const cssom::Transition& transition, cssom::TransitionSet* transition_set) {
   // The process for constructing web animations from CSS transitions is
   // described here:
   //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-transitions
@@ -87,7 +87,7 @@ void CSSTransitionsAdapter::OnTransitionStarted(
   scoped_ptr<web_animations::Animation::EventHandler> event_handler =
       animation->AttachEventHandler(
           base::Bind(&CSSTransitionsAdapter::HandleAnimationEnterAfterPhase,
-                     base::Unretained(this), transition));
+                     base::Unretained(this), transition_set));
 
   // Track the animation in our map of all CSS Transitions-created animations.
   DCHECK(animation_map_.find(transition.target_property()) ==
@@ -101,11 +101,27 @@ void CSSTransitionsAdapter::OnTransitionStarted(
 }
 
 void CSSTransitionsAdapter::OnTransitionRemoved(
-    const cssom::Transition& transition) {
+    const cssom::Transition& transition,
+    cssom::Transition::IsCanceled is_canceled) {
   // As described in the process for cancelling/stopping a transition here:
-  //    https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/Overview.html#css-transitions
+  //    https://dr.csswg.org/date/2015-03-02/web-animations-css-integration/Overview.html#css-transitions
   // We find the animation corresponding to the removed transition, cancel it,
   // and then remove it from our record of animations.
+  if (is_canceled == cssom::Transition::kIsNotCanceled) {
+    // An animation corresponding to a transition has entered the "after phase",
+    // so we should correspondingly fire the transitionend event.
+    //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-transitions-events
+    // Cobalt assumes that the CSSOM does not change during computed style
+    // calculation. Post to dispatch the event asynchronously here to avoid
+    // calling event handlers during computed style calculation, which in turn
+    // may modify CSSOM and require restart of the computed style calculation.
+    animatable_->GetEventTarget()->PostToDispatchEvent(
+        FROM_HERE,
+        new TransitionEvent(
+            base::Tokens::transitionend(), transition.target_property(),
+            static_cast<float>(transition.duration().InMillisecondsF())));
+  }
+
   PropertyValueAnimationMap::iterator found =
       animation_map_.find(transition.target_property());
   DCHECK(animation_map_.end() != found);
@@ -116,13 +132,13 @@ void CSSTransitionsAdapter::OnTransitionRemoved(
 }
 
 void CSSTransitionsAdapter::HandleAnimationEnterAfterPhase(
-    const cssom::Transition& transition) {
-  // An animation corresponding to a transition has entered the "after phase",
-  // so we should correspondingly fire the transitionend event.
-  //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-transitions-events
-  animatable_->GetEventTarget()->DispatchEvent(new TransitionEvent(
-      base::Tokens::transitionend(), transition.target_property(),
-      static_cast<float>(transition.duration().InMillisecondsF())));
+    cssom::TransitionSet* transition_set) {
+  DCHECK(animatable_->GetDefaultTimeline()->current_time());
+  base::TimeDelta current_time = base::TimeDelta::FromMillisecondsD(
+      animatable_->GetDefaultTimeline()->current_time().value_or(0));
+  transition_set->UpdateTransitions(current_time,
+                                    *animatable_->GetComputedStyle(),
+                                    *animatable_->GetComputedStyle());
 }
 
 }  // namespace dom

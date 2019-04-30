@@ -158,7 +158,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
     // If the parent's effective CSS whitespace style is 'normal' or 'nowrap'
     // replace each newline (\n) in text with a single space character (\x20).
     if (*whitespace_style == cssom::kNormalKeywordName ||
-        *whitespace_style == cssom::kNoWrapKeywordName) {
+        *whitespace_style == cssom::kNowrapKeywordName) {
       ReplaceCharacters(text, U"\n", ' ');
     }
 
@@ -483,9 +483,9 @@ bool IsDisplayed(dom::Element* element) {
   }
 
   // Any element with hidden/collapsed visibility is not shown.
-  base::optional<std::string> visiblity_style =
+  base::optional<std::string> visibility_style =
       GetComputedStyle(element, &cssom::CSSComputedStyleData::visibility);
-  if (visiblity_style && *visiblity_style == cssom::kHiddenKeywordName) {
+  if (visibility_style && *visibility_style == cssom::kHiddenKeywordName) {
     return false;
   }
 

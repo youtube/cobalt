@@ -20,14 +20,18 @@
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/debug/backend/console_agent.h"
+#include "cobalt/debug/backend/css_agent.h"
+#include "cobalt/debug/backend/debug_backend.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debug_script_runner.h"
+#include "cobalt/debug/backend/debugger_state.h"
 #include "cobalt/debug/backend/dom_agent.h"
 #include "cobalt/debug/backend/log_agent.h"
 #include "cobalt/debug/backend/page_agent.h"
 #include "cobalt/debug/backend/render_overlay.h"
-#include "cobalt/debug/backend/runtime_agent.h"
 #include "cobalt/debug/backend/script_debugger_agent.h"
 #include "cobalt/debug/backend/tracing_agent.h"
+#include "cobalt/debug/json_object.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -50,18 +54,26 @@ class DebugModule : public script::ScriptDebugger::Delegate {
               script::GlobalEnvironment* global_environment,
               RenderOverlay* render_overlay,
               render_tree::ResourceProvider* resource_provider,
-              dom::Window* window);
+              dom::Window* window, DebuggerState* debugger_state);
 
   // Construct the debug dispatcher on the specified message loop.
   DebugModule(dom::Console* console,
               script::GlobalEnvironment* global_environment,
               RenderOverlay* render_overlay,
               render_tree::ResourceProvider* resource_provider,
-              dom::Window* window, MessageLoop* message_loop);
+              dom::Window* window, DebuggerState* debugger_state,
+              MessageLoop* message_loop);
 
   virtual ~DebugModule();
 
   DebugDispatcher* debug_dispatcher() const { return debug_dispatcher_.get(); }
+
+  // Shutdown this instance of the debugger before navigation and return its
+  // state so that it can be restored in the new |DebugModule| after navigation.
+  // This instance of the debugger is no longer usable after calling this
+  // method, with the expectation is that it will soon be deleted with its
+  // owning WebModule.
+  std::unique_ptr<DebuggerState> Freeze();
 
  private:
   // Data used to construct an instance of this class that does not need to be
@@ -71,13 +83,14 @@ class DebugModule : public script::ScriptDebugger::Delegate {
                      script::GlobalEnvironment* global_environment,
                      MessageLoop* message_loop, RenderOverlay* render_overlay,
                      render_tree::ResourceProvider* resource_provider,
-                     dom::Window* window)
+                     dom::Window* window, DebuggerState* debugger_state)
         : console(console),
           global_environment(global_environment),
           message_loop(message_loop),
           render_overlay(render_overlay),
           resource_provider(resource_provider),
-          window(window) {}
+          window(window),
+          debugger_state(debugger_state) {}
 
     dom::Console* console;
     script::GlobalEnvironment* global_environment;
@@ -85,6 +98,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
     RenderOverlay* render_overlay;
     render_tree::ResourceProvider* resource_provider;
     dom::Window* window;
+    DebuggerState* debugger_state;
   };
 
   // Builds |debug_dispatcher_| on |message_loop_| by calling |BuildInternal|,
@@ -95,24 +109,36 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   void BuildInternal(const ConstructionData& data,
                      base::WaitableEvent* created);
 
+  // Sends a protocol event to the frontend through |DebugDispatcher|.
+  void SendEvent(const std::string& method,
+                 const base::optional<std::string>& params);
+
   // script::ScriptDebugger::Delegate implementation.
   void OnScriptDebuggerPause() override;
   void OnScriptDebuggerResume() override;
   void OnScriptDebuggerResponse(const std::string& response) override;
   void OnScriptDebuggerEvent(const std::string& event) override;
 
-  // Handles routing of commands, responses and event notifications.
-  scoped_ptr<DebugDispatcher> debug_dispatcher_;
+  bool is_frozen_ = true;
 
   // Handles all debugging interaction with the JavaScript engine.
   scoped_ptr<script::ScriptDebugger> script_debugger_;
+
+  // Runs backend JavaScript.
+  scoped_ptr<DebugScriptRunner> script_runner_;
+
+  // Handles routing of commands, responses and event notifications.
+  scoped_ptr<DebugDispatcher> debug_dispatcher_;
+
+  // Wrappable object providing native helpers for backend JavaScript.
+  scoped_refptr<DebugBackend> debug_backend_;
 
   // Debug agents implement the debugging protocol.
   scoped_ptr<ConsoleAgent> console_agent_;
   scoped_ptr<LogAgent> log_agent_;
   scoped_ptr<DOMAgent> dom_agent_;
+  scoped_refptr<CSSAgent> css_agent_;
   scoped_ptr<PageAgent> page_agent_;
-  scoped_ptr<RuntimeAgent> runtime_agent_;
   scoped_ptr<ScriptDebuggerAgent> script_debugger_agent_;
   scoped_ptr<TracingAgent> tracing_agent_;
 };

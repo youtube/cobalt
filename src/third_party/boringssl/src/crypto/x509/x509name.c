@@ -54,8 +54,11 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/mem.h>
 #include <openssl/asn1.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -360,7 +363,7 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
                                       len, type,
                                       OBJ_obj2nid(ne->object)) ? 1 : 0;
     if (len < 0)
-        len = strlen((const char *)bytes);
+        len = OPENSSL_port_strlen((const char *)bytes);
     i = ASN1_STRING_set(ne->value, bytes, len);
     if (!i)
         return (0);

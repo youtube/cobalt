@@ -13,6 +13,10 @@
 #include "ir/SkSLSection.h"
 #include "ir/SkSLVarDeclarations.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 namespace SkSL {
 
 HCodeGenerator::HCodeGenerator(const Program* program, ErrorReporter* errors, String name,
@@ -56,7 +60,7 @@ void HCodeGenerator::writef(const char* s, va_list va) {
         fOut->write(buffer, length);
     } else {
         std::unique_ptr<char[]> heap(new char[length + 1]);
-        vsprintf(heap.get(), s, copy);
+        vsnprintf(heap.get(), length + 1, s, copy);
         fOut->write(heap.get(), length);
     }
 }

@@ -83,6 +83,27 @@ class CSSComputedStyleData
   //   typedef base::variant<float, Percentage, Auto>
   //           ComputedWidth;
 
+  const scoped_refptr<PropertyValue>& align_content() const {
+    return GetPropertyValueReference(kAlignContentProperty);
+  }
+  void set_align_content(const scoped_refptr<PropertyValue>& align_content) {
+    SetPropertyValue(kAlignContentProperty, align_content);
+  }
+
+  const scoped_refptr<PropertyValue>& align_items() const {
+    return GetPropertyValueReference(kAlignItemsProperty);
+  }
+  void set_align_items(const scoped_refptr<PropertyValue>& align_items) {
+    SetPropertyValue(kAlignItemsProperty, align_items);
+  }
+
+  const scoped_refptr<PropertyValue>& align_self() const {
+    return GetPropertyValueReference(kAlignSelfProperty);
+  }
+  void set_align_self(const scoped_refptr<PropertyValue>& align_self) {
+    SetPropertyValue(kAlignSelfProperty, align_self);
+  }
+
   const scoped_refptr<PropertyValue>& animation_delay() const {
     return GetPropertyValueReference(kAnimationDelayProperty);
   }
@@ -352,6 +373,41 @@ class CSSComputedStyleData
     SetPropertyValue(kFilterProperty, filter);
   }
 
+  const scoped_refptr<PropertyValue>& flex_basis() const {
+    return GetPropertyValueReference(kFlexBasisProperty);
+  }
+  void set_flex_basis(const scoped_refptr<PropertyValue>& flex_basis) {
+    SetPropertyValue(kFlexBasisProperty, flex_basis);
+  }
+
+  const scoped_refptr<PropertyValue>& flex_direction() const {
+    return GetPropertyValueReference(kFlexDirectionProperty);
+  }
+  void set_flex_direction(const scoped_refptr<PropertyValue>& flex_direction) {
+    SetPropertyValue(kFlexDirectionProperty, flex_direction);
+  }
+
+  const scoped_refptr<PropertyValue>& flex_grow() const {
+    return GetPropertyValueReference(kFlexGrowProperty);
+  }
+  void set_flex_grow(const scoped_refptr<PropertyValue>& flex_grow) {
+    SetPropertyValue(kFlexGrowProperty, flex_grow);
+  }
+
+  const scoped_refptr<PropertyValue>& flex_shrink() const {
+    return GetPropertyValueReference(kFlexShrinkProperty);
+  }
+  void set_flex_shrink(const scoped_refptr<PropertyValue>& flex_shrink) {
+    SetPropertyValue(kFlexShrinkProperty, flex_shrink);
+  }
+
+  const scoped_refptr<PropertyValue>& flex_wrap() const {
+    return GetPropertyValueReference(kFlexWrapProperty);
+  }
+  void set_flex_wrap(const scoped_refptr<PropertyValue>& flex_wrap) {
+    SetPropertyValue(kFlexWrapProperty, flex_wrap);
+  }
+
   const scoped_refptr<PropertyValue>& font_family() const {
     return GetPropertyValueReference(kFontFamilyProperty);
   }
@@ -385,6 +441,14 @@ class CSSComputedStyleData
   }
   void set_height(const scoped_refptr<PropertyValue>& height) {
     SetPropertyValue(kHeightProperty, height);
+  }
+
+  const scoped_refptr<PropertyValue>& justify_content() const {
+    return GetPropertyValueReference(kJustifyContentProperty);
+  }
+  void set_justify_content(
+      const scoped_refptr<PropertyValue>& justify_content) {
+    SetPropertyValue(kJustifyContentProperty, justify_content);
   }
 
   const scoped_refptr<PropertyValue>& left() const {
@@ -469,6 +533,13 @@ class CSSComputedStyleData
   }
   void set_opacity(const scoped_refptr<PropertyValue>& opacity) {
     SetPropertyValue(kOpacityProperty, opacity);
+  }
+
+  const scoped_refptr<PropertyValue>& order() const {
+    return GetPropertyValueReference(kOrderProperty);
+  }
+  void set_order(const scoped_refptr<PropertyValue>& order) {
+    SetPropertyValue(kOrderProperty, order);
   }
 
   const scoped_refptr<PropertyValue>& outline_color() const {

@@ -18,15 +18,17 @@
 #include <jni.h>
 
 #include <deque>
-#include <functional>
-#include <queue>
+#include <string>
+#include <vector>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/condition_variable.h"
 #include "starboard/media.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -38,7 +40,7 @@ namespace shared {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaDecoder {
+class MediaDecoder : private MediaCodecBridge::Handler {
  public:
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
@@ -82,7 +84,9 @@ class MediaDecoder {
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
-  size_t GetNumberOfPendingTasks() const { return event_queue_.size(); }
+  size_t GetNumberOfPendingTasks() const {
+    return number_of_pending_tasks_.load();
+  }
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
@@ -116,20 +120,34 @@ class MediaDecoder {
     Event event;
   };
 
-  static void* ThreadEntryPoint(void* context);
+  static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
-  void JoinOnDecoderThread();
+
+  void JoinOnThreads();
 
   void TeardownCodec();
 
-  bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
-  // Attempt to dequeue a media codec output buffer.  Returns whether the
-  // processing should continue.  If a valid buffer is dequeued, it will call
-  // ProcessOutputBuffer() on host internally.  It is the responsibility of
-  // ProcessOutputBuffer() to release the output buffer back to the system.
-  bool DequeueAndProcessOutputBuffer();
-
+  void CollectPendingData_Locked(
+      std::deque<Event>* pending_tasks,
+      std::vector<int>* input_buffer_indices,
+      std::vector<DequeueOutputResult>* dequeue_output_results);
+  bool ProcessOneInputBuffer(std::deque<Event>* pending_tasks,
+                             std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
+
+  // MediaCodecBridge::Handler methods
+  // Note that these methods are called from the default looper and is not on
+  // the decoder thread.
+  void OnMediaCodecError(bool is_recoverable,
+                         bool is_transient,
+                         const std::string& diagnostic_info) override;
+  void OnMediaCodecInputBufferAvailable(int buffer_index) override;
+  void OnMediaCodecOutputBufferAvailable(int buffer_index,
+                                         int flags,
+                                         int offset,
+                                         int64_t presentation_time_us,
+                                         int size) override;
+  void OnMediaCodecOutputFormatChanged() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
@@ -137,20 +155,27 @@ class MediaDecoder {
   Host* host_;
   ErrorCB error_cb_;
 
-  // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_;
-  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
-
-  bool stream_ended_;
+  atomic_bool stream_ended_;
 
   DrmSystem* drm_system_;
 
-  // Events are processed in a queue, except for when handling events of type
-  // |kReset|, which are allowed to cut to the front.
-  EventQueue<Event> event_queue_;
   atomic_bool destroying_;
 
   optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
+
+  atomic_int32_t number_of_pending_tasks_;
+
+  Mutex mutex_;
+  ConditionVariable condition_variable_;
+  std::deque<Event> pending_tasks_;
+  std::vector<int> input_buffer_indices_;
+  std::vector<DequeueOutputResult> dequeue_output_results_;
+
+  bool first_call_on_handler_thread_ = true;
+
+  // Working thread to avoid lengthy decoding work block the player thread.
+  SbThread decoder_thread_ = kSbThreadInvalid;
+  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
 }  // namespace shared

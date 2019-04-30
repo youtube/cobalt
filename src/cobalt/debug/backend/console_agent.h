@@ -34,6 +34,9 @@ class ConsoleAgent {
  public:
   ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console);
 
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
  private:
   class Listener : public dom::Console::Listener {
    public:

@@ -71,7 +71,9 @@ class MediaCodecBridge {
   private static final int BITRATE_ADJUSTMENT_FPS = 30;
   private static final int MAXIMUM_INITIAL_FPS = 30;
 
+  private long mNativeMediaCodecBridge;
   private MediaCodec mMediaCodec;
+  private MediaCodec.Callback mCallback;
   private boolean mFlushed;
   private long mLastPresentationTimeUs;
   private final String mMime;
@@ -329,6 +331,7 @@ class MediaCodecBridge {
   }
 
   private MediaCodecBridge(
+      long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
       String mime,
       boolean adaptivePlaybackSupported,
@@ -336,17 +339,73 @@ class MediaCodecBridge {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
+    mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec = mediaCodec;
     mMime = mime; // TODO: Delete the unused mMime field
     mLastPresentationTimeUs = 0;
     mFlushed = true;
     mAdaptivePlaybackSupported = adaptivePlaybackSupported;
     mBitrateAdjustmentType = bitrateAdjustmentType;
+    mCallback =
+        new MediaCodec.Callback() {
+          @Override
+          public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnMediaCodecError(
+                  mNativeMediaCodecBridge,
+                  e.isRecoverable(),
+                  e.isTransient(),
+                  e.getDiagnosticInfo());
+            }
+          }
+
+          @Override
+          public void onInputBufferAvailable(MediaCodec codec, int index) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
+            }
+          }
+
+          @Override
+          public void onOutputBufferAvailable(
+              MediaCodec codec, int index, MediaCodec.BufferInfo info) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnMediaCodecOutputBufferAvailable(
+                  mNativeMediaCodecBridge,
+                  index,
+                  info.flags,
+                  info.offset,
+                  info.presentationTimeUs,
+                  info.size);
+            }
+          }
+
+          @Override
+          public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
+            }
+          }
+        };
+    mMediaCodec.setCallback(mCallback);
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   public static MediaCodecBridge createAudioMediaCodecBridge(
+      long nativeMediaCodecBridge,
       String mime,
       boolean isSecure,
       boolean requireSoftwareCodec,
@@ -370,7 +429,8 @@ class MediaCodecBridge {
       return null;
     }
     MediaCodecBridge bridge =
-        new MediaCodecBridge(mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
     setFrameHasADTSHeader(mediaFormat);
@@ -391,6 +451,7 @@ class MediaCodecBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public static MediaCodecBridge createVideoMediaCodecBridge(
+      long nativeMediaCodecBridge,
       String mime,
       boolean isSecure,
       boolean requireSoftwareCodec,
@@ -425,7 +486,8 @@ class MediaCodecBridge {
       return null;
     }
     MediaCodecBridge bridge =
-        new MediaCodecBridge(mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, width, height, findVideoDecoderResult.videoCapabilities);
 
@@ -522,6 +584,9 @@ class MediaCodecBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private void stop() {
+    synchronized (mCallback) {
+      mNativeMediaCodecBridge = 0;
+    }
     try {
       mMediaCodec.stop();
     } catch (IllegalStateException e) {
@@ -950,4 +1015,23 @@ class MediaCodecBridge {
         return AudioFormat.CHANNEL_OUT_DEFAULT;
     }
   }
+
+  private native void nativeOnMediaCodecError(
+      long nativeMediaCodecBridge,
+      boolean isRecoverable,
+      boolean isTransient,
+      String diagnosticInfo);
+
+  private native void nativeOnMediaCodecInputBufferAvailable(
+      long nativeMediaCodecBridge, int bufferIndex);
+
+  private native void nativeOnMediaCodecOutputBufferAvailable(
+      long nativeMediaCodecBridge,
+      int bufferIndex,
+      int flags,
+      int offset,
+      long presentationTimeUs,
+      int size);
+
+  private native void nativeOnMediaCodecOutputFormatChanged(long nativeMediaCodecBridge);
 }

@@ -698,8 +698,12 @@ LogMessage::~LogMessage() {
     // When we're only outputting to a log file, above a certain log level, we
     // should still output to stderr so that we can better detect and diagnose
     // problems with unit tests, especially on the buildbots.
+#if defined(OS_STARBOARD)
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+#else
     fprintf(stderr, "%s", str_newline.c_str());
     fflush(stderr);
+#endif
   }
 
   // We can have multiple threads and/or processes, so try to prevent them

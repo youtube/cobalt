@@ -73,11 +73,11 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetTestFilters(self):
     filters = super(LinuxConfiguration, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  _FILTERED_TESTS = {
+  __FILTERED_TESTS = {
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
       'player_filter_tests': [
           # These tests have memory leaks related to av_malloc.

@@ -33,6 +33,9 @@ class DOMAgent {
  public:
   DOMAgent(DebugDispatcher* dispatcher, scoped_ptr<RenderLayer> render_layer);
 
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
  private:
   void Enable(const Command& command);
   void Disable(const Command& command);
@@ -55,6 +58,9 @@ class DOMAgent {
 
   // Map of member functions implementing commands.
   CommandMap<DOMAgent> commands_;
+
+  // Whether we successfully loaded the agent's JavaScript implementation.
+  bool script_loaded_ = false;
 };
 
 }  // namespace backend

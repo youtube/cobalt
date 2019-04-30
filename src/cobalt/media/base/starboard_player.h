@@ -169,6 +169,9 @@ class StarboardPlayer {
   void WriteBufferInternal(DemuxerStream::Type type,
                            const scoped_refptr<DecoderBuffer>& buffer);
 
+  void GetInfo_Locked(uint32* video_frames_decoded,
+                      uint32* video_frames_dropped,
+                      base::TimeDelta* media_time);
   void UpdateBounds_Locked();
 
   void ClearDecoderBufferCache();

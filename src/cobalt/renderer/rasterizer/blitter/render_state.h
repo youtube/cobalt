@@ -119,10 +119,10 @@ struct RenderState {
         transform(transform),
         bounds_stack(bounds_stack),
         opacity(1.0f)
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
         ,
         highlight_software_draws(false)
-#endif
+#endif  // defined(ENABLE_DEBUGGER)
   {
   }
 
@@ -131,12 +131,12 @@ struct RenderState {
   BoundsStack bounds_stack;
   float opacity;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // If true, all software rasterization results are replaced with a green
   // fill rectangle.  Thus, if the software cache is used, one will see a flash
   // of green every time something is registered with the cache.
   bool highlight_software_draws;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 };
 
 }  // namespace blitter

@@ -10,6 +10,11 @@
 #include "SkSLCompiler.h"
 #include "SkSLHCodeGenerator.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#include "starboard/log.h"
+#endif
+
 namespace SkSL {
 
 static bool needs_uniform_var(const Variable& var) {
@@ -36,7 +41,7 @@ void CPPCodeGenerator::writef(const char* s, va_list va) {
         fOut->write(buffer, length);
     } else {
         std::unique_ptr<char[]> heap(new char[length + 1]);
-        vsprintf(heap.get(), s, copy);
+        vsnprintf(heap.get(), length + 1, s, copy);
         fOut->write(heap.get(), length);
     }
     va_end(copy);
@@ -149,7 +154,11 @@ void CPPCodeGenerator::writeRuntimeValue(const Type& type, const String& cppCode
         fFormatArgs.push_back(cppCode + ".fX");
         fFormatArgs.push_back(cppCode + ".fY");
     } else {
+#if defined(STARBOARD)
+        SbLogFormatF("%s\n", type.name().c_str());
+#else
         printf("%s\n", type.name().c_str());
+#endif
         ABORT("unsupported runtime value type\n");
     }
 }

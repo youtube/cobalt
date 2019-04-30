@@ -65,6 +65,7 @@
 #include <openssl/mem.h>
 
 #include "asn1_locl.h"
+#include "asn1_internal.h"
 
 /*
  * This is an implementation of the ASN1 Time structure which is: Time ::=
@@ -165,7 +166,7 @@ int ASN1_TIME_set_string(ASN1_TIME *s, const char *str)
 {
     ASN1_TIME t;
 
-    t.length = strlen(str);
+    t.length = OPENSSL_port_strlen(str);
     t.data = (unsigned char *)str;
     t.flags = 0;
 

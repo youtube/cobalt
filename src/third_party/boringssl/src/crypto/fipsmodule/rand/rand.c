@@ -54,7 +54,17 @@ static const unsigned kReseedInterval = 4096;
 // continuous random number generator test in FIPS 140-2, section 4.9.2.
 #define CRNGT_BLOCK_SIZE 16
 
-#if defined(OPENSSL_X86_64) && !defined(OPENSSL_NO_ASM) && \
+#if defined(STARBOARD)
+
+static int hwrand(uint8_t *buf, size_t len) {
+  if (len && buf) {
+    SbSystemGetRandomData(buf, len);
+    return 1;
+  }
+  return 0;
+}
+
+#elif defined(OPENSSL_X86_64) && !defined(OPENSSL_NO_ASM) && \
     !defined(BORINGSSL_UNSAFE_DETERMINISTIC_MODE)
 
 // These functions are defined in asm/rdrand-x86_64.pl
@@ -231,7 +241,7 @@ static void rand_state_init(struct rand_state *state) {
   uint8_t seed[CTR_DRBG_ENTROPY_LEN];
   rand_get_seed(state, seed);
   if (!CTR_DRBG_init(&state->drbg, seed, NULL, 0)) {
-    abort();
+    OPENSSL_port_abort();
   }
 }
 
@@ -328,7 +338,7 @@ void RAND_bytes_with_additional_data(uint8_t *out, size_t out_len,
     CRYPTO_STATIC_MUTEX_lock_read(rand_drbg_lock_bss_get());
 #endif
     if (!CTR_DRBG_reseed(&state->drbg, seed, NULL, 0)) {
-      abort();
+      OPENSSL_port_abort();
     }
     state->calls = 0;
   } else {
@@ -346,7 +356,7 @@ void RAND_bytes_with_additional_data(uint8_t *out, size_t out_len,
 
     if (!CTR_DRBG_generate(&state->drbg, out, todo, additional_data,
                            first_call ? sizeof(additional_data) : 0)) {
-      abort();
+      OPENSSL_port_abort();
     }
 
     out += todo;

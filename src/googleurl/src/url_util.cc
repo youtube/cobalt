@@ -37,6 +37,10 @@
 #include "googleurl/src/url_file.h"
 #include "googleurl/src/url_util_internal.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 namespace url_util {
 
 const char kFileScheme[] = "file";

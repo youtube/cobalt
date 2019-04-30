@@ -270,22 +270,4 @@ scoped_refptr<VideoDecoder::VideoFrame> VideoDecoder::CreateFrame(
 }  // namespace open_max
 }  // namespace shared
 }  // namespace raspi
-
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-
-// static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
-  return output_mode == kSbPlayerOutputModePunchOut;
-}
-
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-
 }  // namespace starboard

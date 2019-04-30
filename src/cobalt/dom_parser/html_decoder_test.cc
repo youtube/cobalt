@@ -87,7 +87,6 @@ TEST_F(HTMLDecoderTest, CanParseEmptyDocument) {
   const std::string input = "";
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -111,7 +110,6 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyNulls) {
 
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -131,7 +129,6 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlySpaces) {
   const std::string input = "   ";
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -151,7 +148,6 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyHTML) {
   const std::string input = "<html>";
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -171,7 +167,6 @@ TEST_F(HTMLDecoderTest, CanParseDocumentWithOnlyBody) {
   const std::string input = "<body>";
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -191,7 +186,6 @@ TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
   const std::string input = "<p></p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -216,7 +210,6 @@ TEST_F(HTMLDecoderTest, DecodingDocumentFragmentShouldNotAddImpliedTags) {
   const std::string input = "<p></p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -233,7 +226,6 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
   const std::string input = "<div a b=2 c d></div>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -263,7 +255,6 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
   const std::string input = "<div a= b=2 c=></div>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -287,7 +278,6 @@ TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
   const std::string input = "<p><p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -307,7 +297,6 @@ TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
   const std::string input = "<p>text</p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -328,7 +317,6 @@ TEST_F(HTMLDecoderTest, ShouldIgnoreNonUTF8Input) {
 
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -343,7 +331,6 @@ TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
   const std::string input = "<p>&#128169;</p><p>&#x1f4a9;</p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -372,7 +359,6 @@ TEST_F(HTMLDecoderTest, CanParseEscapedInvalidUnicodeCharacters) {
   const std::string input = "<p>&#xe62b;</p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -393,7 +379,6 @@ TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
   const std::string input = "<p>💩</p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -417,7 +402,6 @@ TEST_F(HTMLDecoderTest, CanParseUTF8SplitInChunks) {
     root_ = new dom::Element(document_, base::Token("element"));
     html_decoder_.reset(new HTMLDecoder(
         document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-        base::Closure(),
         base::Bind(&MockLoadCompleteCallback::Run,
                    base::Unretained(&mock_load_complete_callback_)),
         true, csp::kCSPRequired));
@@ -446,7 +430,6 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
   const std::string input = "<p>1<b>2<i>3</b>4</i>5</p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -474,7 +457,6 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {
   const std::string input = "<b>1<p>2</b>3</p>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -494,7 +476,6 @@ TEST_F(HTMLDecoderTest, TagNamesShouldBeCaseInsensitive) {
   const std::string input = "<DIV></DIV>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -510,7 +491,6 @@ TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
   const std::string input = "<div A></div>";
   html_decoder_.reset(new HTMLDecoder(
       document_, root_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));
@@ -535,7 +515,6 @@ TEST_F(HTMLDecoderTest, LibxmlDecodingErrorShouldTerminateParsing) {
       "</html>";
   html_decoder_.reset(new HTMLDecoder(
       document_, document_, NULL, kDOMMaxElementDepth, source_location_,
-      base::Closure(),
       base::Bind(&MockLoadCompleteCallback::Run,
                  base::Unretained(&mock_load_complete_callback_)),
       true, csp::kCSPRequired));

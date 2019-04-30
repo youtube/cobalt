@@ -19,6 +19,10 @@
 #  include <windows.graphics.display.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 namespace
 {
 

@@ -21,6 +21,7 @@ from cobalt.build import gyp_utils
 from cobalt.tools import paths
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration
+from starboard.tools.config import Config
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
@@ -34,13 +35,18 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   def __init__(self, platform_configuration, application_name,
                application_directory):
-    super(CobaltConfiguration, self).__init__(
-        platform_configuration, application_name, application_directory)
+    super(CobaltConfiguration,
+          self).__init__(platform_configuration, application_name,
+                         application_directory)
 
   def GetVariables(self, config_name):
     variables = {
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
         'cobalt_version': gyp_utils.GetBuildNumber(),
+
+        # This is here rather than cobalt_configuration.gypi so that it's
+        # available for browser_bindings_gen.gyp.
+        'enable_debugger': 0 if config_name == Config.GOLD else 1,
 
         # Cobalt uses OpenSSL on all platforms.
         'use_openssl': 1,
@@ -53,6 +59,68 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     includes = super(CobaltConfiguration, self).GetPostIncludes()
     includes[:0] = [os.path.join(paths.BUILD_ROOT, 'cobalt_configuration.gypi')]
     return includes
+
+  def GetWebPlatformTestFilters(self):
+    """Gets all tests to be excluded from a black box test run."""
+
+    # Skipped tests on all platforms due to HTTP proxy bugs.
+    # Tests pass with a direct SSH tunnel.
+    # Proxy sends out response lines as soon as it gets it without waiting
+    # for the entire response. It is possible that this causes issues or that
+    # the proxy has problems sending and terminating a single complete
+    # response. It may end up sending multiple empty responses.
+    filters = [
+        # Late listeners: Preflight.
+        # Disabled because of: Flaky. Buildbot only failure.
+        'cors/WebPlatformTest.Run/cors_late_upload_events_htm',
+
+        # getResponseHeader: Combined testing of cors response headers.
+        # Disabled because of: Timeout.
+        'cors/WebPlatformTest.Run/cors_response_headers_htm',
+
+        # Status on GET 400, HEAD 401, POST 404, PUT 200.
+        # Disabled because of: Response status returning 0.
+        'cors/WebPlatformTest.Run/cors_status_async_htm',
+
+        # CORS - status after preflight on POST 401, POST 404, PUT 699.
+        # Disabled because of: Response status returning 0 or timeout.
+        'cors/WebPlatformTest.Run/cors_status_preflight_htm',
+
+        # Response reader closed promise should reject after a network error
+        # happening after resolving fetch promise.
+        # Disabled because of: Timeout.
+        'fetch/WebPlatformTest.Run/fetch_api_basic_error_after_response_html',
+
+        # RequestCache "no-store" mode does not store the response in the
+        # cache with Last-Modified and fresh response.
+        # Disabled because of: Timeout. Buildbot only failure.
+        ('fetch/WebPlatformTest.Run/'
+         'fetch_api_request_request_cache_no_store_html'),
+
+        # Check response clone use structureClone for teed ReadableStreams
+        # (DataViewchunk).
+        # Disabled because of: Timeout.
+        'fetch/WebPlatformTest.Run/fetch_api_response_response_clone_html',
+
+        # XMLHttpRequest: send() - Basic authenticated CORS request using
+        # setRequestHeader().
+        # Disabled because of: Timeout. Buildbot only failure.
+        ('xhr/WebPlatformTest.Run/'
+         'XMLHttpRequest_cobalt_trunk_send_authentication_cors_basic_'
+         'setrequestheader_htm'),
+
+        # XMLHttpRequest: send() - CORS request with setRequestHeader auth to
+        # URL accepting Authorization header.
+        # Disabled because of: False user and password. Buildbot only failure.
+        ('xhr/WebPlatformTest.Run/'
+         'XMLHttpRequest_cobalt_trunk_send_authentication_cors_'
+         'setrequestheader_no_cred_htm'),
+
+        # XMLHttpRequest: send() - Redirects (basics) (307).
+        # Disabled because of: Flaky.
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_htm'
+    ]
+    return filters
 
   def GetTestTargets(self):
     return [
@@ -87,7 +155,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'storage_upgrade_test',
         'trace_event_test',
         'web_animations_test',
-        'web_platform_tests',
         'webdriver_test',
         'xhr_test',
     ]

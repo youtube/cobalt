@@ -52,7 +52,7 @@ TEST_F(IsDisplayedTest, ElementIsShown) {
   // display: none
   EXPECT_FALSE(
       algorithms::IsDisplayed(document()->GetElementById("none").get()));
-  // visiblity: hidden
+  // visibility: hidden
   EXPECT_FALSE(
       algorithms::IsDisplayed(document()->GetElementById("hidden").get()));
 }

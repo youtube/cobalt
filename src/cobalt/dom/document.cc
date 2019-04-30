@@ -547,7 +547,7 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
 
     HTMLBodyElement* body_element = body();
     if (body_element) {
-      body_element->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+      body_element->PostToDispatchEventName(FROM_HERE, base::Tokens::load());
     }
   }
 }

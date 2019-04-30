@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/logging.h"
 #include "cobalt/web_animations/animation.h"
+
+#include "base/logging.h"
+#include "cobalt/web_animations/animation_set.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
 
 namespace cobalt {
@@ -22,6 +24,9 @@ namespace web_animations {
 Animation::Animation(const scoped_refptr<AnimationEffectReadOnly>& effect,
                      const scoped_refptr<AnimationTimeline>& timeline)
     : effect_(effect) {
+  // Register with the keyframe effect's target so that this Animation can
+  // be referenced from the target, as per the web animations specification:
+  //   https://www.w3.org/TR/web-animations-1/#dom-animatable-getanimations
   const KeyframeEffectReadOnly* keyframe_effect =
       base::polymorphic_downcast<const KeyframeEffectReadOnly*>(effect.get());
   if (keyframe_effect) {
@@ -31,10 +36,14 @@ Animation::Animation(const scoped_refptr<AnimationEffectReadOnly>& effect,
 }
 
 void Animation::set_timeline(const scoped_refptr<AnimationTimeline>& timeline) {
+  // Deregister from the timeline we were previously registered to.
   if (timeline_) {
     timeline_->Deregister(this);
   }
 
+  // Register with the timeline so that this Animation can be referenced from
+  // that timeline, as per the web animations specifications:
+  //   https://www.w3.org/TR/web-animations-1/#dom-document-getanimations
   if (timeline) {
     timeline->Register(this);
   }
@@ -131,6 +140,14 @@ Animation::~Animation() {
   if (keyframe_effect) {
     keyframe_effect->target()->Deregister(this);
   }
+
+  // Make a copy of the animation set so that our loop iteration is unaffected
+  // by the animation removals as we make them.
+  std::set<scoped_refptr<AnimationSet>> contained_in_animation_sets =
+      contained_in_animation_sets_;
+  for (const auto& animation_set : contained_in_animation_sets) {
+    animation_set->RemoveAnimation(this);
+  }
 }
 
 void Animation::UpdatePendingTasks() {
@@ -193,6 +210,15 @@ scoped_ptr<Animation::EventHandler> Animation::AttachEventHandler(
   event_handlers_.insert(event_handler.get());
 
   return event_handler.Pass();
+}
+
+void Animation::OnAddedToAnimationSet(const scoped_refptr<AnimationSet>& set) {
+  contained_in_animation_sets_.insert(set);
+}
+
+void Animation::OnRemovedFromAnimationSet(
+    const scoped_refptr<AnimationSet>& set) {
+  contained_in_animation_sets_.erase(set);
 }
 
 void Animation::RemoveEventHandler(EventHandler* handler) {

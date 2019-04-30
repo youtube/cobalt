@@ -17,78 +17,37 @@
 
 #include <string>
 
-#include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/dom/csp_delegate.h"
-#include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/script_value.h"
-#include "cobalt/script/value_handle.h"
-#include "cobalt/script/wrappable.h"
+#include "cobalt/script/script_debugger.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-// Used by the various debugger agents to run JavaScript and persist state. An
-// object of this class creates a persistent JavaScript object bound to the
-// global object, and executes methods on this object, passing in the JSON
-// parameters as a parameter object, and returning the result as a serialized
-// JSON object. Other classes may run scripts that attach additional data to the
-// JavaScript object created by this class.
-class DebugScriptRunner : public script::Wrappable {
+// Runs JavaScript code that is part of the backend implementation.
+class DebugScriptRunner {
  public:
-  // Event callback. A callback of this type is specified in the constructor,
-  // and used to send asynchronous debugging events that are not a direct
-  // response to a command.
-  // See: https://chromedevtools.github.io/devtools-protocol/
-  typedef base::Callback<void(const std::string& method,
-                              const base::optional<std::string>& params)>
-      OnEventCallback;
-
-  // Callback to create a JavaScript Runtime.RemoteObject from an opaque JS
-  // object.
-  typedef script::CallbackFunction<std::string(const script::ValueHandleHolder*,
-                                               const std::string&)>
-      CreateRemoteObjectCallback;
-  typedef script::ScriptValue<CreateRemoteObjectCallback>
-      CreateRemoteObjectCallbackHolder;
-
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
-                    const dom::CspDelegate* csp_delegate,
-                    const OnEventCallback& on_event_callback);
+                    script::ScriptDebugger* script_debugger,
+                    const dom::CspDelegate* csp_delegate);
 
-  // Creates a Runtime.RemoteObject corresponding to an opaque JS object, by
-  // calling the |create_remote_object_callback_| script function.
-  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
-  base::optional<std::string> CreateRemoteObject(
-      const script::ValueHandleHolder* object, const std::string& params);
-
-  // Runs |method| on the JavaScript |runtimeInspector| object, passing in
-  // |json_params| and putting the result in |json_result|.
-  // Returns |true| if execution was successful, |false| otherwise.
+  // Runs |method| on the JavaScript |debugBackend| object, passing in
+  // |json_params|. If |json_result| is non-NULL it receives the result.
+  // Returns |true| if the method was executed; |json_result| is the value
+  // returned by the method.
+  // Returns |false| if the method wasn't executed; if the method isn't defined
+  // |json_result| is empty, otherwise it's an error message.
   bool RunCommand(const std::string& method, const std::string& json_params,
                   std::string* json_result);
 
   // Loads JavaScript from file and executes the contents. Used to add
-  // functionality to the JS object wrapped by this class.
+  // the JavaScript part of hybrid JS/C++ agent implementations.
   bool RunScriptFile(const std::string& filename);
 
-  // Non-standard JavaScript extension API.
-  // Called to send an event via the callback specified in the constructor.
-  void SendEvent(const std::string& method,
-                 const base::optional<std::string>& params);
-
-  // Get/Set |create_remote_object_callback_|.
-  const CreateRemoteObjectCallbackHolder* create_remote_object_callback();
-  void set_create_remote_object_callback(
-      const CreateRemoteObjectCallbackHolder& callback);
-
-  DEFINE_WRAPPABLE_TYPE(DebugScriptRunner);
-
  private:
-  bool EvaluateScript(const std::string& js_code, std::string* result);
-  bool EvaluateScriptFile(const std::string& filename, std::string* result);
+  bool EvaluateDebuggerScript(const std::string& script,
+                              std::string* out_result_utf8);
 
   // Ensures the JS eval command is enabled, overriding CSP if necessary.
   void ForceEnableEval();
@@ -98,15 +57,11 @@ class DebugScriptRunner : public script::Wrappable {
   // No ownership.
   script::GlobalEnvironment* global_environment_;
 
+  // Engine-specific debugger implementation.
+  script::ScriptDebugger* script_debugger_;
+
   // Non-owned reference to let this object query whether CSP allows eval.
   const dom::CspDelegate* csp_delegate_;
-
-  // Callback to send events.
-  OnEventCallback on_event_callback_;
-
-  // Callback to create a Runtime.RemoteObject.
-  base::optional<CreateRemoteObjectCallbackHolder::Reference>
-      create_remote_object_callback_;
 };
 
 }  // namespace backend

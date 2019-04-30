@@ -26,10 +26,12 @@ int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                 int resolution_height,
                                 int bits_per_pixel) {
   SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
   if ((resolution_width <= 1920 && resolution_height <= 1080) ||
       resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
       resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
+    // The maximum amount of memory that will be used to store media buffers
+    // when video resolution is 1080p. If 0, then memory can grow without bound.
+    // This must be larger than sum of 1080p video budget and non-video budget.
 #if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P) && \
     COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != LEGACY_MAX_CAPACITY_1080P
     SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P will be "
@@ -38,20 +40,40 @@ int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
     return COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P;
 #else   // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P) &&
     // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != LEGACY_MAX_CAPACITY_1080P
-    return 36 * 1024 * 1024;
+    return 50 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P) &&
         // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != LEGACY_MAX_CAPACITY_1080P
   }
+
+  if (resolution_width <= 3840 && resolution_height <= 2160) {
+    if (bits_per_pixel <= 8) {
+      // The maximum amount of memory that will be used to store media buffers
+      // when video resolution is 4k and bit per pixel is lower than 8. If 0,
+      // then memory can grow without bound. This must be larger than sum of 4k
+      // video budget and non-video budget.
 #if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K) && \
     COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
-  SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K will be "
-                      "deprecated in a future Starboard version.";
-  // Use define forwarded from GYP variable.
-  return COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K;
+      SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K will be "
+                          "deprecated in a future Starboard version.";
+      // Use define forwarded from GYP variable.
+      return COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K;
 #else   // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K) &&
-  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
-  return 65 * 1024 * 1024;
+      // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
+      return 140 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K) &&
         // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
+    } else {
+      // The maximum amount of memory that will be used to store media buffers
+      // when video resolution is 4k and bit per pixel is greater than 8. If 0,
+      // then memory can grow without bound. This must be larger than sum of 4k
+      // video budget and non-video budget.
+      return 210 * 1024 * 1024;
+    }
+  }
+
+  // The maximum amount of memory that will be used to store media buffers when
+  // video resolution is 8k. If 0, then memory can grow without bound. This
+  // must be larger than sum of 8k video budget and non-video budget.
+  return 360 * 1024 * 1024;
 }
 #endif  // SB_API_VERSION >= 10

@@ -29,10 +29,12 @@ extern const char kAudioDecoderStubHelp[];
 extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
+extern const char kRemoteDebuggingPort[];
+extern const char kRemoteDebuggingPortHelp[];
 extern const char kWaitForWebDebugger[];
 extern const char kWaitForWebDebuggerHelp[];
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
 extern const char kDisableImageAnimations[];
 extern const char kDisableImageAnimationsHelp[];
@@ -68,10 +70,6 @@ extern const char kDisablePartialLayout[];
 extern const char kDisablePartialLayoutHelp[];
 extern const char kProd[];
 extern const char kProdHelp[];
-extern const char kProxy[];
-extern const char kProxyHelp[];
-extern const char kRemoteDebuggingPort[];
-extern const char kRemoteDebuggingPortHelp[];
 extern const char kRequireCSP[];
 extern const char kRequireCSPHelp[];
 extern const char kRequireHTTPSLocation[];
@@ -127,6 +125,8 @@ extern const char kMaxCobaltGpuUsage[];
 extern const char kMaxCobaltGpuUsageHelp[];
 extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kOffscreenTargetCacheSizeInBytesHelp[];
+extern const char kProxy[];
+extern const char kProxyHelp[];
 extern const char kQrCodeOverlay[];
 extern const char kQrCodeOverlayHelp[];
 extern const char kReduceCpuMemoryBy[];

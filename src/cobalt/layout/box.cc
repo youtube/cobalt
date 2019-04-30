@@ -95,6 +95,12 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 
 Box::~Box() { layout_stat_tracker_->OnBoxDestroyed(); }
 
+bool Box::IsOverflowHidden() const {
+  return computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
+         computed_style()->overflow() == cssom::KeywordValue::GetHidden() ||
+         computed_style()->overflow() == cssom::KeywordValue::GetScroll();
+}
+
 bool Box::IsPositioned() const {
   return computed_style()->position() != cssom::KeywordValue::GetStatic();
 }
@@ -602,8 +608,7 @@ void Box::RenderAndAnimate(
                               &border_node_builder, &animate_node_builder);
   }
 
-  const bool overflow_hidden =
-      computed_style()->overflow() == cssom::KeywordValue::GetHidden();
+  const bool overflow_hidden = IsOverflowHidden();
 
   bool overflow_hidden_needs_to_be_applied = overflow_hidden;
 
@@ -618,10 +623,11 @@ void Box::RenderAndAnimate(
   // In order to avoid the creation of a superfluous CompositionNode, we first
   // check to see if there is a need to distinguish between content and
   // background.
-  if (!overflow_hidden ||
+  if (!IsOverflowAnimatedByUiNavigation() &&
+      (!overflow_hidden ||
       (!outline_is_visible &&
        computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
-       border_insets_.zero())) {
+       border_insets_.zero()))) {
     // If there's no reason to distinguish between content and background,
     // just add them all to the same composition node.
     RenderAndAnimateContent(&border_node_builder, stacking_context);
@@ -647,6 +653,11 @@ void Box::RenderAndAnimate(
   if (!border_node_builder.children().empty()) {
     scoped_refptr<render_tree::Node> border_node =
         new CompositionNode(border_node_builder.Pass());
+    if (ui_nav_item_ && !ui_nav_item_->IsContainer()) {
+      // UI navigation focus items animate the border node.
+      border_node = RenderAndAnimateUiNavigation(border_node,
+                                                 &animate_node_builder);
+    }
     if (overflow_hidden_needs_to_be_applied) {
       border_node =
           RenderAndAnimateOverflow(padding_rounded_corners, border_node,
@@ -1605,24 +1616,37 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
   const base::optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
-  return RenderAndAnimateOverflow(padding_rounded_corners, content_node, NULL,
-                                  border_offset);
+  AnimateNode::Builder animate_node_builder;
+  scoped_refptr<render_tree::Node> overflow_node =
+      RenderAndAnimateOverflow(padding_rounded_corners, content_node,
+                               &animate_node_builder, border_offset);
+  if (animate_node_builder.empty()) {
+    return overflow_node;
+  }
+  return new AnimateNode(animate_node_builder, overflow_node);
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node,
-    AnimateNode::Builder* /* animate_node_builder */,
+    AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
-  DCHECK_EQ(computed_style()->overflow(), cssom::KeywordValue::GetHidden());
+  DCHECK(IsOverflowHidden());
 
   // The "overflow" property specifies whether a box is clipped to its padding
   // edge.  Use a render_tree viewport filter to implement it.
+  FilterNode::Builder filter_node_builder(content_node);
+
+  // The filter source node may be animated.
+  if (IsOverflowAnimatedByUiNavigation()) {
+    filter_node_builder.source =
+        RenderAndAnimateUiNavigation(content_node, animate_node_builder);
+  }
+
   // Note that while it is unintuitive that we clip to the padding box and
   // not the content box, this behavior is consistent with Chrome and IE.
   //   https://www.w3.org/TR/CSS21/visufx.html#overflow
   math::SizeF padding_size = GetClampedPaddingBoxSize();
-  FilterNode::Builder filter_node_builder(content_node);
   filter_node_builder.viewport_filter = ViewportFilter(
       math::RectF(border_node_offset.x() + border_left_width().toFloat(),
                   border_node_offset.y() + border_top_width().toFloat(),
@@ -1673,6 +1697,80 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
   }
 
   return border_node;
+}
+
+namespace {
+
+void AnimateUiNavContainer(
+    const scoped_refptr<ui_navigation::NavItem>& container,
+    render_tree::CompositionNode::Builder* node_builder) {
+  float offset_x, offset_y;
+  container->GetContentOffset(&offset_x, &offset_y);
+  node_builder->set_offset(math::Vector2dF(-offset_x, -offset_y));
+}
+
+void AnimateUiNavFocus(
+    const scoped_refptr<ui_navigation::NavItem>& focus,
+    render_tree::MatrixTransformNode::Builder* node_builder) {
+  ui_navigation::NativeTransform matrix;
+  if (focus->GetLocalTransform(&matrix)) {
+    node_builder->transform = math::Matrix3F::FromValues(
+        matrix.m[ 0], matrix.m[ 1], matrix.m[ 3],
+        matrix.m[ 4], matrix.m[ 5], matrix.m[ 7],
+        matrix.m[12], matrix.m[13], matrix.m[15]);
+  }
+}
+
+}  // namespace
+
+scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
+    const scoped_refptr<render_tree::Node>& node_to_animate,
+    render_tree::animations::AnimateNode::Builder* animate_node_builder) {
+  if (!ui_nav_item_) {
+    return node_to_animate;
+  }
+
+  // The scrollable overflow region is the union of the border box of all
+  // contained boxes.
+  //   https://www.w3.org/TR/css-overflow-3/#scrollable-overflow-region
+  // Set the UI navigation position and size based on the border box. However,
+  // since navigation items have no notion of transforms on nodes, dimensions
+  // should be transformed to world space.
+
+  // Determine the position relative to the UI navigation item containing
+  // this one. The containing navigation item may not be this box's direct
+  // parent.
+  auto layout_rect = GetTransformedBorderBoxFromRoot();
+  for (auto parent = parent_; parent != nullptr; parent = parent->parent_) {
+    if (ui_nav_item_->GetContainerItem() == parent->ui_nav_item_) {
+      auto origin = parent->GetTransformedBorderBoxFromRoot().origin();
+      layout_rect.Offset(-origin.x(), -origin.y());
+      break;
+    }
+  }
+
+  ui_nav_item_->SetSize(layout_rect.width().toFloat(),
+                        layout_rect.height().toFloat());
+  ui_nav_item_->SetPosition(layout_rect.x().toFloat(),
+                            layout_rect.y().toFloat());
+  ui_nav_item_->SetEnabled(true);
+
+  // Add an animation to update the position of this box.
+  if (ui_nav_item_->IsContainer()) {
+    scoped_refptr<CompositionNode> composition_node =
+        new CompositionNode(node_to_animate, math::Vector2dF());
+    animate_node_builder->Add(
+        composition_node,
+        base::Bind(&AnimateUiNavContainer, ui_nav_item_));
+    return composition_node;
+  } else {
+    scoped_refptr<MatrixTransformNode> transform_node =
+        new MatrixTransformNode(node_to_animate, math::Matrix3F::Identity());
+    animate_node_builder->Add(
+        transform_node,
+        base::Bind(&AnimateUiNavFocus, ui_nav_item_));
+    return transform_node;
+  }
 }
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.

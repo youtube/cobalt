@@ -33,8 +33,6 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
-#include "cobalt/browser/h5vcc_url_handler.h"
-#include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -66,14 +64,18 @@
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
-#if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/base/console_commands.h"
-#include "cobalt/browser/debug_console.h"
-#include "cobalt/browser/trace_manager.h"
-#include "cobalt/debug/backend/debug_dispatcher.h"
-#endif  // ENABLE_DEBUG_CONSOLE
 #include "starboard/configuration.h"
 #include "starboard/window.h"
+
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/browser/debug_console.h"
+#include "cobalt/browser/lifecycle_console_commands.h"
+#include "cobalt/browser/trace_manager.h"
+#include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debugger_state.h"
+#include "cobalt/debug/console/command_manager.h"
+#include "cobalt/debug/debug_client.h"
+#endif  // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -141,11 +143,13 @@ class BrowserModule {
   void RequestScreenshotToFile(
       const FilePath& path,
       loader::image::EncodedStaticImage::ImageFormat image_format,
+      const base::optional<math::Rect>& clip_rect,
       const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
-  void RequestScreenshotToBuffer(
+  void RequestScreenshotToMemory(
       loader::image::EncodedStaticImage::ImageFormat image_format,
+      const base::optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 
 #if defined(ENABLE_WEBDRIVER)
@@ -153,12 +157,12 @@ class BrowserModule {
       const webdriver::protocol::SessionId& session_id);
 #endif
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   scoped_ptr<debug::DebugClient> CreateDebugClient(
       debug::DebugClient::Delegate* delegate);
   void GetDebugDispatcherInternal(
       debug::backend::DebugDispatcher** out_debug_dispatcher);
-#endif  // ENABLE_DEBUG_CONSOLE
+#endif  // ENABLE_DEBUGGER
 
   // Change the network proxy settings while the application is running.
   void SetProxy(const std::string& proxy_rules);
@@ -291,9 +295,15 @@ class BrowserModule {
   // Error callback for any error that stops the program.
   void OnError(const GURL& url, const std::string& error);
 
-  // OnErrorRetry() runs a retry URL through the URL handlers. It should only be
-  // called by |on_error_retry_timer_|.
+  // OnErrorRetry() shows a platform network error to give the user a chance to
+  // fix broken network settings before retrying. It should only be called by
+  // |on_error_retry_timer_|.
   void OnErrorRetry();
+
+  // Navigates back to the URL that caused an error if the response from the
+  // platform error was positive, otherwise stops the app.
+  void OnNetworkFailureSystemPlatformResponse(
+      SbSystemPlatformErrorResponse response);
 
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
@@ -319,7 +329,7 @@ class BrowserModule {
   // Called when web module has received window.minimize().
   void OnWindowMinimize();
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Toggles the input fuzzer on/off.  Ignores the parameter.
   void OnFuzzerToggle(const std::string&);
 
@@ -333,7 +343,7 @@ class BrowserModule {
       const browser::WebModule::LayoutResults& layout_results);
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
@@ -478,9 +488,9 @@ class BrowserModule {
   RenderTreeCombiner render_tree_combiner_;
   scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+#endif  // defined(ENABLE_DEBUGGER)
   scoped_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
 
   // Helper object to create screen shots of the last layout tree.
@@ -525,7 +535,7 @@ class BrowserModule {
   base::CVal<base::cval::SizeInBytes, base::CValPublic>
       javascript_reserved_memory_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if defined(ENABLE_DEBUGGER)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
   scoped_ptr<input::InputDeviceManager> input_device_manager_fuzzer_;
@@ -536,23 +546,23 @@ class BrowserModule {
   TraceManager trace_manager_;
 
   // Command handler object for toggling the input fuzzer on/off.
-  base::ConsoleCommandManager::CommandHandler fuzzer_toggle_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      fuzzer_toggle_command_handler_;
 
   // Command handler object for setting media module config.
-  base::ConsoleCommandManager::CommandHandler set_media_config_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      set_media_config_command_handler_;
 
   // Command handler object for screenshot command from the debug console.
-  base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler
+      screenshot_command_handler_;
 
   base::optional<SuspendFuzzer> suspend_fuzzer_;
 
   // An object that registers and owns console commands for controlling
   // Cobalt's lifecycle.
   LifecycleConsoleCommands lifecycle_console_commands_;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
-  // Handler object for h5vcc URLs.
-  scoped_ptr<H5vccURLHandler> h5vcc_url_handler_;
+#endif  // defined(ENABLE_DEBUGGER)
 
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
@@ -577,7 +587,7 @@ class BrowserModule {
   // state. This url is set within OnError() and also when a navigation is
   // deferred as a result of Cobalt being suspended; it is cleared when a
   // navigation occurs.
-  std::string pending_navigate_url_;
+  GURL pending_navigate_url_;
 
   // The number of OnErrorRetry() calls that have occurred since the last
   // OnDone() call. This is used to determine the exponential backoff delay

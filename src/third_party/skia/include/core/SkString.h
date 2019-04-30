@@ -15,6 +15,10 @@
 
 #include <stdarg.h>
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 /*  Some helper functions for C strings
 */
 

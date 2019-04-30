@@ -17,11 +17,6 @@
     '../bindings/bindings.gypi',
   ],
   'variables': {
-    'variables': {
-      # By default enable MSE. This can be overriden by the port.
-      'enable_mse%': 1,
-    },
-
     # Base directory into which generated sources and intermediate files should
     # be generated.
     'bindings_output_dir': '<(SHARED_INTERMEDIATE_DIR)/bindings/browser',
@@ -51,10 +46,6 @@
         '../cssom/media_list.idl',
         '../cssom/style_sheet.idl',
         '../cssom/style_sheet_list.idl',
-
-        '../debug/backend/debug_script_runner.idl',
-        '../debug/console/debug_hub.idl',
-        '../debug/console/debugger_event_target.idl',
 
         '../dom/animation_event.idl',
         '../dom/attr.idl',
@@ -115,6 +106,7 @@
         '../dom/location.idl',
         '../dom/media_error.idl',
         '../dom/media_query_list.idl',
+        '../dom/media_source.idl',
         '../dom/memory_info.idl',
         '../dom/message_event.idl',
         '../dom/mime_type_array.idl',
@@ -135,6 +127,8 @@
         '../dom/screen.idl',
         '../dom/screenshot.idl',
         '../dom/security_policy_violation_event.idl',
+        '../dom/source_buffer.idl',
+        '../dom/source_buffer_list.idl',
         '../dom/storage.idl',
         '../dom/storage_event.idl',
         '../dom/test_runner.idl',
@@ -167,6 +161,7 @@
         '../h5vcc/h5vcc_audio_config_array.idl',
         '../h5vcc/h5vcc_crash_log.idl',
         '../h5vcc/h5vcc_deep_link_event_target.idl',
+        '../h5vcc/h5vcc_platform_service.idl',
         '../h5vcc/h5vcc_runtime.idl',
         '../h5vcc/h5vcc_runtime_event_target.idl',
         '../h5vcc/h5vcc_settings.idl',
@@ -302,6 +297,7 @@
         '../dom/parent_node.idl',
         '../dom/performance__high_resolution_time.idl',
         '../dom/speech_synthesis_getter.idl',
+        '../dom/url_mse.idl',
         '../dom/url_utils.idl',
         '../dom/window__animation_timing.idl',
         '../dom/window__performance.idl',
@@ -353,14 +349,12 @@
             '../dom/html_media_element_eme_01b.idl',
         ],
       }],
-      ['enable_mse==1', {
+      ['enable_debugger==1', {
         'source_idl_files': [
-            '../dom/media_source.idl',
-            '../dom/source_buffer.idl',
-            '../dom/source_buffer_list.idl',
-        ],
-        'dependency_idl_files': [
-            '../dom/url_mse.idl',
+            '../debug/backend/css_agent.idl',
+            '../debug/backend/debug_backend.idl',
+            '../debug/console/debug_hub.idl',
+            '../debug/console/debugger_event_target.idl',
         ],
       }],
     ],

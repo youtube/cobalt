@@ -15,7 +15,7 @@
 // Custom dictionary to advertise registered app commands to the debug console.
 
 [
-  Conditional=ENABLE_DEBUG_CONSOLE
+  Conditional=ENABLE_DEBUGGER
 ] dictionary ConsoleCommand {
   DOMString command;
   DOMString shortHelp;

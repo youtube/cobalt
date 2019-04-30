@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 #include "cobalt/browser/application.h"
 
 #include <algorithm>
@@ -57,7 +61,6 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
-#include "cobalt/network/network_event.h"
 #include "cobalt/script/javascript_engine.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
@@ -83,7 +86,7 @@ bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
 int GetRemoteDebuggingPort() {
 #if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
   const int kDefaultRemoteDebuggingPort =
@@ -104,10 +107,14 @@ int GetRemoteDebuggingPort() {
       remote_debugging_port = kDefaultRemoteDebuggingPort;
     }
   }
+  DCHECK(remote_debugging_port != 0 ||
+         !command_line->HasSwitch(switches::kWaitForWebDebugger))
+      << switches::kWaitForWebDebugger << " switch can't be used when "
+      << switches::kRemoteDebuggingPort << " is 0 (disabled).";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return remote_debugging_port;
 }
-#endif  // ENABLE_REMOTE_DEBUGGING
+#endif  // ENABLE_DEBUGGER
 
 #if defined(ENABLE_WEBDRIVER)
 int GetWebDriverPort() {
@@ -626,12 +633,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kProxy)) {
     options.network_module_options.custom_proxy =
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
   }
 
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   if (command_line->HasSwitch(browser::switches::kIgnoreCertificateErrors)) {
     options.network_module_options.ignore_certificate_errors = true;
@@ -720,10 +727,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
 
   // Register event callbacks.
-  network_event_callback_ =
-      base::Bind(&Application::OnNetworkEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(network::NetworkEvent::TypeId(),
-                                     network_event_callback_);
   deep_link_event_callback_ =
       base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
@@ -783,7 +786,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         GetWebDriverPort(), GetWebDriverListenIp(),
         base::Bind(&BrowserModule::CreateSessionDriver,
                    base::Unretained(browser_module_.get())),
-        base::Bind(&BrowserModule::RequestScreenshotToBuffer,
+        base::Bind(&BrowserModule::RequestScreenshotToMemory,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::SetProxy,
                    base::Unretained(browser_module_.get())),
@@ -791,13 +794,18 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   }
 #endif  // ENABLE_WEBDRIVER
 
-#if defined(ENABLE_REMOTE_DEBUGGING)
+#if defined(ENABLE_DEBUGGER)
   int remote_debugging_port = GetRemoteDebuggingPort();
-  debug_web_server_.reset(new debug::remote::DebugWebServer(
-      remote_debugging_port,
-      base::Bind(&BrowserModule::CreateDebugClient,
-                 base::Unretained(browser_module_.get()))));
-#endif  // ENABLE_REMOTE_DEBUGGING
+  if (remote_debugging_port == 0) {
+    DLOG(INFO) << "Remote web debugger disabled because "
+               << switches::kRemoteDebuggingPort << " is 0.";
+  } else {
+    debug_web_server_.reset(new debug::remote::DebugWebServer(
+        remote_debugging_port,
+        base::Bind(&BrowserModule::CreateDebugClient,
+                   base::Unretained(browser_module_.get()))));
+  }
+#endif  // ENABLE_DEBUGGER
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   int duration_in_seconds = 0;
@@ -823,8 +831,6 @@ Application::~Application() {
   memory_tracker_tool_.reset(NULL);
 
   // Unregister event callbacks.
-  event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
-                                        network_event_callback_);
   event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
                                         deep_link_event_callback_);
 #if SB_API_VERSION >= 8
@@ -940,14 +946,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-    case kSbEventTypeNetworkConnect:
-      DispatchEventInternal(
-          new network::NetworkEvent(network::NetworkEvent::kConnection));
-      break;
-    case kSbEventTypeNetworkDisconnect:
-      DispatchEventInternal(
-          new network::NetworkEvent(network::NetworkEvent::kDisconnection));
-      break;
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
       DispatchEventInternal(new base::DeepLinkEvent(link));
@@ -968,6 +966,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #if SB_API_VERSION >= 6
     case kSbEventTypePreload:
 #endif  // SB_API_VERSION >= 6
+#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+    case kSbEventTypeNetworkConnect:
+    case kSbEventTypeNetworkDisconnect:
+#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeScheduled:
     case kSbEventTypeStart:
     case kSbEventTypeStop:
@@ -975,28 +977,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeVerticalSync:
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
-  }
-}
-
-void Application::OnNetworkEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnNetworkEvent()");
-  DCHECK(network_event_thread_checker_.CalledOnValidThread());
-  const network::NetworkEvent* network_event =
-      base::polymorphic_downcast<const network::NetworkEvent*>(event);
-  if (network_event->type() == network::NetworkEvent::kDisconnection) {
-    LOG(INFO) << "Detected a network disconnection.";
-    network_status_ = kDisconnectedNetworkStatus;
-    ++network_disconnect_count_;
-    browser_module_->Navigate(GURL("h5vcc://network-failure"));
-  } else if (network_event->type() == network::NetworkEvent::kConnection) {
-    network_status_ = kConnectedNetworkStatus;
-    ++network_connect_count_;
-    if (network_disconnect_count_ > 0) {
-      DLOG(INFO) << "Got network connection event, reloading browser.";
-      browser_module_->Reload();
-    } else {
-      DLOG(INFO) << "Got network connection event, NOT reloading browser.";
-    }
   }
 }
 
@@ -1074,8 +1054,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
+#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeNetworkConnect:
     case kSbEventTypeNetworkDisconnect:
+#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
@@ -1101,8 +1083,8 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   const auto& size = window_size_change_event->size();
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
-  float diagonal = SbWindowGetDiagonalSizeInInches(
-      window_size_change_event->window());
+  float diagonal =
+      SbWindowGetDiagonalSizeInInches(window_size_change_event->window());
 #else
   float diagonal = 0.0f;  // Special value meaning diagonal size is not known.
 #endif

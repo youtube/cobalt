@@ -192,7 +192,7 @@ void TransitionSet::UpdateTransitionForProperty(
           : transition_duration->get_item_modulo_size(transition_index);
 
   if (!duration.is_zero()) {
-    if (duration.InMilliseconds() != 0 && !start_value->Equals(*end_value)) {
+    if (!start_value->Equals(*end_value)) {
       TimeListValue* delay_list = base::polymorphic_downcast<TimeListValue*>(
           transition_style.transition_delay().get());
       const base::TimeDelta& delay =
@@ -216,39 +216,40 @@ void TransitionSet::UpdateTransitionForProperty(
         // differently depending on if we're reversing the previous transition
         // or starting a completely different one.
         transitions_.UpdateTransitionForProperty(
-            property, CreateTransitionOverOldTransition(
-                          property, current_time, *existing_transition,
-                          duration, delay, timing_function, end_value));
+            property,
+            CreateTransitionOverOldTransition(
+                property, current_time, *existing_transition, duration, delay,
+                timing_function, end_value),
+            this);
       } else {
         // There is no transition on the object currently, so create a new
         // one for it.
         transitions_.UpdateTransitionForProperty(
             property,
             Transition(property, start_value, end_value, current_time, duration,
-                       delay, timing_function, start_value, 1.0f));
+                       delay, timing_function, start_value, 1.0f),
+            this);
       }
     } else {
       // Check if there is an existing transition for this property and see
       // if it has completed yet.  If so, remove it from the list of
       // transformations.
-      // TODO: Fire off a transitionend event.
-      //   https://www.w3.org/TR/css3-transitions/#transitionend
       const Transition* transition =
           transitions_.GetTransitionForProperty(property);
       if (transition != NULL) {
         if (current_time >= transition->EndTime()) {
-          transitions_.RemoveTransitionForProperty(property);
+          transitions_.RemoveTransitionForPropertyIfExists(
+              property, Transition::kIsNotCanceled);
         }
       }
     }
   } else {
-    // The property is not in the transition-property list, thus it should no
-    // longer be animated.  Remove the transition if it exists.  It does
-    // not generate a transitionend event, it does not pass go, it does not
-    // collect $200.
-    if (transitions_.GetTransitionForProperty(property)) {
-      transitions_.RemoveTransitionForProperty(property);
-    }
+    // The property is not in the transition-property list or has zero
+    // duration, thus it should no longer be animated. Remove the transition if
+    // it exists. It does not generate a transitionend event, it does not pass
+    // go, it does not collect $200.
+    transitions_.RemoveTransitionForPropertyIfExists(property,
+                                                     Transition::kIsCanceled);
   }
 }
 
@@ -266,7 +267,8 @@ TransitionSet::TransitionMap::~TransitionMap() {
   if (event_handler_ != NULL) {
     for (InternalTransitionMap::iterator iter = transitions_.begin();
          iter != transitions_.end(); ++iter) {
-      event_handler_->OnTransitionRemoved(iter->second);
+      event_handler_->OnTransitionRemoved(iter->second,
+                                          Transition::kIsCanceled);
     }
   }
 }
@@ -280,11 +282,13 @@ const Transition* TransitionSet::TransitionMap::GetTransitionForProperty(
 }
 
 void TransitionSet::TransitionMap::UpdateTransitionForProperty(
-    PropertyKey property, const Transition& transition) {
+    PropertyKey property, const Transition& transition,
+    cssom::TransitionSet* transition_set) {
   InternalTransitionMap::iterator found = transitions_.find(property);
   if (found != transitions_.end()) {
     if (event_handler_ != NULL) {
-      event_handler_->OnTransitionRemoved(found->second);
+      event_handler_->OnTransitionRemoved(found->second,
+                                          Transition::kIsCanceled);
     }
     found->second = transition;
   } else {
@@ -292,17 +296,19 @@ void TransitionSet::TransitionMap::UpdateTransitionForProperty(
   }
 
   if (event_handler_ != NULL) {
-    event_handler_->OnTransitionStarted(transition);
+    event_handler_->OnTransitionStarted(transition, transition_set);
   }
 }
 
-void TransitionSet::TransitionMap::RemoveTransitionForProperty(
-    PropertyKey property) {
+void TransitionSet::TransitionMap::RemoveTransitionForPropertyIfExists(
+    PropertyKey property, Transition::IsCanceled is_canceled) {
   InternalTransitionMap::iterator found = transitions_.find(property);
-  DCHECK(found != transitions_.end());
+  if (found == transitions_.end()) {
+    return;
+  }
 
   if (event_handler_ != NULL) {
-    event_handler_->OnTransitionRemoved(found->second);
+    event_handler_->OnTransitionRemoved(found->second, is_canceled);
   }
 
   transitions_.erase(found);
@@ -311,7 +317,8 @@ void TransitionSet::TransitionMap::RemoveTransitionForProperty(
 void TransitionSet::TransitionMap::Clear() {
   if (event_handler_ != NULL) {
     for (auto& transition : transitions_) {
-      event_handler_->OnTransitionRemoved(transition.second);
+      event_handler_->OnTransitionRemoved(transition.second,
+                                          Transition::kIsCanceled);
     }
   }
 

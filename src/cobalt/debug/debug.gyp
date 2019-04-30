@@ -24,6 +24,10 @@
         'backend/command_map.h',
         'backend/console_agent.cc',
         'backend/console_agent.h',
+        'backend/css_agent.cc',
+        'backend/css_agent.h',
+        'backend/debug_backend.cc',
+        'backend/debug_backend.h',
         'backend/debug_dispatcher.cc',
         'backend/debug_dispatcher.h',
         'backend/debug_module.cc',
@@ -32,8 +36,6 @@
         'backend/debug_script_runner.h',
         'backend/dom_agent.cc',
         'backend/dom_agent.h',
-        'backend/javascript_debugger_agent.cc',
-        'backend/javascript_debugger_agent.h',
         'backend/log_agent.cc',
         'backend/log_agent.h',
         'backend/page_agent.cc',
@@ -42,8 +44,6 @@
         'backend/render_layer.h',
         'backend/render_overlay.cc',
         'backend/render_overlay.h',
-        'backend/runtime_agent.cc',
-        'backend/runtime_agent.h',
         'backend/script_debugger_agent.cc',
         'backend/script_debugger_agent.h',
         'backend/tracing_agent.cc',
@@ -57,6 +57,8 @@
         'debug_client.h',
         'json_object.cc',
         'json_object.h',
+        'remote/debug_web_server.cc',
+        'remote/debug_web_server.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -64,26 +66,29 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:http_server',
+        'console_command_manager',
+        'copy_backend_web_files',
+        'copy_console_web_files',
+        'copy_remote_web_files',
+        'remote/devtools/devtools.gyp:devtools',
       ],
+    },
+
+    {
+      # Anything that implements a console command can depend on this without
+      # depending on the whole debug module.
+      'target_name': 'console_command_manager',
+      'type': 'static_library',
       'conditions': [
-        ['enable_remote_debugging==1', {
+        # Everything is conditional so implementers of commands can depend on
+        # this unconditionally.
+        ['enable_debugger == 1', {
           'sources': [
-            'remote/debug_web_server.cc',
-            'remote/debug_web_server.h',
+            'console/command_manager.cc',
+            'console/command_manager.h',
           ],
           'dependencies': [
-            'copy_remote_web_files',
-            'remote/devtools/devtools.gyp:devtools',
-          ],
-          'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
-          'all_dependent_settings': {
-            'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
-          },
-        }],
-        ['cobalt_copy_debug_console==1', {
-          'dependencies': [
-            'copy_backend_web_files',
-            'copy_console_web_files',
+            '<(DEPTH)/cobalt/base/base.gyp:base',
           ],
         }],
       ],

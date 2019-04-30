@@ -36,7 +36,8 @@ build 14972, which is not widely available yet.
 
 
 def CreateReparsePoint(from_folder, link_folder):
-  """ Mimics os.symlink for usage. """
+  """ Mimics os.symlink for usage. If link cannot be created then an OSError
+  is raised."""
   return _CreateReparsePoint(from_folder, link_folder)
 
 
@@ -62,6 +63,14 @@ def RmtreeShallow(dirpath):
   return _RmtreeShallow(dirpath)
 
 
+def OsWalk(top, topdown=True, onerror=None, followlinks=False):
+  """ Like os.walk() but correctly handles windows reparse points as symlinks.
+  All symlink directories are returned in the directory list and the caller must
+  call IsReparsePoint() on the path to determine whether the directory is
+  real or a symlink."""
+  return _OsWalk(top, topdown, onerror, followlinks)
+
+
 ################################################################################
 #                                 IMPL                                         #
 ################################################################################
@@ -71,6 +80,7 @@ import os
 import shutil
 import subprocess
 import stat
+import tempfile
 import time
 import traceback
 
@@ -90,9 +100,30 @@ def _RemoveEmptyDirectory(path):
         pass
 
 
-def _RmtreeShallow(path):
-  path = os.path.abspath(path)
-  subprocess.check_output(['cmd', '/c', 'rmdir', '/S', '/Q', path])
+def _RmtreeShallow(root_dir):
+  del_dirs = []  # Defer deletion of directories.
+  if _IsReparsePoint(root_dir):
+    _UnlinkReparsePoint(root_dir)
+    return
+  for root, dirs, files in OsWalk(root_dir, followlinks=False):
+    for name in files:
+      path = os.path.join(root, name)
+      os.remove(path)
+    for name in dirs:
+      path = os.path.join(root, name)
+      if _IsReparsePoint(path):
+        _UnlinkReparsePoint(path)
+      else:
+        del_dirs.append(path)
+  # At this point, all files should be deleted and all symlinks should be
+  # unlinked.
+  for d in del_dirs + [root_dir]:
+    try:
+      if os.path.isdir(d):
+        shutil.rmtree(d)
+    except Exception as err:
+      traceback.print_exc()
+      print('Error while deleting: ' + str(err))
 
 
 def _ReadReparsePointShell(path):
@@ -138,7 +169,6 @@ def _IsReparsePoint(path):
 
 
 def _CreateReparsePoint(from_folder, link_folder):
-  from_folder = os.path.abspath(from_folder)
   link_folder = os.path.abspath(link_folder)
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
@@ -147,15 +177,22 @@ def _CreateReparsePoint(from_folder, link_folder):
   try:
     from win_symlink_fast import FastCreateReparseLink
     FastCreateReparseLink(from_folder, link_folder)
+    return
+  except OSError as os_err:
+    # The operating system doesn't support the call.
+    pass
   except Exception as err:
-    print(__file__ + ' error: ' + str(err) + \
+    print(__file__ + ' unexpected error: ' + str(err) + \
+          ', from='+from_folder+', link='+link_folder+ \
           ', falling back to command line version.')
-    par_dir = os.path.dirname(link_folder)
-    if not os.path.isdir(par_dir):
-      os.makedirs(par_dir)
-    cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
-    subprocess.check_output(cmd_parts)
-
+  par_dir = os.path.dirname(link_folder)
+  if not os.path.isdir(par_dir):
+    os.makedirs(par_dir)
+  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+  subprocess.check_output(cmd_parts)
+  if not _IsReparsePoint(link_folder):
+    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
+                  from_folder)
 
 
 def _UnlinkReparsePoint(link_dir):
@@ -195,10 +232,34 @@ def _IsSamePath(p1, p2):
     return False
 
 
+def _OsWalk(top, topdown, onerror, followlinks):
+  try:
+    names = os.listdir(top)
+  except OSError as err:
+    if onerror is not None:
+      onerror(err)
+    return
+  dirs, nondirs = [], []
+  for name in names:
+    if os.path.isdir(os.path.join(top, name)):
+      dirs.append(name)
+    else:
+      nondirs.append(name)
+  if topdown:
+    yield top, dirs, nondirs
+  for name in dirs:
+    new_path = os.path.join(top, name)
+    if followlinks or not _IsReparsePoint(new_path):
+      for x in _OsWalk(new_path, topdown, onerror, followlinks):
+        yield x
+  if not topdown:
+    yield top, dirs, nondirs
+
+
 def UnitTest():
   """Tests that a small directory hierarchy can be created and then symlinked,
   and then removed."""
-  tmp_dir = os.path.join(os.environ['temp'], 'win_symlink')
+  tmp_dir = os.path.join(tempfile.gettempdir(), 'win_symlink')
   from_dir = os.path.join(tmp_dir, 'from_dir')
   test_txt = os.path.join(from_dir, 'test.txt')
   inner_dir = os.path.join(from_dir, 'inner_dir')
@@ -249,7 +310,36 @@ def UnitTest():
     print "Link exists."
   else:
     raise IOError("Link mismatch: " + from_dir_2 + ' != ' + from_dir)
+  def GetAllPaths(start_dir, followlinks):
+    paths = []
+    for root, dirs, files in OsWalk(tmp_dir, followlinks=followlinks):
+      for name in files:
+        path = os.path.join(root, name)
+        paths.append(path)
+      for name in dirs:
+        path = os.path.join(root, name)
+        paths.append(path)
+    return paths
+  def PathTypeToString(path):
+    if IsReparsePoint(path):
+      return 'link'
+    if os.path.isdir(path):
+      return 'dir'
+    return 'file'
+  paths_nofollow_links = GetAllPaths(tmp_dir, followlinks=False)
+  paths_follow_links = GetAllPaths(tmp_dir, followlinks=True)
+  print '\nOsWalk Follow links:'
+  for path in paths_follow_links:
+    print '  ' + path + ' (' + PathTypeToString(path) + ')'
+  print '\nOsWalk No-Follow links:'
+  for path in paths_nofollow_links:
+    print '  ' + path + ' (' + PathTypeToString(path) + ')'
+  print ''
 
+  assert(link_dir in paths_nofollow_links)
+  assert(link_dir in paths_follow_links)
+  assert(os.path.join(link_dir, 'test.txt') in paths_follow_links)
+  assert(not os.path.join(link_dir, 'test.txt') in paths_nofollow_links)
   RmtreeShallow(link_dir)
   if os.path.exists(link_dir):
     raise IOError("Link dir " + link_dir + " still exists.")

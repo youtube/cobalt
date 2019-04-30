@@ -7,6 +7,28 @@ This document records all notable changes made to Cobalt since the last release.
   - Fix bug where Cobalt would not refresh the layout when the textContent
     property of a DOM TextNode is modified.
 
+ - **Add support for decoding JPEG images as multi-plane YUV**
+
+   JPEG images are decoded into RGBA in previous versions of Cobalt.  The native
+   format of most JPEG images is YV12, which takes only 3/8 of memory compare to
+   RGBA.  Now JPEG images are decoded into multi-plane YUV images on platforms
+   with "rasterizer_type" set to "direct-gles".  As a result, when decoding to
+   multi-plane image is enabled, image cache size set by AutoMem will be reduced
+   by half due to the more compact nature of the YUV image format versus RGB.
+   This feature can also be enabled/disabled explicitly by passing command line
+   parameter "allow_image_decoding_to_multi_plane" to Cobalt with value "true"
+   or "false".
+
+ - **Cobalt code assumes that no errors are generated for unused parameters**
+
+   There now exists Cobalt code where input parameters may be unused, and it
+   is expected that toolchains will not generate errors in these cases.  You
+   may need to adjust your Starboard configuration so that your compiler no
+   longer emits this error, e.g. build with the `-Wno-unused-parameter`
+   command line flag in GCC.
+   `UNREFERENCED_PARAMETER` has been removed, but `SB_UNREFERENCED_PARAMETER`
+   will continue to be supported.
+
 ## Version 19
  - **Add support for V8 JavaScript Engine**
 

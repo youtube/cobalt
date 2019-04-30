@@ -21,6 +21,7 @@
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/widevine/widevine_storage.h"
 #include "starboard/shared/widevine/widevine_timer.h"
 #include "starboard/string.h"
@@ -190,6 +191,19 @@ DrmSystemWidevine::DrmSystemWidevine(
       ticket_thread_id_(SbThreadGetId()) {
   SB_DCHECK(!company_name.empty());
   SB_DCHECK(!model_name.empty());
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  using shared::starboard::Application;
+
+  auto command_line = Application::Get()->GetCommandLine();
+  auto value = command_line->GetSwitchValue("maximum_drm_session_updates");
+  if (!value.empty()) {
+    maximum_number_of_session_updates_ = SbStringAToI(value.c_str());
+    SB_LOG(INFO) << "Limit drm session updates to "
+                 << maximum_number_of_session_updates_;
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
   EnsureWidevineCdmIsInitialized(company_name, model_name);
 #if SB_API_VERSION >= 10
   const bool kEnablePrivacyMode = true;
@@ -674,6 +688,20 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
   int ticket = GetAndResetTicket(sb_drm_session_id);
 
 #if SB_API_VERSION >= 10
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (number_of_session_updates_sent_ > maximum_number_of_session_updates_) {
+    SB_LOG(INFO) << "Number of drm sessions exceeds maximum allowed session"
+                 << " (" << maximum_number_of_session_updates_ << "), fail the"
+                 << " current update request with quota exceeded error";
+    session_update_request_callback_(
+        this, context_, ticket, kSbDrmStatusQuotaExceededError, type, "", NULL,
+        0, message.c_str(), static_cast<int>(message.size()), NULL);
+    return;
+  }
+  ++number_of_session_updates_sent_;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
   session_update_request_callback_(
       this, context_, ticket, kSbDrmStatusSuccess, type, "",
       sb_drm_session_id.c_str(), static_cast<int>(sb_drm_session_id.size()),

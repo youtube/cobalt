@@ -17,7 +17,7 @@
 // https://developer.chrome.com/extensions/debugger#event-onEvent
 
 [
-  Conditional=ENABLE_DEBUG_CONSOLE
+  Conditional=ENABLE_DEBUGGER
 ] interface DebuggerEventTarget {
     void addListener(DebuggerEventCallback callback);
 };

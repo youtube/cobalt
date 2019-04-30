@@ -1047,7 +1047,7 @@
       "<(resources_out_dir)/data_grid/data_grid_module.js",
       # "<(resources_out_dir)/devices/devices_module.js",
       "<(resources_out_dir)/diff/diff_module.js",
-      # "<(resources_out_dir)/elements/elements_module.js",
+      "<(resources_out_dir)/elements/elements_module.js",
       "<(resources_out_dir)/event_listeners/event_listeners_module.js",
       "<(resources_out_dir)/formatter/formatter_module.js",
       "<(resources_out_dir)/har_importer/har_importer_module.js",

@@ -709,7 +709,6 @@ void XMLHttpRequest::OnURLFetchDownloadData(
   UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_NE(state_, kDone);
-  ChangeState(kLoading);
 
   // Preserve the response body only for regular XHR requests. Fetch requests
   // process the response in pieces, so do not need to keep the whole response.
@@ -717,6 +716,9 @@ void XMLHttpRequest::OnURLFetchDownloadData(
     response_body_.Append(reinterpret_cast<const uint8*>(download_data->data()),
                           download_data->size());
   }
+
+  // Signal to JavaScript that new data is now available.
+  ChangeState(kLoading);
 
   if (fetch_callback_) {
     script::Handle<script::Uint8Array> data =
@@ -1211,7 +1213,7 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
       new dom::XMLDocument(settings_->window()->html_element_context());
   dom_parser::XMLDecoder xml_decoder(
       xml_document, xml_document, NULL, settings_->max_dom_element_depth(),
-      base::SourceLocation("[object XMLHttpRequest]", 1, 1), base::Closure(),
+      base::SourceLocation("[object XMLHttpRequest]", 1, 1),
       base::Bind(&XMLHttpRequest::XMLDecoderLoadCompleteCallback,
                  base::Unretained(this)));
   has_xml_decoder_error_ = false;

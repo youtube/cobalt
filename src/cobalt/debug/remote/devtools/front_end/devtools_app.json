@@ -12,7 +12,7 @@
     { "name": "browser_debugger" },
     // { "name": "cookie_table" },
     // { "name": "devices" },
-    // { "name": "elements" },
+    { "name": "elements" },
     // { "name": "emulated_devices" , "type": "remote" },
     { "name": "har_importer" },
     // { "name": "help" },
