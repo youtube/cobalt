@@ -89,6 +89,7 @@ _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
     # is picked up.
     ('cobalt/black_box_tests', '*'),
     ('third_party/web_platform_tests', '*'),
+    ('third_party/proxy_py', '*'),
 ]
 
 # Do not allow .git directories to make it into the build.
