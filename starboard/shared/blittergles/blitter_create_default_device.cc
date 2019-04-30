@@ -46,6 +46,8 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
     return kSbBlitterInvalidDevice;
   }
 
+  device->config = NULL;
+
   device_registry->default_device = device.release();
 
   return device_registry->default_device;

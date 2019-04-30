@@ -40,7 +40,7 @@ bool SbBlitterDestroyDevice(SbBlitterDevice device) {
 
   // Release all resources associated with device.
   EGL_CALL(eglMakeCurrent(device_registry->default_device->display,
-                          EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+                          EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
   EGLBoolean terminate_result =
       eglTerminate(device_registry->default_device->display);
   if (eglGetError() != EGL_SUCCESS) {
