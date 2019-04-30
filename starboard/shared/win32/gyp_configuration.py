@@ -43,10 +43,20 @@ def _QuotePath(path):
 class Win32SharedConfiguration(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
-  def __init__(self, platform):
+  def __init__(self, platform, sdk_checker_fcn=None):
     super(Win32SharedConfiguration, self).__init__(platform)
-    self.sdk = win_sdk_configuration.SdkConfiguration(self.GetName())
+    self.sdk_name = self.GetName()
     self.vmware = 'vmware' in self.GetVideoProcessorDescription().lower()
+    self.sdk_checker_fcn = sdk_checker_fcn
+
+  def GetSdk(self):
+    # Lazy load sdk to avoid any sdk checks running until it is used.
+    d = self.GetSdk.__dict__
+    if not 'sdk' in d:
+      d['sdk'] = win_sdk_configuration.SdkConfiguration(self.sdk_name)
+      if self.sdk_checker_fcn:
+        self.sdk_checker_fcn()
+    return d['sdk']
 
   def GetVideoProcessorDescription(self):
     try:
@@ -57,7 +67,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       return "UNKNOWN"
 
   def AdditionalPlatformCompilerOptions(self):
-    force_include_files = self.sdk.versioned_winmd_files
+    force_include_files = self.GetSdk().versioned_winmd_files
     missing_files = []
     for f in force_include_files:
       if not os.path.exists(f):
@@ -71,7 +81,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     return compiler_options
 
   def GetVariables(self, configuration):
-    sdk = self.sdk
+    sdk = self.GetSdk()
     variables = super(Win32SharedConfiguration, self).GetVariables(configuration)
     compiler_options = ' '.join(self.AdditionalPlatformCompilerOptions())
     variables.update({
@@ -84,7 +94,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     return variables
 
   def GetEnvironmentVariables(self):
-    sdk = self.sdk
+    sdk = self.GetSdk()
     cl = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'cl.exe'))
     lib = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'lib.exe'))
     link = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'link.exe'))

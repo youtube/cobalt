@@ -14,6 +14,7 @@
 
 import logging
 import os
+import sys
 
 
 import starboard.shared.win32.sdk.installer as sdk_installer
@@ -110,6 +111,10 @@ def _GetVersionedWinmdIncludes(win32_sdk_path, sdk_version,
   return out_winmd_files
 
 
+def _Print(s):
+  sys.stdout.write(s + '\n')
+
+
 class SdkConfiguration:
   # windows_sdk_host_tools will be set to, eg,
   # 'C:\\Program Files (x86)\\Windows Kits\\10\\bin\10.0.15063.0'
@@ -161,9 +166,12 @@ class SdkConfiguration:
                                    self.vs_install_dir_with_version,
                                    platform_name)
 
-    logging.critical('Windows SDK Path:              ' + os.path.abspath(self.windows_sdk_host_tools))
-    logging.critical('Visual Studio Path:            ' + os.path.abspath(self.vs_install_dir_with_version))
-    logging.critical('Visual Studio Host Tools Path: ' + os.path.abspath(self.vs_host_tools_path))
+    _Print('Windows SDK Path:              %s' \
+           % os.path.abspath(self.windows_sdk_host_tools))
+    _Print('Visual Studio Path:            %s' \
+           % os.path.abspath(self.vs_install_dir_with_version))
+    _Print('Visual Studio Host Tools Path: %s' \
+           % os.path.abspath(self.vs_host_tools_path))
 
     if not os.path.isdir(self.vs_host_tools_path):
       sdk_installer.InstallSdkIfNecessary('msvc', self.msvc_tool_version)
