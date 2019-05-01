@@ -19,6 +19,7 @@
 
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 
 namespace starboard {
 namespace shared {
@@ -34,6 +35,33 @@ bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
 SbMediaTransferId GetTransferIdFromString(const std::string& eotf);
 
 int GetBytesPerSample(SbMediaAudioSampleType sample_type);
+
+// Calls to canPlayType() and isTypeSupported() are redirected to this function.
+// Following are some example inputs:
+//   canPlayType(video/mp4)
+//   canPlayType(video/mp4; codecs="avc1.42001E, mp4a.40.2")
+//   canPlayType(video/webm)
+//   isTypeSupported(video/webm; codecs="vp9")
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; width=640)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; width=99999)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; height=360)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; height=99999)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; framerate=30)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; framerate=9999)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; bitrate=300000)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; bitrate=2000000000)
+//   isTypeSupported(audio/mp4; codecs="mp4a.40.2")
+//   isTypeSupported(audio/webm; codecs="vorbis")
+//   isTypeSupported(video/webm; codecs="vp9")
+//   isTypeSupported(video/webm; codecs="vp9")
+//   isTypeSupported(audio/webm; codecs="opus")
+//   isTypeSupported(audio/mp4; codecs="mp4a.40.2"; channels=2)
+//   isTypeSupported(audio/mp4; codecs="mp4a.40.2"; channels=99)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; decode-to-texture=true)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; decode-to-texture=false)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; decode-to-texture=invalid)
+SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
+                                           const char* key_system);
 
 }  // namespace media
 }  // namespace starboard
