@@ -39,6 +39,9 @@
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+
+#include "starboard/system.h"
+#define LibErr SbSystemGetLastError()
 #else  // STARBOARD
 #include <stdint.h>
 #include <sys/types.h>
@@ -59,6 +62,7 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#define LibErr errno
 #endif  // STARBOARD
 
 #include "event.h"
@@ -133,7 +137,7 @@ epoll_init(struct event_base *base)
 
 	/* Initalize the kernel queue */
 	if ((epfd = epoll_create(32000)) == -1) {
-		if (errno != ENOSYS)
+		if (LibErr != ENOSYS)
 			event_warn("epoll_create");
 		return (NULL);
 	}
@@ -215,7 +219,7 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
 
 	if (res == -1) {
-		if (errno != EINTR) {
+		if (LibErr != EINTR) {
 			event_warn("epoll_wait");
 			return (-1);
 		}
