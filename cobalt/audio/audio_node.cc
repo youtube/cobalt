@@ -21,7 +21,7 @@ namespace cobalt {
 namespace audio {
 
 AudioNode::AudioNode(AudioContext* context)
-    : audio_context_(context->weak_this()),
+    : audio_context_(context),
       audio_lock_(context->audio_lock()),
       channel_count_(2),
       channel_count_mode_(kAudioNodeChannelCountModeMax),
@@ -35,7 +35,7 @@ AudioNode::~AudioNode() {
 }
 
 scoped_refptr<AudioContext> AudioNode::context() const {
-  return audio_context_.get();
+  return audio_context_;
 }
 
 void AudioNode::set_channel_count(uint32 channel_count,
