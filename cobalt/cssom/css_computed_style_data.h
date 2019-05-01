@@ -89,10 +89,6 @@ class CSSComputedStyleData
     return GetPropertyValueReference(kAlignItemsProperty);
   }
 
-  const scoped_refptr<PropertyValue>& align_self() const {
-    return GetPropertyValueReference(kAlignSelfProperty);
-  }
-
   const scoped_refptr<PropertyValue>& animation_delay() const {
     return GetPropertyValueReference(kAnimationDelayProperty);
   }

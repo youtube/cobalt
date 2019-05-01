@@ -102,17 +102,16 @@ class ReplacedBox : public Box {
       const base::Optional<LayoutUnit>& maybe_margin_left,
       const base::Optional<LayoutUnit>& maybe_margin_right) = 0;
 
-  // TODO: Make private.
-  const base::Optional<LayoutUnit> maybe_intrinsic_width_;
-  const base::Optional<LayoutUnit> maybe_intrinsic_height_;
-  const float intrinsic_ratio_;
-
  private:
   void RenderAndAnimateContentWithMapToMesh(
       render_tree::CompositionNode::Builder* border_node_builder,
       const cssom::MapToMeshFunction* mtm_function) const;
   void RenderAndAnimateContentWithLetterboxing(
       render_tree::CompositionNode::Builder* border_node_builder) const;
+
+  const base::Optional<LayoutUnit> maybe_intrinsic_width_;
+  const base::Optional<LayoutUnit> maybe_intrinsic_height_;
+  const float intrinsic_ratio_;
 
   const ReplaceImageCB replace_image_cb_;
   const SetBoundsCB set_bounds_cb_;

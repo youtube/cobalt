@@ -81,6 +81,8 @@ class TextBox : public Box {
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) override;
 
+  bool HasNonCollapsibleText() const;
+
  protected:
   // From |Box|.
   void RenderAndAnimateContent(
@@ -129,7 +131,6 @@ class TextBox : public Box {
   int32 GetNonCollapsibleTextStartPosition() const;
   int32 GetNonCollapsibleTextEndPosition() const;
   int32 GetNonCollapsibleTextLength() const;
-  bool HasNonCollapsibleText() const;
   std::string GetNonCollapsibleText() const;
 
   int32 GetVisibleTextEndPosition() const;

@@ -20,6 +20,7 @@
 #include "base/optional.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/container_box.h"
+#include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
 
 namespace cobalt {
@@ -71,10 +72,13 @@ class BlockContainerBox : public ContainerBox {
   bool AffectsBaselineInBlockFormattingContext() const override;
   LayoutUnit GetBaselineOffsetFromTopMarginEdge() const override;
 
+  BlockContainerBox* AsBlockContainerBox() override;
+  const BlockContainerBox* AsBlockContainerBox() const override;
+
   // From |ContainerBox|.
   scoped_refptr<ContainerBox> TrySplitAtEnd() override;
 
-  BaseDirection GetBaseDirection() const;
+  BaseDirection base_direction() const { return base_direction_; }
 
  protected:
   // From |Box|.
@@ -156,6 +160,10 @@ class BlockContainerBox : public ContainerBox {
   // sides on which the "start" and "end" of a line are.
   // https://www.w3.org/TR/css-writing-modes-3/#inline-base-direction
   BaseDirection base_direction_;
+
+  // For access to UpdateContentWidthAndMargins() and
+  // UpdateContentHeightAndMargins().
+  friend class FlexContainerBox;
 
   DISALLOW_COPY_AND_ASSIGN(BlockContainerBox);
 };

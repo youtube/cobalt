@@ -16,6 +16,7 @@
 #define COBALT_LAYOUT_BOX_H_
 
 #include <iosfwd>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -51,12 +52,16 @@ struct RoundedCorners;
 namespace layout {
 
 class AnonymousBlockBox;
+class BlockContainerBox;
 class ContainerBox;
 class TextBox;
 class UsedStyleProvider;
 
 struct LayoutParams {
-  LayoutParams() : shrink_to_fit_width_forced(false) {}
+  LayoutParams()
+      : shrink_to_fit_width_forced(false),
+        freeze_width(false),
+        freeze_height(false) {}
 
   // Normally the used values of "width", "margin-left", and "margin-right" are
   // calculated by choosing the 1 out of 10 algorithms based on the computed
@@ -75,6 +80,11 @@ struct LayoutParams {
   // https://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
   bool shrink_to_fit_width_forced;
 
+  // These overrides are used for flex items when they are sized by the
+  // container.
+  bool freeze_width;
+  bool freeze_height;
+
   // Many box positions and sizes are calculated with respect to the edges of
   // a rectangular box called a containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#containing-block
@@ -82,9 +92,20 @@ struct LayoutParams {
 
   bool operator==(const LayoutParams& rhs) const {
     return shrink_to_fit_width_forced == rhs.shrink_to_fit_width_forced &&
+           freeze_width == rhs.freeze_width &&
+           freeze_height == rhs.freeze_height &&
            containing_block_size == rhs.containing_block_size;
   }
 };
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const LayoutParams& params) {
+  stream << "{shrink_to_fit_width_forced=" << params.shrink_to_fit_width_forced
+         << " freeze_width=" << params.freeze_width
+         << " freeze_height=" << params.freeze_height
+         << " containing_block_size=" << params.containing_block_size << "}";
+  return stream;
+}
 
 // A base class for all boxes.
 //
@@ -354,6 +375,10 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit GetContentBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
 
+  // Return the size difference between the content and margin box on an axis.
+  LayoutUnit GetContentToMarginHorizontal() const;
+  LayoutUnit GetContentToMarginVertical() const;
+
   // The height of each inline-level box in the line box is calculated. For
   // replaced elements, inline-block elements, and inline-table elements, this
   // is the height of their margin box; for inline boxes, this is their
@@ -531,6 +556,8 @@ class Box : public base::RefCounted<Box> {
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
   virtual const AnonymousBlockBox* AsAnonymousBlockBox() const;
+  virtual BlockContainerBox* AsBlockContainerBox();
+  virtual const BlockContainerBox* AsBlockContainerBox() const;
   virtual ContainerBox* AsContainerBox();
   virtual const ContainerBox* AsContainerBox() const;
   virtual TextBox* AsTextBox();
@@ -573,12 +600,11 @@ class Box : public base::RefCounted<Box> {
         static_cast<const Box*>(this)->GetStackingContext());
   }
 
-  // TODO: This only depends on the computed style, maybe this function should
-  //       move into a newly created CSSComputedStyleDeclaration type?  This
-  //       would apply to other values such as IsPositioned().
-  //
   // Returns the z-index of this box, based on its computed style.
   int GetZIndex() const;
+
+  // Returns the order value of this box, based on its computed style.
+  int GetOrder() const;
 
   // Invalidates the parent of the box, used in box generation for partial
   // layout.
@@ -904,6 +930,9 @@ class Box : public base::RefCounted<Box> {
   // For write access to parent/containing_block members.
   friend class ContainerBox;
   friend class LayoutBoxes;
+  friend class FlexContainerBox;
+  friend class FlexFormattingContext;
+  friend class FlexLine;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
