@@ -94,7 +94,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
         base::StopWatch::kAutoStartOn, layout_stat_tracker);
 
     ScopedParagraph scoped_paragraph(
-        new Paragraph(locale, (*initial_containing_block)->GetBaseDirection(),
+        new Paragraph(locale, (*initial_containing_block)->base_direction(),
                       Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
     BoxGenerator::Context context(
