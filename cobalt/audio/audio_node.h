@@ -136,9 +136,7 @@ class AudioNode : public dom::EventTarget {
   AudioNodeInputVector inputs_;
   AudioNodeOutputVector outputs_;
 
-  // We use a WeakPtr here to break a cyclical dependency caused by AudioContext
-  // storing a set of AudioContext pointers.
-  base::WeakPtr<AudioContext> audio_context_;
+  AudioContext* audio_context_;
 
   scoped_refptr<AudioLock> audio_lock_;
 

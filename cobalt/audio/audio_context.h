@@ -148,8 +148,6 @@ class AudioContext : public dom::EventTarget {
 
   const scoped_refptr<AudioLock>& audio_lock() const { return audio_lock_; }
 
-  const base::WeakPtr<AudioContext>& weak_this() const { return weak_this_; }
-
   DEFINE_WRAPPABLE_TYPE(AudioContext);
   void TraceMembers(script::Tracer* tracer) override;
 
