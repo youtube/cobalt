@@ -17,9 +17,15 @@
 
 #include <memory>
 
+#include "base/memory/ref_counted.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_container_box.h"
+#include "cobalt/layout/box.h"
+#include "cobalt/layout/formatting_context.h"
+#include "cobalt/layout/layout_stat_tracker.h"
 #include "cobalt/layout/paragraph.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {

@@ -240,6 +240,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // between boxes and containers.
   friend class Box;
   friend class LayoutBoxes;
+  friend class FlexContainerBox;
 
   DISALLOW_COPY_AND_ASSIGN(ContainerBox);
 };
