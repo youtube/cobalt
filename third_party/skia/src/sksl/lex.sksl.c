@@ -29,6 +29,8 @@
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/log.h"
+#include "starboard/system.h"
+#define exit(status) SbSystemBreakIntoDebugger()
 #define fprintf(stderr, format, ...) SbLogFormatF(format, __VA_ARGS__)
 #else
 #include <stdio.h>
