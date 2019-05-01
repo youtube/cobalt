@@ -22,6 +22,7 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/script_debugger.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
@@ -46,27 +47,17 @@ class DebugScriptRunner : public script::Wrappable {
                               const base::optional<std::string>& params)>
       OnEventCallback;
 
-  // Callback to create a JavaScript Runtime.RemoteObject from an opaque JS
-  // object.
-  typedef script::CallbackFunction<std::string(const script::ValueHandleHolder*,
-                                               const std::string&)>
-      CreateRemoteObjectCallback;
-  typedef script::ScriptValue<CreateRemoteObjectCallback>
-      CreateRemoteObjectCallbackHolder;
-
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
+                    script::ScriptDebugger* script_debugger,
                     const dom::CspDelegate* csp_delegate,
                     const OnEventCallback& on_event_callback);
 
-  // Creates a Runtime.RemoteObject corresponding to an opaque JS object, by
-  // calling the |create_remote_object_callback_| script function.
-  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
-  base::optional<std::string> CreateRemoteObject(
-      const script::ValueHandleHolder* object, const std::string& params);
-
-  // Runs |method| on the JavaScript |runtimeInspector| object, passing in
-  // |json_params| and putting the result in |json_result|.
-  // Returns |true| if execution was successful, |false| otherwise.
+  // Runs |method| on the JavaScript |devtoolsBackend| object, passing in
+  // |json_params|. If |json_result| is non-NULL it receives the result.
+  // Returns |true| if the method was executed; |json_result| is the value
+  // returned by the method.
+  // Returns |false| if the method wasn't executed; if the method isn't defined
+  // |json_result| is empty, otherwise it's an error message.
   bool RunCommand(const std::string& method, const std::string& json_params,
                   std::string* json_result);
 
@@ -74,21 +65,21 @@ class DebugScriptRunner : public script::Wrappable {
   // functionality to the JS object wrapped by this class.
   bool RunScriptFile(const std::string& filename);
 
-  // Non-standard JavaScript extension API.
-  // Called to send an event via the callback specified in the constructor.
+  // IDL: Sends a protocol event to the debugger frontend.
   void SendEvent(const std::string& method,
                  const base::optional<std::string>& params);
 
-  // Get/Set |create_remote_object_callback_|.
-  const CreateRemoteObjectCallbackHolder* create_remote_object_callback();
-  void set_create_remote_object_callback(
-      const CreateRemoteObjectCallbackHolder& callback);
+  // IDL: Returns the RemoteObject JSON representation of the given object for
+  // the debugger frontend.
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
+  std::string CreateRemoteObject(const script::ValueHandleHolder& object,
+                                 const std::string& group);
 
   DEFINE_WRAPPABLE_TYPE(DebugScriptRunner);
 
  private:
-  bool EvaluateScript(const std::string& js_code, std::string* result);
-  bool EvaluateScriptFile(const std::string& filename, std::string* result);
+  bool EvaluateDebuggerScript(const std::string& script,
+                              std::string* out_result_utf8);
 
   // Ensures the JS eval command is enabled, overriding CSP if necessary.
   void ForceEnableEval();
@@ -98,15 +89,14 @@ class DebugScriptRunner : public script::Wrappable {
   // No ownership.
   script::GlobalEnvironment* global_environment_;
 
+  // Engine-specific debugger implementation.
+  script::ScriptDebugger* script_debugger_;
+
   // Non-owned reference to let this object query whether CSP allows eval.
   const dom::CspDelegate* csp_delegate_;
 
   // Callback to send events.
   OnEventCallback on_event_callback_;
-
-  // Callback to create a Runtime.RemoteObject.
-  base::optional<CreateRemoteObjectCallbackHolder::Reference>
-      create_remote_object_callback_;
 };
 
 }  // namespace backend

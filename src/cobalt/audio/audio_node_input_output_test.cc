@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <math.h>
+
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
@@ -31,7 +33,7 @@ typedef media::ShellAudioBus ShellAudioBus;
 typedef ::media::ShellAudioBus ShellAudioBus;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
-const int kRenderBufferSizeFrames = 32;
+constexpr int kRenderBufferSizeFrames = 32;
 
 class AudioDestinationNodeMock : public AudioNode,
                                  public AudioDevice::RenderCallback {
@@ -76,7 +78,8 @@ void FillAudioBusFromOneSource(
   scoped_refptr<AudioContext> audio_context(new AudioContext());
   scoped_refptr<AudioBufferSourceNode> source(
       audio_context->CreateBufferSource());
-  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, src_data.Pass()));
+  scoped_refptr<AudioBuffer> buffer(
+      new AudioBuffer(audio_context->sample_rate(), src_data.Pass()));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -116,9 +119,9 @@ class AudioNodeInputOutputTest : public ::testing::Test {
 };
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 2;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 2;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -157,9 +160,9 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 2;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 2;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -199,9 +202,9 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 1;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 1;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -234,9 +237,9 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 1;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 1;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -269,9 +272,9 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 4;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 4;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -311,9 +314,9 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 4;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 4;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -353,9 +356,9 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 6;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 10;
+  constexpr size_t kNumOfSrcChannels = 6;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 10;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -395,9 +398,9 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 6;
-  const size_t kNumOfDestChannels = 2;
-  const size_t kNumOfFrames = 10;
+  constexpr size_t kNumOfSrcChannels = 6;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfFrames = 10;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -437,9 +440,9 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 2;
-  const size_t kNumOfDestChannels = 1;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 2;
+  constexpr size_t kNumOfDestChannels = 1;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -475,9 +478,9 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 2;
-  const size_t kNumOfDestChannels = 1;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 2;
+  constexpr size_t kNumOfDestChannels = 1;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -513,9 +516,9 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 4;
-  const size_t kNumOfDestChannels = 1;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 4;
+  constexpr size_t kNumOfDestChannels = 1;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -551,9 +554,9 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 4;
-  const size_t kNumOfDestChannels = 1;
-  const size_t kNumOfFrames = 25;
+  constexpr size_t kNumOfSrcChannels = 4;
+  constexpr size_t kNumOfDestChannels = 1;
+  constexpr size_t kNumOfFrames = 25;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -589,9 +592,9 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
-  const size_t kNumOfSrcChannels = 6;
-  const size_t kNumOfDestChannels = 1;
-  const size_t kNumOfFrames = 10;
+  constexpr size_t kNumOfSrcChannels = 6;
+  constexpr size_t kNumOfDestChannels = 1;
+  constexpr size_t kNumOfFrames = 10;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
@@ -627,9 +630,9 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
-  const size_t kNumOfSrcChannels = 6;
-  const size_t kNumOfDestChannels = 1;
-  const size_t kNumOfFrames = 10;
+  constexpr size_t kNumOfSrcChannels = 6;
+  constexpr size_t kNumOfDestChannels = 1;
+  constexpr size_t kNumOfFrames = 10;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationDiscrete;
 
@@ -667,12 +670,12 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
 TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioContext> audio_context(new AudioContext());
 
-  const size_t kNumOfSrcChannels = 2;
-  const size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfSrcChannels = 2;
+  constexpr size_t kNumOfDestChannels = 2;
   const AudioNodeChannelInterpretation kInterpretation =
       kAudioNodeChannelInterpretationSpeakers;
 
-  const size_t kNumOfFrames_1 = 25;
+  constexpr size_t kNumOfFrames_1 = 25;
   float src_data_in_float_1[50];
   for (size_t channel = 0; channel < kNumOfSrcChannels; ++channel) {
     for (size_t frame = 0; frame < kNumOfFrames_1; ++frame) {
@@ -686,10 +689,10 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioBufferSourceNode> source_1(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_1(
-      new AudioBuffer(44100, src_data_1.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), src_data_1.Pass()));
   source_1->set_buffer(buffer_1);
 
-  const size_t kNumOfFrames_2 = 50;
+  constexpr size_t kNumOfFrames_2 = 50;
   float src_data_in_float_2[100];
   for (size_t channel = 0; channel < kNumOfSrcChannels; ++channel) {
     for (size_t frame = 0; frame < kNumOfFrames_2; ++frame) {
@@ -703,7 +706,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioBufferSourceNode> source_2(
       audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_2(
-      new AudioBuffer(44100, src_data_2.Pass()));
+      new AudioBuffer(audio_context->sample_rate(), src_data_2.Pass()));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -743,24 +746,23 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CreateBufferTest) {
-  const size_t kNumOfChannels = 2;
-  const size_t kNumOfFrames = 25;
-  const size_t kSampleRate = 44100;
+TEST_F(AudioNodeInputOutputTest, CreateBufferLayoutTest) {
+  constexpr size_t kNumOfChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
 
   scoped_refptr<AudioContext> audio_context(new AudioContext());
-  scoped_refptr<AudioBuffer> buffer(
-      audio_context->CreateBuffer(kNumOfChannels, kNumOfFrames, kSampleRate));
+  scoped_refptr<AudioBuffer> buffer(audio_context->CreateBuffer(
+      kNumOfChannels, kNumOfFrames, audio_context->sample_rate()));
 
   EXPECT_EQ(buffer->number_of_channels(), kNumOfChannels);
   EXPECT_EQ(buffer->length(), kNumOfFrames);
-  EXPECT_EQ(buffer->sample_rate(), kSampleRate);
+  EXPECT_EQ(buffer->sample_rate(), audio_context->sample_rate());
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32Test) {
-  const size_t kNumOfChannels = 2;
-  const size_t kNumOfFrames = 25;
-  const size_t kOffset = 8;
+TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32LayoutTest) {
+  constexpr size_t kNumOfChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
+  constexpr size_t kOffset = 8;
 
   float src_arr[kNumOfChannels][kNumOfFrames];
   for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
@@ -779,7 +781,8 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32Test) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(
+      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -795,10 +798,10 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32Test) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32Test) {
-  const size_t kNumOfChannels = 2;
-  const size_t kNumOfFrames = 25;
-  const size_t kOffset = 8;
+TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32LayoutTest) {
+  constexpr size_t kNumOfChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
+  constexpr size_t kOffset = 8;
 
   float src_arr[kNumOfChannels][kNumOfFrames];
   for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
@@ -817,7 +820,8 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32Test) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(
+      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -833,10 +837,10 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32Test) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16Test) {
-  const size_t kNumOfChannels = 2;
-  const size_t kNumOfFrames = 25;
-  const size_t kOffset = 8;
+TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16LayoutTest) {
+  constexpr size_t kNumOfChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
+  constexpr size_t kOffset = 8;
 
   float src_arr[kNumOfChannels][kNumOfFrames];
   for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
@@ -855,7 +859,8 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16Test) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(
+      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -873,10 +878,10 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16Test) {
   }
 }
 
-TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16Test) {
-  const size_t kNumOfChannels = 2;
-  const size_t kNumOfFrames = 25;
-  const size_t kOffset = 8;
+TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16LayoutTest) {
+  constexpr size_t kNumOfChannels = 2;
+  constexpr size_t kNumOfFrames = 25;
+  constexpr size_t kOffset = 8;
 
   float src_arr[kNumOfChannels][kNumOfFrames];
   for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
@@ -895,7 +900,8 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16Test) {
       new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
                         ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
-  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  scoped_refptr<AudioBuffer> buffer(
+      new AudioBuffer(audio_context->sample_rate(), audio_bus.Pass()));
   buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
   buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
 
@@ -909,6 +915,99 @@ TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16Test) {
       } else {
         EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame), 0);
       }
+    }
+  }
+}
+
+TEST_F(AudioNodeInputOutputTest, ResampleBufferSampleRateLayoutTest) {
+  constexpr size_t kNumOfSrcChannels = 2;
+  constexpr size_t kNumOfDestChannels = 2;
+  constexpr size_t kNumOfSrcFrames = 500;
+  constexpr size_t kNumOfDestFrames = 640;
+  const AudioNodeChannelInterpretation kInterpretation =
+      kAudioNodeChannelInterpretationSpeakers;
+  const size_t kBufferSampleRateArr[2] = {44100, 52200};
+  const SampleType kSampleTypeArr[2] = {kSampleTypeFloat32, kSampleTypeInt16};
+  constexpr float kMaxAvgError = 0.01f;
+
+  float src_arr[kNumOfSrcChannels][kNumOfSrcFrames];
+  for (size_t channel = 0; channel < kNumOfSrcChannels; ++channel) {
+    for (size_t frame = 0; frame < kNumOfSrcFrames; ++frame) {
+      // Values range from 0 to 1
+      float func_arg = (channel + kNumOfSrcChannels * frame) /
+                       static_cast<float>(kNumOfSrcFrames * kNumOfSrcChannels);
+      // Values range from -1 to 1
+      src_arr[channel][frame] = static_cast<float>(sin(2 * M_PI * func_arg));
+    }
+  }
+
+  script::Handle<script::Float32Array> channel_0_arr =
+      script::Float32Array::New(global_environment(), src_arr[0],
+                                kNumOfSrcFrames);
+  script::Handle<script::Float32Array> channel_1_arr =
+      script::Float32Array::New(global_environment(), src_arr[1],
+                                kNumOfSrcFrames);
+
+  for (size_t buffer_sample_rate : kBufferSampleRateArr) {
+    for (SampleType sample_type : kSampleTypeArr) {
+      scoped_ptr<ShellAudioBus> src_data(
+          new ShellAudioBus(kNumOfSrcChannels, kNumOfSrcFrames, sample_type,
+                            ShellAudioBus::kInterleaved));
+      src_data->ZeroAllFrames();
+      scoped_refptr<AudioBuffer> buffer(
+          new AudioBuffer(buffer_sample_rate, src_data.Pass()));
+      buffer->CopyToChannel(channel_0_arr, 0, 0, NULL);
+      buffer->CopyToChannel(channel_1_arr, 1, 0, NULL);
+
+      scoped_refptr<AudioContext> audio_context(new AudioContext());
+      scoped_refptr<AudioBufferSourceNode> source(
+          audio_context->CreateBufferSource());
+      source->set_buffer(buffer);
+
+      scoped_refptr<AudioDestinationNodeMock> destination(
+          new AudioDestinationNodeMock(audio_context.get()));
+      destination->set_channel_interpretation(kInterpretation);
+      source->Connect(destination, 0, 0, NULL);
+      source->Start(0, 0, NULL);
+
+      scoped_ptr<ShellAudioBus> audio_bus(
+          new ShellAudioBus(kNumOfDestChannels, kNumOfDestFrames, sample_type,
+                            ShellAudioBus::kInterleaved));
+      audio_bus->ZeroAllFrames();
+      bool silence = true;
+      destination->FillAudioBus(true, audio_bus.get(), &silence);
+      EXPECT_FALSE(silence);
+
+      size_t num_output_frames = static_cast<size_t>(
+          kNumOfSrcFrames * audio_context->sample_rate() / buffer_sample_rate);
+      float sum_of_errors = 0;
+      for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+        for (size_t frame = 0; frame < kNumOfDestFrames; ++frame) {
+          float func_arg =
+              (channel + kNumOfSrcChannels * frame) /
+              static_cast<float>((num_output_frames * kNumOfSrcChannels));
+          if (sample_type == kSampleTypeFloat32) {
+            float actual_val = audio_bus->GetFloat32Sample(channel, frame);
+            float expected_val = 0.0f;
+            if (frame < num_output_frames) {
+              expected_val = static_cast<float>(sin(2 * M_PI * func_arg));
+            }
+            sum_of_errors += fabs(actual_val - expected_val);
+          } else {
+            int16 actual_val = audio_bus->GetInt16Sample(channel, frame);
+            int16 expected_val = 0;
+            if (frame < num_output_frames) {
+              expected_val = ConvertSample<float, int16>(
+                  static_cast<float>(sin(2 * M_PI * func_arg)));
+            }
+            sum_of_errors += ConvertSample<int16, float>(
+                static_cast<int16>(abs(actual_val - expected_val)));
+          }
+        }
+      }
+
+      float avg_error = sum_of_errors / kNumOfDestFrames;
+      EXPECT_LE(avg_error, kMaxAvgError);
     }
   }
 }

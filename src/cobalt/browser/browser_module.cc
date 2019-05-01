@@ -289,8 +289,6 @@ BrowserModule::BrowserModule(const GURL& url,
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
 
-  h5vcc_url_handler_.reset(new H5vccURLHandler(this));
-
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
   on_error_triggered_count_ = 0;
@@ -459,13 +457,13 @@ void BrowserModule::Navigate(const GURL& url) {
   // simply set the pending navigate url, which will cause the navigation to
   // occur when Cobalt resumes, and return.
   if (application_state_ == base::kApplicationStateSuspended) {
-    pending_navigate_url_ = url.spec();
+    pending_navigate_url_ = url;
     return;
   }
 
   // Now that we know the navigation is occurring, clear out
   // |pending_navigate_url_|.
-  pending_navigate_url_.clear();
+  pending_navigate_url_ = GURL::EmptyGURL();
 
   // Destroy old WebModule first, so we don't get a memory high-watermark after
   // the second WebModule's constructor runs, but before scoped_ptr::reset() is
@@ -1175,7 +1173,7 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
   // positive response; otherwise, if Cobalt is currently preloaded or
   // suspended, then this is the url that Cobalt will navigate to when it starts
   // or resumes.
-  pending_navigate_url_ = url.spec();
+  pending_navigate_url_ = url;
 
   // Start the OnErrorRetry() timer if it isn't already running.
   // The minimum delay between calls to OnErrorRetry() exponentially grows as
@@ -1203,8 +1201,28 @@ void BrowserModule::OnErrorRetry() {
   ++on_error_retry_count_;
   on_error_retry_time_ = base::TimeTicks::Now();
   waiting_for_error_retry_ = true;
-  TryURLHandlers(
-      GURL("h5vcc://network-failure?retry-url=" + pending_navigate_url_));
+
+  SystemPlatformErrorHandler::SystemPlatformErrorOptions options;
+  options.error_type = kSbSystemPlatformErrorTypeConnectionError;
+  options.callback =
+      base::Bind(&BrowserModule::OnNetworkFailureSystemPlatformResponse,
+                 base::Unretained(this));
+  system_platform_error_handler_.RaiseSystemPlatformError(options);
+}
+
+void BrowserModule::OnNetworkFailureSystemPlatformResponse(
+    SbSystemPlatformErrorResponse response) {
+  // A positive response means we should retry, anything else we stop.
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    // We shouldn't be here if we don't have a pending URL from an error.
+    DCHECK(pending_navigate_url_.is_valid());
+    if (pending_navigate_url_.is_valid()) {
+      Navigate(pending_navigate_url_);
+    }
+  } else {
+    LOG(ERROR) << "Stop after network error";
+    SbSystemRequestStop(0);
+  }
 }
 
 bool BrowserModule::FilterKeyEvent(base::Token type,
@@ -1670,8 +1688,8 @@ void BrowserModule::StartOrResumeInternalPostStateUpdate() {
                "BrowserModule::StartOrResumeInternalPostStateUpdate");
   // If there's a navigation that's pending, then attempt to navigate to its
   // specified URL now, unless we're still waiting for an error retry.
-  if (!pending_navigate_url_.empty() && !waiting_for_error_retry_) {
-    Navigate(GURL(pending_navigate_url_));
+  if (pending_navigate_url_.is_valid() && !waiting_for_error_retry_) {
+    Navigate(pending_navigate_url_);
   }
 }
 

@@ -74,6 +74,9 @@ class ImageDecoder : public Decoder {
   // Call this function to use the StubImageDecoder which produces a small image
   // without decoding.
   static void UseStubImageDecoder();
+  // Returns true if the platform allows decoding and storing decoded images
+  // into multi-plane.
+  static bool AllowDecodingToMultiPlane();
 
  private:
   enum State {

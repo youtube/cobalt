@@ -45,10 +45,6 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -62,6 +58,7 @@ public class StarboardBridge {
     StarboardBridge getStarboardBridge();
   }
 
+  private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
   private UserAuthorizer userAuthorizer;
   private FeedbackService feedbackService;
@@ -91,6 +88,9 @@ public class StarboardBridge {
 
   private volatile boolean starboardStopped = false;
 
+  private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
+  private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
+
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
@@ -107,6 +107,7 @@ public class StarboardBridge {
     this.activityHolder = activityHolder;
     this.args = args;
     this.startDeepLink = startDeepLink;
+    this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext, stopRequester);
     this.userAuthorizer = userAuthorizer;
     this.feedbackService = feedbackService;
@@ -123,12 +124,14 @@ public class StarboardBridge {
   protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
     this.keyboardEditor = keyboardEditor;
+    sysConfigChangeReceiver.setForeground(true);
   }
 
   protected void onActivityStop(Activity activity) {
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
+    sysConfigChangeReceiver.setForeground(false);
   }
 
   protected void onActivityDestroy(Activity activity) {
@@ -149,6 +152,9 @@ public class StarboardBridge {
     // whatever the web app wants to do with them as part of its start/resume logic.
     cobaltMediaSession.resume();
     feedbackService.connect();
+    for (CobaltService service : cobaltServices.values()) {
+      service.beforeStartOrResume();
+    }
   }
 
   @SuppressWarnings("unused")
@@ -160,6 +166,9 @@ public class StarboardBridge {
     // can take their time suspending after that.
     cobaltMediaSession.suspend();
     feedbackService.disconnect();
+    for (CobaltService service : cobaltServices.values()) {
+      service.beforeSuspend();
+    }
   }
 
   @SuppressWarnings("unused")
@@ -168,6 +177,9 @@ public class StarboardBridge {
     starboardStopped = true;
     ttsHelper.shutdown();
     userAuthorizer.shutdown();
+    for (CobaltService service : cobaltServices.values()) {
+      service.afterStopped();
+    }
     Activity activity = activityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
@@ -213,10 +225,9 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  PlatformError raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+  void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
     error.raise();
-    return error;
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
@@ -268,48 +279,6 @@ public class StarboardBridge {
   @UsedByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
-  }
-
-  /**
-   * Returns non-loopback network interface address, or null if none.
-   *
-   * <p>An IPv4 address will have only a 4 byte array, while an IPv6 address will have a 16 byte
-   * array.
-   *
-   * <p>A Java function to help implement Starboard's SbSocketGetLocalInterfaceAddress.
-   *
-   * <p>Required for platforms older than 24. Since 24, bionic includes getifaddrs() which can be
-   * used by the C layer directly.
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  byte[] getLocalInterfaceAddress() {
-    try {
-      Enumeration<NetworkInterface> it = NetworkInterface.getNetworkInterfaces();
-
-      while (it.hasMoreElements()) {
-        NetworkInterface ni = it.nextElement();
-        if (ni.isLoopback()) {
-          continue;
-        }
-        if (!ni.isUp()) {
-          continue;
-        }
-        if (ni.isPointToPoint()) {
-          continue;
-        }
-
-        for (InterfaceAddress ia : ni.getInterfaceAddresses()) {
-          // Just return the first address.
-          return ia.getAddress().getAddress();
-        }
-      }
-    } catch (SocketException ex) {
-      // TODO should we have a logging story that strips logs for production?
-      Log.w(TAG, "sbSocketGetLocalInterfaceAddress exception", ex);
-      return null;
-    }
-    return null;
   }
 
   @SuppressWarnings("unused")
@@ -553,5 +522,41 @@ public class StarboardBridge {
       }
     }
     return false;
+  }
+
+  public void registerCobaltService(CobaltService.Factory factory) {
+    cobaltServiceFactories.put(factory.getServiceName(), factory);
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  boolean hasCobaltService(String serviceName) {
+    return cobaltServiceFactories.get(serviceName) != null;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  CobaltService openCobaltService(long nativeService, String serviceName) {
+    if (cobaltServices.get(serviceName) != null) {
+      // Attempting to re-open an already open service fails.
+      Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
+      return null;
+    }
+    final CobaltService.Factory factory = cobaltServiceFactories.get(serviceName);
+    if (factory == null) {
+      Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
+      return null;
+    }
+    CobaltService service = factory.createCobaltService(nativeService);
+    if (service != null) {
+      cobaltServices.put(serviceName, service);
+    }
+    return service;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  void closeCobaltService(String serviceName) {
+    cobaltServices.remove(serviceName);
   }
 }

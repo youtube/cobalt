@@ -17,10 +17,13 @@
 #include <sstream>
 #include <string>
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
+#include "include/inspector/Runtime.h"  // generated
+#include "nb/memory_scope.h"
 #include "v8/include/libplatform/v8-tracing.h"
 #include "v8/include/v8-inspector.h"
 
@@ -35,6 +38,28 @@ constexpr char kContextName[] = "Cobalt";
 V8cTracingController* GetTracingController() {
   return base::polymorphic_downcast<V8cTracingController*>(
       IsolateFellowship::GetInstance()->platform->GetTracingController());
+}
+
+// Inspired by |CopyCharsUnsigned| in v8/src/utils.h
+std::string FromStringView(const v8_inspector::StringView& string_view) {
+  std::string string;
+  if (string_view.is8Bit()) {
+    string.assign(reinterpret_cast<const char*>(string_view.characters8()),
+                  string_view.length());
+  } else {
+    string.reserve(string_view.length());
+    const uint16_t* chars =
+        reinterpret_cast<const uint16_t*>(string_view.characters16());
+    for (int i = 0; i < string_view.length(); i++) {
+      string += chars[i];
+    }
+  }
+  return string;
+}
+
+v8_inspector::StringView ToStringView(const std::string& string) {
+  return v8_inspector::StringView(
+      reinterpret_cast<const uint8_t*>(string.c_str()), string.length());
 }
 
 }  // namespace
@@ -67,6 +92,48 @@ V8cScriptDebugger::~V8cScriptDebugger() {
   inspector_->contextDestroyed(context);
 }
 
+bool V8cScriptDebugger::EvaluateDebuggerScript(const std::string& js_code,
+                                               std::string* out_result_utf8) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  TRACE_EVENT0("cobalt::script", "V8cScriptDebugger::EvaluateDebuggerScript()");
+
+  v8::Isolate* isolate = global_environment_->isolate();
+  EntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::TryCatch try_catch(isolate);
+  v8::MicrotasksScope microtasksScope(isolate,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+
+  v8::Local<v8::String> source;
+  if (!v8::String::NewFromUtf8(isolate, js_code.c_str(),
+                               v8::NewStringType::kNormal, js_code.length())
+           .ToLocal(&source)) {
+    LOG(ERROR) << "Failed to convert source code to V8 UTF-8 string.";
+    return false;
+  }
+
+  v8::Local<v8::Value> result;
+  if (!inspector_->compileAndRunInternalScript(context, source)
+           .ToLocal(&result)) {
+    v8::String::Utf8Value exception(try_catch.Exception());
+    std::string string(*exception, exception.length());
+    if (string.empty()) string.assign("Unknown error");
+    LOG(ERROR) << "Debugger script error: " << string;
+    if (out_result_utf8) {
+      out_result_utf8->assign(std::move(string));
+    }
+    return false;
+  }
+
+  if (out_result_utf8) {
+    V8cExceptionState exception_state(isolate);
+    FromJSValue(isolate, result, kNoConversionFlags, &exception_state,
+                out_result_utf8);
+  }
+
+  return true;
+}
+
 ScriptDebugger::PauseOnExceptionsState V8cScriptDebugger::SetPauseOnExceptions(
     ScriptDebugger::PauseOnExceptionsState state) {
   DCHECK(inspector_session_);
@@ -86,6 +153,22 @@ void V8cScriptDebugger::DispatchProtocolMessage(const std::string& message) {
   DCHECK(inspector_session_);
   inspector_session_->dispatchProtocolMessage(v8_inspector::StringView(
       reinterpret_cast<const uint8_t*>(message.c_str()), message.length()));
+}
+
+std::string V8cScriptDebugger::CreateRemoteObject(
+    const ValueHandleHolder& object, const std::string& group) {
+  const V8cValueHandleHolder* v8_value_handle_holder =
+      base::polymorphic_downcast<const V8cValueHandleHolder*>(&object);
+
+  v8::Isolate* isolate = v8_value_handle_holder->isolate();
+  EntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Value> v8_value = v8_value_handle_holder->v8_value();
+
+  std::unique_ptr<v8_inspector::protocol::Runtime::API::RemoteObject>
+      remote_object = inspector_session_->wrapObject(
+          context, v8_value, ToStringView(group), false /*generatePreview*/);
+  return FromStringView(remote_object->toJSONString()->string());
 }
 
 void V8cScriptDebugger::StartTracing(const std::vector<std::string>& categories,
@@ -179,24 +262,6 @@ void V8cScriptDebugger::sendNotification(
     std::string event = FromStringView(message->string());
     delegate_->OnScriptDebuggerEvent(event);
   }
-}
-
-// Inspired by |CopyCharsUnsigned| in v8/src/utils.h
-std::string V8cScriptDebugger::FromStringView(
-    const v8_inspector::StringView& string_view) {
-  std::string string;
-  if (string_view.is8Bit()) {
-    string.assign(reinterpret_cast<const char*>(string_view.characters8()),
-                  string_view.length());
-  } else {
-    string.reserve(string_view.length());
-    const uint16_t* chars =
-        reinterpret_cast<const uint16_t*>(string_view.characters16());
-    for (int i = 0; i < string_view.length(); i++) {
-      string += chars[i];
-    }
-  }
-  return string;
 }
 
 }  // namespace v8c

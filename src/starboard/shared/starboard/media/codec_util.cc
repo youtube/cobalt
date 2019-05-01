@@ -49,6 +49,9 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
   if (SbStringCompareAll(codec, "ac-3") == 0) {
     return kSbMediaAudioCodecAc3;
   }
+  if (SbStringCompareAll(codec, "ec-3") == 0) {
+    return kSbMediaAudioCodecEac3;
+  }
 #endif  // SB_HAS(AC3_AUDIO)
   if (SbStringCompare(codec, "opus", 4) == 0) {
     return kSbMediaAudioCodecOpus;
@@ -60,6 +63,13 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
 }
 
 SbMediaVideoCodec GetVideoCodecFromString(const char* codec) {
+  if (SbStringCompare(codec, "av01.", 5) == 0) {
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
+    return kSbMediaVideoCodecVp10;
+#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+    return kSbMediaVideoCodecAv1;
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+  }
   if (SbStringCompare(codec, "avc1.", 5) == 0 ||
       SbStringCompare(codec, "avc3.", 5) == 0) {
     return kSbMediaVideoCodecH264;

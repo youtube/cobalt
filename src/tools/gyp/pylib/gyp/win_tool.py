@@ -78,7 +78,8 @@ class WinTool(object):
       """
       env = self._GetEnv(arch)
       popen = subprocess.Popen(args, shell=True, env=env,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               universal_newlines=True)
       out, _ = popen.communicate()
       for line in out.splitlines():
         if not line.startswith('   Creating library '):
@@ -91,7 +92,8 @@ class WinTool(object):
     tool)."""
     env = self._GetEnv(arch)
     popen = subprocess.Popen(args, shell=True, env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             universal_newlines=True)
     out, _ = popen.communicate()
     for line in out.splitlines():
       if line and 'manifest authoring warning 81010002' not in line:
@@ -109,7 +111,8 @@ class WinTool(object):
           '/h', h,
           idl]
     popen = subprocess.Popen(args, shell=True, env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             universal_newlines=True)
     out, _ = popen.communicate()
     # Filter junk out of stdout, and write filtered versions. Output we want
     # to filter is pairs of lines that look like this:
@@ -136,7 +139,8 @@ class WinTool(object):
     if arch == 'environment.x64':
       return 0
     popen = subprocess.Popen(args, shell=True, env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             universal_newlines=True)
     out, _ = popen.communicate()
     for line in out.splitlines():
       if (not line.startswith('Copyright (C) Microsoft Corporation') and
@@ -151,7 +155,8 @@ class WinTool(object):
     don't support the /nologo flag."""
     env = self._GetEnv(arch)
     popen = subprocess.Popen(args, shell=True, env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             universal_newlines=True)
     out, _ = popen.communicate()
     for line in out.splitlines():
       if (not line.startswith('Microsoft (R) Windows (R) Resource Compiler') and
@@ -169,7 +174,8 @@ class WinTool(object):
     # Local functions bind to outmost function arguments.
     def RunCmd():
       popen = subprocess.Popen(args, shell=True, env=env, cwd=dir,
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               universal_newlines=True)
       stdout_str, stderr_str = popen.communicate()
       return popen.returncode, stdout_str, stderr_str
     def BuildErrorMessage(err_code, stdout, stderr):
@@ -187,6 +193,8 @@ class WinTool(object):
     # twice then the error will be written out to the command line.
     err_code, stdout, stderr = RunCmd()
     if err_code == 0:
+      sys.stdout.write(stdout)
+      sys.stderr.write(stderr)
       return err_code
     sys.stdout.write(
         BuildErrorMessage(err_code, stdout, stderr) + ' retrying...\n')

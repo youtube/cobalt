@@ -355,7 +355,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/system_binary_search.cc",
     "//starboard/shared/stub/system_break_into_debugger.cc",
     "//starboard/shared/stub/system_clear_last_error.cc",
-    "//starboard/shared/stub/system_clear_platform_error.cc",
     "//starboard/shared/stub/system_get_connection_type.cc",
     "//starboard/shared/stub/system_get_device_type.cc",
     "//starboard/shared/stub/system_get_error_string.cc",

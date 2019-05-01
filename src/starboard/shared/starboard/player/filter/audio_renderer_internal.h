@@ -111,22 +111,22 @@ class AudioRenderer : public MediaTimeProvider,
 
   Mutex mutex_;
 
-  bool paused_;
-  bool consume_frames_called_;
-  bool seeking_;
-  SbTime seeking_to_time_;
-  SbTime last_media_time_;
+  bool paused_ = true;
+  bool consume_frames_called_ = false;
+  bool seeking_ = false;
+  SbTime seeking_to_time_ = 0;
+  SbTime last_media_time_ = 0;
   AudioFrameTracker audio_frame_tracker_;
-  bool ended_cb_called_;
+  bool ended_cb_called_ = false;
 
-  int64_t frames_sent_to_sink_;
-  int64_t frames_consumed_by_sink_;
+  int64_t total_frames_sent_to_sink_ = 0;
+  int64_t total_frames_consumed_by_sink_ = 0;
   int32_t frames_consumed_by_sink_since_last_get_current_time_;
 
   scoped_ptr<AudioDecoder> decoder_;
 
   int64_t frames_consumed_set_at_;
-  double playback_rate_;
+  double playback_rate_ = 1.0;
 
   // AudioRendererSink methods
   void GetSourceStatus(int* frames_in_buffer,
@@ -150,7 +150,7 @@ class AudioRenderer : public MediaTimeProvider,
   void FillResamplerAndTimeStretcher();
   bool AppendAudioToFrameBuffer(bool* is_frame_buffer_full);
 
-  EOSState eos_state_;
+  EOSState eos_state_ = kEOSNotReceived;
   const int channels_;
   const SbMediaAudioSampleType sink_sample_type_;
   const int bytes_per_frame_;
@@ -162,9 +162,9 @@ class AudioRenderer : public MediaTimeProvider,
   std::vector<uint8_t> frame_buffer_;
   uint8_t* frame_buffers_[1];
 
-  int32_t pending_decoder_outputs_;
+  int32_t pending_decoder_outputs_ = 0;
 
-  bool can_accept_more_data_;
+  bool can_accept_more_data_ = true;
   JobQueue::JobToken process_audio_data_job_token_;
   std::function<void()> process_audio_data_job_;
 
@@ -173,7 +173,7 @@ class AudioRenderer : public MediaTimeProvider,
   // some platforms, so we make an effort to improve playback startup
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
-  bool first_input_written_;
+  bool first_input_written_ = false;
 
   scoped_ptr<AudioRendererSink> audio_renderer_sink_;
   bool is_eos_reached_on_sink_thread_ = false;
@@ -183,6 +183,7 @@ class AudioRenderer : public MediaTimeProvider,
   int64_t frames_consumed_on_sink_thread_ = 0;
   SbTime frames_consumed_set_at_on_sink_thread_ = 0;
   int64_t silence_frames_written_after_eos_on_sink_thread_ = 0;
+  int64_t silence_frames_consumed_on_sink_thread_ = 0;
 
 #if SB_LOG_MEDIA_TIME_STATS
   SbTime system_and_media_time_offset_ = -1;

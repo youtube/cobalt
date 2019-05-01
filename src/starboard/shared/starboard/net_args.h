@@ -37,6 +37,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/time.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -46,7 +48,8 @@ namespace starboard {
 extern const char kNetArgsCommandSwitchWait[];
 
 // Waits until args stream in with a socket connection and data reception.
-std::vector<std::string> NetArgsWaitForPayload();
+// A timeout value of < 0 will signal infinite timeout.
+std::vector<std::string> NetArgsWaitForPayload(SbTime timeout);
 
 }  // namespace starboard
 }  // namespace shared

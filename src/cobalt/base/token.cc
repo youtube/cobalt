@@ -68,6 +68,10 @@ uint32 hash(const char* str) {
 
 }  // namespace
 
+#ifdef ENABLE_TOKEN_ALPHABETICAL_SORTING
+bool Token::sort_alphabetically_ = false;
+#endif  // ENABLE_TOKEN_TEXT_SORTING
+
 Token::Token() : str_(TokenStorage::GetInstance()->GetStorage("")) {}
 
 Token::Token(const char* str)

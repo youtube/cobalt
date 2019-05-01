@@ -32,6 +32,7 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
  public:
   explicit TracingAgent(DebugDispatcher* dispatcher,
                         script::ScriptDebugger* script_debugger);
+  ~TracingAgent();
 
   // TraceDelegate
   void AppendTraceEvent(const std::string& trace_event_json) override;

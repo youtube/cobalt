@@ -17,8 +17,5 @@
 ]
 interface DebugScriptRunner {
   void sendEvent(DOMString method, DOMString? params);
-  attribute CreateRemoteObjectCallback createRemoteObjectCallback;
+  DOMString createRemoteObject(any obj, DOMString group);
 };
-
-callback CreateRemoteObjectCallback =
-    DOMString(object obj, DOMString jsonParams);

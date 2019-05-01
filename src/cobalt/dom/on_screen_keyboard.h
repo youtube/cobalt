@@ -65,6 +65,11 @@ class OnScreenKeyboard : public EventTarget {
   std::string data() const { return data_; }
   void set_data(const std::string& data) { data_ = data; }
 
+  bool is_composing() const { return is_composing_; }
+  void set_is_composing(const bool is_composing) {
+    is_composing_ = is_composing;
+  }
+
   const EventListenerScriptValue* onshow() const;
   void set_onshow(const EventListenerScriptValue& event_listener);
 
@@ -82,6 +87,9 @@ class OnScreenKeyboard : public EventTarget {
 
   // If the keyboard is shown.
   bool shown() const;
+
+  // If the keyboard has suggestions implemented.
+  bool suggestions_supported() const { return suggestions_supported_; }
 
   // The rectangle of the keyboard in screen pixel coordinates.
   scoped_refptr<DOMRect> bounding_rect() const;
@@ -117,10 +125,13 @@ class OnScreenKeyboard : public EventTarget {
   script::ScriptValueFactory* const script_value_factory_;
 
   std::string data_;
+  bool is_composing_;
 
   int next_ticket_;
 
   bool keep_focus_ = false;
+
+  bool suggestions_supported_;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };

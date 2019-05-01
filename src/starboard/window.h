@@ -198,6 +198,7 @@ SB_EXPORT void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket);
 // permitted. Calling SbWindowFocusOnScreenKeyboard while the on screen keyboard
 // is not showing does nothing and does not fire any event.
 SB_EXPORT void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket);
+
 // Blur the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardBlurred.
 // kSbEventTypeOnScreenKeyboardBlurred has data |ticket|. Calling
 // SbWindowBlurOnScreenKeyboard() when the keyboard is already blurred is
@@ -206,7 +207,7 @@ SB_EXPORT void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket);
 SB_EXPORT void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket);
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
-// Update the on-screen keyboard custom suggestions. Fire
+// Update the on screen keyboard custom suggestions. Fire
 // kSbEventTypeOnScreenKeyboardSuggestionsUpdated.
 // kSbEventTypeOnScreenKeyboardSuggestionsUpdated has data |ticket|. The
 // suggestions should remain up-to-date when the keyboard is shown after being
@@ -216,6 +217,11 @@ SB_EXPORT void SbWindowUpdateOnScreenKeyboardSuggestions(
     const char* suggestions[],
     int num_suggestions,
     int ticket);
+
+// Determine if the on screen keyboard has suggestions implemented. If this
+// returns false, then calling SbWindowUpdateOnScreenKeyboardSuggestions() will
+// be undefined.
+SB_EXPORT bool SbWindowOnScreenKeyboardSuggestionsSupported(SbWindow window);
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

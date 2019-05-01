@@ -49,7 +49,8 @@ struct CodecInfo {
     HISTOGRAM_OPUS,
     HISTOGRAM_HEVC,
     HISTOGRAM_AC3,
-    HISTOGRAM_MAX = HISTOGRAM_AC3  // Must be equal to largest logged entry.
+    HISTOGRAM_AV1,
+    HISTOGRAM_MAX = HISTOGRAM_AV1  // Must be equal to largest logged entry.
   };
 
   const char* pattern;
@@ -77,9 +78,13 @@ static const CodecInfo kVorbisCodecInfo = {"vorbis", CodecInfo::AUDIO, NULL,
                                            CodecInfo::HISTOGRAM_VORBIS};
 static const CodecInfo kOpusCodecInfo = {"opus", CodecInfo::AUDIO, NULL,
                                          CodecInfo::HISTOGRAM_OPUS};
+// Note: Validation of the codec string is handled by the caller.
+static const CodecInfo kAV1CodecInfo = {"av01.*", CodecInfo::VIDEO, nullptr,
+                                        CodecInfo::HISTOGRAM_AV1};
 
 static const CodecInfo* kVideoWebMCodecs[] = {
-    &kVP8CodecInfo, &kVP9CodecInfo, &kVorbisCodecInfo, &kOpusCodecInfo, NULL};
+    &kVP8CodecInfo,  &kVP9CodecInfo, &kVorbisCodecInfo,
+    &kOpusCodecInfo, &kAV1CodecInfo, NULL};
 
 static const CodecInfo* kAudioWebMCodecs[] = {&kVorbisCodecInfo,
                                               &kOpusCodecInfo, NULL};
@@ -169,10 +174,9 @@ static const CodecInfo kEAC3CodecInfo3 = {"mp4a.A6", CodecInfo::AUDIO, NULL,
                                           CodecInfo::HISTOGRAM_EAC3};
 
 static const CodecInfo* kVideoMP4Codecs[] = {
-    &kH264AVC1CodecInfo,   &kH264AVC3CodecInfo,
-    &kHEVCHEV1CodecInfo,   &kHEVCHVC1CodecInfo,
-    &kMPEG4VP09CodecInfo,  &kMPEG4AACCodecInfo,
-    &kMPEG2AACLCCodecInfo, NULL};
+    &kH264AVC1CodecInfo,   &kH264AVC3CodecInfo,  &kHEVCHEV1CodecInfo,
+    &kHEVCHVC1CodecInfo,   &kMPEG4VP09CodecInfo, &kMPEG4AACCodecInfo,
+    &kMPEG2AACLCCodecInfo, &kAV1CodecInfo,       NULL};
 
 static const CodecInfo* kAudioMP4Codecs[] = {
     &kMPEG4AACCodecInfo, &kMPEG2AACLCCodecInfo, &kAC3CodecInfo1,

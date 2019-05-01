@@ -95,6 +95,12 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 
 Box::~Box() { layout_stat_tracker_->OnBoxDestroyed(); }
 
+bool Box::IsOverflowHidden() const {
+  return computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
+         computed_style()->overflow() == cssom::KeywordValue::GetHidden() ||
+         computed_style()->overflow() == cssom::KeywordValue::GetScroll();
+}
+
 bool Box::IsPositioned() const {
   return computed_style()->position() != cssom::KeywordValue::GetStatic();
 }
@@ -602,8 +608,7 @@ void Box::RenderAndAnimate(
                               &border_node_builder, &animate_node_builder);
   }
 
-  const bool overflow_hidden =
-      computed_style()->overflow() == cssom::KeywordValue::GetHidden();
+  const bool overflow_hidden = IsOverflowHidden();
 
   bool overflow_hidden_needs_to_be_applied = overflow_hidden;
 
@@ -1614,7 +1619,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const scoped_refptr<render_tree::Node>& content_node,
     AnimateNode::Builder* /* animate_node_builder */,
     const math::Vector2dF& border_node_offset) {
-  DCHECK_EQ(computed_style()->overflow(), cssom::KeywordValue::GetHidden());
+  DCHECK(IsOverflowHidden());
 
   // The "overflow" property specifies whether a box is clipped to its padding
   // edge.  Use a render_tree viewport filter to implement it.

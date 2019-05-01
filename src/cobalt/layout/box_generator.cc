@@ -288,6 +288,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
@@ -601,6 +602,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kScroll:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStart:
@@ -750,6 +752,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStart:

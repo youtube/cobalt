@@ -34,7 +34,7 @@ class SelectorVisitor;
 class NotPseudoClass : public PseudoClass {
  public:
   NotPseudoClass()
-      : PseudoClass(base::Tokens::pseudo_class_selector_prefix()) {}
+      : PseudoClass(base::Tokens::not_pseudo_class_selector()) {}
   ~NotPseudoClass() override {}
 
   // From Selector.

@@ -30,6 +30,42 @@ class CobaltLinuxX64DirectFbConfiguration(
     super(CobaltLinuxX64DirectFbConfiguration, self).__init__(
         platform, asan_enabled_by_default, goma_supported_by_compiler)
 
+  def GetTestFilters(self):
+    filters = (
+        super(CobaltLinuxX64DirectFbConfiguration, self).GetTestFilters())
+    for target, tests in self.__FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
+
+
+  # All filtered tests are filtered because the DirectFB drivers on
+  # many Linux distributions are unstable and experience crashes when
+  # creating and working with SbWindow objects.
+  __FILTERED_TESTS = {
+      'nplb': [
+          'SbBlitterCreateSwapChainFromWindowTest.RainyDayBadDevice',
+          'SbBlitterCreateSwapChainFromWindowTest.RainyDayBadWindow',
+          'SbBlitterCreateSwapChainFromWindowTest.RainyDayInvalidSwapChain',
+          'SbBlitterCreateSwapChainFromWindowTest.SunnyDay',
+          'SbBlitterCreateSwapChainFromWindowTest.SunnyDayMultipleTimes',
+          'SbBlitterFlipSwapChainTest.SunnyDay',
+          'SbBlitterGetRenderTargetFromSwapChainTest.SunnyDay',
+          'SbBlitterGetRenderTargetFromSwapChainTest.SunnyDayCanDraw',
+          'SbPlayerTest.AudioOnly',
+          'SbPlayerTest.Audioless',
+          'SbPlayerTest.MultiPlayer',
+          'SbPlayerTest.NullCallbacks',
+          'SbPlayerTest.SunnyDay',
+          'SbWindowCreateTest.SunnyDayDefault',
+          'SbWindowCreateTest.SunnyDayDefaultSet',
+          'SbWindowGetPlatformHandleTest.RainyDay',
+          'SbWindowGetPlatformHandleTest.SunnyDay',
+          'SbWindowGetSizeTest.RainyDayInvalid',
+          'SbWindowGetSizeTest.SunnyDay',
+      ],
+      'player_filter_tests': [test_filter.FILTER_ALL],
+  }
+
 
 def CreatePlatformConfig():
   return CobaltLinuxX64DirectFbConfiguration()

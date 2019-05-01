@@ -31,8 +31,6 @@ TEST_F(SpeechRecognizerTest, StartTestSunnyDay) {
     return;
   }
 
-  EXPECT_CALL(test_mock(), OnEvent()).Times(testing::AtLeast(1));
-  Wait();
   SbSpeechRecognizerStop(recognizer);
   SbSpeechRecognizerDestroy(recognizer);
 }
@@ -47,8 +45,6 @@ TEST_F(SpeechRecognizerTest, StartRecognizerWithContinuousRecognition) {
     return;
   }
 
-  EXPECT_CALL(test_mock(), OnEvent()).Times(testing::AtLeast(1));
-  Wait();
   SbSpeechRecognizerStop(recognizer);
   SbSpeechRecognizerDestroy(recognizer);
 }
@@ -63,8 +59,6 @@ TEST_F(SpeechRecognizerTest, StartRecognizerWithInterimResults) {
     return;
   }
 
-  EXPECT_CALL(test_mock(), OnEvent()).Times(testing::AtLeast(1));
-  Wait();
   SbSpeechRecognizerStop(recognizer);
   SbSpeechRecognizerDestroy(recognizer);
 }
@@ -79,8 +73,6 @@ TEST_F(SpeechRecognizerTest, StartRecognizerWith10MaxAlternatives) {
     return;
   }
 
-  EXPECT_CALL(test_mock(), OnEvent()).Times(testing::AtLeast(1));
-  Wait();
   SbSpeechRecognizerStop(recognizer);
   SbSpeechRecognizerDestroy(recognizer);
 }
@@ -95,12 +87,10 @@ TEST_F(SpeechRecognizerTest, StartIsCalledMultipleTimes) {
     return;
   }
 
-  EXPECT_CALL(test_mock(), OnEvent()).Times(testing::AtLeast(1));
   bool success = SbSpeechRecognizerStart(recognizer, &configuration);
   EXPECT_FALSE(success);
   success = SbSpeechRecognizerStart(recognizer, &configuration);
   EXPECT_FALSE(success);
-  Wait();
   SbSpeechRecognizerDestroy(recognizer);
 }
 

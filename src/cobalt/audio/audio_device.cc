@@ -46,7 +46,6 @@ typedef ::media::ShellAudioBus ShellAudioBus;
 namespace {
 const int kRenderBufferSizeFrames = 1024;
 const int kFramesPerChannel = kRenderBufferSizeFrames * 8;
-const int kStandardOutputSampleRate = 48000;
 }  // namespace
 
 #if defined(SB_USE_SB_AUDIO_SINK)

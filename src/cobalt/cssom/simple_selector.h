@@ -33,6 +33,7 @@ class IdSelector;
 class PseudoClass;
 class PseudoElement;
 class TypeSelector;
+class UniversalSelector;
 
 // A simple selector is either a type selector, universal selector, attribute
 // selector, class selector, ID selector, or pseudo-class.
@@ -56,6 +57,7 @@ class SimpleSelector : public Selector {
   base::Token text() const { return text_; }
 
   virtual PseudoElement* AsPseudoElement() { return NULL; }
+  virtual UniversalSelector* AsUniversalSelector() { return NULL; }
 
   virtual bool AlwaysRequiresRuleMatchingVerificationVisit() const {
     return false;

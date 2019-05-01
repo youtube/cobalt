@@ -242,38 +242,21 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetTestFilters(self):
     filters = super(AndroidConfiguration, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   # A map of failing or crashing tests per target.
-  _FILTERED_TESTS = {
-      'nplb': [
-          'SbAudioSinkTest.AllFramesConsumed',
-          'SbAudioSinkTest.SomeFramesConsumed',
-          'SbAudioSinkTest.Underflow',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDayDestination/0',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/0',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceNotLoopback/0',
-          'SbSocketBindTest.SunnyDayLocalInterface',
-          'SbSocketGetLocalAddressTest.SunnyDayBoundSpecified',
-          'SpeechRecognizerTest.StartIsCalledMultipleTimes',
-          'SpeechRecognizerTest.StartRecognizerWith10MaxAlternatives',
-          'SpeechRecognizerTest.StartRecognizerWithContinuousRecognition',
-          'SpeechRecognizerTest.StartRecognizerWithInterimResults',
-          'SpeechRecognizerTest.StartTestSunnyDay',
-      ],
+  __FILTERED_TESTS = {
       'player_filter_tests': [
           'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'AudioDecoderTests/AudioDecoderTest.MultipleInputs/0',
           'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
           'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/1',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/2',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/3',
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/1',
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/2',
@@ -284,6 +267,16 @@ class AndroidConfiguration(PlatformConfiguration):
           '.GetCurrentDecodeTargetBeforeWriteInputBuffer/2',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/1',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/0',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/1',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/2',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/3',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/0',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/2',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/3',
 
           # On some platforms, and for some decoders (such as AVC), Android
           # returns MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER for the test's

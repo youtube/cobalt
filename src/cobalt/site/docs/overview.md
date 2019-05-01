@@ -43,8 +43,8 @@ These are some other benefits that Cobalt provides:
     *   Cobalt precompiles a set of shaders that are sufficient to express all
         graphical effects, thereby accommodating platforms that cannot compile
         shaders at runtime.
-    *   Cobalt requires a compliant C++03 compiler, allowing it to reach
-        platforms with legacy toolchains.
+    *   Cobalt requires a compliant C++11 compiler, allowing it to reach
+        platforms with toolchains that don't support the newest C++17 features.
 
 *   **Small footprint**
     *   Cobalt is optimized for memory. Its surface cache never exceeds a
@@ -69,20 +69,20 @@ These are some other benefits that Cobalt provides:
 
 ### Porters
 
-Porters should begin with the [porting guide](/cobalt/starboard/porting.html),
+Porters should begin with the [porting guide](/starboard/porting.html),
 which explains how to use Starboard, Cobalt's porting layer, to customize the
 platform-specific functionality that Cobalt uses. There are several reference
 documents to help porters customize configuration files and to implement
 module-specific functionality. The [Testing with
-NPLB](/cobalt/starboard/testing.html) document provides an overview of
+NPLB](/starboard/testing.html) document provides an overview of
 Starboard's compliance test suite.
 
 ### Developers
 
 Developers can follow the setup instructions for
-[Linux](/cobalt/development/setup-linux.html) or
-[RasPi](/cobalt/development/setup-raspi.html) to set up their Cobalt development
+[Linux](/development/setup-linux.html) or
+[RasPi](/development/setup-raspi.html) to set up their Cobalt development
 environment, fetch a copy of the Cobalt code repository, and build a Cobalt
-binary. The [Cobalt support](/cobalt/development/reference/supported-features.html)
+binary. The [Cobalt support](/development/reference/supported-features.html)
 guide lists the HTML elements, CSS properties, CSS selectors, and JavaScript Web
 APIs that developers can use in their Cobalt applications.

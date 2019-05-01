@@ -33,6 +33,9 @@ namespace web_animations {
 // acquiring the set of all properties affected.
 class AnimationSet : public base::RefCounted<AnimationSet> {
  public:
+  // We use raw pointers here to avoid cyclic references; AnimationSets
+  // are referenced by Animations themselves and it's expected that the
+  // Animation destructor will deregister all sets it's contained within.
   typedef std::set<Animation*> InternalSet;
 
   AnimationSet();

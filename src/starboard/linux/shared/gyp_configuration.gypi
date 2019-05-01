@@ -23,10 +23,12 @@
     'sb_widevine_platform' : 'linux',
 
     'platform_libraries': [
+      '-laom',
       '-lasound',
       '-ldl',
       '-lpthread',
       '-lrt',
+      '-lvpx',
     ],
 
     'compiler_flags': [

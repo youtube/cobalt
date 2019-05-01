@@ -821,7 +821,7 @@ out:
   BUF_MEM_free(buf);
   return ret;
 }
-
+#ifndef OPENSSL_NO_FP_API
 PKCS12* d2i_PKCS12_fp(FILE *fp, PKCS12 **out_p12) {
   BIO *bio;
   PKCS12 *ret;
@@ -835,6 +835,7 @@ PKCS12* d2i_PKCS12_fp(FILE *fp, PKCS12 **out_p12) {
   BIO_free(bio);
   return ret;
 }
+#endif  // OPENSSL_NO_FP_API
 
 int i2d_PKCS12(const PKCS12 *p12, uint8_t **out) {
   if (p12->ber_len > INT_MAX) {
@@ -874,6 +875,7 @@ int i2d_PKCS12_bio(BIO *bio, const PKCS12 *p12) {
   return 1;
 }
 
+#ifndef OPENSSL_NO_FP_API
 int i2d_PKCS12_fp(FILE *fp, const PKCS12 *p12) {
   BIO *bio = BIO_new_fp(fp, 0 /* don't take ownership */);
   if (bio == NULL) {
@@ -884,6 +886,7 @@ int i2d_PKCS12_fp(FILE *fp, const PKCS12 *p12) {
   BIO_free(bio);
   return ret;
 }
+#endif  // OPENSSL_NO_FP_API
 
 int PKCS12_parse(const PKCS12 *p12, const char *password, EVP_PKEY **out_pkey,
                  X509 **out_cert, STACK_OF(X509) **out_ca_certs) {

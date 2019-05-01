@@ -30,8 +30,12 @@ namespace memory_settings {
 // These functions are exposed here for testing purposes and should not be used
 // directly.
 // Calculates the ImageCacheSize in bytes.
-// The return ranges from [kMinImageCacheSize, kMaxImageCacheSize].
-int64_t CalculateImageCacheSize(const math::Size& dimensions);
+// When |allow_image_decoding_to_multi_plane| is set to true, the return ranges
+// from [kMinImageCacheSizeWithDecodingToMultiPlane, kMaxImageCacheSize].
+// When |allow_image_decoding_to_multi_plane| is set to false, the return ranges
+// from [kMinImageCacheSizeWithoutDecodingToMultiPlane, kMaxImageCacheSize].
+int64_t CalculateImageCacheSize(const math::Size& dimensions,
+                                bool allow_image_decoding_to_multi_plane);
 
 // Calculates the SkiaAtlasGlyphTextureSize.
 // When the ui resolution is 1920x1080, then the returned atlas texture size

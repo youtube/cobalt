@@ -373,6 +373,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -472,6 +473,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -578,6 +580,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -707,6 +710,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -831,6 +835,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -953,6 +958,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -1069,6 +1075,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -1179,6 +1186,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -1590,6 +1598,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -1867,6 +1876,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -2116,6 +2126,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:
@@ -2500,6 +2511,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
+    case KeywordValue::kScroll:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
     case KeywordValue::kStart:

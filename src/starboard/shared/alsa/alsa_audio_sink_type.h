@@ -15,9 +15,6 @@
 #ifndef STARBOARD_SHARED_ALSA_ALSA_AUDIO_SINK_TYPE_H_
 #define STARBOARD_SHARED_ALSA_ALSA_AUDIO_SINK_TYPE_H_
 
-#include "starboard/audio_sink.h"
-#include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
@@ -25,31 +22,8 @@ namespace starboard {
 namespace shared {
 namespace alsa {
 
-class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
- public:
-  SbAudioSink Create(
-      int channels,
-      int sampling_frequency_hz,
-      SbMediaAudioSampleType audio_sample_type,
-      SbMediaAudioFrameStorageType audio_frame_storage_type,
-      SbAudioSinkFrameBuffers frame_buffers,
-      int frames_per_channel,
-      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context);
-
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
-};
+void PlatformInitialize();
+void PlatformTearDown();
 
 }  // namespace alsa
 }  // namespace shared

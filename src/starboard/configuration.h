@@ -68,6 +68,17 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce Cobalt Extensions using the SbSystemGetExtension interface.
+// Cobalt extensions implement app & platform specific functionality.
+#define SB_EXTENSIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate SbSystemClearPlatformError.
+#define SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate the events of type kSbEventTypeNetworkDisconnect,
+// kSbEventTypeNetworkConnect.
+#define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Add SbMediaTransferId* argument |eotf| to SbMediaIsVideoSupported, so the
 // platform may indicate support of resolution, bitrate, fps, and codec
 // conditioned on eotf. Also, remove the function
@@ -110,9 +121,25 @@
 // Add support for SbThreadSampler and SbThreadContext to support profiling.
 #define SB_THREAD_SAMPLER_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce a new API in starboard/window.h which declares the function
-// SbWindowUpdateOnScreenKeyboardSuggestions().
+// Introduce a new API in starboard/window.h which declares the functions
+// SbWindowUpdateOnScreenKeyboardSuggestions() and
+// SbWindowOnScreenKeyboardSuggestionsSupported().
 #define SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce new potential starboard/file.h error code value,
+// kSbFileErrorIO to match for example "EIO" on posix platforms.
+#define SB_FILE_ERROR_IO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Move the definition of FormatString() from string.h to a new header
+// format_string.h.
+#define SB_MOVE_FORMAT_STRING_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Make the decode target content region parameters floats instead of ints.
+// The primary motivation for this change is to make it so that on platforms
+// where it is difficult to obtain the width and height of a texture, we can
+// still correctly identify a precise fractional "normalized" content region
+// with the texture width and height set to 1.
+#define SB_DECODE_TARGET_CONTENT_REGION_FLOATS SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -610,6 +637,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 
 #if SB_API_VERSION >= 6
+
 #if defined(SB_HAS_DRM_KEY_STATUSES)
 #if !SB_HAS(DRM_KEY_STATUSES)
 #error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
@@ -617,6 +645,17 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_KEY_STATUSES)
 #define SB_HAS_DRM_KEY_STATUSES 1
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
+
+#if defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#if !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#error \
+    "SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER is required for Starboard 6 " \
+       "or later."
+#endif  // !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#else   // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
+#endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+
 #endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION

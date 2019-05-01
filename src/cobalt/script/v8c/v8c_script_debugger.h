@@ -38,24 +38,21 @@ class V8cScriptDebugger : public ScriptDebugger,
   void Attach() override { attached_ = true; }
   void Detach() override { attached_ = false; }
 
+  bool EvaluateDebuggerScript(const std::string& js_code,
+                              std::string* out_result_utf8) override;
+
   bool CanDispatchProtocolMethod(const std::string& method) override;
   void DispatchProtocolMessage(const std::string& message) override;
+
+  std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                 const std::string& group) override;
 
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) override;
   void StopTracing() override;
 
-  void Pause() override { NOTIMPLEMENTED(); }
-  void Resume() override { NOTIMPLEMENTED(); }
-  void SetBreakpoint(const std::string& script_id, int line_number,
-                     int column_number) override {
-    NOTIMPLEMENTED();
-  }
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override;
-  void StepInto() override { NOTIMPLEMENTED(); }
-  void StepOut() override { NOTIMPLEMENTED(); }
-  void StepOver() override { NOTIMPLEMENTED(); }
 
   // v8_inspector::V8InspectorClient implementation.
   void runMessageLoopOnPause(int contextGroupId) override;
@@ -78,8 +75,6 @@ class V8cScriptDebugger : public ScriptDebugger,
   void flushProtocolNotifications() override {}
 
  private:
-  std::string FromStringView(const v8_inspector::StringView& string_view);
-
   V8cGlobalEnvironment* global_environment_;
   Delegate* delegate_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;

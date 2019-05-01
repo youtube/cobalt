@@ -30,10 +30,10 @@ DebugDispatcher::DebugDispatcher(script::GlobalEnvironment* global_environment,
                                  const dom::CspDelegate* csp_delegate,
                                  script::ScriptDebugger* script_debugger)
     : script_debugger_(script_debugger),
-      ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(
-          new DebugScriptRunner(global_environment, csp_delegate,
-                                base::Bind(&DebugDispatcher::SendEventInternal,
-                                           base::Unretained(this))))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
+          global_environment, script_debugger, csp_delegate,
+          base::Bind(&DebugDispatcher::SendEventInternal,
+                     base::Unretained(this))))),
       message_loop_(MessageLoop::current()),
       is_paused_(false),
       // No manual reset, not initially signaled.
@@ -48,6 +48,8 @@ DebugDispatcher::~DebugDispatcher() {
        it != clients_.end(); ++it) {
     (*it)->OnDetach(detach_reason);
   }
+  DCHECK(domain_registry_.empty())
+      << domain_registry_.begin()->first << " domain still registered.";
   for (DomainRegistry::iterator it = domain_registry_.begin();
        it != domain_registry_.end(); ++it) {
     RemoveDomain(it->first);
@@ -60,27 +62,6 @@ void DebugDispatcher::AddClient(DebugClient* client) {
 
 void DebugDispatcher::RemoveClient(DebugClient* client) {
   clients_.erase(client);
-}
-
-JSONObject DebugDispatcher::CreateRemoteObject(
-    const script::ValueHandleHolder* object) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  // Use default values for the parameters in the JS createRemoteObjectCallback.
-  static const char* kDefaultParams = "{}";
-
-  // This will execute a JavaScript function to create a Runtime.Remote object
-  // that describes the opaque JavaScript object.
-  base::optional<std::string> json_result =
-      script_runner_->CreateRemoteObject(object, kDefaultParams);
-
-  // Parse the serialized JSON result.
-  if (json_result) {
-    return JSONParse(json_result.value());
-  } else {
-    DLOG(WARNING) << "Could not create Runtime.RemoteObject";
-    return JSONObject(new base::DictionaryValue());
-  }
 }
 
 void DebugDispatcher::SendCommand(const Command& command) {
@@ -168,24 +149,6 @@ void DebugDispatcher::SendEvent(const std::string& method,
   SendEventInternal(method, json_params);
 }
 
-void DebugDispatcher::SendScriptEvent(const std::string& event,
-                                      const std::string& method,
-                                      const std::string& json_params) {
-  script::ScriptDebugger::ScopedPauseOnExceptionsState no_pause(
-      script_debugger_, script::ScriptDebugger::kNone);
-
-  std::string json_result;
-  bool success = script_runner_->RunCommand(method, json_params, &json_result);
-
-  if (!success) {
-    DLOG(ERROR) << "Script event failed (" << method << "): " << json_result;
-  } else if (json_result.empty()) {
-    DLOG(ERROR) << "Script event method not defined: " << method;
-  } else {
-    SendEventInternal(event, json_result);
-  }
-}
-
 void DebugDispatcher::SendEventInternal(
     const std::string& method, const base::optional<std::string>& json_params) {
   for (std::set<DebugClient*>::iterator it = clients_.begin();
@@ -214,17 +177,17 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
   bool success = script_runner_->RunCommand(method, json_params, &json_result);
 
   JSONObject response(new base::DictionaryValue());
-  if (json_result.empty()) {
-    // An empty result means the method isn't implemented so return no response.
-    response.reset();
-  } else if (!success) {
-    // On error, |json_result| is the error message.
-    response->SetString("error.message", json_result);
-  } else {
+  if (success) {
     JSONObject result = JSONParse(json_result);
     if (result) {
       response->Set("result", result.release());
     }
+  } else if (!json_result.empty()) {
+    // On error, |json_result| is the error message.
+    response->SetString("error.message", json_result);
+  } else {
+    // An empty error means the method isn't implemented so return no response.
+    response.reset();
   }
   return response.Pass();
 }

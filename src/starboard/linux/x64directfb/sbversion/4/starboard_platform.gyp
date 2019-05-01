@@ -25,10 +25,6 @@
       'type': 'static_library',
       'sources': [
         '<@(starboard_platform_sources)',
-        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_only.cc',
-      ],
-      'sources!': [
-        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc',
       ],
       'include_dirs': [
         '/usr/include/directfb',

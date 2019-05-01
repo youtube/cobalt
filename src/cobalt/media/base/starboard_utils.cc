@@ -27,36 +27,56 @@ namespace cobalt {
 namespace media {
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
-  if (codec == kCodecAAC) {
-    return kSbMediaAudioCodecAac;
+  switch (codec) {
+    case kCodecAAC:
+      return kSbMediaAudioCodecAac;
 #if SB_HAS(AC3_AUDIO)
-  } else if (codec == kCodecAC3) {
-    return kSbMediaAudioCodecAc3;
+    case kCodecAC3:
+      return kSbMediaAudioCodecAc3;
+    case kCodecEAC3:
+      return kSbMediaAudioCodecEac3;
 #endif  // SB_HAS(AC3_AUDIO)
-  } else if (codec == kCodecVorbis) {
-    return kSbMediaAudioCodecVorbis;
-  } else if (codec == kCodecOpus) {
-    return kSbMediaAudioCodecOpus;
+    case kCodecVorbis:
+      return kSbMediaAudioCodecVorbis;
+    case kCodecOpus:
+      return kSbMediaAudioCodecOpus;
+    default:
+      // Cobalt only supports a subset of audio codecs defined by Chromium.
+      DLOG(ERROR) << "Unsupported audio codec "
+                  << cobalt::media::GetCodecName(codec);
+      return kSbMediaAudioCodecNone;
   }
-  DLOG(ERROR) << "Unsupported audio codec " << codec;
+  NOTREACHED();
   return kSbMediaAudioCodecNone;
 }
 
 SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
-  if (codec == kCodecH264) {
-    return kSbMediaVideoCodecH264;
-  } else if (codec == kCodecVC1) {
-    return kSbMediaVideoCodecVc1;
-  } else if (codec == kCodecMPEG2) {
-    return kSbMediaVideoCodecMpeg2;
-  } else if (codec == kCodecTheora) {
-    return kSbMediaVideoCodecTheora;
-  } else if (codec == kCodecVP8) {
-    return kSbMediaVideoCodecVp8;
-  } else if (codec == kCodecVP9) {
-    return kSbMediaVideoCodecVp9;
+  switch (codec) {
+    case kCodecH264:
+      return kSbMediaVideoCodecH264;
+    case kCodecVC1:
+      return kSbMediaVideoCodecVc1;
+    case kCodecMPEG2:
+      return kSbMediaVideoCodecMpeg2;
+    case kCodecTheora:
+      return kSbMediaVideoCodecTheora;
+    case kCodecVP8:
+      return kSbMediaVideoCodecVp8;
+    case kCodecVP9:
+      return kSbMediaVideoCodecVp9;
+    case kCodecAV1:
+#if SB_API_VERSION >= SB_HAS_AV1_VERSION
+      return kSbMediaVideoCodecAv1;
+#else  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+      return kSbMediaVideoCodecVp10;
+#endif  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+    default:
+      // Cobalt only supports a subset of video codecs defined by Chromium.
+      DLOG(ERROR) << "Unsupported video codec "
+                  << cobalt::media::GetCodecName(codec);
+      return kSbMediaVideoCodecNone;
   }
-  DLOG(ERROR) << "Unsupported video codec " << codec;
+  NOTREACHED();
   return kSbMediaVideoCodecNone;
 }
 
@@ -73,7 +93,7 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_decoder_config.bits_per_channel();
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   audio_header.audio_specific_config_size =
       static_cast<uint16_t>(audio_decoder_config.extra_data().size());
   if (audio_header.audio_specific_config_size == 0) {
@@ -81,7 +101,7 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
   } else {
     audio_header.audio_specific_config = &audio_decoder_config.extra_data()[0];
   }
-#else   // SB_API_VERSION >= 6
+#else   // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   audio_header.audio_specific_config_size = static_cast<uint16_t>(
       std::min(audio_decoder_config.extra_data().size(),
                sizeof(audio_header.audio_specific_config)));
@@ -90,7 +110,7 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
                  &audio_decoder_config.extra_data()[0],
                  audio_header.audio_specific_config_size);
   }
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 
   return audio_header;
 }

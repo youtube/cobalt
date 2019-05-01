@@ -18,6 +18,9 @@
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
 #include "starboard/audio_sink.h"
+#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#include "starboard/format_string.h"
+#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -40,6 +43,12 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
       return AV_CODEC_ID_AAC;
+#if SB_HAS(AC3_AUDIO)
+    case kSbMediaAudioCodecAc3:
+      return AV_CODEC_ID_AC3;
+    case kSbMediaAudioCodecEac3:
+      return AV_CODEC_ID_EAC3;
+#endif  // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return AV_CODEC_ID_OPUS;
     default:

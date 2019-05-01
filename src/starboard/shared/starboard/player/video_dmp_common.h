@@ -72,13 +72,13 @@ struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
   SbMediaAudioHeaderWithConfig(const SbMediaAudioHeaderWithConfig& that)
       : SbMediaAudioHeader(that),
         stored_audio_specific_config(that.stored_audio_specific_config) {
-#if SB_API_VERSION >= 6
+#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
     audio_specific_config = stored_audio_specific_config.data();
-#else
+#else   // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
     SB_DCHECK(8 >= stored_audio_specific_config.size());
     SbMemoryCopy(audio_specific_config, stored_audio_specific_config.data(),
                  stored_audio_specific_config.size());
-#endif
+#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   }
   void operator=(const SbMediaAudioHeaderWithConfig& that) = delete;
 

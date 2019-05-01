@@ -30,6 +30,11 @@ class StubScriptDebugger : public ScriptDebugger {
   void Attach() override { NOTIMPLEMENTED(); }
   void Detach() override { NOTIMPLEMENTED(); }
 
+  bool EvaluateDebuggerScript(const std::string& js_code,
+                              std::string* out_result_utf8) override {
+    return false;
+  }
+
   bool CanDispatchProtocolMethod(const std::string& method) override {
     NOTIMPLEMENTED();
     return false;
@@ -38,26 +43,23 @@ class StubScriptDebugger : public ScriptDebugger {
     NOTIMPLEMENTED();
   }
 
+  std::string CreateRemoteObject(const ValueHandleHolder& object,
+                                 const std::string& group) override {
+    NOTIMPLEMENTED();
+    return "{}";
+  }
+
   void StartTracing(const std::vector<std::string>& categories,
                     TraceDelegate* trace_delegate) {
     NOTIMPLEMENTED();
   }
   void StopTracing() override { NOTIMPLEMENTED(); }
 
-  void Pause() override { NOTIMPLEMENTED(); }
-  void Resume() override { NOTIMPLEMENTED(); }
-  void SetBreakpoint(const std::string& script_id, int line_number,
-                     int column_number) override {
-    NOTIMPLEMENTED();
-  }
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override {
     NOTIMPLEMENTED();
     return kNone;
   }
-  void StepInto() override { NOTIMPLEMENTED(); }
-  void StepOut() override { NOTIMPLEMENTED(); }
-  void StepOver() override { NOTIMPLEMENTED(); }
 };
 
 // Static factory method declared in public interface.
