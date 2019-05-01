@@ -23,20 +23,6 @@
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 
-struct SbBlitterDevicePrivate {
-  // Internally we store our EGLDisplay object inside of the SbBlitterDevice
-  // object.
-  EGLDisplay display;
-
-  // Internally we store our EGLConfig object inside of the SbBlitterDevice
-  // object.
-  EGLConfig config;
-
-  // Mutex to ensure thread-safety in all SbBlitterDevice-related function
-  // calls.
-  starboard::Mutex mutex;
-};
-
 namespace starboard {
 namespace shared {
 namespace blittergles {
@@ -56,5 +42,39 @@ SbBlitterDeviceRegistry* GetBlitterDeviceRegistry();
 }  // namespace blittergles
 }  // namespace shared
 }  // namespace starboard
+
+struct SbBlitterDevicePrivate {
+  // Internally we store our EGLDisplay object inside of the SbBlitterDevice
+  // object.
+  EGLDisplay display;
+
+  // Internally we store our EGLConfig object inside of the SbBlitterDevice
+  // object.
+  EGLConfig config;
+
+  // Mutex to ensure thread-safety in all SbBlitterDevice-related function
+  // calls.
+  starboard::Mutex mutex;
+};
+
+struct SbBlitterRenderTargetPrivate {
+  // If this SbBlitterRenderTargetPrivate object was created from a swap chain,
+  // we store a reference to it. Otherwise, it's set to NULL.
+  SbBlitterSwapChainPrivate* swap_chain;
+
+  int width;
+
+  int height;
+
+  // We will need to access the config and display of the device used to
+  // create this render target, so we keep track of it.
+  SbBlitterDevicePrivate* device;
+};
+
+struct SbBlitterSwapChainPrivate {
+  SbBlitterRenderTargetPrivate render_target;
+
+  EGLSurface surface;
+};
 
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_
