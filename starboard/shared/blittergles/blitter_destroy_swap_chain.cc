@@ -13,9 +13,28 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <EGL/egl.h>
+
 #include "starboard/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsSwapChainValid(swap_chain)) {
+    SB_DLOG(ERROR) << ": Invalid swap chain.";
+    return false;
+  }
+
+  starboard::ScopedLock lock(swap_chain->render_target.device->mutex);
+
+  eglDestroySurface(swap_chain->render_target.device->display,
+                    swap_chain->surface);
+  if (eglGetError() != EGL_SUCCESS) {
+    SB_DLOG(ERROR) << ": Failed to destroy swap chain.";
+    return false;
+  }
+
+  delete swap_chain;
+
+  return true;
 }
