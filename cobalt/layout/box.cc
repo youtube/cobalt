@@ -563,6 +563,16 @@ Vector2dLayoutUnit Box::GetContentBoxOffsetFromPaddingBox() const {
   return Vector2dLayoutUnit(padding_left(), padding_top());
 }
 
+LayoutUnit Box::GetContentToMarginHorizontal() const {
+  return margin_left() + border_left_width() + padding_left() +
+         padding_right() + border_right_width() + margin_right();
+}
+
+LayoutUnit Box::GetContentToMarginVertical() const {
+  return margin_top() + border_top_width() + padding_top() + padding_bottom() +
+         border_bottom_width() + margin_bottom();
+}
+
 LayoutUnit Box::GetInlineLevelBoxHeight() const { return GetMarginBoxHeight(); }
 
 LayoutUnit Box::GetInlineLevelTopMargin() const { return LayoutUnit(); }
@@ -828,6 +838,8 @@ bool Box::IsRenderedLater(RenderSequence render_sequence,
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
 const AnonymousBlockBox* Box::AsAnonymousBlockBox() const { return NULL; }
+BlockContainerBox* Box::AsBlockContainerBox() { return NULL; }
+const BlockContainerBox* Box::AsBlockContainerBox() const { return NULL; }
 ContainerBox* Box::AsContainerBox() { return NULL; }
 const ContainerBox* Box::AsContainerBox() const { return NULL; }
 TextBox* Box::AsTextBox() { return NULL; }
@@ -1109,6 +1121,12 @@ int Box::GetZIndex() const {
     return base::polymorphic_downcast<cssom::IntegerValue*>(
                computed_style()->z_index().get())->value();
   }
+}
+
+int Box::GetOrder() const {
+  return base::polymorphic_downcast<cssom::IntegerValue*>(
+             computed_style()->order().get())
+      ->value();
 }
 
 bool Box::IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const {

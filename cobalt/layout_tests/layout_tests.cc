@@ -242,6 +242,10 @@ INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-conditional")),
     GetTestName());
+// Custom CSS Flexible Box (https://www.w3.org/TR/css-flexbox-1) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSFlexbox3LayoutTests, Layout,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-flexbox")), GetTestName());
 // Custom CSS Font (https://www.w3.org/TR/css3-fonts/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSS3FontsLayoutTests, Layout,
