@@ -209,6 +209,8 @@
         ],
       },
       'sources': [
+        '<(DEPTH)/starboard/shared/egl/system_egl.cc',
+        '<(DEPTH)/starboard/shared/gles/system_gles2.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_hex_digit.cc',
