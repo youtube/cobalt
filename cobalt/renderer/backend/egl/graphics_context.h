@@ -17,9 +17,6 @@
 
 #include <memory>
 
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -28,6 +25,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

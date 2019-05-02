@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -28,7 +29,7 @@ void ShaderBase::BindAttribLocation(GLuint program, GLuint location,
 }
 
 GLuint ShaderBase::GetUniformLocation(GLuint program, const char* name) {
-  GLint location = glGetUniformLocation(program, name);
+  GLint location = GL_CALL_SIMPLE(glGetUniformLocation(program, name));
   DCHECK_NE(location, -1);
   return static_cast<GLuint>(location);
 }

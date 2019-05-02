@@ -15,12 +15,11 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_DISPLAY_H_
 #define COBALT_RENDERER_BACKEND_EGL_DISPLAY_H_
 
-#include <EGL/egl.h>
-
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_system.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

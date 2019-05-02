@@ -22,6 +22,7 @@
       'target_name': 'renderer',
       'type': 'static_library',
       'sources': [
+        'egl_and_gl.h',
         'fps_overlay.cc',
         'fps_overlay.h',
         'pipeline.cc',

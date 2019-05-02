@@ -34,13 +34,13 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<(DEPTH)/cobalt/renderer/rasterizer/common/common.gyp:common',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/common.gyp:common',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
         '<(DEPTH)/third_party/harfbuzz-ng/harfbuzz.gyp:harfbuzz-ng',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         '<(DEPTH)/third_party/ots/ots.gyp:ots',
-        '<(DEPTH)/cobalt/renderer/rasterizer/common/common.gyp:common',
       ],
     },
   ],

@@ -15,12 +15,11 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_GRAPHICS_SYSTEM_H_
 #define COBALT_RENDERER_BACKEND_EGL_GRAPHICS_SYSTEM_H_
 
-#include <EGL/egl.h>
-
 #include "base/optional.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_system.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
