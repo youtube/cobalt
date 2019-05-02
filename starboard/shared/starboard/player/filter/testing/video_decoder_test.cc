@@ -679,17 +679,17 @@ std::vector<TestParam> GetSupportedTests() {
       auto input_buffer = dmp_reader.GetVideoInputBuffer(0);
       const auto& video_sample_info = input_buffer->video_sample_info();
       if (SbMediaIsVideoSupported(
-              dmp_reader.video_codec(), video_sample_info->frame_width,
-              video_sample_info->frame_height, dmp_reader.video_bitrate(),
-              dmp_reader.video_fps()
+              dmp_reader.video_codec(),
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+              -1, -1, 8, kSbMediaPrimaryIdUnspecified,
+              kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+              video_sample_info->frame_width, video_sample_info->frame_height,
+              dmp_reader.video_bitrate(), dmp_reader.video_fps()
 #if SB_API_VERSION >= 10
-                  ,
+                                              ,
               false
 #endif  // SB_API_VERSION >= 10
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-              ,
-              kSbMediaTransferIdUnspecified
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
               )) {
         test_params.push_back({output_mode, filename});
       }

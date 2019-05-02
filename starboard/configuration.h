@@ -85,11 +85,13 @@
 // `kSbEventTypeNetworkConnect`.
 #define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Add `SbMediaTransferId*` argument |eotf| to `SbMediaIsVideoSupported`, so the
-// platform may indicate support of resolution, bitrate, fps, and codec
-// conditioned on eotf. Also, remove the function
-// `SbMediaIsTransferCharacteristicsSupported()` which is no longer necessary.
-#define SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
+// Refactor `SbMediaIsVideoSupported` to add arguments for profile, level, bit
+// depth, color primaries, transfer characteristics, and matrix coefficients.
+// See comments of `SbMediaIsVideoSupported` for more details.  Also, remove
+// the function `SbMediaIsTransferCharacteristicsSupported()` which is no
+// longer necessary.
+#define SB_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
 
 // Add support for using C++11 standard unordered maps and sets.
 //   By setting SB_HAS_STD_UNORDERED_HASH to 1, a platform can be configured
@@ -690,15 +692,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #endif  // SB_API_VERSION >= 6
 
-#if SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION
-#if defined(SB_HAS_MEDIA_EOTF_CHECK_SUPPORT)
-#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-#error "SB_HAS_MEDIA_EOTF_CHECK_SUPPORT is required in this API version."
-#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-#else   // defined(SB_HAS_MEDIA_EOTF_CHECK_SUPPORT)
-#define SB_HAS_MEDIA_EOTF_CHECK_SUPPORT 1
-#endif  // defined(SB_HAS_MEDIA_EOTF_CHECK_SUPPORT)
-#endif  // SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION
+#if SB_API_VERSION >= SB_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT_VERSION
+#if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#error \
+    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API version."
+#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#else   // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
+#endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#endif  // SB_API_VERSION >= SB_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT_VERSION
 
 #if SB_API_VERSION >= 10
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
