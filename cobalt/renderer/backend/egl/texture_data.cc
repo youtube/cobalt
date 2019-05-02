@@ -14,10 +14,8 @@
 
 #include "cobalt/renderer/backend/egl/texture_data.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

@@ -99,7 +99,7 @@
 
       'dependencies': [
         'generate_shader_impl',
-        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
       ],
 
       'direct_dependent_settings': {

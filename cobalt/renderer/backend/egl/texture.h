@@ -15,12 +15,11 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_TEXTURE_H_
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_H_
 
-#include <GLES2/gl2.h>
-
 #include <memory>
 #include "base/callback.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

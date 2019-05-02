@@ -14,12 +14,10 @@
 
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -64,9 +62,10 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
 
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
-  glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0, format,
-               GL_UNSIGNED_BYTE, data);
-  if (glGetError() != GL_NO_ERROR) {
+  GL_CALL_SIMPLE(glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(),
+                              size.height(), 0, format, GL_UNSIGNED_BYTE,
+                              data));
+  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
     LOG(ERROR) << "Error calling glTexImage2D(size = (" << size.width() << ", "
                << size.height() << "))";
     GL_CALL(glDeleteTextures(1, &texture_handle));
