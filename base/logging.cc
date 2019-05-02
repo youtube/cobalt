@@ -12,6 +12,7 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration.h"
 #include "starboard/file.h"
 #include "starboard/mutex.h"
 #include "starboard/system.h"
@@ -550,8 +551,10 @@ void SetMinLogLevel(int level) {
   g_min_log_level = std::min(LOG_FATAL, level);
 
 #if defined(STARBOARD)
+#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
   starboard::logging::SetMinLogLevel(
       LogLevelToStarboardLogPriority(std::min(LOG_FATAL, level)));
+#endif
 #endif
 }
 
