@@ -24,15 +24,26 @@ namespace starboard {
 namespace media {
 
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec);
-SbMediaVideoCodec GetVideoCodecFromString(const char* codec);
 
-// This function parses an h264 codec in the form of {avc1|avc3}.PPCCLL as
-// specificed by https://tools.ietf.org/html/rfc6381#section-3.3.
-//
-// Note that the leading codec is not necessarily to be "avc1" or "avc3" per
-// spec but this function only parses "avc1" and "avc3".  This function returns
-// false when |codec| doesn't contain a valid codec string.
-bool ParseH264Info(const char* codec, int* width, int* height, int* fps);
+// This function parses the video codec string and returns a codec.  All fields
+// will be filled with information parsed from the codec string when possible,
+// otherwise they will have the following default values:
+//            profile: -1
+//              level: -1
+//          bit_depth: 8
+//         primary_id: kSbMediaPrimaryIdUnspecified
+//        transfer_id: kSbMediaTransferIdUnspecified
+//          matrix_id: kSbMediaMatrixIdUnspecified
+// It returns true when |codec| contains a well-formed codec string, otherwise
+// it returns false.
+bool ParseVideoCodec(const char* codec_string,
+                     SbMediaVideoCodec* codec,
+                     int* profile,
+                     int* level,
+                     int* bit_depth,
+                     SbMediaPrimaryId* primary_id,
+                     SbMediaTransferId* transfer_id,
+                     SbMediaMatrixId* matrix_id);
 
 }  // namespace media
 }  // namespace starboard

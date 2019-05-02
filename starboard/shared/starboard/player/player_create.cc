@@ -70,21 +70,26 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+  const int kDefaultProfile = -1;
+  const int kDefaultLevel = -1;
+  const int kDefaultColorDepth = 8;
   const int kDefaultFrameWidth = 0;
   const int kDefaultFrameHeight = 0;
   const int kDefaultFrameRate = 0;
   if (video_codec != kSbMediaVideoCodecNone &&
-      !SbMediaIsVideoSupported(video_codec, kDefaultFrameWidth,
-                               kDefaultFrameHeight, kDefaultBitRate,
-                               kDefaultFrameRate
+      !SbMediaIsVideoSupported(video_codec,
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+                               kDefaultProfile, kDefaultLevel,
+                               kDefaultColorDepth, kSbMediaPrimaryIdUnspecified,
+                               kSbMediaTransferIdUnspecified,
+                               kSbMediaMatrixIdUnspecified,
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+                               kDefaultFrameWidth, kDefaultFrameHeight,
+                               kDefaultBitRate, kDefaultFrameRate
 #if SB_API_VERSION >= 10
                                ,
                                output_mode == kSbPlayerOutputModeDecodeToTexture
 #endif
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                               ,
-                               kSbMediaTransferIdUnspecified
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                )) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;

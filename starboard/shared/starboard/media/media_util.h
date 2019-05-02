@@ -28,6 +28,11 @@ namespace media {
 
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
 
+bool IsSDRVideo(int bit_depth,
+                SbMediaPrimaryId primary_id,
+                SbMediaTransferId transfer_id,
+                SbMediaMatrixId matrix_id);
+
 // Turns |eotf| into value of SbMediaTransferId.  If |eotf| isn't recognized the
 // function returns kSbMediaTransferIdReserved0.
 // This function supports all eotfs required by YouTube TV HTML5 Technical
