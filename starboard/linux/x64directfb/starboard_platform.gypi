@@ -58,6 +58,12 @@
         '<(DEPTH)/starboard/shared/directfb/window_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rect_to_rect_tiled.cc',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rects_to_rects.cc',
+        '<(DEPTH)/starboard/shared/stub/system_egl.cc',
+        '<(DEPTH)/starboard/shared/stub/system_gles.cc',
+    ],
+    'starboard_platform_sources!': [
+        '<(DEPTH)/starboard/shared/egl/system_egl.cc',
+        '<(DEPTH)/starboard/shared/egl/system_gles2.cc',
     ],
   },
 }
