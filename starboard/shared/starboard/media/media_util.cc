@@ -14,12 +14,11 @@
 
 #include "starboard/shared/starboard/media/media_util.h"
 
-#include <vector>
-
 #include "starboard/character.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -85,10 +84,19 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
   SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
 #endif  // SB_API_VERSION < 10
 
-  SbMediaVideoCodec video_codec = GetVideoCodecFromString(codec.c_str());
-  if (video_codec == kSbMediaVideoCodecNone) {
+  SbMediaVideoCodec video_codec;
+  int profile = -1;
+  int level = -1;
+  int bit_depth = 8;
+  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
+  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
+  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
+
+  if (!ParseVideoCodec(codec.c_str(), &video_codec, &profile, &level,
+                       &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
     return false;
   }
+  SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
 
   if (SbStringGetLength(key_system) != 0) {
     if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone, key_system)) {
@@ -97,19 +105,21 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
   }
 
   std::string eotf = mime_type.GetParamStringValue("eotf", "");
-  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
   if (!eotf.empty()) {
+    SB_LOG_IF(WARNING, transfer_id != kSbMediaTransferIdUnspecified)
+        << "transfer_id " << transfer_id << " set by the codec string \""
+        << codec << "\" will be overwritten by the eotf attribute " << eotf;
     transfer_id = GetTransferIdFromString(eotf);
     // If the eotf is not known, reject immediately - without checking with
     // the platform.
     if (transfer_id == kSbMediaTransferIdUnknown) {
       return false;
     }
-#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
     if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
       return false;
     }
-#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   }
 
   std::string cryptoblockformat =
@@ -120,34 +130,33 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     }
   }
 
-  int width = 0;
-  int height = 0;
-  int fps = 0;
-
-  if (video_codec == kSbMediaVideoCodecH264) {
-    if (!ParseH264Info(codec.c_str(), &width, &height, &fps)) {
-      return false;
-    }
-  }
-
-  width = mime_type.GetParamIntValue("width", width);
-  height = mime_type.GetParamIntValue("height", height);
-  fps = mime_type.GetParamIntValue("framerate", fps);
+  int width = mime_type.GetParamIntValue("width", 0);
+  int height = mime_type.GetParamIntValue("height", 0);
+  int fps = mime_type.GetParamIntValue("framerate", 0);
 
   int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+  if (!SbMediaIsVideoSupported(video_codec, profile, level, bit_depth,
+                               primary_id, transfer_id, matrix_id, width,
+                               height, bitrate, fps
+#if SB_API_VERSION >= 10
+                               ,
+                               decode_to_texture_required
+#endif  // SB_API_VERSION >= 10
+                               )) {
+    return false;
+  }
+#else  //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
 #if SB_API_VERSION >= 10
                                ,
                                decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                               ,
-                               transfer_id
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                )) {
     return false;
   }
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
   switch (video_codec) {
     case kSbMediaVideoCodecNone:
@@ -195,12 +204,38 @@ bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
   return false;
 }
 
-SbMediaTransferId GetTransferIdFromString(const std::string& eotf) {
-  if (eotf == "bt709") {
+bool IsSDRVideo(int bit_depth,
+                SbMediaPrimaryId primary_id,
+                SbMediaTransferId transfer_id,
+                SbMediaMatrixId matrix_id) {
+  if (bit_depth != 8) {
+    return false;
+  }
+
+  if (primary_id != kSbMediaPrimaryIdBt709 &&
+      primary_id != kSbMediaPrimaryIdUnspecified) {
+    return false;
+  }
+
+  if (transfer_id != kSbMediaTransferIdBt709 &&
+      transfer_id != kSbMediaTransferIdUnspecified) {
+    return false;
+  }
+
+  if (matrix_id != kSbMediaMatrixIdBt709 &&
+      matrix_id != kSbMediaMatrixIdUnspecified) {
+    return false;
+  }
+
+  return true;
+}
+
+SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
+  if (transfer_id == "bt709") {
     return kSbMediaTransferIdBt709;
-  } else if (eotf == "smpte2084") {
+  } else if (transfer_id == "smpte2084") {
     return kSbMediaTransferIdSmpteSt2084;
-  } else if (eotf == "arib-std-b67") {
+  } else if (transfer_id == "arib-std-b67") {
     return kSbMediaTransferIdAribStdB67;
   }
   return kSbMediaTransferIdUnknown;
@@ -226,7 +261,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     return kSbMediaSupportTypeNotSupported;
   }
 
-  const std::vector<std::string>& codecs = mime_type.GetCodecs();
+  auto codecs = mime_type.GetCodecs();
 
   // Pre-filter for |key_system|.
   if (SbStringGetLength(key_system) != 0) {

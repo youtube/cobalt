@@ -16,16 +16,26 @@
 
 #include "starboard/configuration.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                                       int profile,
+                                       int level,
+                                       int bit_depth,
+                                       SbMediaPrimaryId primary_id,
+                                       SbMediaTransferId transfer_id,
+                                       SbMediaMatrixId matrix_id,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
                                        int fps,
-                                       bool decode_to_texture_required,
-                                       SbMediaTransferId eotf) {
-  if (eotf != kSbMediaTransferIdBt709 &&
-      eotf != kSbMediaTransferIdUnspecified) {
+                                       bool decode_to_texture_required) {
+  SB_UNREFERENCED_PARAMETER(profile);
+  SB_UNREFERENCED_PARAMETER(level);
+
+  using starboard::shared::starboard::media::IsSDRVideo;
+
+  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     return false;
   }
   if (decode_to_texture_required) {
