@@ -14,7 +14,7 @@
 
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 
-#include <GLES2/gl2ext.h>
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

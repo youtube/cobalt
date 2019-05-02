@@ -27,7 +27,7 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
       ],
@@ -85,10 +85,10 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
         '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/shaders.gyp:shaders',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/rasterizer.gyp:hardware_rasterizer',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
       ],
     },
   ],

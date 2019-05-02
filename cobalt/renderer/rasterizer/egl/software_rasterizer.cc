@@ -16,12 +16,10 @@
 
 #include <memory>
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"

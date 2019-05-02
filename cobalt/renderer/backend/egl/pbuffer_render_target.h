@@ -15,10 +15,9 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
 #define COBALT_RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
 
-#include <EGL/egl.h>
-
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
