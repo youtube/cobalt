@@ -18,11 +18,21 @@
 #include "starboard/media.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 #include "starboard/shared/libvpx/vpx_library_loader.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 using starboard::shared::aom::is_aom_supported;
+using starboard::shared::starboard::media::IsSDRVideo;
 using starboard::shared::vpx::is_vpx_supported;
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+                                       int profile,
+                                       int level,
+                                       int bit_depth,
+                                       SbMediaPrimaryId primary_id,
+                                       SbMediaTransferId transfer_id,
+                                       SbMediaMatrixId matrix_id,
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
@@ -31,17 +41,15 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        ,
                                        bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                                       ,
-                                       SbMediaTransferId eotf
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                        ) {
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-  if (eotf != kSbMediaTransferIdBt709 &&
-      eotf != kSbMediaTransferIdUnspecified) {
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+  SB_UNREFERENCED_PARAMETER(profile);
+  SB_UNREFERENCED_PARAMETER(level);
+
+  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     return false;
   }
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #if SB_API_VERSION >= 10
 #if SB_HAS(BLITTER)
   if (decode_to_texture_required) {

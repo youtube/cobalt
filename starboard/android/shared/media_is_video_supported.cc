@@ -19,10 +19,12 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::SupportedVideoCodecToMimeType;
+using starboard::shared::starboard::media::IsSDRVideo;
 
 namespace {
 
@@ -31,12 +33,9 @@ const jint HDR_TYPE_DOLBY_VISION = 1;
 const jint HDR_TYPE_HDR10 = 2;
 const jint HDR_TYPE_HLG = 3;
 
-bool IsTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
-  // Bt709 and unspecified are assumed to always be supported.
-  if (transfer_id == kSbMediaTransferIdBt709 ||
-      transfer_id == kSbMediaTransferIdUnspecified) {
-    return true;
-  }
+bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
+  SB_DCHECK(transfer_id != kSbMediaTransferIdBt709 &&
+            transfer_id != kSbMediaTransferIdUnspecified);
   // An HDR capable VP9 decoder is needed to handle HDR at all.
   bool has_hdr_capable_vp9_decoder =
       JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
@@ -64,17 +63,26 @@ bool IsTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
 }  // namespace
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                                       int profile,
+                                       int level,
+                                       int bit_depth,
+                                       SbMediaPrimaryId primary_id,
+                                       SbMediaTransferId transfer_id,
+                                       SbMediaMatrixId matrix_id,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
                                        int fps,
-                                       bool decode_to_texture_required,
-                                       SbMediaTransferId eotf) {
-  if (!IsTransferCharacteristicsSupported(eotf)) {
-    return false;
+                                       bool decode_to_texture_required) {
+  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
+    if (!IsHDRTransferCharacteristicsSupported(transfer_id)) {
+      return false;
+    }
   }
   // While not necessarily true, for now we assume that all Android devices
   // can play decode-to-texture video just as well as normal video.
+  SB_UNREFERENCED_PARAMETER(profile);
+  SB_UNREFERENCED_PARAMETER(level);
   SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
 
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
@@ -83,8 +91,8 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-  bool must_support_hdr = (eotf != kSbMediaTransferIdBt709 &&
-                           eotf != kSbMediaTransferIdUnspecified);
+  bool must_support_hdr = (transfer_id != kSbMediaTransferIdBt709 &&
+                           transfer_id != kSbMediaTransferIdUnspecified);
   return env->CallStaticBooleanMethodOrAbort(
              "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
              "(Ljava/lang/String;ZIIIIZ)Z", j_mime.Get(), false, frame_width,

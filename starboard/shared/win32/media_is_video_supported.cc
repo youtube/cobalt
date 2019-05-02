@@ -19,6 +19,8 @@
 #include <mfidl.h>
 #include <wrl/client.h>
 
+#include "starboard/shared/starboard/media/media_util.h"
+
 namespace {
 
 #if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
@@ -76,16 +78,20 @@ bool IsVp9Supported() {
 }  // namespace
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                                       int profile,
+                                       int level,
+                                       int bit_depth,
+                                       SbMediaPrimaryId primary_id,
+                                       SbMediaTransferId transfer_id,
+                                       SbMediaMatrixId matrix_id,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
                                        int fps,
-                                       bool decode_to_texture_required,
-                                       SbMediaTransferId eotf) {
-  if (eotf != kSbMediaTransferIdBt709 &&
-      eotf != kSbMediaTransferIdUnspecified) {
-    return false;
-  }
+                                       bool decode_to_texture_required) {
+  SB_UNREFERENCED_PARAMETER(profile);
+  SB_UNREFERENCED_PARAMETER(level);
+
   // Win32 platforms use decode-to-texture by default so there is no special
   // constraints if decode-to-texture support is specifically required.
   SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
@@ -121,6 +127,10 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
   if (fps > 60) {
+    return false;
+  }
+  using ::starboard::shared::starboard::media::IsSDRVideo;
+  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     return false;
   }
   if (video_codec == kSbMediaVideoCodecH264) {
