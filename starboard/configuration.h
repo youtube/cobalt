@@ -190,6 +190,14 @@
 // gapless outputs in specified frequency.
 #define SB_HAS_ADAPTIVE_AUDIO_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Starboard EGL and GLES interface created to abstract these graphics libaries
+// out of Cobalt. To remove the direct inclusion of EGL and GLES system
+// libraries throughout Cobalt, we need to move this dependency behind a
+// Starboardized API. This API can be found in //starboard/egl.h and
+// //starboard/gles.h. The absence of this flag will cause Cobalt to revert to
+// previous behavior and directly include the system EGL and GLES libraries.
+#define SB_EGL_AND_GLES_INTERFACE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
