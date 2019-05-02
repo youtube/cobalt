@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-
+#include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/skia/include/gpu/gl/GrGLAssembleInterface.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/gl/GrGLUtil.h"
 
-#define REGISTER_GL_FUNCTION(F)                   \
-                                                  \
-  if (0 == strcmp("gl" #F, name)) {               \
-    return reinterpret_cast<GrGLFuncPtr>(&gl##F); \
+#define REGISTER_GL_FUNCTION(F)                                 \
+                                                                \
+  if (0 == strcmp("gl" #F, name)) {                             \
+    return reinterpret_cast<GrGLFuncPtr>(GL_CALL_PREFIX gl##F); \
   }
 
 GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
@@ -134,7 +132,7 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(RenderbufferStorage);
   REGISTER_GL_FUNCTION(GetShaderPrecisionFormat);
 
-  return eglGetProcAddress(name);
+  return EGL_CALL_SIMPLE(eglGetProcAddress(name));
 }
 
 const GrGLInterface* GrGLCreateNativeInterface() {

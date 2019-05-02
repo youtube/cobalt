@@ -16,9 +16,6 @@
 
 #include <memory>
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/render_tree/filter_node.h"
@@ -27,6 +24,7 @@
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"

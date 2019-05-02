@@ -14,10 +14,9 @@
 
 #include "cobalt/renderer/rasterizer/egl/shader_program.h"
 
-#include <GLES2/gl2.h>
-
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -35,7 +34,7 @@ void CompileShader(GLuint handle, const GLchar* source) {
   GL_CALL(glGetShaderiv(handle, GL_COMPILE_STATUS, &compiled));
   if (compiled != GL_TRUE) {
     GLchar log[2048] = {0};
-    glGetShaderInfoLog(handle, arraysize(log) - 1, NULL, log);
+    GL_CALL_SIMPLE(glGetShaderInfoLog(handle, arraysize(log) - 1, NULL, log));
     DLOG(ERROR) << "shader compile error:\n" << log;
     DLOG(ERROR) << "shader source:\n" << source;
   }
@@ -50,13 +49,15 @@ ShaderProgramBase::~ShaderProgramBase() { DCHECK_EQ(handle_, 0); }
 
 void ShaderProgramBase::Create(ShaderBase* vertex_shader,
                                ShaderBase* fragment_shader) {
-  handle_ = glCreateProgram();
+  handle_ = GL_CALL_SIMPLE(glCreateProgram());
 
-  GLuint vertex_shader_handle = glCreateShader(GL_VERTEX_SHADER);
+  GLuint vertex_shader_handle =
+      GL_CALL_SIMPLE(glCreateShader(GL_VERTEX_SHADER));
   CompileShader(vertex_shader_handle, vertex_shader->GetSource());
   GL_CALL(glAttachShader(handle_, vertex_shader_handle));
 
-  GLuint fragment_shader_handle = glCreateShader(GL_FRAGMENT_SHADER);
+  GLuint fragment_shader_handle =
+      GL_CALL_SIMPLE(glCreateShader(GL_FRAGMENT_SHADER));
   CompileShader(fragment_shader_handle, fragment_shader->GetSource());
   GL_CALL(glAttachShader(handle_, fragment_shader_handle));
 
@@ -68,7 +69,7 @@ void ShaderProgramBase::Create(ShaderBase* vertex_shader,
   GL_CALL(glGetProgramiv(handle_, GL_LINK_STATUS, &linked));
   if (linked != GL_TRUE) {
     GLchar log[2048] = {0};
-    glGetProgramInfoLog(handle_, arraysize(log) - 1, NULL, log);
+    GL_CALL_SIMPLE(glGetProgramInfoLog(handle_, arraysize(log) - 1, NULL, log));
     DLOG(ERROR) << "shader link error:\n" << log;
     DLOG(ERROR) << "vertex source:\n" << vertex_shader->GetSource();
     DLOG(ERROR) << "fragment source:\n" << fragment_shader->GetSource();

@@ -15,9 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_GL_FORMAT_CONVERSIONS_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_GL_FORMAT_CONVERSIONS_H_
 
-#include <GLES2/gl2.h>
-
 #include "cobalt/render_tree/image.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
 
 namespace cobalt {

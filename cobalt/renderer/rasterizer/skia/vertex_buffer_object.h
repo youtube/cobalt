@@ -15,12 +15,12 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_VERTEX_BUFFER_OBJECT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_VERTEX_BUFFER_OBJECT_H_
 
-#include <GLES2/gl2.h>
 #include <memory>
 #include <vector>
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/mesh.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

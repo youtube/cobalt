@@ -14,12 +14,11 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_rect_border.h"
 
-#include <GLES2/gl2.h>
-
 #include "base/logging.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
 

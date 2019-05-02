@@ -14,9 +14,6 @@
 
 #include "cobalt/renderer/backend/egl/texture.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
@@ -26,6 +23,7 @@
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

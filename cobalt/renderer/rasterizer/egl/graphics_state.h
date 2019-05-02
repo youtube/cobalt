@@ -15,8 +15,6 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 
-#include <GLES2/gl2.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
@@ -24,6 +22,7 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
