@@ -77,4 +77,30 @@ struct SbBlitterSwapChainPrivate {
   EGLSurface surface;
 };
 
+struct SbBlitterContextPrivate {
+  // Store a reference to the current rendering target.
+  SbBlitterRenderTargetPrivate* current_render_target;
+
+  // If we don't have any information about the display window, this field will
+  // be created with a best-guess EGLConfig.
+  EGLContext egl_context;
+
+  // GL framebuffers can use a dummy EGLSurface if there isn't a surface bound
+  // already.
+  EGLSurface dummy_surface;
+
+  // Whether or not blending is enabled on this context.
+  bool blending_enabled;
+
+  // The current color, used to determine the color of fill rectangles and blit
+  // call color modulation.
+  SbBlitterColor current_color;
+
+  // Whether or not blits should be modulated by the current color.
+  bool modulate_blits_with_color;
+
+  // The current scissor rectangle.
+  SbBlitterRect scissor;
+};
+
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_

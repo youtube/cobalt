@@ -13,9 +13,43 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <EGL/egl.h>
+
+#include <memory>
+
 #include "starboard/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
-  SB_NOTREACHED();
-  return kSbBlitterInvalidContext;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return kSbBlitterInvalidContext;
+  }
+
+  std::unique_ptr<SbBlitterContextPrivate> context(
+      new SbBlitterContextPrivate());
+  context->current_render_target = kSbBlitterInvalidRenderTarget;
+  context->dummy_surface = EGL_NO_SURFACE;
+  context->blending_enabled = false;
+  context->current_color = SbBlitterColorFromRGBA(255, 255, 255, 255);
+  context->modulate_blits_with_color = false;
+  context->scissor = SbBlitterMakeRect(0, 0, 0, 0);
+
+  // If config hasn't been initialized, we defer creation. It's possible that
+  // context will eventually be created with a config that doesn't check for
+  // eglCreateWindowSurface() compatibility.
+  if (device->config == NULL) {
+    context->egl_context = EGL_NO_CONTEXT;
+  } else {
+    starboard::ScopedLock lock(device->mutex);
+    context->egl_context =
+        eglCreateContext(device->display, device->config, EGL_NO_CONTEXT, NULL);
+    if (eglGetError() != EGL_SUCCESS) {
+      SB_DLOG(ERROR) << ": Failed to create EGLContext.";
+      return kSbBlitterInvalidContext;
+    }
+  }
+
+  return context.release();
 }
