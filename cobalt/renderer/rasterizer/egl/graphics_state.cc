@@ -26,18 +26,11 @@ namespace egl {
 
 namespace {
 
-void GLViewport(const math::Rect& viewport, const math::Size& target_size) {
+math::Rect ToGLRect(int x, int y, int width, int height,
+                    const math::Size& target_size) {
   // Incoming origin is top-left, but GL origin is bottom-left, so flip
   // vertically.
-  GL_CALL(glViewport(viewport.x(), target_size.height() - viewport.bottom(),
-                     viewport.width(), viewport.height()));
-}
-
-void GLScissor(const math::Rect& scissor, const math::Size& target_size) {
-  // Incoming origin is top-left, but GL origin is bottom-left, so flip
-  // vertically.
-  GL_CALL(glScissor(scissor.x(), target_size.height() - scissor.bottom(),
-                    scissor.width(), scissor.height()));
+  return math::Rect(x, target_size.height() - (y + height), width, height);
 }
 
 }  // namespace
@@ -182,21 +175,23 @@ void GraphicsState::BindFramebuffer(
 }
 
 void GraphicsState::Viewport(int x, int y, int width, int height) {
-  if (viewport_.x() != x || viewport_.y() != y || viewport_.width() != width ||
-      viewport_.height() != height) {
-    viewport_.SetRect(x, y, width, height);
+  math::Rect new_viewport = ToGLRect(x, y, width, height, render_target_size_);
+  if (viewport_ != new_viewport) {
+    viewport_ = new_viewport;
     if (!state_dirty_) {
-      GLViewport(viewport_, render_target_size_);
+      GL_CALL(glViewport(viewport_.x(), viewport_.y(),
+                         viewport_.width(), viewport_.height()));
     }
   }
 }
 
 void GraphicsState::Scissor(int x, int y, int width, int height) {
-  if (scissor_.x() != x || scissor_.y() != y || scissor_.width() != width ||
-      scissor_.height() != height) {
-    scissor_.SetRect(x, y, width, height);
+  math::Rect new_scissor = ToGLRect(x, y, width, height, render_target_size_);
+  if (scissor_ != new_scissor) {
+    scissor_ = new_scissor;
     if (!state_dirty_) {
-      GLScissor(scissor_, render_target_size_);
+      GL_CALL(glScissor(scissor_.x(), scissor_.y(),
+                        scissor_.width(), scissor_.height()));
     }
   }
 }
@@ -413,8 +408,10 @@ void GraphicsState::Reset() {
   GL_CALL(glDisable(GL_CULL_FACE));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, render_target_handle_));
-  GLViewport(viewport_, render_target_size_);
-  GLScissor(scissor_, render_target_size_);
+  GL_CALL(glViewport(viewport_.x(), viewport_.y(),
+                     viewport_.width(), viewport_.height()));
+  GL_CALL(glScissor(scissor_.x(), scissor_.y(),
+                    scissor_.width(), scissor_.height()));
   GL_CALL(glEnable(GL_SCISSOR_TEST));
 
   array_buffer_handle_ = 0;
