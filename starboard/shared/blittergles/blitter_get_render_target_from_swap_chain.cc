@@ -13,10 +13,18 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
 #include "starboard/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterRenderTarget SbBlitterGetRenderTargetFromSwapChain(
     SbBlitterSwapChain swap_chain) {
-  SB_NOTREACHED();
-  return kSbBlitterInvalidRenderTarget;
+  if (!SbBlitterIsSwapChainValid(swap_chain)) {
+    SB_DLOG(ERROR) << ": Invalid swap chain.";
+    return kSbBlitterInvalidRenderTarget;
+  }
+
+  // Since render_target contains a reference back to the swap_chain,
+  // EGLSurface can be retrieved from render_target.
+  return &swap_chain->render_target;
 }
