@@ -10,8 +10,7 @@
 #include "src/base/platform/platform.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/string.h"
-#define strdup(s) SbStringDuplicate(s)
+#include "src/poems.h"
 #endif  // V8_OS_STARBOARD
 
 namespace v8 {
@@ -39,7 +38,3 @@ char* RelativePath(char** buffer, const char* exec_path, const char* name) {
 
 }  // namespace base
 }  // namespace v8
-
-#if V8_OS_STARBOARD
-#undef strdup
-#endif
