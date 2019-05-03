@@ -22,6 +22,13 @@
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define net_err SbSystemGetLastError()
+#else
+#define net_err errno
+#endif
+
 namespace net {
 
 SslSetClearMask::SslSetClearMask()
@@ -178,8 +185,14 @@ int MapOpenSSLErrorWithDetails(int err,
       return ERR_EARLY_DATA_REJECTED;
     case SSL_ERROR_SYSCALL:
       LOG(ERROR) << "OpenSSL SYSCALL error, earliest error code in "
-                    "error queue: " << ERR_peek_error() << ", errno: "
-                 << errno;
+                    "error queue: "
+                 << ERR_peek_error()
+#if defined(STARBOARD)
+                 << ", SbSystemError: "
+#else
+                 << ", errno: "
+#endif
+                 << net_err;
       return ERR_FAILED;
     case SSL_ERROR_SSL:
       // Walk down the error stack to find an SSL or net error.

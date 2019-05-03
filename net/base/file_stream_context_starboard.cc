@@ -30,6 +30,13 @@
 #include "net/base/net_errors.h"
 #include "starboard/types.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define net_err SbSystemGetLastError()
+#else
+#define net_err errno
+#endif
+
 namespace net {
 
 FileStream::Context::Context(const scoped_refptr<base::TaskRunner>& task_runner)
@@ -87,7 +94,7 @@ FileStream::Context::IOResult FileStream::Context::SeekFileImpl(
     int64_t offset) {
   int64_t res = file_.Seek(base::File::FROM_BEGIN, offset);
   if (res == -1)
-    return IOResult::FromOSError(errno);
+    return IOResult::FromOSError(net_err);
 
   return IOResult(res, 0);
 }
@@ -100,7 +107,7 @@ FileStream::Context::IOResult FileStream::Context::ReadFileImpl(
     int buf_len) {
   int res = file_.ReadAtCurrentPosNoBestEffort(buf->data(), buf_len);
   if (res == -1)
-    return IOResult::FromOSError(errno);
+    return IOResult::FromOSError(net_err);
 
   return IOResult(res, 0);
 }
@@ -110,7 +117,7 @@ FileStream::Context::IOResult FileStream::Context::WriteFileImpl(
     int buf_len) {
   int res = file_.WriteAtCurrentPosNoBestEffort(buf->data(), buf_len);
   if (res == -1)
-    return IOResult::FromOSError(errno);
+    return IOResult::FromOSError(net_err);
 
   return IOResult(res, 0);
 }
