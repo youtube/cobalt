@@ -13,9 +13,20 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <EGL/egl.h>
+
 #include "starboard/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsSwapChainValid(swap_chain)) {
+    SB_DLOG(ERROR) << ": Invalid swap chain.";
+    return false;
+  }
+
+  starboard::ScopedLock lock(swap_chain->render_target.device->mutex);
+  eglSwapBuffers(swap_chain->render_target.device->display,
+                 swap_chain->surface);
+  return eglGetError() == EGL_SUCCESS;
 }
