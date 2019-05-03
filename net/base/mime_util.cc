@@ -27,6 +27,10 @@
 #include "net/http/http_util.h"
 #include "starboard/string.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 using std::string;
 
 namespace net {
