@@ -53,6 +53,10 @@
 #include "build/build_config.h"
 #include "utilities.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 #if defined(HAVE_SYMBOLIZE)
 
 #include <limits>
@@ -453,7 +457,8 @@ class LineReader {
   void operator=(const LineReader&);
 
   char *FindLineFeed() {
-    return reinterpret_cast<char *>(memchr(bol_, '\n', eod_ - bol_));
+    return const_cast<char*>(
+        reinterpret_cast<const char*>(memchr(bol_, '\n', eod_ - bol_)));
   }
 
   bool BufferIsEmpty() {
