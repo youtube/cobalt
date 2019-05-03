@@ -1569,20 +1569,17 @@ void HTMLElement::UpdateUiNavigationType() {
             base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
             base::Unretained(base::MessageLoop::current()->task_runner().get()),
             FROM_HERE,
-            base::Passed(base::BindOnce(&HTMLElement::OnUiNavBlur,
-                                        base::AsWeakPtr(this)))),
+            base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
         base::Bind(
             base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
             base::Unretained(base::MessageLoop::current()->task_runner().get()),
             FROM_HERE,
-            base::Passed(base::BindOnce(&HTMLElement::OnUiNavFocus,
-                                        base::AsWeakPtr(this)))),
+            base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
         base::Bind(
             base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
             base::Unretained(base::MessageLoop::current()->task_runner().get()),
             FROM_HERE,
-            base::Passed(base::BindOnce(&HTMLElement::OnUiNavScroll,
-                                        base::AsWeakPtr(this)))));
+            base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
     ui_nav_item_->SetEnabled(false);
