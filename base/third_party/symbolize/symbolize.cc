@@ -55,6 +55,8 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/system.h"
+#define abort SbSystemBreakIntoDebugger
 #endif
 
 #if defined(HAVE_SYMBOLIZE)
