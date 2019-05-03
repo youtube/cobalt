@@ -15,9 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 
-#include <memory>
-
 #include <GLES2/gl2.h>
+
+#include <memory>
 
 #include "base/basictypes.h"
 #include "cobalt/math/matrix3_f.h"
@@ -66,12 +66,10 @@ class GraphicsState {
   // Set the viewport. If changing render targets, then be sure to
   // BindFramebuffer() before calling this.
   void Viewport(int x, int y, int width, int height);
-  const math::Rect& GetViewport() const { return viewport_; }
 
   // Set the scissor box. If changing render targets, then be sure to
   // BindFramebuffer() before calling this.
   void Scissor(int x, int y, int width, int height);
-  const math::Rect& GetScissor() const { return scissor_; }
 
   // Control blending state.
   // Default = disabled.
