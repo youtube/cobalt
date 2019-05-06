@@ -30,6 +30,7 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
   std::unique_ptr<SbBlitterContextPrivate> context(
       new SbBlitterContextPrivate());
   context->current_render_target = kSbBlitterInvalidRenderTarget;
+  context->device = device;
   context->dummy_surface = EGL_NO_SURFACE;
   context->blending_enabled = false;
   context->current_color = SbBlitterColorFromRGBA(255, 255, 255, 255);
@@ -42,10 +43,11 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
   if (device->config == NULL) {
     context->egl_context = EGL_NO_CONTEXT;
   } else {
+    EGLint context_attrib_list[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
     starboard::ScopedLock lock(device->mutex);
-    context->egl_context =
-        eglCreateContext(device->display, device->config, EGL_NO_CONTEXT, NULL);
-    if (eglGetError() != EGL_SUCCESS) {
+    context->egl_context = eglCreateContext(
+        device->display, device->config, EGL_NO_CONTEXT, context_attrib_list);
+    if (context->egl_context == EGL_NO_CONTEXT) {
       SB_DLOG(ERROR) << ": Failed to create EGLContext.";
       return kSbBlitterInvalidContext;
     }
