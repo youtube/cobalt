@@ -82,7 +82,7 @@ SB_EXPORT uint64_t SbByteSwapU64(uint64_t value);
 }  // extern "C"
 #endif
 
-#if defined(SB_CPP_API_REFACTORING)
+#if defined(SB_EXT_API_REFACTORING_VERSION)
 #include "starboard/common/byte_swap.h"
 #endif
 
