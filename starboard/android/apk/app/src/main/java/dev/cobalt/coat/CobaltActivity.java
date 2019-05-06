@@ -84,9 +84,11 @@ public abstract class CobaltActivity extends NativeActivity {
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
-    keyboardEditor = new KeyboardEditor(this);
-    addContentView(
-        keyboardEditor, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (KeyboardInputConnection.nativeHasOnScreenKeyboard()) {
+      keyboardEditor = new KeyboardEditor(this);
+      addContentView(
+          keyboardEditor, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    }
   }
 
   /**
