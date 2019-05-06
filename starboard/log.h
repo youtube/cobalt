@@ -109,7 +109,7 @@ SB_EXPORT bool SbLogIsTty();
 }  // extern "C"
 #endif
 
-#if defined(SB_CPP_API_REFACTORING)
+#if defined(SB_EXT_API_REFACTORING_VERSION)
 #include "starboard/common/log.h"
 #endif
 
