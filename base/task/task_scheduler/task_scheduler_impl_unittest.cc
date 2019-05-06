@@ -782,6 +782,13 @@ TEST_F(TaskSchedulerImplTest, MAYBE_IdentifiableStacks) {
   scheduler_.FlushForTesting();
 }
 
+// This is a flaky test. The scheduler workers with SHARED thread mode will
+// be joined on exit but those with DEDICATED thread mode will only have its
+// exit conditional event signaled and therefore will exit
+// asynchronously and this test does not have any logic to ensure that
+// all the scheduler workers running on dedicated threads exit before
+// the test finishes.
+#if !defined(STARBOARD)
 TEST_F(TaskSchedulerImplTest, SchedulerWorkerObserver) {
   testing::StrictMock<test::MockSchedulerWorkerObserver> observer;
   set_scheduler_worker_observer(&observer);
@@ -865,6 +872,7 @@ TEST_F(TaskSchedulerImplTest, SchedulerWorkerObserver) {
 
   TearDown();
 }
+#endif
 
 }  // namespace internal
 }  // namespace base
