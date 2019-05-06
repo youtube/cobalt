@@ -47,10 +47,7 @@ class TranslateFunction : public TransformFunction {
     kPercentage,
   };
 
-  TranslateFunction(Axis axis, const scoped_refptr<PropertyValue>& offset)
-      : axis_(axis), offset_(offset) {
-    DCHECK(offset);
-  }
+  TranslateFunction(Axis axis, const scoped_refptr<PropertyValue>& offset);
 
   void Accept(TransformFunctionVisitor* visitor) const override;
 

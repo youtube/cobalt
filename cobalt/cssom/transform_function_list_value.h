@@ -15,12 +15,14 @@
 #ifndef COBALT_CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
 #define COBALT_CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
-#include "cobalt/cssom/scoped_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_matrix.h"
 #include "cobalt/math/matrix3_f.h"
@@ -31,11 +33,39 @@ namespace cssom {
 // A list of transform functions that define how transformation is applied
 // to the coordinate system an HTML element renders in.
 //   https://www.w3.org/TR/css-transforms-1/#typedef-transform-list
-class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
+class TransformFunctionListValue : public PropertyValue {
  public:
-  explicit TransformFunctionListValue(
-      ScopedListValue<TransformFunction>::Builder value)
-      : ScopedListValue<TransformFunction>(std::move(value)) {}
+  class Builder {
+   private:
+    typedef std::vector<std::unique_ptr<TransformFunction>> FunctionList;
+
+   public:
+    typedef FunctionList::const_iterator const_iterator;
+
+    Builder();
+    Builder(Builder&& other);
+
+    void emplace_back(TransformFunction* function);
+    void push_back(std::unique_ptr<TransformFunction>&& function);
+    const_iterator begin() const { return functions_.begin(); }
+    const_iterator end() const { return functions_.end(); }
+    size_t size() const { return functions_.size(); }
+    const std::unique_ptr<TransformFunction>& operator[](size_t index) const {
+      return functions_[index];
+    }
+
+    // This checks whether any function in the list has the given trait.
+    bool HasTrait(TransformFunction::Trait trait) const {
+      return (traits_ & trait) != 0;
+    }
+
+   private:
+    FunctionList functions_;
+    uint32 traits_;
+  };
+
+  explicit TransformFunctionListValue(Builder&& value)
+      : value_(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTransformFunctionList(this);
@@ -45,10 +75,16 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
 
   std::string ToString() const override;
 
+  bool operator==(const TransformFunctionListValue& other) const;
+
+  const Builder& value() const { return value_; }
+
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformFunctionListValue);
 
  private:
   ~TransformFunctionListValue() override {}
+
+  const Builder value_;
 };
 
 }  // namespace cssom

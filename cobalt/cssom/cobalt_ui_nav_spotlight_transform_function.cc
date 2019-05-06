@@ -21,12 +21,16 @@ namespace cobalt {
 namespace cssom {
 
 CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction()
-    : zero_scale_(0.0f, 0.0f) {}
+    : zero_scale_(0.0f, 0.0f) {
+  traits_ = kTraitIsDynamic;
+}
 
 CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction(
     const scoped_refptr<ui_navigation::NavItem>& focus_item)
     : zero_scale_(0.0f, 0.0f),
-      ui_nav_item_(focus_item) {}
+      ui_nav_item_(focus_item) {
+  traits_ = kTraitIsDynamic;
+}
 
 std::string CobaltUiNavSpotlightTransformFunction::ToString() const {
   return "-cobalt-ui-nav-spotlight-transform";
