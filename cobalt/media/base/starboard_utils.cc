@@ -64,6 +64,8 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecVp8;
     case kCodecVP9:
       return kSbMediaVideoCodecVp9;
+    case kCodecHEVC:
+      return kSbMediaVideoCodecH265;
     case kCodecAV1:
 #if SB_API_VERSION >= SB_HAS_AV1_VERSION
       return kSbMediaVideoCodecAv1;
