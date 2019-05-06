@@ -23,6 +23,15 @@
 namespace cobalt {
 namespace cssom {
 
+TranslateFunction::TranslateFunction(Axis axis,
+    const scoped_refptr<PropertyValue>& offset)
+    : axis_(axis), offset_(offset) {
+  DCHECK(offset);
+  if (offset_type() == kLength && offset_as_length()->IsUnitRelative()) {
+    traits_ = kTraitUsesRelativeUnits;
+  }
+}
+
 TranslateFunction::OffsetType TranslateFunction::offset_type() const {
   if (offset_->GetTypeId() == base::GetTypeId<LengthValue>()) {
     return kLength;

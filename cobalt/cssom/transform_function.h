@@ -30,11 +30,28 @@ class TransformFunctionVisitor;
 //   https://www.w3.org/TR/css-transforms-1/#transform-functions
 class TransformFunction : public base::PolymorphicEquatable {
  public:
+  enum Trait {
+    // The value of this transform function changes over time. Custom transform
+    // functions (e.g. those that work with UI navigation) may have this trait.
+    // Standard transform functions do not have this trait.
+    kTraitIsDynamic = 1 << 0,
+
+    // This function uses LengthValue and LengthValue::IsUnitRelative() is true.
+    // Use of PercentageValue does not equate to having this trait.
+    kTraitUsesRelativeUnits = 1 << 1,
+  };
+
   virtual void Accept(TransformFunctionVisitor* visitor) const = 0;
 
   virtual std::string ToString() const = 0;
 
   virtual ~TransformFunction() {}
+
+  uint32 Traits() const { return traits_; }
+  bool HasTrait(Trait trait) const { return (traits_ & trait) != 0; }
+
+ protected:
+  uint32 traits_ = 0;
 };
 
 }  // namespace cssom
