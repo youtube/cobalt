@@ -17,6 +17,25 @@
 namespace cobalt {
 namespace cssom {
 
+TransformFunctionListValue::Builder::Builder()
+    : traits_(0) {}
+
+TransformFunctionListValue::Builder::Builder(Builder&& other)
+    : functions_(std::move(other.functions_)),
+      traits_(other.traits_) {}
+
+void TransformFunctionListValue::Builder::emplace_back(
+    TransformFunction* function) {
+  traits_ |= function->Traits();
+  functions_.emplace_back(function);
+}
+
+void TransformFunctionListValue::Builder::push_back(
+    std::unique_ptr<TransformFunction>&& function) {
+  traits_ |= function->Traits();
+  functions_.push_back(std::move(function));
+}
+
 TransformMatrix TransformFunctionListValue::ToMatrix() const {
   // Iterate through all transforms in the transform list appending them
   // to our transform_matrix.
@@ -36,6 +55,21 @@ std::string TransformFunctionListValue::ToString() const {
     result.append(value()[i]->ToString());
   }
   return result;
+}
+
+bool TransformFunctionListValue::operator==(
+    const TransformFunctionListValue& other) const {
+  if (value().size() != other.value().size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < value().size(); ++i) {
+    if (!value()[i]->Equals(*(other.value()[i]))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace cssom

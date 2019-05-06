@@ -2624,56 +2624,6 @@ void ComputedTransformOriginProvider::VisitPropertyList(
       new PropertyListValue(std::move(transform_origin_builder));
 }
 
-namespace {
-
-// Functionality to check if a transform contains any relative units, such as
-// "em" or "rem".
-
-class TransformFunctionContainsRelativeUnitVisitor
-    : public TransformFunctionVisitor {
- public:
-  TransformFunctionContainsRelativeUnitVisitor()
-      : contains_relative_unit_(false) {}
-
-  void VisitMatrix(const MatrixFunction* matrix_function) override {
-    SB_UNREFERENCED_PARAMETER(matrix_function);
-  }
-  void VisitRotate(const RotateFunction* rotate_function) override {
-    SB_UNREFERENCED_PARAMETER(rotate_function);
-  }
-  void VisitScale(const ScaleFunction* scale_function) override {
-    SB_UNREFERENCED_PARAMETER(scale_function);
-  }
-  void VisitTranslate(const TranslateFunction* translate_function) override {
-    contains_relative_unit_ =
-        translate_function->offset_type() == TranslateFunction::kLength &&
-        translate_function->offset_as_length()->IsUnitRelative();
-  }
-
-  bool contains_relative_unit() const { return contains_relative_unit_; }
-
- private:
-  bool contains_relative_unit_;
-};
-
-bool TransformListContainsRelativeUnits(
-    TransformFunctionListValue* transform_function_list) {
-  for (TransformFunctionListValue::Builder::const_iterator iter =
-           transform_function_list->value().begin();
-       iter != transform_function_list->value().end(); ++iter) {
-    TransformFunction* transform_function = iter->get();
-
-    TransformFunctionContainsRelativeUnitVisitor contains_ems_visitor;
-    transform_function->Accept(&contains_ems_visitor);
-    if (contains_ems_visitor.contains_relative_unit()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
-
 class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedTransformProvider(const LengthValue* computed_font_size,
@@ -2707,7 +2657,8 @@ ComputedTransformProvider::ComputedTransformProvider(
 
 void ComputedTransformProvider::VisitTransformFunctionList(
     TransformFunctionListValue* transform_function_list) {
-  if (!TransformListContainsRelativeUnits(transform_function_list)) {
+  if (!transform_function_list->value().HasTrait(
+      TransformFunction::kTraitUsesRelativeUnits)) {
     // If the transform list contains no transforms that use relative units,
     // then we do not need to do anything and we can pass through the existing
     // transform.
