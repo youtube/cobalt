@@ -13,9 +13,15 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
 #include "starboard/log.h"
 
 int SbBlitterGetMaxContexts(SbBlitterDevice device) {
-  SB_NOTREACHED();
-  return -1;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return -1;
+  }
+
+  // To simplify the implementation, only one context will be allowed.
+  return 1;
 }
