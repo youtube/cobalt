@@ -81,6 +81,9 @@ struct SbBlitterContextPrivate {
   // Store a reference to the current rendering target.
   SbBlitterRenderTargetPrivate* current_render_target;
 
+  // Keep track of the device used to create this context.
+  SbBlitterDevicePrivate* device;
+
   // If we don't have any information about the display window, this field will
   // be created with a best-guess EGLConfig.
   EGLContext egl_context;
