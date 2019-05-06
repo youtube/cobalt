@@ -115,19 +115,28 @@ void FormatGuesstimator::InitializeAsProgressive(const GURL& url) {
 
 void FormatGuesstimator::InitializeAsMp4(const base::FilePath& path) {
   std::vector<uint8_t> header = ReadHeader(path);
-  if (FindString(header, "ftypmp") == 4) {
+  if (FindString(header, "ftyp") == -1) {
+    return;
+  }
+  if (FindString(header, "dash") == -1) {
     progressive_url_ = net::FilePathToFileURL(path);
     mime_ = "video/mp4";
     codecs_ = "avc1.640028, mp4a.40.2";
     return;
   }
-  if (FindString(header, "ftypdash") == -1) {
-    return;
-  }
   if (FindString(header, "vide") != -1) {
-    adaptive_path_ = path;
-    mime_ = "video/mp4";
-    codecs_ = "avc1.640028";
+    if (FindString(header, "avcC") != -1) {
+      adaptive_path_ = path;
+      mime_ = "video/mp4";
+      codecs_ = "avc1.640028";
+      return;
+    }
+    if (FindString(header, "hvcC") != -1) {
+      adaptive_path_ = path;
+      mime_ = "video/mp4";
+      codecs_ = "hvc1.1.6.H150.90";
+      return;
+    }
     return;
   }
   if (FindString(header, "soun") != -1) {
