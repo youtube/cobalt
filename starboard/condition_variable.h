@@ -100,7 +100,7 @@ SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 }  // extern "C"
 #endif
 
-#if defined(SB_CPP_API_REFACTORING)
+#if defined(SB_EXT_API_REFACTORING_VERSION)
 #include "starboard/common/condition_variable.h"
 #endif
 
