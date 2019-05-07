@@ -13,9 +13,17 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <GLES2/gl2.h>
+
 #include "starboard/log.h"
 
 bool SbBlitterFlushContext(SbBlitterContext context) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << ": Invalid context.";
+    return false;
+  }
+
+  glFlush();
+  return glGetError() == GL_NO_ERROR;
 }
