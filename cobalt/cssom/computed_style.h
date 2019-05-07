@@ -23,6 +23,7 @@ namespace cobalt {
 namespace cssom {
 
 class CSSComputedStyleData;
+class MutableCSSComputedStyleData;
 class CSSComputedStyleDeclaration;
 
 // The computed value is the result of resolving the specified value,
@@ -34,7 +35,7 @@ class CSSComputedStyleDeclaration;
 // parent_computed_style_declaration and root_computed_style cannot be NULL.
 // property_key_to_base_url_map can be NULL.
 void PromoteToComputedStyle(
-    const scoped_refptr<CSSComputedStyleData>& specified_style,
+    const scoped_refptr<MutableCSSComputedStyleData>& specified_style,
     const scoped_refptr<CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,

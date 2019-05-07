@@ -353,6 +353,16 @@ class Box : public base::RefCounted<Box> {
   virtual LayoutUnit GetInlineLevelBoxHeight() const;
   virtual LayoutUnit GetInlineLevelTopMargin() const;
 
+  // When an element is blockified, that should not affect the static position.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  //   https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
+  // Return true if the element's outer display type was inline before any
+  // optional blockificiation has occurred.
+  bool is_inline_before_blockification() const {
+    return css_computed_style_declaration_->data()
+        ->is_inline_before_blockification();
+  }
+
   // Attempts to wrap the box based upon the provided wrap policies.
   // If |is_line_existence_justified| is true, then the line does not require
   // additional content before wrapping is possible. Otherwise, content

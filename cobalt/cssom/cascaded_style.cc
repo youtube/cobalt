@@ -32,7 +32,7 @@ void SetPropertyValuesOfHigherPrecedence(
     const CascadePrecedence& precedence_normal,
     const CascadePrecedence& precedence_important,
     base::Optional<CascadePrecedence>* cascade_precedences,
-    scoped_refptr<CSSComputedStyleData>* cascaded_style,
+    scoped_refptr<MutableCSSComputedStyleData>* cascaded_style,
     bool* background_image_refreshed) {
   const CSSDeclaredStyleData::PropertyValues& property_values =
       style->declared_property_values();
@@ -60,12 +60,12 @@ void SetPropertyValuesOfHigherPrecedence(
 
 }  // namespace
 
-scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
+scoped_refptr<MutableCSSComputedStyleData> PromoteToCascadedStyle(
     const scoped_refptr<const CSSDeclaredStyleData>& inline_style,
     RulesWithCascadePrecedence* matching_rules,
     GURLMap* property_key_to_base_url_map) {
-  scoped_refptr<CSSComputedStyleData> cascaded_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> cascaded_style(
+      new MutableCSSComputedStyleData());
 
   // A sparse vector of CascadePrecedence values for all possible property
   // values.

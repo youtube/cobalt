@@ -62,7 +62,7 @@ class KeyframeEffectReadOnly : public AnimationEffectReadOnly {
     // updating the provided CSS style to reflect the output animated style,
     // given the current iteration progress and current_iteration.
     void ApplyAnimation(
-        const scoped_refptr<cssom::CSSComputedStyleData>& in_out_style,
+        const scoped_refptr<cssom::MutableCSSComputedStyleData>& in_out_style,
         double iteration_progress, double current_iteration) const;
 
     // Applies this effect to a single property value, accepting the underlying
