@@ -33,7 +33,7 @@ namespace layout {
 // copied.
 bool PropagateBackgroundStyleAndTestIfChanged(
     const scoped_refptr<dom::HTMLElement>& element,
-    scoped_refptr<cssom::CSSComputedStyleData> destination_style) {
+    scoped_refptr<cssom::MutableCSSComputedStyleData> destination_style) {
   if (!element || !element->computed_style() ||
       element->computed_style()->display() == cssom::KeywordValue::GetNone()) {
     return false;
@@ -80,8 +80,8 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
   InitialContainingBlockCreationResults results;
   results.background_style_source = NULL;
 
-  scoped_refptr<cssom::CSSComputedStyleData> initial_containing_block_style =
-      new cssom::CSSComputedStyleData();
+  scoped_refptr<cssom::MutableCSSComputedStyleData>
+      initial_containing_block_style = new cssom::MutableCSSComputedStyleData();
   initial_containing_block_style->AssignFrom(
       default_initial_containing_block_style);
 

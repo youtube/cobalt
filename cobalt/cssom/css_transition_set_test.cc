@@ -70,12 +70,14 @@ scoped_refptr<TimingFunctionListValue> MakeTimingFunctionWithSingleProperty(
       new TimingFunctionListValue(std::move(timing_function_list)));
 }
 
-scoped_refptr<CSSComputedStyleData> CreateTestComputedData() {
-  scoped_refptr<CSSComputedStyleData> initial_data = new CSSComputedStyleData();
+scoped_refptr<MutableCSSComputedStyleData> CreateTestComputedData() {
+  scoped_refptr<MutableCSSComputedStyleData> initial_data =
+      new MutableCSSComputedStyleData();
 
   initial_data->set_background_color(new RGBAColorValue(0xffffffff));
   initial_data->set_color(new RGBAColorValue(0x00000000));
   initial_data->set_display(KeywordValue::GetBlock());
+  initial_data->set_is_inline_before_blockification(false);
   initial_data->set_font_family(
       MakePropertyListWithSingleProperty(new StringValue("Roboto")));
   initial_data->set_font_size(new LengthValue(16, kPixelsUnit));
@@ -103,8 +105,8 @@ class TransitionSetTest : public testing::Test {
   }
 
  protected:
-  scoped_refptr<CSSComputedStyleData> start_;
-  scoped_refptr<CSSComputedStyleData> end_;
+  scoped_refptr<MutableCSSComputedStyleData> start_;
+  scoped_refptr<MutableCSSComputedStyleData> end_;
 };
 
 TEST_F(TransitionSetTest, TransitionSetStartsEmpty) {
@@ -277,7 +279,7 @@ TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
       MakePropertyNameListWithSingleProperty(kAllProperty));
-  scoped_refptr<CSSComputedStyleData> end2 = CreateTestComputedData();
+  scoped_refptr<MutableCSSComputedStyleData> end2 = CreateTestComputedData();
   end2->set_background_color(new RGBAColorValue(0x000000ff));
   end2->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end2->set_transition_property(
@@ -355,7 +357,7 @@ TEST_F(TransitionSetTest, ClearingTransitionsWorks) {
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
       MakePropertyNameListWithSingleProperty(kAllProperty));
-  scoped_refptr<CSSComputedStyleData> end2 = CreateTestComputedData();
+  scoped_refptr<MutableCSSComputedStyleData> end2 = CreateTestComputedData();
   end2->set_background_color(new RGBAColorValue(0x000000ff));
   end2->set_transition_duration(MakeTimeListWithSingleTime(0.0f));
   end2->set_transition_property(

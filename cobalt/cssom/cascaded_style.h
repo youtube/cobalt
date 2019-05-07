@@ -22,7 +22,7 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSComputedStyleData;
+class MutableCSSComputedStyleData;
 class CSSDeclaredStyleData;
 
 // The cascaded value represents the result of the cascade: it is the declared
@@ -34,7 +34,7 @@ class CSSDeclaredStyleData;
 // applies the declared values contained in the rules on top of the inline style
 // according to the cascading algorithm.
 //   https://www.w3.org/TR/css-cascade-3/#cascading
-scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
+scoped_refptr<MutableCSSComputedStyleData> PromoteToCascadedStyle(
     const scoped_refptr<const CSSDeclaredStyleData>& inline_style,
     RulesWithCascadePrecedence* matching_rules,
     GURLMap* property_key_to_base_url_map);

@@ -23,13 +23,15 @@ namespace dom {
 
 scoped_refptr<cssom::CSSComputedStyleData> CreateInitialComputedStyle(
     const math::Size& viewport_size) {
-  scoped_refptr<cssom::CSSComputedStyleData>
+  scoped_refptr<cssom::MutableCSSComputedStyleData>
       initial_containing_block_computed_style =
-          new cssom::CSSComputedStyleData();
+          new cssom::MutableCSSComputedStyleData();
   initial_containing_block_computed_style->set_background_color(
       new cssom::RGBAColorValue(0x00000000));
   initial_containing_block_computed_style->set_display(
       cssom::KeywordValue::GetBlock());
+  initial_containing_block_computed_style->set_is_inline_before_blockification(
+      false);
   initial_containing_block_computed_style->set_width(new cssom::LengthValue(
       static_cast<float>(viewport_size.width()), cssom::kPixelsUnit));
   initial_containing_block_computed_style->set_height(new cssom::LengthValue(
