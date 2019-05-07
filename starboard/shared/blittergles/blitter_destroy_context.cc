@@ -30,7 +30,8 @@ bool SbBlitterDestroyContext(SbBlitterContext context) {
 
     // For now, we assume context is already unbound, as we bind and unbind
     // context after every Blitter API call that uses it.
-    // TODO: Optimize so rebinding is not needed for every API call.
+    // TODO: Optimize eglMakeCurrent calls, so rebinding is not needed for every
+    // API call.
     eglDestroyContext(context->device->display, context->egl_context);
     if (eglGetError() != EGL_SUCCESS) {
       SB_DLOG(ERROR) << ": Failed to destroy egl_context.";
