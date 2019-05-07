@@ -54,6 +54,12 @@ class Entry;
 
 namespace net {
 
+#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
+
+class HttpCache {};
+
+#else
+
 class HttpNetworkSession;
 class HttpResponseInfo;
 class IOBuffer;
@@ -621,6 +627,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
 
   DISALLOW_COPY_AND_ASSIGN(HttpCache);
 };
+
+#endif  // HTTP_CACHE_DISABLED_FOR_STARBOARD
 
 }  // namespace net
 

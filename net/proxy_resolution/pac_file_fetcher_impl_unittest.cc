@@ -107,9 +107,14 @@ class RequestContext : public URLRequestContext {
     session_context.http_server_properties = http_server_properties();
     storage_.set_http_network_session(std::make_unique<HttpNetworkSession>(
         HttpNetworkSession::Params(), session_context));
+#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
+    storage_.set_http_transaction_factory(
+        std::make_unique<HttpNetworkLayer>(storage_.http_network_session()));
+#else
     storage_.set_http_transaction_factory(std::make_unique<HttpCache>(
         storage_.http_network_session(), HttpCache::DefaultBackend::InMemory(0),
         false));
+#endif
     std::unique_ptr<URLRequestJobFactoryImpl> job_factory =
         std::make_unique<URLRequestJobFactoryImpl>();
 #if !BUILDFLAG(DISABLE_FILE_SUPPORT)

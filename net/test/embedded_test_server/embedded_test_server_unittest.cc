@@ -7,7 +7,7 @@
 #include <tuple>
 #include <utility>
 
-#ifdef STARBOARD
+#if defined(STARBOARD)
 #include "base/bind_helpers.h"
 #endif
 #include "base/macros.h"
@@ -589,7 +589,13 @@ TEST_P(EmbeddedTestServerThreadingTest, RunTest) {
   EmbeddedTestServerThreadingTestDelegate delegate(std::get<0>(GetParam()),
                                                    std::get<1>(GetParam()),
                                                    std::get<2>(GetParam()));
+#if defined(STARBOARD)
+  // Some platforms have low default stack size that can't support unit tests.
+  ASSERT_TRUE(
+      base::PlatformThread::Create(256 * 1024, &delegate, &thread_handle));
+#else
   ASSERT_TRUE(base::PlatformThread::Create(0, &delegate, &thread_handle));
+#endif
   base::PlatformThread::Join(thread_handle);
 }
 

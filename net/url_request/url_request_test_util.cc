@@ -138,9 +138,15 @@ void TestURLRequestContext::Init() {
     session_context.channel_id_service = channel_id_service();
     context_storage_.set_http_network_session(
         std::make_unique<HttpNetworkSession>(session_params, session_context));
+#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
+    context_storage_.set_http_transaction_factory(
+        std::make_unique<HttpNetworkLayer>(
+            context_storage_.http_network_session()));
+#else
     context_storage_.set_http_transaction_factory(std::make_unique<HttpCache>(
         context_storage_.http_network_session(),
         HttpCache::DefaultBackend::InMemory(0), true /* is_main_cache */));
+#endif
   }
   if (!http_user_agent_settings() && create_default_http_user_agent_settings_) {
     context_storage_.set_http_user_agent_settings(

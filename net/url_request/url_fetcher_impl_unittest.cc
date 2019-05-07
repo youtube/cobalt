@@ -365,6 +365,11 @@ class URLFetcherTest : public TestWithScopedTaskEnvironment {
       network_thread_.reset(new base::Thread("network thread"));
       base::Thread::Options network_thread_options;
       network_thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
+#if defined(STARBOARD)
+      // Not setting the stack size high enough can cause hard-to-debug memory
+      // writing errors on some platforms.
+      network_thread_options.stack_size = 256 * 1024;
+#endif
       bool result = network_thread_->StartWithOptions(network_thread_options);
       CHECK(result);
     }
