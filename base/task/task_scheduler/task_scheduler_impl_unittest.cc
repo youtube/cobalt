@@ -695,6 +695,12 @@ void VerifyHasStringOnStack(const std::string& query) {
 
 }  // namespace
 
+// Starboard does not support switching thread priority and therefore background
+// scheduler worker that has TaskPriority::BEST_EFFORT can not be used.
+// See CanUseBackgroundPriorityForSchedulerWorker() for more details.
+// And Starboard can also reproduce the StackTrace().ToString() crash described
+// down below on Linux.
+#ifndef STARBOARD
 #if defined(OS_POSIX)
 // Many POSIX bots flakily crash on |debug::StackTrace().ToString()|,
 // https://crbug.com/840429.
@@ -714,45 +720,34 @@ void VerifyHasStringOnStack(const std::string& query) {
 TEST_F(TaskSchedulerImplTest, MAYBE_IdentifiableStacks) {
   StartTaskScheduler();
 
-#if !defined(STARBOARD)
-  // The tests with TaskPriority::BEST_EFFORT want to create background
-  // scheduler worker that has low priority. They are disabled because for
-  // Starboard, lock does not handle thread priorities of multiple threads and
-  // starboard does not support changing thread priorities(see
-  // CanUseBackgroundPriorityForSchedulerWorker() for more details).
   scheduler_.CreateSequencedTaskRunnerWithTraits({})->PostTask(
       FROM_HERE, BindOnce(&VerifyHasStringOnStack, "RunPooledWorker"));
   scheduler_.CreateSequencedTaskRunnerWithTraits({TaskPriority::BEST_EFFORT})
       ->PostTask(FROM_HERE, BindOnce(&VerifyHasStringOnStack,
                                      "RunBackgroundPooledWorker"));
-#endif
 
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {}, SingleThreadTaskRunnerThreadMode::SHARED)
       ->PostTask(FROM_HERE,
                  BindOnce(&VerifyHasStringOnStack, "RunSharedWorker"));
-#if !defined(STARBOARD)
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {TaskPriority::BEST_EFFORT}, SingleThreadTaskRunnerThreadMode::SHARED)
       ->PostTask(FROM_HERE, BindOnce(&VerifyHasStringOnStack,
                                      "RunBackgroundSharedWorker"));
-#endif
 
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {}, SingleThreadTaskRunnerThreadMode::DEDICATED)
       ->PostTask(FROM_HERE,
                  BindOnce(&VerifyHasStringOnStack, "RunDedicatedWorker"));
-#if !defined(STARBOARD)
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {TaskPriority::BEST_EFFORT},
           SingleThreadTaskRunnerThreadMode::DEDICATED)
       ->PostTask(FROM_HERE, BindOnce(&VerifyHasStringOnStack,
                                      "RunBackgroundDedicatedWorker"));
-#endif
 
 #if defined(OS_WIN)
   scheduler_
@@ -781,6 +776,7 @@ TEST_F(TaskSchedulerImplTest, MAYBE_IdentifiableStacks) {
 
   scheduler_.FlushForTesting();
 }
+#endif  // STARBOARD
 
 // This is a flaky test. The scheduler workers with SHARED thread mode will
 // be joined on exit but those with DEDICATED thread mode will only have its
