@@ -2532,7 +2532,10 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   // Verify assumptions made by the Windows implementation:
   // 1. The current directory always exists.
   // 2. The root directory always exists.
+#if !defined(STARBOARD)
+  // For Starboard, directory "." does not mean anything.
   ASSERT_TRUE(DirectoryExists(FilePath(FilePath::kCurrentDirectory)));
+#endif
   FilePath top_level = test_root;
   while (top_level != top_level.DirName()) {
     top_level = top_level.DirName();
@@ -2541,8 +2544,11 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 
   // Given these assumptions hold, it should be safe to
   // test that "creating" these directories succeeds.
+#if !defined(STARBOARD)
+  // For Starboard, directory "." does not mean anything.
   EXPECT_TRUE(CreateDirectory(
       FilePath(FilePath::kCurrentDirectory)));
+#endif
   EXPECT_TRUE(CreateDirectory(top_level));
 
 #if defined(OS_WIN)
