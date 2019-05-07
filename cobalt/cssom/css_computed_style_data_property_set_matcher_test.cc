@@ -37,10 +37,12 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      NoDeclaredPropertiesInPropertySetShouldMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSansSerif());
 
   PropertyKeyVector properties;
@@ -52,7 +54,8 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      SingleDeclaredPropertyMissingFromSecondStyleDataShouldNotMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
 
   scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
@@ -68,7 +71,8 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
      SingleDeclaredPropertyMissingFromFirstStyleDataShouldNotMatch) {
   scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSansSerif());
 
   PropertyKeyVector properties;
@@ -80,10 +84,12 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      SingleEqualDeclaredPropertyShouldMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSerif());
 
   PropertyKeyVector properties;
@@ -96,10 +102,12 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      DeclaredPropertiesMissingFromFirstStyleDataShouldNotMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSerif());
   style_2->set_font_style(FontStyleValue::GetItalic());
 
@@ -113,11 +121,13 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      DeclaredPropertiesMissingFromSecondStyleDataShouldNotMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
   style_1->set_font_style(FontStyleValue::GetItalic());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSerif());
 
   PropertyKeyVector properties;
@@ -130,11 +140,13 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      UnequalDeclaredPropertiesShouldNotMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
   style_1->set_font_style(FontStyleValue::GetItalic());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSerif());
   style_2->set_font_style(FontStyleValue::GetOblique());
 
@@ -148,11 +160,13 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      DifferentDeclaredPropertiesShouldNotMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
   style_1->set_font_style(FontStyleValue::GetItalic());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSerif());
   style_2->set_font_weight(FontWeightValue::GetBoldAka700());
 
@@ -167,12 +181,14 @@ TEST(CSSComputedStyleDataPropertySetMatcherTest,
 
 TEST(CSSComputedStyleDataPropertySetMatcherTest,
      EqualDeclaredPropertiesShouldMatch) {
-  scoped_refptr<CSSComputedStyleData> style_1 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_1 =
+      new MutableCSSComputedStyleData();
   style_1->set_font_family(KeywordValue::GetSerif());
   style_1->set_font_style(FontStyleValue::GetItalic());
   style_1->set_font_weight(FontWeightValue::GetLightAka300());
 
-  scoped_refptr<CSSComputedStyleData> style_2 = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_2 =
+      new MutableCSSComputedStyleData();
   style_2->set_font_family(KeywordValue::GetSerif());
   style_2->set_font_style(FontStyleValue::GetItalic());
   style_2->set_font_weight(FontWeightValue::GetBoldAka700());

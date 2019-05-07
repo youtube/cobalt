@@ -2799,7 +2799,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
 class CalculateComputedStyleContext {
  public:
   CalculateComputedStyleContext(
-      CSSComputedStyleData* cascaded_style,
+      MutableCSSComputedStyleData* cascaded_style,
       const scoped_refptr<CSSComputedStyleDeclaration>&
           parent_computed_style_declaration,
       const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
@@ -2817,6 +2817,17 @@ class CalculateComputedStyleContext {
   // Updates the property specified by the iterator to its computed value.
   void SetComputedStyleForProperty(PropertyKey key,
                                    scoped_refptr<PropertyValue>* value);
+
+  // For certain elements, the computed value of display becomes 'block'.
+  //   https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
+  // This is amended by flexbox for 'inline-flex' and 'flex'.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-containers
+  // Flex items are also modified in this way.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-items
+  // In CSS Display 3 (which Cobalt does not yet implement), this process is
+  // called 'blockification'/'blockify'.
+  //   https://www.w3.org/TR/css-display-3/#blockify
+  void BlockifyIfNeeded();
 
  private:
   // Immediately promote the specified property key to computed value (if
@@ -2864,7 +2875,7 @@ class CalculateComputedStyleContext {
 
   // The style that, during the scope of CalculateComputedStyleContext, is
   // promoted from being a cascaded style to a computed style.
-  CSSComputedStyleData* cascaded_style_;
+  MutableCSSComputedStyleData* cascaded_style_;
 
   // The parent computed style.
   const CSSComputedStyleData& parent_computed_style_;
@@ -2902,6 +2913,33 @@ void CalculateComputedStyleContext::SetComputedStyleForProperty(
     HandleSpecifiedValue(key, value);
   }
   OnComputedStyleCalculated(key, *value);
+}
+
+void CalculateComputedStyleContext::BlockifyIfNeeded() {
+  auto display = cascaded_style_->display();
+  bool is_inline_flex = display == KeywordValue::GetInlineFlex();
+  bool is_inline = display == KeywordValue::GetInline() ||
+                   display == KeywordValue::GetInlineBlock() || is_inline_flex;
+  auto parent_display = parent_computed_style_.display();
+  bool parent_is_flex_container =
+      parent_display == KeywordValue::GetFlex() ||
+      parent_display == KeywordValue::GetInlineFlex();
+
+  // Blockification is applied for elements with in inline outer display type
+  // inline when they are either absolutely positioned,
+  //   https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
+  // or when they are flex items.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-items
+  // Since children of flex containers are either flex items or absolutely
+  // positioned, we apply blockification for all flex children.
+  if (is_inline && (IsAbsolutelyPositioned() || parent_is_flex_container)) {
+    if (is_inline_flex) {
+      cascaded_style_->set_display(KeywordValue::GetFlex());
+    } else {
+      cascaded_style_->set_display(KeywordValue::GetBlock());
+    }
+  }
+  cascaded_style_->set_is_inline_before_blockification(is_inline);
 }
 
 bool CalculateComputedStyleContext::IsAbsolutelyPositioned() {
@@ -3082,22 +3120,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       (*value)->Accept(&shadow_provider);
       *value = shadow_provider.computed_shadow();
     } break;
-    case kDisplayProperty: {
-      // According to https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
-      // "inline" and "inline-block" values of "display" become "block" if
-      // "position" is "absolute" or "fixed".
-      // TODO: Modify this logic so that the original display value is
-      // not lost. Being unable to determine the original value breaks static
-      // positioning of "inline" and "inline-block" values with absolute
-      // positioning, because they are treated as block boxes but are supposed
-      // to placed at the position they would be in the normal flow.
-      // https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-      if ((*value == KeywordValue::GetInline() ||
-           *value == KeywordValue::GetInlineBlock()) &&
-          IsAbsolutelyPositioned()) {
-        *value = KeywordValue::GetBlock();
-      }
-    } break;
     case kFlexBasisProperty: {
       ComputedFlexBasisProvider flex_basis_provider(
           GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
@@ -3260,6 +3282,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderTopStyleProperty:
     case kColorProperty:
     case kContentProperty:
+    case kDisplayProperty:
     case kFilterProperty:
     case kFlexDirectionProperty:
     case kFlexGrowProperty:
@@ -3463,7 +3486,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
 }  // namespace
 
 void PromoteToComputedStyle(
-    const scoped_refptr<CSSComputedStyleData>& cascaded_style,
+    const scoped_refptr<MutableCSSComputedStyleData>& cascaded_style,
     const scoped_refptr<CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
@@ -3506,13 +3529,15 @@ void PromoteToComputedStyle(
     calculate_computed_style_context.SetComputedStyleForProperty(
         property_value_iterator->first, &property_value_iterator->second);
   }
+
+  calculate_computed_style_context.BlockifyIfNeeded();
 }
 
 scoped_refptr<CSSComputedStyleData> GetComputedStyleOfAnonymousBox(
     const scoped_refptr<CSSComputedStyleDeclaration>&
         parent_computed_style_declaration) {
-  scoped_refptr<CSSComputedStyleData> computed_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> computed_style =
+      new MutableCSSComputedStyleData();
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
                          parent_computed_style_declaration->data(),
                          math::Size(), NULL);

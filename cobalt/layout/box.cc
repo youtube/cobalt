@@ -743,7 +743,8 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 namespace {
 void PopulateBaseStyleForBackgroundColorNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForBackgroundNode() should match
   // the properties used by SetupBackgroundNodeFromStyle().
   destination_style->set_background_color(source_style->background_color());
@@ -811,7 +812,8 @@ Border CreateBorderFromStyle(
 
 void PopulateBaseStyleForBorderNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForBorderNode() should match the
   // properties used by SetupBorderNodeFromStyle().
 
@@ -854,7 +856,8 @@ void SetupBorderNodeFromStyle(
 
 void PopulateBaseStyleForOutlineNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForOutlineNode() should match the
   // properties used by SetupOutlineNodeFromStyle().
 
@@ -910,6 +913,11 @@ void Box::DumpProperties(std::ostream* stream) const {
   *stream << "padding=" << padding_insets_.ToString() << " ";
 
   *stream << "baseline=" << GetBaselineOffsetFromTopMarginEdge() << " ";
+  if (css_computed_style_declaration_ &&
+      css_computed_style_declaration_->data()) {
+    *stream << "is_inline_before_blockification="
+            << is_inline_before_blockification() << " ";
+  }
 }
 
 void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
@@ -1204,7 +1212,8 @@ void SetupMatrixTransformNodeFromCSSTransform(
 
 void PopulateBaseStyleForFilterNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForFilterNode() should match the
   // properties used by SetupFilterNodeFromStyle().
   destination_style->set_opacity(source_style->opacity());
@@ -1724,8 +1733,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     // Specifically animate only the matrix transform node with the CSS
     // transform.
     // Do AddAnimations<MatrixTransformNode> with a custom end time.
-    scoped_refptr<cssom::CSSComputedStyleData> base_style =
-        new cssom::CSSComputedStyleData();
+    scoped_refptr<cssom::MutableCSSComputedStyleData> base_style =
+        new cssom::MutableCSSComputedStyleData();
     base_style->set_transform(computed_style()->transform());
     base_style->set_transform_origin(computed_style()->transform_origin());
     web_animations::BakedAnimationSet baked_animation_set(

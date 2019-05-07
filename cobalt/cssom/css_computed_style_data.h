@@ -62,9 +62,6 @@ class CSSComputedStyleData
   CSSComputedStyleData();
   ~CSSComputedStyleData();
 
-  void SetPropertyValue(const PropertyKey key,
-                        const scoped_refptr<PropertyValue>& value);
-
   // TODO: Define types of the properties more precisely using
   // non-intrusive visitors, like boost::variant (which can serve as inspiration
   // for our own base::variant).
@@ -87,678 +84,365 @@ class CSSComputedStyleData
   const scoped_refptr<PropertyValue>& align_content() const {
     return GetPropertyValueReference(kAlignContentProperty);
   }
-  void set_align_content(const scoped_refptr<PropertyValue>& align_content) {
-    SetPropertyValue(kAlignContentProperty, align_content);
-  }
 
   const scoped_refptr<PropertyValue>& align_items() const {
     return GetPropertyValueReference(kAlignItemsProperty);
-  }
-  void set_align_items(const scoped_refptr<PropertyValue>& align_items) {
-    SetPropertyValue(kAlignItemsProperty, align_items);
   }
 
   const scoped_refptr<PropertyValue>& align_self() const {
     return GetPropertyValueReference(kAlignSelfProperty);
   }
-  void set_align_self(const scoped_refptr<PropertyValue>& align_self) {
-    SetPropertyValue(kAlignSelfProperty, align_self);
-  }
 
   const scoped_refptr<PropertyValue>& animation_delay() const {
     return GetPropertyValueReference(kAnimationDelayProperty);
-  }
-  void set_animation_delay(
-      const scoped_refptr<PropertyValue>& animation_delay) {
-    SetPropertyValue(kAnimationDelayProperty, animation_delay);
   }
 
   const scoped_refptr<PropertyValue>& animation_direction() const {
     return GetPropertyValueReference(kAnimationDirectionProperty);
   }
-  void set_animation_direction(
-      const scoped_refptr<PropertyValue>& animation_direction) {
-    SetPropertyValue(kAnimationDirectionProperty, animation_direction);
-  }
 
   const scoped_refptr<PropertyValue>& animation_duration() const {
     return GetPropertyValueReference(kAnimationDurationProperty);
-  }
-  void set_animation_duration(
-      const scoped_refptr<PropertyValue>& animation_duration) {
-    SetPropertyValue(kAnimationDurationProperty, animation_duration);
   }
 
   const scoped_refptr<PropertyValue>& animation_fill_mode() const {
     return GetPropertyValueReference(kAnimationFillModeProperty);
   }
-  void set_animation_fill_mode(
-      const scoped_refptr<PropertyValue>& animation_fill_mode) {
-    SetPropertyValue(kAnimationFillModeProperty, animation_fill_mode);
-  }
 
   const scoped_refptr<PropertyValue>& animation_iteration_count() const {
     return GetPropertyValueReference(kAnimationIterationCountProperty);
-  }
-  void set_animation_iteration_count(
-      const scoped_refptr<PropertyValue>& animation_iteration_count) {
-    SetPropertyValue(kAnimationIterationCountProperty,
-                     animation_iteration_count);
   }
 
   const scoped_refptr<PropertyValue>& animation_name() const {
     return GetPropertyValueReference(kAnimationNameProperty);
   }
-  void set_animation_name(const scoped_refptr<PropertyValue>& animation_name) {
-    SetPropertyValue(kAnimationNameProperty, animation_name);
-  }
 
   const scoped_refptr<PropertyValue>& animation_timing_function() const {
     return GetPropertyValueReference(kAnimationTimingFunctionProperty);
-  }
-  void set_animation_timing_function(
-      const scoped_refptr<PropertyValue>& animation_timing_function) {
-    SetPropertyValue(kAnimationTimingFunctionProperty,
-                     animation_timing_function);
   }
 
   const scoped_refptr<PropertyValue>& background_color() const {
     return GetPropertyValueReference(kBackgroundColorProperty);
   }
-  void set_background_color(
-      const scoped_refptr<PropertyValue>& background_color) {
-    SetPropertyValue(kBackgroundColorProperty, background_color);
-  }
 
   const scoped_refptr<PropertyValue>& background_image() const {
     return GetPropertyValueReference(kBackgroundImageProperty);
-  }
-  void set_background_image(
-      const scoped_refptr<PropertyValue>& background_image) {
-    SetPropertyValue(kBackgroundImageProperty, background_image);
   }
 
   const scoped_refptr<PropertyValue>& background_position() const {
     return GetPropertyValueReference(kBackgroundPositionProperty);
   }
-  void set_background_position(
-      const scoped_refptr<PropertyValue>& background_position) {
-    SetPropertyValue(kBackgroundPositionProperty, background_position);
-  }
 
   const scoped_refptr<PropertyValue>& background_repeat() const {
     return GetPropertyValueReference(kBackgroundRepeatProperty);
-  }
-  void set_background_repeat(
-      const scoped_refptr<PropertyValue>& background_repeat) {
-    SetPropertyValue(kBackgroundRepeatProperty, background_repeat);
   }
 
   const scoped_refptr<PropertyValue>& background_size() const {
     return GetPropertyValueReference(kBackgroundSizeProperty);
   }
-  void set_background_size(
-      const scoped_refptr<PropertyValue>& background_size) {
-    SetPropertyValue(kBackgroundSizeProperty, background_size);
-  }
 
   const scoped_refptr<PropertyValue>& border_top_color() const {
     return GetPropertyValueReference(kBorderTopColorProperty);
-  }
-  void set_border_top_color(
-      const scoped_refptr<PropertyValue>& border_top_color) {
-    SetPropertyValue(kBorderTopColorProperty, border_top_color);
   }
 
   const scoped_refptr<PropertyValue>& border_right_color() const {
     return GetPropertyValueReference(kBorderRightColorProperty);
   }
-  void set_border_right_color(
-      const scoped_refptr<PropertyValue>& border_right_color) {
-    SetPropertyValue(kBorderRightColorProperty, border_right_color);
-  }
 
   const scoped_refptr<PropertyValue>& border_bottom_color() const {
     return GetPropertyValueReference(kBorderBottomColorProperty);
-  }
-  void set_border_bottom_color(
-      const scoped_refptr<PropertyValue>& border_bottom_color) {
-    SetPropertyValue(kBorderBottomColorProperty, border_bottom_color);
   }
 
   const scoped_refptr<PropertyValue>& border_left_color() const {
     return GetPropertyValueReference(kBorderLeftColorProperty);
   }
-  void set_border_left_color(
-      const scoped_refptr<PropertyValue>& border_left_color) {
-    SetPropertyValue(kBorderLeftColorProperty, border_left_color);
-  }
 
   const scoped_refptr<PropertyValue>& border_top_style() const {
     return GetPropertyValueReference(kBorderTopStyleProperty);
-  }
-  void set_border_top_style(
-      const scoped_refptr<PropertyValue>& border_top_style) {
-    SetPropertyValue(kBorderTopStyleProperty, border_top_style);
   }
 
   const scoped_refptr<PropertyValue>& border_right_style() const {
     return GetPropertyValueReference(kBorderRightStyleProperty);
   }
-  void set_border_right_style(
-      const scoped_refptr<PropertyValue>& border_right_style) {
-    SetPropertyValue(kBorderRightStyleProperty, border_right_style);
-  }
 
   const scoped_refptr<PropertyValue>& border_bottom_style() const {
     return GetPropertyValueReference(kBorderBottomStyleProperty);
-  }
-  void set_border_bottom_style(
-      const scoped_refptr<PropertyValue>& border_bottom_style) {
-    SetPropertyValue(kBorderBottomStyleProperty, border_bottom_style);
   }
 
   const scoped_refptr<PropertyValue>& border_left_style() const {
     return GetPropertyValueReference(kBorderLeftStyleProperty);
   }
-  void set_border_left_style(
-      const scoped_refptr<PropertyValue>& border_left_style) {
-    SetPropertyValue(kBorderLeftStyleProperty, border_left_style);
-  }
 
   const scoped_refptr<PropertyValue>& border_top_width() const {
     return GetPropertyValueReference(kBorderTopWidthProperty);
-  }
-  void set_border_top_width(
-      const scoped_refptr<PropertyValue>& border_top_width) {
-    SetPropertyValue(kBorderTopWidthProperty, border_top_width);
   }
 
   const scoped_refptr<PropertyValue>& border_right_width() const {
     return GetPropertyValueReference(kBorderRightWidthProperty);
   }
-  void set_border_right_width(
-      const scoped_refptr<PropertyValue>& border_right_width) {
-    SetPropertyValue(kBorderRightWidthProperty, border_right_width);
-  }
 
   const scoped_refptr<PropertyValue>& border_bottom_width() const {
     return GetPropertyValueReference(kBorderBottomWidthProperty);
-  }
-  void set_border_bottom_width(
-      const scoped_refptr<PropertyValue>& border_bottom_width) {
-    SetPropertyValue(kBorderBottomWidthProperty, border_bottom_width);
   }
 
   const scoped_refptr<PropertyValue>& border_left_width() const {
     return GetPropertyValueReference(kBorderLeftWidthProperty);
   }
-  void set_border_left_width(
-      const scoped_refptr<PropertyValue>& border_left_width) {
-    SetPropertyValue(kBorderLeftWidthProperty, border_left_width);
-  }
 
   const scoped_refptr<PropertyValue>& border_top_left_radius() const {
     return GetPropertyValueReference(kBorderTopLeftRadiusProperty);
-  }
-  void set_border_top_left_radius(
-      const scoped_refptr<PropertyValue>& border_top_left_radius) {
-    SetPropertyValue(kBorderTopLeftRadiusProperty, border_top_left_radius);
   }
 
   const scoped_refptr<PropertyValue>& border_top_right_radius() const {
     return GetPropertyValueReference(kBorderTopRightRadiusProperty);
   }
-  void set_border_top_right_radius(
-      const scoped_refptr<PropertyValue>& border_top_right_radius) {
-    SetPropertyValue(kBorderTopRightRadiusProperty, border_top_right_radius);
-  }
 
   const scoped_refptr<PropertyValue>& border_bottom_right_radius() const {
     return GetPropertyValueReference(kBorderBottomRightRadiusProperty);
-  }
-  void set_border_bottom_right_radius(
-      const scoped_refptr<PropertyValue>& border_bottom_right_radius) {
-    SetPropertyValue(kBorderBottomRightRadiusProperty,
-                     border_bottom_right_radius);
   }
 
   const scoped_refptr<PropertyValue>& border_bottom_left_radius() const {
     return GetPropertyValueReference(kBorderBottomLeftRadiusProperty);
   }
-  void set_border_bottom_left_radius(
-      const scoped_refptr<PropertyValue>& border_bottom_left_radius) {
-    SetPropertyValue(kBorderBottomLeftRadiusProperty,
-                     border_bottom_left_radius);
-  }
 
   const scoped_refptr<PropertyValue>& bottom() const {
     return GetPropertyValueReference(kBottomProperty);
-  }
-  void set_bottom(const scoped_refptr<PropertyValue>& bottom) {
-    SetPropertyValue(kBottomProperty, bottom);
   }
 
   const scoped_refptr<PropertyValue>& box_shadow() const {
     return GetPropertyValueReference(kBoxShadowProperty);
   }
-  void set_box_shadow(const scoped_refptr<PropertyValue>& box_shadow) {
-    SetPropertyValue(kBoxShadowProperty, box_shadow);
-  }
 
   const scoped_refptr<PropertyValue>& color() const {
     return GetPropertyValueReference(kColorProperty);
-  }
-  void set_color(const scoped_refptr<PropertyValue>& color) {
-    SetPropertyValue(kColorProperty, color);
   }
 
   const scoped_refptr<PropertyValue>& content() const {
     return GetPropertyValueReference(kContentProperty);
   }
-  void set_content(const scoped_refptr<PropertyValue>& content) {
-    SetPropertyValue(kContentProperty, content);
-  }
 
   const scoped_refptr<PropertyValue>& display() const {
     return GetPropertyValueReference(kDisplayProperty);
-  }
-  void set_display(const scoped_refptr<PropertyValue>& display) {
-    SetPropertyValue(kDisplayProperty, display);
   }
 
   const scoped_refptr<PropertyValue>& filter() const {
     return GetPropertyValueReference(kFilterProperty);
   }
-  void set_filter(const scoped_refptr<PropertyValue>& filter) {
-    SetPropertyValue(kFilterProperty, filter);
-  }
 
   const scoped_refptr<PropertyValue>& flex_basis() const {
     return GetPropertyValueReference(kFlexBasisProperty);
-  }
-  void set_flex_basis(const scoped_refptr<PropertyValue>& flex_basis) {
-    SetPropertyValue(kFlexBasisProperty, flex_basis);
   }
 
   const scoped_refptr<PropertyValue>& flex_direction() const {
     return GetPropertyValueReference(kFlexDirectionProperty);
   }
-  void set_flex_direction(const scoped_refptr<PropertyValue>& flex_direction) {
-    SetPropertyValue(kFlexDirectionProperty, flex_direction);
-  }
 
   const scoped_refptr<PropertyValue>& flex_grow() const {
     return GetPropertyValueReference(kFlexGrowProperty);
-  }
-  void set_flex_grow(const scoped_refptr<PropertyValue>& flex_grow) {
-    SetPropertyValue(kFlexGrowProperty, flex_grow);
   }
 
   const scoped_refptr<PropertyValue>& flex_shrink() const {
     return GetPropertyValueReference(kFlexShrinkProperty);
   }
-  void set_flex_shrink(const scoped_refptr<PropertyValue>& flex_shrink) {
-    SetPropertyValue(kFlexShrinkProperty, flex_shrink);
-  }
 
   const scoped_refptr<PropertyValue>& flex_wrap() const {
     return GetPropertyValueReference(kFlexWrapProperty);
-  }
-  void set_flex_wrap(const scoped_refptr<PropertyValue>& flex_wrap) {
-    SetPropertyValue(kFlexWrapProperty, flex_wrap);
   }
 
   const scoped_refptr<PropertyValue>& font_family() const {
     return GetPropertyValueReference(kFontFamilyProperty);
   }
-  void set_font_family(const scoped_refptr<PropertyValue>& font_family) {
-    SetPropertyValue(kFontFamilyProperty, font_family);
-  }
 
   const scoped_refptr<PropertyValue>& font_size() const {
     return GetPropertyValueReference(kFontSizeProperty);
-  }
-  void set_font_size(const scoped_refptr<PropertyValue>& font_size) {
-    SetPropertyValue(kFontSizeProperty, font_size);
   }
 
   const scoped_refptr<PropertyValue>& font_style() const {
     return GetPropertyValueReference(kFontStyleProperty);
   }
-  void set_font_style(const scoped_refptr<PropertyValue>& font_style) {
-    SetPropertyValue(kFontStyleProperty, font_style);
-  }
 
   const scoped_refptr<PropertyValue>& font_weight() const {
     return GetPropertyValueReference(kFontWeightProperty);
-  }
-  void set_font_weight(const scoped_refptr<PropertyValue>& font_weight) {
-    SetPropertyValue(kFontWeightProperty, font_weight);
   }
 
   const scoped_refptr<PropertyValue>& height() const {
     return GetPropertyValueReference(kHeightProperty);
   }
-  void set_height(const scoped_refptr<PropertyValue>& height) {
-    SetPropertyValue(kHeightProperty, height);
-  }
 
   const scoped_refptr<PropertyValue>& justify_content() const {
     return GetPropertyValueReference(kJustifyContentProperty);
-  }
-  void set_justify_content(
-      const scoped_refptr<PropertyValue>& justify_content) {
-    SetPropertyValue(kJustifyContentProperty, justify_content);
   }
 
   const scoped_refptr<PropertyValue>& left() const {
     return GetPropertyValueReference(kLeftProperty);
   }
-  void set_left(const scoped_refptr<PropertyValue>& left) {
-    SetPropertyValue(kLeftProperty, left);
-  }
 
   const scoped_refptr<PropertyValue>& line_height() const {
     return GetPropertyValueReference(kLineHeightProperty);
-  }
-  void set_line_height(const scoped_refptr<PropertyValue>& line_height) {
-    SetPropertyValue(kLineHeightProperty, line_height);
   }
 
   const scoped_refptr<PropertyValue>& margin_bottom() const {
     return GetPropertyValueReference(kMarginBottomProperty);
   }
-  void set_margin_bottom(const scoped_refptr<PropertyValue>& margin_bottom) {
-    SetPropertyValue(kMarginBottomProperty, margin_bottom);
-  }
 
   const scoped_refptr<PropertyValue>& margin_left() const {
     return GetPropertyValueReference(kMarginLeftProperty);
-  }
-  void set_margin_left(const scoped_refptr<PropertyValue>& margin_left) {
-    SetPropertyValue(kMarginLeftProperty, margin_left);
   }
 
   const scoped_refptr<PropertyValue>& margin_right() const {
     return GetPropertyValueReference(kMarginRightProperty);
   }
-  void set_margin_right(const scoped_refptr<PropertyValue>& margin_right) {
-    SetPropertyValue(kMarginRightProperty, margin_right);
-  }
 
   const scoped_refptr<PropertyValue>& margin_top() const {
     return GetPropertyValueReference(kMarginTopProperty);
-  }
-  void set_margin_top(const scoped_refptr<PropertyValue>& margin_top) {
-    SetPropertyValue(kMarginTopProperty, margin_top);
   }
 
   const scoped_refptr<PropertyValue>& max_height() const {
     return GetPropertyValueReference(kMaxHeightProperty);
   }
-  void set_max_height(const scoped_refptr<PropertyValue>& max_height) {
-    SetPropertyValue(kMaxHeightProperty, max_height);
-  }
 
   const scoped_refptr<PropertyValue>& max_width() const {
     return GetPropertyValueReference(kMaxWidthProperty);
-  }
-  void set_max_width(const scoped_refptr<PropertyValue>& max_width) {
-    SetPropertyValue(kMaxWidthProperty, max_width);
   }
 
   const scoped_refptr<PropertyValue>& min_height() const {
     return GetPropertyValueReference(kMinHeightProperty);
   }
-  void set_min_height(const scoped_refptr<PropertyValue>& min_height) {
-    SetPropertyValue(kMinHeightProperty, min_height);
-  }
 
   const scoped_refptr<PropertyValue>& min_width() const {
     return GetPropertyValueReference(kMinWidthProperty);
-  }
-  void set_min_width(const scoped_refptr<PropertyValue>& min_width) {
-    SetPropertyValue(kMinWidthProperty, min_width);
   }
 
   const scoped_refptr<PropertyValue>& opacity() const {
     return GetPropertyValueReference(kOpacityProperty);
   }
-  void set_opacity(const scoped_refptr<PropertyValue>& opacity) {
-    SetPropertyValue(kOpacityProperty, opacity);
-  }
 
   const scoped_refptr<PropertyValue>& order() const {
     return GetPropertyValueReference(kOrderProperty);
-  }
-  void set_order(const scoped_refptr<PropertyValue>& order) {
-    SetPropertyValue(kOrderProperty, order);
   }
 
   const scoped_refptr<PropertyValue>& outline_color() const {
     return GetPropertyValueReference(kOutlineColorProperty);
   }
-  void set_outline_color(const scoped_refptr<PropertyValue>& outline_color) {
-    SetPropertyValue(kOutlineColorProperty, outline_color);
-  }
 
   const scoped_refptr<PropertyValue>& outline_style() const {
     return GetPropertyValueReference(kOutlineStyleProperty);
-  }
-  void set_outline_style(const scoped_refptr<PropertyValue>& outline_style) {
-    SetPropertyValue(kOutlineStyleProperty, outline_style);
   }
 
   const scoped_refptr<PropertyValue>& outline_width() const {
     return GetPropertyValueReference(kOutlineWidthProperty);
   }
-  void set_outline_width(const scoped_refptr<PropertyValue>& outline_width) {
-    SetPropertyValue(kOutlineWidthProperty, outline_width);
-  }
 
   const scoped_refptr<PropertyValue>& overflow() const {
     return GetPropertyValueReference(kOverflowProperty);
-  }
-  void set_overflow(const scoped_refptr<PropertyValue>& overflow) {
-    SetPropertyValue(kOverflowProperty, overflow);
   }
 
   const scoped_refptr<PropertyValue>& overflow_wrap() const {
     return GetPropertyValueReference(kOverflowWrapProperty);
   }
-  void set_overflow_wrap(const scoped_refptr<PropertyValue>& overflow_wrap) {
-    SetPropertyValue(kOverflowWrapProperty, overflow_wrap);
-  }
 
   const scoped_refptr<PropertyValue>& padding_bottom() const {
     return GetPropertyValueReference(kPaddingBottomProperty);
-  }
-  void set_padding_bottom(const scoped_refptr<PropertyValue>& padding_bottom) {
-    SetPropertyValue(kPaddingBottomProperty, padding_bottom);
   }
 
   const scoped_refptr<PropertyValue>& padding_left() const {
     return GetPropertyValueReference(kPaddingLeftProperty);
   }
-  void set_padding_left(const scoped_refptr<PropertyValue>& padding_left) {
-    SetPropertyValue(kPaddingLeftProperty, padding_left);
-  }
 
   const scoped_refptr<PropertyValue>& padding_right() const {
     return GetPropertyValueReference(kPaddingRightProperty);
-  }
-  void set_padding_right(const scoped_refptr<PropertyValue>& padding_right) {
-    SetPropertyValue(kPaddingRightProperty, padding_right);
   }
 
   const scoped_refptr<PropertyValue>& padding_top() const {
     return GetPropertyValueReference(kPaddingTopProperty);
   }
-  void set_padding_top(const scoped_refptr<PropertyValue>& padding_top) {
-    SetPropertyValue(kPaddingTopProperty, padding_top);
-  }
 
   const scoped_refptr<PropertyValue>& pointer_events() const {
     return GetPropertyValueReference(kPointerEventsProperty);
-  }
-  void set_pointer_events(const scoped_refptr<PropertyValue>& pointer_events) {
-    SetPropertyValue(kPointerEventsProperty, pointer_events);
   }
 
   const scoped_refptr<PropertyValue>& position() const {
     return GetPropertyValueReference(kPositionProperty);
   }
-  void set_position(const scoped_refptr<PropertyValue>& position) {
-    SetPropertyValue(kPositionProperty, position);
-  }
 
   const scoped_refptr<PropertyValue>& right() const {
     return GetPropertyValueReference(kRightProperty);
-  }
-  void set_right(const scoped_refptr<PropertyValue>& right) {
-    SetPropertyValue(kRightProperty, right);
   }
 
   const scoped_refptr<PropertyValue>& text_align() const {
     return GetPropertyValueReference(kTextAlignProperty);
   }
-  void set_text_align(const scoped_refptr<PropertyValue>& text_align) {
-    SetPropertyValue(kTextAlignProperty, text_align);
-  }
 
   const scoped_refptr<PropertyValue>& text_decoration_color() const {
     return GetPropertyValueReference(kTextDecorationColorProperty);
-  }
-  void set_text_decoration_color(
-      const scoped_refptr<PropertyValue>& text_decoration_color) {
-    SetPropertyValue(kTextDecorationColorProperty, text_decoration_color);
   }
 
   const scoped_refptr<PropertyValue>& text_decoration_line() const {
     return GetPropertyValueReference(kTextDecorationLineProperty);
   }
-  void set_text_decoration_line(
-      const scoped_refptr<PropertyValue>& text_decoration_line) {
-    SetPropertyValue(kTextDecorationLineProperty, text_decoration_line);
-  }
 
   const scoped_refptr<PropertyValue>& text_indent() const {
     return GetPropertyValueReference(kTextIndentProperty);
-  }
-  void set_text_indent(const scoped_refptr<PropertyValue>& text_indent) {
-    SetPropertyValue(kTextIndentProperty, text_indent);
   }
 
   const scoped_refptr<PropertyValue>& text_overflow() const {
     return GetPropertyValueReference(kTextOverflowProperty);
   }
-  void set_text_overflow(const scoped_refptr<PropertyValue>& text_overflow) {
-    SetPropertyValue(kTextOverflowProperty, text_overflow);
-  }
 
   const scoped_refptr<PropertyValue>& text_shadow() const {
     return GetPropertyValueReference(kTextShadowProperty);
-  }
-  void set_text_shadow(const scoped_refptr<PropertyValue>& text_shadow) {
-    SetPropertyValue(kTextShadowProperty, text_shadow);
   }
 
   const scoped_refptr<PropertyValue>& text_transform() const {
     return GetPropertyValueReference(kTextTransformProperty);
   }
-  void set_text_transform(const scoped_refptr<PropertyValue>& text_transform) {
-    SetPropertyValue(kTextTransformProperty, text_transform);
-  }
 
   const scoped_refptr<PropertyValue>& top() const {
     return GetPropertyValueReference(kTopProperty);
-  }
-  void set_top(const scoped_refptr<PropertyValue>& top) {
-    SetPropertyValue(kTopProperty, top);
   }
 
   const scoped_refptr<PropertyValue>& transform() const {
     return GetPropertyValueReference(kTransformProperty);
   }
-  void set_transform(const scoped_refptr<PropertyValue>& transform) {
-    SetPropertyValue(kTransformProperty, transform);
-  }
 
   const scoped_refptr<PropertyValue>& transform_origin() const {
     return GetPropertyValueReference(kTransformOriginProperty);
-  }
-  void set_transform_origin(
-      const scoped_refptr<PropertyValue>& transform_origin) {
-    SetPropertyValue(kTransformOriginProperty, transform_origin);
   }
 
   const scoped_refptr<PropertyValue>& transition_delay() const {
     return GetPropertyValueReference(kTransitionDelayProperty);
   }
-  void set_transition_delay(
-      const scoped_refptr<PropertyValue>& transition_delay) {
-    SetPropertyValue(kTransitionDelayProperty, transition_delay);
-  }
 
   const scoped_refptr<PropertyValue>& transition_duration() const {
     return GetPropertyValueReference(kTransitionDurationProperty);
-  }
-  void set_transition_duration(
-      const scoped_refptr<PropertyValue>& transition_duration) {
-    SetPropertyValue(kTransitionDurationProperty, transition_duration);
   }
 
   const scoped_refptr<PropertyValue>& transition_property() const {
     return GetPropertyValueReference(kTransitionPropertyProperty);
   }
-  void set_transition_property(
-      const scoped_refptr<PropertyValue>& transition_property) {
-    SetPropertyValue(kTransitionPropertyProperty, transition_property);
-  }
 
   const scoped_refptr<PropertyValue>& transition_timing_function() const {
     return GetPropertyValueReference(kTransitionTimingFunctionProperty);
-  }
-  void set_transition_timing_function(
-      const scoped_refptr<PropertyValue>& transition_timing_function) {
-    SetPropertyValue(kTransitionTimingFunctionProperty,
-                     transition_timing_function);
   }
 
   const scoped_refptr<PropertyValue>& vertical_align() const {
     return GetPropertyValueReference(kVerticalAlignProperty);
   }
-  void set_vertical_align(const scoped_refptr<PropertyValue>& vertical_align) {
-    SetPropertyValue(kVerticalAlignProperty, vertical_align);
-  }
 
   const scoped_refptr<PropertyValue>& visibility() const {
     return GetPropertyValueReference(kVisibilityProperty);
-  }
-  void set_visibility(const scoped_refptr<PropertyValue>& visibility) {
-    SetPropertyValue(kVisibilityProperty, visibility);
   }
 
   const scoped_refptr<PropertyValue>& white_space() const {
     return GetPropertyValueReference(kWhiteSpaceProperty);
   }
-  void set_white_space(const scoped_refptr<PropertyValue>& white_space) {
-    SetPropertyValue(kWhiteSpaceProperty, white_space);
-  }
 
   const scoped_refptr<PropertyValue>& width() const {
     return GetPropertyValueReference(kWidthProperty);
   }
-  void set_width(const scoped_refptr<PropertyValue>& width) {
-    SetPropertyValue(kWidthProperty, width);
-  }
 
   const scoped_refptr<PropertyValue>& z_index() const {
     return GetPropertyValueReference(kZIndexProperty);
-  }
-  void set_z_index(const scoped_refptr<PropertyValue>& z_index) {
-    SetPropertyValue(kZIndexProperty, z_index);
   }
 
   // From CSSDeclarationData
@@ -825,6 +509,23 @@ class CSSComputedStyleData
   const scoped_refptr<CSSComputedStyleDeclaration>&
   GetParentComputedStyleDeclaration() const;
 
+  // When an element is blockified, that should not affect the static position.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  //   https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
+  // Return true if the element's outer display type was inline before any
+  // optional blockificiation has occurred.
+  bool is_inline_before_blockification() const {
+    return is_inline_before_blockification_;
+  }
+
+ protected:
+  void SetPropertyValue(const PropertyKey key,
+                        const scoped_refptr<PropertyValue>& value);
+
+  void set_is_inline_before_blockification(bool value) {
+    is_inline_before_blockification_ = value;
+  }
+
  private:
   // Helper function that returns the computed value if the initial property
   // value is not computed or returns the initial value if it is computed.
@@ -841,7 +542,7 @@ class CSSComputedStyleData
   // this flag, as they will have the same value as the parent and can be
   // skipped by descendants retrieving their inherited value without impacting
   // the returned value.
-  bool has_declared_inherited_properties_;
+  bool has_declared_inherited_properties_ = false;
 
   // Properties that were initially set to a value of "inherit" before being
   // updated with the parent's value. This is used to determine whether the
@@ -855,6 +556,425 @@ class CSSComputedStyleData
   // also be replaced. The descendant's inherited property value will instead
   // dynamically update.
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration_;
+
+  // Stores whether the outer display type is inline before blockification.
+  bool is_inline_before_blockification_ = true;
+};
+
+class MutableCSSComputedStyleData : public CSSComputedStyleData {
+ public:
+  void set_align_content(const scoped_refptr<PropertyValue>& align_content) {
+    SetPropertyValue(kAlignContentProperty, align_content);
+  }
+
+  void set_align_items(const scoped_refptr<PropertyValue>& align_items) {
+    SetPropertyValue(kAlignItemsProperty, align_items);
+  }
+
+  void set_align_self(const scoped_refptr<PropertyValue>& align_self) {
+    SetPropertyValue(kAlignSelfProperty, align_self);
+  }
+
+  void set_animation_delay(
+      const scoped_refptr<PropertyValue>& animation_delay) {
+    SetPropertyValue(kAnimationDelayProperty, animation_delay);
+  }
+
+  void set_animation_direction(
+      const scoped_refptr<PropertyValue>& animation_direction) {
+    SetPropertyValue(kAnimationDirectionProperty, animation_direction);
+  }
+
+  void set_animation_duration(
+      const scoped_refptr<PropertyValue>& animation_duration) {
+    SetPropertyValue(kAnimationDurationProperty, animation_duration);
+  }
+
+  void set_animation_fill_mode(
+      const scoped_refptr<PropertyValue>& animation_fill_mode) {
+    SetPropertyValue(kAnimationFillModeProperty, animation_fill_mode);
+  }
+
+  void set_animation_iteration_count(
+      const scoped_refptr<PropertyValue>& animation_iteration_count) {
+    SetPropertyValue(kAnimationIterationCountProperty,
+                     animation_iteration_count);
+  }
+
+  void set_animation_name(const scoped_refptr<PropertyValue>& animation_name) {
+    SetPropertyValue(kAnimationNameProperty, animation_name);
+  }
+
+  void set_animation_timing_function(
+      const scoped_refptr<PropertyValue>& animation_timing_function) {
+    SetPropertyValue(kAnimationTimingFunctionProperty,
+                     animation_timing_function);
+  }
+
+  void set_background_color(
+      const scoped_refptr<PropertyValue>& background_color) {
+    SetPropertyValue(kBackgroundColorProperty, background_color);
+  }
+
+  void set_background_image(
+      const scoped_refptr<PropertyValue>& background_image) {
+    SetPropertyValue(kBackgroundImageProperty, background_image);
+  }
+
+  void set_background_position(
+      const scoped_refptr<PropertyValue>& background_position) {
+    SetPropertyValue(kBackgroundPositionProperty, background_position);
+  }
+
+  void set_background_repeat(
+      const scoped_refptr<PropertyValue>& background_repeat) {
+    SetPropertyValue(kBackgroundRepeatProperty, background_repeat);
+  }
+
+  void set_background_size(
+      const scoped_refptr<PropertyValue>& background_size) {
+    SetPropertyValue(kBackgroundSizeProperty, background_size);
+  }
+
+  void set_border_top_color(
+      const scoped_refptr<PropertyValue>& border_top_color) {
+    SetPropertyValue(kBorderTopColorProperty, border_top_color);
+  }
+
+  void set_border_right_color(
+      const scoped_refptr<PropertyValue>& border_right_color) {
+    SetPropertyValue(kBorderRightColorProperty, border_right_color);
+  }
+
+  void set_border_bottom_color(
+      const scoped_refptr<PropertyValue>& border_bottom_color) {
+    SetPropertyValue(kBorderBottomColorProperty, border_bottom_color);
+  }
+
+  void set_border_left_color(
+      const scoped_refptr<PropertyValue>& border_left_color) {
+    SetPropertyValue(kBorderLeftColorProperty, border_left_color);
+  }
+
+  void set_border_top_style(
+      const scoped_refptr<PropertyValue>& border_top_style) {
+    SetPropertyValue(kBorderTopStyleProperty, border_top_style);
+  }
+
+  void set_border_right_style(
+      const scoped_refptr<PropertyValue>& border_right_style) {
+    SetPropertyValue(kBorderRightStyleProperty, border_right_style);
+  }
+
+  void set_border_bottom_style(
+      const scoped_refptr<PropertyValue>& border_bottom_style) {
+    SetPropertyValue(kBorderBottomStyleProperty, border_bottom_style);
+  }
+
+  void set_border_left_style(
+      const scoped_refptr<PropertyValue>& border_left_style) {
+    SetPropertyValue(kBorderLeftStyleProperty, border_left_style);
+  }
+
+  void set_border_top_width(
+      const scoped_refptr<PropertyValue>& border_top_width) {
+    SetPropertyValue(kBorderTopWidthProperty, border_top_width);
+  }
+
+  void set_border_right_width(
+      const scoped_refptr<PropertyValue>& border_right_width) {
+    SetPropertyValue(kBorderRightWidthProperty, border_right_width);
+  }
+
+  void set_border_bottom_width(
+      const scoped_refptr<PropertyValue>& border_bottom_width) {
+    SetPropertyValue(kBorderBottomWidthProperty, border_bottom_width);
+  }
+
+  void set_border_left_width(
+      const scoped_refptr<PropertyValue>& border_left_width) {
+    SetPropertyValue(kBorderLeftWidthProperty, border_left_width);
+  }
+
+  void set_border_top_left_radius(
+      const scoped_refptr<PropertyValue>& border_top_left_radius) {
+    SetPropertyValue(kBorderTopLeftRadiusProperty, border_top_left_radius);
+  }
+
+  void set_border_top_right_radius(
+      const scoped_refptr<PropertyValue>& border_top_right_radius) {
+    SetPropertyValue(kBorderTopRightRadiusProperty, border_top_right_radius);
+  }
+
+  void set_border_bottom_right_radius(
+      const scoped_refptr<PropertyValue>& border_bottom_right_radius) {
+    SetPropertyValue(kBorderBottomRightRadiusProperty,
+                     border_bottom_right_radius);
+  }
+
+  void set_border_bottom_left_radius(
+      const scoped_refptr<PropertyValue>& border_bottom_left_radius) {
+    SetPropertyValue(kBorderBottomLeftRadiusProperty,
+                     border_bottom_left_radius);
+  }
+
+  void set_bottom(const scoped_refptr<PropertyValue>& bottom) {
+    SetPropertyValue(kBottomProperty, bottom);
+  }
+
+  void set_box_shadow(const scoped_refptr<PropertyValue>& box_shadow) {
+    SetPropertyValue(kBoxShadowProperty, box_shadow);
+  }
+
+  void set_color(const scoped_refptr<PropertyValue>& color) {
+    SetPropertyValue(kColorProperty, color);
+  }
+
+  void set_content(const scoped_refptr<PropertyValue>& content) {
+    SetPropertyValue(kContentProperty, content);
+  }
+
+  void set_display(const scoped_refptr<PropertyValue>& display) {
+    SetPropertyValue(kDisplayProperty, display);
+  }
+
+  void set_filter(const scoped_refptr<PropertyValue>& filter) {
+    SetPropertyValue(kFilterProperty, filter);
+  }
+
+  void set_flex_basis(const scoped_refptr<PropertyValue>& flex_basis) {
+    SetPropertyValue(kFlexBasisProperty, flex_basis);
+  }
+
+  void set_flex_direction(const scoped_refptr<PropertyValue>& flex_direction) {
+    SetPropertyValue(kFlexDirectionProperty, flex_direction);
+  }
+
+  void set_flex_grow(const scoped_refptr<PropertyValue>& flex_grow) {
+    SetPropertyValue(kFlexGrowProperty, flex_grow);
+  }
+
+  void set_flex_shrink(const scoped_refptr<PropertyValue>& flex_shrink) {
+    SetPropertyValue(kFlexShrinkProperty, flex_shrink);
+  }
+
+  void set_flex_wrap(const scoped_refptr<PropertyValue>& flex_wrap) {
+    SetPropertyValue(kFlexWrapProperty, flex_wrap);
+  }
+
+  void set_font_family(const scoped_refptr<PropertyValue>& font_family) {
+    SetPropertyValue(kFontFamilyProperty, font_family);
+  }
+
+  void set_font_size(const scoped_refptr<PropertyValue>& font_size) {
+    SetPropertyValue(kFontSizeProperty, font_size);
+  }
+
+  void set_font_style(const scoped_refptr<PropertyValue>& font_style) {
+    SetPropertyValue(kFontStyleProperty, font_style);
+  }
+
+  void set_font_weight(const scoped_refptr<PropertyValue>& font_weight) {
+    SetPropertyValue(kFontWeightProperty, font_weight);
+  }
+
+  void set_height(const scoped_refptr<PropertyValue>& height) {
+    SetPropertyValue(kHeightProperty, height);
+  }
+
+  void set_justify_content(
+      const scoped_refptr<PropertyValue>& justify_content) {
+    SetPropertyValue(kJustifyContentProperty, justify_content);
+  }
+
+  void set_left(const scoped_refptr<PropertyValue>& left) {
+    SetPropertyValue(kLeftProperty, left);
+  }
+
+  void set_line_height(const scoped_refptr<PropertyValue>& line_height) {
+    SetPropertyValue(kLineHeightProperty, line_height);
+  }
+
+  void set_margin_bottom(const scoped_refptr<PropertyValue>& margin_bottom) {
+    SetPropertyValue(kMarginBottomProperty, margin_bottom);
+  }
+
+  void set_margin_left(const scoped_refptr<PropertyValue>& margin_left) {
+    SetPropertyValue(kMarginLeftProperty, margin_left);
+  }
+
+  void set_margin_right(const scoped_refptr<PropertyValue>& margin_right) {
+    SetPropertyValue(kMarginRightProperty, margin_right);
+  }
+
+  void set_margin_top(const scoped_refptr<PropertyValue>& margin_top) {
+    SetPropertyValue(kMarginTopProperty, margin_top);
+  }
+
+  void set_max_height(const scoped_refptr<PropertyValue>& max_height) {
+    SetPropertyValue(kMaxHeightProperty, max_height);
+  }
+
+  void set_max_width(const scoped_refptr<PropertyValue>& max_width) {
+    SetPropertyValue(kMaxWidthProperty, max_width);
+  }
+
+  void set_min_height(const scoped_refptr<PropertyValue>& min_height) {
+    SetPropertyValue(kMinHeightProperty, min_height);
+  }
+
+  void set_min_width(const scoped_refptr<PropertyValue>& min_width) {
+    SetPropertyValue(kMinWidthProperty, min_width);
+  }
+
+  void set_opacity(const scoped_refptr<PropertyValue>& opacity) {
+    SetPropertyValue(kOpacityProperty, opacity);
+  }
+
+  void set_order(const scoped_refptr<PropertyValue>& order) {
+    SetPropertyValue(kOrderProperty, order);
+  }
+
+  void set_outline_color(const scoped_refptr<PropertyValue>& outline_color) {
+    SetPropertyValue(kOutlineColorProperty, outline_color);
+  }
+
+  void set_outline_style(const scoped_refptr<PropertyValue>& outline_style) {
+    SetPropertyValue(kOutlineStyleProperty, outline_style);
+  }
+
+  void set_outline_width(const scoped_refptr<PropertyValue>& outline_width) {
+    SetPropertyValue(kOutlineWidthProperty, outline_width);
+  }
+
+  void set_overflow(const scoped_refptr<PropertyValue>& overflow) {
+    SetPropertyValue(kOverflowProperty, overflow);
+  }
+
+  void set_overflow_wrap(const scoped_refptr<PropertyValue>& overflow_wrap) {
+    SetPropertyValue(kOverflowWrapProperty, overflow_wrap);
+  }
+
+  void set_padding_bottom(const scoped_refptr<PropertyValue>& padding_bottom) {
+    SetPropertyValue(kPaddingBottomProperty, padding_bottom);
+  }
+
+  void set_padding_left(const scoped_refptr<PropertyValue>& padding_left) {
+    SetPropertyValue(kPaddingLeftProperty, padding_left);
+  }
+
+  void set_padding_right(const scoped_refptr<PropertyValue>& padding_right) {
+    SetPropertyValue(kPaddingRightProperty, padding_right);
+  }
+
+  void set_padding_top(const scoped_refptr<PropertyValue>& padding_top) {
+    SetPropertyValue(kPaddingTopProperty, padding_top);
+  }
+
+  void set_pointer_events(const scoped_refptr<PropertyValue>& pointer_events) {
+    SetPropertyValue(kPointerEventsProperty, pointer_events);
+  }
+
+  void set_position(const scoped_refptr<PropertyValue>& position) {
+    SetPropertyValue(kPositionProperty, position);
+  }
+
+  void set_right(const scoped_refptr<PropertyValue>& right) {
+    SetPropertyValue(kRightProperty, right);
+  }
+
+  void set_text_align(const scoped_refptr<PropertyValue>& text_align) {
+    SetPropertyValue(kTextAlignProperty, text_align);
+  }
+
+  void set_text_decoration_color(
+      const scoped_refptr<PropertyValue>& text_decoration_color) {
+    SetPropertyValue(kTextDecorationColorProperty, text_decoration_color);
+  }
+
+  void set_text_decoration_line(
+      const scoped_refptr<PropertyValue>& text_decoration_line) {
+    SetPropertyValue(kTextDecorationLineProperty, text_decoration_line);
+  }
+
+  void set_text_indent(const scoped_refptr<PropertyValue>& text_indent) {
+    SetPropertyValue(kTextIndentProperty, text_indent);
+  }
+
+  void set_text_overflow(const scoped_refptr<PropertyValue>& text_overflow) {
+    SetPropertyValue(kTextOverflowProperty, text_overflow);
+  }
+
+  void set_text_shadow(const scoped_refptr<PropertyValue>& text_shadow) {
+    SetPropertyValue(kTextShadowProperty, text_shadow);
+  }
+
+  void set_text_transform(const scoped_refptr<PropertyValue>& text_transform) {
+    SetPropertyValue(kTextTransformProperty, text_transform);
+  }
+
+  void set_top(const scoped_refptr<PropertyValue>& top) {
+    SetPropertyValue(kTopProperty, top);
+  }
+
+  void set_transform(const scoped_refptr<PropertyValue>& transform) {
+    SetPropertyValue(kTransformProperty, transform);
+  }
+
+  void set_transform_origin(
+      const scoped_refptr<PropertyValue>& transform_origin) {
+    SetPropertyValue(kTransformOriginProperty, transform_origin);
+  }
+
+  void set_transition_delay(
+      const scoped_refptr<PropertyValue>& transition_delay) {
+    SetPropertyValue(kTransitionDelayProperty, transition_delay);
+  }
+
+  void set_transition_duration(
+      const scoped_refptr<PropertyValue>& transition_duration) {
+    SetPropertyValue(kTransitionDurationProperty, transition_duration);
+  }
+
+  void set_transition_property(
+      const scoped_refptr<PropertyValue>& transition_property) {
+    SetPropertyValue(kTransitionPropertyProperty, transition_property);
+  }
+
+  void set_transition_timing_function(
+      const scoped_refptr<PropertyValue>& transition_timing_function) {
+    SetPropertyValue(kTransitionTimingFunctionProperty,
+                     transition_timing_function);
+  }
+
+  void set_vertical_align(const scoped_refptr<PropertyValue>& vertical_align) {
+    SetPropertyValue(kVerticalAlignProperty, vertical_align);
+  }
+
+  void set_visibility(const scoped_refptr<PropertyValue>& visibility) {
+    SetPropertyValue(kVisibilityProperty, visibility);
+  }
+
+  void set_white_space(const scoped_refptr<PropertyValue>& white_space) {
+    SetPropertyValue(kWhiteSpaceProperty, white_space);
+  }
+
+  void set_width(const scoped_refptr<PropertyValue>& width) {
+    SetPropertyValue(kWidthProperty, width);
+  }
+
+  void set_z_index(const scoped_refptr<PropertyValue>& z_index) {
+    SetPropertyValue(kZIndexProperty, z_index);
+  }
+
+  void SetPropertyValue(const PropertyKey key,
+                        const scoped_refptr<PropertyValue>& value) {
+    CSSComputedStyleData::SetPropertyValue(key, value);
+  }
+
+  void set_is_inline_before_blockification(bool value) {
+    CSSComputedStyleData::set_is_inline_before_blockification(value);
+  }
 };
 
 }  // namespace cssom

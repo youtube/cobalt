@@ -60,9 +60,7 @@ bool CSSComputedStyleData::PropertySetMatcher::DoDeclaredPropertiesMatch(
   return true;
 }
 
-CSSComputedStyleData::CSSComputedStyleData()
-    : has_declared_inherited_properties_(false) {}
-
+CSSComputedStyleData::CSSComputedStyleData() {}
 CSSComputedStyleData::~CSSComputedStyleData() {}
 
 const scoped_refptr<PropertyValue>&
@@ -101,10 +99,8 @@ CSSComputedStyleData::GetDeclaredPropertyValueReference(PropertyKey key) {
 namespace {
 struct NonTrivialStaticFields {
   NonTrivialStaticFields()
-      : block_keyword_value(KeywordValue::GetBlock()),
-        zero_length_value(new LengthValue(0.0f, kPixelsUnit)) {}
+      : zero_length_value(new LengthValue(0.0f, kPixelsUnit)) {}
 
-  const scoped_refptr<PropertyValue> block_keyword_value;
   const scoped_refptr<PropertyValue> zero_length_value;
 
  private:
@@ -139,16 +135,6 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
       //   https://www.w3.org/TR/css3-background/#border-width
       if (IsBorderStyleNoneOrHiddenForAnEdge(key)) {
         return non_trivial_static_fields.Get().zero_length_value;
-      }
-      break;
-
-    case kDisplayProperty:
-      // The initial value of "display" (inline) become "block" if "position" is
-      // "absolute" or "fixed".
-      //    https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
-      if (position() == KeywordValue::GetAbsolute() ||
-          position() == KeywordValue::GetFixed()) {
-        return non_trivial_static_fields.Get().block_keyword_value;
       }
       break;
 
@@ -191,6 +177,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kBoxShadowProperty:
     case kColorProperty:
     case kContentProperty:
+    case kDisplayProperty:
     case kFilterProperty:
     case kFlexProperty:
     case kFlexBasisProperty:
@@ -324,6 +311,7 @@ void CSSComputedStyleData::AssignFrom(const CSSComputedStyleData& rhs) {
   declared_properties_inherited_from_parent_ =
       rhs.declared_properties_inherited_from_parent_;
   parent_computed_style_declaration_ = rhs.parent_computed_style_declaration_;
+  is_inline_before_blockification_ = rhs.is_inline_before_blockification_;
 }
 
 std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {

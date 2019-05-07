@@ -535,8 +535,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
   DCHECK(GetFirstChildAtDepth(root_html_element, 1)->AsHTMLBodyElement());
   EXPECT_FALSE(GetFirstChildAtDepth(root_html_element, 1)->offset_parent());
 
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style_relative =
-      base::WrapRefCounted(new cssom::CSSComputedStyleData());
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style_relative(
+      new cssom::MutableCSSComputedStyleData());
   computed_style_relative->set_position(cssom::KeywordValue::GetRelative());
   GetFirstChildAtDepth(root_html_element, 2)
       ->css_computed_style_declaration()
@@ -548,8 +548,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
 
   // Return null if the element's computed value of the 'position' property is
   // 'fixed'.
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style_fixed =
-      base::WrapRefCounted(new cssom::CSSComputedStyleData());
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style_fixed(
+      new cssom::MutableCSSComputedStyleData());
   computed_style_fixed->set_position(cssom::KeywordValue::GetFixed());
   GetFirstChildAtDepth(root_html_element, 3)
       ->css_computed_style_declaration()
