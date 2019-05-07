@@ -13,10 +13,24 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
 #include "starboard/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterSetRenderTarget(SbBlitterContext context,
                               SbBlitterRenderTarget render_target) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << ": Invalid context.";
+    return false;
+  }
+  if (!SbBlitterIsRenderTargetValid(render_target)) {
+    SB_DLOG(ERROR) << ": Invalid render target.";
+    return false;
+  }
+
+  // TODO: Optimize eglMakeCurrent calls, so SbBlitterSetRenderTarget() does
+  // more just store the desired render_target.
+  context->current_render_target = render_target;
+
+  return true;
 }
