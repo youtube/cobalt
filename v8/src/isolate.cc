@@ -1222,9 +1222,11 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
           FLAG_abort_on_uncaught_exception = false;
           // This flag is intended for use by JavaScript developers, so
           // print a user-friendly stack trace (not an internal one).
+#ifndef V8_OS_STARBOARD
           PrintF(stderr, "%s\n\nFROM\n",
                  MessageHandler::GetLocalizedMessage(this, message_obj).get());
           PrintCurrentStackTrace(stderr);
+#endif  // V8_OS_STARBOARD
           base::OS::Abort();
         }
       }
