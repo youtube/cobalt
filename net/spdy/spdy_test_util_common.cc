@@ -19,6 +19,7 @@
 #include "net/cert/mock_cert_verifier.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
 #include "net/http/http_cache.h"
+#include "net/http/http_network_layer.h"
 #include "net/http/http_network_transaction.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/client_socket_handle.h"
@@ -449,9 +450,14 @@ SpdyURLRequestContext::SpdyURLRequestContext() : storage_(this) {
   SpdySessionPoolPeer pool_peer(
       storage_.http_network_session()->spdy_session_pool());
   pool_peer.SetEnableSendingInitialData(false);
+#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
+  storage_.set_http_transaction_factory(
+      std::make_unique<HttpNetworkLayer>(storage_.http_network_session()));
+#else
   storage_.set_http_transaction_factory(std::make_unique<HttpCache>(
       storage_.http_network_session(), HttpCache::DefaultBackend::InMemory(0),
       false));
+#endif
 }
 
 SpdyURLRequestContext::~SpdyURLRequestContext() {

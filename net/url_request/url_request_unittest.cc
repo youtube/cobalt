@@ -9169,12 +9169,18 @@ TEST_F(URLRequestTestHTTP, NetworkSuspendTest) {
       default_context().http_transaction_factory()->GetSession()));
   network_layer->OnSuspend();
 
+#ifndef HTTP_CACHE_DISABLED_FOR_STARBOARD
   HttpCache http_cache(std::move(network_layer),
                        HttpCache::DefaultBackend::InMemory(0),
                        false /* is_main_cache */);
+#endif
 
   TestURLRequestContext context(true);
+#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
+  context.set_http_transaction_factory(network_layer.get());
+#else
   context.set_http_transaction_factory(&http_cache);
+#endif
   context.Init();
 
   TestDelegate d;
@@ -9293,7 +9299,6 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnCachedResponse) {
   EXPECT_FALSE(req->response_info().network_accessed);
   EXPECT_TRUE(req->response_info().was_cached);
 }
-#endif
 
 TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnLoadOnlyFromCache) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -9309,6 +9314,7 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnLoadOnlyFromCache) {
 
   EXPECT_FALSE(req->response_info().network_accessed);
 }
+#endif
 
 // Test that a single job with a THROTTLED priority completes
 // correctly in the absence of contention.

@@ -161,6 +161,14 @@ class MockHostResolverProc : public HostResolverProc {
     AddRule(hostname, ADDRESS_FAMILY_UNSPECIFIED, result, flags);
     AddRule(hostname, ADDRESS_FAMILY_IPV4, result, flags);
     AddRule(hostname, ADDRESS_FAMILY_IPV6, result, flags);
+#if !SB_HAS(IPV6)
+    if ((flags & HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6) == 0) {
+      AddRule(hostname, ADDRESS_FAMILY_UNSPECIFIED, result,
+              HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6);
+      AddRule(hostname, ADDRESS_FAMILY_IPV4, result,
+              HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6);
+    }
+#endif
   }
 
   int Resolve(const std::string& hostname,
@@ -608,7 +616,11 @@ class HostResolverImplTest : public TestWithScopedTaskEnvironment {
 
   void CreateResolver() {
     CreateResolverWithLimitsAndParams(kMaxJobs, DefaultParams(proc_.get()),
+#if !defined(STARBOARD) || SB_HAS(IPV6)
                                       true /* ipv6_reachable */);
+#else
+                                      false /* ipv6_reachable */);
+#endif
   }
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time and
@@ -616,7 +628,11 @@ class HostResolverImplTest : public TestWithScopedTaskEnvironment {
   void CreateSerialResolver() {
     HostResolverImpl::ProcTaskParams params = DefaultParams(proc_.get());
     params.max_retry_attempts = 0u;
+#if !defined(STARBOARD) || SB_HAS(IPV6)
     CreateResolverWithLimitsAndParams(1u, params, true /* ipv6_reachable */);
+#else
+    CreateResolverWithLimitsAndParams(1u, params, false /* ipv6_reachable */);
+#endif
   }
 
  protected:
@@ -2691,7 +2707,11 @@ TEST_F(HostResolverImplTest, MultipleAttempts_ResolveHost) {
   int retry_factor = params.retry_factor;
 
   CreateResolverWithLimitsAndParams(kMaxJobs, params,
+#if !defined(STARBOARD) || SB_HAS(IPV6)
                                     true /* ipv6_reachable */);
+#else
+                                    false /* ipv6_reachable */);
+#endif
 
   // Override the current thread task runner, so we can simulate the passage of
   // time and avoid any actual sleeps.
@@ -2737,7 +2757,9 @@ TEST_F(HostResolverImplTest, MultipleAttempts_ResolveHost) {
 TEST_F(HostResolverImplTest, NameCollisionIcann) {
   proc_->AddRuleForAllFamilies("single", "127.0.53.53");
   proc_->AddRuleForAllFamilies("multiple", "127.0.0.1,127.0.53.53");
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   proc_->AddRuleForAllFamilies("ipv6", "::127.0.53.53");
+#endif
   proc_->AddRuleForAllFamilies("not_reserved1", "53.53.0.127");
   proc_->AddRuleForAllFamilies("not_reserved2", "127.0.53.54");
   proc_->AddRuleForAllFamilies("not_reserved3", "10.0.53.53");
@@ -2762,11 +2784,13 @@ TEST_F(HostResolverImplTest, NameCollisionIcann) {
   // Resolving an IP literal of 127.0.53.53 however is allowed.
   EXPECT_THAT(CreateRequest("127.0.53.53")->Resolve(), IsOk());
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   // Moreover the address should not be recognized when embedded in an IPv6
   // address.
   request = CreateRequest("ipv6");
   EXPECT_THAT(request->Resolve(), IsError(ERR_IO_PENDING));
   EXPECT_THAT(request->WaitForResult(), IsOk());
+#endif
 
   // Try some other IPs which are similar, but NOT an exact match on
   // 127.0.53.53.
@@ -2790,7 +2814,9 @@ TEST_F(HostResolverImplTest, NameCollisionIcann) {
 TEST_F(HostResolverImplTest, NameCollisionIcann_ResolveHost) {
   proc_->AddRuleForAllFamilies("single", "127.0.53.53");
   proc_->AddRuleForAllFamilies("multiple", "127.0.0.1,127.0.53.53");
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   proc_->AddRuleForAllFamilies("ipv6", "::127.0.53.53");
+#endif
   proc_->AddRuleForAllFamilies("not_reserved1", "53.53.0.127");
   proc_->AddRuleForAllFamilies("not_reserved2", "127.0.53.54");
   proc_->AddRuleForAllFamilies("not_reserved3", "10.0.53.53");
@@ -2818,11 +2844,13 @@ TEST_F(HostResolverImplTest, NameCollisionIcann_ResolveHost) {
       HostPortPair("127.0.53.53", 80), NetLogWithSource(), base::nullopt));
   EXPECT_THAT(literal_response.result_error(), IsOk());
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   // Moreover the address should not be recognized when embedded in an IPv6
   // address.
   ResolveHostResponseHelper ipv6_response(resolver_->CreateRequest(
       HostPortPair("127.0.53.53", 80), NetLogWithSource(), base::nullopt));
   EXPECT_THAT(ipv6_response.result_error(), IsOk());
+#endif
 
   // Try some other IPs which are similar, but NOT an exact match on
   // 127.0.53.53.
@@ -2839,6 +2867,7 @@ TEST_F(HostResolverImplTest, NameCollisionIcann_ResolveHost) {
   EXPECT_THAT(similar_response3.result_error(), IsOk());
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 TEST_F(HostResolverImplTest, IsIPv6Reachable) {
   // The real HostResolverImpl is needed since TestHostResolverImpl will
   // bypass the IPv6 reachability tests.
@@ -2871,6 +2900,7 @@ TEST_F(HostResolverImplTest, IsIPv6Reachable) {
   EXPECT_TRUE(probe_event_list[1].GetBooleanValue("cached", &cached));
   EXPECT_TRUE(cached);
 }
+#endif
 
 // Test that it's safe for callers to bind input objects with the input
 // callback, eg that we don't destroy the callback before finishing a
@@ -3602,9 +3632,11 @@ TEST_F(HostResolverImplDnsTest, DnsTask_ResolveHost) {
 
   // Resolved by MockDnsClient.
   EXPECT_THAT(response0.result_error(), IsOk());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_THAT(response0.request()->GetAddressResults().value().endpoints(),
               testing::UnorderedElementsAre(CreateExpected("127.0.0.1", 80),
                                             CreateExpected("::1", 80)));
+#endif
 
   // Fallback to ProcTask.
   EXPECT_THAT(response1.result_error(), IsError(ERR_NAME_NOT_RESOLVED));
@@ -3714,9 +3746,11 @@ TEST_F(HostResolverImplDnsTest, NoFallbackToProcTask_ResolveHost) {
   EXPECT_THAT(abort_response1.result_error(), IsError(ERR_NETWORK_CHANGED));
   // Resolved by MockDnsClient.
   EXPECT_THAT(response0.result_error(), IsOk());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_THAT(response0.request()->GetAddressResults().value().endpoints(),
               testing::UnorderedElementsAre(CreateExpected("127.0.0.1", 80),
                                             CreateExpected("::1", 80)));
+#endif
   // Fallback to ProcTask is disabled.
   EXPECT_THAT(response1.result_error(), IsError(ERR_NAME_NOT_RESOLVED));
 }
@@ -3774,6 +3808,7 @@ TEST_F(HostResolverImplDnsTest, OnDnsTaskFailureAbortedJob_ResolveHost) {
   EXPECT_FALSE(no_fallback_response.complete());
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 TEST_F(HostResolverImplDnsTest, DnsTaskUnspec) {
   ChangeDnsConfig(CreateValidDnsConfig());
 
@@ -3837,6 +3872,7 @@ TEST_F(HostResolverImplDnsTest, DnsTaskUnspec_ResolveHost) {
   EXPECT_THAT(responses[3]->request()->GetAddressResults().value().endpoints(),
               testing::ElementsAre(CreateExpected("192.168.1.101", 80)));
 }
+#endif
 
 TEST_F(HostResolverImplDnsTest, NameCollisionIcann) {
   ChangeDnsConfig(CreateValidDnsConfig());
@@ -3848,6 +3884,7 @@ TEST_F(HostResolverImplDnsTest, NameCollisionIcann) {
 
   EXPECT_THAT(requests_[0]->WaitForResult(), IsError(ERR_ICANN_NAME_COLLISION));
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   // When the resolver returns an AAAA record with ::127.0.53.53 it should
   // work just like any other IP. (Despite having the same suffix, it is not
   // considered special)
@@ -3856,6 +3893,7 @@ TEST_F(HostResolverImplDnsTest, NameCollisionIcann) {
 
   EXPECT_THAT(requests_[1]->WaitForResult(), IsError(OK));
   EXPECT_TRUE(requests_[1]->HasAddress("::127.0.53.53", 80));
+#endif
 
   // The mock responses for 4collision (and 6collision) have a TTL of 1 day.
   // Test whether the ERR_ICANN_NAME_COLLISION failure was cached.
@@ -3866,6 +3904,7 @@ TEST_F(HostResolverImplDnsTest, NameCollisionIcann) {
               IsError(ERR_DNS_CACHE_MISS));
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 TEST_F(HostResolverImplDnsTest, NameCollisionIcann_ResolveHost) {
   ChangeDnsConfig(CreateValidDnsConfig());
 
@@ -4092,6 +4131,7 @@ TEST_F(HostResolverImplDnsTest, CacheHostsLookupOnConfigChange_ResolveHost) {
   ASSERT_THAT(cache_entry, NotNull());
   EXPECT_EQ(HostCache::Entry::SOURCE_HOSTS, cache_entry->source());
 }
+#endif
 
 TEST_F(HostResolverImplDnsTest, BypassDnsTask) {
   ChangeDnsConfig(CreateValidDnsConfig());
@@ -4528,6 +4568,9 @@ TEST_F(HostResolverImplDnsTest,
   // Dispatcher state checked in TearDown.
 }
 
+// Platforms without IPv6 will only have one dispatcher job since there is
+// only one address family.
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 // Cancel a request with two DNS transactions active.
 TEST_F(HostResolverImplDnsTest, CancelWithTwoTransactionsActive) {
   ChangeDnsConfig(CreateValidDnsConfig());
@@ -4553,6 +4596,7 @@ TEST_F(HostResolverImplDnsTest, CancelWithTwoTransactionsActive_ResolveHost) {
 
   // Dispatcher state checked in TearDown.
 }
+#endif
 
 // Delete a resolver with some active requests and some queued requests.
 TEST_F(HostResolverImplDnsTest, DeleteWithActiveTransactions) {
@@ -4604,6 +4648,7 @@ TEST_F(HostResolverImplDnsTest, DeleteWithActiveTransactions_ResolveHost) {
   }
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 // Cancel a request with only the IPv6 transaction active.
 TEST_F(HostResolverImplDnsTest, CancelWithIPv6TransactionActive) {
   ChangeDnsConfig(CreateValidDnsConfig());
@@ -4672,6 +4717,7 @@ TEST_F(HostResolverImplDnsTest, CancelWithIPv4TransactionPending_ResolveHost) {
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(response.complete());
 }
+#endif
 
 // Test cases where AAAA completes first.
 TEST_F(HostResolverImplDnsTest, AAAACompletesFirst) {
@@ -4684,25 +4730,34 @@ TEST_F(HostResolverImplDnsTest, AAAACompletesFirst) {
               IsError(ERR_IO_PENDING));
   EXPECT_THAT(CreateRequest("4slow_4timeout", 80)->Resolve(),
               IsError(ERR_IO_PENDING));
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_THAT(CreateRequest("4slow_6timeout", 80)->Resolve(),
               IsError(ERR_IO_PENDING));
+#endif
 
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(requests_[0]->completed());
   EXPECT_FALSE(requests_[1]->completed());
   EXPECT_FALSE(requests_[2]->completed());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   // The IPv6 of request 3 should have failed and resulted in cancelling the
   // IPv4 request.
   EXPECT_TRUE(requests_[3]->completed());
   EXPECT_THAT(requests_[3]->result(), IsError(ERR_DNS_TIMED_OUT));
+#endif
   EXPECT_EQ(3u, num_running_dispatcher_jobs());
 
   dns_client_->CompleteDelayedTransactions();
   EXPECT_TRUE(requests_[0]->completed());
   EXPECT_THAT(requests_[0]->result(), IsOk());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_EQ(2u, requests_[0]->NumberOfAddresses());
   EXPECT_TRUE(requests_[0]->HasAddress("127.0.0.1", 80));
   EXPECT_TRUE(requests_[0]->HasAddress("::1", 80));
+#else
+  EXPECT_EQ(1u, requests_[0]->NumberOfAddresses());
+  EXPECT_TRUE(requests_[0]->HasAddress("127.0.0.1", 80));
+#endif
 
   EXPECT_TRUE(requests_[1]->completed());
   EXPECT_THAT(requests_[1]->result(), IsOk());
@@ -4728,24 +4783,30 @@ TEST_F(HostResolverImplDnsTest, AAAACompletesFirst_ResolveHost) {
   responses.emplace_back(std::make_unique<ResolveHostResponseHelper>(
       resolver_->CreateRequest(HostPortPair("4slow_4timeout", 80),
                                NetLogWithSource(), base::nullopt)));
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   responses.emplace_back(std::make_unique<ResolveHostResponseHelper>(
       resolver_->CreateRequest(HostPortPair("4slow_6timeout", 80),
                                NetLogWithSource(), base::nullopt)));
+#endif
 
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(responses[0]->complete());
   EXPECT_FALSE(responses[1]->complete());
   EXPECT_FALSE(responses[2]->complete());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   // The IPv6 of request 3 should have failed and resulted in cancelling the
   // IPv4 request.
   EXPECT_THAT(responses[3]->result_error(), IsError(ERR_DNS_TIMED_OUT));
+#endif
   EXPECT_EQ(3u, num_running_dispatcher_jobs());
 
   dns_client_->CompleteDelayedTransactions();
   EXPECT_THAT(responses[0]->result_error(), IsOk());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_THAT(responses[0]->request()->GetAddressResults().value().endpoints(),
               testing::UnorderedElementsAre(CreateExpected("127.0.0.1", 80),
                                             CreateExpected("::1", 80)));
+#endif
 
   EXPECT_THAT(responses[1]->result_error(), IsOk());
   EXPECT_THAT(responses[1]->request()->GetAddressResults().value().endpoints(),
@@ -4766,9 +4827,13 @@ TEST_F(HostResolverImplDnsTest, SerialResolver) {
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(requests_[0]->completed());
   EXPECT_THAT(requests_[0]->result(), IsOk());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_EQ(2u, requests_[0]->NumberOfAddresses());
+#endif
   EXPECT_TRUE(requests_[0]->HasAddress("127.0.0.1", 80));
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_TRUE(requests_[0]->HasAddress("::1", 80));
+#endif
 }
 
 // Test the case where only a single transaction slot is available.
@@ -4785,9 +4850,11 @@ TEST_F(HostResolverImplDnsTest, SerialResolver_ResolveHost) {
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(response.complete());
   EXPECT_THAT(response.result_error(), IsOk());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_THAT(response.request()->GetAddressResults().value().endpoints(),
               testing::UnorderedElementsAre(CreateExpected("127.0.0.1", 80),
                                             CreateExpected("::1", 80)));
+#endif
 }
 
 // Test the case where the AAAA query is started when another transaction
@@ -4817,7 +4884,9 @@ TEST_F(HostResolverImplDnsTest, AAAAStartsAfterOtherJobFinishes) {
   EXPECT_THAT(requests_[1]->result(), IsOk());
   EXPECT_EQ(2u, requests_[1]->NumberOfAddresses());
   EXPECT_TRUE(requests_[1]->HasAddress("127.0.0.1", 80));
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_TRUE(requests_[1]->HasAddress("::1", 80));
+#endif
 }
 
 // Test the case where subsequent transactions are handled on transaction
@@ -4914,12 +4983,22 @@ TEST_F(HostResolverImplDnsTest, UnspecEmptyFallback_ResolveHost) {
 
 // Tests getting a new invalid DnsConfig while there are active DnsTasks.
 TEST_F(HostResolverImplDnsTest, InvalidDnsConfigWithPendingRequests) {
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   // At most 3 jobs active at once.  This number is important, since we want to
   // make sure that aborting the first HostResolverImpl::Job does not trigger
   // another DnsTransaction on the second Job when it releases its second
   // prioritized dispatcher slot.
   CreateResolverWithLimitsAndParams(3u, DefaultParams(proc_.get()),
                                     true /* ipv6_reachable */);
+#else
+  // If IPv6 is not supported, each request will only have one transaction
+  // instead of two, we must reduce job limit to 2 to make sure the third
+  // request("ok") until the two created earlier are aborted and proc_ is
+  // signaled. This is to maintain the same test behavior as in the case where
+  // IPv6 is supported.
+  CreateResolverWithLimitsAndParams(2u, DefaultParams(proc_.get()),
+                                    false /* ipv6_reachable */);
+#endif
 
   ChangeDnsConfig(CreateValidDnsConfig());
 
@@ -4933,7 +5012,11 @@ TEST_F(HostResolverImplDnsTest, InvalidDnsConfigWithPendingRequests) {
   EXPECT_THAT(CreateRequest("slow_nx2")->Resolve(), IsError(ERR_IO_PENDING));
   EXPECT_THAT(CreateRequest("ok")->Resolve(), IsError(ERR_IO_PENDING));
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_EQ(3u, num_running_dispatcher_jobs());
+#else
+  EXPECT_EQ(2u, num_running_dispatcher_jobs());
+#endif
 
   // Clear DNS config.  Two in-progress jobs should be aborted, and the next one
   // should use a ProcTask.
@@ -4952,12 +5035,22 @@ TEST_F(HostResolverImplDnsTest, InvalidDnsConfigWithPendingRequests) {
 // Tests getting a new invalid DnsConfig while there are active DnsTasks.
 TEST_F(HostResolverImplDnsTest,
        InvalidDnsConfigWithPendingRequests_ResolveHost) {
-  // At most 3 jobs active at once.  This number is important, since we want
-  // to make sure that aborting the first HostResolverImpl::Job does not
-  // trigger another DnsTransaction on the second Job when it releases its
-  // second prioritized dispatcher slot.
+#if !defined(STARBOARD) || SB_HAS(IPV6)
+  // At most 3 jobs active at once.  This number is important, since we want to
+  // make sure that aborting the first HostResolverImpl::Job does not trigger
+  // another DnsTransaction on the second Job when it releases its second
+  // prioritized dispatcher slot.
   CreateResolverWithLimitsAndParams(3u, DefaultParams(proc_.get()),
                                     true /* ipv6_reachable */);
+#else
+  // If IPv6 is not supported, each request will only have one transaction
+  // instead of two, we must reduce job limit to 2 to make sure the third
+  // request("ok") until the two created earlier are aborted and proc_ is
+  // signaled. This is to maintain the same test behavior as in the case where
+  // IPv6 is supported.
+  CreateResolverWithLimitsAndParams(2u, DefaultParams(proc_.get()),
+                                    false /* ipv6_reachable */);
+#endif
 
   ChangeDnsConfig(CreateValidDnsConfig());
 
@@ -4978,7 +5071,11 @@ TEST_F(HostResolverImplDnsTest,
       std::make_unique<ResolveHostResponseHelper>(resolver_->CreateRequest(
           HostPortPair("ok", 80), NetLogWithSource(), base::nullopt)));
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   EXPECT_EQ(3u, num_running_dispatcher_jobs());
+#else
+  EXPECT_EQ(2u, num_running_dispatcher_jobs());
+#endif
   for (auto& response : responses) {
     EXPECT_FALSE(response->complete());
   }
@@ -5244,6 +5341,7 @@ TEST_F(HostResolverImplDnsTest,
               testing::ElementsAre(CreateExpected("192.168.0.3", 80)));
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 TEST_F(HostResolverImplDnsTest, NoIPv6OnWifi) {
   // CreateSerialResolver will destroy the current resolver_ which will attempt
   // to remove itself from the NetworkChangeNotifier. If this happens after a
@@ -5410,6 +5508,7 @@ TEST_F(HostResolverImplDnsTest, NoIPv6OnWifi_ResolveHost) {
       no_wifi_v6_response.request()->GetAddressResults().value().endpoints(),
       testing::ElementsAre(CreateExpected("::2", 80)));
 }
+#endif
 
 TEST_F(HostResolverImplDnsTest, NotFoundTTL) {
   CreateResolver();
@@ -5420,7 +5519,14 @@ TEST_F(HostResolverImplDnsTest, NotFoundTTL) {
   EXPECT_THAT(request->Resolve(), IsError(ERR_IO_PENDING));
   EXPECT_THAT(request->WaitForResult(), IsError(ERR_NAME_NOT_RESOLVED));
   EXPECT_THAT(request->NumberOfAddresses(), 0);
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   HostCache::Key key(request->info().hostname(), ADDRESS_FAMILY_UNSPECIFIED, 0);
+#else
+  // If IPV6 is disabled, host resolver will automatically choose IPV4 before
+  // caching.
+  HostCache::Key key(request->info().hostname(), ADDRESS_FAMILY_IPV4,
+                     HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6);
+#endif
   HostCache::EntryStaleness staleness;
   const HostCache::Entry* cache_entry =
       resolver_->GetHostCache()->Lookup(key, base::TimeTicks::Now());
@@ -5433,8 +5539,13 @@ TEST_F(HostResolverImplDnsTest, NotFoundTTL) {
   EXPECT_THAT(request->Resolve(), IsError(ERR_IO_PENDING));
   EXPECT_THAT(request->WaitForResult(), IsError(ERR_NAME_NOT_RESOLVED));
   EXPECT_THAT(request->NumberOfAddresses(), 0);
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   HostCache::Key nxkey(request->info().hostname(), ADDRESS_FAMILY_UNSPECIFIED,
                        0);
+#else
+  HostCache::Key nxkey(request->info().hostname(), ADDRESS_FAMILY_IPV4,
+                       HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6);
+#endif
   cache_entry =
       resolver_->GetHostCache()->Lookup(nxkey, base::TimeTicks::Now());
   EXPECT_TRUE(!!cache_entry);
@@ -5452,7 +5563,12 @@ TEST_F(HostResolverImplDnsTest, NotFoundTTL_ResolveHost) {
       HostPortPair("empty", 80), NetLogWithSource(), base::nullopt));
   EXPECT_THAT(no_data_response.result_error(), IsError(ERR_NAME_NOT_RESOLVED));
   EXPECT_FALSE(no_data_response.request()->GetAddressResults());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   HostCache::Key key("empty", ADDRESS_FAMILY_UNSPECIFIED, 0);
+#else
+  HostCache::Key key("empty", ADDRESS_FAMILY_IPV4,
+                     HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6);
+#endif
   HostCache::EntryStaleness staleness;
   const HostCache::Entry* cache_entry =
       resolver_->GetHostCache()->Lookup(key, base::TimeTicks::Now());
@@ -5466,7 +5582,12 @@ TEST_F(HostResolverImplDnsTest, NotFoundTTL_ResolveHost) {
   EXPECT_THAT(no_domain_response.result_error(),
               IsError(ERR_NAME_NOT_RESOLVED));
   EXPECT_FALSE(no_domain_response.request()->GetAddressResults());
+#if !defined(STARBOARD) || SB_HAS(IPV6)
   HostCache::Key nxkey("nodomain", ADDRESS_FAMILY_UNSPECIFIED, 0);
+#else
+  HostCache::Key nxkey("nodomain", ADDRESS_FAMILY_IPV4,
+                       HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6);
+#endif
   cache_entry =
       resolver_->GetHostCache()->Lookup(nxkey, base::TimeTicks::Now());
   EXPECT_TRUE(!!cache_entry);
@@ -5474,6 +5595,7 @@ TEST_F(HostResolverImplDnsTest, NotFoundTTL_ResolveHost) {
   EXPECT_THAT(cache_entry->ttl(), base::TimeDelta::FromSeconds(86400));
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 TEST_F(HostResolverImplTest, ResolveLocalHostname) {
   AddressList addresses;
 
@@ -5531,6 +5653,7 @@ TEST_F(HostResolverImplTest, ResolveLocalHostname) {
   EXPECT_FALSE(
       ResolveLocalHostname("foo.localhoste", kLocalhostLookupPort, &addresses));
 }
+#endif
 
 TEST_F(HostResolverImplDnsTest, AddDnsOverHttpsServerAfterConfig) {
   resolver_ = nullptr;
