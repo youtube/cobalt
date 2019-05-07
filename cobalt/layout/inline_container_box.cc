@@ -580,9 +580,11 @@ WrapResult InlineContainerBox::TryWrapAtIndex(
     bool is_line_existence_justified, LayoutUnit available_width,
     bool should_collapse_trailing_white_space) {
   Box* child_box = child_boxes()[wrap_index].get();
-  // Absolutely positioned boxes are not wrappable.
   if (child_box->IsAbsolutelyPositioned()) {
-    return kWrapResultNoWrap;
+    Boxes::const_iterator wrap_iterator =
+        child_boxes().begin() + static_cast<int>(wrap_index);
+    SplitAtIterator(wrap_iterator);
+    return kWrapResultSplitWrap;
   }
 
   // Check for whether the line is justified before this child. If it is not,

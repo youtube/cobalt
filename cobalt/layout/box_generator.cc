@@ -920,8 +920,8 @@ scoped_refptr<cssom::CSSComputedStyleDeclaration> StripBackground(
       new cssom::CSSComputedStyleDeclaration());
   new_style->set_animations(style->animations());
 
-  scoped_refptr<cssom::CSSComputedStyleData> new_data(
-      new cssom::CSSComputedStyleData());
+  scoped_refptr<cssom::MutableCSSComputedStyleData> new_data(
+      new cssom::MutableCSSComputedStyleData());
   new_data->AssignFrom(*style->data());
   new_data->SetPropertyValue(cssom::kBackgroundColorProperty, NULL);
   new_data->SetPropertyValue(cssom::kBackgroundImageProperty, NULL);

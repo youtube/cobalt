@@ -262,6 +262,9 @@ void LineBox::CollapseTrailingWhiteSpace() {
 }
 
 void LineBox::RestoreTrailingWhiteSpace() {
+  if (!last_non_collapsed_child_box_index_) {
+    return;
+  }
   Box* last_non_collapsed_child_box =
       child_boxes_[*last_non_collapsed_child_box_index_];
   LayoutUnit child_box_pre_restore_width =
@@ -488,14 +491,12 @@ void LineBox::BeginEstimateStaticPositionForAbsolutelyPositionedChild(
   // its specified 'position' value had been 'static'.
   //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
 
-  switch (child_box->GetLevel()) {
-    case Box::kInlineLevel:
-      // NOTE: This case is never reached due to a bug.
-      child_box->SetStaticPositionLeftFromParent(shrink_to_fit_width_);
-      break;
-    case Box::kBlockLevel:
-      child_box->SetStaticPositionLeftFromParent(LayoutUnit());
-      break;
+  if (child_box->is_inline_before_blockification()) {
+    CollapseTrailingWhiteSpace();
+    child_box->SetStaticPositionLeftFromParent(shrink_to_fit_width_);
+    RestoreTrailingWhiteSpace();
+  } else {
+    child_box->SetStaticPositionLeftFromParent(LayoutUnit());
   }
   child_box->SetStaticPositionTopFromParent(LayoutUnit());
 }

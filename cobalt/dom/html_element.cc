@@ -1161,7 +1161,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
   // property declaration importance.
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style =
       PromoteToCascadedStyle(inline_style, matching_rules,
                              property_key_to_base_url_map);
 

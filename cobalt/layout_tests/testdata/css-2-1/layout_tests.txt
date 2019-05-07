@@ -24,6 +24,7 @@
 10-3-7-absolute-element-children-with-br-elements-should-shrink-to-fit
 10-3-7-absolute-position-elements-solve-for-height-when-top-and-bottom-are-specified
 10-3-7-absolute-position-elements-solve-for-width-when-left-and-right-are-specified
+10-3-7-blockification-should-not-affect-static-position
 10-3-7-left-and-top-position-absolute-elements-relative-to-their-containing-block
 10-3-7-left-and-width-and-right-are-auto
 10-3-7-left-and-width-and-right-are-auto-in-inline-element
