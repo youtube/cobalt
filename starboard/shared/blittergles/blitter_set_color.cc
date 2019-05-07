@@ -13,9 +13,16 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
 #include "starboard/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterSetColor(SbBlitterContext context, SbBlitterColor color) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << ": Invalid context.";
+    return false;
+  }
+
+  context->current_color = color;
+  return true;
 }
