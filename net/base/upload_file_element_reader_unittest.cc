@@ -323,7 +323,14 @@ TEST_P(UploadFileElementReaderTest, WrongPath) {
       std::numeric_limits<uint64_t>::max(), base::Time());
   TestCompletionCallback init_callback;
   ASSERT_THAT(reader_->Init(init_callback.callback()), IsError(ERR_IO_PENDING));
+#if defined(STARBOARD)
+  // Starboard does not guarantee that all platforms will return specific
+  // error code. Some can only gurantee the general ERR_FAILED.
+  auto result = init_callback.WaitForResult();
+  EXPECT_TRUE(result == ERR_FILE_NOT_FOUND || result == ERR_FAILED);
+#else
   EXPECT_THAT(init_callback.WaitForResult(), IsError(ERR_FILE_NOT_FOUND));
+#endif
 }
 
 #ifdef STARBOARD
