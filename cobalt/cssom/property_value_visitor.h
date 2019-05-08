@@ -44,8 +44,7 @@ class ShadowValue;
 class StringValue;
 class TimeListValue;
 class TimingFunctionListValue;
-class TransformFunctionListValue;
-class TransformMatrixFunctionValue;
+class TransformPropertyValue;
 class UnicodeRangeValue;
 class URLValue;
 class UrlSrcValue;
@@ -83,10 +82,8 @@ class PropertyValueVisitor {
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
   virtual void VisitTimingFunctionList(
       TimingFunctionListValue* timing_function_list_value) = 0;
-  virtual void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_function_list_value) = 0;
-  virtual void VisitTransformMatrixFunction(
-      TransformMatrixFunctionValue* transform_matrix_function_value) = 0;
+  virtual void VisitTransformPropertyValue(
+      TransformPropertyValue* transform_property_value) = 0;
   virtual void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) = 0;
   virtual void VisitURL(URLValue* url_value) = 0;
   virtual void VisitUrlSrc(UrlSrcValue* url_src_value) = 0;
@@ -127,10 +124,8 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitTimeList(TimeListValue* time_list_value) override;
   void VisitTimingFunctionList(
       TimingFunctionListValue* timing_function_list_value) override;
-  void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_function_list_value) override;
-  void VisitTransformMatrixFunction(
-      TransformMatrixFunctionValue* transform_matrix_function_value) override;
+  void VisitTransformPropertyValue(
+      TransformPropertyValue* transform_property_value) override;
   void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) override;
   void VisitURL(URLValue* url_value) override;
   void VisitUrlSrc(UrlSrcValue* url_src_value) override;

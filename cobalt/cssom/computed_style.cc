@@ -2631,8 +2631,8 @@ class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
                             const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) override;
-  void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_function_list) override;
+  void VisitTransformPropertyValue(
+      TransformPropertyValue* transform_property_value) override;
 
   const scoped_refptr<PropertyValue>& computed_transform_list() const {
     return computed_transform_list_;
@@ -2655,8 +2655,12 @@ ComputedTransformProvider::ComputedTransformProvider(
       root_computed_font_size_(root_computed_font_size),
       viewport_size_(viewport_size) {}
 
-void ComputedTransformProvider::VisitTransformFunctionList(
-    TransformFunctionListValue* transform_function_list) {
+void ComputedTransformProvider::VisitTransformPropertyValue(
+    TransformPropertyValue* transform_property_value) {
+  // This should only ever be a TransformFunctionListValue at this point.
+  TransformFunctionListValue* transform_function_list =
+      base::polymorphic_downcast<TransformFunctionListValue*>(
+          transform_property_value);
   if (!transform_function_list->value().HasTrait(
       TransformFunction::kTraitUsesRelativeUnits)) {
     // If the transform list contains no transforms that use relative units,

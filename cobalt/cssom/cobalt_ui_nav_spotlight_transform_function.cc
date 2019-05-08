@@ -14,44 +14,37 @@
 
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 
-#include "cobalt/cssom/percentage_value.h"
-#include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/matrix_function.h"
 
 namespace cobalt {
 namespace cssom {
 
-CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction()
-    : zero_scale_(0.0f, 0.0f) {
-  traits_ = kTraitIsDynamic;
-}
-
-CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction(
-    const scoped_refptr<ui_navigation::NavItem>& focus_item)
-    : zero_scale_(0.0f, 0.0f),
-      ui_nav_item_(focus_item) {
+CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction() {
   traits_ = kTraitIsDynamic;
 }
 
 std::string CobaltUiNavSpotlightTransformFunction::ToString() const {
-  return "-cobalt-ui-nav-spotlight-transform";
+  return "-cobalt-ui-nav-spotlight-transform()";
+}
+
+math::Matrix3F CobaltUiNavSpotlightTransformFunction::ToMatrix(
+    const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
+  float scale = 0.0f;
+  float focus_x = 0.0f, focus_y = 0.0f;
+  if (used_ui_nav_focus &&
+      used_ui_nav_focus->GetFocusVector(&focus_x, &focus_y)) {
+    scale = 1.0f;
+  }
+  return math::Matrix3F::FromValues(scale, 0.0f, focus_x * used_size.width(),
+                                    0.0f, scale, focus_y * used_size.height(),
+                                    0.0f, 0.0f, 1.0f);
 }
 
 void CobaltUiNavSpotlightTransformFunction::Accept(
     TransformFunctionVisitor* visitor) const {
-  float focus_x, focus_y;
-  if (!ui_nav_item_ || !ui_nav_item_->GetFocusVector(&focus_x, &focus_y)) {
-    // There is no focus vector. Emulate the zero scale.
-    zero_scale_.Accept(visitor);
-  } else {
-    // There is a valid focus vector. Emulate percentage translation.
-    // Map the focus vector values from [-1, +1] to [-50%, +50%].
-    TranslateFunction translate_x(TranslateFunction::kXAxis,
-        new PercentageValue(focus_x * 0.5f));
-    TranslateFunction translate_y(TranslateFunction::kYAxis,
-        new PercentageValue(focus_y * 0.5f));
-    translate_x.Accept(visitor);
-    translate_y.Accept(visitor);
-  }
+  MatrixFunction transform_function(math::Matrix3F::Identity());
+  transform_function.Accept(visitor);
 }
 
 }  // namespace cssom
