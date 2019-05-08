@@ -17,6 +17,7 @@
 """Cross-platform unit test runner."""
 
 import cStringIO
+import logging
 import os
 import re
 import signal
@@ -25,12 +26,13 @@ import sys
 import threading
 import traceback
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import, relative-import
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
+from starboard.tools.util import SetupDefaultLoggingConfig
 
 _TOTAL_TESTS_REGEX = (r"^\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
@@ -569,6 +571,7 @@ class TestRunner(object):
 
 
 def main():
+  SetupDefaultLoggingConfig()
   arg_parser = command_line.CreateParser()
   arg_parser.add_argument(
       "-b",
