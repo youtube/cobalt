@@ -250,7 +250,9 @@ class AndroidConfiguration(PlatformConfiguration):
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {
       'player_filter_tests': [
+          'AudioDecoderTests/AudioDecoderTest.ContinuedLimitedInput/0',
           'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'AudioDecoderTests/AudioDecoderTest.LimitedInput/0',
           'AudioDecoderTests/AudioDecoderTest.MultipleInputs/0',
           'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
           'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
