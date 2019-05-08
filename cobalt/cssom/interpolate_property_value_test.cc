@@ -18,6 +18,7 @@
 #include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/interpolate_property_value.h"
+#include "cobalt/cssom/interpolated_transform_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
@@ -27,7 +28,6 @@
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/math/transform_2d.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -576,15 +576,14 @@ TEST(InterpolatePropertyValueTest,
   };
 
   // Since the original transform list had mismatched types, the result should
-  // be a transform matrix.
-  scoped_refptr<TransformMatrixFunctionValue> interpolated =
-      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+  // be interpolated by matrix.
+  scoped_refptr<InterpolatedTransformPropertyValue> interpolated =
+      InterpolatePropertyTyped<InterpolatedTransformPropertyValue>(
           0.75f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
-  EXPECT_TRUE(interpolated->value().percentage_fields_zero());
   EXPECT_TRUE(
-      interpolated->value()
-          .ToMatrix3F(math::SizeF())
+      interpolated
+          ->ToMatrix(math::SizeF(), nullptr)
           .IsNear(math::TranslateMatrix(3.5f, 0.0f) *
                       math::RotateMatrix(-static_cast<float>(M_PI * 3 / 8)) *
                       math::ScaleMatrix(3.5f, 1.75f),
@@ -612,19 +611,18 @@ TEST(InterpolatePropertyValueTest,
   };
 
   // Since the original transform list had mismatched types, the result should
-  // be a matrix.
-  scoped_refptr<TransformMatrixFunctionValue> interpolated =
-      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+  // be interpolated by matrix.
+  scoped_refptr<InterpolatedTransformPropertyValue> interpolated =
+      InterpolatePropertyTyped<InterpolatedTransformPropertyValue>(
           0.5f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
 
-  scoped_refptr<TransformMatrixFunctionValue> next_interpolated =
-      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+  scoped_refptr<InterpolatedTransformPropertyValue> next_interpolated =
+      InterpolatePropertyTyped<InterpolatedTransformPropertyValue>(
           0.5f, interpolated, MakeMultipleMismatchedTransform::Start());
 
-  EXPECT_TRUE(next_interpolated->value().percentage_fields_zero());
-  EXPECT_TRUE(next_interpolated->value()
-                  .ToMatrix3F(math::SizeF())
+  EXPECT_TRUE(next_interpolated
+                  ->ToMatrix(math::SizeF(), nullptr)
                   .IsNear(math::RotateMatrix(-static_cast<float>(M_PI / 8)),
                           kErrorEpsilon));
 }
@@ -690,25 +688,21 @@ TEST(InterpolatePropertyValueTest,
   };
 
   // Since the original transform list had mismatched types, the result should
-  // be a matrix.
-  scoped_refptr<TransformMatrixFunctionValue> interpolated =
-      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+  // be interpolated by matrix.
+  scoped_refptr<InterpolatedTransformPropertyValue> interpolated =
+      InterpolatePropertyTyped<InterpolatedTransformPropertyValue>(
           0.5f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
 
-  const TransformMatrix& value = interpolated->value();
+  math::Matrix3F value = interpolated->ToMatrix(
+      math::SizeF(100.0f, 200.0f), nullptr);
 
-  EXPECT_NEAR(cos(M_PI / 4), value.offset_matrix().Get(0, 0), kErrorEpsilon);
-  EXPECT_NEAR(sin(M_PI / 4), value.offset_matrix().Get(1, 0), kErrorEpsilon);
-  EXPECT_NEAR(-sin(M_PI / 4), value.offset_matrix().Get(0, 1), kErrorEpsilon);
-  EXPECT_NEAR(cos(M_PI / 4), value.offset_matrix().Get(1, 1), kErrorEpsilon);
-  EXPECT_NEAR(1.0f, value.offset_matrix().Get(0, 2), kErrorEpsilon);
-  EXPECT_NEAR(7.5f, value.offset_matrix().Get(1, 2), kErrorEpsilon);
-
-  EXPECT_NEAR(0.1f, value.width_percentage_translation().x(), kErrorEpsilon);
-  EXPECT_NEAR(0.5f, value.width_percentage_translation().y(), kErrorEpsilon);
-  EXPECT_NEAR(0.0f, value.height_percentage_translation().x(), kErrorEpsilon);
-  EXPECT_NEAR(0.25f, value.height_percentage_translation().y(), kErrorEpsilon);
+  EXPECT_NEAR(cos(M_PI / 4), value(0, 0), kErrorEpsilon);
+  EXPECT_NEAR(sin(M_PI / 4), value(1, 0), kErrorEpsilon);
+  EXPECT_NEAR(-sin(M_PI / 4), value(0, 1), kErrorEpsilon);
+  EXPECT_NEAR(cos(M_PI / 4), value(1, 1), kErrorEpsilon);
+  EXPECT_NEAR(11.0f, value(0, 2), kErrorEpsilon);
+  EXPECT_NEAR(107.5f, value(1, 2), kErrorEpsilon);
 }
 
 }  // namespace cssom

@@ -49,6 +49,10 @@ class ScaleFunction : public TransformFunction {
     return base::StringPrintf("scale(%.7g, %.7g)", x_factor_, y_factor_);
   }
 
+  math::Matrix3F ToMatrix(const math::SizeF& used_size,
+      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
+      const override;
+
   bool operator==(const ScaleFunction& other) const {
     return x_factor_ == other.x_factor_ && y_factor_ == other.y_factor_;
   }

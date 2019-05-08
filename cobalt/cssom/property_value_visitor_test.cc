@@ -23,6 +23,7 @@
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
+#include "cobalt/cssom/interpolated_transform_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -45,7 +46,6 @@
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
@@ -87,11 +87,8 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitTimingFunctionList,
                void(TimingFunctionListValue* timing_function_list_value));
-  MOCK_METHOD1(VisitTransformFunctionList,
-               void(TransformFunctionListValue* transform_list_value));
-  MOCK_METHOD1(
-      VisitTransformMatrixFunction,
-      void(TransformMatrixFunctionValue* transform_matrix_function_value));
+  MOCK_METHOD1(VisitTransformPropertyValue,
+               void(TransformPropertyValue* transform_property_value));
   MOCK_METHOD1(VisitUnicodeRange, void(UnicodeRangeValue* unicode_range_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
   MOCK_METHOD1(VisitUrlSrc, void(UrlSrcValue* url_src_value));
@@ -300,24 +297,34 @@ TEST(PropertyValueVisitorTest, VisitsTimingFunctionListValue) {
   timing_function_list_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
+TEST(PropertyValueVisitorTest, VisitsTransformPropertyValueList) {
   TransformFunctionListValue::Builder builder;
   builder.emplace_back(new RotateFunction(0.0f));
   scoped_refptr<TransformFunctionListValue> transform_list_value =
       new TransformFunctionListValue(std::move(builder));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
-              VisitTransformFunctionList(transform_list_value.get()));
+              VisitTransformPropertyValue(transform_list_value.get()));
   transform_list_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitsTransformMatrixFunctionValue) {
-  scoped_refptr<TransformMatrixFunctionValue> transform_matrix_function_value =
-      new TransformMatrixFunctionValue(TransformMatrix());
+TEST(PropertyValueVisitorTest, VisitsTransformPropertyValueInterpolated) {
+  TransformFunctionListValue::Builder start_value_builder;
+  start_value_builder.emplace_back(new RotateFunction(0.0f));
+  scoped_refptr<TransformFunctionListValue> start_value(
+      new TransformFunctionListValue(std::move(start_value_builder)));
+
+  TransformFunctionListValue::Builder end_value_builder;
+  end_value_builder.emplace_back(new RotateFunction(0.0f));
+  scoped_refptr<TransformFunctionListValue> end_value(
+      new TransformFunctionListValue(std::move(end_value_builder)));
+
+  scoped_refptr<InterpolatedTransformPropertyValue> interpolated_value(
+      new InterpolatedTransformPropertyValue(start_value, end_value, 0.5f));
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTransformMatrixFunction(
-                                transform_matrix_function_value.get()));
-  transform_matrix_function_value->Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitTransformPropertyValue(
+      interpolated_value.get()));
+  interpolated_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsUnicodeRangeValue) {

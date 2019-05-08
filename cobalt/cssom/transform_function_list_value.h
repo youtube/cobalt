@@ -21,10 +21,8 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
-#include "cobalt/cssom/property_value.h"
-#include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/transform_function.h"
-#include "cobalt/cssom/transform_matrix.h"
+#include "cobalt/cssom/transform_property_value.h"
 #include "cobalt/math/matrix3_f.h"
 
 namespace cobalt {
@@ -33,7 +31,7 @@ namespace cssom {
 // A list of transform functions that define how transformation is applied
 // to the coordinate system an HTML element renders in.
 //   https://www.w3.org/TR/css-transforms-1/#typedef-transform-list
-class TransformFunctionListValue : public PropertyValue {
+class TransformFunctionListValue : public TransformPropertyValue {
  public:
   class Builder {
    private:
@@ -67,13 +65,15 @@ class TransformFunctionListValue : public PropertyValue {
   explicit TransformFunctionListValue(Builder&& value)
       : value_(std::move(value)) {}
 
-  void Accept(PropertyValueVisitor* visitor) override {
-    visitor->VisitTransformFunctionList(this);
+  std::string ToString() const override;
+
+  bool HasTrait(TransformFunction::Trait trait) const override {
+    return value_.HasTrait(trait);
   }
 
-  TransformMatrix ToMatrix() const;
-
-  std::string ToString() const override;
+  math::Matrix3F ToMatrix(const math::SizeF& used_size,
+      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
+      const override;
 
   bool operator==(const TransformFunctionListValue& other) const;
 
