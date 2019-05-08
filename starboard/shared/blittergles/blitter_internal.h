@@ -18,6 +18,7 @@
 #define STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_
 
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
 
 #include "starboard/blitter.h"
 #include "starboard/mutex.h"
@@ -38,6 +39,35 @@ struct SbBlitterDeviceRegistry {
 };
 
 SbBlitterDeviceRegistry* GetBlitterDeviceRegistry();
+
+// Helper class to allow one to create a RAII object that acquires the
+// SbBlitterContext object upon construction and handles binding/unbinding of
+// the egl_context field, as well as initializing fields that have deferred
+// creation.
+class ScopedCurrentContext {
+ public:
+  explicit ScopedCurrentContext(SbBlitterContext context);
+  ~ScopedCurrentContext();
+
+  // Returns true if an error occurred during intialization (indicating that
+  // this object is invalid).
+  bool InitializationError() const { return error_; }
+
+ private:
+  SbBlitterContext context_;
+  bool error_;
+
+  // Keeps track of whether this context was current on the calling thread.
+  bool was_current_;
+};
+
+// Will call eglMakeCurrent() and glBindFramebuffer() for context's
+// current_render_target. Returns true on success, false on failure.
+bool MakeCurrent(SbBlitterContext context);
+
+extern const EGLint kContextAttributeList[];
+
+extern const EGLint kConfigAttributeList[];
 
 }  // namespace blittergles
 }  // namespace shared
@@ -69,6 +99,9 @@ struct SbBlitterRenderTargetPrivate {
   // We will need to access the config and display of the device used to
   // create this render target, so we keep track of it.
   SbBlitterDevicePrivate* device;
+
+  // Keep track of the current GL framebuffer.
+  GLuint framebuffer_handle;
 };
 
 struct SbBlitterSwapChainPrivate {
@@ -104,6 +137,9 @@ struct SbBlitterContextPrivate {
 
   // The current scissor rectangle.
   SbBlitterRect scissor;
+
+  // Whether or not this context has been set to current or not.
+  bool is_current;
 };
 
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_
