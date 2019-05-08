@@ -60,11 +60,12 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def GetVideoProcessorDescription(self):
     try:
-      cmd = 'powershell -command "(Get-WmiObject Win32_VideoController).Description"'
+      cmd = ('powershell -command "(Get-WmiObject '
+             'Win32_VideoController).Description"')
       return subprocess.check_output(cmd, shell=True).splitlines()[0]
     except Exception as err:
-      logging.error("Could not detect video card because: " + str(err))
-      return "UNKNOWN"
+      logging.error('Could not detect video card because: ' + str(err))
+      return 'UNKNOWN'
 
   def AdditionalPlatformCompilerOptions(self):
     force_include_files = self.GetSdk().versioned_winmd_files
@@ -82,7 +83,8 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def GetVariables(self, configuration):
     sdk = self.GetSdk()
-    variables = super(Win32SharedConfiguration, self).GetVariables(configuration)
+    variables = super(Win32SharedConfiguration,
+                      self).GetVariables(configuration)
     compiler_options = ' '.join(self.AdditionalPlatformCompilerOptions())
     variables.update({
         'visual_studio_install_path': sdk.vs_install_dir_with_version,
@@ -164,6 +166,10 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     return filters
 
   __FILTERED_TESTS = {
+      'nplb': [
+          # Windows encounters some issue with FakeGraphicsContextProvider.
+          'SbMediaSetAudioWriteDurationTests.*',
+      ],
       'player_filter_tests': [
           # TODO: debug these failures.
           'AudioDecoderTests/AudioDecoderTest.SingleInvalidInput/0',

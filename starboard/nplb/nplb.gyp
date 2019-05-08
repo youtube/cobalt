@@ -31,6 +31,10 @@
               ],
           },
       },
+      'defines': [
+        # This allows the tests to include internal only header files.
+        'STARBOARD_IMPLEMENTATION',
+      ],
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
@@ -144,6 +148,7 @@
         # TODO: Separate functions tested by media buffer test into multiple
         # files.
         'media_buffer_test.cc',
+        'media_set_audio_write_duration_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -297,6 +302,8 @@
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',

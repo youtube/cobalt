@@ -22,7 +22,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/file.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
@@ -105,10 +105,11 @@ class VideoDmpReader {
   int video_fps() const { return video_fps_; }
 
   size_t number_of_audio_buffers() const { return audio_access_units_.size(); }
-  scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) const;
 
   size_t number_of_video_buffers() const { return video_access_units_.size(); }
-  scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const;
+
+  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index) const;
+  SbMediaAudioSampleInfo GetAudioSampleInfo(size_t index) const;
 
  private:
   void Parse();
