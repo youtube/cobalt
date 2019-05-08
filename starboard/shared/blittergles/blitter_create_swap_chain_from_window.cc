@@ -25,46 +25,31 @@
 #include "starboard/shared/gles/gl_call.h"
 
 namespace {
-EGLint const kAttributeList[] = {EGL_RED_SIZE,
-                                 8,
-                                 EGL_GREEN_SIZE,
-                                 8,
-                                 EGL_BLUE_SIZE,
-                                 8,
-                                 EGL_ALPHA_SIZE,
-                                 8,
-                                 EGL_BUFFER_SIZE,
-                                 32,
-                                 EGL_SURFACE_TYPE,
-                                 EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                 EGL_COLOR_BUFFER_TYPE,
-                                 EGL_RGB_BUFFER,
-                                 EGL_CONFORMANT,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_RENDERABLE_TYPE,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_NONE};
-
 struct ConfiguredWindowSurface {
   EGLConfig config;
 
   EGLSurface surface;
 };
 
+// This function will search for an EGLConfig that enables a successful
+// eglCreateWindowSurface() and return that config with the created EGLSurface,
+// if successful.
 starboard::optional<ConfiguredWindowSurface> GetConfiguredWindowSurface(
     EGLDisplay display,
     EGLNativeWindowType native_window) {
   // Query for how many configs match desired attributes.
   EGLint num_configs = 0;
-  EGL_CALL(eglChooseConfig(display, kAttributeList, NULL, 0, &num_configs));
+  EGL_CALL(eglChooseConfig(display,
+                           starboard::shared::blittergles::kConfigAttributeList,
+                           NULL, 0, &num_configs));
   if (num_configs <= 0) {
     SB_DLOG(ERROR) << ": Found no matching configs.";
     return starboard::nullopt;
   }
 
   std::unique_ptr<EGLConfig[]> configs(new EGLConfig[num_configs]);
-  eglChooseConfig(display, kAttributeList, configs.get(), num_configs,
-                  &num_configs);
+  eglChooseConfig(display, starboard::shared::blittergles::kConfigAttributeList,
+                  configs.get(), num_configs, &num_configs);
   if (eglGetError() != EGL_SUCCESS) {
     SB_DLOG(ERROR) << ": Error getting matching EGLConfigs.";
     return starboard::nullopt;
@@ -127,6 +112,19 @@ SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
     }
   }
 
+  eglQuerySurface(device->display, swap_chain->surface, EGL_WIDTH,
+                  &swap_chain->render_target.width);
+  if (eglGetError() != EGL_SUCCESS) {
+    SB_DLOG(ERROR) << ": Failed to set render target's width.";
+    return kSbBlitterInvalidSwapChain;
+  }
+  eglQuerySurface(device->display, swap_chain->surface, EGL_HEIGHT,
+                  &swap_chain->render_target.height);
+  if (eglGetError() != EGL_SUCCESS) {
+    SB_DLOG(ERROR) << ": Failed to set render target's height.";
+    return kSbBlitterInvalidSwapChain;
+  }
+  swap_chain->render_target.framebuffer_handle = 0;
   swap_chain->render_target.device = device;
   swap_chain->render_target.swap_chain = swap_chain.get();
 

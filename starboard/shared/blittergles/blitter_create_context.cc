@@ -36,6 +36,7 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
   context->current_color = SbBlitterColorFromRGBA(255, 255, 255, 255);
   context->modulate_blits_with_color = false;
   context->scissor = SbBlitterMakeRect(0, 0, 0, 0);
+  context->is_current = false;
 
   // If config hasn't been initialized, we defer creation. It's possible that
   // context will eventually be created with a config that doesn't check for
@@ -43,10 +44,10 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
   if (device->config == NULL) {
     context->egl_context = EGL_NO_CONTEXT;
   } else {
-    EGLint context_attrib_list[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
     starboard::ScopedLock lock(device->mutex);
-    context->egl_context = eglCreateContext(
-        device->display, device->config, EGL_NO_CONTEXT, context_attrib_list);
+    context->egl_context =
+        eglCreateContext(device->display, device->config, EGL_NO_CONTEXT,
+                         starboard::shared::blittergles::kContextAttributeList);
     if (context->egl_context == EGL_NO_CONTEXT) {
       SB_DLOG(ERROR) << ": Failed to create EGLContext.";
       return kSbBlitterInvalidContext;
