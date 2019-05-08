@@ -28,7 +28,7 @@
         'STARBOARD_IMPLEMENTATION',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:player_filter_tests_copy_test_data',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
