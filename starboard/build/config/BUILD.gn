@@ -41,10 +41,6 @@ config("compiler_defaults") {
     defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
   }
 
-  if (sb_enable_lib) {
-    defines += [ "SB_IS_LIBRARY=1" ]
-  }
-
   # There doesn't appear to be any way to use the C preprocessor to do
   # string concatenation with the / character. This prevents us from using
   # the preprocessor to assemble an include file path, so we have to do
