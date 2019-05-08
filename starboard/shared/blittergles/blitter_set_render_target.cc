@@ -28,9 +28,12 @@ bool SbBlitterSetRenderTarget(SbBlitterContext context,
     return false;
   }
 
-  // TODO: Optimize eglMakeCurrent calls, so SbBlitterSetRenderTarget() does
-  // more just store the desired render_target.
+  // TODO: Optimize eglMakeCurrent calls.
   context->current_render_target = render_target;
+  if (context->is_current) {
+    starboard::ScopedLock lock(context->device->mutex);
+    return starboard::shared::blittergles::MakeCurrent(context);
+  }
 
   return true;
 }
