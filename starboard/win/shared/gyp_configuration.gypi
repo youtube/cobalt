@@ -31,9 +31,6 @@
     'cobalt_splash_screen_file': '<(DEPTH)/cobalt/browser/splash_screen/youtube_splash_screen.html',
     'fallback_splash_screen_url': 'file:///cobalt/browser/splash_screen/youtube_splash_screen.html',
 
-    # win-win32-lib does not link this binary successfully today.
-    'build_snapshot_app_stats': 0,
-
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
