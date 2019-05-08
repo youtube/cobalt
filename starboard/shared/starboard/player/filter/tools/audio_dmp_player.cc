@@ -21,6 +21,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
@@ -32,6 +33,7 @@ namespace {
 using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
 using starboard::shared::starboard::player::filter::AudioRenderer;
 using starboard::shared::starboard::player::filter::PlayerComponents;
+using starboard::shared::starboard::player::InputBuffer;
 using starboard::shared::starboard::player::JobThread;
 using starboard::scoped_ptr;
 
@@ -63,6 +65,27 @@ int s_audio_sample_index;
 scoped_ptr<JobThread> s_job_thread;
 SbTime s_duration;
 
+static void DeallocateSampleFunc(SbPlayer player,
+                                 void* context,
+                                 const void* sample_buffer) {
+  SB_UNREFERENCED_PARAMETER(player);
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(sample_buffer);
+}
+
+starboard::scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
+  auto player_sample_info =
+      s_video_dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  return new InputBuffer(DeallocateSampleFunc, NULL, NULL, player_sample_info);
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaAudioSampleInfo audio_sample_info =
+      s_video_dmp_reader->GetAudioSampleInfo(index);
+  return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
+                         player_sample_info, &audio_sample_info);
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+}
+
 void OnTimer() {
   if (!s_audio_renderer->CanAcceptMoreData()) {
     s_job_thread->job_queue()->Schedule(std::bind(OnTimer), kSbTimeMillisecond);
@@ -74,8 +97,7 @@ void OnTimer() {
     s_audio_renderer->WriteEndOfStream();
     return;
   } else {
-    auto input_buffer =
-        s_video_dmp_reader->GetAudioInputBuffer(s_audio_sample_index);
+    auto input_buffer = GetAudioInputBuffer(s_audio_sample_index);
     s_duration = input_buffer->timestamp();
     s_audio_renderer->WriteSample(input_buffer);
     ++s_audio_sample_index;

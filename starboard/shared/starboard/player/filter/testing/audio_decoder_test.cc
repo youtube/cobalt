@@ -62,6 +62,14 @@ std::string GetTestInputDirectory() {
   return directory_path;
 }
 
+void DeallocateSampleFunc(SbPlayer player,
+                          void* context,
+                          const void* sample_buffer) {
+  SB_UNREFERENCED_PARAMETER(player);
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(sample_buffer);
+}
+
 std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
 }
@@ -140,7 +148,9 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     ASSERT_LT(index, dmp_reader_.number_of_audio_buffers());
 
     can_accept_more_input_ = false;
-    last_input_buffer_ = dmp_reader_.GetAudioInputBuffer(index);
+
+    last_input_buffer_ = GetAudioInputBuffer(index);
+
     audio_decoder_->Decode(last_input_buffer_, consumed_cb());
   }
 
@@ -272,6 +282,20 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     }
   }
 
+  scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) const {
+    auto player_sample_info =
+        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    return new InputBuffer(DeallocateSampleFunc, NULL, NULL,
+                           player_sample_info);
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    SbMediaAudioSampleInfo audio_sample_info =
+        dmp_reader_.GetAudioSampleInfo(index);
+    return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
+                           player_sample_info, &audio_sample_info);
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  }
+
   Mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
 
@@ -316,7 +340,7 @@ TEST_P(AudioDecoderTest, SingleInput) {
 
 TEST_P(AudioDecoderTest, SingleInvalidInput) {
   can_accept_more_input_ = false;
-  last_input_buffer_ = dmp_reader_.GetAudioInputBuffer(0);
+  last_input_buffer_ = GetAudioInputBuffer(0);
   std::vector<uint8_t> content(last_input_buffer_->size(), 0xab);
   // Replace the content with invalid data.
   last_input_buffer_->SetDecryptedContent(content.data(),

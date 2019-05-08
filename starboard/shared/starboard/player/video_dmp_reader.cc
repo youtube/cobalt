@@ -115,31 +115,28 @@ VideoDmpReader::VideoDmpReader(const char* filename)
 
 VideoDmpReader::~VideoDmpReader() {}
 
-scoped_refptr<InputBuffer> VideoDmpReader::GetAudioInputBuffer(
-    size_t index) const {
-  SB_DCHECK(index < audio_access_units_.size());
-  const AudioAccessUnit& au = audio_access_units_[index];
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
-  return new InputBuffer(DeallocateSampleFunc, NULL, NULL,
-                         ConvertToPlayerSampleInfo(au));
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
-  return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
-                         ConvertToPlayerSampleInfo(au),
-                         &au.audio_sample_info());
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
+                                                       size_t index) const {
+  switch (type) {
+    case kSbMediaTypeAudio: {
+      SB_DCHECK(index < audio_access_units_.size());
+      const AudioAccessUnit& aau = audio_access_units_[index];
+      return ConvertToPlayerSampleInfo(aau);
+    }
+    case kSbMediaTypeVideo: {
+      SB_DCHECK(index < video_access_units_.size());
+      const VideoAccessUnit& vau = video_access_units_[index];
+      return ConvertToPlayerSampleInfo(vau);
+    }
+  }
+  SB_NOTREACHED() << "Unhandled SbMediaType";
+  return SbPlayerSampleInfo();
 }
 
-scoped_refptr<InputBuffer> VideoDmpReader::GetVideoInputBuffer(
-    size_t index) const {
-  SB_DCHECK(index < video_access_units_.size());
-  const VideoAccessUnit& au = video_access_units_[index];
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
-  return new InputBuffer(DeallocateSampleFunc, NULL, NULL,
-                         ConvertToPlayerSampleInfo(au));
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
-  return new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc, NULL, NULL,
-                         ConvertToPlayerSampleInfo(au), NULL);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+SbMediaAudioSampleInfo VideoDmpReader::GetAudioSampleInfo(size_t index) const {
+  SB_DCHECK(index < audio_access_units_.size());
+  const AudioAccessUnit& au = audio_access_units_[index];
+  return au.audio_sample_info();
 }
 
 void VideoDmpReader::Parse() {
