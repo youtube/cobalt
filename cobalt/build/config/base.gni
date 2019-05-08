@@ -537,17 +537,11 @@ if (!defined(cobalt_media_source_garbage_collection_duration_threshold_in_second
   cobalt_media_source_garbage_collection_duration_threshold_in_seconds = "(170)"
 }
 
-# Enables embedding Cobalt as a shared library within another app. This
-# requires a 'lib' starboard implementation for the corresponding platform.
-if (!defined(cobalt_enable_lib)) {
-  cobalt_enable_lib = sb_enable_lib
-}
-
 # For configurations other than Gold, set the flag that lets test data files be
 # copied and carried along with the build.
 # Clients must copy over all content; to avoid having to copy over extra data,
 # we omit the test data
-_copy_test_data = (cobalt_config != "gold" && !cobalt_enable_lib)
+_copy_test_data = (cobalt_config != "gold")
 if (!defined(enable_debugger)) {
   enable_debugger = _copy_test_data
 }

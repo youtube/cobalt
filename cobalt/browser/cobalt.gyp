@@ -22,6 +22,9 @@
       'type': '<(final_executable_type)',
       'conditions': [
         ['sb_evergreen != 1', {
+          'sources': [
+            'main.cc',
+          ],
           'dependencies': [
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
             '<(DEPTH)/net/net.gyp:net',
@@ -30,16 +33,6 @@
             ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
               'dependencies': [
                 '<(DEPTH)/third_party/musl/musl.gyp:c'
-              ],
-            }],
-            ['cobalt_enable_lib == 1', {
-              'sources': [
-                'lib/cobalt.def',
-                'lib/main.cc',
-              ],
-            }, {
-              'sources': [
-                'main.cc',
               ],
             }],
             ['cobalt_splash_screen_file != ""', {
