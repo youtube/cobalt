@@ -48,10 +48,6 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
-    # Enables embedding Cobalt as a shared library within another app. This
-    # requires a 'lib' starboard implementation for the corresponding platform.
-    'cobalt_enable_lib': '<(sb_enable_lib)',
-
     # This variable defines what Cobalt's preferred strategy should be for
     # handling internally triggered application exit requests (e.g. the user
     # chooses to back out of the application).

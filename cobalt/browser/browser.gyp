@@ -194,9 +194,6 @@
             '<(DEPTH)/cobalt/debug/debug.gyp:debug',
           ],
         }],
-        ['cobalt_enable_lib == 1', {
-          'defines' : ['COBALT_ENABLE_LIB'],
-        }],
         ['mesh_cache_size_in_bytes == "auto"', {
           'conditions': [
             ['enable_map_to_mesh==1', {
