@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/task/task_scheduler/task_scheduler.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -75,6 +76,10 @@ class MediaSandbox::Impl {
 MediaSandbox::Impl::Impl(int argc, char** argv,
                          const base::FilePath& trace_log_path) {
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
+  // A one-per-process task scheduler is needed for usage of APIs in
+  // base/post_task.h which will be used by some net APIs like
+  // URLRequestContext;
+  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
   network::NetworkModule::Options network_options;
   network_options.https_requirement = network::kHTTPSOptional;
 
