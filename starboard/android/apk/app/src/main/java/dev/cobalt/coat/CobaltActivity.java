@@ -25,7 +25,6 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
-import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.Log;
@@ -58,8 +57,6 @@ public abstract class CobaltActivity extends NativeActivity {
   private VideoSurfaceView videoSurfaceView;
   private KeyboardEditor keyboardEditor;
 
-  private ViewTreeObserver.OnGlobalLayoutListener videoSurfaceLayoutListener;
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // To ensure that volume controls adjust the correct stream, make this call
@@ -86,16 +83,6 @@ public abstract class CobaltActivity extends NativeActivity {
     a11yHelper = new CobaltA11yHelper(videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-
-    videoSurfaceLayoutListener =
-        new ViewTreeObserver.OnGlobalLayoutListener() {
-          @Override
-          public void onGlobalLayout() {
-            VideoSurfaceView.nativeOnGlobalLayout();
-          }
-        };
-    ViewTreeObserver observer = getWindow().getDecorView().getViewTreeObserver();
-    observer.addOnGlobalLayoutListener(videoSurfaceLayoutListener);
 
     keyboardEditor = new KeyboardEditor(this);
     addContentView(
@@ -127,9 +114,6 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   protected void onDestroy() {
-    ViewTreeObserver observer = getWindow().getDecorView().getViewTreeObserver();
-    observer.removeOnGlobalLayoutListener(videoSurfaceLayoutListener);
-
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -231,16 +215,10 @@ public abstract class CobaltActivity extends NativeActivity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
-    if (!videoSurfaceView.updateVideoBounds(x, y, width, height)) {
-      return;
-    }
-
-    VideoSurfaceView.nativeOnLayoutNeeded();
     runOnUiThread(
         new Runnable() {
           @Override
           public void run() {
-            VideoSurfaceView.nativeOnLayoutScheduled();
             LayoutParams layoutParams = videoSurfaceView.getLayoutParams();
             // Since videoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
