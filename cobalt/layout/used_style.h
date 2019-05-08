@@ -22,7 +22,6 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/cssom/transform_matrix.h"
 #include "cobalt/dom/font_cache.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/dom/html_element_context.h"
@@ -320,8 +319,6 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
 
 math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
                                    cssom::PropertyValue* value);
-
-cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);
 
 // Functions to calculate used values of box model properties.
 base::Optional<LayoutUnit> GetUsedLeftIfNotAuto(

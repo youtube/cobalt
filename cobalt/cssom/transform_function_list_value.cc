@@ -36,18 +36,6 @@ void TransformFunctionListValue::Builder::push_back(
   functions_.push_back(std::move(function));
 }
 
-TransformMatrix TransformFunctionListValue::ToMatrix() const {
-  // Iterate through all transforms in the transform list appending them
-  // to our transform_matrix.
-  TransformMatrix matrix;
-  for (Builder::const_iterator iter = value().begin(); iter != value().end();
-       ++iter) {
-    matrix.PostMultiplyByTransform(iter->get());
-  }
-
-  return matrix;
-}
-
 std::string TransformFunctionListValue::ToString() const {
   std::string result;
   for (size_t i = 0; i < value().size(); ++i) {
@@ -55,6 +43,16 @@ std::string TransformFunctionListValue::ToString() const {
     result.append(value()[i]->ToString());
   }
   return result;
+}
+
+math::Matrix3F TransformFunctionListValue::ToMatrix(
+    const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
+  math::Matrix3F matrix(math::Matrix3F::Identity());
+  for (const auto& function : value()) {
+    matrix = matrix * function->ToMatrix(used_size, used_ui_nav_focus);
+  }
+  return matrix;
 }
 
 bool TransformFunctionListValue::operator==(

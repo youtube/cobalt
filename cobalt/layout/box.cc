@@ -27,6 +27,7 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/transform_property_value.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/render_tree_animations.h"
@@ -1162,8 +1163,13 @@ math::Matrix3F GetCSSTransform(
     return math::Matrix3F::Identity();
   }
 
-  math::Matrix3F css_transform_matrix =
-      GetTransformMatrix(transform_property_value).ToMatrix3F(used_rect.size());
+  cssom::TransformPropertyValue* transform_value =
+      base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+          transform_property_value);
+  // TODO: Pass the appropriate UI nav item to ToMatrix() in order to support
+  // "-cobalt-ui-nav-spotlight-transform()".
+  math::Matrix3F css_transform_matrix = transform_value->ToMatrix(
+      used_rect.size(), nullptr);
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.

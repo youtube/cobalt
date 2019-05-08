@@ -37,7 +37,6 @@
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
-#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
@@ -1341,19 +1340,6 @@ math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
 
   return math::Vector2dF(used_rect.x() + x_within_border_box,
                          used_rect.y() + y_within_border_box);
-}
-
-cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value) {
-  if (value->GetTypeId() ==
-      base::GetTypeId<cssom::TransformMatrixFunctionValue>()) {
-    cssom::TransformMatrixFunctionValue* matrix_function =
-        base::polymorphic_downcast<cssom::TransformMatrixFunctionValue*>(value);
-    return matrix_function->value();
-  } else {
-    cssom::TransformFunctionListValue* transform_list =
-        base::polymorphic_downcast<cssom::TransformFunctionListValue*>(value);
-    return transform_list->ToMatrix();
-  }
 }
 
 namespace {

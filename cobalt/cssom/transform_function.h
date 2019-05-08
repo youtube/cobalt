@@ -18,6 +18,9 @@
 #include <string>
 
 #include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/size_f.h"
+#include "cobalt/ui_navigation/nav_item.h"
 
 namespace cobalt {
 namespace cssom {
@@ -44,6 +47,9 @@ class TransformFunction : public base::PolymorphicEquatable {
   virtual void Accept(TransformFunctionVisitor* visitor) const = 0;
 
   virtual std::string ToString() const = 0;
+
+  virtual math::Matrix3F ToMatrix(const math::SizeF& used_size,
+      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const = 0;
 
   virtual ~TransformFunction() {}
 
