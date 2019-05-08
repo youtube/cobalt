@@ -15,15 +15,18 @@
 # limitations under the License.
 """Client to launch executables via the new launcher logic."""
 
+import logging
 import signal
 import sys
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import, relative-import
 from starboard.tools import abstract_launcher
 from starboard.tools import command_line
+from starboard.tools.util import SetupDefaultLoggingConfig
 
 
 def main():
+  SetupDefaultLoggingConfig()
   parser = command_line.CreateParser()
   parser.add_argument(
       "-t",
