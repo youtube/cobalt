@@ -19,9 +19,7 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
-#include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/transform_function.h"
-#include "cobalt/ui_navigation/nav_item.h"
 
 namespace cobalt {
 namespace cssom {
@@ -41,24 +39,20 @@ class TransformFunctionVisitor;
 class CobaltUiNavSpotlightTransformFunction : public TransformFunction {
  public:
   CobaltUiNavSpotlightTransformFunction();
-  explicit CobaltUiNavSpotlightTransformFunction(
-      const scoped_refptr<ui_navigation::NavItem>& focus_item);
 
   void Accept(TransformFunctionVisitor* visitor) const override;
 
   std::string ToString() const override;
 
+  math::Matrix3F ToMatrix(const math::SizeF& used_size,
+      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
+      const override;
+
   bool operator==(const CobaltUiNavSpotlightTransformFunction& other) const {
-    return ui_nav_item_.get() == other.ui_nav_item_.get();
+    return true;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(CobaltUiNavSpotlightTransformFunction);
-
- private:
-  const ScaleFunction zero_scale_;
-
-  // This UI navigation item provides the focus vector.
-  scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
 };
 
 }  // namespace cssom

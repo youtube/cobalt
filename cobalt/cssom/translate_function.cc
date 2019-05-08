@@ -19,6 +19,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
+#include "cobalt/math/transform_2d.h"
 
 namespace cobalt {
 namespace cssom {
@@ -120,6 +121,26 @@ std::string TranslateFunction::ToString() const {
   }
   result.push_back(')');
   return result;
+}
+
+math::Matrix3F TranslateFunction::ToMatrix(const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& /* used_ui_nav_focus */)
+    const {
+  switch (axis_) {
+    case kXAxis:
+      return math::TranslateMatrix(length_component_in_pixels() +
+                                   percentage_component() * used_size.width(),
+                                   0.0f);
+      break;
+    case kYAxis:
+      return math::TranslateMatrix(0.0f,
+                                   length_component_in_pixels() +
+                                   percentage_component() * used_size.height());
+      break;
+    case kZAxis:
+      NOTIMPLEMENTED() << "translateZ is currently a noop in Cobalt.";
+  }
+  return math::Matrix3F::Identity();
 }
 
 }  // namespace cssom
