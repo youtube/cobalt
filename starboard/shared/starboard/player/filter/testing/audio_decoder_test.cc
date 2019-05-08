@@ -189,6 +189,38 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     }
   }
 
+  // The start_index will be updated to the new position.
+  void WriteTimeLimitedInputs(int* start_index, SbTime time_limit) {
+    SB_DCHECK(start_index);
+    SB_DCHECK(*start_index >= 0);
+    SB_DCHECK(*start_index < dmp_reader_.number_of_audio_buffers());
+    ASSERT_NO_FATAL_FAILURE(
+        WriteSingleInput(static_cast<size_t>(*start_index)));
+    SB_DCHECK(last_input_buffer_);
+    SbTime last_timestamp = last_input_buffer_->timestamp();
+    SbTime first_timestamp = last_timestamp;
+    ++(*start_index);
+
+    while (last_timestamp - first_timestamp < time_limit &&
+           *start_index < dmp_reader_.number_of_audio_buffers()) {
+      Event event = kError;
+      ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
+      if (event == kConsumed) {
+        ASSERT_NO_FATAL_FAILURE(
+            WriteSingleInput(static_cast<size_t>(*start_index)));
+        SB_DCHECK(last_input_buffer_);
+        last_timestamp = last_input_buffer_->timestamp();
+        ++(*start_index);
+        continue;
+      }
+      ASSERT_EQ(kOutput, event);
+      scoped_refptr<DecodedAudio> decoded_audio;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
+      ASSERT_TRUE(decoded_audio);
+      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+    }
+  }
+
   void DrainOutputs(bool* error_occurred = NULL) {
     if (error_occurred) {
       *error_occurred = false;
@@ -223,6 +255,21 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     can_accept_more_input_ = true;
     last_input_buffer_ = NULL;
     last_decoded_audio_ = NULL;
+  }
+
+  void WaitForDecodedAudio() {
+    Event event;
+    while (!last_decoded_audio_) {
+      ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
+      if (event == kConsumed) {
+        continue;
+      }
+      ASSERT_EQ(kOutput, event);
+      scoped_refptr<DecodedAudio> decoded_audio;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
+      ASSERT_TRUE(decoded_audio);
+      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+    }
   }
 
   Mutex event_queue_mutex_;
@@ -318,6 +365,55 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
 }
+
+#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+
+TEST_P(AudioDecoderTest, LimitedInput) {
+  SbTime duration = kSbTimeSecond / 2;
+  SbMediaSetAudioWriteDuration(duration);
+
+  ASSERT_FALSE(last_decoded_audio_);
+  int start_index = 0;
+  ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
+
+  // Wait for decoded audio.
+  WaitForDecodedAudio();
+}
+
+TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
+  SbTime duration = kSbTimeSecond / 2;
+  SbMediaSetAudioWriteDuration(duration);
+
+  int start_index = 0;
+  Event event;
+  while (true) {
+    ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
+    if (start_index >= dmp_reader_.number_of_audio_buffers()) {
+      break;
+    }
+    SB_DCHECK(last_input_buffer_);
+    WaitForDecodedAudio();
+    ASSERT_TRUE(last_decoded_audio_);
+    while ((last_input_buffer_->timestamp() -
+            last_decoded_audio_->timestamp()) > duration ||
+           !can_accept_more_input_) {
+      ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
+      if (event == kConsumed) {
+        continue;
+      }
+      ASSERT_EQ(kOutput, event);
+      scoped_refptr<DecodedAudio> decoded_audio;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
+      ASSERT_TRUE(decoded_audio);
+      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+    }
+  }
+  audio_decoder_->WriteEndOfStream();
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_TRUE(last_decoded_audio_);
+}
+
+#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
 
 std::vector<const char*> GetSupportedTests() {
   const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
