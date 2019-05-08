@@ -20,7 +20,9 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/atomic.h"
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
@@ -30,6 +32,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace android {
@@ -37,7 +40,9 @@ namespace shared {
 
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
-      private MediaDecoder::Host {
+      private MediaDecoder::Host,
+      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
+      private VideoSurfaceHolder {
  public:
   typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
       VideoRendererSink;
@@ -79,6 +84,8 @@ class VideoDecoder
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;
 
+  void OnSurfaceDestroyed() override;
+
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
@@ -115,6 +122,13 @@ class VideoDecoder
 
   bool first_buffer_received_;
   volatile SbTime first_buffer_timestamp_;
+
+  // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
+  // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
+  // do nothing if not own the surface.
+  bool owns_video_surface_ = false;
+  starboard::Mutex surface_destroy_mutex_;
+  starboard::ConditionVariable surface_condition_variable_;
 };
 
 }  // namespace shared
