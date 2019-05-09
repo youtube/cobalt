@@ -22,6 +22,7 @@
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/interpolated_transform_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -155,6 +156,8 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   void VisitRotate(const RotateFunction* rotate_function) override;
   void VisitScale(const ScaleFunction* scale_function) override;
   void VisitTranslate(const TranslateFunction* translate_function) override;
+  void VisitCobaltUiNavSpotlightTransform(
+      const CobaltUiNavSpotlightTransformFunction* spotlight_function) override;
 
   AnimateTransformFunction(const TransformFunction* end, float progress)
       : end_(end), progress_(progress) {}
@@ -251,6 +254,23 @@ void AnimateTransformFunction::VisitTranslate(
 
   animated_ = InterpolateTranslateFunctions(translate_function, translate_end,
                                             progress_);
+}
+
+void AnimateTransformFunction::VisitCobaltUiNavSpotlightTransform(
+    const CobaltUiNavSpotlightTransformFunction* spotlight_function) {
+  const CobaltUiNavSpotlightTransformFunction* spotlight_end =
+      base::polymorphic_downcast<const CobaltUiNavSpotlightTransformFunction*>(
+          end_);
+  // Since the spotlight transform changes over time, it would be incorrect
+  // to grab a snapshot of the current value and interpolate that with the
+  // identity matrix when transitioning to transform none. Instead, the
+  // spotlight transform needs to know how close to the identity transform it
+  // needs to interpolate its value when evaluated.
+  float progress_to_identity_end =
+      spotlight_end ? spotlight_end->progress_to_identity() : 1.0f;
+  animated_.reset(new CobaltUiNavSpotlightTransformFunction(
+      Lerp(spotlight_function->progress_to_identity(),
+           progress_to_identity_end, progress_)));
 }
 
 // Returns true if two given transform function lists have the same number of

@@ -16,6 +16,7 @@
 
 #include "base/time/time.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/interpolate_property_value.h"
 #include "cobalt/cssom/interpolated_transform_property_value.h"
@@ -121,6 +122,74 @@ TEST(InterpolatePropertyValueTest, TransformSingleRotateValuesInterpolate) {
 
   EXPECT_NEAR(single_function->clockwise_angle_in_radians(), 1.5f,
               kErrorEpsilon);
+}
+
+TEST(InterpolatePropertyValueTest,
+     TransfromFromNoneToCobaltUiNavSpotlightTransformValuesInterpolate) {
+  struct MakeSingleSpotlightTransform {
+    static scoped_refptr<PropertyValue> Start() {
+      return KeywordValue::GetNone();
+    }
+    static scoped_refptr<PropertyValue> End() {
+      TransformFunctionListValue::Builder functions;
+      functions.emplace_back(new CobaltUiNavSpotlightTransformFunction);
+      return new TransformFunctionListValue(std::move(functions));
+    }
+  };
+
+  scoped_refptr<TransformFunctionListValue> interpolated =
+      InterpolatePropertyTyped<TransformFunctionListValue>(
+          0.25f, MakeSingleSpotlightTransform::Start(),
+          MakeSingleSpotlightTransform::End());
+
+  ASSERT_EQ(1, interpolated->value().size());
+
+  const CobaltUiNavSpotlightTransformFunction* spotlight_function =
+      dynamic_cast<const CobaltUiNavSpotlightTransformFunction*>(
+          interpolated->value()[0].get());
+  ASSERT_TRUE(spotlight_function);
+  EXPECT_NEAR(spotlight_function->progress_to_identity(), 0.75f, kErrorEpsilon);
+
+  math::Matrix3F value = spotlight_function->ToMatrix(math::SizeF(), nullptr);
+  EXPECT_NEAR(value(0, 0), 0.75f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 1), 0.75f, kErrorEpsilon);
+  EXPECT_NEAR(value(0, 2), 0.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 2), 0.0f, kErrorEpsilon);
+}
+
+TEST(InterpolatePropertyValueTest,
+     TransfromSingleCobaltUiNavSpotlightTransformValuesInterpolate) {
+  struct MakeSingleSpotlightTransform {
+    static scoped_refptr<PropertyValue> Start() {
+      TransformFunctionListValue::Builder functions;
+      functions.emplace_back(new CobaltUiNavSpotlightTransformFunction(0.0f));
+      return new TransformFunctionListValue(std::move(functions));
+    }
+    static scoped_refptr<PropertyValue> End() {
+      TransformFunctionListValue::Builder functions;
+      functions.emplace_back(new CobaltUiNavSpotlightTransformFunction(0.5f));
+      return new TransformFunctionListValue(std::move(functions));
+    }
+  };
+
+  scoped_refptr<TransformFunctionListValue> interpolated =
+      InterpolatePropertyTyped<TransformFunctionListValue>(
+          0.5f, MakeSingleSpotlightTransform::Start(),
+          MakeSingleSpotlightTransform::End());
+
+  ASSERT_EQ(1, interpolated->value().size());
+
+  const CobaltUiNavSpotlightTransformFunction* spotlight_function =
+      dynamic_cast<const CobaltUiNavSpotlightTransformFunction*>(
+          interpolated->value()[0].get());
+  ASSERT_TRUE(spotlight_function);
+  EXPECT_NEAR(spotlight_function->progress_to_identity(), 0.25f, kErrorEpsilon);
+
+  math::Matrix3F value = spotlight_function->ToMatrix(math::SizeF(), nullptr);
+  EXPECT_NEAR(value(0, 0), 0.25f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 1), 0.25f, kErrorEpsilon);
+  EXPECT_NEAR(value(0, 2), 0.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 2), 0.0f, kErrorEpsilon);
 }
 
 TEST(InterpolatePropertyValueTest, TransformSingleScaleValuesInterpolate) {

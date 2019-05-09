@@ -38,9 +38,17 @@ class TransformFunctionVisitor;
 // from -50% to +50% in the X and Y directions.
 class CobaltUiNavSpotlightTransformFunction : public TransformFunction {
  public:
-  CobaltUiNavSpotlightTransformFunction();
+  // |progress_to_identity| is used to support transitions to or from CSS
+  // transform none. The value must be in the range of [0,1] with a value of 1
+  // resulting in this transform returning the identity matrix. DOM elements
+  // will only ever use progress_to_identity == 0, but intermediate animation
+  // frames may use other values.
+  explicit CobaltUiNavSpotlightTransformFunction(
+      float progress_to_identity = 0.0f);
 
   void Accept(TransformFunctionVisitor* visitor) const override;
+
+  float progress_to_identity() const { return progress_to_identity_; }
 
   std::string ToString() const override;
 
@@ -49,10 +57,13 @@ class CobaltUiNavSpotlightTransformFunction : public TransformFunction {
       const override;
 
   bool operator==(const CobaltUiNavSpotlightTransformFunction& other) const {
-    return true;
+    return progress_to_identity_ == other.progress_to_identity_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(CobaltUiNavSpotlightTransformFunction);
+
+ private:
+  const float progress_to_identity_;
 };
 
 }  // namespace cssom

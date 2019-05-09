@@ -740,6 +740,11 @@ class Box : public base::RefCounted<Box> {
   // and background-image would populate.
   math::RectF GetBackgroundRect();
 
+  // Some custom CSS transform functions require a UI navigation focus item as
+  // input. This computes the appropriate UI navigation item for this box's
+  // transform. This should only be called if the box IsTransformed().
+  scoped_refptr<ui_navigation::NavItem> ComputeUiNavFocusForTransform() const;
+
   // Returns whether the overflow is animated by a UI navigation item.
   bool IsOverflowAnimatedByUiNavigation() const {
     return ui_nav_item_ && ui_nav_item_->IsContainer();

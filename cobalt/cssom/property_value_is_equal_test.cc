@@ -16,6 +16,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -76,6 +77,21 @@ TEST(PropertyValueIsEqualTest, AbsoluteURLsAreNotEqual) {
   scoped_refptr<AbsoluteURLValue> value_b(new AbsoluteURLValue(url_b));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, CobaltUiNavSpotlightTransformFunctionsAreEqual) {
+  CobaltUiNavSpotlightTransformFunction function_a;
+  CobaltUiNavSpotlightTransformFunction function_b;
+
+  EXPECT_TRUE(function_a.Equals(function_b));
+}
+
+TEST(PropertyValueIsEqualTest,
+     CobaltUiNavSpotlightTransformFunctionsAreNotEqual) {
+  CobaltUiNavSpotlightTransformFunction function_a(0.0f);
+  CobaltUiNavSpotlightTransformFunction function_b(1.0f);
+
+  EXPECT_FALSE(function_a.Equals(function_b));
 }
 
 TEST(PropertyValueIsEqualTest, FontStylesAreEqual) {
@@ -552,6 +568,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
       TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
   transform_list_a.emplace_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_a.emplace_back(new RotateFunction(1.0f));
+  transform_list_a.emplace_back(new CobaltUiNavSpotlightTransformFunction);
   scoped_refptr<TransformFunctionListValue> value_a(
       new TransformFunctionListValue(std::move(transform_list_a)));
 
@@ -560,6 +577,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
       TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
   transform_list_b.emplace_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_b.emplace_back(new RotateFunction(1.0f));
+  transform_list_b.emplace_back(new CobaltUiNavSpotlightTransformFunction);
   scoped_refptr<TransformFunctionListValue> value_b(
       new TransformFunctionListValue(std::move(transform_list_b)));
 
