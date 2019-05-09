@@ -75,10 +75,14 @@ void DialUdpServer::CreateAndBind() {
   // The thread_checker_ will bind to thread_ from this point on.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900));
+  if (!socket_) {
+    DLOG(WARNING) << "Failed to bind socket for Dial UDP Server";
+    return;
+  }
+
   thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
                             base::Unretained(this)));
-  DLOG_IF(WARNING, !socket_) << "Failed to bind socket for Dial UDP Server";
 }
 
 void DialUdpServer::Shutdown() {
