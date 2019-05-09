@@ -19,6 +19,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -340,16 +341,23 @@ TEST(PropertyValueToStringTest, TranslateFunction) {
   EXPECT_EQ(function.ToString(), "translateY(3em)");
 }
 
+TEST(PropertyValueToStringTest, CobaltUiNavSpotlightTransformFunction) {
+  CobaltUiNavSpotlightTransformFunction function;
+  EXPECT_EQ(function.ToString(), "-cobalt-ui-nav-spotlight-transform()");
+}
+
 TEST(PropertyValueToStringTest, TransformFunctionListValue) {
   TransformFunctionListValue::Builder transform_list;
   transform_list.emplace_back(new TranslateFunction(
       TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
   transform_list.emplace_back(new ScaleFunction(2.0f, 2.0f));
   transform_list.emplace_back(new RotateFunction(1.0f));
+  transform_list.emplace_back(new CobaltUiNavSpotlightTransformFunction);
   scoped_refptr<TransformFunctionListValue> property(
       new TransformFunctionListValue(std::move(transform_list)));
 
-  EXPECT_EQ(property->ToString(), "translateX(1px) scale(2, 2) rotate(1rad)");
+  EXPECT_EQ(property->ToString(), "translateX(1px) scale(2, 2) rotate(1rad) "
+      "-cobalt-ui-nav-spotlight-transform()");
 }
 
 TEST(PropertyValueToStringTest, URLValue) {
