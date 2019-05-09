@@ -1158,7 +1158,8 @@ namespace {
 math::Matrix3F GetCSSTransform(
     cssom::PropertyValue* transform_property_value,
     cssom::PropertyValue* transform_origin_property_value,
-    const math::RectF& used_rect) {
+    const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus) {
   if (transform_property_value == cssom::KeywordValue::GetNone()) {
     return math::Matrix3F::Identity();
   }
@@ -1166,10 +1167,8 @@ math::Matrix3F GetCSSTransform(
   cssom::TransformPropertyValue* transform_value =
       base::polymorphic_downcast<cssom::TransformPropertyValue*>(
           transform_property_value);
-  // TODO: Pass the appropriate UI nav item to ToMatrix() in order to support
-  // "-cobalt-ui-nav-spotlight-transform()".
   math::Matrix3F css_transform_matrix = transform_value->ToMatrix(
-      used_rect.size(), nullptr);
+      used_rect.size(), ui_nav_focus);
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
@@ -1180,25 +1179,27 @@ math::Matrix3F GetCSSTransform(
          math::TranslateMatrix(-origin.x(), -origin.y());
 }
 
-void PopulateBaseStyleForMatrixTransformNode(
-    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
-  // NOTE: Properties set by PopulateBaseStyleForMatrixTransformNode() should
-  // match the properties used by
-  // SetupMatrixTransformNodeFromCSSSStyleTransform().
-  destination_style->set_transform(source_style->transform());
-  destination_style->set_transform_origin(source_style->transform_origin());
-}
-
 // Used within the animation callback for CSS transforms.  This will set the
 // transform of a single-child matrix transform node to that specified by the
 // CSS transform of the provided CSS Style Declaration.
-void SetupMatrixTransformNodeFromCSSSStyleTransform(
+void SetupMatrixTransformNodeFromCSSStyle(
     const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     MatrixTransformNode::Builder* transform_node_builder) {
   transform_node_builder->transform = GetCSSTransform(
-      style->transform().get(), style->transform_origin().get(), used_rect);
+      style->transform().get(), style->transform_origin().get(),
+      used_rect, ui_nav_focus);
+}
+
+void SetupMatrixTransformNodeFromCSSTransform(
+    const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus,
+    const scoped_refptr<cssom::PropertyValue>& transform,
+    const scoped_refptr<cssom::PropertyValue>& transform_origin,
+    MatrixTransformNode::Builder* transform_node_builder) {
+  transform_node_builder->transform = GetCSSTransform(
+      transform.get(), transform_origin.get(), used_rect, ui_nav_focus);
 }
 
 void PopulateBaseStyleForFilterNode(
@@ -1321,6 +1322,25 @@ base::Optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
   } else {
     return padding_rounded_corners;
   }
+}
+
+scoped_refptr<ui_navigation::NavItem> Box::ComputeUiNavFocusForTransform()
+    const {
+  const cssom::TransformPropertyValue* transform_property_value =
+      base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+          computed_style()->transform().get());
+  if (!transform_property_value->HasTrait(
+      cssom::TransformFunction::kTraitUsesUiNavFocus)) {
+    return nullptr;
+  }
+
+  // Find the nearest UI navigation item that is a focus item.
+  for (const Box* box = this; box != nullptr; box = box->parent_) {
+    if (box->ui_nav_item_ && !box->ui_nav_item_->IsContainer()) {
+      return box->ui_nav_item_;
+    }
+  }
+  return nullptr;
 }
 
 void Box::RenderAndAnimateBoxShadow(
@@ -1670,6 +1690,29 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     const scoped_refptr<render_tree::Node>& border_node,
     AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
+  // Certain transforms need a UI navigation focus item as input.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_focus;
+
+  // Some transform functions change over time, so they will need to be
+  // evaluated indefinitely.
+  bool transform_is_dynamic = false;
+
+  {
+    const scoped_refptr<cssom::PropertyValue>& property_value =
+        computed_style()->transform();
+    if (property_value != cssom::KeywordValue::GetNone()) {
+      ui_nav_focus = ComputeUiNavFocusForTransform();
+      cssom::TransformPropertyValue* transform_value =
+          base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+              property_value.get());
+      transform_is_dynamic =
+          transform_value->HasTrait(cssom::TransformFunction::kTraitIsDynamic);
+    }
+  }
+
+  math::RectF used_rect(PointAtOffsetFromOrigin(border_node_offset),
+                        GetClampedBorderBoxSize());
+
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
@@ -1680,14 +1723,36 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
 
     // Specifically animate only the matrix transform node with the CSS
     // transform.
-    AddAnimations<MatrixTransformNode>(
-        base::Bind(&PopulateBaseStyleForMatrixTransformNode),
-        base::Bind(&SetupMatrixTransformNodeFromCSSSStyleTransform,
-                   math::RectF(PointAtOffsetFromOrigin(border_node_offset),
-                               GetClampedBorderBoxSize())),
-        *css_computed_style_declaration(), css_transform_node,
-        animate_node_builder);
+    // Do AddAnimations<MatrixTransformNode> with a custom end time.
+    scoped_refptr<cssom::CSSComputedStyleData> base_style =
+        new cssom::CSSComputedStyleData();
+    base_style->set_transform(computed_style()->transform());
+    base_style->set_transform_origin(computed_style()->transform_origin());
+    web_animations::BakedAnimationSet baked_animation_set(
+        *css_computed_style_declaration()->animations());
+    animate_node_builder->Add(
+        css_transform_node,
+        base::Bind(&ApplyAnimation<MatrixTransformNode>,
+                   base::Bind(&SetupMatrixTransformNodeFromCSSStyle,
+                              used_rect, ui_nav_focus),
+                   baked_animation_set, base_style),
+        transform_is_dynamic ? base::TimeDelta::Max()
+                             : baked_animation_set.end_time());
 
+    return css_transform_node;
+  }
+
+  if (transform_is_dynamic) {
+    // The CSS transform uses function(s) whose value changes over time. Animate
+    // the matrix transform node indefinitely.
+    scoped_refptr<MatrixTransformNode> css_transform_node =
+        new MatrixTransformNode(border_node, math::Matrix3F::Identity());
+    animate_node_builder->Add(
+        css_transform_node,
+        base::Bind(&SetupMatrixTransformNodeFromCSSTransform,
+                   used_rect, ui_nav_focus,
+                   computed_style()->transform(),
+                   computed_style()->transform_origin()));
     return css_transform_node;
   }
 
@@ -1695,8 +1760,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     math::Matrix3F matrix =
         GetCSSTransform(computed_style()->transform().get(),
                         computed_style()->transform_origin().get(),
-                        math::RectF(PointAtOffsetFromOrigin(border_node_offset),
-                                    GetClampedBorderBoxSize()));
+                        used_rect, ui_nav_focus);
     if (matrix.IsIdentity()) {
       return border_node;
     } else {
@@ -1869,7 +1933,8 @@ bool Box::ApplyTransformActionToCoordinates(
       math::RectF(transform_rect_offset.x().toFloat(),
                   transform_rect_offset.y().toFloat(),
                   GetBorderBoxWidth().toFloat(),
-                  GetBorderBoxHeight().toFloat()));
+                  GetBorderBoxHeight().toFloat()),
+      ComputeUiNavFocusForTransform());
   if (!matrix.IsIdentity()) {
     if (action == kEnterTransform) {
       matrix = matrix.Inverse();

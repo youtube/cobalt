@@ -42,6 +42,9 @@ class TransformFunction : public base::PolymorphicEquatable {
     // This function uses LengthValue and LengthValue::IsUnitRelative() is true.
     // Use of PercentageValue does not equate to having this trait.
     kTraitUsesRelativeUnits = 1 << 1,
+
+    // This function queries a UI navigation focus item during evaluation.
+    kTraitUsesUiNavFocus = 1 << 2,
   };
 
   virtual void Accept(TransformFunctionVisitor* visitor) const = 0;

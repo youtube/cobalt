@@ -14,13 +14,20 @@
 
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 
-#include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/transform_function_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction() {
-  traits_ = kTraitIsDynamic;
+CobaltUiNavSpotlightTransformFunction::CobaltUiNavSpotlightTransformFunction(
+    float progress_to_identity)
+    : progress_to_identity_(progress_to_identity) {
+  traits_ = kTraitIsDynamic | kTraitUsesUiNavFocus;
+}
+
+void CobaltUiNavSpotlightTransformFunction::Accept(
+    TransformFunctionVisitor* visitor) const {
+  visitor->VisitCobaltUiNavSpotlightTransform(this);
 }
 
 std::string CobaltUiNavSpotlightTransformFunction::ToString() const {
@@ -30,21 +37,18 @@ std::string CobaltUiNavSpotlightTransformFunction::ToString() const {
 math::Matrix3F CobaltUiNavSpotlightTransformFunction::ToMatrix(
     const math::SizeF& used_size,
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
-  float scale = 0.0f;
+  float scale = progress_to_identity_;
   float focus_x = 0.0f, focus_y = 0.0f;
   if (used_ui_nav_focus &&
       used_ui_nav_focus->GetFocusVector(&focus_x, &focus_y)) {
+    // Translation must be mapped from [-1,+1] to [-50%,+50%].
+    focus_x *= (1.0f - progress_to_identity_) * 0.5f * used_size.width();
+    focus_y *= (1.0f - progress_to_identity_) * 0.5f * used_size.height();
     scale = 1.0f;
   }
-  return math::Matrix3F::FromValues(scale, 0.0f, focus_x * used_size.width(),
-                                    0.0f, scale, focus_y * used_size.height(),
+  return math::Matrix3F::FromValues(scale, 0.0f, focus_x,
+                                    0.0f, scale, focus_y,
                                     0.0f, 0.0f, 1.0f);
-}
-
-void CobaltUiNavSpotlightTransformFunction::Accept(
-    TransformFunctionVisitor* visitor) const {
-  MatrixFunction transform_function(math::Matrix3F::Identity());
-  transform_function.Accept(visitor);
 }
 
 }  // namespace cssom

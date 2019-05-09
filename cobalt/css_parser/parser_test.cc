@@ -96,6 +96,8 @@ constexpr cssom::TransformFunction::Trait kTraitIsDynamic =
     cssom::TransformFunction::Trait::kTraitIsDynamic;
 constexpr cssom::TransformFunction::Trait kTraitUsesRelativeUnits =
     cssom::TransformFunction::Trait::kTraitUsesRelativeUnits;
+constexpr cssom::TransformFunction::Trait kTraitUsesUiNavFocus =
+    cssom::TransformFunction::Trait::kTraitUsesUiNavFocus;
 
 class MockParserObserver {
  public:
@@ -1133,6 +1135,7 @@ TEST_F(ParserTest, StyleSheetEndsWhileFunctionIsStillOpen) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -6613,6 +6616,7 @@ TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -6635,6 +6639,7 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -6657,6 +6662,7 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -6679,6 +6685,7 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -6701,6 +6708,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -6723,6 +6731,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleXTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -6745,6 +6754,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleYTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -6771,6 +6781,7 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -6793,6 +6804,7 @@ TEST_F(ParserTest, Parses2DTranslateTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(2, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function_1 =
@@ -6833,6 +6845,7 @@ TEST_F(ParserTest, Parses2DTranslateTransformYOmitted) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(2, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function_1 =
@@ -6873,6 +6886,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformLength) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -6901,6 +6915,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformPercentage) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -6928,6 +6943,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformLength) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -6956,6 +6972,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformPercentage) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -6983,6 +7000,7 @@ TEST_F(ParserTest, ParsesTranslateZTransformLength) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -7011,6 +7029,7 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::MatrixFunction* matrix_function =
@@ -7042,6 +7061,7 @@ TEST_F(ParserTest, ParsesCobaltUiNavSpotlightTransform) {
   ASSERT_TRUE(transform_list);
   EXPECT_TRUE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::CobaltUiNavSpotlightTransformFunction* spotlight_function =
@@ -7062,6 +7082,7 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
   ASSERT_TRUE(transform_list);
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
   EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(2, transform_list->value().size());
   EXPECT_TRUE(transform_list->value()[0].get());
   EXPECT_EQ(base::GetTypeId<cssom::ScaleFunction>(),
