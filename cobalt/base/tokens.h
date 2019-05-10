@@ -21,16 +21,8 @@
 namespace base {
 
 // clang-format off
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY_EME(MacroOpWithNameOnly)      \
     MacroOpWithNameOnly(encrypted)
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#define TOKENS_FOR_EACH_WITH_NAME_ONLY_EME(MacroOpWithNameOnly)      \
-    MacroOpWithNameOnly(keyadded)                                    \
-    MacroOpWithNameOnly(keyerror)                                    \
-    MacroOpWithNameOnly(keymessage)                                  \
-    MacroOpWithNameOnly(needkey)
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY(MacroOpWithNameOnly)          \
     TOKENS_FOR_EACH_WITH_NAME_ONLY_EME(MacroOpWithNameOnly)          \

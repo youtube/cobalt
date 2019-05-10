@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/endpointer_delegate.h"
 #include "cobalt/speech/google_speech_service.h"
@@ -28,11 +29,6 @@
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace speech {
@@ -43,11 +39,7 @@ namespace speech {
 // from there.
 class CobaltSpeechRecognizer : public SpeechRecognizer {
  public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   CobaltSpeechRecognizer(network::NetworkModule* network_module,
                          const Microphone::Options& microphone_options,
