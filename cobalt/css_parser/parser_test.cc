@@ -27,6 +27,7 @@
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
@@ -7046,6 +7047,28 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
   EXPECT_FLOAT_EQ(0.0f, matrix_function->value().Get(2, 0));
   EXPECT_FLOAT_EQ(0.0f, matrix_function->value().Get(2, 1));
   EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(2, 2));
+}
+
+TEST_F(ParserTest, ParsesCobaltUiNavFocusTransform) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "transform: -cobalt-ui-nav-focus-transform();",
+          source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->GetPropertyValue(cssom::kTransformProperty).get());
+  ASSERT_TRUE(transform_list);
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::CobaltUiNavFocusTransformFunction* focus_function =
+      dynamic_cast<const cssom::CobaltUiNavFocusTransformFunction*>(
+          transform_list->value()[0].get());
+  ASSERT_TRUE(focus_function);
 }
 
 TEST_F(ParserTest, ParsesCobaltUiNavSpotlightTransform) {

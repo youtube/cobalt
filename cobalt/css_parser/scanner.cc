@@ -2752,6 +2752,14 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       }
       return false;
 
+    case 30:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 "-cobalt-ui-nav-focus-transform")) {
+        *known_function_token = kCobaltUiNavFocusTransformFunctionToken;
+        return true;
+      }
+      return false;
+
     case 34:
       if (IsEqualToCssIdentifier(name.begin,
                                  "-cobalt-ui-nav-spotlight-transform")) {

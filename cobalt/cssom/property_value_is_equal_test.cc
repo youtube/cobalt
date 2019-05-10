@@ -16,6 +16,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
@@ -77,6 +78,20 @@ TEST(PropertyValueIsEqualTest, AbsoluteURLsAreNotEqual) {
   scoped_refptr<AbsoluteURLValue> value_b(new AbsoluteURLValue(url_b));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, CobaltUiNavFocusTransformFunctionsAreEqual) {
+  CobaltUiNavFocusTransformFunction function_a;
+  CobaltUiNavFocusTransformFunction function_b;
+
+  EXPECT_TRUE(function_a.Equals(function_b));
+}
+
+TEST(PropertyValueIsEqualTest, CobaltUiNavFocusTransformFunctionsAreNotEqual) {
+  CobaltUiNavFocusTransformFunction function_a(0.0f);
+  CobaltUiNavFocusTransformFunction function_b(1.0f);
+
+  EXPECT_FALSE(function_a.Equals(function_b));
 }
 
 TEST(PropertyValueIsEqualTest, CobaltUiNavSpotlightTransformFunctionsAreEqual) {

@@ -16,6 +16,7 @@
 
 #include "base/time/time.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/interpolate_property_value.h"
@@ -122,6 +123,74 @@ TEST(InterpolatePropertyValueTest, TransformSingleRotateValuesInterpolate) {
 
   EXPECT_NEAR(single_function->clockwise_angle_in_radians(), 1.5f,
               kErrorEpsilon);
+}
+
+TEST(InterpolatePropertyValueTest,
+     TransfromFromNoneToCobaltUiNavFocusTransformValuesInterpolate) {
+  struct MakeSingleFocusTransform {
+    static scoped_refptr<PropertyValue> Start() {
+      return KeywordValue::GetNone();
+    }
+    static scoped_refptr<PropertyValue> End() {
+      TransformFunctionListValue::Builder functions;
+      functions.emplace_back(new CobaltUiNavFocusTransformFunction);
+      return new TransformFunctionListValue(std::move(functions));
+    }
+  };
+
+  scoped_refptr<TransformFunctionListValue> interpolated =
+      InterpolatePropertyTyped<TransformFunctionListValue>(
+          0.75f, MakeSingleFocusTransform::Start(),
+          MakeSingleFocusTransform::End());
+
+  ASSERT_EQ(1, interpolated->value().size());
+
+  const CobaltUiNavFocusTransformFunction* focus_function =
+      dynamic_cast<const CobaltUiNavFocusTransformFunction*>(
+          interpolated->value()[0].get());
+  ASSERT_TRUE(focus_function);
+  EXPECT_NEAR(focus_function->progress_to_identity(), 0.25f, kErrorEpsilon);
+
+  math::Matrix3F value = focus_function->ToMatrix(math::SizeF(), nullptr);
+  EXPECT_NEAR(value(0, 0), 1.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 1), 1.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(0, 2), 0.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 2), 0.0f, kErrorEpsilon);
+}
+
+TEST(InterpolatePropertyValueTest,
+     TransfromSingleCobaltUiNavFocusTransformValuesInterpolate) {
+  struct MakeSingleFocusTransform {
+    static scoped_refptr<PropertyValue> Start() {
+      TransformFunctionListValue::Builder functions;
+      functions.emplace_back(new CobaltUiNavFocusTransformFunction(0.2f));
+      return new TransformFunctionListValue(std::move(functions));
+    }
+    static scoped_refptr<PropertyValue> End() {
+      TransformFunctionListValue::Builder functions;
+      functions.emplace_back(new CobaltUiNavFocusTransformFunction(0.6f));
+      return new TransformFunctionListValue(std::move(functions));
+    }
+  };
+
+  scoped_refptr<TransformFunctionListValue> interpolated =
+      InterpolatePropertyTyped<TransformFunctionListValue>(
+          0.5f, MakeSingleFocusTransform::Start(),
+          MakeSingleFocusTransform::End());
+
+  ASSERT_EQ(1, interpolated->value().size());
+
+  const CobaltUiNavFocusTransformFunction* focus_function =
+      dynamic_cast<const CobaltUiNavFocusTransformFunction*>(
+          interpolated->value()[0].get());
+  ASSERT_TRUE(focus_function);
+  EXPECT_NEAR(focus_function->progress_to_identity(), 0.4f, kErrorEpsilon);
+
+  math::Matrix3F value = focus_function->ToMatrix(math::SizeF(), nullptr);
+  EXPECT_NEAR(value(0, 0), 1.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 1), 1.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(0, 2), 0.0f, kErrorEpsilon);
+  EXPECT_NEAR(value(1, 2), 0.0f, kErrorEpsilon);
 }
 
 TEST(InterpolatePropertyValueTest,

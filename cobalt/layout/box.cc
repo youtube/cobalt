@@ -1773,27 +1773,13 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
 }
 
 namespace {
-
-void AnimateUiNavContainer(
+void SetupCompositionNodeFromUiNavContainer(
     const scoped_refptr<ui_navigation::NavItem>& container,
     render_tree::CompositionNode::Builder* node_builder) {
   float offset_x, offset_y;
   container->GetContentOffset(&offset_x, &offset_y);
   node_builder->set_offset(math::Vector2dF(-offset_x, -offset_y));
 }
-
-void AnimateUiNavFocus(
-    const scoped_refptr<ui_navigation::NavItem>& focus,
-    render_tree::MatrixTransformNode::Builder* node_builder) {
-  ui_navigation::NativeTransform matrix;
-  if (focus->GetLocalTransform(&matrix)) {
-    node_builder->transform = math::Matrix3F::FromValues(
-        matrix.m[ 0], matrix.m[ 1], matrix.m[ 3],
-        matrix.m[ 4], matrix.m[ 5], matrix.m[ 7],
-        matrix.m[12], matrix.m[13], matrix.m[15]);
-  }
-}
-
 }  // namespace
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
@@ -1828,22 +1814,17 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
                             layout_rect.y().toFloat());
   ui_nav_item_->SetEnabled(true);
 
-  // Add an animation to update the position of this box.
+  // Only containers are animated automatically. Focus items may be animated
+  // using a custom transform function added to the CSS transform property.
   if (ui_nav_item_->IsContainer()) {
     scoped_refptr<CompositionNode> composition_node =
         new CompositionNode(node_to_animate, math::Vector2dF());
     animate_node_builder->Add(
         composition_node,
-        base::Bind(&AnimateUiNavContainer, ui_nav_item_));
+        base::Bind(&SetupCompositionNodeFromUiNavContainer, ui_nav_item_));
     return composition_node;
-  } else {
-    scoped_refptr<MatrixTransformNode> transform_node =
-        new MatrixTransformNode(node_to_animate, math::Matrix3F::Identity());
-    animate_node_builder->Add(
-        transform_node,
-        base::Bind(&AnimateUiNavFocus, ui_nav_item_));
-    return transform_node;
   }
+  return node_to_animate;
 }
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
