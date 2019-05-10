@@ -19,6 +19,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
@@ -339,6 +340,11 @@ TEST(PropertyValueToStringTest, TranslateFunction) {
   scoped_refptr<LengthValue> property(new LengthValue(3, kFontSizesAkaEmUnit));
   TranslateFunction function(TranslateFunction::kYAxis, property);
   EXPECT_EQ(function.ToString(), "translateY(3em)");
+}
+
+TEST(PropertyValueToStringTest, CobaltUiNavFocusTransformFunction) {
+  CobaltUiNavFocusTransformFunction function;
+  EXPECT_EQ(function.ToString(), "-cobalt-ui-nav-focus-transform()");
 }
 
 TEST(PropertyValueToStringTest, CobaltUiNavSpotlightTransformFunction) {

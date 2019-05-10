@@ -20,6 +20,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
@@ -2459,6 +2460,8 @@ class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
   void VisitRotate(const RotateFunction* rotate_function) override;
   void VisitScale(const ScaleFunction* scale_function) override;
   void VisitTranslate(const TranslateFunction* translate_function) override;
+  void VisitCobaltUiNavFocusTransform(
+      const CobaltUiNavFocusTransformFunction* focus_function) override;
   void VisitCobaltUiNavSpotlightTransform(
       const CobaltUiNavSpotlightTransformFunction* spotlight_function) override;
 
@@ -2520,6 +2523,12 @@ void ComputedTransformFunctionProvider::VisitTranslate(
                         calc_value->percentage_value())));
     } break;
   }
+}
+
+void ComputedTransformFunctionProvider::VisitCobaltUiNavFocusTransform(
+    const CobaltUiNavFocusTransformFunction* focus_function) {
+  computed_transform_function_.reset(new CobaltUiNavFocusTransformFunction(
+      *focus_function));
 }
 
 void ComputedTransformFunctionProvider::VisitCobaltUiNavSpotlightTransform(
