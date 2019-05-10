@@ -17,6 +17,5 @@
 {
   'variables': {
     'in_app_dial%': 1,
-    'cobalt_media_source_2016': 1,
   }, # end of variables
 }
