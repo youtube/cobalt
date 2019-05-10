@@ -14,6 +14,7 @@
 
 #include "cobalt/cssom/transform_function_visitor.h"
 
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
@@ -34,6 +35,8 @@ class MockTransformFunctionVisitor : public TransformFunctionVisitor {
   MOCK_METHOD1(VisitScale, void(const ScaleFunction* scale_function));
   MOCK_METHOD1(VisitTranslate,
                void(const TranslateFunction* translate_function));
+  MOCK_METHOD1(VisitCobaltUiNavFocusTransform,
+               void(const CobaltUiNavFocusTransformFunction* function));
   MOCK_METHOD1(VisitCobaltUiNavSpotlightTransform,
                void(const CobaltUiNavSpotlightTransformFunction* function));
 };
@@ -65,6 +68,14 @@ TEST(TransformFunctionVisitorTest, VisitsTranslateXFunction) {
   MockTransformFunctionVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTranslate(&translate_function));
   translate_function.Accept(&mock_visitor);
+}
+
+TEST(TransformFunctionVisitorTest, VisitsCobaltUiNavFocusTransform) {
+  CobaltUiNavFocusTransformFunction focus_function;
+  MockTransformFunctionVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitCobaltUiNavFocusTransform(
+      &focus_function));
+  focus_function.Accept(&mock_visitor);
 }
 
 TEST(TransformFunctionVisitorTest, VisitsCobaltUiNavSpotlightTransform) {

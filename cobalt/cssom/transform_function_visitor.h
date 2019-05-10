@@ -18,6 +18,7 @@
 namespace cobalt {
 namespace cssom {
 
+class CobaltUiNavFocusTransformFunction;
 class CobaltUiNavSpotlightTransformFunction;
 class MatrixFunction;
 class RotateFunction;
@@ -35,6 +36,8 @@ class TransformFunctionVisitor {
   virtual void VisitTranslate(const TranslateFunction* translate_function) = 0;
 
   // Handle custom transform functions.
+  virtual void VisitCobaltUiNavFocusTransform(
+      const CobaltUiNavFocusTransformFunction* focus_function) = 0;
   virtual void VisitCobaltUiNavSpotlightTransform(
       const CobaltUiNavSpotlightTransformFunction* spotlight_function) = 0;
 

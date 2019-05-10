@@ -416,6 +416,7 @@
 %token kRGBFunctionToken                // rgb(
 %token kRGBAFunctionToken               // rgba(
 %token kCobaltMtmFunctionToken          // -cobalt-mtm(
+%token kCobaltUiNavFocusTransformFunctionToken     // -cobalt-ui-nav-focus-transform(
 %token kCobaltUiNavSpotlightTransformFunctionToken // -cobalt-ui-nav-spotlight-transform(
 
 // Tokens with a string value.
@@ -4797,6 +4798,17 @@ transform_function:
       $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kZAxis, MakeScopedRefPtrAndRelease($3)));
     }
+  }
+  // This Cobalt-specific transform function for hybrid navigation tracks
+  // interaction with the navigation item when it is focused. This function
+  // queries the closest hybrid navigation focus item (i.e. this element or
+  // an ancestor element with tabindex set appropriately). If that navigation
+  // item does not have focus, or the system does not provide interaction
+  // animations, then this transform function will evaluate to identity.
+  | kCobaltUiNavFocusTransformFunctionToken maybe_whitespace ')'
+      maybe_whitespace {
+    $<transform_functions>0->emplace_back(
+        new cssom::CobaltUiNavFocusTransformFunction);
   }
   // This Cobalt-specific transform function for hybrid navigation tracks
   // the direction in which focus is moving. This can be used to provide
