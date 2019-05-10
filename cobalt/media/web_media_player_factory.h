@@ -17,22 +17,13 @@
 
 #include <memory>
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/player/web_media_player.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/player/web_media_player.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
 
 class WebMediaPlayerFactory {
  public:
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::WebMediaPlayer WebMediaPlayer;
-  typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
-
   virtual std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebMediaPlayerClient* client) = 0;
 

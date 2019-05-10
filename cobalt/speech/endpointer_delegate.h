@@ -16,11 +16,7 @@
 #define COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 
 #include "content/browser/speech/endpointer/endpointer.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace speech {
@@ -29,11 +25,7 @@ namespace speech {
 // speech session (from start speaking to end of speaking).
 class EndPointerDelegate {
  public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   explicit EndPointerDelegate(int sample_rate);
   ~EndPointerDelegate();

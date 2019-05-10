@@ -22,11 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_helpers.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace audio {
@@ -37,11 +33,7 @@ class AudioNodeInput;
 // This represents the output coming out of the AudioNode.
 // It may be connected to one or more AudioNodeInputs.
 class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
  public:
   explicit AudioNodeOutput(AudioNode* owner_node) : owner_node_(owner_node) {}

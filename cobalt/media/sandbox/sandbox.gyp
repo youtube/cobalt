@@ -24,16 +24,8 @@
     {
       'target_name': 'media',
       'type': 'static_library',
-      'conditions': [
-        ['cobalt_media_source_2016==1', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/media2.gyp:media2',
-          ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/media.gyp:media',
-          ],
-        }],
+      'dependencies': [
+        '<(DEPTH)/cobalt/media/media2.gyp:media2',
       ],
     },
 
@@ -81,7 +73,7 @@
     },
   ],
   'conditions': [
-    ['sb_media_platform == "starboard" and cobalt_media_source_2016==1', {
+    ['sb_media_platform == "starboard"', {
       'targets': [
         {
           'target_name': 'media2_sandbox',
@@ -108,7 +100,7 @@
         },
       ],
     }],
-    ['OS == "starboard" and has_zzuf == "True" and cobalt_media_source_2016!=1', {
+    ['OS == "starboard" and has_zzuf == "True"', {
       'targets': [
         # This target will build a sandbox application that allows for fuzzing
         # decoder.

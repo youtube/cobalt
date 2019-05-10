@@ -19,9 +19,7 @@
 #include "base/optional.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_exception.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_key_system_access.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
@@ -119,8 +117,6 @@ const scoped_refptr<media_session::MediaSession>& Navigator::media_session()
     const {
   return media_session_;
 }
-
-#if defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 
@@ -308,8 +304,6 @@ Navigator::RequestMediaKeySystemAccess(
   promise->Reject(new DOMException(DOMException::kNotSupportedErr));
   return promise;
 }
-
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 const scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>&
 Navigator::system_caption_settings() const {
