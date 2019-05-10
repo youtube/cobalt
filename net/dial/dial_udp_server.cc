@@ -90,6 +90,7 @@ void DialUdpServer::Shutdown() {
   location_url_.clear();
   socket_.reset();
   factory_.reset();
+  is_running_ = false;
 }
 
 void DialUdpServer::Start() {
@@ -110,6 +111,9 @@ void DialUdpServer::Stop() {
 
 void DialUdpServer::AcceptAndProcessConnection() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!is_running_ || !socket_.get()) {
+    return;
+  }
   if (socket_->RecvFrom(
           read_buf_.get(), kReadBufferSize, &client_address_,
           base::Bind(&DialUdpServer::DidRead, base::Unretained(this))) == OK) {
