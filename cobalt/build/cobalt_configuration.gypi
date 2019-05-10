@@ -34,7 +34,6 @@
     'variables': {
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
-      'cobalt_media_source_2016%': 1,
       'cobalt_v8_buildtime_snapshot%': "true",
     },
 
@@ -372,13 +371,6 @@
     # reproducing bugs.
     'cobalt_gc_zeal%': 0,
 
-    # Use media source extension implementation that is conformed to the
-    # Candidate Recommendation of July 5th 2016.
-    'cobalt_media_source_2016%': '<(cobalt_media_source_2016)',
-
-    # Note that the following media buffer related variables are only used when
-    # |cobalt_media_source_2016| is set to 1.
-
     # This can be set to "memory" or "file".  When it is set to "memory", the
     # media buffers will be stored in main memory allocated by SbMemory
     # functions.  When it is set to "file", the media buffers will be stored in
@@ -546,15 +538,6 @@
       'COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=<(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)',
     ],
     'conditions': [
-      ['cobalt_media_source_2016 == 1', {
-        'defines': [
-          'COBALT_MEDIA_SOURCE_2016=1',
-        ],
-      }, {
-        'defines': [
-          'COBALT_MEDIA_SOURCE_2012=1',
-        ],
-      }],
       ['cobalt_media_buffer_storage_type == "memory"', {
         'defines': [
           'COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY=1',

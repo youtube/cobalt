@@ -20,11 +20,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/audio/audio_buffer.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace audio {
@@ -40,11 +36,7 @@ class AudioNodeOutput;
 // number can change depending on the connection(s) made to the input. If the
 // input has no connections, then it has one channel which is silent.
 class AudioNodeInput : public base::RefCountedThreadSafe<AudioNodeInput> {
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
  public:
   explicit AudioNodeInput(AudioNode* owner_node) : owner_node_(owner_node) {}

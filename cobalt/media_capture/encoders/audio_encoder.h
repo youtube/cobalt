@@ -23,11 +23,7 @@
 #include "cobalt/media_stream/audio_parameters.h"
 #include "starboard/mutex.h"
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media_capture {
@@ -35,11 +31,7 @@ namespace encoders {
 
 class AudioEncoder {
  public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   class Listener {
    public:

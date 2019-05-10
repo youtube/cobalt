@@ -38,11 +38,7 @@
 namespace cobalt {
 namespace audio {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 const int kRenderBufferSizeFrames = 1024;

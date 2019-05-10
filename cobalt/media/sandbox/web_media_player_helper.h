@@ -20,25 +20,14 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/media/media_module.h"
-#include "url/gurl.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/video_frame_provider.h"
+#include "cobalt/media/media_module.h"
 #include "cobalt/media/player/web_media_player.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/video_frame.h"
-#include "media/player/web_media_player.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
 namespace sandbox {
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ChunkDemuxer ChunkDemuxer;
-typedef ::media::VideoFrame VideoFrame;
-typedef ::media::WebMediaPlayer WebMediaPlayer;
-#endif  // !defined(WebMediaPlayerDelegate)
 
 // This class creates and manages a WebMediaPlayer internally.  It provides the
 // necessary WebMediaPlayerClient implementation and helper functions to
@@ -57,9 +46,6 @@ class WebMediaPlayerHelper {
                        const GURL& video_url);
   ~WebMediaPlayerHelper();
 
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-  scoped_refptr<VideoFrame> GetCurrentFrame() const;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   SbDecodeTarget GetCurrentDecodeTarget() const;
   bool IsPlaybackFinished() const;
 
