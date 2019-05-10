@@ -44,6 +44,8 @@
         'child_combinator.h',
         'class_selector.cc',
         'class_selector.h',
+        'cobalt_ui_nav_focus_transform_function.cc',
+        'cobalt_ui_nav_focus_transform_function.h',
         'cobalt_ui_nav_spotlight_transform_function.cc',
         'cobalt_ui_nav_spotlight_transform_function.h',
         'color_stop.cc',
