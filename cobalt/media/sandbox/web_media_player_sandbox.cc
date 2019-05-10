@@ -29,9 +29,6 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/video_frame.h"
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
@@ -40,14 +37,6 @@ namespace cobalt {
 namespace media {
 namespace sandbox {
 namespace {
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-using ::media::ChunkDemuxer;
-using ::media::PIPELINE_OK;
-using ::media::Ranges;
-using ::media::VideoFrame;
-using ::media::WebMediaPlayer;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 using base::TimeDelta;
 using render_tree::Image;
@@ -84,23 +73,11 @@ void PrintUsage(const char* executable_path_name) {
              << executable_file_name << " " << kExampleProgressiveUrl << "\n\n";
 }
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
-
 std::string MakeCodecParameter(const std::string& string) { return string; }
 
 void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   SB_UNREFERENCED_PARAMETER(tracks);
 }
-
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-
-std::vector<std::string> MakeCodecParameter(const std::string& string) {
-  std::vector<std::string> result;
-  result.push_back(string);
-  return result;
-}
-
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 class InitCobaltHelper {
  public:
@@ -189,9 +166,7 @@ class Application {
     auto status = chunk_demuxer_->AddId(id, guesstimator.mime(), codecs);
     CHECK_EQ(status, ChunkDemuxer::kOk);
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
     chunk_demuxer_->SetTracksWatcher(id, base::Bind(OnInitSegmentReceived));
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
     player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(
@@ -248,12 +223,10 @@ class Application {
     status = chunk_demuxer_->AddId(kVideoId, video_guesstimator.mime(), codecs);
     CHECK_EQ(status, ChunkDemuxer::kOk);
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
     chunk_demuxer_->SetTracksWatcher(kAudioId,
                                      base::Bind(OnInitSegmentReceived));
     chunk_demuxer_->SetTracksWatcher(kVideoId,
                                      base::Bind(OnInitSegmentReceived));
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
     player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(
@@ -304,11 +277,7 @@ class Application {
       bool audio_eos = !audio_file_ || audio_offset_ == audio_file_->GetSize();
       bool video_eos = !video_file_ || video_offset_ == video_file_->GetSize();
       if (audio_eos && video_eos) {
-#if defined(COBALT_MEDIA_SOURCE_2016)
         chunk_demuxer_->MarkEndOfStream(PIPELINE_OK);
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-        chunk_demuxer_->EndOfStream(PIPELINE_OK);
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
         eos_appended_ = true;
       }
     }
@@ -340,15 +309,10 @@ class Application {
       int64 bytes_to_append =
           std::min(kMaxBytesToAppend, file->GetSize() - *offset);
       file->Read(reinterpret_cast<char*>(buffer.data()), bytes_to_append);
-#if defined(COBALT_MEDIA_SOURCE_2016)
       base::TimeDelta timestamp_offset;
       chunk_demuxer_->AppendData(id, buffer.data(),
                                  bytes_to_append, base::TimeDelta(),
                                  media::kInfiniteDuration, &timestamp_offset);
-#else   //  defined(COBALT_MEDIA_SOURCE_2016)
-      chunk_demuxer_->AppendData(id, buffer.data(),
-                                 bytes_to_append);
-#endif  //  defined(COBALT_MEDIA_SOURCE_2016)
 
       *offset += bytes_to_append;
     }
@@ -364,12 +328,7 @@ class Application {
       return media_sandbox_.resource_provider()->CreateImageFromSbDecodeTarget(
           decode_target);
     }
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-    scoped_refptr<VideoFrame> frame = player_helper_->GetCurrentFrame();
-    return frame ? reinterpret_cast<Image*>(frame->texture_id()) : NULL;
-#else   // !defined(COBALT_MEDIA_SOURCE_2016)
     return NULL;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 #else   // SB_HAS(GRAPHICS)
     return NULL;
 #endif  // SB_HAS(GRAPHICS)

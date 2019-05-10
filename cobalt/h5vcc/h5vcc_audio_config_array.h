@@ -47,9 +47,6 @@ class H5vccAudioConfigArray : public script::Wrappable {
  private:
   void MaybeRefreshAudioConfigs();
 
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-  bool audio_config_updated_ = false;
-#endif
   std::vector<scoped_refptr<H5vccAudioConfig> > audio_configs_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccAudioConfigArray);

@@ -19,9 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_key_system_configuration.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/mime_type_array.h"
 #include "cobalt/dom/plugin_array.h"
 #include "cobalt/media_capture/media_devices.h"
@@ -69,14 +67,12 @@ class Navigator : public script::Wrappable {
   const scoped_refptr<cobalt::media_session::MediaSession>& media_session()
       const;
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
   // Web API: extension defined in Encrypted Media Extensions (16 March 2017).
   using InterfacePromise = script::Promise<scoped_refptr<script::Wrappable>>;
   script::Handle<InterfacePromise> RequestMediaKeySystemAccess(
       const std::string& key_system,
       const script::Sequence<eme::MediaKeySystemConfiguration>&
           supported_configurations);
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   const scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>&
   system_caption_settings() const;

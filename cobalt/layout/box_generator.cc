@@ -40,24 +40,15 @@
 #include "cobalt/layout/text_box.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
+#include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media/base/video_frame_provider.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_video_frame_provider.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "starboard/decode_target.h"
 
 namespace cobalt {
 namespace layout {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 using media::VideoFrameProvider;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-using VideoFrameProvider = ::media::ShellVideoFrameProvider;
-using ::media::VideoFrame;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 
@@ -75,14 +66,6 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 #endif  // SB_HAS(GRAPHICS)
   } else {
     DCHECK(frame_provider);
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-    scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
-    if (video_frame && video_frame->texture_id()) {
-      scoped_refptr<render_tree::Image> image =
-          reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
-      return image;
-    }
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
     return NULL;
   }
 }

@@ -26,13 +26,8 @@
 namespace cobalt {
 namespace audio {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::InterleavedSincResampler InterleavedSincResampler;
 typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::InterleavedSincResampler InterleavedSincResampler;
-typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 // numberOfInputs  : 0
 // numberOfOutputs : 1

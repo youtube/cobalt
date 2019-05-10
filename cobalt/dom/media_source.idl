@@ -29,9 +29,9 @@
 
   [RaisesException] void endOfStream(optional MediaSourceEndOfStreamError error);
 
-  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException]
+  [RaisesException]
       void setLiveSeekableRange(double start, double end);
-  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException]
+  [RaisesException]
       void clearLiveSeekableRange();
 
   [CallWith=EnvironmentSettings] static boolean isTypeSupported(DOMString type);

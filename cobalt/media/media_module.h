@@ -34,21 +34,10 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/player/web_media_player_delegate.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/filters/shell_video_decoder_impl.h"
-#include "media/player/web_media_player_delegate.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellRawVideoDecoderFactory ShellRawVideoDecoderFactory;
-typedef ::media::WebMediaPlayer WebMediaPlayer;
-typedef ::media::WebMediaPlayerDelegate WebMediaPlayerDelegate;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 // TODO: Collapse MediaModule into ShellMediaPlatform.
 class MediaModule : public WebMediaPlayerFactory,
@@ -93,14 +82,6 @@ class MediaModule : public WebMediaPlayerFactory,
 
   void Suspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  virtual ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
-    return NULL;
-  }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.

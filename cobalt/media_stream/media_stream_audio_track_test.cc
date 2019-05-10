@@ -19,11 +19,7 @@
 #include "cobalt/media_stream/testing/mock_media_stream_audio_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 using ::testing::_;
 using ::testing::StrictMock;
@@ -40,11 +36,7 @@ const int kBitsPerSample = 8;
 namespace cobalt {
 namespace media_stream {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 // This fixture is created, so it can be added as a friend to
 // |MediaStreamAudioTrack|.  This enables calling a private method

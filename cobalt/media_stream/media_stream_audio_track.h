@@ -25,11 +25,7 @@
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/media_stream/media_track_settings.h"
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 
@@ -54,11 +50,7 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
     settings.set_sample_size(parameters.bits_per_sample());
     return settings;
   }
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   MediaStreamAudioTrack() = default;
 
   ~MediaStreamAudioTrack() override { Stop(); }

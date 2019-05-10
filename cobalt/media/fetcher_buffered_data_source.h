@@ -29,22 +29,14 @@
 #include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/origin.h"
-#include "cobalt/network/network_module.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/player/buffered_data_source.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/player/buffered_data_source.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::BufferedDataSource BufferedDataSource;
-#endif  // !defined(WebMediaPlayerDelegate)
 
 // TODO: This class requires a large block of memory.  Consider to
 // use ShellBufferFactory for its memory if possible to avoid possible OOM.

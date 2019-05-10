@@ -22,9 +22,6 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/script/environment_settings.h"
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_video_frame_provider.h"
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace dom {
@@ -33,11 +30,7 @@ namespace dom {
 //   https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
 class HTMLVideoElement : public HTMLMediaElement {
  public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::VideoFrameProvider VideoFrameProvider;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellVideoFrameProvider VideoFrameProvider;
-#endif  // defined(WebMediaPlayerDelegate)
 
   static const char kTagName[];
 
