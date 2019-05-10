@@ -119,15 +119,23 @@ TEST(EndpointerTest, TestEnergyEndpointerEvents) {
 // Test endpointer wrapper class.
 class EndpointerFrameProcessor : public FrameProcessor {
  public:
+#if defined(STARBOARD)
+  typedef Endpointer::ShellAudioBus ShellAudioBus;
+#endif
   explicit EndpointerFrameProcessor(Endpointer* endpointer)
       : endpointer_(endpointer) {}
 
   EpStatus ProcessFrame(int64_t time,
                         int16_t* samples,
                         int frame_size) override {
+#if defined(STARBOARD)
+    auto frame = std::make_unique<ShellAudioBus>(1, kFrameSize, samples);
+    endpointer_->ProcessAudio(*frame.get(), NULL);
+#else
     scoped_refptr<AudioChunk> frame(
         new AudioChunk(reinterpret_cast<uint8_t*>(samples), kFrameSize * 2, 2));
     endpointer_->ProcessAudio(*frame.get(), nullptr);
+#endif
     int64_t ep_time;
     return endpointer_->Status(&ep_time);
   }
