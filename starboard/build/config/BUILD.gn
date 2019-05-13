@@ -56,12 +56,6 @@ config("compiler_defaults") {
     "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
   ]
 
-  # TODO: find a way to remove this dependence on Cobalt
-  if (sb_media_platform == "starboard") {
-    defines += [ "SB_GYP_CAN_MEDIA_USE_STARBOARD_PIPELINE=1" ]
-  } else {
-    defines += [ "SB_GYP_CAN_MEDIA_USE_STARBOARD_PIPELINE=0" ]
-  }
 }
 
 # =============================================================================
