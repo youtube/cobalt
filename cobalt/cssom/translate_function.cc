@@ -97,7 +97,7 @@ void TranslateFunction::Accept(TransformFunctionVisitor* visitor) const {
 }
 
 std::string TranslateFunction::ToString() const {
-  char axis = 'X';
+  char axis = ' ';
   switch (axis_) {
     case kXAxis:
       axis = 'X';
@@ -107,10 +107,6 @@ std::string TranslateFunction::ToString() const {
       break;
     case kZAxis:
       axis = 'Z';
-      break;
-    default:
-      axis = ' ';
-      NOTREACHED();
       break;
   }
   std::string result = "translate";
@@ -131,14 +127,16 @@ math::Matrix3F TranslateFunction::ToMatrix(const math::SizeF& used_size,
       return math::TranslateMatrix(length_component_in_pixels() +
                                    percentage_component() * used_size.width(),
                                    0.0f);
-      break;
     case kYAxis:
       return math::TranslateMatrix(0.0f,
                                    length_component_in_pixels() +
                                    percentage_component() * used_size.height());
-      break;
     case kZAxis:
-      NOTIMPLEMENTED() << "translateZ is currently a noop in Cobalt.";
+      if (length_component_in_pixels() != 0 ||
+          percentage_component() != 0) {
+        LOG(ERROR) << "translateZ is currently a noop in Cobalt.";
+      }
+      break;
   }
   return math::Matrix3F::Identity();
 }
