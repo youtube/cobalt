@@ -25,6 +25,29 @@
     # also be useful for visually inspecting the output that the Cobalt
     # media stack is producing.
     {
+      'target_name': 'media_sandbox',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'media2_sandbox.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
+      ],
+    },
+    {
+      'target_name': 'media_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'media_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'media_sandbox',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
       'target_name': 'web_media_player_sandbox',
       'type': '<(final_executable_type)',
       'sources': [
@@ -50,7 +73,6 @@
         '<@(cobalt_platform_dependencies)',
       ],
     },
-
     {
       'target_name': 'web_media_player_sandbox_deploy',
       'type': 'none',
@@ -62,34 +84,5 @@
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
-  ],
-  'conditions': [
-    ['sb_media_platform == "starboard"', {
-      'targets': [
-        {
-          'target_name': 'media_sandbox',
-          'type': '<(final_executable_type)',
-          'sources': [
-            'media2_sandbox.cc',
-          ],
-          'dependencies': [
-            '<(DEPTH)/cobalt/base/base.gyp:base',
-            '<(DEPTH)/cobalt/math/math.gyp:math',
-            '<(DEPTH)/cobalt/media/media.gyp:media',
-          ],
-        },
-        {
-          'target_name': 'media_sandbox_deploy',
-          'type': 'none',
-          'dependencies': [
-            'media_sandbox',
-          ],
-          'variables': {
-            'executable_name': 'media_sandbox',
-          },
-          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-        },
-      ],
-    }],
   ],
 }
