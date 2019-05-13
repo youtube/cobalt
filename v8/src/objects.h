@@ -1484,7 +1484,11 @@ class Object {
   inline void VerifyApiCallResultType();
 
   // Prints this object without details.
+#if defined(V8_OS_STARBOARD)
+  void ShortPrint(FILE* out = nullptr);
+#else
   void ShortPrint(FILE* out = stdout);
+#endif
 
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
@@ -3528,7 +3532,11 @@ class JSFunction: public JSObject {
   inline bool is_compiled();
 
   // Prints the name of the function using PrintF.
+#if defined(V8_OS_STARBOARD)
+  void PrintName(FILE* out = nullptr);
+#else
   void PrintName(FILE* out = stdout);
+#endif
 
   DECL_CAST(JSFunction)
 

@@ -860,6 +860,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     // the variable can go arbitrarily far, so just return integer.
     return typer_->cache_.kInteger;
   }
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_loop) {
     OFStream os(stdout);
     os << std::setprecision(10);
@@ -870,6 +871,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
                : "subtraction")
        << " for phi " << node->id() << ": (" << min << ", " << max << ")\n";
   }
+#endif
   return Type::Range(min, max, typer_->zone());
 }
 

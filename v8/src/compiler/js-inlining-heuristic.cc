@@ -709,6 +709,7 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
 }
 
 void JSInliningHeuristic::PrintCandidates() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   os << "Candidates for inlining (size=" << candidates_.size() << "):\n";
   for (const Candidate& candidate : candidates_) {
@@ -724,6 +725,7 @@ void JSInliningHeuristic::PrintCandidates() {
              shared->DebugName()->ToCString().get());
     }
   }
+#endif
 }
 
 Graph* JSInliningHeuristic::graph() const { return jsgraph()->graph(); }

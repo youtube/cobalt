@@ -188,8 +188,10 @@ void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
 }
 
 void AssemblerBase::Print(Isolate* isolate) {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
+#endif
 }
 
 // -----------------------------------------------------------------------------

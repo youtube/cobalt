@@ -530,6 +530,7 @@ class RepresentationSelector {
   }
 
   void PrintNodeFeedbackType(Node* n) {
+#ifndef V8_OS_STARBOARD
     OFStream os(stdout);
     os << "#" << n->id() << ":" << *n->op() << "(";
     int j = 0;
@@ -550,6 +551,7 @@ class RepresentationSelector {
       os << "]";
     }
     os << std::endl;
+#endif
   }
 
   Type* Weaken(Node* node, Type* previous_type, Type* current_type) {
@@ -3092,31 +3094,39 @@ class RepresentationSelector {
   }
 
   void PrintOutputInfo(NodeInfo* info) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       OFStream os(stdout);
       os << info->representation();
     }
+#endif
   }
 
   void PrintRepresentation(MachineRepresentation rep) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       OFStream os(stdout);
       os << rep;
     }
+#endif
   }
 
   void PrintTruncation(Truncation truncation) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       OFStream os(stdout);
       os << truncation.description() << std::endl;
     }
+#endif
   }
 
   void PrintUseInfo(UseInfo info) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       OFStream os(stdout);
       os << info.representation() << ":" << info.truncation().description();
     }
+#endif
   }
 
  private:
