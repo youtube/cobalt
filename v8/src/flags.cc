@@ -584,6 +584,7 @@ void FlagList::PrintHelp() {
   CpuFeatures::PrintTarget();
   CpuFeatures::PrintFeatures();
 
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   os << "Usage:\n"
         "  shell [options] -e string\n"
@@ -608,6 +609,7 @@ void FlagList::PrintHelp() {
        << "        type: " << Type2String(f.type()) << "  default: " << f
        << "\n";
   }
+#endif
 }
 
 
