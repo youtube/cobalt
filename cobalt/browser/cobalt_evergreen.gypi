@@ -31,14 +31,10 @@
   'cflags_cc': [
     '-nostdinc++',
     '-std=c++11',
-    '-stdlib=libc++',
   ],
   'ldflags': [
-    # We use -nodefaultlibs instead of -nostdlib because the latter excludes
-    # standard system startup files, which are needed when linking.
-    '-nodefaultlibs',
-    # We still need libgcc.a when linking.
-    '-lgcc',
+    '-stdlib=libc++',
+    '-nostdlib',
   ],
   'defines' : [
     # This flag is set assuming the system uses pthread.
