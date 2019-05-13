@@ -4537,11 +4537,13 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.
   //----------------------------------------------------------------------------
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
     OFStream os(stdout);
     os << "-- Graph after change lowering -- " << std::endl;
     os << AsRPO(graph);
   }
+#endif
 
   // Schedule and compile to machine code.
   int params =
@@ -4560,7 +4562,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   CompilationInfo info(func_name, &zone, Code::JS_TO_WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
   if (FLAG_print_opt_code && !code.is_null()) {
     OFStream os(stdout);
     code->Disassemble(func_name.start(), os);
@@ -4659,17 +4661,19 @@ Handle<Code> CompileWasmToJSWrapper(
     }
   }
 
-    if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
-      OFStream os(stdout);
-      os << "-- Graph after change lowering -- " << std::endl;
-      os << AsRPO(graph);
-    }
+#ifndef V8_OS_STARBOARD
+  if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+    OFStream os(stdout);
+    os << "-- Graph after change lowering -- " << std::endl;
+    os << AsRPO(graph);
+  }
+#endif
 
-    // Schedule and compile to machine code.
-    CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
-    if (machine.Is32()) {
-      incoming = GetI32WasmCallDescriptor(&zone, incoming);
-    }
+  // Schedule and compile to machine code.
+  CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
+  if (machine.Is32()) {
+    incoming = GetI32WasmCallDescriptor(&zone, incoming);
+  }
 
 #ifdef DEBUG
     EmbeddedVector<char, 32> func_name;
@@ -4693,7 +4697,7 @@ Handle<Code> CompileWasmToJSWrapper(
         OffsetForImportData(index, WasmGraphBuilder::kFunction));
     deopt_data->set(1, *index_handle);
     code->set_deoptimization_data(*deopt_data);
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
     if (FLAG_print_opt_code && !code.is_null()) {
       OFStream os(stdout);
       code->Disassemble(func_name.start(), os);
@@ -4735,11 +4739,13 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
   builder.BuildWasmToWasmWrapper(target, new_wasm_context_address);
   if (HasInt64ParamOrReturn(sig)) builder.LowerInt64();
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
     OFStream os(stdout);
     os << "-- Graph after change lowering -- " << std::endl;
     os << AsRPO(graph);
   }
+#endif
 
   // Schedule and compile to machine code.
   CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
@@ -4764,7 +4770,7 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
   CompilationInfo info(func_name, &zone, Code::WASM_TO_WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
   if (FLAG_print_opt_code && !code.is_null()) {
     OFStream os(stdout);
     code->Disassemble(buffer.start(), os);
@@ -4807,11 +4813,13 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
 
   Handle<Code> code = Handle<Code>::null();
   {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
       OFStream os(stdout);
       os << "-- Wasm interpreter entry graph -- " << std::endl;
       os << AsRPO(graph);
     }
+#endif
 
     // Schedule and compile to machine code.
     CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
@@ -4829,7 +4837,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     CompilationInfo info(func_name, &zone, Code::WASM_INTERPRETER_ENTRY);
     code = Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph,
                                             nullptr);
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
     if (FLAG_print_opt_code && !code.is_null()) {
       OFStream os(stdout);
       code->Disassemble(func_name.start(), os);
@@ -4872,11 +4880,13 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
   builder.set_effect_ptr(&effect);
   builder.BuildCWasmEntry(wasm_context_address);
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
     OFStream os(stdout);
     os << "-- C Wasm entry graph -- " << std::endl;
     os << AsRPO(graph);
   }
+#endif
 
   // Schedule and compile to machine code.
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
@@ -4903,7 +4913,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
   CompilationInfo info(debug_name_vec, &zone, Code::C_WASM_ENTRY);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
   if (FLAG_print_opt_code && !code.is_null()) {
     OFStream os(stdout);
     code->Disassemble(debug_name, os);
@@ -4930,11 +4940,13 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   tf_.graph_construction_result_ =
       wasm::BuildTFGraph(isolate_->allocator(), &builder, func_body_);
   if (tf_.graph_construction_result_.failed()) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_wasm_compiler) {
       OFStream os(stdout);
       os << "Compilation failed: " << tf_.graph_construction_result_.error_msg()
          << std::endl;
     }
+#endif
     return nullptr;
   }
 
@@ -5296,7 +5308,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
                                 func_index_, liftoff_.safepoint_table_offset_,
                                 std::move(protected_instructions_), true));
   }
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
   if (FLAG_print_code || FLAG_print_wasm_code) {
     // TODO(wasm): Use proper log files, here and elsewhere.
     OFStream os(stdout);

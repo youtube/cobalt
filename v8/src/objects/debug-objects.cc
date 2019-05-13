@@ -347,6 +347,7 @@ void CoverageInfo::Print(String* function_name) {
   DCHECK(FLAG_trace_block_coverage);
   DisallowHeapAllocation no_gc;
 
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   os << "Coverage info (";
   if (function_name->length() > 0) {
@@ -361,6 +362,7 @@ void CoverageInfo::Print(String* function_name) {
     os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
        << std::endl;
   }
+#endif
 }
 
 }  // namespace internal

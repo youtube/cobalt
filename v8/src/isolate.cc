@@ -1566,7 +1566,9 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 }
 
 Object* Isolate::ThrowIllegalOperation() {
+#ifndef V8_OS_STARBOARD
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
+#endif
   return Throw(heap()->illegal_access_string());
 }
 
@@ -2648,9 +2650,11 @@ void Isolate::Deinit() {
 
   DumpAndResetStats();
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
   }
+#endif
 
   if (cpu_profiler_) {
     cpu_profiler_->DeleteAllProfiles();
@@ -2857,8 +2861,10 @@ void PrintBuiltinSizes(Isolate* isolate) {
     const char* name = builtins->name(i);
     const char* kind = Builtins::KindNameOf(i);
     Code* code = builtins->builtin(i);
+#ifndef V8_OS_STARBOARD
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, name,
            code->instruction_size());
+#endif
   }
 }
 }  // namespace
@@ -3159,6 +3165,7 @@ void Isolate::DumpAndResetStats() {
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
 
+#ifndef V8_OS_STARBOARD
     OFStream os(stdout);
     if (FLAG_turbo_stats) {
       AsPrintableStatistics ps = {*turbo_statistics(), false};
@@ -3168,6 +3175,7 @@ void Isolate::DumpAndResetStats() {
       AsPrintableStatistics ps = {*turbo_statistics(), true};
       os << ps << std::endl;
     }
+#endif
   }
   delete turbo_statistics_;
   turbo_statistics_ = nullptr;

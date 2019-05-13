@@ -1005,6 +1005,7 @@ class SpecialRPONumberer : public ZoneObject {
 
 #if DEBUG
   void PrintRPO() {
+#ifndef V8_OS_STARBOARD
     OFStream os(stdout);
     os << "RPO with " << loops_.size() << " loops";
     if (loops_.size() > 0) {
@@ -1039,6 +1040,7 @@ class SpecialRPONumberer : public ZoneObject {
       }
       os << "\n";
     }
+#endif
   }
 
   void VerifySpecialRPO() {
@@ -1731,10 +1733,12 @@ void Scheduler::SealFinalSchedule() {
 
 void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   TRACE("--- FUSE FLOATING CONTROL ----------------------------------\n");
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     OFStream os(stdout);
     os << "Schedule before control flow fusion:\n" << *schedule_;
   }
+#endif
 
   // Iterate on phase 1: Build control-flow graph.
   control_flow_builder_->Run(block, node);
@@ -1775,10 +1779,12 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   scheduled_nodes_.resize(schedule_->BasicBlockCount());
   MovePlannedNodes(block, schedule_->block(node));
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     OFStream os(stdout);
     os << "Schedule after control flow fusion:\n" << *schedule_;
   }
+#endif
 }
 
 
