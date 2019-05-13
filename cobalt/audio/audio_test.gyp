@@ -25,7 +25,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/media/media2.gyp:media2',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
