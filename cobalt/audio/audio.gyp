@@ -48,7 +48,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-        '<(DEPTH)/cobalt/media/media2.gyp:media2',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
       ],
       'export_dependent_settings': [
         # Additionally, ensure that the include directories for generated

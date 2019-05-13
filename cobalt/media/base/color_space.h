@@ -18,7 +18,7 @@
 #include "base/logging.h"
 
 // This is a modified version of gfx::ColorSpace with Skia dependency removed.
-// It is tentatively put inside media2 to avoid introducing new code into
+// It is tentatively put inside media to avoid introducing new code into
 // ui/gfx.  It will be further simplified and merged into media in follow up
 // refactors.
 namespace gfx {
