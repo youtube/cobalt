@@ -53,15 +53,6 @@
 #include "build/build_config.h"
 #include "utilities.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/system.h"
-#define abort SbSystemBreakIntoDebugger
-#define base_err SbSystemGetLastError()
-#else
-#define base_err errno
-#endif
-
 #if defined(HAVE_SYMBOLIZE)
 
 #include <limits>
@@ -131,9 +122,7 @@ _END_GOOGLE_NAMESPACE_
 #include "glog/raw_logging.h"
 
 // Re-runs fn until it doesn't cause EINTR.
-#define NO_INTR(fn) \
-  do {              \
-  } while ((fn) < 0 && base_err == EINTR)
+#define NO_INTR(fn)   do {} while ((fn) < 0 && errno == EINTR)
 
 _START_GOOGLE_NAMESPACE_
 
@@ -464,8 +453,7 @@ class LineReader {
   void operator=(const LineReader&);
 
   char *FindLineFeed() {
-    return const_cast<char*>(
-        reinterpret_cast<const char*>(memchr(bol_, '\n', eod_ - bol_)));
+    return reinterpret_cast<char*>(memchr(bol_, '\n', eod_ - bol_));
   }
 
   bool BufferIsEmpty() {
