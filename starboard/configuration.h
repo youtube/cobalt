@@ -795,9 +795,4 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif
 #endif
 
-// Specifies whether the starboard media pipeline components (SbPlayerPipeline
-// and StarboardDecryptor) are used.  Set to 0 means they are not used.
-#define SB_CAN_MEDIA_USE_STARBOARD_PIPELINE \
-  SB_GYP_CAN_MEDIA_USE_STARBOARD_PIPELINE
-
 #endif  // STARBOARD_CONFIGURATION_H_
