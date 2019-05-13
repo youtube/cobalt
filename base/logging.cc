@@ -158,7 +158,13 @@ FileHandle g_log_file = nullptr;
 
 // What should be prepended to each message?
 bool g_log_process_id = false;
+#ifdef STARBOARD
+// Cobalt has been used to logging thread ID for long and there is no
+// strong reason to stop doing so.
+bool g_log_thread_id = true;
+#else
 bool g_log_thread_id = false;
+#endif
 bool g_log_timestamp = true;
 bool g_log_tickcount = false;
 const char* g_log_prefix = nullptr;
@@ -996,9 +1002,10 @@ void LogMessage::Init(const char* file, int line) {
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (g_log_timestamp) {
 #if defined(STARBOARD)
-    EzTimeT t = EzTimeTGetNow(NULL);
+    EzTimeValue time_value;
+    EzTimeValueGetNow(&time_value, NULL);
     struct EzTimeExploded local_time = {0};
-    EzTimeTExplodeLocal(&t, &local_time);
+    EzTimeTExplodeLocal(&(time_value.tv_sec), &local_time);
     struct EzTimeExploded* tm_time = &local_time;
     stream_ << std::setfill('0')
             << std::setw(2) << 1 + tm_time->tm_mon
@@ -1007,6 +1014,7 @@ void LogMessage::Init(const char* file, int line) {
             << std::setw(2) << tm_time->tm_hour
             << std::setw(2) << tm_time->tm_min
             << std::setw(2) << tm_time->tm_sec
+            << '.' << std::setw(6) << time_value.tv_usec
             << ':';
 #else
 #if defined(OS_WIN)
