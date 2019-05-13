@@ -33,6 +33,8 @@
       },
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
+        '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
+        '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
         'accessibility_get_setting_test.cc',
         'align_test.cc',
         'atomic_base_test.cc',
@@ -168,6 +170,8 @@
         'mutex_destroy_test.cc',
         'once_test.cc',
         'optional_test.cc',
+        'player_create_test.cc',
+        'player_output_mode_supported_test.cc',
         'random_helpers.cc',
         'recursive_mutex_test.cc',
         'rwlock_test.cc',
@@ -275,6 +279,7 @@
         'time_zone_get_name_test.cc',
         'undefined_behavior_test.cc',
         'unsafe_math_test.cc',
+        'url_player_create_test.cc',
         'user_get_current_test.cc',
         'user_get_property_test.cc',
         'user_get_signed_in_test.cc',
@@ -295,22 +300,11 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['sb_media_platform=="starboard"', {
-          'sources': [
-            '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
-            '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
-            'player_create_test.cc',
-            'player_output_mode_supported_test.cc',
-            'url_player_create_test.cc',
-          ],
-          'conditions': [
-            ['gl_type != "none"', {
-              'dependencies': [
-                 # This is needed because SbPlayerTest depends on
-                 # FakeGraphicsContextProvider which depends on EGL and GLES.
-                '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-              ],
-            }],
+        ['gl_type != "none"', {
+          'dependencies': [
+             # This is needed because SbPlayerTest depends on
+             # FakeGraphicsContextProvider which depends on EGL and GLES.
+            '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
           ],
         }],
       ],
