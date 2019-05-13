@@ -18,22 +18,10 @@
 
 #include "starboard/configuration.h"
 
-#if defined(OS_STARBOARD)
-#if SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
-#define SB_USE_SB_AUDIO_SINK 1
-#endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
-#endif  // defined(OS_STARBOARD)
-
 #include "base/trace_event/trace_event.h"
 #include "cobalt/audio/audio_helpers.h"
 
-#if defined(SB_USE_SB_AUDIO_SINK)
 #include "starboard/audio_sink.h"
-#else  // defined(SB_USE_SB_AUDIO_SINK)
-#include "media/audio/audio_parameters.h"
-#include "media/audio/shell_audio_streamer.h"
-#include "media/base/audio_bus.h"
-#endif  // defined(SB_USE_SB_AUDIO_SINK)
 
 namespace cobalt {
 namespace audio {
@@ -44,8 +32,6 @@ namespace {
 const int kRenderBufferSizeFrames = 1024;
 const int kFramesPerChannel = kRenderBufferSizeFrames * 8;
 }  // namespace
-
-#if defined(SB_USE_SB_AUDIO_SINK)
 
 namespace {
 // Write |kTailSizeInFrames| frames of silence at the end of playback to ensure
@@ -263,176 +249,6 @@ void AudioDevice::Impl::FillOutputAudioBus() {
     NOTREACHED();
   }
 }
-
-#else  // defined(SB_USE_SB_AUDIO_SINK)
-
-class AudioDevice::Impl : public ::media::ShellAudioStream {
- public:
-  typedef ::media::AudioBus AudioBus;
-  typedef ::media::AudioParameters AudioParameters;
-
-  Impl(int32 number_of_channels, RenderCallback* callback);
-  virtual ~Impl();
-
-  // ShellAudioStream implementation.
-  bool PauseRequested() const override;
-  bool PullFrames(uint32* offset_in_frame, uint32* total_frames) override;
-  void ConsumeFrames(uint32 frame_played) override;
-  const AudioParameters& GetAudioParameters() const override;
-  AudioBus* GetAudioBus() override;
-
- private:
-  typedef ::media::ShellAudioBus ShellAudioBus;
-
-  int GetAudioHardwareSampleRate();
-
-  void FillOutputAudioBus();
-
-  AudioParameters audio_parameters_;
-  std::unique_ptr<AudioBus> output_audio_bus_;
-
-  uint64 rendered_frame_cursor_;
-  uint64 buffered_frame_cursor_;
-  bool needs_data_;
-
-  // Buffer the audio data which is pulled from upper level.
-  ShellAudioBus audio_bus_;
-
-  RenderCallback* render_callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(Impl);
-};
-
-// AudioDevice::Impl.
-AudioDevice::Impl::Impl(int32 number_of_channels, RenderCallback* callback)
-    : rendered_frame_cursor_(0),
-      buffered_frame_cursor_(0),
-      needs_data_(true),
-      audio_bus_(static_cast<size_t>(number_of_channels),
-                 static_cast<size_t>(kRenderBufferSizeFrames),
-                 ShellAudioBus::kFloat32, ShellAudioBus::kPlanar),
-      render_callback_(callback) {
-  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::Impl()");
-
-  DCHECK_GT(number_of_channels, 0);
-  DCHECK(media::ShellAudioStreamer::Instance()->GetConfig().interleaved())
-      << "Planar audio is not supported.";
-
-  int bytes_per_sample = static_cast<int>(
-      media::ShellAudioStreamer::Instance()->GetConfig().bytes_per_sample());
-
-  DCHECK_EQ(bytes_per_sample, sizeof(float))
-      << bytes_per_sample << " bytes per sample is not supported.";
-
-  media::ChannelLayout channel_layout = number_of_channels == 1
-                                            ? media::CHANNEL_LAYOUT_MONO
-                                            : media::CHANNEL_LAYOUT_STEREO;
-
-  audio_parameters_ =
-      media::AudioParameters(media::AudioParameters::AUDIO_PCM_LINEAR,
-                             channel_layout, GetAudioHardwareSampleRate(),
-                             bytes_per_sample * 8, kRenderBufferSizeFrames);
-
-  // Create 1 channel audio bus since we only support interleaved.
-  output_audio_bus_ =
-      AudioBus::Create(1, kFramesPerChannel * number_of_channels);
-
-  audio_bus_.ZeroAllFrames();
-
-  media::ShellAudioStreamer::Instance()->AddStream(this);
-}
-
-AudioDevice::Impl::~Impl() {
-  media::ShellAudioStreamer::Instance()->RemoveStream(this);
-}
-
-bool AudioDevice::Impl::PauseRequested() const { return needs_data_; }
-
-bool AudioDevice::Impl::PullFrames(uint32* offset_in_frame,
-                                   uint32* total_frames) {
-  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::PullFrames()");
-
-  // In case offset_in_frame or total_frames is NULL.
-  uint32 dummy_offset_in_frame;
-  uint32 dummy_total_frames;
-  if (!offset_in_frame) {
-    offset_in_frame = &dummy_offset_in_frame;
-  }
-  if (!total_frames) {
-    total_frames = &dummy_total_frames;
-  }
-
-  // Assert that we never render more than has been buffered.
-  DCHECK_GE(buffered_frame_cursor_, rendered_frame_cursor_);
-  *total_frames =
-      static_cast<uint32>(buffered_frame_cursor_ - rendered_frame_cursor_);
-
-  if ((kFramesPerChannel - *total_frames) >= kRenderBufferSizeFrames) {
-    // Fill our temporary buffer with PCM float samples.
-    bool all_consumed = false;  // Keep the sink alive on legacy platforms.
-    bool silence = true;
-    render_callback_->FillAudioBus(all_consumed, &audio_bus_, &silence);
-
-    if (!silence) {
-      FillOutputAudioBus();
-
-      buffered_frame_cursor_ += kRenderBufferSizeFrames;
-      *total_frames += kRenderBufferSizeFrames;
-    }
-  }
-
-  needs_data_ = *total_frames < kRenderBufferSizeFrames;
-  *offset_in_frame = rendered_frame_cursor_ % kFramesPerChannel;
-  return !PauseRequested();
-}
-
-void AudioDevice::Impl::ConsumeFrames(uint32 frame_played) {
-  // Increment number of frames rendered by the hardware.
-  rendered_frame_cursor_ += frame_played;
-}
-
-const AudioDevice::Impl::AudioParameters&
-AudioDevice::Impl::GetAudioParameters() const {
-  return audio_parameters_;
-}
-
-AudioDevice::Impl::AudioBus* AudioDevice::Impl::GetAudioBus() {
-  return output_audio_bus_.get();
-}
-
-int AudioDevice::Impl::GetAudioHardwareSampleRate() {
-  int native_output_sample_rate =
-      static_cast<int>(media::ShellAudioStreamer::Instance()
-                           ->GetConfig()
-                           .native_output_sample_rate());
-  if (native_output_sample_rate !=
-      media::ShellAudioStreamer::Config::kInvalidSampleRate) {
-    return native_output_sample_rate;
-  }
-  return kStandardOutputSampleRate;
-}
-
-void AudioDevice::Impl::FillOutputAudioBus() {
-  TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::FillOutputAudioBus()");
-  // Determine the offset into the audio bus that represents the tail of
-  // buffered data.
-  uint64 channel_offset = buffered_frame_cursor_ % kFramesPerChannel;
-
-  float* output_buffer = output_audio_bus_->channel(0);
-  output_buffer += channel_offset * audio_parameters_.channels();
-
-  for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-    for (size_t c = 0; c < audio_bus_.channels(); ++c) {
-      *output_buffer = audio_bus_.GetFloat32Sample(c, i);
-      ++output_buffer;
-    }
-  }
-
-  // Clear the data in audio bus.
-  audio_bus_.ZeroAllFrames();
-}
-
-#endif  // defined(SB_USE_SB_AUDIO_SINK)
 
 // AudioDevice.
 AudioDevice::AudioDevice(int32 number_of_channels, RenderCallback* callback)
