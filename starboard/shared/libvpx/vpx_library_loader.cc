@@ -64,6 +64,20 @@ class LibvpxHandle {
     INITSYMBOL(vpx_codec_destroy);
     INITSYMBOL(vpx_codec_decode);
     INITSYMBOL(vpx_codec_get_frame);
+
+    // Ensure that the abi version used to build the Cobalt binary matches the
+    // abi version of the "libvpx.so".
+    vpx_codec_ctx vpx_codec_ctx;
+    vpx_codec_dec_cfg_t vpx_config = {0};
+    vpx_config.w = 640;
+    vpx_config.h = 480;
+    vpx_config.threads = 8;
+
+    vpx_codec_err_t status =
+        vpx_codec_dec_init(&vpx_codec_ctx, vpx_codec_vp9_dx(), &vpx_config, 0);
+    if (status != VPX_CODEC_OK) {
+      ReportSymbolError();
+    }
   }
 
   void* handle_ = NULL;
