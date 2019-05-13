@@ -69,7 +69,6 @@ inline size_t GetSampleTypeSize(SampleType sample_type) {
 // starboard media pipeline, then the preferred sample type is always float32.
 inline SampleType GetPreferredOutputSampleType() {
 #if defined(OS_STARBOARD)
-#if SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSampleTypeFloat32;
   }
@@ -78,9 +77,6 @@ inline SampleType GetPreferredOutputSampleType() {
       << "At least one starboard audio sample type must be supported if using "
          "starboard media pipeline.";
   return kSampleTypeInt16;
-#else   // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
-  return kSampleTypeFloat32;
-#endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
 #else   // defined(OS_STARBOARD)
   return kSampleTypeFloat32;
 #endif  // defined(OS_STARBOARD)

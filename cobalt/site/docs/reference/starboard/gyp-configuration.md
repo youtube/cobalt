@@ -86,7 +86,6 @@ title: "Starboard: gyp_configuration Reference Guide"
 | **`sb_enable_lib`**<br><br> Enables embedding Cobalt as a shared library within another app. This requires a 'lib' starboard implementation for the corresponding platform.<br><br>The default value is `'<(sb_enable_lib)'`. |
 | **`sb_filter_based_player`**<br><br> Used to indicate that the player is filter based.<br><br>The default value is `1`. |
 | **`sb_libevent_method`**<br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to 'poll' if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is `'epoll'`. |
-| **`sb_media_platform`**<br><br> Used to pick a proper media platform.<br><br>The default value is `'starboard'`. |
 | **`sb_pedantic_warnings`**<br><br> Enabling this variable enables pedantic levels of warnings for the current toolchain.<br><br>The default value is `0`. |
 | **`sb_static_contents_output_base_dir`**<br><br> Directory path to static contents.<br><br>The default value is `'<(sb_static_contents_output_base_dir)'`. |
 | **`sb_static_contents_output_data_dir`**<br><br> Directory path to static contents' data.<br><br>The default value is `'<(sb_static_contents_output_data_dir)'`. |
