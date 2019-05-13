@@ -447,7 +447,9 @@ static void TraceTopFrame(Isolate* isolate) {
       raw_frame = it.frame();
     }
   }
+#ifndef V8_OS_STARBOARD
   JavaScriptFrame::PrintTop(isolate, stdout, false, true);
+#endif
 }
 
 static void SortIndices(
@@ -612,10 +614,12 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     Handle<Map> new_map =
         JSObject::GetElementsTransitionMap(array, packed_kind);
     JSObject::MigrateToMap(array, new_map);
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_elements_transitions) {
       JSObject::PrintElementsTransition(stdout, array, kind(), backing_store,
                                         packed_kind, backing_store);
     }
+#endif
   }
 
   bool HasElement(JSObject* holder, uint32_t index,
@@ -912,11 +916,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
             object, from_elements, from_kind, capacity);
         JSObject::SetMapAndElements(object, to_map, elements);
       }
+#ifndef V8_OS_STARBOARD
       if (FLAG_trace_elements_transitions) {
         JSObject::PrintElementsTransition(stdout, object, from_kind,
                                           from_elements, to_kind,
                                           handle(object->elements()));
       }
+#endif
     }
   }
 
@@ -953,10 +959,12 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     // Transition through the allocation site as well if present.
     JSObject::UpdateAllocationSite(object, to_kind);
 
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_elements_transitions) {
       JSObject::PrintElementsTransition(stdout, object, from_kind, old_elements,
                                         to_kind, elements);
     }
+#endif
   }
 
   void TransitionElementsKind(Handle<JSObject> object, Handle<Map> map) final {

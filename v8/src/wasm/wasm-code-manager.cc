@@ -188,8 +188,10 @@ bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
 void WasmCode::Print(Isolate* isolate) const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   Disassemble(nullptr, isolate, os);
+#endif
 }
 
 void WasmCode::Disassemble(const char* name, Isolate* isolate,

@@ -197,6 +197,7 @@ MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
   DCHECK_EQ(new_kind_, old_details.kind());
   DCHECK_EQ(new_attributes_, old_details.attributes());
   DCHECK_EQ(kField, old_details.location());
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_generalization) {
     old_map_->PrintGeneralization(
         stdout, "uninitialized field", modified_descriptor_, old_nof_, old_nof_,
@@ -204,6 +205,7 @@ MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
         handle(old_descriptors_->GetFieldType(modified_descriptor_), isolate_),
         MaybeHandle<Object>(), new_field_type_, MaybeHandle<Object>());
   }
+#endif
   Handle<Map> field_owner(old_map_->FindFieldOwner(modified_descriptor_),
                           isolate_);
 
@@ -674,11 +676,13 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
           handle(new_descriptors->GetValue(modified_descriptor_), isolate_);
     }
 
+#ifndef V8_OS_STARBOARD
     old_map_->PrintGeneralization(
         stdout, "", modified_descriptor_, split_nof, old_nof_,
         old_details.location() == kDescriptor && new_location_ == kField,
         old_details.representation(), new_details.representation(),
         old_field_type, old_value, new_field_type, new_value);
+#endif
   }
 
   Handle<LayoutDescriptor> new_layout_descriptor =

@@ -311,11 +311,13 @@ bool Node::OwnedByAddressingOperand() const {
 }
 
 void Node::Print() const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   os << *this << std::endl;
   for (Node* input : this->inputs()) {
     os << "  " << *input << std::endl;
   }
+#endif
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& n) {
@@ -376,7 +378,9 @@ void Node::RemoveUse(Use* use) {
 #if DEBUG
 void Node::Verify() {
   // Check basic sanity of input data structures.
+#ifndef V8_OS_STARBOARD
   fflush(stdout);
+#endif
   int count = this->InputCount();
   // Avoid quadratic explosion for mega nodes; only verify if the input
   // count is less than 200 or is a round number of 100s.
