@@ -213,11 +213,6 @@ if (!defined(enable_xhr_header_filtering)) {
   enable_xhr_header_filtering = false
 }
 
-# Used by //cobalt/media to pick a proper media platform.
-if (!defined(sb_media_platform)) {
-  sb_media_platform = "starboard"
-}
-
 # List of platform-specific targets that get compiled into cobalt.
 if (!defined(cobalt_platform_dependencies)) {
   cobalt_platform_dependencies = []
