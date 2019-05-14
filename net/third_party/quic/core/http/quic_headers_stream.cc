@@ -35,7 +35,7 @@ QuicHeadersStream::QuicHeadersStream(QuicSpdySession* session)
 QuicHeadersStream::~QuicHeadersStream() {}
 
 void QuicHeadersStream::OnDataAvailable() {
-  struct iovec iov;
+  struct IOVEC iov;
   while (sequencer()->GetReadableRegion(&iov)) {
     if (spdy_session_->ProcessHeaderData(iov) != iov.iov_len) {
       // Error processing data.

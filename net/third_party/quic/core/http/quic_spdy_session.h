@@ -84,7 +84,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
                                spdy::SpdyPriority priority);
 
   // Sends contents of |iov| to h2_deframer_, returns number of bytes processed.
-  size_t ProcessHeaderData(const struct iovec& iov);
+  size_t ProcessHeaderData(const struct IOVEC& iov);
 
   // Writes |headers| for the stream |id| to the dedicated headers stream.
   // If |fin| is true, then no more data will be sent for the stream |id|.

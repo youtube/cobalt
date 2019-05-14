@@ -75,7 +75,7 @@ class QuicPacketReader {
   // packets_ and mmsg_hdr_ are used to supply cbuf and buf to the recvmmsg
   // call.
   struct PacketData {
-    iovec iov;
+    IOVEC iov;
     // raw_address is used for address information provided by the recvmmsg
     // call on the packets.
     struct sockaddr_storage raw_address;

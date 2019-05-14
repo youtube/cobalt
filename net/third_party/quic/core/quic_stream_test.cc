@@ -881,7 +881,7 @@ TEST_F(QuicStreamTest, WriteBufferedData) {
   // Testing Writev.
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(0, false)));
-  struct iovec iov = {const_cast<char*>(data.data()), data.length()};
+  struct IOVEC iov = {const_cast<char*>(data.data()), data.length()};
   QuicConsumedData consumed = stream_->WritevData(&iov, 1, false);
   // There is no buffered data before, all data should be consumed without
   // respecting buffered data upper limit.
@@ -929,10 +929,10 @@ TEST_F(QuicStreamTest, WritevDataReachStreamLimit) {
                                         stream_);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillOnce(Invoke(&(MockQuicSession::ConsumeData)));
-  struct iovec iov = {const_cast<char*>(data.data()), 5u};
+  struct IOVEC iov = {const_cast<char*>(data.data()), 5u};
   QuicConsumedData consumed = stream_->WritevData(&iov, 1u, false);
   EXPECT_EQ(data.length(), consumed.bytes_consumed);
-  struct iovec iov2 = {const_cast<char*>(data.data()), 1u};
+  struct IOVEC iov2 = {const_cast<char*>(data.data()), 1u};
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
   EXPECT_QUIC_BUG(stream_->WritevData(&iov2, 1u, false),
                   "Write too many data via stream");

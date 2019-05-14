@@ -23,7 +23,11 @@ QuicIpAddress TestLoopbackImpl() {
 }
 
 QuicIpAddress TestLoopbackImpl(int index) {
+#if defined(STARBOARD)
+  const uint8_t kLocalhostIPv4[] = {127, 0, 0, static_cast<uint8_t>(index)};
+#else
   const uint8_t kLocalhostIPv4[] = {127, 0, 0, index};
+#endif
   return QuicIpAddress(QuicIpAddressImpl(net::IPAddress(kLocalhostIPv4)));
 }
 

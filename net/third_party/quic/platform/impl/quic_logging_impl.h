@@ -18,25 +18,41 @@
 #define QUIC_LOG_IF_IMPL(severity, condition) \
   QUIC_CHROMIUM_LOG_IF_##severity(condition)
 
+#if defined(STARBOARD)
+#define QUIC_CHROMIUM_LOG_INFO DLOG(INFO)
+#else
 #define QUIC_CHROMIUM_LOG_INFO VLOG(1)
+#endif
 #define QUIC_CHROMIUM_LOG_WARNING DLOG(WARNING)
 #define QUIC_CHROMIUM_LOG_ERROR DLOG(ERROR)
 #define QUIC_CHROMIUM_LOG_FATAL LOG(FATAL)
 #define QUIC_CHROMIUM_LOG_DFATAL LOG(DFATAL)
 
+#if defined(STARBOARD)
+#define QUIC_CHROMIUM_DLOG_INFO DLOG(INFO)
+#else
 #define QUIC_CHROMIUM_DLOG_INFO DVLOG(1)
+#endif
 #define QUIC_CHROMIUM_DLOG_WARNING DLOG(WARNING)
 #define QUIC_CHROMIUM_DLOG_ERROR DLOG(ERROR)
 #define QUIC_CHROMIUM_DLOG_FATAL DLOG(FATAL)
 #define QUIC_CHROMIUM_DLOG_DFATAL DLOG(DFATAL)
 
+#if defined(STARBOARD)
+#define QUIC_CHROMIUM_LOG_IF_INFO(condition) DLOG_IF(INFO, condition)
+#else
 #define QUIC_CHROMIUM_LOG_IF_INFO(condition) VLOG_IF(1, condition)
+#endif
 #define QUIC_CHROMIUM_LOG_IF_WARNING(condition) DLOG_IF(WARNING, condition)
 #define QUIC_CHROMIUM_LOG_IF_ERROR(condition) DLOG_IF(ERROR, condition)
 #define QUIC_CHROMIUM_LOG_IF_FATAL(condition) LOG_IF(FATAL, condition)
 #define QUIC_CHROMIUM_LOG_IF_DFATAL(condition) LOG_IF(DFATAL, condition)
 
+#if defined(STARBOARD)
+#define QUIC_CHROMIUM_DLOG_IF_INFO(condition) DLOG_IF(INFO, condition)
+#else
 #define QUIC_CHROMIUM_DLOG_IF_INFO(condition) DVLOG_IF(1, condition)
+#endif
 #define QUIC_CHROMIUM_DLOG_IF_WARNING(condition) DLOG_IF(WARNING, condition)
 #define QUIC_CHROMIUM_DLOG_IF_ERROR(condition) DLOG_IF(ERROR, condition)
 #define QUIC_CHROMIUM_DLOG_IF_FATAL(condition) DLOG_IF(FATAL, condition)
@@ -54,7 +70,11 @@
 #define QUIC_LOG_WARNING_IS_ON_IMPL 1
 #define QUIC_LOG_ERROR_IS_ON_IMPL 1
 #endif
+#if defined(STARBOARD) && !defined(NDEBUG)
+#define QUIC_DLOG_INFO_IS_ON_IMPL 1
+#else
 #define QUIC_DLOG_INFO_IS_ON_IMPL 0
+#endif
 
 #if defined(OS_WIN)
 // wingdi.h defines ERROR to be 0. When we call QUIC_DLOG(ERROR), it gets

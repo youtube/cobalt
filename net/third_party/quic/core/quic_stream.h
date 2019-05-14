@@ -279,7 +279,7 @@ class QUIC_EXPORT_PRIVATE QuicStream {
   // buffer. The data is not necessarily consumed by the connection. So write
   // side is closed when FIN is sent.
   // TODO(fayang): Let WritevData return boolean.
-  QuicConsumedData WritevData(const struct iovec* iov, int iov_count, bool fin);
+  QuicConsumedData WritevData(const struct IOVEC* iov, int iov_count, bool fin);
 
   // Allows override of the session level writev, for the force HOL
   // blocking experiment.

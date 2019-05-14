@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quic/core/qpack/qpack_test_utils.h"
+#if defined(STARBOARD)
+#include "base/logging.h"
+#endif
 
 #include <limits>
 
@@ -16,6 +19,12 @@ FragmentSizeGenerator FragmentModeToFragmentSizeGenerator(
       return []() { return std::numeric_limits<size_t>::max(); };
     case FragmentMode::kOctetByOctet:
       return []() { return 1; };
+#if defined(STARBOARD)
+    // Some compilers doesn't allow missing return path.
+    default:
+      NOTREACHED();
+      return []() { return std::numeric_limits<size_t>::max(); };
+#endif
   }
 }
 

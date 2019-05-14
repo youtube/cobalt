@@ -80,7 +80,7 @@ class TestPacketCreator : public QuicPacketCreator {
         version_(framer->transport_version()) {}
 
   bool ConsumeData(QuicStreamId id,
-                   const struct iovec* iov,
+                   const struct IOVEC* iov,
                    int iov_count,
                    size_t total_length,
                    size_t iov_offset,
@@ -247,7 +247,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
   StrictMock<MockPacketCreatorDelegate> delegate_;
   QuicConnectionId connection_id_;
   QuicString data_;
-  struct iovec iov_;
+  struct IOVEC iov_;
   TestPacketCreator creator_;
   SerializedPacket serialized_packet_;
   SimpleDataProducer producer_;
@@ -957,7 +957,7 @@ TEST_P(QuicPacketCreatorTest, ChloTooLarge) {
   std::unique_ptr<QuicData> message_data;
   message_data.reset(framer.ConstructHandshakeMessage(message));
 
-  struct iovec iov;
+  struct IOVEC iov;
   MakeIOVector(QuicStringPiece(message_data->data(), message_data->length()),
                &iov);
   QuicFrame frame;
