@@ -15,7 +15,7 @@
 #define WEBP_WEBP_MUX_TYPES_H_
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #else
 #include <stdlib.h>  // free()

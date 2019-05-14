@@ -15,7 +15,7 @@
 #define WEBP_WEBP_TYPES_H_
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/types.h"
 #define WEBP_INLINE SB_C_INLINE
 #else
