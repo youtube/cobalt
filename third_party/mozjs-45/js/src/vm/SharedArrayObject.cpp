@@ -16,7 +16,7 @@
 #endif
 #include "jswrapper.h"
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #elif !defined(XP_WIN)
 # include <sys/mman.h>

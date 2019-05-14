@@ -13,7 +13,7 @@
 #include "vm/Runtime.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #elif defined(XP_WIN)
 
 #include "jswin.h"
@@ -751,7 +751,7 @@ DeallocateMappedContent(void* p, size_t length)
 
 #elif defined(STARBOARD)
 #include "memory_allocator_reporter.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #undef MAP_FAILED
