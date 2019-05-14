@@ -148,7 +148,7 @@
 // where it is difficult to obtain the width and height of a texture, we can
 // still correctly identify a precise fractional "normalized" content region
 // with the texture width and height set to 1.
-#define SB_DECODE_TARGET_CONTENT_REGION_FLOATS SB_EXPERIMENTAL_API_VERSION
+#define SB_DECODE_TARGET_CONTENT_REGION_FLOATS_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Add kSbSystemPropertyOriginalDesignManufacturerName enum value.
 // This change also deprecates kSbSystemPropertyNetworkOperatorName.
