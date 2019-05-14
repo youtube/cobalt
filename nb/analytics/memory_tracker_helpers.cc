@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "nb/hash.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 
 namespace nb {
 namespace analytics {
