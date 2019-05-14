@@ -162,9 +162,9 @@
 #define lb_allocate_physical_and_map SbPageAllocatePhysicalAndMap
 
 // Other compatibility adjustments, forcing system calls back to Starboard.
+#include "starboard/common/log.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #define write SbFileWrite
 #define close SbFileClose
 
