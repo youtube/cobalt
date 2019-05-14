@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #include <dlog/dlog.h>
 #include <string.h>

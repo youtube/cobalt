@@ -16,7 +16,7 @@
 
 #include "cobalt/extension/platform_service.h"
 #include "starboard/android/shared/platform_service.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/string.h"
 
 void* SbSystemGetExtension(const char* name) {

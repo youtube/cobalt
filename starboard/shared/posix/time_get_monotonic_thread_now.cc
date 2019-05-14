@@ -16,7 +16,7 @@
 
 #include <time.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/time_internal.h"
 
 SbTimeMonotonic SbTimeGetMonotonicThreadNow() {

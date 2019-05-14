@@ -14,7 +14,7 @@
 
 #include "starboard/audio_sink.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/command_line.h"

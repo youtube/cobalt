@@ -18,9 +18,9 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"

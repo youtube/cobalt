@@ -18,9 +18,9 @@
 #include <algorithm>
 #include <iosfwd>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 
 namespace starboard {

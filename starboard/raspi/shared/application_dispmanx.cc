@@ -20,9 +20,9 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/common/log.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/raspi/shared/window_internal.h"
 #include "starboard/shared/linux/dev_input/dev_input.h"

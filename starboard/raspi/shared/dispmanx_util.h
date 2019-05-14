@@ -19,9 +19,9 @@
 
 #include <functional>
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/types.h"

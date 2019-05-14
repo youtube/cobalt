@@ -18,7 +18,7 @@
 #include "EGL/egl.h"
 #include "GLES2/gl2.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #define GL_CALL(x)                          \
   do {                                      \

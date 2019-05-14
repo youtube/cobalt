@@ -23,7 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 
 namespace starboard {

@@ -17,8 +17,8 @@
 #if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/format_string.h"
 #endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#include "starboard/common/log.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/log.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 #include "starboard/string.h"
 

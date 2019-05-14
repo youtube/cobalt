@@ -16,7 +16,7 @@
 
 #include <GLES2/gl2.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbBlitterFlushContext(SbBlitterContext context) {
   if (!SbBlitterIsContextValid(context)) {

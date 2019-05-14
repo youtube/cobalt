@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "starboard/common/flat_map.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 

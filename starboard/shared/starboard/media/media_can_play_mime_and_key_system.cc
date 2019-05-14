@@ -14,7 +14,7 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/string.h"

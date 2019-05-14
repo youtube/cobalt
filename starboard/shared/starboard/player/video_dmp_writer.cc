@@ -18,7 +18,7 @@
 #include <sstream>
 #include <string>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"

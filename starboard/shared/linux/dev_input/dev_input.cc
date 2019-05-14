@@ -28,11 +28,11 @@
 #include <map>
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/directory.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/time_internal.h"

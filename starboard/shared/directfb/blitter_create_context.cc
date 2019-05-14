@@ -15,7 +15,7 @@
 #include <directfb.h>
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
 SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {

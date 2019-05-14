@@ -18,9 +18,9 @@
 #include <functional>
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"

@@ -14,7 +14,7 @@
 
 #include "starboard/blitter.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 int SbBlitterGetMaxContexts(SbBlitterDevice device) {
   if (!SbBlitterIsDeviceValid(device)) {

@@ -28,11 +28,11 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/posix/time_internal.h"

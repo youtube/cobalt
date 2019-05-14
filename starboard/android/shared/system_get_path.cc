@@ -21,8 +21,8 @@
 #include <cstring>
 
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/log.h"
 #include "starboard/directory.h"
-#include "starboard/log.h"
 #include "starboard/string.h"
 
 using ::starboard::android::shared::g_app_assets_dir;

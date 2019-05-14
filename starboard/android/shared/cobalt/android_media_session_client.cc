@@ -20,7 +20,7 @@
 #include "cobalt/script/sequence.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/player.h"

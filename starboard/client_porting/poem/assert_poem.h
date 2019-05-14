@@ -19,7 +19,7 @@
 
 #if defined(STARBOARD)
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #if !defined(POEM_NO_EMULATION)
 

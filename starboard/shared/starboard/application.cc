@@ -17,10 +17,10 @@
 #include <string>
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 

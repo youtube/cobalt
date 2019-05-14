@@ -23,9 +23,9 @@
 #include <string>
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread.h"
-#include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/socket.h"

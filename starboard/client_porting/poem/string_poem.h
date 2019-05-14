@@ -19,7 +19,7 @@
 
 #if defined(STARBOARD)
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 

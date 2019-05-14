@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterDevice SbBlitterCreateDefaultDevice() {

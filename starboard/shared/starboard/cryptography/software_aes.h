@@ -63,8 +63,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_
 #define STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/types.h"
 
 namespace starboard {

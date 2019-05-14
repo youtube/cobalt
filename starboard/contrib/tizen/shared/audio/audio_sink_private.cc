@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/audio_sink.h"
 #include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
-#include "starboard/log.h"
+#include "starboard/audio_sink.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 
 #define CHECK_CAPI_AUDIO_ERROR(func)                            \
