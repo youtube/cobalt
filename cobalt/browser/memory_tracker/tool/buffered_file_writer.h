@@ -17,9 +17,9 @@
 
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
