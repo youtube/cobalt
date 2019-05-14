@@ -18,7 +18,7 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #define hb_malloc_impl SbMemoryAllocate
 #define hb_realloc_impl SbMemoryReallocate
