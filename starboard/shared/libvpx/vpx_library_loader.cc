@@ -77,9 +77,7 @@ class LibvpxHandle {
         vpx_codec_dec_init(&vpx_codec_ctx, vpx_codec_vp9_dx(), &vpx_config, 0);
     if (status != VPX_CODEC_OK) {
       ReportSymbolError();
-      return;
     }
-    vpx_codec_destroy(&vpx_codec_ctx);
   }
 
   void* handle_ = NULL;
