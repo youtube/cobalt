@@ -33,6 +33,7 @@
         'memory.cc',
         'move.h',
         'murmurhash2.h',
+        'mutex.h',
         'new.cc',
         'optional.cc',
         'queue.h',
