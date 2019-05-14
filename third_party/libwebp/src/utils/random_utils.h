@@ -15,7 +15,7 @@
 #define WEBP_UTILS_RANDOM_UTILS_H_
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #else
 #include <assert.h>
 #endif
