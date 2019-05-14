@@ -21,7 +21,7 @@
 
 #include "glimp/egl/config.h"
 #include "glimp/egl/error.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace egl {

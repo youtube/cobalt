@@ -18,7 +18,7 @@
 #define GLIMP_EGL_DISPLAY_REGISTRY_H_
 
 #include "glimp/egl/display.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace egl {
