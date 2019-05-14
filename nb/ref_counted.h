@@ -7,7 +7,7 @@
 
 #include "nb/thread_collision_warner.h"
 #include "starboard/atomic.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace nb {
 

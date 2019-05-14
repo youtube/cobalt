@@ -19,7 +19,7 @@
 #include <algorithm>
 
 #include "nb/pointer_arithmetic.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/types.h"
 
 namespace nb {

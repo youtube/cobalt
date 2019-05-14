@@ -28,7 +28,7 @@
 #include "nb/concurrent_map.h"
 #include "starboard/atomic.h"
 #include "starboard/common/flat_map.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/time.h"
 
 namespace nb {
