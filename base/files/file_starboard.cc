@@ -19,8 +19,8 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/common/log.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 
 namespace base {
 
