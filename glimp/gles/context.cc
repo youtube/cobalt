@@ -27,7 +27,7 @@
 #include "glimp/gles/pixel_format.h"
 #include "glimp/tracing/tracing.h"
 #include "nb/pointer_arithmetic.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 
