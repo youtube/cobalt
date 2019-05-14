@@ -82,6 +82,7 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
   void OnUwpResume();
 
 #if SB_API_VERSION >= 10
+  bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
                                int certificate_size) override {

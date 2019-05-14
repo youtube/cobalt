@@ -50,6 +50,7 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   void CloseSession(const void* session_id, int session_id_size) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 #if SB_API_VERSION >= 10
+  bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
                                int certificate_size) override {
