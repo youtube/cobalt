@@ -20,7 +20,7 @@
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 
 namespace cobalt {

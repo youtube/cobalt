@@ -58,8 +58,8 @@
             '-Wl,--no-whole-archive',
           ],
           'dependencies': [
-            '<(DEPTH)/starboard/starboard.gyp:starboard_full',
             '<(DEPTH)/cobalt/browser/cobalt.gyp:cobalt_evergreen',
+            '<(DEPTH)/starboard/starboard.gyp:starboard_full',
           ],
         }],
       ],
@@ -99,13 +99,10 @@
             '<(DEPTH)/cobalt/base/base.gyp:base',
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
             '<(DEPTH)/net/net.gyp:net',
+            '<(DEPTH)/starboard/common/common.gyp:common',
           ],
           'sources': [
             'main.cc',
-          ],
-          # TODO: Remove once the log.h is refactored to have only C linkage dependencies.
-          'ldflags': [
-            'obj/starboard/common/common.log_message.cc.o',
           ],
           'ldflags/': [
             ['exclude', '-Wl,--wrap=eglSwapBuffers'],
