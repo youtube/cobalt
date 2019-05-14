@@ -18,7 +18,7 @@
 #include "ir/SkSLVariableReference.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #define printf(format, ...) SbLogFormatF(format, __VA_ARGS__)
 #endif
 
