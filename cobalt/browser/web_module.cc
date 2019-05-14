@@ -67,7 +67,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "starboard/accessibility.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace browser {

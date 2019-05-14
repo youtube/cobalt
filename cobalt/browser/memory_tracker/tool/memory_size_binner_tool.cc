@@ -24,7 +24,7 @@
 #include "cobalt/browser/memory_tracker/tool/util.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/types.h"
 
 namespace cobalt {
