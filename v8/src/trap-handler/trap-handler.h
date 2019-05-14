@@ -14,7 +14,7 @@
 #include "src/globals.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif  //V8_OS_STARBOARD
 
 #if V8_OS_LINUX
