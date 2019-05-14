@@ -19,8 +19,8 @@
 
 #include <set>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 
