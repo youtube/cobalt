@@ -10,6 +10,8 @@
 
 namespace quic {
 
+#if !defined(STARBOARD)
+
 // Records a QUIC test output file into a directory specified by QUIC_TRACE_DIR
 // environment variable.  Assumes that it's called from a unit test.
 //
@@ -20,6 +22,8 @@ inline void QuicRecordTestOutput(QuicStringPiece identifier,
                                  QuicStringPiece data) {
   QuicRecordTestOutputImpl(identifier, data);
 }
+
+#endif
 
 }  // namespace quic
 #endif  // NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_TEST_OUTPUT_H_

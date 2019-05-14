@@ -26,7 +26,7 @@ namespace net {
 
 int SetTCPNoDelay(SocketDescriptor fd, bool no_delay) {
 #if defined(STARBOARD)
-  return SbSocketSetTcpNoDelay(fd, no_delay) ? 1 : 0;
+  return SbSocketSetTcpNoDelay(fd, no_delay) ? OK : ERR_FAILED;
 #else
 #if defined(OS_WIN)
   BOOL on = no_delay ? TRUE : FALSE;
@@ -41,7 +41,7 @@ int SetTCPNoDelay(SocketDescriptor fd, bool no_delay) {
 
 int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 #if defined(STARBOARD)
-  return SbSocketSetReuseAddress(fd, reuse) ? 1 : 0;
+  return SbSocketSetReuseAddress(fd, reuse) ? OK : ERR_FAILED;
 #else
 // SO_REUSEADDR is useful for server sockets to bind to a recently unbound
 // port. When a socket is closed, the end point changes its state to TIME_WAIT
@@ -70,7 +70,7 @@ int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 
 int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
 #if defined(STARBOARD)
-  return SbSocketSetReceiveBufferSize(fd, size) ? 1 : 0;
+  return SbSocketSetReceiveBufferSize(fd, size) ? OK : ERR_FAILED;
 #else
   int rv = setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
@@ -87,7 +87,7 @@ int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
 
 int SetSocketSendBufferSize(SocketDescriptor fd, int32_t size) {
 #if defined(STARBOARD)
-  return SbSocketSetSendBufferSize(fd, size) ? 1 : 0;
+  return SbSocketSetSendBufferSize(fd, size) ? OK : ERR_FAILED;
 #else
   int rv = setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));

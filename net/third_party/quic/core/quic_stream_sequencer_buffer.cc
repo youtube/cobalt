@@ -220,7 +220,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
   return true;
 }
 
-QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
+QuicErrorCode QuicStreamSequencerBuffer::Readv(const IOVEC* dest_iov,
                                                size_t dest_count,
                                                size_t* bytes_read,
                                                QuicString* error_details) {
@@ -278,7 +278,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
   return QUIC_NO_ERROR;
 }
 
-int QuicStreamSequencerBuffer::GetReadableRegions(struct iovec* iov,
+int QuicStreamSequencerBuffer::GetReadableRegions(struct IOVEC* iov,
                                                   int iov_count) const {
   DCHECK(iov != nullptr);
   DCHECK_GT(iov_count, 0);
@@ -336,7 +336,7 @@ int QuicStreamSequencerBuffer::GetReadableRegions(struct iovec* iov,
   return iov_used;
 }
 
-bool QuicStreamSequencerBuffer::GetReadableRegion(iovec* iov) const {
+bool QuicStreamSequencerBuffer::GetReadableRegion(IOVEC* iov) const {
   return GetReadableRegions(iov, 1) == 1;
 }
 

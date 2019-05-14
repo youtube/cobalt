@@ -263,6 +263,10 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
   }
 
+#if defined(STARBOARD) && defined(COMPILER_MSVC)
+// static_cast truncates constant value.
+#pragma warning(disable : 4309)
+#endif
   // Overall ack frame encode/decode/compare function
   //  Encodes an ack frame as specified at |*frame|
   //  Then decodes the frame,

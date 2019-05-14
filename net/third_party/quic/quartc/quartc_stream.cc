@@ -23,7 +23,7 @@ void QuartcStream::OnDataAvailable() {
     return;
   }
 
-  struct iovec iov;
+  struct IOVEC iov;
   while (sequencer()->GetReadableRegion(&iov)) {
     DCHECK(delegate_);
     delegate_->OnReceived(this, reinterpret_cast<const char*>(iov.iov_base),

@@ -651,6 +651,12 @@ MockPacketWriter::MockPacketWriter() {
       .WillByDefault(testing::Return(nullptr));
   ON_CALL(*this, Flush())
       .WillByDefault(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
+#if defined(STARBOARD)
+  // On MSVC, WritePacket does not have a default return value, leading to
+  // crashes.
+  ON_CALL(*this, WritePacket(_, _, _, _, _))
+      .WillByDefault(testing::Return(WriteResult()));
+#endif
 }
 
 MockPacketWriter::~MockPacketWriter() {}

@@ -22,8 +22,8 @@ namespace quic {
 
 namespace {
 
-struct iovec MakeIovec(QuicStringPiece data) {
-  struct iovec iov = {const_cast<char*>(data.data()),
+struct IOVEC MakeIovec(QuicStringPiece data) {
+  struct IOVEC iov = {const_cast<char*>(data.data()),
                       static_cast<size_t>(data.size())};
   return iov;
 }
@@ -261,7 +261,7 @@ void QuicStream::WriteOrBufferData(
   // Do not respect buffered data upper limit as WriteOrBufferData guarantees
   // all data to be consumed.
   if (data.length() > 0) {
-    struct iovec iov(MakeIovec(data));
+    struct IOVEC iov(MakeIovec(data));
     QuicStreamOffset offset = send_buffer_.stream_offset();
     if (GetQuicReloadableFlag(quic_stream_too_long) &&
         kMaxStreamLength - offset < data.length()) {
@@ -325,7 +325,7 @@ void QuicStream::MaybeSendBlocked() {
   }
 }
 
-QuicConsumedData QuicStream::WritevData(const struct iovec* iov,
+QuicConsumedData QuicStream::WritevData(const struct IOVEC* iov,
                                         int iov_count,
                                         bool fin) {
   if (write_side_closed_) {

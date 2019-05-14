@@ -116,7 +116,7 @@ class TestPacketGenerator : public QuicPacketGenerator {
         producer_(producer) {}
 
   QuicConsumedData ConsumeDataFastPath(QuicStreamId id,
-                                       const struct iovec* iov,
+                                       const struct IOVEC* iov,
                                        int iov_count,
                                        size_t total_length,
                                        QuicStreamOffset offset,
@@ -130,7 +130,7 @@ class TestPacketGenerator : public QuicPacketGenerator {
   }
 
   QuicConsumedData ConsumeData(QuicStreamId id,
-                               const struct iovec* iov,
+                               const struct IOVEC* iov,
                                int iov_count,
                                size_t total_length,
                                QuicStreamOffset offset,
@@ -262,7 +262,7 @@ class QuicPacketGeneratorTest : public QuicTest {
   SimpleQuicFramer simple_framer_;
   std::vector<SerializedPacket> packets_;
   QuicAckFrame ack_frame_;
-  struct iovec iov_;
+  struct IOVEC iov_;
 
  private:
   std::unique_ptr<char[]> data_array_;

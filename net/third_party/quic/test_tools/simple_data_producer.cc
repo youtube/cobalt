@@ -16,7 +16,7 @@ SimpleDataProducer::SimpleDataProducer() {}
 SimpleDataProducer::~SimpleDataProducer() {}
 
 void SimpleDataProducer::SaveStreamData(QuicStreamId id,
-                                        const struct iovec* iov,
+                                        const struct IOVEC* iov,
                                         int iov_count,
                                         size_t iov_offset,
                                         QuicStreamOffset offset,
