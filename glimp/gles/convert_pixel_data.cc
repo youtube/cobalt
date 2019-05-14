@@ -16,7 +16,7 @@
 
 #include "glimp/gles/convert_pixel_data.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 
 namespace glimp {
