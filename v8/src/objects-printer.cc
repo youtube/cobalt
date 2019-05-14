@@ -21,7 +21,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #define printf(format) SbLogRaw(format)
 #endif
 
