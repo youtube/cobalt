@@ -2268,8 +2268,13 @@ void QuicConnection::OnWriteError(int error_code) {
   }
   write_error_occurred_ = true;
 
+#if defined(STARBOARD)
+  const QuicString error_details = QuicStrCat(
+      "Write failed with error: ", error_code, " (", error_code, ")");
+#else
   const QuicString error_details = QuicStrCat(
       "Write failed with error: ", error_code, " (", strerror(error_code), ")");
+#endif
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
   switch (error_code) {
     case kMessageTooBigErrorCode:

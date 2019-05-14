@@ -43,17 +43,17 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
 
   // Fills in up to iov_len iovecs with the next readable regions.  Returns the
   // number of iovs used.  Non-destructive of the underlying data.
-  int GetReadableRegions(iovec* iov, size_t iov_len) const;
+  int GetReadableRegions(IOVEC* iov, size_t iov_len) const;
 
-  // Fills in one iovec with the next readable region.  Returns false if there
+  // Fills in one IOVEC with the next readable region.  Returns false if there
   // is no readable region available.
-  bool GetReadableRegion(iovec* iov) const;
+  bool GetReadableRegion(IOVEC* iov) const;
 
   // Copies the data into the iov_len buffers provided.  Returns the number of
   // bytes read.  Any buffered data no longer in use will be released.
   // TODO(rch): remove this method and instead implement it as a helper method
   // based on GetReadableRegions and MarkConsumed.
-  int Readv(const struct iovec* iov, size_t iov_len);
+  int Readv(const struct IOVEC* iov, size_t iov_len);
 
   // Consumes |num_bytes| data.  Used in conjunction with |GetReadableRegions|
   // to do zero-copy reads.

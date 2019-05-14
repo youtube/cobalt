@@ -83,7 +83,11 @@ std::unique_ptr<base::Value> NetLogQuicPacketLostCallback(
   dict->SetString("packet_number", base::NumberToString(packet_number));
   dict->SetString("detection_time_us",
                   base::Int64ToString(detection_time.ToDebuggingValue()));
+#if defined(STARBOARD)
+  return std::move(dict);
+#else
   return dict;
+#endif
 }
 
 std::unique_ptr<base::Value> NetLogQuicDuplicatePacketCallback(

@@ -585,7 +585,7 @@ int QuicChromiumClientStream::Read(IOBuffer* buf, int buf_len) {
   if (!HasBytesToRead())
     return ERR_IO_PENDING;
 
-  iovec iov;
+  IOVEC iov;
   iov.iov_base = buf->data();
   iov.iov_len = buf_len;
   size_t bytes_read = Readv(&iov, 1);

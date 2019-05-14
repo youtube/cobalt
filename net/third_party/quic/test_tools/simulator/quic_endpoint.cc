@@ -121,6 +121,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
 }
 
 QuicEndpoint::~QuicEndpoint() {
+#ifndef QUIC_TRACE_DISABLED
   if (trace_visitor_ != nullptr) {
     const char* perspective_prefix =
         connection_.perspective() == Perspective::IS_CLIENT ? "C" : "S";
@@ -130,6 +131,7 @@ QuicEndpoint::~QuicEndpoint() {
     QuicRecordTestOutput(identifier,
                          trace_visitor_->trace()->SerializeAsString());
   }
+#endif
 }
 
 QuicByteCount QuicEndpoint::bytes_received() const {
@@ -176,8 +178,10 @@ void QuicEndpoint::DropNextIncomingPacket() {
 }
 
 void QuicEndpoint::RecordTrace() {
+#ifndef QUIC_TRACE_DISABLED
   trace_visitor_ = QuicMakeUnique<QuicTraceVisitor>(&connection_);
   connection_.set_debug_visitor(trace_visitor_.get());
+#endif
 }
 
 void QuicEndpoint::AcceptPacket(std::unique_ptr<Packet> packet) {

@@ -563,7 +563,7 @@ class TestConnection : public QuicConnection {
   }
 
   QuicConsumedData SaveAndSendStreamData(QuicStreamId id,
-                                         const struct iovec* iov,
+                                         const struct IOVEC* iov,
                                          int iov_count,
                                          size_t total_length,
                                          QuicStreamOffset offset,
@@ -584,7 +584,7 @@ class TestConnection : public QuicConnection {
     if (id != kCryptoStreamId && this->encryption_level() == ENCRYPTION_NONE) {
       this->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
-    struct iovec iov;
+    struct IOVEC iov;
     MakeIOVector(data, &iov);
     return SaveAndSendStreamData(id, &iov, 1, data.length(), offset, state);
   }
@@ -2571,7 +2571,7 @@ TEST_P(QuicConnectionTest, FramePackingSendv) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
 
   char data[] = "ABCDEF";
-  struct iovec iov[2];
+  struct IOVEC iov[2];
   iov[0].iov_base = data;
   iov[0].iov_len = 4;
   iov[1].iov_base = data + 4;
@@ -2597,7 +2597,7 @@ TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
 
   BlockOnNextWrite();
   char data[] = "ABCDEF";
-  struct iovec iov[2];
+  struct IOVEC iov[2];
   iov[0].iov_base = data;
   iov[0].iov_len = 4;
   iov[1].iov_base = data + 4;
@@ -2651,7 +2651,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   size_t len = 10000;
   std::unique_ptr<char[]> data_array(new char[len]);
   SbMemorySet(data_array.get(), '?', len);
-  struct iovec iov;
+  struct IOVEC iov;
   iov.iov_base = data_array.get();
   iov.iov_len = len;
   QuicConsumedData consumed =
@@ -6378,7 +6378,7 @@ TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA,
                                  _, ConnectionCloseSource::FROM_SELF));
-  struct iovec iov;
+  struct IOVEC iov;
   MakeIOVector("", &iov);
   EXPECT_QUIC_BUG(connection_.SaveAndSendStreamData(3, &iov, 1, 0, 0, FIN),
                   "Cannot send stream data without encryption.");

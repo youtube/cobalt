@@ -54,7 +54,7 @@ class TestStream : public QuicSpdyStream {
       return;
     }
     char buffer[2048];
-    struct iovec vec;
+    struct IOVEC vec;
     vec.iov_base = buffer;
     vec.iov_len = QUIC_ARRAYSIZE(buffer);
     size_t bytes_read = Readv(&vec, 1);
@@ -348,7 +348,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyReadv) {
 
   char buffer[2048];
   ASSERT_LT(body.length(), QUIC_ARRAYSIZE(buffer));
-  struct iovec vec;
+  struct IOVEC vec;
   vec.iov_base = buffer;
   vec.iov_len = QUIC_ARRAYSIZE(buffer);
 
@@ -368,7 +368,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyMarkConsumed) {
   stream_->OnStreamFrame(frame);
   stream_->ConsumeHeaderList();
 
-  struct iovec vec;
+  struct IOVEC vec;
 
   EXPECT_EQ(1, stream_->GetReadableRegions(&vec, 1));
   EXPECT_EQ(body.length(), vec.iov_len);
@@ -389,7 +389,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyIncrementalReadv) {
   stream_->ConsumeHeaderList();
 
   char buffer[1];
-  struct iovec vec;
+  struct IOVEC vec;
   vec.iov_base = buffer;
   vec.iov_len = QUIC_ARRAYSIZE(buffer);
 
@@ -412,7 +412,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersUsingReadvWithMultipleIovecs) {
 
   char buffer1[1];
   char buffer2[1];
-  struct iovec vec[2];
+  struct IOVEC vec[2];
   vec[0].iov_base = buffer1;
   vec[0].iov_len = QUIC_ARRAYSIZE(buffer1);
   vec[1].iov_base = buffer2;

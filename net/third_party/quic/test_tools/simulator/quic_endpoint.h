@@ -190,7 +190,9 @@ class QuicEndpoint : public Endpoint,
   QuicIntervalSet<QuicStreamOffset> offsets_received_;
 
   std::unique_ptr<test::SimpleSessionNotifier> notifier_;
+#ifndef QUIC_TRACE_DISABLED
   std::unique_ptr<QuicTraceVisitor> trace_visitor_;
+#endif
 };
 
 // Multiplexes multiple connections at the same host on the network.

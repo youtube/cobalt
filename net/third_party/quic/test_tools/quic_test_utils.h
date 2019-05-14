@@ -1109,7 +1109,7 @@ QuicHeaderList AsHeaderList(const T& container) {
 }
 
 // Utility function that stores |str|'s data in |iov|.
-inline void MakeIOVector(QuicStringPiece str, struct iovec* iov) {
+inline void MakeIOVector(QuicStringPiece str, struct IOVEC* iov) {
   iov->iov_base = const_cast<char*>(str.data());
   iov->iov_len = static_cast<size_t>(str.size());
 }

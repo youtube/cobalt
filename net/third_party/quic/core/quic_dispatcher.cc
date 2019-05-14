@@ -75,7 +75,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
                             ConnectionCloseSource source) override {}
 
   void SaveStatelessRejectFrameData(QuicStringPiece reject) {
-    struct iovec iovec;
+    struct IOVEC iovec;
     iovec.iov_base = const_cast<char*>(reject.data());
     iovec.iov_len = reject.length();
     send_buffer_.SaveStreamData(&iovec, 1, 0, iovec.iov_len);

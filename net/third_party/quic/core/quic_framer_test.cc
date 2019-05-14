@@ -8828,7 +8828,7 @@ TEST_P(QuicFramerTest, StartsWithChlo) {
   SimpleDataProducer producer;
   framer_.set_data_producer(&producer);
   QuicStringPiece data("CHLOCHLO");
-  struct iovec iovec;
+  struct IOVEC iovec;
   iovec.iov_base = const_cast<char*>(data.data());
   iovec.iov_len = data.length();
   producer.SaveStreamData(kCryptoStreamId, &iovec, 1, 0, 0, data.length());

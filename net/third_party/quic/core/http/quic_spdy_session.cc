@@ -413,7 +413,7 @@ void QuicSpdySession::OnPriorityFrame(QuicStreamId stream_id,
   stream->OnPriorityFrame(priority);
 }
 
-size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
+size_t QuicSpdySession::ProcessHeaderData(const struct IOVEC& iov) {
   return h2_deframer_.ProcessInput(static_cast<char*>(iov.iov_base),
                                    iov.iov_len);
 }
