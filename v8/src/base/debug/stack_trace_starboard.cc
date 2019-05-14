@@ -19,7 +19,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace v8 {
 namespace base {
