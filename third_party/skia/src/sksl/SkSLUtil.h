@@ -22,7 +22,7 @@
 #endif
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif
 
 #ifdef SKSL_STANDALONE
