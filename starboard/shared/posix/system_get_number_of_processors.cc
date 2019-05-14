@@ -16,7 +16,7 @@
 
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 int SbSystemGetNumberOfProcessors() {
   // It seems that sysconf returns the number of "logical" processors on both

@@ -21,7 +21,7 @@
 #if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/format_string.h"
 #endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/string.h"

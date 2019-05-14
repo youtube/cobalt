@@ -16,7 +16,7 @@
 
 #include <dlfcn.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

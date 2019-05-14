@@ -22,8 +22,8 @@
 #include <dlfcn.h>
 #include <map>
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 #include "starboard/string.h"

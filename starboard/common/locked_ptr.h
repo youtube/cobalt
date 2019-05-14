@@ -15,8 +15,8 @@
 #ifndef STARBOARD_COMMON_LOCKED_PTR_H_
 #define STARBOARD_COMMON_LOCKED_PTR_H_
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/mutex.h"
 
 #ifdef __cplusplus

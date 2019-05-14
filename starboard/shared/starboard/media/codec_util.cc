@@ -15,7 +15,7 @@
 #include "starboard/shared/starboard/media/codec_util.h"
 
 #include "starboard/character.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/string.h"
 
 namespace starboard {

@@ -18,8 +18,8 @@
 #include <functional>
 #include <queue>
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/queue.h"

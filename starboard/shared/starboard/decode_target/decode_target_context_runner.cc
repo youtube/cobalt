@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

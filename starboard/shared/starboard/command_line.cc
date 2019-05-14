@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <ostream>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 
 namespace starboard {
 namespace shared {

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+#include "starboard/common/log.h"
 #include "starboard/event.h"
-#include "starboard/log.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"

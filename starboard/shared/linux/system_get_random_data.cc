@@ -16,8 +16,8 @@
 
 #include "starboard/system.h"
 
+#include "starboard/common/log.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 

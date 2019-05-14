@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"

@@ -14,8 +14,8 @@
 
 #include "starboard/shared/widevine/widevine_storage.h"
 
+#include "starboard/common/log.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/types.h"
 
 namespace starboard {

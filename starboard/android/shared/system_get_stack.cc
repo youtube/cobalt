@@ -14,8 +14,8 @@
 
 #include <unwind.h>
 
+#include "starboard/common/log.h"
 #include "starboard/system.h"
-#include "starboard/log.h"
 
 namespace {
 class CallbackContext {

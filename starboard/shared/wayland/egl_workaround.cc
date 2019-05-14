@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/renderer/backend/egl/display.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/wayland/native_display_type.h"
 
 extern "C" EGLDisplay __real_eglGetDisplay(EGLNativeDisplayType native_display);

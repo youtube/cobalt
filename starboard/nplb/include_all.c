@@ -32,7 +32,7 @@
 #include "starboard/file.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/microphone.h"

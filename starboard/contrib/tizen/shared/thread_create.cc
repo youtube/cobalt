@@ -16,7 +16,7 @@
 
 #include <Eina.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/string.h"
 
 #define THREAD_LOG_ON 0

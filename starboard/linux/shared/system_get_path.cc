@@ -21,8 +21,8 @@
 
 #include <cstring>
 
+#include "starboard/common/log.h"
 #include "starboard/directory.h"
-#include "starboard/log.h"
 #include "starboard/string.h"
 #include "starboard/user.h"
 

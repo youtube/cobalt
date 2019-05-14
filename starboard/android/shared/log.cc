@@ -22,7 +22,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "starboard/thread.h"

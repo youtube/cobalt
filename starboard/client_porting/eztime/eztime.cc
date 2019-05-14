@@ -22,7 +22,7 @@
 #include <string>
 
 #include "starboard/client_porting/icu_init/icu_init.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
 #include "starboard/time.h"

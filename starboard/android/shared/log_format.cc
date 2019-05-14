@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 #include "starboard/string.h"
 

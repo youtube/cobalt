@@ -20,9 +20,9 @@
 #include <vector>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/alsa/alsa_util.h"

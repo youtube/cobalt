@@ -16,8 +16,8 @@
 
 #include <algorithm>
 
+#include "starboard/common/log.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/string.h"
 

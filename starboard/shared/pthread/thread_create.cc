@@ -19,7 +19,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/string.h"

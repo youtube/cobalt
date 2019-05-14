@@ -14,7 +14,7 @@
 
 #include "starboard/shared/directfb/blitter_internal.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/once.h"
 
 namespace {
