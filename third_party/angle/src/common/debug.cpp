@@ -20,7 +20,7 @@
 #include "common/Optional.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif  // defined(STARBOARD)
 
 namespace gl
