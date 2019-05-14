@@ -16,7 +16,7 @@
 
 #include <alsa/asoundlib.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #define ALSA_CHECK(error, alsa_function, failure_return)      \
   do {                                                        \

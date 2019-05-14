@@ -19,8 +19,8 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "starboard/common/log.h"
 #include "starboard/linux/x64x11/system_properties.h"
-#include "starboard/log.h"
 #include "starboard/string.h"
 
 namespace {

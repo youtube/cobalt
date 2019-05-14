@@ -14,7 +14,7 @@
 
 #include "starboard/system.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 SbSystemConnectionType SbSystemGetConnectionType() {
   SB_NOTIMPLEMENTED();

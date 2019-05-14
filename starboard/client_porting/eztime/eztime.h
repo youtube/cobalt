@@ -15,7 +15,7 @@
 #ifndef STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
 #define STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 

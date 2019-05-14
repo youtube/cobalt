@@ -14,7 +14,7 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #if SB_API_VERSION >= 10
 // This is the legacy default value of the GYP variable.

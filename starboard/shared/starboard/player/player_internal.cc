@@ -16,7 +16,7 @@
 
 #include <functional>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace {
 

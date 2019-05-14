@@ -64,8 +64,8 @@
 
 #include "starboard/cryptography.h"
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/nplb/cryptography_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

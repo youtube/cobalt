@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/extension/platform_service.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

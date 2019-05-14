@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 // --- Macros for common logging idioms ---
 

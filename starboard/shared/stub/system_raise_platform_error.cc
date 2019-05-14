@@ -14,7 +14,7 @@
 
 #include "starboard/system.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
 SbSystemPlatformError SbSystemRaisePlatformError(

@@ -18,7 +18,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/socket_internal.h"
 
 namespace sbposix = starboard::shared::posix;

@@ -4,7 +4,7 @@
 
 #include "starboard/common/ref_counted.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 

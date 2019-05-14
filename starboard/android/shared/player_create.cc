@@ -15,9 +15,9 @@
 #include "starboard/player.h"
 
 #include "starboard/android/shared/cobalt/android_media_session_client.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"

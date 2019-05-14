@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 void* SbBlitterGetPixelDataPointer(SbBlitterPixelData pixel_data) {
   SB_NOTREACHED();

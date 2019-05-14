@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 
 namespace starboard {

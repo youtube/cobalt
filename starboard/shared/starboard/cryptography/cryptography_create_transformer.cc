@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 #include "starboard/shared/starboard/cryptography/software_aes.h"

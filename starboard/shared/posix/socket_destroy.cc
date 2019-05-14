@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"
 #include "starboard/socket_waiter.h"

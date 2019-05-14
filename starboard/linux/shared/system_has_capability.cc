@@ -14,7 +14,7 @@
 
 #include "starboard/system.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
   switch (capability_id) {

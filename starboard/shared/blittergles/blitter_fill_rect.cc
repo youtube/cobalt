@@ -16,7 +16,7 @@
 
 #include <GLES2/gl2.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 

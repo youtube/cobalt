@@ -14,7 +14,7 @@
 
 #include "starboard/drm.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmUpdateSession(SbDrmSystem drm_system,

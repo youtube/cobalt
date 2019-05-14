@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
-#include "starboard/log.h"
 
 #if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
 SbThreadSampler SbThreadSamplerCreate(SbThread thread) {

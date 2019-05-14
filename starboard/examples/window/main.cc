@@ -16,9 +16,9 @@
 #include <set>
 #include <sstream>
 
+#include "starboard/common/log.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
-#include "starboard/log.h"
 #include "starboard/system.h"
 #include "starboard/window.h"
 

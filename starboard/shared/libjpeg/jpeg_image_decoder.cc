@@ -19,9 +19,9 @@
 #include <algorithm>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/log.h"
 
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {

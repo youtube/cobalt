@@ -14,7 +14,7 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
 void SbMediaSetAudioWriteDuration(SbTime duration) {

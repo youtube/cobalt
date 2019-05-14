@@ -17,7 +17,7 @@
 #include "base/time/time.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 // We're in starboard source, but compiled with Cobalt.
 #define STARBOARD_IMPLEMENTATION

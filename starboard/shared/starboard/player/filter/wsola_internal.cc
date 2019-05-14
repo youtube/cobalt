@@ -28,8 +28,8 @@
 #include <limits>
 #include <memory>
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 
