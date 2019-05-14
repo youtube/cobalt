@@ -28,7 +28,7 @@
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #define exit(status) SbSystemBreakIntoDebugger()
