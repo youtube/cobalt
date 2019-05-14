@@ -24,7 +24,7 @@
 #include "net/base/io_buffer.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "net/url_request/url_fetcher_response_writer.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace speech {

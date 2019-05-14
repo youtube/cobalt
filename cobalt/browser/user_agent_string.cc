@@ -27,7 +27,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 

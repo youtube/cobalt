@@ -22,7 +22,7 @@
 #include <string>
 
 #include "base/logging.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace browser {
