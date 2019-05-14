@@ -4,7 +4,7 @@
 
 #include "nb/ref_counted.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace nb {
 

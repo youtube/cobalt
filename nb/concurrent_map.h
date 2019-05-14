@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "nb/hash.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 
 namespace nb {
