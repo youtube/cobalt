@@ -17,8 +17,8 @@
 #include <signal.h>
 #include <sys/socket.h>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"

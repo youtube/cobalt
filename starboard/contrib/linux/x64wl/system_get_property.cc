@@ -19,7 +19,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/string.h"
 
 namespace {

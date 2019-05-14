@@ -18,8 +18,8 @@
 
 #include <algorithm>
 
+#include "starboard/common/log.h"
 #include "starboard/common/optional.h"
-#include "starboard/log.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/socket_internal.h"
 #include "starboard/shared/win32/thread_private.h"

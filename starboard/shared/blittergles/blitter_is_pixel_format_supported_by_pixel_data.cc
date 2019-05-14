@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,

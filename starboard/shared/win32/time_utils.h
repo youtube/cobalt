@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_WIN32_TIME_UTILS_H_
 #define STARBOARD_SHARED_WIN32_TIME_UTILS_H_
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

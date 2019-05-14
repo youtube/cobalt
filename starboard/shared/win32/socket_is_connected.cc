@@ -16,7 +16,7 @@
 
 #include <winsock2.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/socket_internal.h"
 
 bool SbSocketIsConnected(SbSocket socket) {

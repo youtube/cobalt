@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
 #include "starboard/shared/internal_only.h"

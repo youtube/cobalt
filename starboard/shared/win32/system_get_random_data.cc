@@ -19,7 +19,7 @@
 // This must be included after windows.h
 #include <bcrypt.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/error_utils.h"
 
 namespace sbwin32 = starboard::shared::win32;

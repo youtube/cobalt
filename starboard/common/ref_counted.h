@@ -6,8 +6,8 @@
 #define STARBOARD_COMMON_REF_COUNTED_H_
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/thread_collision_warner.h"
-#include "starboard/log.h"
 
 namespace starboard {
 

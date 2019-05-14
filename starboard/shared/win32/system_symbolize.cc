@@ -22,7 +22,7 @@
 #include <Windows.h>  // Must go before dbhelp.h
 #include <dbghelp.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"

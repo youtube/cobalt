@@ -16,7 +16,7 @@
 
 #include <pthread.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 void SbMemoryGetStackBounds(void** out_high, void** out_low) {
   void* stackBase = 0;

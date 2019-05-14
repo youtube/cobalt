@@ -18,7 +18,7 @@
 
 #include <ucontext.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
 
 // TODO: Implement for e.g. Mac OSX, BSD flavors, QNX - maybe in another file.

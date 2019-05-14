@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/types.h"
 
 namespace starboard {

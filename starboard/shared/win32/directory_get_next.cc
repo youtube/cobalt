@@ -16,10 +16,10 @@
 
 #include <windows.h>
 
-#include "starboard/log.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/directory_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/string.h"
 
 namespace {
 // One of the entries of FILE_ID_BOTH_DIR_INFO is a file path, so make the

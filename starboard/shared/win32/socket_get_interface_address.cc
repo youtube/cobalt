@@ -23,7 +23,7 @@
 #include <memory>
 
 #include "starboard/byte_swap.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/adapter_utils.h"
 #include "starboard/shared/win32/socket_internal.h"

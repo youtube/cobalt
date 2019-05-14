@@ -19,7 +19,7 @@
 #include <memory>
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/socket_internal.h"
 
 namespace sbwin32 = starboard::shared::win32;

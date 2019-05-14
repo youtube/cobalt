@@ -18,7 +18,7 @@
 #include <queue>
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
 #include "starboard/raspi/shared/open_max/open_max_component_base.h"
 #include "starboard/shared/internal_only.h"

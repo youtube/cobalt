@@ -15,7 +15,7 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include "starboard/audio_sink.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"

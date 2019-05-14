@@ -14,7 +14,7 @@
 
 #include "starboard/audio_sink.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbAudioSinkIsAudioFrameStorageTypeSupported(
     SbMediaAudioFrameStorageType audio_frame_storage_type) {

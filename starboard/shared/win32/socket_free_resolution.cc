@@ -14,7 +14,7 @@
 
 #include "starboard/socket.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 void SbSocketFreeResolution(SbSocketResolution* resolution) {
   if (!resolution) {

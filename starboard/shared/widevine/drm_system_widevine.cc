@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "starboard/character.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"

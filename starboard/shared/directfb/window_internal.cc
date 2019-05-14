@@ -16,7 +16,7 @@
 
 #include <directfb.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 const int kWindowWidth = 1920;
 const int kWindowHeight = 1080;

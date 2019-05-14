@@ -19,8 +19,8 @@
 #include <sstream>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"

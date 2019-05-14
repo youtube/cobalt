@@ -22,9 +22,9 @@
 #include <comutil.h>
 #include <wrl\client.h>  // For ComPtr.
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"

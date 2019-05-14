@@ -25,7 +25,7 @@
 #include <cstring>
 #include <string>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/nouser/user_internal.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"

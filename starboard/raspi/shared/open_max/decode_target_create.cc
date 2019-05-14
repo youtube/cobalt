@@ -16,8 +16,8 @@
 
 #include <GLES2/gl2.h>
 
+#include "starboard/common/log.h"
 #include "starboard/decode_target.h"
-#include "starboard/log.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 

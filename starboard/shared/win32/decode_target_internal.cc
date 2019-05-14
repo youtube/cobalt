@@ -14,8 +14,8 @@
 
 #include "starboard/shared/win32/decode_target_internal.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 
 SbDecodeTargetPrivate::SbDecodeTargetPrivate() : refcount(1) {

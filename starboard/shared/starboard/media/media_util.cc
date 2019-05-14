@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "starboard/character.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/string.h"

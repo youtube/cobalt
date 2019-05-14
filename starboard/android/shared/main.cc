@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/export.h"
-#include "starboard/log.h"
 
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   // main() is never called on Android. However, the cobalt_bin

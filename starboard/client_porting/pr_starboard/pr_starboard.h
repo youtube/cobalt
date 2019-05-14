@@ -20,8 +20,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_PR_STARBOARD_PR_STARBOARD_H_
 #define STARBOARD_CLIENT_PORTING_PR_STARBOARD_PR_STARBOARD_H_
 
+#include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/string.h"

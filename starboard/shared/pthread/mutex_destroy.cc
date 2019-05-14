@@ -16,7 +16,7 @@
 
 #include <pthread.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/pthread/is_success.h"
 
 bool SbMutexDestroy(SbMutex* mutex) {

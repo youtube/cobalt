@@ -14,7 +14,7 @@
 
 #include "starboard/socket_waiter.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/libevent/socket_waiter_internal.h"
 
 bool SbSocketWaiterAdd(SbSocketWaiter waiter,

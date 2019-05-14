@@ -16,7 +16,7 @@
 
 #include <windows.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 SbTimeZone SbTimeZoneGetCurrent() {
   DYNAMIC_TIME_ZONE_INFORMATION time_zone_info;
 

@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 #include "starboard/shared/starboard/player/video_dmp_writer.h"

@@ -18,8 +18,8 @@
 #include <numeric>
 
 #include "starboard/byte_swap.h"
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_foundation_utils.h"

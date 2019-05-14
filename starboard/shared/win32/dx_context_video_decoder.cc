@@ -21,7 +21,7 @@
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

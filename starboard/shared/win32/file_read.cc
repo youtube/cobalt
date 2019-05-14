@@ -16,7 +16,7 @@
 
 #include <windows.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/file_internal.h"
 
 int SbFileRead(SbFile file, char* data, int size) {

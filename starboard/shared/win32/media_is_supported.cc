@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/win32/drm_system_playready.h"
 #include "starboard/string.h"

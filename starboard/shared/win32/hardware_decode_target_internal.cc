@@ -14,8 +14,8 @@
 
 #include "starboard/shared/win32/hardware_decode_target_internal.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "third_party/angle/include/EGL/egl.h"

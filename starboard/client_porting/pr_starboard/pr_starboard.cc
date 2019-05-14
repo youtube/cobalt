@@ -15,8 +15,8 @@
 #include "starboard/client_porting/pr_starboard/pr_starboard.h"
 
 #include "nb/thread_local_object.h"
+#include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"

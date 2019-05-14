@@ -16,7 +16,7 @@
 
 #include <windows.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 int64_t SbSystemGetUsedCPUMemory() {
   MEMORYSTATUSEX statex = {0};

@@ -16,7 +16,7 @@
 
 #include <windows.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/file_internal.h"
 
 int SbFileWrite(SbFile file, const char* data, int size) {

@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

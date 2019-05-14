@@ -16,7 +16,7 @@
 
 #include <windows.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 SbTimeMonotonic SbTimeGetMonotonicNow() {
   LARGE_INTEGER counts;

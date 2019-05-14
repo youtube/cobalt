@@ -16,7 +16,7 @@
 
 #include <functional>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/hardware_decode_target_internal.h"

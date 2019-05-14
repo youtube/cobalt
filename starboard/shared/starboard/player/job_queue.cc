@@ -16,7 +16,7 @@
 
 #include <utility>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"

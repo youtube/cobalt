@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/win32/error_utils.h"
 
 namespace starboard {
