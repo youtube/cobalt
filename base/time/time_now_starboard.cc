@@ -20,7 +20,7 @@
 #include "build/build_config.h"
 
 #include "starboard/client_porting/poem/eztime_poem.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
