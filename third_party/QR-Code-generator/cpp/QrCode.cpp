@@ -30,7 +30,7 @@
 #include "BitBuffer.hpp"
 #include "QrCode.hpp"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #define throw SB_CHECK(false) <<
 
