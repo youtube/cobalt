@@ -143,7 +143,7 @@ int QuicSocketUtils::ReadPacket(int fd,
   DCHECK(peer_address != nullptr);
   char cbuf[kCmsgSpaceForReadPacket];
 
-  iovec iov = {buffer, buf_len};
+  IOVEC iov = {buffer, buf_len};
   struct sockaddr_storage raw_address;
   msghdr hdr;
 
@@ -233,7 +233,7 @@ WriteResult QuicSocketUtils::WritePacket(
     const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address) {
   sockaddr_storage raw_address = peer_address.generic_address();
-  iovec iov = {const_cast<char*>(buffer), buf_len};
+  IOVEC iov = {const_cast<char*>(buffer), buf_len};
 
   msghdr hdr;
   hdr.msg_name = &raw_address;

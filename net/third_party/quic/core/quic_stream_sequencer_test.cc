@@ -66,7 +66,7 @@ class QuicStreamSequencerTest : public QuicTest {
   void ConsumeData(size_t num_bytes) {
     char buffer[1024];
     ASSERT_GT(QUIC_ARRAYSIZE(buffer), num_bytes);
-    struct iovec iov;
+    struct IOVEC iov;
     iov.iov_base = buffer;
     iov.iov_len = num_bytes;
     ASSERT_EQ(static_cast<int>(num_bytes), sequencer_->Readv(&iov, 1));
@@ -83,7 +83,7 @@ class QuicStreamSequencerTest : public QuicTest {
 
   // Verify that the data in first region match with the expected[0].
   bool VerifyReadableRegion(const std::vector<QuicString>& expected) {
-    iovec iovecs[1];
+    IOVEC iovecs[1];
     if (sequencer_->GetReadableRegions(iovecs, 1)) {
       return (VerifyIovecs(iovecs, 1, std::vector<QuicString>{expected[0]}));
     }
@@ -93,14 +93,14 @@ class QuicStreamSequencerTest : public QuicTest {
   // Verify that the data in each of currently readable regions match with each
   // item given in |expected|.
   bool VerifyReadableRegions(const std::vector<QuicString>& expected) {
-    iovec iovecs[5];
+    IOVEC iovecs[5];
     size_t num_iovecs =
         sequencer_->GetReadableRegions(iovecs, QUIC_ARRAYSIZE(iovecs));
     return VerifyReadableRegion(expected) &&
            VerifyIovecs(iovecs, num_iovecs, expected);
   }
 
-  bool VerifyIovecs(iovec* iovecs,
+  bool VerifyIovecs(IOVEC* iovecs,
                     size_t num_iovecs,
                     const std::vector<QuicString>& expected) {
     int start_position = 0;
@@ -114,7 +114,7 @@ class QuicStreamSequencerTest : public QuicTest {
     return true;
   }
 
-  bool VerifyIovec(const iovec& iovec, QuicStringPiece expected) {
+  bool VerifyIovec(const IOVEC& iovec, QuicStringPiece expected) {
     if (iovec.iov_len != expected.length()) {
       QUIC_LOG(ERROR) << "Invalid length: " << iovec.iov_len << " vs "
                       << expected.length();
@@ -351,7 +351,7 @@ TEST_F(QuicStreamSequencerTest, TerminateWithReadv) {
   EXPECT_CALL(stream_, OnDataAvailable());
   OnFrame(0, "abc");
 
-  iovec iov = {&buffer[0], 3};
+  IOVEC iov = {&buffer[0], 3};
   int bytes_read = sequencer_->Readv(&iov, 1);
   EXPECT_EQ(3, bytes_read);
   EXPECT_TRUE(sequencer_->IsClosed());
@@ -403,7 +403,7 @@ class QuicSequencerRandomTest : public QuicStreamSequencerTest {
   void ReadAvailableData() {
     // Read all available data
     char output[QUIC_ARRAYSIZE(kPayload) + 1];
-    iovec iov;
+    IOVEC iov;
     iov.iov_base = output;
     iov.iov_len = QUIC_ARRAYSIZE(output);
     int bytes_read = sequencer_->Readv(&iov, 1);
@@ -441,7 +441,7 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingNoBackup) {
 
 TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingBackup) {
   char buffer[10];
-  iovec iov[2];
+  IOVEC iov[2];
   iov[0].iov_base = &buffer[0];
   iov[0].iov_len = 5;
   iov[1].iov_base = &buffer[5];
@@ -456,7 +456,7 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingBackup) {
       list_.erase(list_.begin() + index);
     } else {  // Read data
       bool has_bytes = sequencer_->HasBytesToRead();
-      iovec peek_iov[20];
+      IOVEC peek_iov[20];
       int iovs_peeked = sequencer_->GetReadableRegions(peek_iov, 20);
       if (has_bytes) {
         ASSERT_LT(0, iovs_peeked);

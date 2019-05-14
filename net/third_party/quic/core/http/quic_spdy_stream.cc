@@ -97,12 +97,12 @@ size_t QuicSpdyStream::WriteTrailers(
   return bytes_written;
 }
 
-size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
+size_t QuicSpdyStream::Readv(const struct IOVEC* iov, size_t iov_len) {
   DCHECK(FinishedReadingHeaders());
   return sequencer()->Readv(iov, iov_len);
 }
 
-int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
+int QuicSpdyStream::GetReadableRegions(IOVEC* iov, size_t iov_len) const {
   DCHECK(FinishedReadingHeaders());
   return sequencer()->GetReadableRegions(iov, iov_len);
 }

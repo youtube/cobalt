@@ -136,12 +136,12 @@ bool QuicStreamSequencer::MaybeCloseStream() {
   return true;
 }
 
-int QuicStreamSequencer::GetReadableRegions(iovec* iov, size_t iov_len) const {
+int QuicStreamSequencer::GetReadableRegions(IOVEC* iov, size_t iov_len) const {
   DCHECK(!blocked_);
   return buffered_frames_.GetReadableRegions(iov, iov_len);
 }
 
-bool QuicStreamSequencer::GetReadableRegion(iovec* iov) const {
+bool QuicStreamSequencer::GetReadableRegion(IOVEC* iov) const {
   DCHECK(!blocked_);
   return buffered_frames_.GetReadableRegion(iov);
 }
@@ -149,13 +149,13 @@ bool QuicStreamSequencer::GetReadableRegion(iovec* iov) const {
 void QuicStreamSequencer::Read(QuicString* buffer) {
   DCHECK(!blocked_);
   buffer->resize(buffer->size() + ReadableBytes());
-  iovec iov;
+  IOVEC iov;
   iov.iov_len = ReadableBytes();
   iov.iov_base = &(*buffer)[buffer->size() - iov.iov_len];
   Readv(&iov, 1);
 }
 
-int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
+int QuicStreamSequencer::Readv(const struct IOVEC* iov, size_t iov_len) {
   DCHECK(!blocked_);
   QuicString error_details;
   size_t bytes_read;

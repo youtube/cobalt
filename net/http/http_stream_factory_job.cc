@@ -201,9 +201,9 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
           (ShouldForceQuic(session, destination, origin_url, proxy_info) &&
            !(proxy_info.is_quic() && using_ssl_))),
 #else
-      quic_version_(quic_version),
       using_quic_(false),
 #endif
+      quic_version_(quic_version),
       expect_spdy_(alternative_protocol == kProtoHTTP2 && !using_quic_),
       using_spdy_(false),
       should_reconsider_proxy_(false),

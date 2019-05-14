@@ -55,7 +55,7 @@ void QuicSimpleServerStream::OnTrailingHeadersComplete(
 
 void QuicSimpleServerStream::OnDataAvailable() {
   while (HasBytesToRead()) {
-    struct iovec iov;
+    struct IOVEC iov;
     if (GetReadableRegions(&iov, 1) == 0) {
       // No more data to read.
       break;

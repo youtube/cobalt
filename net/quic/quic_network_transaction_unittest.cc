@@ -6093,7 +6093,11 @@ TEST_P(QuicNetworkTransactionTest, NoMigrationForMsgTooBig) {
       HostPortPair::FromString("mail.example.org:443"));
   const quic::QuicString error_details =
       quic::QuicStrCat("Write failed with error: ", ERR_MSG_TOO_BIG, " (",
+#if defined(STARBOARD)
+                       ERR_MSG_TOO_BIG, ")");
+#else
                        strerror(ERR_MSG_TOO_BIG), ")");
+#endif
 
   MockQuicData socket_data;
   quic::QuicStreamOffset offset = 0;
@@ -6357,9 +6361,14 @@ class QuicURLRequestContext : public URLRequestContext {
         std::make_unique<HttpServerPropertiesImpl>());
     storage_.set_job_factory(std::make_unique<URLRequestJobFactoryImpl>());
     storage_.set_http_network_session(std::move(session));
+#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
+    storage_.set_http_transaction_factory(
+        std::make_unique<HttpNetworkLayer>(storage_.http_network_session()));
+#else
     storage_.set_http_transaction_factory(std::make_unique<HttpCache>(
         storage_.http_network_session(), HttpCache::DefaultBackend::InMemory(0),
         false));
+#endif
   }
 
   ~QuicURLRequestContext() override { AssertNoURLRequests(); }

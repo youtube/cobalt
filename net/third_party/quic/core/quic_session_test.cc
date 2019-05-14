@@ -192,7 +192,7 @@ class TestSession : public QuicSession {
   }
 
   QuicConsumedData SendStreamData(QuicStream* stream) {
-    struct iovec iov;
+    struct IOVEC iov;
     if (stream->id() != kCryptoStreamId &&
         this->connection()->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
       this->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);

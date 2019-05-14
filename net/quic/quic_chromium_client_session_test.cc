@@ -1305,7 +1305,7 @@ TEST_P(QuicChromiumClientSessionTest, MigrateToSocket) {
   QuicChromiumClientStream* stream =
       QuicChromiumClientSessionPeer::CreateOutgoingDynamicStream(
           session_.get());
-  struct iovec iov[1];
+  struct IOVEC iov[1];
   iov[0].iov_base = data;
   iov[0].iov_len = 4;
   quic::test::QuicStreamPeer::SendBuffer(stream).SaveStreamData(iov, 1, 0, 4);

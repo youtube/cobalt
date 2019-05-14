@@ -13,7 +13,7 @@ void QuicSimpleClientStream::OnDataAvailable() {
   }
 
   while (HasBytesToRead()) {
-    struct iovec iov;
+    struct IOVEC iov;
     if (GetReadableRegions(&iov, 1) == 0) {
       break;
     }

@@ -63,7 +63,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   ~QuicStreamSendBuffer();
 
   // Save |data_length| of data starts at |iov_offset| in |iov| to send buffer.
-  void SaveStreamData(const struct iovec* iov,
+  void SaveStreamData(const struct IOVEC* iov,
                       int iov_count,
                       size_t iov_offset,
                       QuicByteCount data_length);

@@ -43,7 +43,7 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
 }
 
 void QuicCryptoStream::OnDataAvailable() {
-  struct iovec iov;
+  struct IOVEC iov;
   // When calling CryptoMessageParser::ProcessInput, an EncryptionLevel needs to
   // be provided. Note that in the general case, the following code may be
   // incorrect. When a stream frame is added to the sequencer, the encryption

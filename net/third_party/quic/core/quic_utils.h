@@ -71,7 +71,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Copies |buffer_length| bytes from iov starting at offset |iov_offset| into
   // buffer. |iov| must be at least iov_offset+length total length and buffer
   // must be at least |length| long.
-  static void CopyToBuffer(const struct iovec* iov,
+  static void CopyToBuffer(const struct IOVEC* iov,
                            int iov_count,
                            size_t iov_offset,
                            size_t buffer_length,

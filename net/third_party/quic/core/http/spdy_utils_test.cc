@@ -420,7 +420,14 @@ TEST_F(PushPromiseUrlTest, GetPushPromiseUrl) {
       {"www.google.com", AUTH},
       {"90af90e0", AUTH},
       {"12foo%20-bar:00001233", AUTH},
+#if defined(COMPILER_MSVC) && SB_IS_LITTLE_ENDIAN
+      // This special treatment is targeted to make these code compile on
+      // Cobalt's MSVC compiler who doesn't break down \u2060 into two
+      // characters itself.
+      {"GOO\u0b\u20\u60\u20\uff\ufegoo", AUTH},
+#else
       {"GOO\u200b\u2060\ufeffgoo", AUTH},
+#endif
       {"192.168.0.5", AUTH},
       {"[::ffff:192.168.0.1.]", AUTH},
       {"http:", AUTH},

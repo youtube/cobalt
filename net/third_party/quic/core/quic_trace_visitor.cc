@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef(QUIC_TRACE_DISABLED)
+
 #include "net/third_party/quic/core/quic_trace_visitor.h"
 
 #include "net/third_party/quic/platform/api/quic_endian.h"
@@ -333,3 +335,5 @@ void QuicTraceVisitor::PopulateTransportState(
 }
 
 };  // namespace quic
+
+#endif  // QUIC_TRACE_DISABLED

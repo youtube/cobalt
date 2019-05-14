@@ -238,7 +238,7 @@ AddressChangeType QuicUtils::DetermineAddressChangeType(
 }
 
 // static
-void QuicUtils::CopyToBuffer(const struct iovec* iov,
+void QuicUtils::CopyToBuffer(const struct IOVEC* iov,
                              int iov_count,
                              size_t iov_offset,
                              size_t buffer_length,

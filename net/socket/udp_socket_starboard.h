@@ -405,6 +405,8 @@ class NET_EXPORT UDPSocketStarboard {
                     CompletionOnceCallback callback);
 
   int InternalConnect(const IPEndPoint& address);
+  // Reads data from a UDP socket, if address is not nullptr, the sender's
+  // address will be copied to |*address|.
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 

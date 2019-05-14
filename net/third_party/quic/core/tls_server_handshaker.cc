@@ -189,7 +189,11 @@ void TlsServerHandshaker::AdvanceHandshake() {
   if (should_close) {
     QUIC_LOG(WARNING) << "SSL_do_handshake failed; SSL_get_error returns "
                       << ssl_error << ", state_ = " << state_;
+#if defined(STARBOARD)
+    ERR_print_errors_fp(nullptr);
+#else
     ERR_print_errors_fp(stderr);
+#endif
     CloseConnection("TLS Handshake failed");
   }
 }

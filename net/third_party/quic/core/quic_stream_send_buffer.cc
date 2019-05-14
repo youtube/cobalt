@@ -49,7 +49,7 @@ QuicStreamSendBuffer::QuicStreamSendBuffer(QuicBufferAllocator* allocator)
 
 QuicStreamSendBuffer::~QuicStreamSendBuffer() {}
 
-void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
+void QuicStreamSendBuffer::SaveStreamData(const struct IOVEC* iov,
                                           int iov_count,
                                           size_t iov_offset,
                                           QuicByteCount data_length) {
