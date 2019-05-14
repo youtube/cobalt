@@ -11,7 +11,7 @@
 #include "src/factory.h"
 
 #if defined(V8_OS_STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif  // V8_OS_STARBOARD
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the

@@ -23,7 +23,7 @@
 #include "include/v8-util.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif
 
 namespace v8_inspector {
