@@ -23,7 +23,7 @@
 #include "glimp/gles/uniform_info.h"
 #include "glimp/shaders/glsl_shader_map_helpers.h"
 #include "nb/ref_counted.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace gles {

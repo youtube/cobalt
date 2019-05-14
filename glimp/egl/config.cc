@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace egl {

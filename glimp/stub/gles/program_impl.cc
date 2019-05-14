@@ -18,7 +18,7 @@
 
 #include "glimp/stub/gles/shader_impl.h"
 #include "nb/polymorphic_downcast.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace gles {

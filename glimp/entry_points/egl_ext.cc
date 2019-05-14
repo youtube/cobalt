@@ -17,7 +17,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 extern "C" {
 

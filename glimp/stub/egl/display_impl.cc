@@ -20,7 +20,7 @@
 #include "glimp/stub/egl/window_surface_impl.h"
 #include "glimp/stub/gles/context_impl.h"
 #include "nb/scoped_ptr.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/once.h"
 #include "starboard/types.h"
 
