@@ -28,6 +28,7 @@
       ],
       'cflags': [
         '-nostdinc',
+        '-Wno-unused-command-line-argument',
       ],
       'cflags_cc': [
         '-std=c++11',
