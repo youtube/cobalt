@@ -32,13 +32,6 @@ namespace {
 SbBlitterDeviceRegistry* s_device_registry = NULL;
 SbOnceControl s_device_registry_once_control = SB_ONCE_INITIALIZER;
 
-// Represents the rendering target.
-struct BufferTarget {
-  EGLSurface surface;
-
-  GLint framebuffer_handle;
-};
-
 void EnsureDeviceRegistryInitialized() {
   s_device_registry = new SbBlitterDeviceRegistry();
   s_device_registry->default_device = NULL;
@@ -92,8 +85,6 @@ bool EnsureEGLContextInitialized(SbBlitterContext context) {
 
 // This function assumes that config has been set on device.
 bool EnsureDummySurfaceInitialized(SbBlitterContext context) {
-  // TODO: Once SbBlitterCreateRenderTargetSurface() is implemented, see if
-  // it's possible to bind a framebuffer with dummy_surface as EGL_NO_SURFACE.
   if (context->dummy_surface != EGL_NO_SURFACE) {
     return true;
   }
@@ -104,32 +95,102 @@ bool EnsureDummySurfaceInitialized(SbBlitterContext context) {
   return eglGetError() == EGL_SUCCESS;
 }
 
-// This function ensures that the render target has a valid EGLSurface and GL
-// framebuffer.
-starboard::optional<BufferTarget> GetEGLSurfaceAndGLFramebufferFromRenderTarget(
+// This function ensures that the render target has a valid EGLSurface.
+starboard::optional<EGLSurface> GetEGLSurfaceFromRenderTarget(
     SbBlitterContext context) {
-  BufferTarget current_buffer_target;
   if (context->current_render_target->swap_chain != NULL) {
-    current_buffer_target.surface =
-        context->current_render_target->swap_chain->surface;
-    current_buffer_target.framebuffer_handle = 0;
-  } else {
-    if (context->current_render_target->framebuffer_handle == 0) {
-      SB_DLOG(ERROR) << ": Render targets from SbBlitterSurface must have a "
-                     << "non-default GL framebuffer set.";
-      return starboard::nullopt;
-    }
-
-    if (!EnsureDummySurfaceInitialized(context)) {
-      SB_DLOG(ERROR) << ": Failed to create a dummy surface.";
-      return starboard::nullopt;
-    }
-    current_buffer_target.surface = context->dummy_surface;
-    current_buffer_target.framebuffer_handle =
-        context->current_render_target->framebuffer_handle;
+    return context->current_render_target->swap_chain->surface;
   }
 
-  return current_buffer_target;
+  if (!EnsureDummySurfaceInitialized(context)) {
+    SB_DLOG(ERROR) << ": Failed to create a dummy surface.";
+    return starboard::nullopt;
+  }
+
+  return context->dummy_surface;
+}
+
+void DeleteFramebufferFromRenderTarget(
+    SbBlitterRenderTargetPrivate* render_target) {
+  if (render_target->framebuffer_handle != 0) {
+    GL_CALL(glDeleteFramebuffers(1, &render_target->framebuffer_handle));
+    render_target->framebuffer_handle = 0;
+  }
+
+  if (render_target->surface->color_texture_handle != 0) {
+    GL_CALL(glDeleteTextures(1, &render_target->surface->color_texture_handle));
+    render_target->surface->color_texture_handle = 0;
+  }
+}
+
+// Mutates render_target to have a framebuffer set and mutates surface to have
+// a texture set.
+bool SetFramebufferOnRenderTarget(SbBlitterRenderTargetPrivate* render_target) {
+  glGenFramebuffers(1, &render_target->framebuffer_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    SB_DLOG(ERROR) << ": Error creating new framebuffer.";
+    return false;
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, render_target->framebuffer_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    DeleteFramebufferFromRenderTarget(render_target);
+    SB_DLOG(ERROR) << ": Error binding framebuffer.";
+    return false;
+  }
+
+  glGenTextures(1, &render_target->surface->color_texture_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    DeleteFramebufferFromRenderTarget(render_target);
+    SB_DLOG(ERROR) << ": Error creating new texture.";
+    return false;
+  }
+  glBindTexture(GL_TEXTURE_2D, render_target->surface->color_texture_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    DeleteFramebufferFromRenderTarget(render_target);
+    SB_DLOG(ERROR) << ": Error binding new texture.";
+    return false;
+  }
+  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, render_target->width,
+               render_target->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  if (glGetError() != GL_NO_ERROR) {
+    DeleteFramebufferFromRenderTarget(render_target);
+    SB_DLOG(ERROR) << ": Error allocating new texture backing for framebuffer.";
+    return false;
+  }
+
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                         render_target->surface->color_texture_handle, 0);
+  if (glGetError() != GL_NO_ERROR) {
+    DeleteFramebufferFromRenderTarget(render_target);
+    SB_DLOG(ERROR) << ": Error drawing empty image to framebuffer.";
+    return false;
+  }
+
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    DeleteFramebufferFromRenderTarget(render_target);
+    SB_DLOG(ERROR) << ": Failed to create framebuffer.";
+    return false;
+  }
+
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+  return true;
+}
+
+starboard::optional<GLuint> GetFramebuffer(
+    SbBlitterRenderTargetPrivate* render_target) {
+  GLuint framebuffer_handle;
+  if (render_target->swap_chain != NULL) {
+    return 0;
+  } else if (render_target->framebuffer_handle != 0 ||
+             SetFramebufferOnRenderTarget(render_target)) {
+    return render_target->framebuffer_handle;
+  } else {
+    return starboard::nullopt;
+  }
 }
 
 }  // namespace
@@ -168,21 +229,25 @@ bool MakeCurrent(SbBlitterContext context) {
     SB_DLOG(ERROR) << ": Failed to create egl_context.";
     return false;
   }
-  starboard::optional<BufferTarget> current_buffer_target =
-      GetEGLSurfaceAndGLFramebufferFromRenderTarget(context);
-  if (!current_buffer_target) {
+  starboard::optional<EGLSurface> egl_surface =
+      GetEGLSurfaceFromRenderTarget(context);
+  if (!egl_surface) {
     return false;
   }
 
-  eglMakeCurrent(context->device->display, current_buffer_target->surface,
-                 current_buffer_target->surface, context->egl_context);
+  eglMakeCurrent(context->device->display, *egl_surface, *egl_surface,
+                 context->egl_context);
   if (eglGetError() != EGL_SUCCESS) {
     SB_DLOG(ERROR) << ": Failed to make the egl surface current.";
     return false;
   }
-  glBindFramebuffer(GL_FRAMEBUFFER, current_buffer_target->framebuffer_handle);
+  starboard::optional<GLuint> framebuffer =
+      GetFramebuffer(context->current_render_target);
+  if (!framebuffer) {
+    return false;
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, *framebuffer);
   if (glGetError() != GL_NO_ERROR) {
-    SB_DLOG(ERROR) << ": Failed to bind gl framebuffer.";
     return false;
   }
   context->is_current = true;
