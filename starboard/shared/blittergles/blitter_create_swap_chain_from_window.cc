@@ -127,6 +127,7 @@ SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
   swap_chain->render_target.framebuffer_handle = 0;
   swap_chain->render_target.device = device;
   swap_chain->render_target.swap_chain = swap_chain.get();
+  swap_chain->render_target.surface = kSbBlitterInvalidSurface;
 
   return swap_chain.release();
 }

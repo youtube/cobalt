@@ -89,8 +89,13 @@ struct SbBlitterDevicePrivate {
 
 struct SbBlitterRenderTargetPrivate {
   // If this SbBlitterRenderTargetPrivate object was created from a swap chain,
-  // we store a reference to it. Otherwise, it's set to NULL.
+  // we store a reference to it. Otherwise, it's set to
+  // kSbBlitterInvalidSwapChain.
   SbBlitterSwapChainPrivate* swap_chain;
+
+  // If this SbBlitterRenderTargetPrivate object was created from a surface, we
+  // store a reference to it. Otherwise, it's set to kSbBlitterInvalidSurface.
+  SbBlitterSurfacePrivate* surface;
 
   int width;
 
@@ -140,6 +145,20 @@ struct SbBlitterContextPrivate {
 
   // Whether or not this context has been set to current or not.
   bool is_current;
+};
+
+struct SbBlitterSurfacePrivate {
+  // Keep track of the device that created this surface.
+  SbBlitterDevicePrivate* device;
+
+  // Surfaces may have a render target depending on the way they were created.
+  SbBlitterRenderTargetPrivate render_target;
+
+  // Store information about this surface.
+  SbBlitterSurfaceInfo info;
+
+  // Keep track of the current texture.
+  GLuint color_texture_handle;
 };
 
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_
