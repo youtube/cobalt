@@ -14,6 +14,7 @@
 {
   'variables': {
     'has_input_events_filter' : '<!(python ../../../build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_drm_system_extension%': '<!(test -e <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp && echo 1 || echo 0)',
   },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
@@ -84,7 +85,6 @@
         'directory_get_next.cc',
         'directory_internal.h',
         'directory_open.cc',
-        'drm_create_system.cc',
         'drm_system.cc',
         'drm_system.h',
         'egl_swap_buffers.cc',
@@ -126,11 +126,9 @@
         'media_get_max_buffer_capacity.cc',
         'media_is_audio_supported.cc',
         'media_is_output_protected.cc',
-        'media_is_supported.cc',
         'media_is_video_supported.cc',
         'media_set_output_protection.cc',
         'microphone_impl.cc',
-        'player_components_impl.cc',
         'player_create.cc',
         'player_destroy.cc',
         'player_set_bounds.cc',
@@ -346,7 +344,9 @@
         '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
+        '<(DEPTH)/starboard/shared/starboard/drm/drm_is_server_certificate_updatable.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
+        '<(DEPTH)/starboard/shared/starboard/drm/drm_update_server_certificate.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
@@ -429,8 +429,6 @@
         '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
@@ -446,17 +444,6 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
       ],
-      'conditions': [
-        ['has_input_events_filter=="True"', {
-          'sources': [
-            'input_events_filter.cc',
-            'input_events_filter.h',
-          ],
-          'defines': [
-            'STARBOARD_INPUT_EVENTS_FILTER',
-          ],
-        }],
-      ],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
@@ -467,6 +454,28 @@
         '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
         '<(DEPTH)/third_party/opus/opus.gyp:opus',
         'starboard_base_symbolize',
+      ],
+      'conditions': [
+        ['has_input_events_filter=="True"', {
+          'sources': [
+            'input_events_filter.cc',
+            'input_events_filter.h',
+          ],
+          'defines': [
+            'STARBOARD_INPUT_EVENTS_FILTER',
+          ],
+        }],
+        ['has_drm_system_extension==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp:drm_system_extension',
+          ],
+        }, {
+          'sources': [
+            'drm_create_system.cc',
+            'media_is_supported.cc',
+            'player_components_impl.cc',
+          ],
+        }],
       ],
     },
   ],

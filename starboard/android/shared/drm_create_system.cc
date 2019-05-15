@@ -25,7 +25,7 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
   using starboard::android::shared::DrmSystem;
-  using starboard::android::shared::IsWidevine;
+  using starboard::android::shared::IsWidevineL1;
 
   if (!update_request_callback || !session_updated_callback ||
       !key_statuses_changed_callback || !server_certificate_updated_callback ||
@@ -33,7 +33,7 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  if (!IsWidevine(key_system)) {
+  if (!IsWidevineL1(key_system)) {
     return kSbDrmSystemInvalid;
   }
 
