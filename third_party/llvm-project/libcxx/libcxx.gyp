@@ -45,6 +45,7 @@
         '-Wno-shift-op-parentheses',
         '-Wno-error',
         '-Wno-unused-parameter',
+        '-Wno-unused-command-line-argument',
         '-fPIC',
       ],
       'defines' : [
