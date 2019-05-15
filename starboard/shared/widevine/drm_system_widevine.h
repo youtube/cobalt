@@ -61,6 +61,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   ~DrmSystemWidevine() override;
 
   static bool IsKeySystemSupported(const char* key_system);
+  static bool IsDrmSystemWidevine(SbDrmSystem drm_system);
 
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(int ticket,
