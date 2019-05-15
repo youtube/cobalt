@@ -119,11 +119,12 @@ bool FilterBasedPlayerWorkerHandler::Init(
     // TODO: This is not ideal as we should really handle the creation failure
     // of audio sink inside the audio renderer to give the renderer a chance to
     // resample the decoded audio.
-    const int audio_channels = audio_sample_info_.number_of_channels;
-    if (audio_channels > SbAudioSinkGetMaxChannels()) {
-      SB_LOG(ERROR) << "Invalid audio channels: " << audio_channels
-                    << ", it should be less than or equal to "
-                    << SbAudioSinkGetMaxChannels();
+    const int required_audio_channels = audio_sample_info_.number_of_channels;
+    const int supported_audio_channels = SbAudioSinkGetMaxChannels();
+    if (required_audio_channels > supported_audio_channels) {
+      SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
+                    << ", but currently supported less than or equal to "
+                    << supported_audio_channels;
       return false;
     }
 
