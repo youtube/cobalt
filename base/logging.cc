@@ -996,8 +996,11 @@ void LogMessage::Init(const char* file, int line) {
   stream_ <<  '[';
   if (g_log_prefix)
     stream_ << g_log_prefix << ':';
+#ifndef STARBOARD
+  // Cobalt and cobalt unittests are both single thread applciation.
   if (g_log_process_id)
     stream_ << CurrentProcessId() << ':';
+#endif
   if (g_log_thread_id)
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (g_log_timestamp) {
@@ -1042,8 +1045,11 @@ void LogMessage::Init(const char* file, int line) {
 #endif
 #endif
   }
+#ifndef STARBOARD
+  // Cobalt does not want tickcounts.
   if (g_log_tickcount)
     stream_ << TickCount() << ':';
+#endif
   if (severity_ >= 0)
     stream_ << log_severity_name(severity_);
   else
