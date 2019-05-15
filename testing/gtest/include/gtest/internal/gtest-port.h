@@ -269,8 +269,8 @@
 # include <sys/stat.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
+#include "starboard/common/log.h"
 #include "starboard/directory.h"
-#include "starboard/log.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
