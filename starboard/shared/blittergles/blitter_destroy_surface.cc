@@ -13,9 +13,27 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <GLES2/gl2.h>
+
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/gles/gl_call.h"
 
 bool SbBlitterDestroySurface(SbBlitterSurface surface) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    SB_DLOG(ERROR) << ": Invalid surface.";
+    return false;
+  }
+
+  if (surface->render_target.framebuffer_handle != 0) {
+    GL_CALL(
+        glDeleteFramebuffers(1, &surface->render_target.framebuffer_handle));
+  }
+
+  if (surface->color_texture_handle != 0) {
+    GL_CALL(glDeleteTextures(1, &surface->color_texture_handle));
+  }
+  delete surface;
+  return true;
 }

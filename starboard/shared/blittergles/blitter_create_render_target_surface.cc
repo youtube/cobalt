@@ -13,13 +13,46 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <memory>
+
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterSurface SbBlitterCreateRenderTargetSurface(
     SbBlitterDevice device,
     int width,
     int height,
     SbBlitterSurfaceFormat surface_format) {
-  SB_NOTREACHED();
-  return kSbBlitterInvalidSurface;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return kSbBlitterInvalidSurface;
+  }
+  if (!SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(device,
+                                                              surface_format)) {
+    SB_DLOG(ERROR) << ": Unsupported surface format.";
+    return kSbBlitterInvalidSurface;
+  }
+  if (width <= 0 || height <= 0) {
+    SB_DLOG(ERROR) << ": Height and width must both be > 0.";
+    return kSbBlitterInvalidSurface;
+  }
+
+  std::unique_ptr<SbBlitterSurfacePrivate> surface(
+      new SbBlitterSurfacePrivate());
+  surface->device = device;
+  surface->info.width = width;
+  surface->info.height = height;
+  surface->info.format = surface_format;
+  surface->render_target.swap_chain = kSbBlitterInvalidSwapChain;
+  surface->render_target.surface = surface.get();
+  surface->render_target.width = width;
+  surface->render_target.height = height;
+  surface->render_target.device = device;
+
+  // These values are lazily initialized when used.
+  surface->color_texture_handle = 0;
+  surface->render_target.framebuffer_handle = 0;
+
+  return surface.release();
 }
