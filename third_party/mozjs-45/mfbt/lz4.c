@@ -156,7 +156,7 @@
 #include "starboard/memory.h"
 #define ALLOCATOR(n,s) SbMemoryCalloc(n,s)
 #define FREEMEM SbMemoryDeallocate
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #define MEM_INIT SbMemorySet
 #define memcpy(d,s,c) SbMemoryCopy(d,s,c)
 
