@@ -13,7 +13,7 @@
 #include "net/filter/filter_source_stream_test_util.h"
 #include "net/filter/gzip_source_stream.h"
 #include "net/filter/mock_source_stream.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/zlib/zlib.h"
 

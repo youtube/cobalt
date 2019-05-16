@@ -12,7 +12,7 @@
 #include "net/base/net_errors.h"
 
 #if defined(STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #else
 #if defined(OS_WIN)
 #include <winsock2.h>

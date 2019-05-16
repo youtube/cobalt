@@ -104,8 +104,8 @@
 #if defined(NTLM_PORTABLE)
 #include "base/base64.h"
 #include "net/ntlm/ntlm_test_data.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #endif
 

@@ -30,7 +30,7 @@
 #include "net/third_party/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
 #include "net/third_party/spdy/core/spdy_test_utils.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 using spdy::ERROR_CODE_PROTOCOL_ERROR;
 using spdy::SETTINGS_ENABLE_PUSH;

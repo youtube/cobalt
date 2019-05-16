@@ -33,8 +33,8 @@
 
 #if defined(OS_LINUX)
 #include "net/base/address_tracker_linux.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #endif
 

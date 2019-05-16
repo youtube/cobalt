@@ -12,7 +12,7 @@
 
 #include "starboard/types.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #include "starboard/memory.h"
 

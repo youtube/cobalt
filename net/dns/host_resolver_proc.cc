@@ -16,7 +16,7 @@
 #include "net/dns/dns_util.h"
 
 #if defined(STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #endif
 
 #if defined(OS_OPENBSD)
