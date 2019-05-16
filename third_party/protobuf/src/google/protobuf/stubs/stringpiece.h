@@ -150,8 +150,8 @@
 #include <stddef.h>
 #include <string.h>
 #else
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #endif  // STARBOARD
 
 #include <google/protobuf/stubs/common.h>
