@@ -65,6 +65,12 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier : public CertVerifier {
              const NetLogWithSource& net_log) override;
   void SetConfig(const CertVerifier::Config& config) override;
 
+#if defined(STARBOARD) && defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+  // Used to disable certificate verification errors for testing/developerment
+  // purpose.
+  void set_ignore_errors(bool ignore_errors) { ignore_errors_ = ignore_errors; }
+#endif
+
  private:
   struct JobToRequestParamsComparator;
   friend class CertVerifierRequest;
@@ -123,6 +129,10 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier : public CertVerifier {
   // (See https://crbug.com/649026.)
   VerifyCompleteCallback verify_complete_callback_;
   bool should_record_histograms_ = true;
+
+#if defined(STARBOARD) && defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+  bool ignore_errors_ = false;
+#endif
 
   THREAD_CHECKER(thread_checker_);
 

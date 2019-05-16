@@ -691,7 +691,6 @@ bool SSLClientSocketImpl::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->handshake_type = SSL_session_reused(ssl_.get())
                                  ? SSLInfo::HANDSHAKE_RESUME
                                  : SSLInfo::HANDSHAKE_FULL;
-  DLOG(INFO) << "handshake type set to: " << ssl_info->handshake_type;
 
   return true;
 }
