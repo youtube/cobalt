@@ -20,7 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/network/socket_address_parser.h"
 #include "net/base/escape.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "url/url_canon_ip.h"
 #include "url/url_constants.h"
 

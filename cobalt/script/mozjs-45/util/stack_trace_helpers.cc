@@ -23,9 +23,9 @@
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
 #include "cobalt/script/stack_frame.h"
 #include "nb/thread_local_object.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 

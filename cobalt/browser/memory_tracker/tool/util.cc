@@ -21,7 +21,7 @@
 
 #include "base/time/time.h"
 #include "nb/bit_cast.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace browser {

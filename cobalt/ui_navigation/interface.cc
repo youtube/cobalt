@@ -14,7 +14,7 @@
 
 #include "cobalt/ui_navigation/interface.h"
 
-#include "starboard/spin_lock.h"
+#include "starboard/common/spin_lock.h"
 
 namespace cobalt {
 namespace ui_navigation {

@@ -19,7 +19,7 @@
 #include "base/strings/string_piece.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/media_track_settings.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 namespace cobalt {
 namespace media_stream {

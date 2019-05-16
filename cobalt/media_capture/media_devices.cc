@@ -26,7 +26,7 @@
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace media_capture {

@@ -16,8 +16,8 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace h5vcc {

@@ -51,8 +51,8 @@
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 
