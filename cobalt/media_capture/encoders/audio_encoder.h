@@ -21,7 +21,7 @@
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "cobalt/media_stream/audio_parameters.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 #include "cobalt/media/base/shell_audio_bus.h"
 

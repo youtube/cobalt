@@ -20,9 +20,9 @@
 #include "base/path_service.h"
 #include "net/base/filename_util.h"
 #include "net/base/url_util.h"
+#include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 
 namespace cobalt {

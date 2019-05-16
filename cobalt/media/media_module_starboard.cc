@@ -24,8 +24,8 @@
 #include "cobalt/media/shell_media_platform_starboard.h"
 #include "cobalt/system_window/system_window.h"
 #include "nb/memory_scope.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
-#include "starboard/string.h"
 #include "starboard/window.h"
 
 namespace cobalt {

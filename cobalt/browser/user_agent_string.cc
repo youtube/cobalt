@@ -28,7 +28,7 @@
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 #include "starboard/common/log.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 
 // Setup CobaltLib overrides for some user agent components.

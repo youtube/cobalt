@@ -21,9 +21,9 @@
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/get_application_key.h"
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace browser {
