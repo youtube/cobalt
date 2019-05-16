@@ -15,7 +15,7 @@
 #ifndef COBALT_SCRIPT_V8C_HELPERS_H_
 #define COBALT_SCRIPT_V8C_HELPERS_H_
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "v8/include/v8.h"
 
 // Utility functions that are primarily utility V8 wrappers, and aren't

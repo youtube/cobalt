@@ -16,7 +16,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/text_cue.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace cobalt {

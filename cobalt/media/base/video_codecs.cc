@@ -10,8 +10,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace media {

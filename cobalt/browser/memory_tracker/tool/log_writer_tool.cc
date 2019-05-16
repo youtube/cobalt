@@ -20,7 +20,7 @@
 #include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace cobalt {
