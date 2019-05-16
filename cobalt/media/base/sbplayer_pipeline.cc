@@ -659,7 +659,7 @@ Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
     time_ranges.Add(buffered_time_ranges_.start(i),
                     buffered_time_ranges_.end(i));
   }
-  NOTIMPLEMENTED();
+  NOTIMPLEMENTED_LOG_ONCE();
   /*if (clock_->Duration() == TimeDelta() || total_bytes_ == 0)
     return time_ranges;
   for (size_t i = 0; i < buffered_byte_ranges_.size(); ++i) {
