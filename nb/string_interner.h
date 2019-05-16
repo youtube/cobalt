@@ -21,8 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/mutex.h"
 #include "starboard/types.h"
 
 namespace nb {
