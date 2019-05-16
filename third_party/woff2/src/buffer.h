@@ -11,7 +11,7 @@
 #define WOFF2_BUFFER_H_
 
 #if defined(STARBOARD)
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #define woff2_ntohl(x) SB_NET_TO_HOST_U32(x)
 #define woff2_ntohs(x) SB_NET_TO_HOST_U16(x)
 #define woff2_htonl(x) SB_HOST_TO_NET_U32(x)
