@@ -143,6 +143,11 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   SB_DCHECK(job);
   SB_DCHECK(delay >= 0) << delay;
 
+  ScopedLock scoped_lock(mutex_);
+  if (stopped_) {
+    return JobToken();
+  }
+
   ++current_job_token_;
 
   JobToken job_token(current_job_token_);
@@ -151,10 +156,7 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   job_record.stack_size =
       SbSystemGetStack(job_record.stack, kProfileStackDepth);
 #endif  // ENABLE_JOB_QUEUE_PROFILING
-  ScopedLock scoped_lock(mutex_);
-  if (stopped_) {
-    return JobToken();
-  }
+
   SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
   bool is_first_job = time_to_job_record_map_.empty() ||
                       time_to_run_job < time_to_job_record_map_.begin()->first;

@@ -191,6 +191,7 @@ void HTMLLinkElement::Obtain() {
 
 void HTMLLinkElement::OnLoadingDone(const loader::Origin& last_url_origin,
                                     scoped_ptr<std::string> content) {
+  if (loader_) loader_->LoadComplete();
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(content);
   TRACK_MEMORY_SCOPE("DOM");
@@ -229,6 +230,7 @@ void HTMLLinkElement::OnLoadingDone(const loader::Origin& last_url_origin,
 }
 
 void HTMLLinkElement::OnLoadingError(const std::string& error) {
+  if (loader_) loader_->LoadComplete();
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingError()");
 

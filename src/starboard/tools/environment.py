@@ -48,24 +48,25 @@ import importlib
 import os
 import sys
 
+_SRC_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                         os.pardir,
+                                         os.pardir))
+
 PATHS = [
     # Necessary because the gyp_configuration for linux-x64x11 imports
     # directly from "starboard/".
-    os.path.abspath(os.path.join(
-        os.path.dirname(__file__), os.pardir, os.pardir)),
+    _SRC_ROOT,
 
     # Necessary because gyp_configuration modules use relative imports.
     # "cobalt/build" needs to be in sys.path to keep the imports working
-    os.path.abspath(os.path.join(
-        os.path.dirname(__file__), os.pardir, os.pardir,
-        "cobalt", "build"))
+    os.path.join(_SRC_ROOT, 'cobalt', 'build'),
 ]
 
 # This module should only add the above paths to sys.path when they are not
 # present in the list already.
 for new_path in PATHS:
   if new_path not in sys.path:
-    sys.path.append(new_path)
+    sys.path.insert(0, new_path)
 
 # Saved in global state so we only ever search for it once.
 _CONFIG_PATH = None

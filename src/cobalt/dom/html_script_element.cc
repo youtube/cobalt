@@ -415,6 +415,7 @@ void HTMLScriptElement::Prepare() {
 
 void HTMLScriptElement::OnSyncLoadingDone(const loader::Origin& last_url_origin,
                                           scoped_ptr<std::string> content) {
+  if (loader_) loader_->LoadComplete();
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingDone()");
   fetched_last_url_origin_ = last_url_origin;
   content_ = content.Pass();
@@ -422,6 +423,7 @@ void HTMLScriptElement::OnSyncLoadingDone(const loader::Origin& last_url_origin,
 }
 
 void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
+  if (loader_) loader_->LoadComplete();
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingError()");
   LOG(ERROR) << error;
 }
@@ -430,6 +432,7 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
                                       scoped_ptr<std::string> content) {
+  if (loader_) loader_->LoadComplete();
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(load_option_ == 4 || load_option_ == 5);
   DCHECK(content);
@@ -530,6 +533,7 @@ void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
 // Algorithm for OnLoadingError:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
+  if (loader_) loader_->LoadComplete();
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(load_option_ == 4 || load_option_ == 5);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");

@@ -244,9 +244,6 @@ int TCPClientSocketStarboard::DoConnect() {
   }
 
   SbSocketError error = SbSocketConnect(socket_, &address);
-  if (error != kSbSocketOk) {
-    DCHECK_EQ(kSbSocketPending, error);
-  }
 
   int rv = MapLastSocketError(socket_);
   if (rv != ERR_IO_PENDING) {

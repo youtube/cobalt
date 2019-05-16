@@ -253,6 +253,19 @@ void GoogleSpeechService::OnURLFetchComplete(const net::URLFetcher* source) {
   // no-op.
 }
 
+// static
+base::optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
+  const int kSpeechApiKeyLength = 100;
+  char buffer[kSpeechApiKeyLength] = {0};
+  bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
+                                    SB_ARRAY_SIZE_INT(buffer));
+  if (result) {
+    return std::string(buffer);
+  } else {
+    return base::nullopt;
+  }
+}
+
 void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
                                         int sample_rate) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
@@ -288,17 +301,10 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
 
-  const char* speech_api_key = "";
-#if defined(OS_STARBOARD)
-  const int kSpeechApiKeyLength = 100;
-  char buffer[kSpeechApiKeyLength] = {0};
-  bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
-                                    SB_ARRAY_SIZE_INT(buffer));
-  SB_DCHECK(result);
-  speech_api_key = result ? buffer : "";
-#endif  // defined(OS_STARBOARD)
+  base::optional<std::string> api_key = GetSpeechAPIKey();
+  SB_DCHECK(api_key);
 
-  up_url = AppendQueryParameter(up_url, "key", speech_api_key);
+  up_url = AppendQueryParameter(up_url, "key", api_key.value_or(""));
 
   // Language is required. If no language is specified, use the system language.
   if (!config.lang.empty()) {
