@@ -270,10 +270,10 @@
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 #endif  // !defined(STARBOARD)
