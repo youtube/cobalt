@@ -23,11 +23,11 @@
 #include "nb/memory_scope.h"
 #include "nb/scoped_ptr.h"
 #include "nb/thread_local_object.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/memory_reporter.h"
-#include "starboard/mutex.h"
 #include "starboard/time.h"
 
 namespace nb {

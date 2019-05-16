@@ -15,11 +15,11 @@
 #include <map>
 #include <string>
 
+#include "nb/scoped_ptr.h"
 #include "nb/test_thread.h"
 #include "nb/thread_local_object.h"
-#include "nb/scoped_ptr.h"
 #include "starboard/atomic.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
