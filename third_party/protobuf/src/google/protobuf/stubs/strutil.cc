@@ -53,8 +53,8 @@
 
 #include <string.h>
 
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 #undef __builtin_strlen
 #define __builtin_strlen SbStringGetLength

@@ -36,8 +36,8 @@
 #ifndef STARBOARD
 #include <stdlib.h>
 #else
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #endif  // STARBOARD
 
 #include <vector>
