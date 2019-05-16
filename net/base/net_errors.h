@@ -12,7 +12,7 @@
 #include "base/logging.h"
 #include "net/base/net_export.h"
 #if defined(STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/system.h"
 #endif
 

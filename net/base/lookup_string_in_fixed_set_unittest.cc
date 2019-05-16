@@ -36,7 +36,7 @@ namespace test5 {
 }
 namespace test6 {
 #include "net/base/registry_controlled_domains/effective_tld_names_unittest6-inc.cc"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 }
 

@@ -14,7 +14,7 @@
 #include "net/log/net_log_parameters_callback.h"
 
 #if defined(STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/types.h"
 #else
 struct addrinfo;
