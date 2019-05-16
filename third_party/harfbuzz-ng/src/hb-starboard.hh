@@ -16,7 +16,7 @@
 #define HB_STARBOARD_HH
 
 #include "starboard/memory.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/common/log.h"
 
