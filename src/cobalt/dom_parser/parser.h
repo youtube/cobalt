@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_PARSER_PARSER_H_
 #define COBALT_DOM_PARSER_PARSER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
@@ -70,13 +71,13 @@ class Parser : public dom::Parser {
       const scoped_refptr<dom::Node>& reference_node,
       const base::SourceLocation& input_location) override;
 
-  scoped_ptr<loader::Decoder> ParseDocumentAsync(
+  std::unique_ptr<loader::Decoder> ParseDocumentAsync(
       const scoped_refptr<dom::Document>& document,
       const base::SourceLocation& input_location,
       const loader::Decoder::OnCompleteFunction& load_complete_callback)
       override;
 
-  scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
+  std::unique_ptr<loader::Decoder> ParseXMLDocumentAsync(
       const scoped_refptr<dom::XMLDocument>& xml_document,
       const base::SourceLocation& input_location) override;
 
@@ -86,7 +87,7 @@ class Parser : public dom::Parser {
   const int dom_max_element_depth_;
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
-  void LoadCompleteCallback(const base::optional<std::string>& error);
+  void LoadCompleteCallback(const base::Optional<std::string>& error);
 
   // Cobalt user can specify if they want to forbid Cobalt rendering without csp
   // headers.

@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/bind.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/task/task_scheduler/task_scheduler.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
@@ -47,21 +50,21 @@ void OnDemuxerOpen() {}
 void OnEncryptedMediaInitData(EmeInitDataType type,
                               const std::vector<uint8_t>& init_data) {}
 
-void OnInitSegmentReceived(scoped_ptr<MediaTracks> tracks) {}
+void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {}
 
 void OnDemuxerStatus(PipelineStatus status) { status = PIPELINE_OK; }
 
 std::string LoadFile(const std::string& file_name) {
-  FilePath file_path(file_name);
+  base::FilePath file_path(file_name);
   if (!file_path.IsAbsolute()) {
-    FilePath content_path;
-    PathService::Get(base::DIR_TEST_DATA, &content_path);
+    base::FilePath content_path;
+    base::PathService::Get(base::DIR_TEST_DATA, &content_path);
     DCHECK(content_path.IsAbsolute());
     file_path = content_path.Append(file_path);
   }
 
   std::string content;
-  if (!file_util::ReadFileToString(file_path, &content)) {
+  if (!base::ReadFileToString(file_path, &content)) {
     LOG(ERROR) << "Failed to load file " << file_path.value();
     return "";
   }
@@ -103,9 +106,13 @@ int SandboxMain(int argc, char** argv) {
   }
 
   DecoderBufferAllocator decoder_buffer_allocator;
-  MessageLoop message_loop;
+  base::MessageLoop message_loop;
+  // A one-per-process task scheduler is needed for usage of APIs in
+  // base/post_task.h which will be used by some net APIs like
+  // URLRequestContext;
+  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
   DemuxerHostStub demuxer_host;
-  scoped_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
+  std::unique_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
       &decoder_buffer_allocator, base::Bind(OnDemuxerOpen),
       base::Bind(OnEncryptedMediaInitData), new MediaLog, false));
   demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus), false);
@@ -146,7 +153,7 @@ int SandboxMain(int argc, char** argv) {
   ReadDemuxerStream(audio_stream);
   ReadDemuxerStream(video_stream);
 
-  message_loop.RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   demuxer->Stop();
 

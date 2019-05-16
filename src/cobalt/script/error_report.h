@@ -15,9 +15,9 @@
 #ifndef COBALT_SCRIPT_ERROR_REPORT_H_
 #define COBALT_SCRIPT_ERROR_REPORT_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/value_handle.h"
 
 namespace cobalt {
@@ -31,7 +31,7 @@ struct ErrorReport {
   std::string filename;
   uint32 line_number;
   uint32 column_number;
-  scoped_ptr<script::ValueHandleHolder> error;
+  std::unique_ptr<script::ValueHandleHolder> error;
   bool is_muted;
 };
 

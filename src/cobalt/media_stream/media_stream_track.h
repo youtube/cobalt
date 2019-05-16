@@ -16,7 +16,7 @@
 #define COBALT_MEDIA_STREAM_MEDIA_STREAM_TRACK_H_
 
 #include "base/callback.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/media_track_settings.h"
 #include "starboard/mutex.h"
@@ -28,7 +28,10 @@ namespace media_stream {
 // at: https://www.w3.org/TR/mediacapture-streams/#dom-mediastreamtrack
 class MediaStreamTrack : public dom::EventTarget {
  public:
-  enum ReadyState { kReadyStateLive, kReadyStateEnded, };
+  enum ReadyState {
+    kReadyStateLive,
+    kReadyStateEnded,
+  };
 
   MediaStreamTrack() = default;
 

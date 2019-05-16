@@ -16,8 +16,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/rand_util.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -105,9 +104,10 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
   // Schedule task to send the first key event.  Add an explicit delay to avoid
   // possible conflicts with debug console.
   thread_.Start();
-  thread_.message_loop()->PostDelayedTask(
-      FROM_HERE, base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
-                            base::Unretained(this)),
+  thread_.message_loop()->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
+                 base::Unretained(this)),
       base::TimeDelta::FromSeconds(5));
 }
 
@@ -121,9 +121,10 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   keyboard_event_callback_.Run(base::Tokens::keydown(), event_init);
   keyboard_event_callback_.Run(base::Tokens::keyup(), event_init);
 
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
-                            base::Unretained(this)),
+  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
+                 base::Unretained(this)),
       key_infos_[next_key_index_].GetRandomDelay());
   next_key_index_ = (next_key_index_ + 1) % key_infos_.size();
 }

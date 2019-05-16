@@ -6,10 +6,12 @@
 #define NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 #include "net/http/url_security_manager.h"
@@ -18,10 +20,12 @@ class GURL;
 
 namespace net {
 
-class BoundNetLog;
 class HostResolver;
+class HttpAuthChallengeTokenizer;
 class HttpAuthHandler;
 class HttpAuthHandlerRegistryFactory;
+class HttpAuthPreferences;
+class NetLogWithSource;
 
 // An HttpAuthHandlerFactory is used to create HttpAuthHandler objects.
 // The HttpAuthHandlerFactory object _must_ outlive any of the HttpAuthHandler
@@ -33,18 +37,21 @@ class NET_EXPORT HttpAuthHandlerFactory {
     CREATE_PREEMPTIVE,    // Create a handler preemptively.
   };
 
-  HttpAuthHandlerFactory() : url_security_manager_(NULL) {}
+  HttpAuthHandlerFactory() : http_auth_preferences_(NULL) {}
   virtual ~HttpAuthHandlerFactory() {}
 
-  // Sets an URL security manager.  HttpAuthHandlerFactory doesn't own the URL
-  // security manager, and the URL security manager should outlive this object.
-  void set_url_security_manager(URLSecurityManager* url_security_manager) {
-    url_security_manager_ = url_security_manager;
+  // Sets the source of the HTTP authentication preferences.
+  // HttpAuthHandlerFactory doesn't own the preferences, and the
+  // HttpAuthPreferences object should outlive the factory and any handlers it
+  // creates.
+  void set_http_auth_preferences(
+      const HttpAuthPreferences* http_auth_preferences) {
+    http_auth_preferences_ = http_auth_preferences;
   }
 
   // Retrieves the associated URL security manager.
-  URLSecurityManager* url_security_manager() {
-    return url_security_manager_;
+  const HttpAuthPreferences* http_auth_preferences() {
+    return http_auth_preferences_;
   }
 
   // Creates an HttpAuthHandler object based on the authentication
@@ -67,19 +74,23 @@ class NET_EXPORT HttpAuthHandlerFactory {
   // scheme, and indicates the number of handlers generated for a particular
   // server nonce challenge.
   //
+  // |ssl_info| is valid if the authentication session is being established over
+  // a secure connection.
+  //
   // For the NTLM and Negotiate handlers:
   // If |origin| does not match the authentication method's filters for
   // the specified |target|, ERR_INVALID_AUTH_CREDENTIALS is returned.
   // NOTE: This will apply to ALL |origin| values if the filters are empty.
   //
   // |*challenge| should not be reused after a call to |CreateAuthHandler()|,
-  virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
+  virtual int CreateAuthHandler(HttpAuthChallengeTokenizer* challenge,
                                 HttpAuth::Target target,
+                                const SSLInfo& ssl_info,
                                 const GURL& origin,
                                 CreateReason create_reason,
                                 int digest_nonce_count,
-                                const BoundNetLog& net_log,
-                                scoped_ptr<HttpAuthHandler>* handler) = 0;
+                                const NetLogWithSource& net_log,
+                                std::unique_ptr<HttpAuthHandler>* handler) = 0;
 
   // Creates an HTTP authentication handler based on the authentication
   // challenge string |challenge|.
@@ -88,9 +99,10 @@ class NET_EXPORT HttpAuthHandlerFactory {
   // more details on return values.
   int CreateAuthHandlerFromString(const std::string& challenge,
                                   HttpAuth::Target target,
+                                  const SSLInfo& ssl_info,
                                   const GURL& origin,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+                                  const NetLogWithSource& net_log,
+                                  std::unique_ptr<HttpAuthHandler>* handler);
 
   // Creates an HTTP authentication handler based on the authentication
   // challenge string |challenge|.
@@ -102,8 +114,8 @@ class NET_EXPORT HttpAuthHandlerFactory {
       HttpAuth::Target target,
       const GURL& origin,
       int digest_nonce_count,
-      const BoundNetLog& net_log,
-      scoped_ptr<HttpAuthHandler>* handler);
+      const NetLogWithSource& net_log,
+      std::unique_ptr<HttpAuthHandler>* handler);
 
   // Creates a standard HttpAuthHandlerRegistryFactory. The caller is
   // responsible for deleting the factory.
@@ -114,11 +126,21 @@ class NET_EXPORT HttpAuthHandlerFactory {
   // non-NULL.  |resolver| must remain valid for the lifetime of the
   // HttpAuthHandlerRegistryFactory and any HttpAuthHandlers created by said
   // factory.
-  static HttpAuthHandlerRegistryFactory* CreateDefault(HostResolver* resolver);
+  static std::unique_ptr<HttpAuthHandlerRegistryFactory> CreateDefault(
+      HostResolver* resolver,
+      const HttpAuthPreferences* prefs = nullptr
+#if defined(OS_CHROMEOS)
+      ,
+      bool allow_gssapi_library_load = true
+#elif (defined(OS_POSIX) && !defined(OS_ANDROID)) || defined(OS_FUCHSIA)
+      ,
+      const std::string& gssapi_library_name = ""
+#endif
+      );
 
  private:
-  // The URL security manager
-  URLSecurityManager* url_security_manager_;
+  // The preferences for HTTP authentication.
+  const HttpAuthPreferences* http_auth_preferences_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpAuthHandlerFactory);
 };
@@ -129,11 +151,11 @@ class NET_EXPORT HttpAuthHandlerRegistryFactory
     : public HttpAuthHandlerFactory {
  public:
   HttpAuthHandlerRegistryFactory();
-  virtual ~HttpAuthHandlerRegistryFactory();
+  ~HttpAuthHandlerRegistryFactory() override;
 
-  // Sets an URL security manager into the factory associated with |scheme|.
-  void SetURLSecurityManager(const std::string& scheme,
-                             URLSecurityManager* url_security_manager);
+  // Sets the preferences into the factory associated with |scheme|.
+  void SetHttpAuthPreferences(const std::string& scheme,
+                              const HttpAuthPreferences* prefs);
 
   // Registers a |factory| that will be used for a particular HTTP
   // authentication scheme such as Basic, Digest, or Negotiate.
@@ -155,43 +177,44 @@ class NET_EXPORT HttpAuthHandlerRegistryFactory
 
   // Creates an HttpAuthHandlerRegistryFactory.
   //
-  // |supported_schemes| is a list of authentication schemes. Valid values
-  // include "basic", "digest", "ntlm", and "negotiate", where case matters.
-  //
-  // |security_manager| is used by the NTLM and Negotiate authenticators
-  // to determine which servers Integrated Authentication can be used with. If
-  // NULL, Integrated Authentication will not be used with any server.
-  //
   // |host_resolver| is used by the Negotiate authentication handler to perform
   // CNAME lookups to generate a Kerberos SPN for the server. If the "negotiate"
   // scheme is used and |negotiate_disable_cname_lookup| is false,
   // |host_resolver| must not be NULL.
   //
-  // |gssapi_library_name| specifies the name of the GSSAPI library that will
-  // be loaded on all platforms except Windows.
+  // |prefs| is a pointer to the (single) authentication preferences object.
+  // That object tracks preference, and hence policy, updates relevant to HTTP
+  // authentication, and provides the current values of the preferences.
   //
-  // |negotiate_disable_cname_lookup| and |negotiate_enable_port| both control
-  // how Negotiate does SPN generation, by default these should be false.
-  static HttpAuthHandlerRegistryFactory* Create(
-      const std::vector<std::string>& supported_schemes,
-      URLSecurityManager* security_manager,
+  // |auth_schemes| is a list of authentication schemes to support. Unknown
+  // schemes are ignored.
+  static std::unique_ptr<HttpAuthHandlerRegistryFactory> Create(
       HostResolver* host_resolver,
-      const std::string& gssapi_library_name,
-      bool negotiate_disable_cname_lookup,
-      bool negotiate_enable_port);
+      const HttpAuthPreferences* prefs,
+      const std::vector<std::string>& auth_schemes
+#if defined(OS_CHROMEOS)
+      ,
+      bool allow_gssapi_library_load = true
+#elif (defined(OS_POSIX) && !defined(OS_ANDROID)) || defined(OS_FUCHSIA)
+      ,
+      const std::string& gssapi_library_name = ""
+#endif
+      );
 
   // Creates an auth handler by dispatching out to the registered factories
   // based on the first token in |challenge|.
-  virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                HttpAuth::Target target,
-                                const GURL& origin,
-                                CreateReason reason,
-                                int digest_nonce_count,
-                                const BoundNetLog& net_log,
-                                scoped_ptr<HttpAuthHandler>* handler) override;
+  int CreateAuthHandler(HttpAuthChallengeTokenizer* challenge,
+                        HttpAuth::Target target,
+                        const SSLInfo& ssl_info,
+                        const GURL& origin,
+                        CreateReason reason,
+                        int digest_nonce_count,
+                        const NetLogWithSource& net_log,
+                        std::unique_ptr<HttpAuthHandler>* handler) override;
 
  private:
-  typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;
+  using FactoryMap =
+      std::map<std::string, std::unique_ptr<HttpAuthHandlerFactory>>;
 
   FactoryMap factory_map_;
   DISALLOW_COPY_AND_ASSIGN(HttpAuthHandlerRegistryFactory);

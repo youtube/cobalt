@@ -4,24 +4,25 @@
 
 #include "net/url_request/view_cache_helper.h"
 
-#include <algorithm>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "net/base/escape.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/request_priority.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/url_request/url_request_context.h"
 
-#define VIEW_CACHE_HEAD \
-  "<html><meta charset=\"utf-8\">" \
-  "<meta http-equiv=\"Content-Security-Policy\" " \
-  "  content=\"object-src 'none'; script-src 'none' 'unsafe-eval'\">" \
+#define VIEW_CACHE_HEAD                                 \
+  "<html><meta charset=\"utf-8\">"                      \
+  "<meta http-equiv=\"Content-Security-Policy\" "       \
+  "  content=\"object-src 'none'; script-src 'none'\">" \
   "<body><table>"
 
 #define VIEW_CACHE_TAIL \
@@ -47,12 +48,11 @@ ViewCacheHelper::ViewCacheHelper()
     : context_(NULL),
       disk_cache_(NULL),
       entry_(NULL),
-      iter_(NULL),
       buf_len_(0),
       index_(0),
       data_(NULL),
       next_state_(STATE_NONE),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
+      weak_factory_(this) {
 }
 
 ViewCacheHelper::~ViewCacheHelper() {
@@ -63,15 +63,16 @@ ViewCacheHelper::~ViewCacheHelper() {
 int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
                                       const URLRequestContext* context,
                                       std::string* out,
-                                      const CompletionCallback& callback) {
-  return GetInfoHTML(key, context, std::string(), out, callback);
+                                      CompletionOnceCallback callback) {
+  return GetInfoHTML(key, context, std::string(), out, std::move(callback));
 }
 
 int ViewCacheHelper::GetContentsHTML(const URLRequestContext* context,
                                      const std::string& url_prefix,
                                      std::string* out,
-                                     const CompletionCallback& callback) {
-  return GetInfoHTML(std::string(), context, url_prefix, out, callback);
+                                     CompletionOnceCallback callback) {
+  return GetInfoHTML(std::string(), context, url_prefix, out,
+                     std::move(callback));
 }
 
 // static
@@ -82,7 +83,7 @@ void ViewCacheHelper::HexDump(const char *buf, size_t buf_len,
 
   const unsigned char *p;
   while (buf_len) {
-    base::StringAppendF(result, "%08x:  ", offset);
+    base::StringAppendF(result, "%08x: ", offset);
     offset += kMaxRows;
 
     p = (const unsigned char *) buf;
@@ -92,9 +93,10 @@ void ViewCacheHelper::HexDump(const char *buf, size_t buf_len,
 
     // print hex codes:
     for (i = 0; i < row_max; ++i)
-      base::StringAppendF(result, "%02x  ", *p++);
+      base::StringAppendF(result, "%02x ", *p++);
     for (i = row_max; i < kMaxRows; ++i)
-      result->append("    ");
+      result->append("   ");
+    result->append(" ");
 
     // print ASCII glyphs if possible:
     p = (const unsigned char *) buf;
@@ -119,7 +121,7 @@ int ViewCacheHelper::GetInfoHTML(const std::string& key,
                                  const URLRequestContext* context,
                                  const std::string& url_prefix,
                                  std::string* out,
-                                 const CompletionCallback& callback) {
+                                 CompletionOnceCallback callback) {
   DCHECK(callback_.is_null());
   DCHECK(context);
   key_ = key;
@@ -130,7 +132,7 @@ int ViewCacheHelper::GetInfoHTML(const std::string& key,
   int rv = DoLoop(OK);
 
   if (rv == ERR_IO_PENDING)
-    callback_ = callback;
+    callback_ = std::move(callback);
 
   return rv;
 }
@@ -139,8 +141,7 @@ void ViewCacheHelper::DoCallback(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
   DCHECK(!callback_.is_null());
 
-  callback_.Run(rv);
-  callback_.Reset();
+  std::move(callback_).Run(rv);
 }
 
 void ViewCacheHelper::HandleResult(int rv) {
@@ -219,8 +220,8 @@ int ViewCacheHelper::DoGetBackend() {
     return ERR_FAILED;
 
   return http_cache->GetBackend(
-      &disk_cache_, base::Bind(&ViewCacheHelper::OnIOComplete,
-                               base::Unretained(this)));
+      &disk_cache_,
+      base::BindOnce(&ViewCacheHelper::OnIOComplete, base::Unretained(this)));
 }
 
 int ViewCacheHelper::DoGetBackendComplete(int result) {
@@ -243,9 +244,11 @@ int ViewCacheHelper::DoGetBackendComplete(int result) {
 
 int ViewCacheHelper::DoOpenNextEntry() {
   next_state_ = STATE_OPEN_NEXT_ENTRY_COMPLETE;
-  return disk_cache_->OpenNextEntry(
-      &iter_, &entry_,
-      base::Bind(&ViewCacheHelper::OnIOComplete, base::Unretained(this)));
+  if (!iter_)
+    iter_ = disk_cache_->CreateIterator();
+  return
+      iter_->OpenNextEntry(&entry_, base::Bind(&ViewCacheHelper::OnIOComplete,
+                                               base::Unretained(this)));
 }
 
 int ViewCacheHelper::DoOpenNextEntryComplete(int result) {
@@ -266,7 +269,7 @@ int ViewCacheHelper::DoOpenNextEntryComplete(int result) {
 int ViewCacheHelper::DoOpenEntry() {
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
   return disk_cache_->OpenEntry(
-      key_, &entry_,
+      key_, net::HIGHEST, &entry_,
       base::Bind(&ViewCacheHelper::OnIOComplete, base::Unretained(this)));
 }
 
@@ -288,9 +291,12 @@ int ViewCacheHelper::DoReadResponse() {
   if (!buf_len_)
     return buf_len_;
 
-  buf_ = new IOBuffer(buf_len_);
+  buf_ = base::MakeRefCounted<IOBuffer>(buf_len_);
   return entry_->ReadData(
-      0, 0, buf_, buf_len_,
+      0,
+      0,
+      buf_.get(),
+      buf_len_,
       base::Bind(&ViewCacheHelper::OnIOComplete, weak_factory_.GetWeakPtr()));
 }
 
@@ -298,9 +304,9 @@ int ViewCacheHelper::DoReadResponseComplete(int result) {
   if (result && result == buf_len_) {
     HttpResponseInfo response;
     bool truncated;
-    if (HttpCache::ParseResponseInfo(buf_->data(), buf_len_, &response,
-                                          &truncated) &&
-        response.headers) {
+    if (HttpCache::ParseResponseInfo(
+            buf_->data(), buf_len_, &response, &truncated) &&
+        response.headers.get()) {
       if (truncated)
         data_->append("<pre>RESPONSE_INFO_TRUNCATED</pre>");
 
@@ -308,7 +314,7 @@ int ViewCacheHelper::DoReadResponseComplete(int result) {
       data_->append(EscapeForHTML(response.headers->GetStatusLine()));
       data_->push_back('\n');
 
-      void* iter = NULL;
+      size_t iter = 0;
       std::string name, value;
       while (response.headers->EnumerateHeaderLines(&iter, &name, &value)) {
         data_->append(EscapeForHTML(name));
@@ -333,9 +339,12 @@ int ViewCacheHelper::DoReadData() {
   if (!buf_len_)
     return buf_len_;
 
-  buf_ = new IOBuffer(buf_len_);
+  buf_ = base::MakeRefCounted<IOBuffer>(buf_len_);
   return entry_->ReadData(
-      index_, 0, buf_, buf_len_,
+      index_,
+      0,
+      buf_.get(),
+      buf_len_,
       base::Bind(&ViewCacheHelper::OnIOComplete, weak_factory_.GetWeakPtr()));
 }
 

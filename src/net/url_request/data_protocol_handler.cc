@@ -8,12 +8,15 @@
 
 namespace net {
 
-DataProtocolHandler::DataProtocolHandler() {
-}
+DataProtocolHandler::DataProtocolHandler() = default;
 
 URLRequestJob* DataProtocolHandler::MaybeCreateJob(
     URLRequest* request, NetworkDelegate* network_delegate) const {
   return new URLRequestDataJob(request, network_delegate);
+}
+
+bool DataProtocolHandler::IsSafeRedirectTarget(const GURL& location) const {
+  return false;
 }
 
 }  // namespace net

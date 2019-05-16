@@ -10,19 +10,25 @@
 #ifndef NET_HTTP_HTTP_REQUEST_HEADERS_H_
 #define NET_HTTP_HTTP_REQUEST_HEADERS_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
-#include "base/string_piece.h"
+#include "base/macros.h"
+#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
-#include "net/base/net_log.h"
+
+namespace base {
+class Value;
+}
 
 namespace net {
 
+class NetLogCaptureMode;
+
 class NET_EXPORT HttpRequestHeaders {
  public:
-  struct HeaderKeyValuePair {
+  struct NET_EXPORT HeaderKeyValuePair {
     HeaderKeyValuePair();
     HeaderKeyValuePair(const base::StringPiece& key,
                        const base::StringPiece& value);
@@ -67,20 +73,28 @@ class NET_EXPORT HttpRequestHeaders {
   static const char kCookie[];
   static const char kContentLength[];
   static const char kHost[];
+  static const char kIfMatch[];
   static const char kIfModifiedSince[];
   static const char kIfNoneMatch[];
   static const char kIfRange[];
+  static const char kIfUnmodifiedSince[];
   static const char kOrigin[];
   static const char kPragma[];
   static const char kProxyAuthorization[];
   static const char kProxyConnection[];
   static const char kRange[];
   static const char kReferer[];
-  static const char kUserAgent[];
+  static const char kSecOriginPolicy[];
   static const char kTransferEncoding[];
+  static const char kUserAgent[];
 
   HttpRequestHeaders();
+  HttpRequestHeaders(const HttpRequestHeaders& other);
+  HttpRequestHeaders(HttpRequestHeaders&& other);
   ~HttpRequestHeaders();
+
+  HttpRequestHeaders& operator=(const HttpRequestHeaders& other);
+  HttpRequestHeaders& operator=(HttpRequestHeaders&& other);
 
   bool IsEmpty() const { return headers_.empty(); }
 
@@ -98,7 +112,15 @@ class NET_EXPORT HttpRequestHeaders {
   // Sets the header value pair for |key| and |value|.  If |key| already exists,
   // then the header value is modified, but the key is untouched, and the order
   // in the vector remains the same.  When comparing |key|, case is ignored.
+  // The caller must ensure that |key| passes HttpUtil::IsValidHeaderName() and
+  // |value| passes HttpUtil::IsValidHeaderValue().
   void SetHeader(const base::StringPiece& key, const base::StringPiece& value);
+
+  // Does the same as above but without internal DCHECKs for validations.
+  void SetHeaderWithoutCheckForTesting(const base::StringPiece& key,
+                                       const base::StringPiece& value) {
+    SetHeaderInternal(key, value);
+  }
 
   // Sets the header value pair for |key| and |value|, if |key| does not exist.
   // If |key| already exists, the call is a no-op.
@@ -110,14 +132,18 @@ class NET_EXPORT HttpRequestHeaders {
   void RemoveHeader(const base::StringPiece& key);
 
   // Parses the header from a string and calls SetHeader() with it.  This string
-  // should not contain any CRLF.  As per RFC2616, the format is:
+  // should not contain any CRLF.  As per RFC7230 Section 3.2, the format is:
   //
-  // message-header = field-name ":" [ field-value ]
+  // header-field   = field-name ":" OWS field-value OWS
+  //
   // field-name     = token
-  // field-value    = *( field-content | LWS )
-  // field-content  = <the OCTETs making up the field-value
-  //                  and consisting of either *TEXT or combinations
-  //                  of token, separators, and quoted-string>
+  // field-value    = *( field-content / obs-fold )
+  // field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+  // field-vchar    = VCHAR / obs-text
+  //
+  // obs-fold       = CRLF 1*( SP / HTAB )
+  //                ; obsolete line folding
+  //                ; see Section 3.2.4
   //
   // AddHeaderFromString() will trim any LWS surrounding the
   // field-content.
@@ -147,21 +173,18 @@ class NET_EXPORT HttpRequestHeaders {
 
   // Takes in the request line and returns a Value for use with the NetLog
   // containing both the request line and all headers fields.
-  base::Value* NetLogCallback(const std::string* request_line,
-                              NetLog::LogLevel log_level) const;
+  std::unique_ptr<base::Value> NetLogCallback(
+      const std::string* request_line,
+      NetLogCaptureMode capture_mode) const;
 
-  // Takes in a Value created by the above function, and attempts to extract the
-  // request line and create a copy of the original headers.  Returns true on
-  // success.  On failure, clears |headers| and |request_line|.
-  // TODO(mmenke):  Long term, we want to remove this, and migrate external
-  //                consumers to be NetworkDelegates.
-  static bool FromNetLogParam(const base::Value* event_param,
-                              HttpRequestHeaders* headers,
-                              std::string* request_line);
+  const HeaderVector& GetHeaderVector() const { return headers_; }
 
  private:
   HeaderVector::iterator FindHeader(const base::StringPiece& key);
   HeaderVector::const_iterator FindHeader(const base::StringPiece& key) const;
+
+  void SetHeaderInternal(const base::StringPiece& key,
+                         const base::StringPiece& value);
 
   HeaderVector headers_;
 

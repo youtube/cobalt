@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/numeric_types_test_interface.h"
 #include "starboard/double.h"
@@ -94,7 +94,7 @@ TYPED_TEST(NumericTypeBindingsTest, PropertyIsNumber) {
   EXPECT_CALL(this->test_mock(), mock_get_property());
   std::string result;
   std::string script =
-      StringPrintf("typeof test.%sProperty;", TypeParam::type_string());
+      base::StringPrintf("typeof test.%sProperty;", TypeParam::type_string());
   EXPECT_TRUE(this->EvaluateScript(script, &result));
   EXPECT_STREQ("number", result.c_str());
 }
@@ -102,8 +102,8 @@ TYPED_TEST(NumericTypeBindingsTest, PropertyIsNumber) {
 TYPED_TEST(NumericTypeBindingsTest, ReturnValueIsNumber) {
   EXPECT_CALL(this->test_mock(), MockReturnValueOperation());
   std::string result;
-  std::string script = StringPrintf("typeof test.%sReturnOperation();",
-                                    TypeParam::type_string());
+  std::string script = base::StringPrintf("typeof test.%sReturnOperation();",
+                                          TypeParam::type_string());
   EXPECT_TRUE(this->EvaluateScript(script, &result));
   EXPECT_STREQ("number", result.c_str());
 }
@@ -113,7 +113,7 @@ TYPED_TEST(IntegerTypeBindingsTest, PropertyValueRange) {
 
   std::string result;
   std::string script =
-      StringPrintf("test.%sProperty;", TypeParam::type_string());
+      base::StringPrintf("test.%sProperty;", TypeParam::type_string());
 
   EXPECT_CALL(this->test_mock(), mock_get_property()).WillOnce(Return(0));
   EXPECT_TRUE(this->EvaluateScript(script, &result));
@@ -135,7 +135,7 @@ TYPED_TEST(IntegerTypeBindingsTest, ReturnValueRange) {
 
   std::string result;
   std::string script =
-      StringPrintf("test.%sReturnOperation();", TypeParam::type_string());
+      base::StringPrintf("test.%sReturnOperation();", TypeParam::type_string());
   EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
       .WillOnce(Return(0));
   EXPECT_TRUE(this->EvaluateScript(script, &result));
@@ -157,17 +157,18 @@ TYPED_TEST(IntegerTypeBindingsTest, SetPropertyRange) {
 
   EXPECT_CALL(this->test_mock(), mock_set_property(0));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = 0;", TypeParam::type_string()), NULL));
+      base::StringPrintf("test.%sProperty = 0;", TypeParam::type_string()),
+      NULL));
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = %s;", TypeParam::type_string(),
-                   TypeParam::min_value_string()),
+      base::StringPrintf("test.%sProperty = %s;", TypeParam::type_string(),
+                         TypeParam::min_value_string()),
       NULL));
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value()));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = %s;", TypeParam::type_string(),
-                   TypeParam::max_value_string()),
+      base::StringPrintf("test.%sProperty = %s;", TypeParam::type_string(),
+                         TypeParam::max_value_string()),
       NULL));
 }
 
@@ -175,21 +176,24 @@ TYPED_TEST(IntegerTypeBindingsTest, ArgumentOperationRange) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(this->test_mock(), MockArgumentOperation(0));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sArgumentOperation(0);", TypeParam::type_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sArgumentOperation(0);",
+                                              TypeParam::type_string()),
+                           NULL));
 
   EXPECT_CALL(this->test_mock(), MockArgumentOperation(TypeParam::max_value()));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sArgumentOperation(%s);", TypeParam::type_string(),
-                   TypeParam::max_value_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sArgumentOperation(%s);",
+                                              TypeParam::type_string(),
+                                              TypeParam::max_value_string()),
+                           NULL));
 
   EXPECT_CALL(this->test_mock(), MockArgumentOperation(TypeParam::min_value()));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sArgumentOperation(%s);", TypeParam::type_string(),
-                   TypeParam::min_value_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sArgumentOperation(%s);",
+                                              TypeParam::type_string(),
+                                              TypeParam::min_value_string()),
+                           NULL));
 }
 
 // In the absence of extended IDL attributes to check or enforce the range,
@@ -205,24 +209,24 @@ TYPED_TEST(IntegerTypeBindingsTest, OutOfRangeBehaviour) {
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = (%s+1);", TypeParam::type_string(),
-                   TypeParam::max_value_string()),
+      base::StringPrintf("test.%sProperty = (%s+1);", TypeParam::type_string(),
+                         TypeParam::max_value_string()),
       NULL));
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value() + 1));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = (%s+2);", TypeParam::type_string(),
-                   TypeParam::max_value_string()),
+      base::StringPrintf("test.%sProperty = (%s+2);", TypeParam::type_string(),
+                         TypeParam::max_value_string()),
       NULL));
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value()));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = (%s-1);", TypeParam::type_string(),
-                   TypeParam::min_value_string()),
+      base::StringPrintf("test.%sProperty = (%s-1);", TypeParam::type_string(),
+                         TypeParam::min_value_string()),
       NULL));
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value() - 1));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = (%s-2);", TypeParam::type_string(),
-                   TypeParam::min_value_string()),
+      base::StringPrintf("test.%sProperty = (%s-2);", TypeParam::type_string(),
+                         TypeParam::min_value_string()),
       NULL));
 }
 
@@ -240,28 +244,32 @@ TYPED_TEST(IntegerTypeBindingsTest, ClampedOutOfRangeBehaviour) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value()));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sClampProperty = (%s+1);", TypeParam::type_string(),
-                   TypeParam::max_value_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sClampProperty = (%s+1);",
+                                              TypeParam::type_string(),
+                                              TypeParam::max_value_string()),
+                           NULL));
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value()));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sClampProperty = (%s+2);", TypeParam::type_string(),
-                   TypeParam::max_value_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sClampProperty = (%s+2);",
+                                              TypeParam::type_string(),
+                                              TypeParam::max_value_string()),
+                           NULL));
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sClampProperty = (%s-1);", TypeParam::type_string(),
-                   TypeParam::min_value_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sClampProperty = (%s-1);",
+                                              TypeParam::type_string(),
+                                              TypeParam::min_value_string()),
+                           NULL));
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sClampProperty = (%s-2);", TypeParam::type_string(),
-                   TypeParam::min_value_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sClampProperty = (%s-2);",
+                                              TypeParam::type_string(),
+                                              TypeParam::min_value_string()),
+                           NULL));
 }
 
 #if defined(ENGINE_SUPPORTS_INT64)
@@ -270,7 +278,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, PropertyValueRange) {
 
   std::string result;
   std::string script =
-      StringPrintf("test.%sProperty;", TypeParam::type_string());
+      base::StringPrintf("test.%sProperty;", TypeParam::type_string());
 
   EXPECT_CALL(this->test_mock(), mock_get_property()).WillOnce(Return(0));
   EXPECT_TRUE(this->EvaluateScript(script, &result));
@@ -298,7 +306,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ReturnValueRange) {
   // Exactly preserve 0.
   std::string result;
   std::string script =
-      StringPrintf("test.%sReturnOperation();", TypeParam::type_string());
+      base::StringPrintf("test.%sReturnOperation();", TypeParam::type_string());
   EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
       .WillOnce(Return(0));
   EXPECT_TRUE(this->EvaluateScript(script, &result));
@@ -318,7 +326,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ReturnValueRange) {
 
   // Exactly preserve 2^53 - 1.
   const uint64_t kRangeBound = (1ll << 53) - 1;
-  std::string expected_result = StringPrintf("%" PRIu64 "", kRangeBound);
+  std::string expected_result = base::StringPrintf("%" PRIu64 "", kRangeBound);
   EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
       .WillOnce(Return(kRangeBound));
   EXPECT_TRUE(this->EvaluateScript(script, &result));
@@ -326,7 +334,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ReturnValueRange) {
 
   // Signed : exactly preserve -(2^53 - 1).
   if (TypeParam::min_value() < 0) {
-    expected_result = StringPrintf("-%" PRIu64 "", kRangeBound);
+    expected_result = base::StringPrintf("-%" PRIu64 "", kRangeBound);
     EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
         .WillOnce(Return(-static_cast<int64_t>(kRangeBound)));
     EXPECT_TRUE(this->EvaluateScript(script, &result));
@@ -371,21 +379,22 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, SetPropertyRange) {
   // Exactly preserve 0.
   EXPECT_CALL(this->test_mock(), mock_set_property(0));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = 0;", TypeParam::type_string()), NULL));
+      base::StringPrintf("test.%sProperty = 0;", TypeParam::type_string()),
+      NULL));
 
   // Exactly preserve 2^53 - 1.
   EXPECT_CALL(this->test_mock(), mock_set_property((1ll << 53) - 1));
-  EXPECT_TRUE(
-      this->EvaluateScript(StringPrintf("test.%sProperty = 9007199254740991;",
-                                        TypeParam::type_string()),
-                           NULL));
+  EXPECT_TRUE(this->EvaluateScript(
+      base::StringPrintf("test.%sProperty = 9007199254740991;",
+                         TypeParam::type_string()),
+      NULL));
 
   // Signed : exactly preserve -(2^53 - 1).
   if (TypeParam::min_value() < 0) {
     EXPECT_CALL(this->test_mock(), mock_set_property(-((1ll << 53) - 1)));
     EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = -9007199254740991;",
-                     TypeParam::type_string()),
+        base::StringPrintf("test.%sProperty = -9007199254740991;",
+                           TypeParam::type_string()),
         NULL));
   }
 
@@ -393,8 +402,8 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, SetPropertyRange) {
   // 9223372036854774784.
   EXPECT_CALL(this->test_mock(), mock_set_property(9223372036854774784));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sProperty = 9223372036854775000;",
-                   TypeParam::type_string()),
+      base::StringPrintf("test.%sProperty = 9223372036854775000;",
+                         TypeParam::type_string()),
       NULL));
 
   // Unsigned : send 18446744073709550000 (between 2^53
@@ -402,8 +411,8 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, SetPropertyRange) {
   if (TypeParam::min_value() >= 0) {
     EXPECT_CALL(this->test_mock(), mock_set_property(18446744073709549568ull));
     EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = 18446744073709550000;",
-                     TypeParam::type_string()),
+        base::StringPrintf("test.%sProperty = 18446744073709550000;",
+                           TypeParam::type_string()),
         NULL));
   }
 }
@@ -414,23 +423,24 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ArgumentOperationRange) {
 
   // Exactly preserve 0.
   EXPECT_CALL(this->test_mock(), MockArgumentOperation(0));
-  EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sArgumentOperation(0);", TypeParam::type_string()),
-      NULL));
+  EXPECT_TRUE(
+      this->EvaluateScript(base::StringPrintf("test.%sArgumentOperation(0);",
+                                              TypeParam::type_string()),
+                           NULL));
 
   // Exactly preserve 2^53 - 1.
   EXPECT_CALL(this->test_mock(), MockArgumentOperation((1ll << 53) - 1));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sArgumentOperation(9007199254740991);",
-                   TypeParam::type_string()),
+      base::StringPrintf("test.%sArgumentOperation(9007199254740991);",
+                         TypeParam::type_string()),
       NULL));
 
   // Signed : exactly preserve -(2^53 - 1).
   if (TypeParam::min_value() < 0) {
     EXPECT_CALL(this->test_mock(), MockArgumentOperation(-((1ll << 53) - 1)));
     EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sArgumentOperation(-9007199254740991);",
-                     TypeParam::type_string()),
+        base::StringPrintf("test.%sArgumentOperation(-9007199254740991);",
+                           TypeParam::type_string()),
         NULL));
   }
 
@@ -438,8 +448,8 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ArgumentOperationRange) {
   // 9223372036854774784.
   EXPECT_CALL(this->test_mock(), MockArgumentOperation(9223372036854774784));
   EXPECT_TRUE(this->EvaluateScript(
-      StringPrintf("test.%sArgumentOperation(9223372036854775000);",
-                   TypeParam::type_string()),
+      base::StringPrintf("test.%sArgumentOperation(9223372036854775000);",
+                         TypeParam::type_string()),
       NULL));
 
   // Unsigned : send 18446744073709550000 (between 2^53
@@ -448,8 +458,8 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ArgumentOperationRange) {
     EXPECT_CALL(this->test_mock(),
                 MockArgumentOperation(18446744073709549568ull));
     EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sArgumentOperation(18446744073709550000);",
-                     TypeParam::type_string()),
+        base::StringPrintf("test.%sArgumentOperation(18446744073709550000);",
+                           TypeParam::type_string()),
         NULL));
   }
 }
@@ -458,33 +468,37 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ArgumentOperationRange) {
 TYPED_TEST(FloatingPointTypeBindingsTest, NonFiniteValues) {
   InSequence in_sequence_dummy;
   if (TypeParam::is_restricted()) {
+    EXPECT_FALSE(
+        this->EvaluateScript(base::StringPrintf("test.%sProperty = Infinity;",
+                                                TypeParam::type_string()),
+                             NULL));
+    EXPECT_FALSE(
+        this->EvaluateScript(base::StringPrintf("test.%sProperty = -Infinity;",
+                                                TypeParam::type_string()),
+                             NULL));
     EXPECT_FALSE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = Infinity;", TypeParam::type_string()),
-        NULL));
-    EXPECT_FALSE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = -Infinity;", TypeParam::type_string()),
-        NULL));
-    EXPECT_FALSE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
+        base::StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
         NULL));
   } else {
     EXPECT_CALL(this->test_mock(),
                 mock_set_property(TypeParam::positive_infinity()));
-    EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = Infinity;", TypeParam::type_string()),
-        NULL));
+    EXPECT_TRUE(
+        this->EvaluateScript(base::StringPrintf("test.%sProperty = Infinity;",
+                                                TypeParam::type_string()),
+                             NULL));
 
     EXPECT_CALL(this->test_mock(),
                 mock_set_property(TypeParam::negative_infinity()));
-    EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = -Infinity;", TypeParam::type_string()),
-        NULL));
+    EXPECT_TRUE(
+        this->EvaluateScript(base::StringPrintf("test.%sProperty = -Infinity;",
+                                                TypeParam::type_string()),
+                             NULL));
 
     EXPECT_CALL(this->test_mock(),
                 mock_set_property(
                     ResultOf(IsNan<typename TypeParam::BaseType>, Eq(true))));
     EXPECT_TRUE(this->EvaluateScript(
-        StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
+        base::StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
         NULL));
   }
 }

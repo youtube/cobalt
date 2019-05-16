@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 
 #include "base/sys_info.h"
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "starboard/system.h"
 
@@ -26,7 +25,7 @@ int SysInfo::NumberOfProcessors() {
 }
 
 // static
-int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
+int64_t SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
   // TODO: This is referred to ONLY by disk_cache::BackendImpl, which I do
   // not think is currently used in Cobalt. There's no need to implement this
   // unless we want to use it for something. If not, we should remove the
@@ -36,8 +35,25 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
 }
 
 // static
-int64 SysInfo::AmountOfPhysicalMemory() {
+int64_t SysInfo::AmountOfPhysicalMemoryImpl() {
   return SbSystemGetTotalCPUMemory();
+}
+
+// static
+int64_t SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
+  return SbSystemGetTotalCPUMemory() - SbSystemGetUsedCPUMemory();
+}
+
+// static
+int64_t SysInfo::AmountOfTotalDiskSpace(const FilePath& path) {
+  ALLOW_UNUSED_LOCAL(path);
+  NOTIMPLEMENTED();
+  return SB_INT64_C(1) * 1024 * 1024 * 1024;
+}
+
+// static
+int64_t SysInfo::AmountOfVirtualMemory() {
+  return AmountOfPhysicalMemoryImpl();
 }
 
 }  // namespace base

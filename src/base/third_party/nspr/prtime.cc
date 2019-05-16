@@ -53,38 +53,53 @@
  * PR_NormalizeTime
  * PR_GMTParameters
  * PR_ImplodeTime
- *   This was modified to use the Win32 SYSTEMTIME/FILETIME structures
- *   and the timezone offsets are applied to the FILETIME structure.
+ *   Upstream implementation from
+ *   http://lxr.mozilla.org/nspr/source/pr/src/misc/prtime.c#221
  * All types and macros are defined in the base/third_party/prtime.h file.
  * These have been copied from the following nspr files. We have only copied
  * over the types we need.
  * 1. prtime.h
  * 2. prtypes.h
  * 3. prlong.h
+ *
+ * Unit tests are in base/time/pr_time_unittest.cc.
  */
+
+#include <limits.h>
 
 #include "base/logging.h"
 #include "base/third_party/nspr/prtime.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN) || defined(COBALT_WIN)
-#include <windows.h>
-#elif defined(OS_MACOSX)
-#include <CoreFoundation/CoreFoundation.h>
-#elif defined(OS_ANDROID) || defined(__LB_ANDROID__)
-#include <ctype.h>
-#include "base/os_compat_android.h"  // For timegm()
-#elif defined(OS_NACL)
-#include "base/os_compat_nacl.h"  // For timegm()
-#else
+#if defined(STARBOARD)
 #define PRTIME_USE_BASE_TIME
-#include "base/time.h"
-#endif
-
-#if !defined(OS_STARBOARD)
+#include "base/time/time.h"
+#else
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
+
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
+
+/*
+ * The COUNT_LEAPS macro counts the number of leap years passed by
+ * till the start of the given year Y.  At the start of the year 4
+ * A.D. the number of leap years passed by is 0, while at the start of
+ * the year 5 A.D. this count is 1. The number of years divisible by
+ * 100 but not divisible by 400 (the non-leap years) is deducted from
+ * the count to get the correct number of leap years.
+ *
+ * The COUNT_DAYS macro counts the number of days since 01/01/01 till the
+ * start of the given year Y. The number of days at the start of the year
+ * 1 is 0 while the number of days at the start of the year 2 is 365
+ * (which is ((2)-1) * 365) and so on. The reference point is 01/01/01
+ * midnight 00:00:00.
+ */
+
+#define COUNT_LEAPS(Y) (((Y)-1) / 4 - ((Y)-1) / 100 + ((Y)-1) / 400)
+#define COUNT_DAYS(Y) (((Y)-1) * 365 + COUNT_LEAPS(Y))
+#define DAYS_BETWEEN_YEARS(A, B) (COUNT_DAYS(B) - COUNT_DAYS(A))
 
 /* Implements the Unix localtime_r() function for windows */
 #if defined(OS_WIN)
@@ -92,6 +107,29 @@ static void localtime_r(const time_t* secs, struct tm* time) {
   (void) localtime_s(time, secs);
 }
 #endif
+
+/*
+ * Static variables used by functions in this file
+ */
+
+/*
+ * The following array contains the day of year for the last day of
+ * each month, where index 1 is January, and day 0 is January 1.
+ */
+
+static const int lastDayOfMonth[2][13] = {
+    {-1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364},
+    {-1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365}
+};
+
+/*
+ * The number of days in a month
+ */
+
+static const PRInt8 nDays[2][12] = {
+    {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
+    {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+};
 
 #if defined(PRTIME_USE_BASE_TIME)
 // Implodes |exploded| using base::Time's implosion methods. |is_local| states
@@ -111,9 +149,11 @@ static PRTime BaseImplode(const PRExplodedTime* exploded, bool is_local) {
   base_exploded.millisecond = 0;
   base::Time base_time;
   if (is_local) {
-    base_time = base::Time::FromLocalExploded(base_exploded);
+    bool result = base::Time::FromLocalExploded(base_exploded, &base_time);
+    DCHECK(result);
   } else {
-    base_time = base::Time::FromUTCExploded(base_exploded);
+    bool result = base::Time::FromUTCExploded(base_exploded, &base_time);
+    DCHECK(result);
   }
   PRTime result = static_cast<PRTime>(
       (base_time - base::Time::UnixEpoch()).InMicroseconds());
@@ -140,141 +180,46 @@ static PRTime BaseImplode(const PRExplodedTime* exploded, bool is_local) {
 PRTime
 PR_ImplodeTime(const PRExplodedTime *exploded)
 {
-    // This is important, we want to make sure multiplications are
-    // done with the correct precision.
-    static const PRTime kSecondsToMicroseconds = static_cast<PRTime>(1000000);
-#if defined(OS_WIN) || defined(COBALT_WIN)
-   // Create the system struct representing our exploded time.
-    SYSTEMTIME st = {0};
-    FILETIME ft = {0};
-    ULARGE_INTEGER uli = {0};
-
-    st.wYear = exploded->tm_year;
-    st.wMonth = exploded->tm_month + 1;
-    st.wDayOfWeek = exploded->tm_wday;
-    st.wDay = exploded->tm_mday;
-    st.wHour = exploded->tm_hour;
-    st.wMinute = exploded->tm_min;
-    st.wSecond = exploded->tm_sec;
-    st.wMilliseconds = exploded->tm_usec/1000;
-     // Convert to FILETIME.
-    if (!SystemTimeToFileTime(&st, &ft)) {
-      NOTREACHED() << "Unable to convert time";
-      return 0;
-    }
-    // Apply offsets.
-    uli.LowPart = ft.dwLowDateTime;
-    uli.HighPart = ft.dwHighDateTime;
-    // Convert from Windows epoch to NSPR epoch, and 100-nanoseconds units
-    // to microsecond units.
-    PRTime result =
-        static_cast<PRTime>((uli.QuadPart / 10) - 11644473600000000i64);
-    // Adjust for time zone and dst.  Convert from seconds to microseconds.
-    result -= (exploded->tm_params.tp_gmt_offset +
-               exploded->tm_params.tp_dst_offset) * kSecondsToMicroseconds;
-    return result;
-#elif defined(OS_MACOSX)
-    // Create the system struct representing our exploded time.
-    CFGregorianDate gregorian_date;
-    gregorian_date.year = exploded->tm_year;
-    gregorian_date.month = exploded->tm_month + 1;
-    gregorian_date.day = exploded->tm_mday;
-    gregorian_date.hour = exploded->tm_hour;
-    gregorian_date.minute = exploded->tm_min;
-    gregorian_date.second = exploded->tm_sec;
-
-    // Compute |absolute_time| in seconds, correct for gmt and dst
-    // (note the combined offset will be negative when we need to add it), then
-    // convert to microseconds which is what PRTime expects.
-    CFAbsoluteTime absolute_time =
-        CFGregorianDateGetAbsoluteTime(gregorian_date, NULL);
-    PRTime result = static_cast<PRTime>(absolute_time);
-    result -= exploded->tm_params.tp_gmt_offset +
-              exploded->tm_params.tp_dst_offset;
-    result += kCFAbsoluteTimeIntervalSince1970;  // PRTime epoch is 1970
-    result *= kSecondsToMicroseconds;
-    result += exploded->tm_usec;
-    return result;
-#elif defined(OS_POSIX)
-    struct tm exp_tm = {0};
-    exp_tm.tm_sec  = exploded->tm_sec;
-    exp_tm.tm_min  = exploded->tm_min;
-    exp_tm.tm_hour = exploded->tm_hour;
-    exp_tm.tm_mday = exploded->tm_mday;
-    exp_tm.tm_mon  = exploded->tm_month;
-    exp_tm.tm_year = exploded->tm_year - 1900;
-    time_t absolute_time = timegm(&exp_tm);
-
-    // If timegm returned -1.  Since we don't pass it a time zone, the only
-    // valid case of returning -1 is 1 second before Epoch (Dec 31, 1969).
-    if (absolute_time == -1 &&
-        !(exploded->tm_year == 1969 && exploded->tm_month == 11 &&
-        exploded->tm_mday == 31 && exploded->tm_hour == 23 &&
-        exploded->tm_min == 59 && exploded->tm_sec == 59)) {
-      // If we get here, time_t must be 32 bits.
-      // Date was possibly too far in the future and would overflow.  Return
-      // the most future date possible (year 2038).
-      if (exploded->tm_year >= 1970)
-        return INT_MAX * kSecondsToMicroseconds;
-      // Date was possibly too far in the past and would underflow.  Return
-      // the most past date possible (year 1901).
-      return INT_MIN * kSecondsToMicroseconds;
-    }
-
-    PRTime result = static_cast<PRTime>(absolute_time);
-    result -= exploded->tm_params.tp_gmt_offset +
-              exploded->tm_params.tp_dst_offset;
-    result *= kSecondsToMicroseconds;
-    result += exploded->tm_usec;
-    return result;
-#elif defined(PRTIME_USE_BASE_TIME)
+#if defined(PRTIME_USE_BASE_TIME)
     return BaseImplode(exploded, false /*is_local*/);
 #else
-#error No PR_ImplodeTime implemented on your platform.
-#endif
+  PRExplodedTime copy;
+  PRTime retVal;
+  PRInt64 secPerDay, usecPerSec;
+  PRInt64 temp;
+  PRInt64 numSecs64;
+  PRInt32 numDays;
+  PRInt32 numSecs;
+
+  /* Normalize first.  Do this on our copy */
+  copy = *exploded;
+  PR_NormalizeTime(&copy, PR_GMTParameters);
+
+  numDays = DAYS_BETWEEN_YEARS(1970, copy.tm_year);
+
+  numSecs = copy.tm_yday * 86400 + copy.tm_hour * 3600 + copy.tm_min * 60 +
+            copy.tm_sec;
+
+  LL_I2L(temp, numDays);
+  LL_I2L(secPerDay, 86400);
+  LL_MUL(temp, temp, secPerDay);
+  LL_I2L(numSecs64, numSecs);
+  LL_ADD(numSecs64, numSecs64, temp);
+
+  /* apply the GMT and DST offsets */
+  LL_I2L(temp, copy.tm_params.tp_gmt_offset);
+  LL_SUB(numSecs64, numSecs64, temp);
+  LL_I2L(temp, copy.tm_params.tp_dst_offset);
+  LL_SUB(numSecs64, numSecs64, temp);
+
+  LL_I2L(usecPerSec, 1000000L);
+  LL_MUL(temp, numSecs64, usecPerSec);
+  LL_I2L(retVal, copy.tm_usec);
+  LL_ADD(retVal, retVal, temp);
+
+  return retVal;
+#endif  // defined(PRTIME_USE_BASE_TIME)
 }
-
-/* 
- * The COUNT_LEAPS macro counts the number of leap years passed by
- * till the start of the given year Y.  At the start of the year 4
- * A.D. the number of leap years passed by is 0, while at the start of
- * the year 5 A.D. this count is 1. The number of years divisible by
- * 100 but not divisible by 400 (the non-leap years) is deducted from
- * the count to get the correct number of leap years.
- *
- * The COUNT_DAYS macro counts the number of days since 01/01/01 till the
- * start of the given year Y. The number of days at the start of the year
- * 1 is 0 while the number of days at the start of the year 2 is 365
- * (which is ((2)-1) * 365) and so on. The reference point is 01/01/01
- * midnight 00:00:00.
- */
-
-#define COUNT_LEAPS(Y)   ( ((Y)-1)/4 - ((Y)-1)/100 + ((Y)-1)/400 )
-#define COUNT_DAYS(Y)  ( ((Y)-1)*365 + COUNT_LEAPS(Y) )
-#define DAYS_BETWEEN_YEARS(A, B)  (COUNT_DAYS(B) - COUNT_DAYS(A))
-
-/*
- * Static variables used by functions in this file
- */
-
-/*
- * The following array contains the day of year for the last day of
- * each month, where index 1 is January, and day 0 is January 1.
- */
-
-static const int lastDayOfMonth[2][13] = {
-    {-1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364},
-    {-1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365}
-};
-
-/*
- * The number of days in a month
- */
-
-static const PRInt8 nDays[2][12] = {
-    {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
-    {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-};
 
 /*
  *-------------------------------------------------------------------------
@@ -417,7 +362,7 @@ PR_NormalizeTime(PRExplodedTime *time, PRTimeParamFn params)
 
     /* Normalize month and year before mday */
     if (time->tm_month < 0 || time->tm_month >= 12) {
-        time->tm_year += time->tm_month / 12;
+        time->tm_year += static_cast<PRInt16>(time->tm_month / 12);
         time->tm_month %= 12;
         if (time->tm_month < 0) {
             time->tm_month += 12;
@@ -453,9 +398,9 @@ PR_NormalizeTime(PRExplodedTime *time, PRTimeParamFn params)
     }
 
     /* Recompute yday and wday */
-    time->tm_yday = time->tm_mday +
-            lastDayOfMonth[IsLeapYear(time->tm_year)][time->tm_month];
-	    
+    time->tm_yday = static_cast<PRInt16>(time->tm_mday +
+            lastDayOfMonth[IsLeapYear(time->tm_year)][time->tm_month]);
+
     numDays = DAYS_BETWEEN_YEARS(1970, time->tm_year) + time->tm_yday;
     time->tm_wday = (numDays + 4) % 7;
     if (time->tm_wday < 0) {
@@ -484,10 +429,6 @@ PR_NormalizeTime(PRExplodedTime *time, PRTimeParamFn params)
 PRTimeParameters
 PR_GMTParameters(const PRExplodedTime *gmt)
 {
-#if defined(XP_MAC)
-#pragma unused (gmt)
-#endif
-
     PRTimeParameters retVal = { 0, 0 };
     return retVal;
 }
@@ -550,6 +491,7 @@ typedef enum
  *   06/21/95 04:24:34 PM
  *   20/06/95 21:07
  *   95-06-08 19:32:48 EDT
+ *   1995-06-17T23:11:25.342156Z
  *
  * If the input string doesn't contain a description of the timezone,
  * we consult the `default_to_gmt' to decide whether the string should
@@ -576,6 +518,7 @@ PR_ParseTimeString(
   int hour = -1;
   int min = -1;
   int sec = -1;
+  int usec = -1;
 
   const char *rest = string;
 
@@ -819,6 +762,7 @@ PR_ParseTimeString(
                         int tmp_hour = -1;
                         int tmp_min = -1;
                         int tmp_sec = -1;
+                        int tmp_usec = -1;
                         const char *end = rest + 1;
                         while (*end >= '0' && *end <= '9')
                           end++;
@@ -878,14 +822,38 @@ PR_ParseTimeString(
                                 else
                                   tmp_sec = (rest[0]-'0');
 
-                                /* If we made it here, we've parsed hour and min,
-                                   and possibly sec, so it worked as a unit. */
-
-                                /* skip over whitespace and see if there's an AM or PM
-                                   directly following the time.
-                                 */
-                                if (tmp_hour <= 12)
+                                /* fractional second */
+                                rest = end;
+                                if (*rest == '.')
                                   {
+                                    rest++;
+                                    end++;
+                                    tmp_usec = 0;
+                                    /* use up to 6 digits, skip over the rest */
+                                    while (*end >= '0' && *end <= '9')
+                                      {
+                                        if (end - rest < 6)
+                                          tmp_usec = tmp_usec * 10 + *end - '0';
+                                        end++;
+                                      }
+                                    int ndigits = end - rest;
+                                    while (ndigits++ < 6)
+                                      tmp_usec *= 10;
+                                    rest = end;
+                                  }
+
+                                if (*rest == 'Z')
+                                  {
+                                    zone = TT_GMT;
+                                    rest++;
+                                  }
+                                else if (tmp_hour <= 12)
+                                  {
+                                    /* If we made it here, we've parsed hour and min,
+                                       and possibly sec, so the current token is a time.
+                                       Now skip over whitespace and see if there's an AM
+                                       or PM directly following the time.
+                                    */
                                         const char *s = end;
                                         while (*s && (*s == ' ' || *s == '\t'))
                                           s++;
@@ -903,6 +871,7 @@ PR_ParseTimeString(
                                 hour = tmp_hour;
                                 min = tmp_min;
                                 sec = tmp_sec;
+                                usec = tmp_usec;
                                 rest = end;
                                 break;
                           }
@@ -910,8 +879,7 @@ PR_ParseTimeString(
                                          end[1] >= '0' && end[1] <= '9')
                           {
                                 /* Perhaps this is 6/16/95, 16/6/95, 6-16-95, or 16-6-95
-                                   or even 95-06-05...
-                                   #### But it doesn't handle 1995-06-22.
+                                   or even 95-06-05 or 1995-06-22.
                                  */
                                 int n1, n2, n3;
                                 const char *s;
@@ -922,9 +890,19 @@ PR_ParseTimeString(
 
                                 s = rest;
 
-                                n1 = (*s++ - '0');                                /* first 1 or 2 digits */
+                                n1 = (*s++ - '0');                                /* first 1, 2 or 4 digits */
                                 if (*s >= '0' && *s <= '9')
-                                  n1 = n1*10 + (*s++ - '0');
+                                  {
+                                    n1 = n1*10 + (*s++ - '0');
+
+                                    if (*s >= '0' && *s <= '9')            /* optional digits 3 and 4 */
+                                      {
+                                        n1 = n1*10 + (*s++ - '0');
+                                        if (*s < '0' || *s > '9')
+                                          break;
+                                        n1 = n1*10 + (*s++ - '0');
+                                      }
+                                  }
 
                                 if (*s != '/' && *s != '-')                /* slash */
                                   break;
@@ -956,17 +934,21 @@ PR_ParseTimeString(
                                           n3 = n3*10 + (*s++ - '0');
                                   }
 
-                                if ((*s >= '0' && *s <= '9') ||        /* followed by non-alphanum */
-                                        (*s >= 'A' && *s <= 'Z') ||
-                                        (*s >= 'a' && *s <= 'z'))
+                                if (*s == 'T' && s[1] >= '0' && s[1] <= '9')
+                                  /* followed by ISO 8601 T delimiter and number is ok */
+                                  ;
+                                else if ((*s >= '0' && *s <= '9') ||
+                                         (*s >= 'A' && *s <= 'Z') ||
+                                         (*s >= 'a' && *s <= 'z'))
+                                  /* but other alphanumerics are not ok */
                                   break;
 
-                                /* Ok, we parsed three 1-2 digit numbers, with / or -
+                                /* Ok, we parsed three multi-digit numbers, with / or -
                                    between them.  Now decide what the hell they are
-                                   (DD/MM/YY or MM/DD/YY or YY/MM/DD.)
+                                   (DD/MM/YY or MM/DD/YY or [YY]YY/MM/DD.)
                                  */
 
-                                if (n1 > 31 || n1 == 0)  /* must be YY/MM/DD */
+                                if (n1 > 31 || n1 == 0)  /* must be [YY]YY/MM/DD */
                                   {
                                         if (n2 > 12) break;
                                         if (n3 > 31) break;
@@ -1059,26 +1041,27 @@ PR_ParseTimeString(
                         /* else, three or more than five digits - what's that? */
 
                         break;
-                  }
-                }
+                  }   /* case '0' .. '9' */
+                }   /* switch */
 
           /* Skip to the end of this token, whether we parsed it or not.
-                 Tokens are delimited by whitespace, or ,;-/
-                 But explicitly not :+-.
+             Tokens are delimited by whitespace, or ,;-+/()[] but explicitly not .:
+             'T' is also treated as delimiter when followed by a digit (ISO 8601).
            */
           while (*rest &&
                          *rest != ' ' && *rest != '\t' &&
                          *rest != ',' && *rest != ';' &&
                          *rest != '-' && *rest != '+' &&
                          *rest != '/' &&
-                         *rest != '(' && *rest != ')' && *rest != '[' && *rest != ']')
+                         *rest != '(' && *rest != ')' && *rest != '[' && *rest != ']' &&
+                         !(*rest == 'T' && rest[1] >= '0' && rest[1] <= '9')
+                )
                 rest++;
           /* skip over uninteresting chars. */
         SKIP_MORE:
-          while (*rest &&
-                         (*rest == ' ' || *rest == '\t' ||
-                          *rest == ',' || *rest == ';' || *rest == '/' ||
-                          *rest == '(' || *rest == ')' || *rest == '[' || *rest == ']'))
+          while (*rest == ' ' || *rest == '\t' ||
+                 *rest == ',' || *rest == ';' || *rest == '/' ||
+                 *rest == '(' || *rest == ')' || *rest == '[' || *rest == ']')
                 rest++;
 
           /* "-" is ignored at the beginning of a token if we have not yet
@@ -1092,7 +1075,10 @@ PR_ParseTimeString(
                   goto SKIP_MORE;
                 }
 
-        }
+          /* Skip T that may precede ISO 8601 time. */
+          if (*rest == 'T' && rest[1] >= '0' && rest[1] <= '9')
+            rest++;
+        }   /* while */
 
   if (zone != TT_UNKNOWN && zone_offset == -1)
         {
@@ -1126,7 +1112,9 @@ PR_ParseTimeString(
   if (month == TT_UNKNOWN || date == -1 || year == -1 || year > PR_INT16_MAX)
       return PR_FAILURE;
 
-  memset(result, 0, sizeof(*result));
+  SbMemorySet(result, 0, sizeof(*result));
+  if (usec != -1)
+        result->tm_usec = usec;
   if (sec != -1)
         result->tm_sec = sec;
   if (min != -1)
@@ -1138,9 +1126,9 @@ PR_ParseTimeString(
   if (month != TT_UNKNOWN)
         result->tm_month = (((int)month) - ((int)TT_JAN));
   if (year != -1)
-        result->tm_year = year;
+        result->tm_year = static_cast<PRInt16>(year);
   if (dotw != TT_UNKNOWN)
-        result->tm_wday = (((int)dotw) - ((int)TT_SUN));
+        result->tm_wday = static_cast<PRInt8>(((int)dotw) - ((int)TT_SUN));
   /*
    * Mainly to compute wday and yday, but normalized time is also required
    * by the check below that works around a Visual C++ 2005 mktime problem.
@@ -1157,6 +1145,7 @@ PR_ParseTimeString(
 
   if (zone_offset == -1)
          {
+
            /* no zone was specified, and we're to assume that everything
              is local. */
 #if !defined(PRTIME_USE_BASE_TIME)
@@ -1179,18 +1168,16 @@ PR_ParseTimeString(
              * time, we call mktime().  However, we need to see if we are
              * on 1-Jan-1970 or before.  If we are, we can't call mktime()
              * because mktime() will crash on win16. In that case, we
-             * calculate zone_offset based on the zone offset at 
+             * calculate zone_offset based on the zone offset at
              * 00:00:00, 2 Jan 1970 GMT, and subtract zone_offset from the
              * date we are parsing to transform the date to GMT.  We also
              * do so if mktime() returns (time_t) -1 (time out of range).
            */
 
           /* month, day, hours, mins and secs are always non-negative
-             so we dont need to worry about them. */  
-          if(result->tm_year >= 1970)
+             so we dont need to worry about them. */
+          if (result->tm_year >= 1970)
                 {
-                  PRInt64 usec_per_sec;
-
                   localTime.tm_sec = result->tm_sec;
                   localTime.tm_min = result->tm_min;
                   localTime.tm_hour = result->tm_hour;
@@ -1230,11 +1217,8 @@ PR_ParseTimeString(
 #endif
                   if (secs != (time_t) -1)
                     {
-                      PRTime usecs64;
-                      LL_I2L(usecs64, secs);
-                      LL_I2L(usec_per_sec, PR_USEC_PER_SEC);
-                      LL_MUL(usecs64, usecs64, usec_per_sec);
-                      *result_imploded = usecs64;
+                      *result_imploded = (PRInt64)secs * PR_USEC_PER_SEC;
+                      *result_imploded += result->tm_usec;
                       return PR_SUCCESS;
                     }
                 }

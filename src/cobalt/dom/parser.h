@@ -15,12 +15,13 @@
 #ifndef COBALT_DOM_PARSER_H_
 #define COBALT_DOM_PARSER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/loader/decoder.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -76,14 +77,14 @@ class Parser {
   // Parses an HTML document asynchronously, returns the decoder that can be
   // used in the parsing.  Script elements in the HTML document will be
   // executed.
-  virtual scoped_ptr<loader::Decoder> ParseDocumentAsync(
+  virtual std::unique_ptr<loader::Decoder> ParseDocumentAsync(
       const scoped_refptr<Document>& document,
       const base::SourceLocation& input_location,
       const loader::Decoder::OnCompleteFunction& load_complete_callback) = 0;
 
   // Parses an XML document asynchronously, returns the decoder that can be
   // used in the parsing.
-  virtual scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
+  virtual std::unique_ptr<loader::Decoder> ParseXMLDocumentAsync(
       const scoped_refptr<XMLDocument>& xml_document,
       const base::SourceLocation& input_location) = 0;
 };

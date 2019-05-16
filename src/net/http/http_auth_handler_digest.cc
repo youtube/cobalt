@@ -6,18 +6,21 @@
 
 #include <string>
 
-#include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/md5.h"
 #include "base/rand_util.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
-#include "base/utf_string_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
+#include "net/base/net_string_util.h"
+#include "net/base/url_util.h"
 #include "net/http/http_auth.h"
+#include "net/http/http_auth_challenge_tokenizer.h"
+#include "net/http/http_auth_scheme.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_util.h"
+#include "url/gurl.h"
 
 namespace net {
 
@@ -46,14 +49,11 @@ namespace net {
 // auth-int |          | req-method:req-uri:MD5(req-entity-body)  |
 //=====================+==========================================+
 
-HttpAuthHandlerDigest::NonceGenerator::NonceGenerator() {
-}
+HttpAuthHandlerDigest::NonceGenerator::NonceGenerator() = default;
 
-HttpAuthHandlerDigest::NonceGenerator::~NonceGenerator() {
-}
+HttpAuthHandlerDigest::NonceGenerator::~NonceGenerator() = default;
 
-HttpAuthHandlerDigest::DynamicNonceGenerator::DynamicNonceGenerator() {
-}
+HttpAuthHandlerDigest::DynamicNonceGenerator::DynamicNonceGenerator() = default;
 
 std::string HttpAuthHandlerDigest::DynamicNonceGenerator::GenerateNonce()
     const {
@@ -79,8 +79,7 @@ HttpAuthHandlerDigest::Factory::Factory()
     : nonce_generator_(new DynamicNonceGenerator()) {
 }
 
-HttpAuthHandlerDigest::Factory::~Factory() {
-}
+HttpAuthHandlerDigest::Factory::~Factory() = default;
 
 void HttpAuthHandlerDigest::Factory::set_nonce_generator(
     const NonceGenerator* nonce_generator) {
@@ -88,30 +87,32 @@ void HttpAuthHandlerDigest::Factory::set_nonce_generator(
 }
 
 int HttpAuthHandlerDigest::Factory::CreateAuthHandler(
-    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuthChallengeTokenizer* challenge,
     HttpAuth::Target target,
+    const SSLInfo& ssl_info,
     const GURL& origin,
     CreateReason reason,
     int digest_nonce_count,
-    const BoundNetLog& net_log,
-    scoped_ptr<HttpAuthHandler>* handler) {
+    const NetLogWithSource& net_log,
+    std::unique_ptr<HttpAuthHandler>* handler) {
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
-  scoped_ptr<HttpAuthHandler> tmp_handler(
+  std::unique_ptr<HttpAuthHandler> tmp_handler(
       new HttpAuthHandlerDigest(digest_nonce_count, nonce_generator_.get()));
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
+  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info, origin,
+                                      net_log))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
   return OK;
 }
 
 HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
-    HttpAuth::ChallengeTokenizer* challenge) {
+    HttpAuthChallengeTokenizer* challenge) {
   // Even though Digest is not connection based, a "second round" is parsed
   // to differentiate between stale and rejected responses.
   // Note that the state of the current handler is not mutated - this way if
   // there is a rejection the realm hasn't changed.
-  if (!LowerCaseEqualsASCII(challenge->scheme(), "digest"))
+  if (!base::LowerCaseEqualsASCII(challenge->scheme(), kDigestAuthScheme))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
   HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
@@ -120,10 +121,10 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
   // for the new challenge.
   std::string original_realm;
   while (parameters.GetNext()) {
-    if (LowerCaseEqualsASCII(parameters.name(), "stale")) {
-      if (LowerCaseEqualsASCII(parameters.value(), "true"))
+    if (base::LowerCaseEqualsASCII(parameters.name(), "stale")) {
+      if (base::LowerCaseEqualsASCII(parameters.value(), "true"))
         return HttpAuth::AUTHORIZATION_RESULT_STALE;
-    } else if (LowerCaseEqualsASCII(parameters.name(), "realm")) {
+    } else if (base::LowerCaseEqualsASCII(parameters.name(), "realm")) {
       original_realm = parameters.value();
     }
   }
@@ -132,13 +133,16 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
       HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
-bool HttpAuthHandlerDigest::Init(HttpAuth::ChallengeTokenizer* challenge) {
+bool HttpAuthHandlerDigest::Init(HttpAuthChallengeTokenizer* challenge,
+                                 const SSLInfo& ssl_info) {
   return ParseChallenge(challenge);
 }
 
 int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
-    const AuthCredentials* credentials, const HttpRequestInfo* request,
-    const CompletionCallback& callback, std::string* auth_token) {
+    const AuthCredentials* credentials,
+    const HttpRequestInfo* request,
+    CompletionOnceCallback callback,
+    std::string* auth_token) {
   // Generate a random client nonce.
   std::string cnonce = nonce_generator_->GenerateNonce();
 
@@ -163,8 +167,7 @@ HttpAuthHandlerDigest::HttpAuthHandlerDigest(
   DCHECK(nonce_generator_);
 }
 
-HttpAuthHandlerDigest::~HttpAuthHandlerDigest() {
-}
+HttpAuthHandlerDigest::~HttpAuthHandlerDigest() = default;
 
 // The digest challenge header looks like:
 //   WWW-Authenticate: Digest
@@ -185,7 +188,7 @@ HttpAuthHandlerDigest::~HttpAuthHandlerDigest() {
 // send the realm (See http://crbug.com/20984 for an instance where a
 // webserver was not sending the realm with a BASIC challenge).
 bool HttpAuthHandlerDigest::ParseChallenge(
-    HttpAuth::ChallengeTokenizer* challenge) {
+    HttpAuthChallengeTokenizer* challenge) {
   auth_scheme_ = HttpAuth::AUTH_SCHEME_DIGEST;
   score_ = 2;
   properties_ = ENCRYPTS_IDENTITY;
@@ -197,7 +200,7 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   realm_ = original_realm_ = nonce_ = domain_ = opaque_ = std::string();
 
   // FAIL -- Couldn't match auth-scheme.
-  if (!LowerCaseEqualsASCII(challenge->scheme(), "digest"))
+  if (!base::LowerCaseEqualsASCII(challenge->scheme(), kDigestAuthScheme))
     return false;
 
   HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
@@ -223,38 +226,38 @@ bool HttpAuthHandlerDigest::ParseChallenge(
 
 bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
                                                    const std::string& value) {
-  if (LowerCaseEqualsASCII(name, "realm")) {
+  if (base::LowerCaseEqualsASCII(name, "realm")) {
     std::string realm;
-    if (!base::ConvertToUtf8AndNormalize(value, base::kCodepageLatin1, &realm))
+    if (!ConvertToUtf8AndNormalize(value, kCharsetLatin1, &realm))
       return false;
     realm_ = realm;
     original_realm_ = value;
-  } else if (LowerCaseEqualsASCII(name, "nonce")) {
+  } else if (base::LowerCaseEqualsASCII(name, "nonce")) {
     nonce_ = value;
-  } else if (LowerCaseEqualsASCII(name, "domain")) {
+  } else if (base::LowerCaseEqualsASCII(name, "domain")) {
     domain_ = value;
-  } else if (LowerCaseEqualsASCII(name, "opaque")) {
+  } else if (base::LowerCaseEqualsASCII(name, "opaque")) {
     opaque_ = value;
-  } else if (LowerCaseEqualsASCII(name, "stale")) {
+  } else if (base::LowerCaseEqualsASCII(name, "stale")) {
     // Parse the stale boolean.
-    stale_ = LowerCaseEqualsASCII(value, "true");
-  } else if (LowerCaseEqualsASCII(name, "algorithm")) {
+    stale_ = base::LowerCaseEqualsASCII(value, "true");
+  } else if (base::LowerCaseEqualsASCII(name, "algorithm")) {
     // Parse the algorithm.
-    if (LowerCaseEqualsASCII(value, "md5")) {
+    if (base::LowerCaseEqualsASCII(value, "md5")) {
       algorithm_ = ALGORITHM_MD5;
-    } else if (LowerCaseEqualsASCII(value, "md5-sess")) {
+    } else if (base::LowerCaseEqualsASCII(value, "md5-sess")) {
       algorithm_ = ALGORITHM_MD5_SESS;
     } else {
       DVLOG(1) << "Unknown value of algorithm";
       return false;  // FAIL -- unsupported value of algorithm.
     }
-  } else if (LowerCaseEqualsASCII(name, "qop")) {
+  } else if (base::LowerCaseEqualsASCII(name, "qop")) {
     // Parse the comma separated list of qops.
     // auth is the only supported qop, and all other values are ignored.
     HttpUtil::ValuesIterator qop_values(value.begin(), value.end(), ',');
     qop_ = QOP_UNSPECIFIED;
     while (qop_values.GetNext()) {
-      if (LowerCaseEqualsASCII(qop_values.value(), "auth")) {
+      if (base::LowerCaseEqualsASCII(qop_values.value(), "auth")) {
         qop_ = QOP_AUTH;
         break;
       }
@@ -270,12 +273,12 @@ bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
 std::string HttpAuthHandlerDigest::QopToString(QualityOfProtection qop) {
   switch (qop) {
     case QOP_UNSPECIFIED:
-      return "";
+      return std::string();
     case QOP_AUTH:
       return "auth";
     default:
       NOTREACHED();
-      return "";
+      return std::string();
   }
 }
 
@@ -284,14 +287,14 @@ std::string HttpAuthHandlerDigest::AlgorithmToString(
     DigestAlgorithm algorithm) {
   switch (algorithm) {
     case ALGORITHM_UNSPECIFIED:
-      return "";
+      return std::string();
     case ALGORITHM_MD5:
       return "MD5";
     case ALGORITHM_MD5_SESS:
       return "MD5-sess";
     default:
       NOTREACHED();
-      return "";
+      return std::string();
   }
 }
 
@@ -304,12 +307,12 @@ void HttpAuthHandlerDigest::GetRequestMethodAndPath(
   const GURL& url = request->url;
 
   if (target_ == HttpAuth::AUTH_PROXY &&
-      (url.SchemeIs("https") || url.SchemeIs("ws") || url.SchemeIs("wss"))) {
+      (url.SchemeIs("https") || url.SchemeIsWSOrWSS())) {
     *method = "CONNECT";
     *path = GetHostAndPort(url);
   } else {
     *method = request->method;
-    *path = HttpUtil::PathForRequest(url);
+    *path = url.PathForRequest();
   }
 }
 
@@ -321,9 +324,9 @@ std::string HttpAuthHandlerDigest::AssembleResponseDigest(
     const std::string& nc) const {
   // ha1 = MD5(A1)
   // TODO(eroman): is this the right encoding?
-  std::string ha1 = base::MD5String(UTF16ToUTF8(credentials.username()) + ":" +
-                                    original_realm_ + ":" +
-                                    UTF16ToUTF8(credentials.password()));
+  std::string ha1 = base::MD5String(base::UTF16ToUTF8(credentials.username()) +
+                                    ":" + original_realm_ + ":" +
+                                    base::UTF16ToUTF8(credentials.password()));
   if (algorithm_ == HttpAuthHandlerDigest::ALGORITHM_MD5_SESS)
     ha1 = base::MD5String(ha1 + ":" + nonce_ + ":" + cnonce);
 
@@ -351,7 +354,7 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
   // TODO(eroman): is this the right encoding?
   std::string authorization = (std::string("Digest username=") +
                                HttpUtil::Quote(
-                                   UTF16ToUTF8(credentials.username())));
+                                   base::UTF16ToUTF8(credentials.username())));
   authorization += ", realm=" + HttpUtil::Quote(original_realm_);
   authorization += ", nonce=" + HttpUtil::Quote(nonce_);
   authorization += ", uri=" + HttpUtil::Quote(path);

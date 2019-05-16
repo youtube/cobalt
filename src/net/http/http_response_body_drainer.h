@@ -5,11 +5,11 @@
 #ifndef NET_HTTP_HTTP_RESPONSE_BODY_DRAINER_H_
 #define NET_HTTP_HTTP_RESPONSE_BODY_DRAINER_H_
 
-#include "base/basictypes.h"
+#include <memory>
+
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/timer.h"
-#include "net/base/completion_callback.h"
+#include "base/timer/timer.h"
 #include "net/base/net_export.h"
 #include "net/http/http_network_session.h"
 
@@ -35,9 +35,6 @@ class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
   // doesn't complete immediately, it will add itself to |session|.
   void Start(HttpNetworkSession* session);
 
-  // As above, but stop reading once |num_bytes_to_drain| has been reached.
-  void StartWithSize(HttpNetworkSession* session, int num_bytes_to_drain);
-
  private:
   enum State {
     STATE_DRAIN_RESPONSE_BODY,
@@ -54,13 +51,11 @@ class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
   void OnTimerFired();
   void Finish(int result);
 
-  int read_size_;
   scoped_refptr<IOBuffer> read_buf_;
-  const scoped_ptr<HttpStream> stream_;
+  const std::unique_ptr<HttpStream> stream_;
   State next_state_;
   int total_read_;
-  CompletionCallback user_callback_;
-  base::OneShotTimer<HttpResponseBodyDrainer> timer_;
+  base::OneShotTimer timer_;
   HttpNetworkSession* session_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpResponseBodyDrainer);

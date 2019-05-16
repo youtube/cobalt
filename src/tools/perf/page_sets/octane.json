@@ -1,0 +1,8 @@
+{
+    "description": "Octane JavaScript benchmark",
+    "pages": [
+        {
+            "url": "file:///../../../chrome/test/data/perf/third_party/octane/index.html?auto=1"
+        }
+    ]
+}

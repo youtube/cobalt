@@ -16,12 +16,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "base/message_loop.h"
-#include "base/string_piece.h"
-#include "base/string_util_starboard.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_loop.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_util_starboard.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/blob.h"
@@ -62,15 +64,15 @@ int64 GetRecommendedBufferSizeInBytes(base::TimeDelta time_span,
   return recommended_buffer_size;
 }
 
-scoped_ptr<AudioEncoder> CreateAudioEncoder(
+std::unique_ptr<AudioEncoder> CreateAudioEncoder(
     base::StringPiece requested_mime_type) {
   if (Linear16AudioEncoder::IsLinear16MIMEType(requested_mime_type)) {
-    return scoped_ptr<AudioEncoder>(new Linear16AudioEncoder());
+    return std::unique_ptr<AudioEncoder>(new Linear16AudioEncoder());
   }
   if (FlacAudioEncoder::IsFlacMIMEType(requested_mime_type)) {
-    return scoped_ptr<AudioEncoder>(new FlacAudioEncoder());
+    return std::unique_ptr<AudioEncoder>(new FlacAudioEncoder());
   }
-  return scoped_ptr<AudioEncoder>(nullptr);
+  return std::unique_ptr<AudioEncoder>(nullptr);
 }
 
 }  // namespace
@@ -163,7 +165,7 @@ void MediaRecorder::OnData(const ShellAudioBus& audio_bus,
                            base::TimeTicks reference_time) {
   // The source is always int16 data from the microphone.
   DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
-  DCHECK_EQ(audio_bus.channels(), 1);
+  DCHECK_EQ(audio_bus.channels(), size_t(1));
   DCHECK(audio_encoder_);
   audio_encoder_->Encode(audio_bus, reference_time);
 }
@@ -171,7 +173,7 @@ void MediaRecorder::OnData(const ShellAudioBus& audio_bus,
 void MediaRecorder::OnEncodedDataAvailable(const uint8* data, size_t data_size,
                                            base::TimeTicks timecode) {
   auto data_to_send =
-      make_scoped_ptr(new std::vector<uint8>(data, data + data_size));
+      base::WrapUnique(new std::vector<uint8>(data, data + data_size));
   javascript_message_loop_->PostTask(
       FROM_HERE, base::Bind(&MediaRecorder::CalculateLastInSliceAndWriteData,
                             weak_this_, base::Passed(&data_to_send), timecode));
@@ -221,7 +223,7 @@ MediaRecorder::MediaRecorder(
     script::ExceptionState* exception_state)
     : settings_(settings),
       stream_(stream),
-      javascript_message_loop_(base::MessageLoopProxy::current()),
+      javascript_message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   DCHECK(settings);
@@ -267,9 +269,9 @@ void MediaRecorder::StopRecording() {
   recording_state_ = kRecordingStateInactive;
   UnsubscribeFromTrack();
 
-  scoped_ptr<std::vector<uint8>> empty;
+  std::unique_ptr<std::vector<uint8>> empty;
   base::TimeTicks now = base::TimeTicks::Now();
-  WriteData(empty.Pass(), true, now);
+  WriteData(std::move(empty), true, now);
 
   timeslice_ = base::TimeDelta::FromSeconds(0);
   DispatchEvent(new dom::Event(base::Tokens::stop()));
@@ -308,14 +310,14 @@ void MediaRecorder::DoOnDataCallback(base::TimeTicks timecode) {
           ->global_environment(),
       buffer_.data(), buffer_.size());
 
-  auto blob =
-      make_scoped_refptr(new dom::Blob(settings_, array_buffer, blob_options_));
+  auto blob = base::WrapRefCounted(
+      new dom::Blob(settings_, array_buffer, blob_options_));
 
   DispatchEvent(new media_capture::BlobEvent(base::Tokens::dataavailable(),
                                              blob, timecode.ToInternalValue()));
 }
 
-void MediaRecorder::WriteData(scoped_ptr<std::vector<uint8>> data,
+void MediaRecorder::WriteData(std::unique_ptr<std::vector<uint8>> data,
                               bool last_in_slice, base::TimeTicks timecode) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -332,7 +334,7 @@ void MediaRecorder::WriteData(scoped_ptr<std::vector<uint8>> data,
 }
 
 void MediaRecorder::CalculateLastInSliceAndWriteData(
-    scoped_ptr<std::vector<uint8>> data, base::TimeTicks timecode) {
+    std::unique_ptr<std::vector<uint8>> data, base::TimeTicks timecode) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   base::TimeTicks now = base::TimeTicks::Now();
@@ -343,7 +345,7 @@ void MediaRecorder::CalculateLastInSliceAndWriteData(
     // The next slice's timestamp is now.
     slice_origin_timestamp_ = now;
   }
-  WriteData(data.Pass(), last_in_slice, timecode);
+  WriteData(std::move(data), last_in_slice, timecode);
 }
 
 bool MediaRecorder::IsTypeSupported(const base::StringPiece mime_type) {

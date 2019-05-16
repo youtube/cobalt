@@ -41,15 +41,7 @@ class TablePrinter {
  public:
   static bool SystemSupportsColor();
 
-  enum Color {
-    kDefault,
-    kRed,
-    kGreen,
-    kYellow,
-    kBlue,
-    kMagenta,
-    kCyan
-  };
+  enum Color { kDefault, kRed, kGreen, kYellow, kBlue, kMagenta, kCyan };
 
   typedef std::vector<std::string> Row;
   TablePrinter();

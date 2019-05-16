@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
 namespace cobalt {
@@ -27,9 +27,9 @@ AnimatedImageTracker::AnimatedImageTracker(
     base::ThreadPriority animated_image_decode_thread_priority)
     : animated_image_decode_thread_("AnimatedImage") {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
-  base::Thread::Options options(MessageLoop::TYPE_DEFAULT,
-                                0 /* default stack size */,
-                                animated_image_decode_thread_priority);
+  base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
+                                0 /* default stack size */);
+  options.priority = animated_image_decode_thread_priority;
   animated_image_decode_thread_.StartWithOptions(options);
 }
 
@@ -74,7 +74,7 @@ void AnimatedImageTracker::ProcessRecordedImages() {
       // animations.
       if (playing_url != playing_urls_.end()) {
         playing_urls_.erase(playing_url);
-        OnDisplayEnd(image_map_[url]);
+        OnDisplayEnd(image_map_[url].get());
       }
       image_map_.erase(url);
       previous_url_counts_.erase(url);
@@ -86,7 +86,7 @@ void AnimatedImageTracker::ProcessRecordedImages() {
         URLToImageMap::iterator playing_image = image_map_.find(url);
         if (playing_image != image_map_.end()) {
           playing_urls_.insert(std::make_pair(url, base::Unused()));
-          OnDisplayStart(playing_image->second);
+          OnDisplayStart(playing_image->second.get());
         }
       }
       previous_url_counts_[url] = it->second;
@@ -101,7 +101,7 @@ void AnimatedImageTracker::OnDisplayStart(
   DCHECK(animated_image);
   TRACE_EVENT0("cobalt::loader::image",
                "AnimatedImageTracker::OnDisplayStart()");
-  animated_image->Play(animated_image_decode_thread_.message_loop_proxy());
+  animated_image->Play(animated_image_decode_thread_.task_runner());
 }
 
 void AnimatedImageTracker::OnDisplayEnd(
@@ -114,7 +114,7 @@ void AnimatedImageTracker::OnDisplayEnd(
 
 void AnimatedImageTracker::Reset() {
   for (const auto& playing_url : playing_urls_) {
-    OnDisplayEnd(image_map_[playing_url.first]);
+    OnDisplayEnd(image_map_[playing_url.first].get());
   }
 
   image_map_.clear();

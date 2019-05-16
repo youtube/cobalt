@@ -18,7 +18,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "starboard/decode_target.h"
 
 namespace cobalt {

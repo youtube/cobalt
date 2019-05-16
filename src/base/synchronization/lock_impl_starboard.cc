@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,29 +21,24 @@ namespace base {
 namespace internal {
 
 LockImpl::LockImpl() {
-  bool result = SbMutexCreate(&os_lock_);
+  bool result = SbMutexCreate(&native_handle_);
   DCHECK(result);
 }
 
 LockImpl::~LockImpl() {
-  bool result = SbMutexDestroy(&os_lock_);
+  bool result = SbMutexDestroy(&native_handle_);
   DCHECK(result);
 }
 
 bool LockImpl::Try() {
-  SbMutexResult result = SbMutexAcquireTry(&os_lock_);
+  SbMutexResult result = SbMutexAcquireTry(&native_handle_);
   DCHECK_NE(kSbMutexDestroyed, result);
   return SbMutexIsSuccess(result);
 }
 
 void LockImpl::Lock() {
-  SbMutexResult result = SbMutexAcquire(&os_lock_);
+  SbMutexResult result = SbMutexAcquire(&native_handle_);
   DCHECK_NE(kSbMutexDestroyed, result);
-}
-
-void LockImpl::Unlock() {
-  bool result = SbMutexRelease(&os_lock_);
-  DCHECK(result);
 }
 
 }  // namespace internal

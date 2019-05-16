@@ -17,13 +17,12 @@
 #include <algorithm>
 
 #include "base/base64.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/network/socket_address_parser.h"
-#include "googleurl/src/url_canon_ip.h"
-#include "googleurl/src/url_constants.h"
 #include "net/base/escape.h"
-#include "net/base/net_util.h"
 #include "starboard/socket.h"
+#include "url/url_canon_ip.h"
+#include "url/url_constants.h"
 
 namespace cobalt {
 namespace csp {
@@ -31,7 +30,7 @@ namespace csp {
 namespace {
 
 bool IsSourceListNone(const char* begin, const char* end) {
-  SkipWhile<IsAsciiWhitespace>(&begin, end);
+  SkipWhile<base::IsAsciiWhitespace>(&begin, end);
 
   const char* position = begin;
   SkipWhile<IsSourceCharacter>(&position, end);
@@ -40,7 +39,7 @@ bool IsSourceListNone(const char* begin, const char* end) {
     return false;
   }
 
-  SkipWhile<IsAsciiWhitespace>(&position, end);
+  SkipWhile<base::IsAsciiWhitespace>(&position, end);
   if (position != end) {
     return false;
   }
@@ -108,7 +107,7 @@ bool SourceList::Matches(
   // Since url is valid, we can now use possibly_invalid_spec() below.
   const std::string& valid_spec = url.possibly_invalid_spec();
 
-  const url_parse::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
+  const url::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
 
   if (!url.has_host() || !parsed.host.is_valid() ||
       !parsed.host.is_nonempty()) {
@@ -127,7 +126,7 @@ bool SourceList::Matches(
     host.append(valid_spec.c_str() + parsed.host.begin,
                 valid_spec.c_str() + parsed.host.begin + parsed.host.len);
 #endif
-    if (net::IsLocalhost(host)) {
+    if (net::HostStringIsLocalhost(host)) {
       return true;
     }
   }
@@ -188,7 +187,7 @@ void SourceList::Parse(const base::StringPiece& str) {
 
   const char* position = begin;
   while (position < end) {
-    SkipWhile<IsAsciiWhitespace>(&position, end);
+    SkipWhile<base::IsAsciiWhitespace>(&position, end);
     if (position == end) {
       return;
     }
@@ -214,7 +213,7 @@ void SourceList::Parse(const base::StringPiece& str) {
                                              ToString(begin_source, position));
     }
 
-    DCHECK(position == end || IsAsciiWhitespace(*position));
+    DCHECK(position == end || base::IsAsciiWhitespace(*position));
   }
 }
 
@@ -227,7 +226,7 @@ bool SourceList::ParseSource(const char* begin, const char* end,
     return false;
   }
 
-  if (LowerCaseEqualsASCII(begin, end, "'none'")) {
+  if (base::LowerCaseEqualsASCII(begin, end, "'none'")) {
     return false;
   }
 
@@ -236,31 +235,33 @@ bool SourceList::ParseSource(const char* begin, const char* end,
     AddSourceStar();
     return true;
   }
-  if (LowerCaseEqualsASCII(begin, end, "'self'")) {
+  if (base::LowerCaseEqualsASCII(begin, end, "'self'")) {
     AddSourceSelf();
     return true;
   }
 
-  if (LowerCaseEqualsASCII(begin, end, "'unsafe-inline'")) {
+  if (base::LowerCaseEqualsASCII(begin, end, "'unsafe-inline'")) {
     AddSourceUnsafeInline();
     return true;
   }
 
-  if (LowerCaseEqualsASCII(begin, end, "'unsafe-eval'")) {
+  if (base::LowerCaseEqualsASCII(begin, end, "'unsafe-eval'")) {
     AddSourceUnsafeEval();
     return true;
   }
 
   if (directive_name_.compare(ContentSecurityPolicy::kConnectSrc) == 0) {
-    if (LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-localhost'")) {
+    if (base::LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-localhost'")) {
       AddSourceLocalhost();
       return true;
     }
-    if (LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-local-network'")) {
+    if (base::LowerCaseEqualsASCII(begin, end,
+                                   "'cobalt-insecure-local-network'")) {
       AddSourceLocalNetwork();
       return true;
     }
-    if (LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-private-range'")) {
+    if (base::LowerCaseEqualsASCII(begin, end,
+                                   "'cobalt-insecure-private-range'")) {
       AddSourcePrivateRange();
       return true;
     }
@@ -360,7 +361,7 @@ bool SourceList::ParseSource(const char* begin, const char* end,
       return false;
     }
   } else {
-    config->port = url_parse::PORT_UNSPECIFIED;
+    config->port = url::PORT_UNSPECIFIED;
   }
 
   if (begin_path != end) {
@@ -472,7 +473,7 @@ bool SourceList::ParseScheme(const char* begin, const char* end,
 
   const char* position = begin;
 
-  if (!SkipExactly<IsAsciiAlpha>(&position, end)) {
+  if (!SkipExactly<base::IsAsciiAlpha>(&position, end)) {
     return false;
   }
 
@@ -549,7 +550,8 @@ bool SourceList::ParsePath(const char* begin, const char* end,
 
   *path = net::UnescapeURLComponent(
       ToString(begin, position),
-      net::UnescapeRule::SPACES | net::UnescapeRule::URL_SPECIAL_CHARS);
+      net::UnescapeRule::SPACES | net::UnescapeRule::PATH_SEPARATORS |
+          net::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
 
   DCHECK_LE(position, end);
   DCHECK(position == end || (*position == '#' || *position == '?'));
@@ -561,7 +563,7 @@ bool SourceList::ParsePath(const char* begin, const char* end,
 bool SourceList::ParsePort(const char* begin, const char* end, int* port,
                            SourceConfig::WildcardDisposition* port_wildcard) {
   DCHECK_LE(begin, end);
-  DCHECK(port && *port == url_parse::PORT_UNSPECIFIED);
+  DCHECK(port && *port == url::PORT_UNSPECIFIED);
   DCHECK(port_wildcard && *port_wildcard == SourceConfig::kNoWildcard);
 
   if (!SkipExactly(&begin, end, ':')) {
@@ -573,13 +575,13 @@ bool SourceList::ParsePort(const char* begin, const char* end, int* port,
   }
 
   if (end - begin == 1 && *begin == '*') {
-    *port = url_parse::PORT_UNSPECIFIED;
+    *port = url::PORT_UNSPECIFIED;
     *port_wildcard = SourceConfig::kHasWildcard;
     return true;
   }
 
   const char* position = begin;
-  SkipWhile<IsAsciiDigit>(&position, end);
+  SkipWhile<base::IsAsciiDigit>(&position, end);
 
   if (position != end) {
     return false;

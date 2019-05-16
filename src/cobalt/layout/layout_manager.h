@@ -15,6 +15,7 @@
 #ifndef COBALT_LAYOUT_LAYOUT_MANAGER_H_
 #define COBALT_LAYOUT_LAYOUT_MANAGER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -85,7 +86,7 @@ class LayoutManager {
 
  private:
   class Impl;
-  const scoped_ptr<Impl> impl_;
+  const std::unique_ptr<Impl> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(LayoutManager);
 };

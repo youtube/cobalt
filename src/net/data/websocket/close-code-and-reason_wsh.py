@@ -23,3 +23,6 @@ def web_socket_transfer_data(request):
     code, reason = line.split(' ', 1)
     data = struct.pack('!H', int(code)) + reason.encode('utf-8')
   request.connection.write(stream.create_close_frame(data))
+  request.server_terminated = True
+  # Wait for Close frame from client.
+  request.ws_stream.receive_message()

@@ -16,11 +16,14 @@ TaskEvent::TaskEvent(int i, Type type)
   : i(i), type(type) {
 }
 
-SequencedTaskTracker::SequencedTaskTracker() : next_post_i_(0) {
+SequencedTaskTracker::SequencedTaskTracker()
+    : next_post_i_(0),
+      task_end_count_(0),
+      task_end_cv_(&lock_) {
 }
 
 void SequencedTaskTracker::PostWrappedNonNestableTask(
-    const scoped_refptr<SequencedTaskRunner>& task_runner,
+    SequencedTaskRunner* task_runner,
     const Closure& task) {
   AutoLock event_lock(lock_);
   const int post_i = next_post_i_++;
@@ -31,7 +34,7 @@ void SequencedTaskTracker::PostWrappedNonNestableTask(
 }
 
 void SequencedTaskTracker::PostWrappedNestableTask(
-    const scoped_refptr<SequencedTaskRunner>& task_runner,
+    SequencedTaskRunner* task_runner,
     const Closure& task) {
   AutoLock event_lock(lock_);
   const int post_i = next_post_i_++;
@@ -42,7 +45,7 @@ void SequencedTaskTracker::PostWrappedNestableTask(
 }
 
 void SequencedTaskTracker::PostWrappedDelayedNonNestableTask(
-    const scoped_refptr<SequencedTaskRunner>& task_runner,
+    SequencedTaskRunner* task_runner,
     const Closure& task,
     TimeDelta delay) {
   AutoLock event_lock(lock_);
@@ -54,7 +57,7 @@ void SequencedTaskTracker::PostWrappedDelayedNonNestableTask(
 }
 
 void SequencedTaskTracker::PostNonNestableTasks(
-    const scoped_refptr<SequencedTaskRunner>& task_runner,
+    SequencedTaskRunner* task_runner,
     int task_count) {
   for (int i = 0; i < task_count; ++i) {
     PostWrappedNonNestableTask(task_runner, Closure());
@@ -81,6 +84,8 @@ void SequencedTaskTracker::TaskStarted(int i) {
 void SequencedTaskTracker::TaskEnded(int i) {
   AutoLock lock(lock_);
   events_.push_back(TaskEvent(i, TaskEvent::END));
+  ++task_end_count_;
+  task_end_cv_.Signal();
 }
 
 const std::vector<TaskEvent>&
@@ -88,8 +93,13 @@ SequencedTaskTracker::GetTaskEvents() const {
   return events_;
 }
 
-SequencedTaskTracker::~SequencedTaskTracker() {
+void SequencedTaskTracker::WaitForCompletedTasks(int count) {
+  AutoLock lock(lock_);
+  while (task_end_count_ < count)
+    task_end_cv_.Wait();
 }
+
+SequencedTaskTracker::~SequencedTaskTracker() = default;
 
 void PrintTo(const TaskEvent& event, std::ostream* os) {
   *os << "(i=" << event.i << ", type=";

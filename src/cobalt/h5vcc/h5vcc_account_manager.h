@@ -15,13 +15,12 @@
 #ifndef COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
 #define COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
 
+#include <memory>
 #include <queue>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/user_authorizer.h"
@@ -76,20 +75,20 @@ class H5vccAccountManager : public script::Wrappable,
   // the owning thread. Static because H5vccAccountManager may have been
   // destructed before this runs.
   static void PostResult(
-      MessageLoop* message_loop,
+      base::MessageLoop* message_loop,
       base::WeakPtr<H5vccAccountManager> h5vcc_account_manager,
-      AccessTokenCallbackReference* token_callback,
-      const std::string& token, uint64_t expiration_in_seconds);
+      AccessTokenCallbackReference* token_callback, const std::string& token,
+      uint64_t expiration_in_seconds);
 
   // Sends the result of an operation to the callback on the owning thread.
   void SendResult(AccessTokenCallbackReference* token_callback,
                   const std::string& token, uint64_t expiration_in_seconds);
 
   // The platform-specific user authorizer for getting access tokens.
-  scoped_ptr<account::UserAuthorizer> user_authorizer_;
+  std::unique_ptr<account::UserAuthorizer> user_authorizer_;
 
   // Scoped holder of the callbacks that are currently waiting for a response.
-  ScopedVector<AccessTokenCallbackReference> pending_callbacks_;
+  std::vector<std::unique_ptr<AccessTokenCallbackReference>> pending_callbacks_;
 
   // Thread checker for the thread that creates this instance.
   base::ThreadChecker thread_checker_;
@@ -97,7 +96,7 @@ class H5vccAccountManager : public script::Wrappable,
   // The message loop that the H5vccAccountManager was created on. The public
   // interface must be called from this message loop, and callbacks will be
   // fired on this loop as well.
-  MessageLoop* owning_message_loop_;
+  base::MessageLoop* owning_message_loop_;
 
   // Each incoming request will have a corresponding task posted to this
   // thread's message loop and will be handled in a FIFO manner.

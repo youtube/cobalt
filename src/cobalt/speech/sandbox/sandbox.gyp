@@ -36,7 +36,7 @@
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/url/url.gyp:url',
       ],
     },
 

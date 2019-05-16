@@ -19,12 +19,14 @@
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "base/command_line.h"
 #endif
+#include "base/files/platform_file.h"
 #include "base/logging.h"
-#include "base/platform_file.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "cobalt/trace_event/switches.h"
 #endif
+
+#include "starboard/string.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -36,10 +38,9 @@ bool ShouldLogTimedTrace() {
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kLogTimedTrace) &&
-      command_line->GetSwitchValueASCII(switches::kLogTimedTrace) ==
-          "on") {
+      command_line->GetSwitchValueASCII(switches::kLogTimedTrace) == "on") {
     isTimedTraceSet = true;
   }
 
@@ -48,14 +49,12 @@ bool ShouldLogTimedTrace() {
   return isTimedTraceSet;
 }
 
-JSONFileOutputter::JSONFileOutputter(const FilePath& output_path)
+JSONFileOutputter::JSONFileOutputter(const base::FilePath& output_path)
     : output_path_(output_path),
       output_trace_event_call_count_(0),
-      file_(base::kInvalidPlatformFileValue) {
-  file_ = base::CreatePlatformFile(
-      output_path,
-      base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE, NULL,
-      NULL);
+      file_(base::kInvalidPlatformFile) {
+  file_ = SbFileOpen(output_path.value().c_str(),
+                     kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
   if (GetError()) {
     DLOG(ERROR) << "Unable to open file for writing: " << output_path.value();
   } else {
@@ -70,28 +69,29 @@ JSONFileOutputter::~JSONFileOutputter() {
                 << output_path_.value();
   } else {
     const char tail[] = "\n]}";
-    Write(tail, strlen(tail));
+    Write(tail, SbStringGetLength(tail));
   }
   Close();
 }
 
 void JSONFileOutputter::OutputTraceData(
-    const scoped_refptr<base::RefCountedString>& event_string) {
+    const scoped_refptr<base::RefCountedString>& event_string,
+    bool /*has_more_events*/) {
   DCHECK(!GetError());
 
   // This function is usually called as a callback by
-  // base::debug::TraceLog::Flush().  It may get called by Flush()
+  // base::trace_event::TraceLog::Flush().  It may get called by Flush()
   // multiple times.
   if (output_trace_event_call_count_ != 0) {
     const char text[] = ",\n";
-    Write(text, strlen(text));
+    Write(text, SbStringGetLength(text));
   }
   const std::string& event_str = event_string->data();
   Write(event_str.c_str(), event_str.size());
   ++output_trace_event_call_count_;
 }
 
-void JSONFileOutputter::Write(const char* buffer, size_t length) {
+void JSONFileOutputter::Write(const char* buffer, int length) {
   if (GetError()) {
     return;
   }
@@ -104,7 +104,7 @@ void JSONFileOutputter::Write(const char* buffer, size_t length) {
     return;
   }
 
-  int count = base::WritePlatformFileAtCurrentPos(file_, buffer, length);
+  int count = SbFileWrite(file_, buffer, length);
   if (count < 0) {
     Close();
   }
@@ -115,8 +115,8 @@ void JSONFileOutputter::Close() {
     return;
   }
 
-  base::ClosePlatformFile(file_);
-  file_ = base::kInvalidPlatformFileValue;
+  SbFileClose(file_);
+  file_ = base::kInvalidPlatformFile;
 }
 
 }  // namespace trace_event

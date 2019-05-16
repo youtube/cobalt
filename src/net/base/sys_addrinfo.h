@@ -10,16 +10,24 @@
 //     getaddrinfo()
 //     freeaddrinfo()
 //     AI_*
+//     AF_*
 //
 // Prefer including this file instead of directly writing the #if / #else,
 // since it avoids duplicating the platform-specific selections.
+
+#ifndef NET_BASE_SYS_ADDRINFO_H_
+#define NET_BASE_SYS_ADDRINFO_H_
 
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include <ws2tcpip.h>
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
+#include "starboard/types.h"
 #endif
+
+#endif  // NET_BASE_SYS_ADDRINFO_H_

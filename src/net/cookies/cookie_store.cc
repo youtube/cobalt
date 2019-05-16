@@ -4,16 +4,46 @@
 
 #include "net/cookies/cookie_store.h"
 
+#include "base/bind.h"
+#include "base/callback.h"
 #include "net/cookies/cookie_options.h"
 
 namespace net {
 
-CookieStore::CookieStore() {}
+CookieStore::~CookieStore() = default;
 
-CookieStore::~CookieStore() {}
+void CookieStore::DeleteAllAsync(DeleteCallback callback) {
+  DeleteAllCreatedInTimeRangeAsync(CookieDeletionInfo::TimeRange(),
+                                   std::move(callback));
+}
 
-CookieStore::CookieInfo::CookieInfo() {}
+void CookieStore::SetForceKeepSessionState() {
+  // By default, do nothing.
+}
 
-CookieStore::CookieInfo::~CookieInfo() {}
+void CookieStore::GetAllCookiesForURLAsync(const GURL& url,
+                                           GetCookieListCallback callback) {
+  CookieOptions options;
+  options.set_include_httponly();
+  options.set_same_site_cookie_mode(
+      CookieOptions::SameSiteCookieMode::INCLUDE_STRICT_AND_LAX);
+  options.set_do_not_update_access_time();
+  GetCookieListWithOptionsAsync(url, options, std::move(callback));
+}
+
+void CookieStore::SetChannelIDServiceID(int id) {
+  DCHECK_EQ(-1, channel_id_service_id_);
+  channel_id_service_id_ = id;
+}
+
+int CookieStore::GetChannelIDServiceID() {
+  return channel_id_service_id_;
+}
+
+void CookieStore::DumpMemoryStats(
+    base::trace_event::ProcessMemoryDump* pmd,
+    const std::string& parent_absolute_name) const {}
+
+CookieStore::CookieStore() : channel_id_service_id_(-1) {}
 
 }  // namespace net

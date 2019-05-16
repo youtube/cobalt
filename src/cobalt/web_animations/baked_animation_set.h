@@ -15,9 +15,11 @@
 #ifndef COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
 #define COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
 
+#include <memory>
+#include <vector>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_vector.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/web_animations/animation.h"
 #include "cobalt/web_animations/animation_effect_timing_read_only.h"
@@ -45,7 +47,7 @@ class BakedAnimation {
   // style as the underlying input data, and updating it to the animated
   // output data.
   void Apply(const base::TimeDelta& timeline_time,
-             cssom::CSSComputedStyleData* in_out_style) const;
+             cssom::MutableCSSComputedStyleData* in_out_style) const;
 
   // Returns the timeline time at which this animation will end.  If the
   // animation has no ending, base::TimeDelta::Max() will be returned.
@@ -67,14 +69,14 @@ class BakedAnimationSet {
   // Apply all animations in the set to the specified input style, updating
   // it to the output animated style.
   void Apply(const base::TimeDelta& timeline_time,
-             cssom::CSSComputedStyleData* in_out_style) const;
+             cssom::MutableCSSComputedStyleData* in_out_style) const;
 
   // Returns the timeline time at which point all animations in the set are
   // ended, or base::TimeDelta::Max() if at leats one animation will never end.
   base::TimeDelta end_time() const;
 
  private:
-  typedef ScopedVector<BakedAnimation> AnimationList;
+  typedef std::vector<std::unique_ptr<BakedAnimation>> AnimationList;
   AnimationList animations_;
 };
 

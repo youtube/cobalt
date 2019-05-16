@@ -16,10 +16,10 @@
 #include "base/bind.h"
 #include "base/hash.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "net/base/ip_endpoint.h"
-#include "net/base/net_util.h"
+#include "net/base/net_string_util.h"
 #include "net/dial/dial_system_config.h"
 #include "net/dial/dial_udp_socket_factory.h"
 #include "net/server/http_server.h"
@@ -27,9 +27,10 @@
 
 namespace net {
 
-namespace { // anonymous
+namespace {  // anonymous
 
 const char* kDialStRequest = "urn:dial-multiscreen-org:service:dial:1";
+const int kReadBufferSize = 500 * 1024;
 
 // Get the INADDR_ANY address.
 IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
@@ -37,7 +38,7 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
   return IPEndPoint::GetForAllInterfaces(port);
 #else
   SockaddrStorage any_addr;
-  struct sockaddr_in *in = (struct sockaddr_in *)any_addr.addr;
+  struct sockaddr_in* in = (struct sockaddr_in*)any_addr.addr;
   in->sin_family = AF_INET;
   in->sin_port = htons(port);
   in->sin_addr.s_addr = INADDR_ANY;
@@ -52,13 +53,16 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
 
 DialUdpServer::DialUdpServer(const std::string& location_url,
                              const std::string& server_agent)
-  : factory_(new DialUdpSocketFactory()),
-    location_url_(location_url),
-    server_agent_(server_agent),
-    thread_("dial_udp_server"),
-    is_running_(false) {
+    : factory_(new DialUdpSocketFactory()),
+      location_url_(location_url),
+      server_agent_(server_agent),
+      thread_("dial_udp_server"),
+      is_running_(false),
+      read_buf_(new IOBuffer(kReadBufferSize)) {
   DCHECK(!location_url_.empty());
-  thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  DETACH_FROM_THREAD(thread_checker_);
+  thread_.StartWithOptions(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
   Start();
 }
 
@@ -67,48 +71,87 @@ DialUdpServer::~DialUdpServer() {
 }
 
 void DialUdpServer::CreateAndBind() {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
-  socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900), this);
-  DLOG_IF(WARNING, !socket_) << "Failed to bind socket for Dial UDP Server";
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  // The thread_checker_ will bind to thread_ from this point on.
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900));
+  if (!socket_) {
+    DLOG(WARNING) << "Failed to bind socket for Dial UDP Server";
+    return;
+  }
+
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
+                            base::Unretained(this)));
 }
 
 void DialUdpServer::Shutdown() {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   location_url_.clear();
-  socket_ = NULL;
+  socket_.reset();
+  factory_.reset();
+  is_running_ = false;
 }
 
 void DialUdpServer::Start() {
   DCHECK(!is_running_);
   is_running_ = true;
-  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
-      &DialUdpServer::CreateAndBind, base::Unretained(this)));
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&DialUdpServer::CreateAndBind, base::Unretained(this)));
 }
 
 void DialUdpServer::Stop() {
   DCHECK(is_running_);
-  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
-      &DialUdpServer::Shutdown, base::Unretained(this)));
+  thread_.message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&DialUdpServer::Shutdown,
+                            base::Unretained(this)));
+  thread_.Stop();
 }
 
-void DialUdpServer::DidClose(UDPListenSocket* server) {}
-
-void DialUdpServer::DidRead(UDPListenSocket* server,
-                            const char* data,
-                            int len,
-                            const IPEndPoint* address) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
-  if (!socket_) {
+void DialUdpServer::AcceptAndProcessConnection() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!is_running_ || !socket_.get()) {
     return;
   }
-  std::string st_request_id;
-  // If M-Search request was valid, send response. Else, keep quiet.
-  if (ParseSearchRequest(std::string(data, len))) {
-    std::string response = ConstructSearchResponse();
-    socket_->SendTo(*address, response);
+  if (socket_->RecvFrom(
+          read_buf_.get(), kReadBufferSize, &client_address_,
+          base::Bind(&DialUdpServer::DidRead, base::Unretained(this))) == OK) {
+    DidRead(net::OK);
   }
 }
 
+void DialUdpServer::DidClose(UDPSocket* server) {}
+
+void DialUdpServer::DidRead(int bytes_read) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!socket_ || !read_buf_.get() || !read_buf_->data()) {
+    return;
+  }
+  if (bytes_read <= 0) {
+    LOG(WARNING) << "Dial server socket read error: " << bytes_read;
+    return;
+  }
+  // If M-Search request was valid, send response. Else, keep quiet.
+  if (ParseSearchRequest(std::string(read_buf_->data()))) {
+    auto response = std::make_unique<std::string>();
+    *response = ConstructSearchResponse();
+    // Using the fake IOBuffer to avoid another copy.
+    scoped_refptr<WrappedIOBuffer> fake_buffer =
+        new WrappedIOBuffer(response->data());
+    // After optimization, some compiler will dereference and get response size
+    // later than passing response.
+    auto response_size = response->size();
+    socket_->SendTo(fake_buffer.get(), response_size, client_address_,
+                    base::Bind([](scoped_refptr<WrappedIOBuffer>,
+                                  std::unique_ptr<std::string>, int /*rv*/) {},
+                               fake_buffer, base::Passed(&response)));
+  }
+  // Now post another RecvFrom to the MessageLoop to take the next request.
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
+                            base::Unretained(this)));
+}
 
 // Parse a request to make sure it is a M-Search.
 bool DialUdpServer::ParseSearchRequest(const std::string& request) {
@@ -122,19 +165,17 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) {
     return false;
   }
 
-  std::string st_request = info.GetHeaderValue("ST");
-  ignore_result(TrimWhitespaceASCII(st_request, TRIM_ALL, &st_request));
+  // TODO[Starboard]: verify that this st header is present in dial search
+  // request. The header name used to be "ST".
+  std::string st_request = info.GetHeaderValue("st");
+  ignore_result(TrimWhitespaceASCII(st_request, base::TRIM_ALL, &st_request));
 
   if (st_request != kDialStRequest) {
     DVLOG(1) << "Received incorrect ST headers: " << st_request;
     return false;
   }
 
-  // The User-Agent header is supposed to be case-insensitive, but
-  // the map that holds it has a case-sensitive search.
-  // I could be more careful, but hey, it's a DVLOG anyway.
-  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("USER-AGENT");
-  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("User-Agent");
+  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("user-agent");
 
   return true;
 }
@@ -185,4 +226,4 @@ const std::string DialUdpServer::ConstructSearchResponse() const {
   return ret;
 }
 
-} // namespace net
+}  // namespace net

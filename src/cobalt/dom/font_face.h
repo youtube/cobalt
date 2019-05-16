@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "cobalt/render_tree/font.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {

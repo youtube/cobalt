@@ -2,20 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/files/file_path_watcher.h"
+#include "base/files/file_path_watcher_kqueue.h"
 
 #include <fcntl.h>
-#include <sys/event.h>
 #include <sys/param.h>
 
-#include <vector>
-
 #include "base/bind.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/threading/sequenced_task_runner_handle.h"
+#include "starboard/types.h"
 
 // On some platforms these are not defined.
 #if !defined(EV_RECEIPT)
@@ -26,137 +24,21 @@
 #endif
 
 namespace base {
-namespace files {
 
-namespace {
+FilePathWatcherKQueue::FilePathWatcherKQueue() : kqueue_(-1) {}
 
-// Mac-specific file watcher implementation based on kqueue.
-// Originally it was based on FSEvents so that the semantics were equivalent
-// on Linux, OSX and Windows where it was able to detect:
-// - file creation/deletion/modification in a watched directory
-// - file creation/deletion/modification for a watched file
-// - modifications to the paths to a watched object that would affect the
-//   object such as renaming/attibute changes etc.
-// The FSEvents version did all of the above except handling attribute changes
-// to path components. Unfortunately FSEvents appears to have an issue where the
-// current implementation (Mac OS X 10.6.7) sometimes drops events and doesn't
-// send notifications. See
-// http://code.google.com/p/chromium/issues/detail?id=54822#c31 for source that
-// will reproduce the problem. FSEvents also required having a CFRunLoop
-// backing the thread that it was running on, that caused added complexity
-// in the interfaces.
-// The kqueue implementation will handle all of the items in the list above
-// except for detecting modifications to files in a watched directory. It will
-// detect the creation and deletion of files, just not the modification of
-// files. It does however detect the attribute changes that the FSEvents impl
-// would miss.
-class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
-                            public MessageLoopForIO::Watcher,
-                            public MessageLoop::DestructionObserver {
- public:
-  FilePathWatcherImpl() : kqueue_(-1) {}
+FilePathWatcherKQueue::~FilePathWatcherKQueue() {
+  DCHECK(!task_runner() || task_runner()->RunsTasksInCurrentSequence());
+}
 
-  // MessageLoopForIO::Watcher overrides.
-  virtual void OnFileCanReadWithoutBlocking(int fd) override;
-  virtual void OnFileCanWriteWithoutBlocking(int fd) override;
-
-  // MessageLoop::DestructionObserver overrides.
-  virtual void WillDestroyCurrentMessageLoop() override;
-
-  // FilePathWatcher::PlatformDelegate overrides.
-  virtual bool Watch(const FilePath& path,
-                     bool recursive,
-                     FilePathWatcher::Delegate* delegate) override;
-  virtual void Cancel() override;
-
- protected:
-  virtual ~FilePathWatcherImpl() {}
-
- private:
-  class EventData {
-   public:
-    EventData(const FilePath& path, const FilePath::StringType& subdir)
-        : path_(path), subdir_(subdir) { }
-    FilePath path_;  // Full path to this item.
-    FilePath::StringType subdir_;  // Path to any sub item.
-  };
-  typedef std::vector<struct kevent> EventVector;
-
-  // Can only be called on |io_message_loop_|'s thread.
-  virtual void CancelOnMessageLoopThread() override;
-
-  // Returns true if the kevent values are error free.
-  bool AreKeventValuesValid(struct kevent* kevents, int count);
-
-  // Respond to a change of attributes of the path component represented by
-  // |event|. Sets |target_file_affected| to true if |target_| is affected.
-  // Sets |update_watches| to true if |events_| need to be updated.
-  void HandleAttributesChange(const EventVector::iterator& event,
-                              bool* target_file_affected,
-                              bool* update_watches);
-
-  // Respond to a move of deletion of the path component represented by
-  // |event|. Sets |target_file_affected| to true if |target_| is affected.
-  // Sets |update_watches| to true if |events_| need to be updated.
-  void HandleDeleteOrMoveChange(const EventVector::iterator& event,
-                                bool* target_file_affected,
-                                bool* update_watches);
-
-  // Respond to a creation of an item in the path component represented by
-  // |event|. Sets |target_file_affected| to true if |target_| is affected.
-  // Sets |update_watches| to true if |events_| need to be updated.
-  void HandleCreateItemChange(const EventVector::iterator& event,
-                              bool* target_file_affected,
-                              bool* update_watches);
-
-  // Update |events_| with the current status of the system.
-  // Sets |target_file_affected| to true if |target_| is affected.
-  // Returns false if an error occurs.
-  bool UpdateWatches(bool* target_file_affected);
-
-  // Fills |events| with one kevent per component in |path|.
-  // Returns the number of valid events created where a valid event is
-  // defined as one that has a ident (file descriptor) field != -1.
-  static int EventsForPath(FilePath path, EventVector *events);
-
-  // Release a kevent generated by EventsForPath.
-  static void ReleaseEvent(struct kevent& event);
-
-  // Returns a file descriptor that will not block the system from deleting
-  // the file it references.
-  static int FileDescriptorForPath(const FilePath& path);
-
-  // Closes |*fd| and sets |*fd| to -1.
-  static void CloseFileDescriptor(int* fd);
-
-  // Returns true if kevent has open file descriptor.
-  static bool IsKeventFileDescriptorOpen(const struct kevent& event) {
-    return event.ident != static_cast<uintptr_t>(-1);
-  }
-
-  static EventData* EventDataForKevent(const struct kevent& event) {
-    return reinterpret_cast<EventData*>(event.udata);
-  }
-
-  EventVector events_;
-  scoped_refptr<base::MessageLoopProxy> io_message_loop_;
-  MessageLoopForIO::FileDescriptorWatcher kqueue_watcher_;
-  scoped_refptr<FilePathWatcher::Delegate> delegate_;
-  FilePath target_;
-  int kqueue_;
-
-  DISALLOW_COPY_AND_ASSIGN(FilePathWatcherImpl);
-};
-
-void FilePathWatcherImpl::ReleaseEvent(struct kevent& event) {
-  CloseFileDescriptor(reinterpret_cast<int*>(&event.ident));
+void FilePathWatcherKQueue::ReleaseEvent(struct kevent& event) {
+  CloseFileDescriptor(&event.ident);
   EventData* entry = EventDataForKevent(event);
   delete entry;
   event.udata = NULL;
 }
 
-int FilePathWatcherImpl::EventsForPath(FilePath path, EventVector* events) {
-  DCHECK(MessageLoopForIO::current());
+int FilePathWatcherKQueue::EventsForPath(FilePath path, EventVector* events) {
   // Make sure that we are working with a clean slate.
   DCHECK(events->empty());
 
@@ -170,17 +52,17 @@ int FilePathWatcherImpl::EventsForPath(FilePath path, EventVector* events) {
   int last_existing_entry = 0;
   FilePath built_path;
   bool path_still_exists = true;
-  for(std::vector<FilePath::StringType>::iterator i = components.begin();
+  for (std::vector<FilePath::StringType>::iterator i = components.begin();
       i != components.end(); ++i) {
     if (i == components.begin()) {
       built_path = FilePath(*i);
     } else {
       built_path = built_path.Append(*i);
     }
-    int fd = -1;
+    uintptr_t fd = kNoFileDescriptor;
     if (path_still_exists) {
       fd = FileDescriptorForPath(built_path);
-      if (fd == -1) {
+      if (fd == kNoFileDescriptor) {
         path_still_exists = false;
       } else {
         ++last_existing_entry;
@@ -197,22 +79,26 @@ int FilePathWatcherImpl::EventsForPath(FilePath path, EventVector* events) {
   return last_existing_entry;
 }
 
-int FilePathWatcherImpl::FileDescriptorForPath(const FilePath& path) {
-  return HANDLE_EINTR(open(path.value().c_str(), O_EVTONLY));
+uintptr_t FilePathWatcherKQueue::FileDescriptorForPath(const FilePath& path) {
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  int fd = HANDLE_EINTR(open(path.value().c_str(), O_EVTONLY));
+  if (fd == -1)
+    return kNoFileDescriptor;
+  return fd;
 }
 
-void FilePathWatcherImpl::CloseFileDescriptor(int *fd) {
-  if (*fd == -1) {
+void FilePathWatcherKQueue::CloseFileDescriptor(uintptr_t* fd) {
+  if (*fd == kNoFileDescriptor) {
     return;
   }
 
-  if (HANDLE_EINTR(close(*fd)) != 0) {
+  if (IGNORE_EINTR(close(*fd)) != 0) {
     DPLOG(ERROR) << "close";
   }
-  *fd = -1;
+  *fd = kNoFileDescriptor;
 }
 
-bool FilePathWatcherImpl::AreKeventValuesValid(struct kevent* kevents,
+bool FilePathWatcherKQueue::AreKeventValuesValid(struct kevent* kevents,
                                                int count) {
   if (count < 0) {
     DPLOG(ERROR) << "kevent";
@@ -237,7 +123,7 @@ bool FilePathWatcherImpl::AreKeventValuesValid(struct kevent* kevents,
       }
       if (path_name.empty()) {
         path_name = base::StringPrintf(
-            "fd %d", *reinterpret_cast<int*>(&kevents[i].ident));
+            "fd %ld", reinterpret_cast<long>(&kevents[i].ident));
       }
       DLOG(ERROR) << "Error: " << kevents[i].data << " for " << path_name;
       valid = false;
@@ -246,15 +132,15 @@ bool FilePathWatcherImpl::AreKeventValuesValid(struct kevent* kevents,
   return valid;
 }
 
-void FilePathWatcherImpl::HandleAttributesChange(
+void FilePathWatcherKQueue::HandleAttributesChange(
     const EventVector::iterator& event,
     bool* target_file_affected,
     bool* update_watches) {
   EventVector::iterator next_event = event + 1;
   EventData* next_event_data = EventDataForKevent(*next_event);
   // Check to see if the next item in path is still accessible.
-  int have_access = FileDescriptorForPath(next_event_data->path_);
-  if (have_access == -1) {
+  uintptr_t have_access = FileDescriptorForPath(next_event_data->path_);
+  if (have_access == kNoFileDescriptor) {
     *target_file_affected = true;
     *update_watches = true;
     EventVector::iterator local_event(event);
@@ -263,14 +149,14 @@ void FilePathWatcherImpl::HandleAttributesChange(
       // potentially rendering other events in |updates| invalid.
       // There is no need to remove the events from |kqueue_| because this
       // happens as a side effect of closing the file descriptor.
-      CloseFileDescriptor(reinterpret_cast<int*>(&local_event->ident));
+      CloseFileDescriptor(&local_event->ident);
     }
   } else {
     CloseFileDescriptor(&have_access);
   }
 }
 
-void FilePathWatcherImpl::HandleDeleteOrMoveChange(
+void FilePathWatcherKQueue::HandleDeleteOrMoveChange(
     const EventVector::iterator& event,
     bool* target_file_affected,
     bool* update_watches) {
@@ -282,20 +168,19 @@ void FilePathWatcherImpl::HandleDeleteOrMoveChange(
     // potentially rendering other events in |updates| invalid.
     // There is no need to remove the events from |kqueue_| because this
     // happens as a side effect of closing the file descriptor.
-    CloseFileDescriptor(reinterpret_cast<int*>(&local_event->ident));
+    CloseFileDescriptor(&local_event->ident);
   }
 }
 
-void FilePathWatcherImpl::HandleCreateItemChange(
+void FilePathWatcherKQueue::HandleCreateItemChange(
     const EventVector::iterator& event,
     bool* target_file_affected,
     bool* update_watches) {
   // Get the next item in the path.
   EventVector::iterator next_event = event + 1;
-  EventData* next_event_data = EventDataForKevent(*next_event);
-
   // Check to see if it already has a valid file descriptor.
   if (!IsKeventFileDescriptorOpen(*next_event)) {
+    EventData* next_event_data = EventDataForKevent(*next_event);
     // If not, attempt to open a file descriptor for it.
     next_event->ident = FileDescriptorForPath(next_event_data->path_);
     if (IsKeventFileDescriptorOpen(*next_event)) {
@@ -307,7 +192,7 @@ void FilePathWatcherImpl::HandleCreateItemChange(
   }
 }
 
-bool FilePathWatcherImpl::UpdateWatches(bool* target_file_affected) {
+bool FilePathWatcherKQueue::UpdateWatches(bool* target_file_affected) {
   // Iterate over events adding kevents for items that exist to the kqueue.
   // Then check to see if new components in the path have been created.
   // Repeat until no new components in the path are detected.
@@ -326,6 +211,7 @@ bool FilePathWatcherImpl::UpdateWatches(bool* target_file_affected) {
     }
 
     EventVector updates(valid);
+    ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
     int count = HANDLE_EINTR(kevent(kqueue_, &events_[0], valid, &updates[0],
                                     valid, NULL));
     if (!AreKeventValuesValid(&updates[0], count)) {
@@ -348,9 +234,75 @@ bool FilePathWatcherImpl::UpdateWatches(bool* target_file_affected) {
   return true;
 }
 
-void FilePathWatcherImpl::OnFileCanReadWithoutBlocking(int fd) {
-  DCHECK(MessageLoopForIO::current());
-  DCHECK_EQ(fd, kqueue_);
+bool FilePathWatcherKQueue::Watch(const FilePath& path,
+                                  bool recursive,
+                                  const FilePathWatcher::Callback& callback) {
+  DCHECK(target_.value().empty());  // Can only watch one path.
+  DCHECK(!callback.is_null());
+  DCHECK_EQ(kqueue_, -1);
+  // Recursive watch is not supported using kqueue.
+  DCHECK(!recursive);
+
+  callback_ = callback;
+  target_ = path;
+
+  set_task_runner(SequencedTaskRunnerHandle::Get());
+
+  kqueue_ = kqueue();
+  if (kqueue_ == -1) {
+    DPLOG(ERROR) << "kqueue";
+    return false;
+  }
+
+  int last_entry = EventsForPath(target_, &events_);
+  DCHECK_NE(last_entry, 0);
+
+  EventVector responses(last_entry);
+
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  int count = HANDLE_EINTR(kevent(kqueue_, &events_[0], last_entry,
+                                  &responses[0], last_entry, NULL));
+  if (!AreKeventValuesValid(&responses[0], count)) {
+    // Calling Cancel() here to close any file descriptors that were opened.
+    // This would happen in the destructor anyways, but FilePathWatchers tend to
+    // be long lived, and if an error has occurred, there is no reason to waste
+    // the file descriptors.
+    Cancel();
+    return false;
+  }
+
+  // It's safe to use Unretained() because the watch is cancelled and the
+  // callback cannot be invoked after |kqueue_watch_controller_| (which is a
+  // member of |this|) has been deleted.
+  kqueue_watch_controller_ = FileDescriptorWatcher::WatchReadable(
+      kqueue_,
+      Bind(&FilePathWatcherKQueue::OnKQueueReadable, Unretained(this)));
+
+  return true;
+}
+
+void FilePathWatcherKQueue::Cancel() {
+  if (!task_runner()) {
+    set_cancelled();
+    return;
+  }
+
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
+  if (!is_cancelled()) {
+    set_cancelled();
+    kqueue_watch_controller_.reset();
+    if (IGNORE_EINTR(close(kqueue_)) != 0) {
+      DPLOG(ERROR) << "close kqueue";
+    }
+    kqueue_ = -1;
+    std::for_each(events_.begin(), events_.end(), ReleaseEvent);
+    events_.clear();
+    callback_.Reset();
+  }
+}
+
+void FilePathWatcherKQueue::OnKQueueReadable() {
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   DCHECK(events_.size());
 
   // Request the file system update notifications that have occurred and return
@@ -364,7 +316,7 @@ void FilePathWatcherImpl::OnFileCanReadWithoutBlocking(int fd) {
   // Error values are stored within updates, so check to make sure that no
   // errors occurred.
   if (!AreKeventValuesValid(&updates[0], count)) {
-    delegate_->OnFilePathError(target_);
+    callback_.Run(target_, true /* error */);
     Cancel();
     return;
   }
@@ -382,7 +334,7 @@ void FilePathWatcherImpl::OnFileCanReadWithoutBlocking(int fd) {
         break;
       }
     }
-    if (!IsKeventFileDescriptorOpen(*event) || event == events_.end()) {
+    if (event == events_.end() || !IsKeventFileDescriptorOpen(*event)) {
       // The event may no longer exist in |events_| because another event
       // modified |events_| in such a way to make it invalid. For example if
       // the path is /foo/bar/bam and foo is deleted, NOTE_DELETE events for
@@ -411,103 +363,14 @@ void FilePathWatcherImpl::OnFileCanReadWithoutBlocking(int fd) {
 
   if (update_watches) {
     if (!UpdateWatches(&send_notification)) {
-      delegate_->OnFilePathError(target_);
+      callback_.Run(target_, true /* error */);
       Cancel();
     }
   }
 
   if (send_notification) {
-    delegate_->OnFilePathChanged(target_);
+    callback_.Run(target_, false);
   }
 }
 
-void FilePathWatcherImpl::OnFileCanWriteWithoutBlocking(int fd) {
-  NOTREACHED();
-}
-
-void FilePathWatcherImpl::WillDestroyCurrentMessageLoop() {
-  CancelOnMessageLoopThread();
-}
-
-bool FilePathWatcherImpl::Watch(const FilePath& path,
-                                bool recursive,
-                                FilePathWatcher::Delegate* delegate) {
-  DCHECK(MessageLoopForIO::current());
-  DCHECK(target_.value().empty());  // Can only watch one path.
-  DCHECK(delegate);
-  DCHECK_EQ(kqueue_, -1);
-
-  if (recursive) {
-    // Recursive watch is not supported on this platform.
-    NOTIMPLEMENTED();
-    return false;
-  }
-
-  delegate_ = delegate;
-  target_ = path;
-
-  MessageLoop::current()->AddDestructionObserver(this);
-  io_message_loop_ = base::MessageLoopProxy::current();
-
-  kqueue_ = kqueue();
-  if (kqueue_ == -1) {
-    DPLOG(ERROR) << "kqueue";
-    return false;
-  }
-
-  int last_entry = EventsForPath(target_, &events_);
-  DCHECK_NE(last_entry, 0);
-
-  EventVector responses(last_entry);
-
-  int count = HANDLE_EINTR(kevent(kqueue_, &events_[0], last_entry,
-                                  &responses[0], last_entry, NULL));
-  if (!AreKeventValuesValid(&responses[0], count)) {
-    // Calling Cancel() here to close any file descriptors that were opened.
-    // This would happen in the destructor anyways, but FilePathWatchers tend to
-    // be long lived, and if an error has occurred, there is no reason to waste
-    // the file descriptors.
-    Cancel();
-    return false;
-  }
-
-  return MessageLoopForIO::current()->WatchFileDescriptor(
-      kqueue_, true, MessageLoopForIO::WATCH_READ, &kqueue_watcher_, this);
-}
-
-void FilePathWatcherImpl::Cancel() {
-  base::MessageLoopProxy* proxy = io_message_loop_.get();
-  if (!proxy) {
-    set_cancelled();
-    return;
-  }
-  if (!proxy->BelongsToCurrentThread()) {
-    proxy->PostTask(FROM_HERE,
-                    base::Bind(&FilePathWatcherImpl::Cancel, this));
-    return;
-  }
-  CancelOnMessageLoopThread();
-}
-
-void FilePathWatcherImpl::CancelOnMessageLoopThread() {
-  DCHECK(MessageLoopForIO::current());
-  if (!is_cancelled()) {
-    set_cancelled();
-    kqueue_watcher_.StopWatchingFileDescriptor();
-    CloseFileDescriptor(&kqueue_);
-    std::for_each(events_.begin(), events_.end(), ReleaseEvent);
-    events_.clear();
-    io_message_loop_ = NULL;
-    MessageLoop::current()->RemoveDestructionObserver(this);
-    delegate_ = NULL;
-  }
-}
-
-}  // namespace
-
-FilePathWatcher::FilePathWatcher() {
-  impl_ = new FilePathWatcherImpl();
-}
-
-}  // namespace files
 }  // namespace base

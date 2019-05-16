@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom_parser/xml_decoder.h"
 
 #include "base/callback.h"
@@ -32,9 +34,9 @@ namespace dom_parser {
 const int kDOMMaxElementDepth = 32;
 
 class MockErrorCallback
-    : public base::Callback<void(const base::optional<std::string>&)> {
+    : public base::Callback<void(const base::Optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
+  MOCK_METHOD1(Run, void(const base::Optional<std::string>&));
 };
 
 class XMLDecoderTest : public ::testing::Test {
@@ -46,7 +48,7 @@ class XMLDecoderTest : public ::testing::Test {
   scoped_refptr<dom::XMLDocument> document_;
   base::SourceLocation source_location_;
   MockErrorCallback mock_error_callback_;
-  scoped_ptr<XMLDecoder> xml_decoder_;
+  std::unique_ptr<XMLDecoder> xml_decoder_;
 };
 
 XMLDecoderTest::XMLDecoderTest()

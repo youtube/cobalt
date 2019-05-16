@@ -22,7 +22,7 @@
 #include "base/threading/thread.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/loader/image/image.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -61,7 +61,7 @@ class AnimatedImageTracker {
   typedef std::map<GURL, scoped_refptr<loader::image::AnimatedImage> >
       URLToImageMap;
   typedef std::map<GURL, int> URLToIntMap;
-  typedef base::SmallMap<std::map<GURL, base::Unused>, 1> URLSet;
+  typedef base::small_map<std::map<GURL, base::Unused>, 1> URLSet;
 
   // The image decode thread is a thread created and owned by the
   // AnimatedImageTracker, but used by the AnimatedImage decoders.

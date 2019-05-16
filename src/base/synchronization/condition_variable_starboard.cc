@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
 
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/time/time.h"
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
 
 namespace base {
 
 ConditionVariable::ConditionVariable(Lock* user_lock)
-    : user_mutex_(user_lock->lock_.os_lock())
+    : user_mutex_(user_lock->lock_.native_handle())
 #if !defined(NDEBUG)
     , user_lock_(user_lock)
 #endif
@@ -38,6 +39,8 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() {
+  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
+      BlockingType::MAY_BLOCK);
 #if !defined(NDEBUG)
   user_lock_->CheckHeldAndUnmark();
 #endif
@@ -50,6 +53,8 @@ void ConditionVariable::Wait() {
 }
 
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
+  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
+      BlockingType::MAY_BLOCK);
   SbTime duration = max_time.ToSbTime();
 
 #if !defined(NDEBUG)

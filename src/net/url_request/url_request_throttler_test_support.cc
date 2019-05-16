@@ -8,51 +8,14 @@
 
 namespace net {
 
-MockBackoffEntry::MockBackoffEntry(const BackoffEntry::Policy* const policy)
-    : BackoffEntry(policy) {
-}
+TestTickClock::TestTickClock() = default;
 
-MockBackoffEntry::~MockBackoffEntry() {
-}
+TestTickClock::TestTickClock(base::TimeTicks now) : now_ticks_(now) {}
 
-base::TimeTicks MockBackoffEntry::ImplGetTimeNow() const {
-  return fake_now_;
-}
+TestTickClock::~TestTickClock() = default;
 
-void MockBackoffEntry::set_fake_now(const base::TimeTicks& now) {
-  fake_now_ = now;
-}
-
-MockURLRequestThrottlerHeaderAdapter::MockURLRequestThrottlerHeaderAdapter(
-    int response_code)
-    : fake_response_code_(response_code) {
-}
-
-MockURLRequestThrottlerHeaderAdapter::MockURLRequestThrottlerHeaderAdapter(
-    const std::string& retry_value,
-    const std::string& opt_out_value,
-    int response_code)
-    : fake_retry_value_(retry_value),
-      fake_opt_out_value_(opt_out_value),
-      fake_response_code_(response_code) {
-}
-
-MockURLRequestThrottlerHeaderAdapter::~MockURLRequestThrottlerHeaderAdapter() {
-}
-
-std::string MockURLRequestThrottlerHeaderAdapter::GetNormalizedValue(
-    const std::string& key) const {
-  if (key ==
-      URLRequestThrottlerEntry::kExponentialThrottlingHeader &&
-      !fake_opt_out_value_.empty()) {
-    return fake_opt_out_value_;
-  }
-
-  return "";
-}
-
-int MockURLRequestThrottlerHeaderAdapter::GetResponseCode() const {
-  return fake_response_code_;
+base::TimeTicks TestTickClock::NowTicks() const {
+  return now_ticks_;
 }
 
 }  // namespace net

@@ -416,6 +416,7 @@
 %token kRGBFunctionToken                // rgb(
 %token kRGBAFunctionToken               // rgba(
 %token kCobaltMtmFunctionToken          // -cobalt-mtm(
+%token kCobaltUiNavFocusTransformFunctionToken     // -cobalt-ui-nav-focus-transform(
 %token kCobaltUiNavSpotlightTransformFunctionToken // -cobalt-ui-nav-spotlight-transform(
 
 // Tokens with a string value.
@@ -520,9 +521,9 @@
                      font_family_specific_name_no_single_identifier
 %destructor { SafeRelease($$); } <string_value>
 
-// base::TimeDelta's internal value.  One can construct a base::TimeDelta from
-// this value using the function base::TimeDelta::FromInternalValue().  We use
-// it instead of base::TimeDelta because base::TimeDelta does not have a
+// ::base::TimeDelta's internal value.  One can construct a ::base::TimeDelta from
+// this value using the function ::base::TimeDelta::FromInternalValue().  We use
+// it instead of ::base::TimeDelta because ::base::TimeDelta does not have a
 // trivial constructor and thus cannot be used in a union.
 %union { int64 time; }
 %type <time> time time_with_units_required
@@ -1210,8 +1211,8 @@ media_query:
   }
   // @media (name:value)... {}
   | media_feature_list {
-    scoped_ptr<cssom::MediaFeatures> media_features($1);
-    $$ = AddRef(new cssom::MediaQuery(true, media_features.Pass()));
+    std::unique_ptr<cssom::MediaFeatures> media_features($1);
+    $$ = AddRef(new cssom::MediaQuery(true, std::move(media_features)));
   }
   // @media mediatype {}
   | evaluated_media_type maybe_whitespace {
@@ -1220,8 +1221,8 @@ media_query:
   // @media mediatype and (name:value)... {}
   | evaluated_media_type maybe_whitespace kMediaAndToken maybe_whitespace
     media_feature_list {
-    scoped_ptr<cssom::MediaFeatures> media_features($5);
-    $$ = AddRef(new cssom::MediaQuery($1, media_features.Pass()));
+    std::unique_ptr<cssom::MediaFeatures> media_features($5);
+    $$ = AddRef(new cssom::MediaQuery($1, std::move(media_features)));
   }
   // When an unknown media feature, an unknown media feature value, a malformed
   // media query, or unexpected tokens is found, the media query must be
@@ -1283,7 +1284,7 @@ keyframe_rule_list:
 
 keyframe_rule:
     keyframe_selector style_declaration_block {
-    scoped_ptr<std::vector<float> > offsets($1);
+    std::unique_ptr<std::vector<float> > offsets($1);
 
     scoped_refptr<cssom::CSSRuleStyleDeclaration> style(
         MakeScopedRefPtrAndRelease($2));
@@ -2199,7 +2200,7 @@ id_selector_token:
     $$ = new cssom::IdSelector($1.ToString());
   }
   | kHexToken {
-    if (IsAsciiDigit(*$1.begin)) {
+    if (::base::IsAsciiDigit(*$1.begin)) {
       YYERROR;
     }
     $$ = new cssom::IdSelector($1.ToString());
@@ -2251,11 +2252,11 @@ pseudo_class_token:
   // represented by its argument.
   //   https://www.w3.org/TR/selectors4/#negation-pseudo
   | ':' kNotFunctionToken compound_selector_token ')' {
-    scoped_ptr<cssom::CompoundSelector> compound_selector($3);
+    std::unique_ptr<cssom::CompoundSelector> compound_selector($3);
     if (compound_selector) {
-      scoped_ptr<cssom::NotPseudoClass> not_pseudo_class(new
+      std::unique_ptr<cssom::NotPseudoClass> not_pseudo_class(new
           cssom::NotPseudoClass());
-      not_pseudo_class->set_selector(compound_selector.Pass());
+      not_pseudo_class->set_selector(std::move(compound_selector));
       $$ = not_pseudo_class.release();
     } else {
       parser_impl->LogWarning(@1, "unsupported selector within :not()");
@@ -2317,22 +2318,22 @@ simple_selector_token:
 //   https://www.w3.org/TR/selectors4/#compound
 compound_selector_token:
     simple_selector_token {
-    scoped_ptr<cssom::SimpleSelector> simple_selector($1);
+    std::unique_ptr<cssom::SimpleSelector> simple_selector($1);
 
     if (simple_selector) {
       $$ = new cssom::CompoundSelector();
-      $$->AppendSelector(simple_selector.Pass());
+      $$->AppendSelector(std::move(simple_selector));
     } else {
       $$ = NULL;
     }
   }
   | compound_selector_token simple_selector_token {
-    scoped_ptr<cssom::CompoundSelector> compound_selector($1);
-    scoped_ptr<cssom::SimpleSelector> simple_selector($2);
+    std::unique_ptr<cssom::CompoundSelector> compound_selector($1);
+    std::unique_ptr<cssom::SimpleSelector> simple_selector($2);
 
     if (compound_selector && simple_selector) {
       $$ = compound_selector.release();
-      $$->AppendSelector(simple_selector.Pass());
+      $$->AppendSelector(std::move(simple_selector));
     } else {
       $$ = NULL;
     }
@@ -2362,24 +2363,24 @@ combinator:
 //   https://www.w3.org/TR/selectors4/#complex
 complex_selector:
     compound_selector_token {
-    scoped_ptr<cssom::CompoundSelector> compound_selector($1);
+    std::unique_ptr<cssom::CompoundSelector> compound_selector($1);
 
     if (compound_selector) {
       $$ = new cssom::ComplexSelector();
-      $$->AppendSelector(compound_selector.Pass());
+      $$->AppendSelector(std::move(compound_selector));
     } else {
       $$ = NULL;
     }
   }
   | complex_selector combinator compound_selector_token {
-    scoped_ptr<cssom::ComplexSelector> complex_selector($1);
-    scoped_ptr<cssom::Combinator> combinator($2);
-    scoped_ptr<cssom::CompoundSelector> compound_selector($3);
+    std::unique_ptr<cssom::ComplexSelector> complex_selector($1);
+    std::unique_ptr<cssom::Combinator> combinator($2);
+    std::unique_ptr<cssom::CompoundSelector> compound_selector($3);
 
     if (complex_selector && compound_selector) {
       $$ = complex_selector.release();
-      $$->AppendCombinatorAndSelector(combinator.Pass(),
-          compound_selector.Pass());
+      $$->AppendCombinatorAndSelector(std::move(combinator),
+          std::move(compound_selector));
     } else {
       $$ = NULL;
     }
@@ -2391,22 +2392,22 @@ complex_selector:
 //   https://www.w3.org/TR/selectors4/#selector-list
 selector_list:
     complex_selector {
-    scoped_ptr<cssom::ComplexSelector> complex_selector($1);
+    std::unique_ptr<cssom::ComplexSelector> complex_selector($1);
 
     if (complex_selector) {
       $$ = new cssom::Selectors();
-      $$->push_back(complex_selector.release());
+      $$->emplace_back(complex_selector.release());
     } else {
       $$ = NULL;
     }
   }
   | selector_list comma complex_selector {
-    scoped_ptr<cssom::Selectors> selector_list($1);
-    scoped_ptr<cssom::ComplexSelector> complex_selector($3);
+    std::unique_ptr<cssom::Selectors> selector_list($1);
+    std::unique_ptr<cssom::ComplexSelector> complex_selector($3);
 
     if (selector_list && complex_selector) {
       $$ = selector_list.release();
-      $$->push_back(complex_selector.release());
+      $$->emplace_back(complex_selector.release());
     } else {
       $$ = NULL;
     }
@@ -2643,8 +2644,8 @@ angle:
 //   https://www.w3.org/TR/css3-values/#time
 time:
     number {
-    $$ = base::TimeDelta::FromMilliseconds(
-             static_cast<int64>($1 * base::Time::kMillisecondsPerSecond)).
+    $$ = ::base::TimeDelta::FromMilliseconds(
+             static_cast<int64>($1 * ::base::Time::kMillisecondsPerSecond)).
              ToInternalValue();
     if ($1 != 0) {
       parser_impl->LogWarning(
@@ -2656,12 +2657,12 @@ time:
 
 time_with_units_required:
   maybe_sign_token kSecondsToken maybe_whitespace {
-    $$ = base::TimeDelta::FromMilliseconds(
-             static_cast<int64>($1 * $2 * base::Time::kMillisecondsPerSecond)).
+    $$ = ::base::TimeDelta::FromMilliseconds(
+             static_cast<int64>($1 * $2 * ::base::Time::kMillisecondsPerSecond)).
              ToInternalValue();
   }
   | maybe_sign_token kMillisecondsToken maybe_whitespace {
-    $$ = base::TimeDelta::FromMilliseconds(static_cast<int64>($1 * $2)).
+    $$ = ::base::TimeDelta::FromMilliseconds(static_cast<int64>($1 * $2)).
              ToInternalValue();
   }
   ;
@@ -2839,12 +2840,12 @@ background_property_element:
   | background_image_property_list_element {
     scoped_refptr<cssom::PropertyValue> image(MakeScopedRefPtrAndRelease($1));
     if (!$<background_shorthand_layer>0->background_image) {
-      scoped_ptr<cssom::PropertyListValue::Builder>
+      std::unique_ptr<cssom::PropertyListValue::Builder>
           background_image_builder(new cssom::PropertyListValue::Builder());
       background_image_builder->reserve(1);
       background_image_builder->push_back(image);
       $<background_shorthand_layer>0->background_image =
-          new cssom::PropertyListValue(background_image_builder.Pass());
+          new cssom::PropertyListValue(std::move(background_image_builder));
     } else {
       parser_impl->LogError(
           @1, "background-image value declared twice in background.");
@@ -2865,7 +2866,7 @@ maybe_background_size_property_value:
 background_position_and_size_shorthand_property_value:
     validated_position_property
     maybe_background_size_property_value {
-    scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
+    std::unique_ptr<BackgroundShorthandLayer> shorthand_layer(
         new BackgroundShorthandLayer());
 
     shorthand_layer->background_position = MakeScopedRefPtrAndRelease($1);
@@ -2879,7 +2880,7 @@ background_position_and_size_shorthand_property_value:
 
 background_repeat_shorthand_property_value:
     background_repeat_property_value_without_common_values {
-    scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
+    std::unique_ptr<BackgroundShorthandLayer> shorthand_layer(
         new BackgroundShorthandLayer());
     shorthand_layer->background_repeat = MakeScopedRefPtrAndRelease($1);
     $$ = shorthand_layer.release();
@@ -2894,15 +2895,15 @@ background_position_and_repeat_combination:
   | background_repeat_shorthand_property_value
   | background_position_and_size_shorthand_property_value
     background_repeat_shorthand_property_value {
-    scoped_ptr<BackgroundShorthandLayer> shorthand_layer($1);
-    scoped_ptr<BackgroundShorthandLayer> non_overlapped($2);
+    std::unique_ptr<BackgroundShorthandLayer> shorthand_layer($1);
+    std::unique_ptr<BackgroundShorthandLayer> non_overlapped($2);
     shorthand_layer->IntegrateNonOverlapped(*non_overlapped);
     $$ = shorthand_layer.release();
   }
   | background_repeat_shorthand_property_value
     background_position_and_size_shorthand_property_value {
-    scoped_ptr<BackgroundShorthandLayer> shorthand_layer($1);
-    scoped_ptr<BackgroundShorthandLayer> non_overlapped($2);
+    std::unique_ptr<BackgroundShorthandLayer> shorthand_layer($1);
+    std::unique_ptr<BackgroundShorthandLayer> non_overlapped($2);
     shorthand_layer->IntegrateNonOverlapped(*non_overlapped);
     $$ = shorthand_layer.release();
   }
@@ -2932,8 +2933,8 @@ final_background_layer:
   }
   | final_background_layer_without_position_and_repeat
     background_position_and_repeat_combination {
-    scoped_ptr<BackgroundShorthandLayer> shorthand($1);
-    scoped_ptr<BackgroundShorthandLayer> background_values($2);
+    std::unique_ptr<BackgroundShorthandLayer> shorthand($1);
+    std::unique_ptr<BackgroundShorthandLayer> background_values($2);
     if (!shorthand->IsBackgroundPropertyOverlapped(*background_values.get())) {
       shorthand->IntegrateNonOverlapped(*background_values.get());
       $$ = shorthand.release();
@@ -2960,7 +2961,7 @@ background_property_value:
   | common_values {
     // Replicate the common value into each of the properties that background
     // is a shorthand for.
-    scoped_ptr<BackgroundShorthandLayer> background(
+    std::unique_ptr<BackgroundShorthandLayer> background(
         new BackgroundShorthandLayer());
     background->background_color = $1;
     background->background_image = $1;
@@ -2992,12 +2993,12 @@ color_stop:
 comma_separated_color_stop_list:
     color_stop comma color_stop {
     $$ = new cssom::ColorStopList();
-    $$->push_back($1);
-    $$->push_back($3);
+    $$->emplace_back($1);
+    $$->emplace_back($3);
   }
   | comma_separated_color_stop_list comma color_stop {
     $$ = $1;
-    $$->push_back($3);
+    $$->emplace_back($3);
   }
   ;
 
@@ -3057,20 +3058,20 @@ side_or_corner:
 
 linear_gradient_params:
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($1);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($1);
     // If the first argument to the linear gradient function is omitted, it
     // defaults to 'to bottom'.
     $$ = AddRef(new cssom::LinearGradientValue(
-             cssom::LinearGradientValue::kBottom, color_stop_list->Pass()));
+             cssom::LinearGradientValue::kBottom, std::move(*color_stop_list)));
   }
   | angle comma comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($3);
-    $$ = AddRef(new cssom::LinearGradientValue($1, color_stop_list->Pass()));
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($3);
+    $$ = AddRef(new cssom::LinearGradientValue($1, std::move(*color_stop_list)));
   }
   | kToToken kWhitespaceToken maybe_whitespace side_or_corner comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($6);
-    $$ = AddRef(new cssom::LinearGradientValue($4, color_stop_list->Pass()));
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($6);
+    $$ = AddRef(new cssom::LinearGradientValue($4, std::move(*color_stop_list)));
   }
   ;
 
@@ -3103,25 +3104,25 @@ circle_with_size_keyword:
 // circle explicitly. Negative values are invalid.
 circle_with_positive_length:
     positive_length {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
        new cssom::PropertyListValue::Builder());
     property_value->reserve(1);
     property_value->push_back(MakeScopedRefPtrAndRelease($1));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   | positive_length kCircleToken maybe_whitespace {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
        new cssom::PropertyListValue::Builder());
     property_value->reserve(1);
     property_value->push_back(MakeScopedRefPtrAndRelease($1));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   | kCircleToken maybe_whitespace positive_length {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
        new cssom::PropertyListValue::Builder());
     property_value->reserve(1);
     property_value->push_back(MakeScopedRefPtrAndRelease($3));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   ;
 
@@ -3145,30 +3146,30 @@ maybe_ellipse_with_size_keyword:
 ellipse_with_2_positive_length_percents:
     positive_length_percent_property_value
     positive_length_percent_property_value {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->reserve(2);
     property_value->push_back(MakeScopedRefPtrAndRelease($1));
     property_value->push_back(MakeScopedRefPtrAndRelease($2));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   | positive_length_percent_property_value
     positive_length_percent_property_value kEllipseToken maybe_whitespace {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->reserve(2);
     property_value->push_back(MakeScopedRefPtrAndRelease($1));
     property_value->push_back(MakeScopedRefPtrAndRelease($2));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   | kEllipseToken maybe_whitespace positive_length_percent_property_value
     positive_length_percent_property_value {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->reserve(2);
     property_value->push_back(MakeScopedRefPtrAndRelease($3));
     property_value->push_back(MakeScopedRefPtrAndRelease($4));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   ;
 
@@ -3189,77 +3190,77 @@ maybe_at_position:
 radial_gradient_params:
     circle_with_positive_length maybe_at_position comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($4);
     $$ = AddRef(
         new cssom::RadialGradientValue(cssom::RadialGradientValue::kCircle,
                                        MakeScopedRefPtrAndRelease($1),
                                        MakeScopedRefPtrAndRelease($2),
-                                       color_stop_list->Pass()));
+                                       std::move(*color_stop_list)));
   }
   | ellipse_with_2_positive_length_percents maybe_at_position comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($4);
     $$ = AddRef(
         new cssom::RadialGradientValue(cssom::RadialGradientValue::kEllipse,
                                        MakeScopedRefPtrAndRelease($1),
                                        MakeScopedRefPtrAndRelease($2),
-                                       color_stop_list->Pass()));
+                                       std::move(*color_stop_list)));
   }
   | circle_with_size_keyword maybe_at_position comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($4);
     $$ = AddRef(
         new cssom::RadialGradientValue(cssom::RadialGradientValue::kCircle,
                                        $1,
                                        MakeScopedRefPtrAndRelease($2),
-                                       color_stop_list->Pass()));
+                                       std::move(*color_stop_list)));
   }
   | maybe_ellipse_with_size_keyword maybe_at_position comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($4);
     $$ = AddRef(
         new cssom::RadialGradientValue(cssom::RadialGradientValue::kEllipse,
                                        $1,
                                        MakeScopedRefPtrAndRelease($2),
-                                       color_stop_list->Pass()));
+                                       std::move(*color_stop_list)));
   }
   | kCircleToken maybe_whitespace maybe_at_position comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($5);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($5);
     $$ = AddRef(new cssom::RadialGradientValue(
             cssom::RadialGradientValue::kCircle,
             cssom::RadialGradientValue::kFarthestCorner,
             MakeScopedRefPtrAndRelease($3),
-            color_stop_list->Pass()));
+            std::move(*color_stop_list)));
   }
   | kEllipseToken maybe_whitespace maybe_at_position comma
     comma_separated_color_stop_list {
-    scoped_ptr<cssom::ColorStopList> color_stop_list($5);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($5);
     $$ = AddRef(new cssom::RadialGradientValue(
             cssom::RadialGradientValue::kEllipse,
             cssom::RadialGradientValue::kFarthestCorner,
             MakeScopedRefPtrAndRelease($3),
-            color_stop_list->Pass()));
+            std::move(*color_stop_list)));
   }
   | at_position comma comma_separated_color_stop_list {
     // If no size or shape is specified, the ending shape defaults to an ellipse
     // and the size defaults to 'farthest-corner'.
-    scoped_ptr<cssom::ColorStopList> color_stop_list($3);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($3);
     $$ = AddRef(new cssom::RadialGradientValue(
             cssom::RadialGradientValue::kEllipse,
             cssom::RadialGradientValue::kFarthestCorner,
             MakeScopedRefPtrAndRelease($1),
-            color_stop_list->Pass()));
+            std::move(*color_stop_list)));
   }
   | comma_separated_color_stop_list {
     // If position is omitted as well, it defaults to 'center', indicated by
     // passing in NULL.
-    scoped_ptr<cssom::ColorStopList> color_stop_list($1);
+    std::unique_ptr<cssom::ColorStopList> color_stop_list($1);
     $$ = AddRef(new cssom::RadialGradientValue(
             cssom::RadialGradientValue::kEllipse,
             cssom::RadialGradientValue::kFarthestCorner,
             NULL,
-            color_stop_list->Pass()));
+            std::move(*color_stop_list)));
   }
   ;
 
@@ -3293,9 +3294,9 @@ comma_separated_background_image_list:
 //   https://www.w3.org/TR/css3-background/#the-background-image
 background_image_property_value:
   comma_separated_background_image_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
          : NULL;
   }
   | common_values
@@ -3322,14 +3323,14 @@ position_list_element:
 
 position_list:
     position_list_element {
-    scoped_ptr<PositionParseStructure> position_info(
+    std::unique_ptr<PositionParseStructure> position_info(
         new PositionParseStructure());
     position_info->PushBackElement(MakeScopedRefPtrAndRelease($1));
     $$ = position_info.release();
   }
   | position_list
     position_list_element {
-    scoped_ptr<PositionParseStructure> position_info($1);
+    std::unique_ptr<PositionParseStructure> position_info($1);
     scoped_refptr<cssom::PropertyValue> element(MakeScopedRefPtrAndRelease($2));
     if (position_info &&
         !position_info->PushBackElement(element)) {
@@ -3343,8 +3344,8 @@ position_list:
 
 validated_position_property:
     position_list {
-    scoped_ptr<PositionParseStructure> position_info($1);
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value;
+    std::unique_ptr<PositionParseStructure> position_info($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value;
 
     if (!position_info) {
       // No-ops.
@@ -3363,7 +3364,7 @@ validated_position_property:
     }
 
     $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
          : NULL;
   }
   ;
@@ -3393,36 +3394,36 @@ background_repeat_element:
 
 background_repeat_property_value_without_common_values:
     background_repeat_element {
-    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder(
         new cssom::PropertyListValue::Builder());
     builder->reserve(2);
     builder->push_back(MakeScopedRefPtrAndRelease($1));
     builder->push_back($1);
-    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
   }
   | background_repeat_element background_repeat_element {
-    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder(
         new cssom::PropertyListValue::Builder());
     builder->reserve(2);
     builder->push_back(MakeScopedRefPtrAndRelease($1));
     builder->push_back(MakeScopedRefPtrAndRelease($2));
-    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
   }
   | kRepeatXToken maybe_whitespace {
-    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder(
         new cssom::PropertyListValue::Builder());
     builder->reserve(2);
     builder->push_back(cssom::KeywordValue::GetRepeat().get());
     builder->push_back(cssom::KeywordValue::GetNoRepeat().get());
-    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
   }
   | kRepeatYToken maybe_whitespace {
-    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder(
         new cssom::PropertyListValue::Builder());
     builder->reserve(2);
     builder->push_back(cssom::KeywordValue::GetNoRepeat().get());
     builder->push_back(cssom::KeywordValue::GetRepeat().get());
-    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
   }
   ;
 
@@ -3458,9 +3459,9 @@ background_size_property_list:
 //   https://www.w3.org/TR/css3-background/#the-background-size
 background_size_property_value_without_common_values:
     background_size_property_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
          : NULL;
   }
   | kContainToken maybe_whitespace {
@@ -3484,7 +3485,7 @@ border_color_property_list:
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_color_property_list color {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     property_value->push_back(MakeScopedRefPtrAndRelease($2));
     $$ = property_value.release();
   }
@@ -3492,20 +3493,20 @@ border_color_property_list:
 
 border_color_property_value:
     border_color_property_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     if (property_value->size() > 0u &&
         property_value->size() <= 4u) {
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     } else {
       parser_impl->LogWarning(@1, "invalid number of border color values");
       $$ = NULL;
     }
   }
   | common_values {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->push_back($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   ;
 
@@ -3534,7 +3535,7 @@ border_style_property_list:
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_style_property_list line_style {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     property_value->push_back(MakeScopedRefPtrAndRelease($2));
     $$ = property_value.release();
   }
@@ -3542,20 +3543,20 @@ border_style_property_list:
 
 border_style_property_value:
     border_style_property_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     if (property_value->size() > 0u &&
         property_value->size() <= 4u) {
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     } else {
       parser_impl->LogWarning(@1, "invalid number of border style values");
       $$ = NULL;
     }
   }
   | common_values {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->push_back($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   ;
 
@@ -3575,7 +3576,7 @@ border_width_property_list:
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_width_property_list border_width_element {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     property_value->push_back(MakeScopedRefPtrAndRelease($2));
     $$ = property_value.release();
   }
@@ -3583,20 +3584,20 @@ border_width_property_list:
 
 border_width_property_value:
     border_width_property_list  {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     if (property_value->size() > 0u &&
         property_value->size() <= 4u) {
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     } else {
       parser_impl->LogWarning(@1, "invalid number of border width values");
       $$ = NULL;
     }
   }
   | common_values {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->push_back($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   ;
 
@@ -3664,7 +3665,7 @@ border_or_outline_property_value:
   | common_values {
     // Replicate the common value into each of the properties that border is a
     // shorthand for.
-    scoped_ptr<BorderOrOutlineShorthand> border(new BorderOrOutlineShorthand());
+    std::unique_ptr<BorderOrOutlineShorthand> border(new BorderOrOutlineShorthand());
     border->color = $1;
     border->style = $1;
     border->width = $1;
@@ -3688,7 +3689,7 @@ border_radius_property_list:
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_radius_property_list border_radius_element {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     property_value->push_back(MakeScopedRefPtrAndRelease($2));
     $$ = property_value.release();
   }
@@ -3696,20 +3697,20 @@ border_radius_property_list:
 
 border_radius_property_value:
     border_radius_property_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     if (property_value->size() > 0u &&
         property_value->size() <= 4u) {
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     } else {
       parser_impl->LogWarning(@1, "invalid number of border radius values");
       $$ = NULL;
     }
   }
   | common_values {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->push_back($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   ;
 
@@ -3758,7 +3759,7 @@ box_shadow_list:
 
 validated_box_shadow_list:
     box_shadow_list {
-    scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
+    std::unique_ptr<ShadowPropertyInfo> shadow_property_info($1);
     if (!shadow_property_info->IsShadowPropertyValid(kBoxShadow)) {
       parser_impl->LogWarning(@1, "invalid box shadow property.");
       $$ = NULL;
@@ -3793,8 +3794,8 @@ comma_separated_box_shadow_list:
 box_shadow_property_value:
     comma_separated_box_shadow_list {
     if ($1) {
-      scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     }
   }
   | kNoneToken maybe_whitespace {
@@ -3897,9 +3898,9 @@ comma_separated_font_face_src_list:
 //   https://www.w3.org/TR/css3-fonts/#src-desc
 font_face_src_property_value:
     comma_separated_font_face_src_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
          : NULL;
   }
   | common_values
@@ -3994,7 +3995,7 @@ font_family_property_value:
     } else if ($1 == cssom::kInitialKeywordName) {
       $$ = AddRef(cssom::KeywordValue::GetInitial().get());
     } else {
-      scoped_ptr<cssom::PropertyListValue::Builder>
+      std::unique_ptr<cssom::PropertyListValue::Builder>
           builder(new cssom::PropertyListValue::Builder());
 
       // Generic families are defined in all CSS implementations.
@@ -4013,19 +4014,19 @@ font_family_property_value:
         builder->push_back(new cssom::StringValue($1.ToString()));
       }
 
-      $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+      $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
     }
   }
   | font_family_specific_name_no_single_identifier {
-    scoped_ptr<cssom::PropertyListValue::Builder>
+    std::unique_ptr<cssom::PropertyListValue::Builder>
         builder(new cssom::PropertyListValue::Builder());
     builder->push_back(MakeScopedRefPtrAndRelease($1));
-    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
   }
   | comma_separated_font_family_name_list comma font_family_name {
-    scoped_ptr<cssom::PropertyListValue::Builder> builder($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder($1);
     builder->push_back(MakeScopedRefPtrAndRelease($3));
-    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(builder)));
   }
   | errors {
     parser_impl->LogError(@1, "unsupported property value for font-family");
@@ -4177,12 +4178,12 @@ font_property_value:
     optional_font_value_list positive_length_percent_property_value
         comma_separated_font_family_name_list {
     // Font shorthand properties without a non-normal weight value.
-    scoped_ptr<FontShorthand> font($1);
+    std::unique_ptr<FontShorthand> font($1);
 
     font->font_size = MakeScopedRefPtrAndRelease($2);
 
-    scoped_ptr<cssom::PropertyListValue::Builder> builder($3);
-    font->font_family = new cssom::PropertyListValue(builder.Pass());
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder($3);
+    font->font_family = new cssom::PropertyListValue(std::move(builder));
 
     $$ = font.release();
   }
@@ -4193,7 +4194,7 @@ font_property_value:
     // preceding without expression are not simply combined into a single
     // maybe_font_weight_exclusive_property_value as a result of Bison having
     // parsing conflicts when the weight value appears in that form.
-    scoped_ptr<FontShorthand> font($1);
+    std::unique_ptr<FontShorthand> font($1);
 
     if (!font->font_weight) {
       font->font_weight = MakeScopedRefPtrAndRelease($2);
@@ -4204,15 +4205,15 @@ font_property_value:
 
     font->font_size = MakeScopedRefPtrAndRelease($3);
 
-    scoped_ptr<cssom::PropertyListValue::Builder> builder($4);
-    font->font_family = new cssom::PropertyListValue(builder.Pass());
+    std::unique_ptr<cssom::PropertyListValue::Builder> builder($4);
+    font->font_family = new cssom::PropertyListValue(std::move(builder));
 
     $$ = font.release();
   }
   | common_values_without_errors {
     // Replicate the common value into each of the properties that font
     // is a shorthand for.
-    scoped_ptr<FontShorthand> font(new FontShorthand());
+    std::unique_ptr<FontShorthand> font(new FontShorthand());
     font->font_style = $1;
     font->font_weight = $1;
     font->font_size = $1;
@@ -4586,7 +4587,7 @@ text_decoration_property_value:
   | common_values {
     // Replicate the common value into each of the properties that flex_ flow is
     // a shorthand for.
-    scoped_ptr<TextDecorationShorthand> text_decoration(
+    std::unique_ptr<TextDecorationShorthand> text_decoration(
         new TextDecorationShorthand());
     text_decoration->line = $1;
     text_decoration->color = $1;
@@ -4656,7 +4657,7 @@ text_shadow_list:
 
 validated_text_shadow_list:
     text_shadow_list {
-    scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
+    std::unique_ptr<ShadowPropertyInfo> shadow_property_info($1);
     if (!shadow_property_info->IsShadowPropertyValid(kTextShadow)) {
       parser_impl->LogWarning(@1, "invalid text shadow property.");
       $$ = NULL;
@@ -4689,8 +4690,8 @@ comma_separated_text_shadow_list:
 text_shadow_property_value:
     comma_separated_text_shadow_list {
     if ($1) {
-      scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     }
   }
   | kNoneToken maybe_whitespace {
@@ -4717,34 +4718,34 @@ transform_function:
   // Specifies an arbitrary affine 2D transformation.
     kMatrixFunctionToken maybe_whitespace number comma number comma number
       comma number comma number comma number ')' maybe_whitespace {
-    $<transform_functions>0->push_back(
+    $<transform_functions>0->emplace_back(
         new cssom::MatrixFunction($3, $5, $7, $9, $11, $13));
   }
   // Specifies a 2D rotation around the z-axis.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-rotate
   | kRotateFunctionToken maybe_whitespace angle ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::RotateFunction($3));
+    $<transform_functions>0->emplace_back(new cssom::RotateFunction($3));
   }
   // Specifies a 2D scale operation by the scaling vector.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-scale
   | kScaleFunctionToken maybe_whitespace scale_function_parameters ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back($3);
+    $<transform_functions>0->emplace_back($3);
   }
   // Specifies a 2D scale operation using the [sx, 1] scaling vector, where sx
   // is given as the parameter.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-scalex
   | kScaleXFunctionToken maybe_whitespace number ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::ScaleFunction($3, 1.0f));
+    $<transform_functions>0->emplace_back(new cssom::ScaleFunction($3, 1.0f));
   }
   // Specifies a 2D scale operation using the [1, sy] scaling vector, where sy
   // is given as the parameter.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-scaley
   | kScaleYFunctionToken maybe_whitespace number ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::ScaleFunction(1.0f, $3));
+    $<transform_functions>0->emplace_back(new cssom::ScaleFunction(1.0f, $3));
   }
   // Specifies a 2D translation by the vector [tx, ty], where tx is the first
   // translation-value parameter and ty is the optional second translation-value
@@ -4753,9 +4754,9 @@ transform_function:
   | kTranslateFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     if ($3) {
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kYAxis,
           scoped_refptr<cssom::LengthValue>(
               new cssom::LengthValue(0, cssom::kPixelsUnit))));
@@ -4764,9 +4765,9 @@ transform_function:
   | kTranslateFunctionToken maybe_whitespace length_percent_property_value comma
     length_percent_property_value ')' maybe_whitespace {
     if ($3 && $5) {
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($5)));
     }
   }
@@ -4775,7 +4776,7 @@ transform_function:
   | kTranslateXFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     if ($3) {
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
     }
   }
@@ -4784,7 +4785,7 @@ transform_function:
   | kTranslateYFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     if ($3) {
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($3)));
     }
   }
@@ -4794,9 +4795,20 @@ transform_function:
   | kTranslateZFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
     if ($3) {
-      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+      $<transform_functions>0->emplace_back(new cssom::TranslateFunction(
           cssom::TranslateFunction::kZAxis, MakeScopedRefPtrAndRelease($3)));
     }
+  }
+  // This Cobalt-specific transform function for hybrid navigation tracks
+  // interaction with the navigation item when it is focused. This function
+  // queries the closest hybrid navigation focus item (i.e. this element or
+  // an ancestor element with tabindex set appropriately). If that navigation
+  // item does not have focus, or the system does not provide interaction
+  // animations, then this transform function will evaluate to identity.
+  | kCobaltUiNavFocusTransformFunctionToken maybe_whitespace ')'
+      maybe_whitespace {
+    $<transform_functions>0->emplace_back(
+        new cssom::CobaltUiNavFocusTransformFunction);
   }
   // This Cobalt-specific transform function for hybrid navigation tracks
   // the direction in which focus is moving. This can be used to provide
@@ -4810,7 +4822,7 @@ transform_function:
   // from -50% to +50% in the X and Y directions.
   | kCobaltUiNavSpotlightTransformFunctionToken maybe_whitespace ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(
+    $<transform_functions>0->emplace_back(
         new cssom::CobaltUiNavSpotlightTransformFunction);
   }
   ;
@@ -4834,14 +4846,14 @@ transform_property_value:
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | transform_list {
-    scoped_ptr<cssom::TransformFunctionListValue::Builder>
+    std::unique_ptr<cssom::TransformFunctionListValue::Builder>
         transform_functions($1);
     $$ = transform_functions->size() == 0u ? NULL :
             AddRef(new cssom::TransformFunctionListValue(
-                transform_functions->Pass()));
+                std::move(*transform_functions)));
   }
   | transform_list errors {
-    scoped_ptr<cssom::TransformFunctionListValue::Builder>
+    std::unique_ptr<cssom::TransformFunctionListValue::Builder>
         transform_functions($1);
     parser_impl->LogWarning(@2, "invalid transform function");
     $$ = NULL;
@@ -4851,7 +4863,7 @@ transform_property_value:
 
 validated_two_position_list_elements:
     position_list_element position_list_element {
-    scoped_ptr<PositionParseStructure> position_info(
+    std::unique_ptr<PositionParseStructure> position_info(
         new PositionParseStructure());
     position_info->PushBackElement(MakeScopedRefPtrAndRelease($1));
     if (position_info->PushBackElement(MakeScopedRefPtrAndRelease($2)) &&
@@ -4870,22 +4882,22 @@ validated_two_position_list_elements:
 //   https://www.w3.org/TR/css3-transforms/#propdef-transform-origin
 transform_origin_property_value:
     position_list_element {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value(
         new cssom::PropertyListValue::Builder());
     property_value->push_back(MakeScopedRefPtrAndRelease($1));
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
   }
   | validated_two_position_list_elements {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
          : NULL;
   }
   | validated_two_position_list_elements length {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     if (property_value) {
       property_value->push_back(MakeScopedRefPtrAndRelease($2));
-      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+      $$ = AddRef(new cssom::PropertyListValue(std::move(property_value)));
     } else {
       $$ = NULL;
     }
@@ -4931,19 +4943,19 @@ visibility_property_value:
 comma_separated_time_list:
     time {
     $$ = new cssom::TimeListValue::Builder();
-    $$->push_back(base::TimeDelta::FromInternalValue($1));
+    $$->push_back(::base::TimeDelta::FromInternalValue($1));
   }
   | comma_separated_time_list comma time {
     $$ = $1;
-    $$->push_back(base::TimeDelta::FromInternalValue($3));
+    $$->push_back(::base::TimeDelta::FromInternalValue($3));
   }
   ;
 
 time_list_property_value:
     comma_separated_time_list {
-    scoped_ptr<cssom::ListValue<base::TimeDelta>::Builder> time_list($1);
+    std::unique_ptr<cssom::ListValue<::base::TimeDelta>::Builder> time_list($1);
     $$ = time_list
-         ? AddRef(new cssom::TimeListValue(time_list.Pass()))
+         ? AddRef(new cssom::TimeListValue(std::move(time_list)))
          : NULL;
   }
   | common_values
@@ -5029,11 +5041,11 @@ comma_separated_single_timing_function_list:
 
 timing_function_list_property_value:
     comma_separated_single_timing_function_list {
-    scoped_ptr<cssom::TimingFunctionListValue::Builder>
+    std::unique_ptr<cssom::TimingFunctionListValue::Builder>
         timing_function_list($1);
     $$ = timing_function_list
          ? AddRef(new cssom::TimingFunctionListValue(
-               timing_function_list.Pass()))
+               std::move(timing_function_list)))
          : NULL;
   }
   | common_values
@@ -5075,9 +5087,9 @@ comma_separated_animation_direction_list:
 
 animation_direction_property_value:
     comma_separated_animation_direction_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> direction_list($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> direction_list($1);
     $$ = direction_list
-         ? AddRef(new cssom::PropertyListValue(direction_list.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(direction_list)))
          : NULL;
   }
   | common_values_without_errors
@@ -5125,9 +5137,9 @@ comma_separated_animation_fill_mode_list:
 
 animation_fill_mode_property_value:
     comma_separated_animation_fill_mode_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> fill_mode_list($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> fill_mode_list($1);
     $$ = fill_mode_list
-         ? AddRef(new cssom::PropertyListValue(fill_mode_list.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(fill_mode_list)))
          : NULL;
   }
   | common_values_without_errors
@@ -5164,9 +5176,9 @@ comma_separated_animation_iteration_count_list:
 
 animation_iteration_count_property_value:
     comma_separated_animation_iteration_count_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> iteration_count_list($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> iteration_count_list($1);
     $$ = iteration_count_list
-         ? AddRef(new cssom::PropertyListValue(iteration_count_list.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(iteration_count_list)))
          : NULL;
   }
   | common_values_without_errors
@@ -5202,9 +5214,9 @@ comma_separated_animation_name_list:
 
 animation_name_property_value:
     comma_separated_animation_name_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> name_list($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> name_list($1);
     $$ = name_list
-         ? AddRef(new cssom::PropertyListValue(name_list.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(name_list)))
          : NULL;
   }
   | common_values_without_errors
@@ -5259,10 +5271,10 @@ single_animation_element:
   | time_with_units_required {
     if (!$<single_animation>0->duration) {
       // The first time encountered sets the duration.
-      $<single_animation>0->duration = base::TimeDelta::FromInternalValue($1);
+      $<single_animation>0->duration = ::base::TimeDelta::FromInternalValue($1);
     } else if (!$<single_animation>0->delay) {
       // The second time encountered sets the delay.
-      $<single_animation>0->delay = base::TimeDelta::FromInternalValue($1);
+      $<single_animation>0->delay = ::base::TimeDelta::FromInternalValue($1);
     } else {
       parser_impl->LogWarning(
           @1, "time value declared too many times in animation.");
@@ -5301,8 +5313,8 @@ single_non_empty_animation:
 
 comma_separated_animation_list:
     single_non_empty_animation {
-    scoped_ptr<SingleAnimationShorthand> single_animation($1);
-    scoped_ptr<AnimationShorthandBuilder> animation_builder(
+    std::unique_ptr<SingleAnimationShorthand> single_animation($1);
+    std::unique_ptr<AnimationShorthandBuilder> animation_builder(
         new AnimationShorthandBuilder());
 
     if (!single_animation->error) {
@@ -5327,7 +5339,7 @@ comma_separated_animation_list:
     $$ = animation_builder.release();
   }
   | comma_separated_animation_list comma single_non_empty_animation {
-    scoped_ptr<SingleAnimationShorthand> single_animation($3);
+    std::unique_ptr<SingleAnimationShorthand> single_animation($3);
     $$ = $1;
 
     if (!single_animation->error) {
@@ -5350,35 +5362,35 @@ comma_separated_animation_list:
 //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
 animation_property_value:
     comma_separated_animation_list {
-    scoped_ptr<AnimationShorthandBuilder> animation_builder($1);
+    std::unique_ptr<AnimationShorthandBuilder> animation_builder($1);
 
     if (animation_builder->empty()) {
       YYERROR;
     }
 
-    scoped_ptr<AnimationShorthand> animation(new AnimationShorthand());
+    std::unique_ptr<AnimationShorthand> animation(new AnimationShorthand());
 
     animation->delay_list = new cssom::TimeListValue(
-        animation_builder->delay_list_builder.Pass());
+        std::move(animation_builder->delay_list_builder));
     animation->direction_list = new cssom::PropertyListValue(
-        animation_builder->direction_list_builder.Pass());
+        std::move(animation_builder->direction_list_builder));
     animation->duration_list = new cssom::TimeListValue(
-        animation_builder->duration_list_builder.Pass());
+        std::move(animation_builder->duration_list_builder));
     animation->fill_mode_list = new cssom::PropertyListValue(
-        animation_builder->fill_mode_list_builder.Pass());
+        std::move(animation_builder->fill_mode_list_builder));
     animation->iteration_count_list = new cssom::PropertyListValue(
-        animation_builder->iteration_count_list_builder.Pass());
+        std::move(animation_builder->iteration_count_list_builder));
     animation->name_list = new cssom::PropertyListValue(
-        animation_builder->name_list_builder.Pass());
+        std::move(animation_builder->name_list_builder));
     animation->timing_function_list = new cssom::TimingFunctionListValue(
-        animation_builder->timing_function_list_builder.Pass());
+        std::move(animation_builder->timing_function_list_builder));
 
     $$ = animation.release();
   }
   | common_values_without_errors {
     // Replicate the common value into each of the properties that animation
     // is a shorthand for.
-    scoped_ptr<AnimationShorthand> animation(new AnimationShorthand());
+    std::unique_ptr<AnimationShorthand> animation(new AnimationShorthand());
     animation->delay_list = $1;
     animation->direction_list = $1;
     animation->duration_list = $1;
@@ -5411,7 +5423,7 @@ comma_separated_animatable_property_name_list:
   }
   | comma_separated_animatable_property_name_list comma
     animatable_property_token maybe_whitespace {
-    scoped_ptr<cssom::PropertyKeyListValue::Builder> property_name_list($1);
+    std::unique_ptr<cssom::PropertyKeyListValue::Builder> property_name_list($1);
     if (property_name_list) {
       property_name_list->push_back($3);
     }
@@ -5430,9 +5442,9 @@ transition_property_property_value:
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | comma_separated_animatable_property_name_list {
-    scoped_ptr<cssom::PropertyKeyListValue::Builder> property_name_list($1);
+    std::unique_ptr<cssom::PropertyKeyListValue::Builder> property_name_list($1);
     $$ = property_name_list
-         ? AddRef(new cssom::PropertyKeyListValue(property_name_list.Pass()))
+         ? AddRef(new cssom::PropertyKeyListValue(std::move(property_name_list)))
          : NULL;
   }
   | common_values_without_errors
@@ -5464,10 +5476,10 @@ single_transition_element:
   | time {
     if (!$<single_transition>0->duration) {
       // The first time encountered sets the duration.
-      $<single_transition>0->duration = base::TimeDelta::FromInternalValue($1);
+      $<single_transition>0->duration = ::base::TimeDelta::FromInternalValue($1);
     } else if (!$<single_transition>0->delay) {
       // The second time encountered sets the delay.
-      $<single_transition>0->delay = base::TimeDelta::FromInternalValue($1);
+      $<single_transition>0->delay = ::base::TimeDelta::FromInternalValue($1);
     } else {
       parser_impl->LogWarning(
           @1, "time value declared twice in transition.");
@@ -5506,8 +5518,8 @@ single_non_empty_transition:
 
 comma_separated_transition_list:
     single_non_empty_transition {
-    scoped_ptr<SingleTransitionShorthand> single_transition($1);
-    scoped_ptr<TransitionShorthandBuilder> transition_builder(
+    std::unique_ptr<SingleTransitionShorthand> single_transition($1);
+    std::unique_ptr<TransitionShorthandBuilder> transition_builder(
         new TransitionShorthandBuilder());
 
     if (!single_transition->error) {
@@ -5526,7 +5538,7 @@ comma_separated_transition_list:
     $$ = transition_builder.release();
   }
   | comma_separated_transition_list comma single_non_empty_transition {
-    scoped_ptr<SingleTransitionShorthand> single_transition($3);
+    std::unique_ptr<SingleTransitionShorthand> single_transition($3);
     $$ = $1;
 
     if (!single_transition->error) {
@@ -5545,7 +5557,7 @@ comma_separated_transition_list:
 //   https://www.w3.org/TR/css3-transitions/#transition
 transition_property_value:
     comma_separated_transition_list {
-    scoped_ptr<TransitionShorthandBuilder> transition_builder($1);
+    std::unique_ptr<TransitionShorthandBuilder> transition_builder($1);
 
     // Before proceeding, check that 'none' is not specified if the
     // number of transition statements is larger than 1, as per the
@@ -5562,7 +5574,7 @@ transition_property_value:
       }
     }
 
-    scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
+    std::unique_ptr<TransitionShorthand> transition(new TransitionShorthand());
 
     if (property_list_builder.empty() ||
         (property_list_builder.size() == 1 &&
@@ -5570,19 +5582,19 @@ transition_property_value:
       transition->property_list = cssom::KeywordValue::GetNone();
     } else {
       transition->property_list = new cssom::PropertyKeyListValue(
-          transition_builder->property_list_builder.Pass());
+          std::move(transition_builder->property_list_builder));
     }
     if (!transition_builder->duration_list_builder->empty()) {
       transition->duration_list = new cssom::TimeListValue(
-          transition_builder->duration_list_builder.Pass());
+          std::move(transition_builder->duration_list_builder));
     }
     if (!transition_builder->timing_function_list_builder->empty()) {
       transition->timing_function_list = new cssom::TimingFunctionListValue(
-          transition_builder->timing_function_list_builder.Pass());
+          std::move(transition_builder->timing_function_list_builder));
     }
     if (!transition_builder->delay_list_builder->empty()) {
       transition->delay_list = new cssom::TimeListValue(
-          transition_builder->delay_list_builder.Pass());
+          std::move(transition_builder->delay_list_builder));
     }
 
     $$ = transition.release();
@@ -5590,7 +5602,7 @@ transition_property_value:
   | common_values_without_errors {
     // Replicate the common value into each of the properties that transition
     // is a shorthand for.
-    scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
+    std::unique_ptr<TransitionShorthand> transition(new TransitionShorthand());
     transition->property_list = $1;
     transition->duration_list = $1;
     transition->timing_function_list = $1;
@@ -5601,9 +5613,9 @@ transition_property_value:
 
 unicode_range_property_value:
     comma_separated_unicode_range_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    std::unique_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         ? AddRef(new cssom::PropertyListValue(std::move(property_value)))
          : NULL;
   }
   | common_values
@@ -5811,7 +5823,7 @@ flex_single_flex_basis_element:
 flex_single_property_value:
     flex_single_flex_basis_element {
     // One single flex property element as a flex-basis value.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = cssom::KeywordValue::GetInitial();
     flex->shrink = cssom::KeywordValue::GetInitial();
     flex->basis = MakeScopedRefPtrAndRelease($1);
@@ -5821,7 +5833,7 @@ flex_single_property_value:
     // Shorthand 'flex: <positive number>' expands to
     // 'flex: <positive-number> 1 0'.
     //   https://www.w3.org/TR/css-flexbox-1/#flex-common
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($1);
     flex->shrink = new cssom::NumberValue(1);
     flex->basis = new cssom::LengthValue(0, cssom::kPixelsUnit);
@@ -5830,7 +5842,7 @@ flex_single_property_value:
   | kAutoToken maybe_whitespace {
     // The keyword auto expands to 1 1 auto.
     //   https://www.w3.org/TR/css-flexbox-1/#flex-common
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue(1);
     flex->shrink = new cssom::NumberValue(1);
     flex->basis = cssom::KeywordValue::GetAuto();
@@ -5839,7 +5851,7 @@ flex_single_property_value:
   | kNoneToken maybe_whitespace {
     // The keyword none expands to 0 0 auto.
     //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue(0);
     flex->shrink = new cssom::NumberValue(0);
     flex->basis = cssom::KeywordValue::GetAuto();
@@ -5850,21 +5862,21 @@ flex_single_property_value:
 flex_two_property_values:
     non_negative_number non_negative_number {
     // Two flex factors.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($1);
     flex->shrink = new cssom::NumberValue($2);
     $$ = flex.release();
   }
   | non_negative_number flex_basis_element {
     // One flex factor and one flex basis.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($1);
     flex->basis = MakeScopedRefPtrAndRelease($2);
     $$ = flex.release();
   }
   | flex_basis_element non_negative_number {
     // One flex basis and one flex factor.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($2);
     flex->basis = MakeScopedRefPtrAndRelease($1);
     $$ = flex.release();
@@ -5874,7 +5886,7 @@ flex_two_property_values:
 flex_three_property_values:
     non_negative_number non_negative_number flex_basis_element {
     // Two flex factors and a flex basis.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($1);
     flex->shrink= new cssom::NumberValue($2);
     flex->basis = MakeScopedRefPtrAndRelease($3);
@@ -5882,7 +5894,7 @@ flex_three_property_values:
   }
   | flex_basis_element non_negative_number non_negative_number {
     // One flex basis and two flex factors.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($2);
     flex->shrink= new cssom::NumberValue($3);
     flex->basis = MakeScopedRefPtrAndRelease($1);
@@ -5897,7 +5909,7 @@ flex_three_property_values:
           @1, "non-zero flex basis is not allowed without unit identifier");
       YYERROR;
     }
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($1);
     flex->shrink= new cssom::NumberValue($2);
     flex->basis = new cssom::LengthValue($3, cssom::kPixelsUnit);
@@ -5907,7 +5919,7 @@ flex_three_property_values:
 
 flex_property_value:
     flex_single_property_value {
-    scoped_ptr<FlexShorthand> flex($1);
+    std::unique_ptr<FlexShorthand> flex($1);
     $$ = flex.release();
   }
   | flex_two_property_values {
@@ -5917,7 +5929,7 @@ flex_property_value:
   | common_values {
     // Replicate the common value into each of the properties that flex is a
     // shorthand for.
-    scoped_ptr<FlexShorthand> flex(new FlexShorthand());
+    std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = $1;
     flex->shrink= $1;
     flex->basis = $1;
@@ -6010,7 +6022,7 @@ flex_flow_property_value:
   | common_values {
     // Replicate the common value into each of the properties that flex_ flow is
     // a shorthand for.
-    scoped_ptr<FlexFlowShorthand> flex_flow(new FlexFlowShorthand());
+    std::unique_ptr<FlexFlowShorthand> flex_flow(new FlexFlowShorthand());
     flex_flow->direction = $1;
     flex_flow->wrap = $1;
     $$ = flex_flow.release();
@@ -6154,10 +6166,10 @@ maybe_declaration:
   }
   | kAnimationToken maybe_whitespace colon
       animation_property_value maybe_important {
-    scoped_ptr<AnimationShorthand> animation($4);
+    std::unique_ptr<AnimationShorthand> animation($4);
     DCHECK(animation);
 
-    scoped_ptr<PropertyDeclaration> property_declaration(
+    std::unique_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
 
     // Unpack the animation shorthand property values.
@@ -6194,10 +6206,10 @@ maybe_declaration:
   }
   | kBackgroundToken maybe_whitespace colon background_property_value
       maybe_important {
-    scoped_ptr<BackgroundShorthandLayer> background($4);
+    std::unique_ptr<BackgroundShorthandLayer> background($4);
     if (background && !background->error) {
       background->ReplaceNullWithInitialValues();
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack the background shorthand property values.
@@ -6259,10 +6271,10 @@ maybe_declaration:
   }
   | kBorderToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderOrOutlineShorthand> border($4);
+    std::unique_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border color.
@@ -6327,10 +6339,10 @@ maybe_declaration:
   }
   | kBorderBottomToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderOrOutlineShorthand> border($4);
+    std::unique_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border bottom.
@@ -6377,7 +6389,7 @@ maybe_declaration:
       shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
             property_list_value);
 
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border color.
@@ -6405,10 +6417,10 @@ maybe_declaration:
   }
   | kBorderLeftToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderOrOutlineShorthand> border($4);
+    std::unique_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border left.
@@ -6455,7 +6467,7 @@ maybe_declaration:
       shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
             property_list_value);
 
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border radius.
@@ -6483,10 +6495,10 @@ maybe_declaration:
   }
   | kBorderRightToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderOrOutlineShorthand> border($4);
+    std::unique_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border right.
@@ -6533,7 +6545,7 @@ maybe_declaration:
       shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
             property_list_value);
 
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border style.
@@ -6561,10 +6573,10 @@ maybe_declaration:
   }
   | kBorderTopToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderOrOutlineShorthand> border($4);
+    std::unique_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack border top.
@@ -6623,7 +6635,7 @@ maybe_declaration:
         shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
             property_list_value);
 
-        scoped_ptr<PropertyDeclaration> property_declaration(
+        std::unique_ptr<PropertyDeclaration> property_declaration(
             new PropertyDeclaration($5));
 
         // Unpack border width.
@@ -6687,11 +6699,11 @@ maybe_declaration:
   }
   | kFlexToken maybe_whitespace colon flex_property_value
       maybe_important {
-    scoped_ptr<FlexShorthand> flex($4);
+    std::unique_ptr<FlexShorthand> flex($4);
     DCHECK(flex);
     if (!flex->error) {
       flex->ReplaceNullWithInitialValues();
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack flex.
@@ -6725,11 +6737,11 @@ maybe_declaration:
   }
   | kFlexFlowToken maybe_whitespace colon flex_flow_property_value
       maybe_important {
-    scoped_ptr<FlexFlowShorthand> flex_flow($4);
+    std::unique_ptr<FlexFlowShorthand> flex_flow($4);
     DCHECK(flex_flow);
     if (!flex_flow->error) {
       flex_flow->ReplaceNullWithInitialValues();
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack flex-flow.
@@ -6765,10 +6777,10 @@ maybe_declaration:
             : NULL;
   }
   | kFontToken maybe_whitespace colon font_property_value maybe_important {
-    scoped_ptr<FontShorthand> font($4);
+    std::unique_ptr<FontShorthand> font($4);
     DCHECK(font);
 
-    scoped_ptr<PropertyDeclaration> property_declaration(
+    std::unique_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
 
     if (!font->error) {
@@ -6868,9 +6880,9 @@ maybe_declaration:
             : NULL;
   }
   | kMarginToken maybe_whitespace colon margin_property_value maybe_important {
-    scoped_ptr<MarginOrPaddingShorthand> margin($4);
+    std::unique_ptr<MarginOrPaddingShorthand> margin($4);
     if (margin) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       property_declaration->property_values.push_back(
@@ -6929,10 +6941,10 @@ maybe_declaration:
   }
   | kOutlineToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderOrOutlineShorthand> outline($4);
+    std::unique_ptr<BorderOrOutlineShorthand> outline($4);
     DCHECK(outline);
     if (!outline->error) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack outline color.
@@ -7012,9 +7024,9 @@ maybe_declaration:
   }
   | kPaddingToken maybe_whitespace colon padding_property_value
       maybe_important {
-    scoped_ptr<MarginOrPaddingShorthand> padding($4);
+    std::unique_ptr<MarginOrPaddingShorthand> padding($4);
     if (padding) {
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       property_declaration->property_values.push_back(
@@ -7073,11 +7085,11 @@ maybe_declaration:
   }
   | kTextDecorationToken maybe_whitespace colon text_decoration_property_value
       maybe_important {
-    scoped_ptr<TextDecorationShorthand> text_decoration($4);
+    std::unique_ptr<TextDecorationShorthand> text_decoration($4);
     DCHECK(text_decoration);
     if (!text_decoration->error) {
       text_decoration->ReplaceNullWithInitialValues();
-      scoped_ptr<PropertyDeclaration> property_declaration(
+      std::unique_ptr<PropertyDeclaration> property_declaration(
           new PropertyDeclaration($5));
 
       // Unpack text-decoration.
@@ -7144,10 +7156,10 @@ maybe_declaration:
   }
   | kTransitionToken maybe_whitespace colon
       transition_property_value maybe_important {
-    scoped_ptr<TransitionShorthand> transition($4);
+    std::unique_ptr<TransitionShorthand> transition($4);
     DCHECK(transition);
 
-    scoped_ptr<PropertyDeclaration> property_declaration(
+    std::unique_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
 
     // Unpack the transition shorthand property values.
@@ -7243,8 +7255,8 @@ maybe_declaration:
 
     // Do not warn about non-standard or non-WebKit properties.
     if (property_name[0] != '-') {
-      base::AutoLock lock(non_trivial_static_fields.Get().lock);
-      base::hash_set<std::string>& properties_warned_about =
+      ::base::AutoLock lock(non_trivial_static_fields.Get().lock);
+      ::base::hash_set<std::string>& properties_warned_about =
           non_trivial_static_fields.Get().properties_warned_about;
 
       if (properties_warned_about.find(property_name) ==
@@ -7270,7 +7282,7 @@ style_declaration_list:
     maybe_declaration {
     $$ = AddRef(new cssom::CSSDeclaredStyleData());
 
-    scoped_ptr<PropertyDeclaration> property_declaration($1);
+    std::unique_ptr<PropertyDeclaration> property_declaration($1);
     if (property_declaration) {
       property_declaration->Apply($$);
       for (size_t i = 0;
@@ -7286,7 +7298,7 @@ style_declaration_list:
   | style_declaration_list semicolon maybe_declaration {
     $$ = $1;
 
-    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    std::unique_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration) {
       property_declaration->Apply($$);
       for (size_t i = 0;
@@ -7305,7 +7317,7 @@ font_face_declaration_list:
     maybe_declaration {
     $$ = AddRef(new cssom::CSSFontFaceDeclarationData());
 
-    scoped_ptr<PropertyDeclaration> property_declaration($1);
+    std::unique_ptr<PropertyDeclaration> property_declaration($1);
     if (property_declaration) {
       property_declaration->Apply($$);
     }
@@ -7313,7 +7325,7 @@ font_face_declaration_list:
   | font_face_declaration_list semicolon maybe_declaration {
     $$ = $1;
 
-    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    std::unique_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration) {
       property_declaration->Apply($$);
     }
@@ -7345,12 +7357,12 @@ rule_list_block:
 //   https://www.w3.org/TR/css3-syntax/#style-rule
 style_rule:
     selector_list style_declaration_block {
-    scoped_ptr<cssom::Selectors> selectors($1);
+    std::unique_ptr<cssom::Selectors> selectors($1);
     scoped_refptr<cssom::CSSRuleStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
 
     if (selectors) {
-      $$ = AddRef(new cssom::CSSStyleRule(selectors->Pass(), style));
+      $$ = AddRef(new cssom::CSSStyleRule(std::move(*selectors), style));
     } else {
       $$ = NULL;
     }
@@ -7460,7 +7472,7 @@ entry_point:
   }
   // Parses a single non-shorthand property value.
   | kPropertyValueEntryPointToken maybe_whitespace maybe_declaration {
-    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    std::unique_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration != NULL) {
       if (property_declaration->property_values.size() != 1) {
         parser_impl->LogError(
@@ -7487,7 +7499,7 @@ entry_point:
   // This is Cobalt's equivalent of a "list of component values".
   | kPropertyIntoDeclarationDataEntryPointToken maybe_whitespace
         maybe_declaration {
-    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    std::unique_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration != NULL) {
       if (property_declaration->is_important) {
         parser_impl->LogError(
@@ -7508,8 +7520,8 @@ filter_property_value:
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | filter_function_list {
-    scoped_ptr<cssom::FilterFunctionListValue::Builder> property_value($1);
-    $$ = AddRef(new cssom::FilterFunctionListValue(property_value->Pass()));
+    std::unique_ptr<cssom::FilterFunctionListValue::Builder> property_value($1);
+    $$ = AddRef(new cssom::FilterFunctionListValue(std::move(*property_value)));
   }
   | common_values
   ;
@@ -7518,7 +7530,7 @@ filter_function_list:
   // TODO: Parse list of filter_function's. This only parses one-element lists.
     filter_function {
     $$ = new cssom::FilterFunctionListValue::Builder();
-    $$->push_back($1);
+    $$->emplace_back($1);
   }
   ;
 
@@ -7535,9 +7547,9 @@ cobalt_mtm_filter_function:
     cobalt_mtm_function_name maybe_whitespace cobalt_map_to_mesh_spec comma angle
         angle comma cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
         ')' maybe_whitespace {
-    scoped_ptr<cssom::MapToMeshFunction::MeshSpec>
+    std::unique_ptr<cssom::MapToMeshFunction::MeshSpec>
         mesh_spec($3);
-    scoped_ptr<glm::mat4> transform($8);
+    std::unique_ptr<glm::mat4> transform($8);
     scoped_refptr<cssom::KeywordValue> stereo_mode =
         MakeScopedRefPtrAndRelease($9);
 
@@ -7545,7 +7557,7 @@ cobalt_mtm_filter_function:
       YYERROR;
     } else {
       $$ = new cssom::MapToMeshFunction(
-          mesh_spec.Pass(),
+          std::move(mesh_spec),
           $5,
           $6,
           *transform,
@@ -7576,13 +7588,13 @@ cobalt_map_to_mesh_spec:
   }
   | url cobalt_mtm_resolution_matched_mesh_list {
     scoped_refptr<cssom::PropertyValue> url = MakeScopedRefPtrAndRelease($1);
-    scoped_ptr<cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder>
+    std::unique_ptr<cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder>
         resolution_matched_mesh_urls($2);
 
     $$ = new cssom::MapToMeshFunction::MeshSpec(
         cssom::MapToMeshFunction::kUrls,
         url,
-        resolution_matched_mesh_urls->Pass());
+        std::move(*resolution_matched_mesh_urls));
   }
   ;
 
@@ -7598,7 +7610,7 @@ cobalt_mtm_resolution_matched_mesh_list:
   // Specifies a different mesh for a particular image resolution.
   | cobalt_mtm_resolution_matched_mesh_list cobalt_mtm_resolution_matched_mesh {
     $$ = $1;
-    $$->push_back($2);
+    $$->emplace_back($2);
   }
   ;
 
@@ -7617,7 +7629,7 @@ cobalt_mtm_transform_function:
   // Specifies an arbitrary affine 3D transformation, currently the only
   // supported transform in MTM.
     kMatrix3dFunctionToken maybe_whitespace number_matrix ')' maybe_whitespace {
-    scoped_ptr<std::vector<float> > matrix($3);
+    std::unique_ptr<std::vector<float> > matrix($3);
     if (matrix == NULL || matrix->size() !=  16) {
       parser_impl->LogError(
           @3,

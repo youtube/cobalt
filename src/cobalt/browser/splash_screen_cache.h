@@ -15,12 +15,12 @@
 #ifndef COBALT_BROWSER_SPLASH_SCREEN_CACHE_H_
 #define COBALT_BROWSER_SPLASH_SCREEN_CACHE_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -41,14 +41,14 @@ class SplashScreenCache {
 
   // Read the cached the splash screen.
   int ReadCachedSplashScreen(const std::string& key,
-                             scoped_array<char>* result) const;
+                             std::unique_ptr<char[]>* result) const;
 
   // Determine if a splash screen is cached corresponding to the key.
   bool IsSplashScreenCached(const std::string& key) const;
 
   // Get the key that corresponds to a starting URL. Optionally create
   // subdirectories along the path.
-  static base::optional<std::string> GetKeyForStartUrl(const GURL& url);
+  static base::Optional<std::string> GetKeyForStartUrl(const GURL& url);
 
  private:
   // Lock to protect access to the cache file.

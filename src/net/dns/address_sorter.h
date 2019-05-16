@@ -5,9 +5,10 @@
 #ifndef NET_DNS_ADDRESS_SORTER_H_
 #define NET_DNS_ADDRESS_SORTER_H_
 
-#include "base/basictypes.h"
+#include <memory>
+
 #include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -20,19 +21,18 @@ class AddressList;
 // AddressSorter does not necessarily preserve port numbers on the sorted list.
 class NET_EXPORT AddressSorter {
  public:
-  typedef base::Callback<void(bool success,
-                              const AddressList& list)> CallbackType;
+  using CallbackType =
+      base::OnceCallback<void(bool success, const AddressList& list)>;
 
   virtual ~AddressSorter() {}
 
   // Sorts |list|, which must include at least one IPv6 address.
   // Calls |callback| upon completion. Could complete synchronously. Could
   // complete after this AddressSorter is destroyed.
-  virtual void Sort(const AddressList& list,
-                    const CallbackType& callback) const = 0;
+  virtual void Sort(const AddressList& list, CallbackType callback) const = 0;
 
   // Creates platform-dependent AddressSorter.
-  static scoped_ptr<AddressSorter> CreateAddressSorter();
+  static std::unique_ptr<AddressSorter> CreateAddressSorter();
 
  protected:
   AddressSorter() {}

@@ -14,9 +14,10 @@
 
 #include "cobalt/accessibility/screen_reader.h"
 
+#include <memory>
 #include <string>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/accessibility/internal/live_region.h"
 #include "cobalt/accessibility/text_alternative.h"
 #include "cobalt/dom/element.h"
@@ -30,11 +31,13 @@ namespace {
 // that the text has been removed.
 // TODO: Support other languages.
 const char kRemovedFormatString[] = "Removed. %s";
-}
+}  // namespace
 
 ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                            dom::MutationObserverTaskManager* task_manager)
-    : enabled_(true), document_(document), tts_engine_(tts_engine),
+    : enabled_(true),
+      document_(document),
+      tts_engine_(tts_engine),
       focus_changed_(false) {
   DCHECK(document_ && tts_engine_);
   document_->AddObserver(this);
@@ -48,9 +51,7 @@ ScreenReader::~ScreenReader() {
   document_->RemoveObserver(this);
 }
 
-void ScreenReader::set_enabled(bool value) {
-  enabled_ = value;
-}
+void ScreenReader::set_enabled(bool value) { enabled_ = value; }
 
 void ScreenReader::OnLoad() {
   dom::MutationObserverInit init;
@@ -69,7 +70,7 @@ void ScreenReader::OnFocusChanged() {
     return;
   }
   focus_changed_ = true;
-  MessageLoop::current()->PostTask(
+  base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&ScreenReader::FocusChangedCallback, AsWeakPtr()));
 }
 
@@ -99,7 +100,7 @@ void ScreenReader::MutationObserverCallback(
     scoped_refptr<dom::MutationRecord> record = sequence.at(i);
 
     // Check if the target node is part of a live region.
-    scoped_ptr<internal::LiveRegion> live_region =
+    std::unique_ptr<internal::LiveRegion> live_region =
         internal::LiveRegion::GetLiveRegionForNode(record->target());
     if (!live_region) {
       continue;
@@ -163,7 +164,8 @@ void ScreenReader::MutationObserverCallback(
 
     // Provide additional context through a format string, if necessary.
     if (format_string) {
-      text_alternative = StringPrintf(format_string, text_alternative.c_str());
+      text_alternative =
+          base::StringPrintf(format_string, text_alternative.c_str());
     }
 
     // Utter the text according to whether this live region is assertive or not.

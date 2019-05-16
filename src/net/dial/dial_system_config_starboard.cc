@@ -20,7 +20,7 @@
 namespace {
 const char kInAppDialUuidFilename[] = "upnp_udn";
 const size_t kUuidSizeBytes = 16;
-}
+}  // namespace
 
 namespace net {
 
@@ -67,8 +67,7 @@ std::string GenerateRandomUuid() {
 // static
 std::string DialSystemConfig::GeneratePlatformUuid() {
   char path_buffer[SB_FILE_MAX_PATH];
-  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
-                                 path_buffer,
+  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path_buffer,
                                  sizeof(path_buffer));
 
   DCHECK(success) << "kSbSystemPathCacheDirectory not implemented";
@@ -81,8 +80,7 @@ std::string DialSystemConfig::GeneratePlatformUuid() {
   SbFileError error;
   starboard::ScopedFile file(path.c_str(),
                              kSbFileOpenAlways | kSbFileRead | kSbFileWrite,
-                             &created,
-                             &error);
+                             &created, &error);
   if (error != kSbFileOk) {
     LOG(ERROR) << "Unable to open or create " << path;
     return GenerateRandomUuid();

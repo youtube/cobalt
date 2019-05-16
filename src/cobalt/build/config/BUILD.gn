@@ -47,12 +47,6 @@ config("compiler_defaults") {
 
   include_dirs = [ "//" ]
 
-  if (cobalt_use_media_source_2016) {
-    defines += [ "COBALT_MEDIA_SOURCE_2016=1" ]
-  } else {
-    defines += [ "COBALT_MEDIA_SOURCE_2012=1" ]
-  }
-
   if (cobalt_media_buffer_storage_type == "memory") {
     defines += [ "COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY=1" ]
   } else {

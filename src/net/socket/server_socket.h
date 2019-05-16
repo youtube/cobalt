@@ -5,9 +5,13 @@
 #ifndef NET_SOCKET_SERVER_SOCKET_H_
 #define NET_SOCKET_SERVER_SOCKET_H_
 
-#include "base/memory/scoped_ptr.h"
-#include "net/base/completion_callback.h"
+#include <memory>
+#include <string>
+
+#include "base/macros.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -16,24 +20,26 @@ class StreamSocket;
 
 class NET_EXPORT ServerSocket {
  public:
-  ServerSocket() { }
-  virtual ~ServerSocket() { }
+  ServerSocket();
+  virtual ~ServerSocket();
 
-  // Allows the socket to share the local address to which the socket will be
-  // bound with other processes. Should be called before Listen().
-  virtual void AllowAddressReuse() = 0;
-
-  // Bind the socket and start listening. Destroy the socket to stop
+  // Binds the socket and starts listening. Destroys the socket to stop
   // listening.
-  virtual int Listen(const net::IPEndPoint& address, int backlog) = 0;
+  virtual int Listen(const IPEndPoint& address, int backlog) = 0;
+
+  // Binds the socket with address and port, and starts listening. It expects
+  // a valid IPv4 or IPv6 address. Otherwise, it returns ERR_ADDRESS_INVALID.
+  virtual int ListenWithAddressAndPort(const std::string& address_string,
+                                       uint16_t port,
+                                       int backlog);
 
   // Gets current address the socket is bound to.
   virtual int GetLocalAddress(IPEndPoint* address) const = 0;
 
-  // Accept connection. Callback is called when new connection is
+  // Accepts connection. Callback is called when new connection is
   // accepted.
-  virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     const CompletionCallback& callback) = 0;
+  virtual int Accept(std::unique_ptr<StreamSocket>* socket,
+                     CompletionOnceCallback callback) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ServerSocket);

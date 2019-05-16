@@ -52,7 +52,7 @@ class OperationsTestInterface : public script::Wrappable {
 
   MOCK_METHOD1(OptionalArgumentWithDefault, void(double));
   MOCK_METHOD2(OptionalNullableArgumentsWithDefaults,
-               void(base::optional<bool>,
+               void(base::Optional<bool>,
                     const scoped_refptr<ArbitraryInterface>&));
 
   MOCK_METHOD1(VariadicPrimitiveArguments, void(const std::vector<int32_t>));
@@ -77,12 +77,12 @@ class OperationsTestInterface : public script::Wrappable {
   }
 
   MOCK_METHOD1(OverloadedNullable, void(int32_t));
-  MOCK_METHOD1(OverloadedNullable, void(base::optional<bool>));
+  MOCK_METHOD1(OverloadedNullable, void(base::Optional<bool>));
 
   DEFINE_WRAPPABLE_TYPE(OperationsTestInterface);
 
-  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >
-      static_methods_mock;
+  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >::
+      DestructorAtExit static_methods_mock;
 };
 
 }  // namespace testing

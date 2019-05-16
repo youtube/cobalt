@@ -1,7 +1,17 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
+//
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DEPRECATED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// Please don't introduce new instances of LazyInstance<T>. Use a function-local
+// static of type base::NoDestructor<T> instead:
+//
+// Factory& Factory::GetInstance() {
+//   static base::NoDestructor<Factory> instance;
+//   return *instance;
+// }
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//
 // The LazyInstance<Type, Traits> class manages a single instance of Type,
 // which will be lazily created on the first time it's accessed.  This class is
 // useful for places you would normally use a function-level static, but you
@@ -24,11 +34,11 @@
 // requires that Type be a complete type so we can determine the size.
 //
 // Example usage:
-//   static LazyInstance<MyClass> my_instance = LAZY_INSTANCE_INITIALIZER;
+//   static LazyInstance<MyClass>::Leaky inst = LAZY_INSTANCE_INITIALIZER;
 //   void SomeMethod() {
-//     my_instance.Get().SomeMethod();  // MyClass::SomeMethod()
+//     inst.Get().SomeMethod();  // MyClass::SomeMethod()
 //
-//     MyClass* ptr = my_instance.Pointer();
+//     MyClass* ptr = inst.Pointer();
 //     ptr->DoDoDo();  // MyClass::DoDoDo
 //   }
 
@@ -38,36 +48,27 @@
 #include <new>  // For placement new.
 
 #include "base/atomicops.h"
-#include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/debug/leak_annotations.h"
+#include "base/lazy_instance_helpers.h"
 #include "base/logging.h"
-#include "base/memory/aligned_memory.h"
-#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
 
 // LazyInstance uses its own struct initializer-list style static
-// initialization, as base's LINKER_INITIALIZED requires a constructor and on
-// some compilers (notably gcc 4.4) this still ends up needing runtime
-// initialization.
-#define LAZY_INSTANCE_INITIALIZER {0}
+// initialization, which does not require a constructor.
+#define LAZY_INSTANCE_INITIALIZER {}
 
 namespace base {
 
 template <typename Type>
-struct DefaultLazyInstanceTraits {
-  static const bool kRegisterOnExit = true;
-  static const bool kAllowedToAccessOnNonjoinableThread = false;
-
+struct LazyInstanceTraitsBase {
   static Type* New(void* instance) {
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(instance) & (ALIGNOF(Type) - 1), 0u)
-        << ": Bad boy, the buffer passed to placement new is not aligned!\n"
-        "This may break some stuff like SSE-based optimizations assuming the "
-        "<Type> objects are word aligned.";
+    DCHECK_EQ(reinterpret_cast<uintptr_t>(instance) & (alignof(Type) - 1), 0u);
     // Use placement new to initialize our instance in our preallocated space.
     // The parenthesis is very important here to force POD type initialization.
     return new (instance) Type();
   }
-  static void Delete(Type* instance) {
+
+  static void CallDestructor(Type* instance) {
     // Explicitly call the destructor.
     instance->~Type();
   }
@@ -76,6 +77,25 @@ struct DefaultLazyInstanceTraits {
 // We pull out some of the functionality into non-templated functions, so we
 // can implement the more complicated pieces out of line in the .cc file.
 namespace internal {
+
+// This traits class causes destruction the contained Type at process exit via
+// AtExitManager. This is probably generally not what you want. Instead, prefer
+// Leaky below.
+template <typename Type>
+struct DestructorAtExitLazyInstanceTraits {
+  static const bool kRegisterOnExit = true;
+#if DCHECK_IS_ON()
+  static const bool kAllowedToAccessOnNonjoinableThread = false;
+#endif
+
+  static Type* New(void* instance) {
+    return LazyInstanceTraitsBase<Type>::New(instance);
+  }
+
+  static void Delete(Type* instance) {
+    LazyInstanceTraitsBase<Type>::CallDestructor(instance);
+  }
+};
 
 // Use LazyInstance<T>::Leaky for a less-verbose call-site typedef; e.g.:
 // base::LazyInstance<T>::Leaky my_leaky_lazy_instance;
@@ -88,33 +108,26 @@ namespace internal {
 template <typename Type>
 struct LeakyLazyInstanceTraits {
   static const bool kRegisterOnExit = false;
+#if DCHECK_IS_ON()
   static const bool kAllowedToAccessOnNonjoinableThread = true;
+#endif
 
   static Type* New(void* instance) {
-    return DefaultLazyInstanceTraits<Type>::New(instance);
+    ANNOTATE_SCOPED_MEMORY_LEAK;
+    return LazyInstanceTraitsBase<Type>::New(instance);
   }
-  static void Delete(Type* /* instance */) {}
+  static void Delete(Type* /*instance*/) {}
 };
 
-// Our AtomicWord doubles as a spinlock, where a value of
-// kBeingCreatedMarker means the spinlock is being held for creation.
-static const subtle::AtomicWord kLazyInstanceStateCreating = 1;
-
-// Check if instance needs to be created. If so return true otherwise
-// if another thread has beat us, wait for instance to be created and
-// return false.
-BASE_EXPORT bool NeedsLazyInstance(subtle::AtomicWord* state);
-
-// After creating an instance, call this to register the dtor to be called
-// at program exit and to update the atomic state to hold the |new_instance|
-BASE_EXPORT void CompleteLazyInstance(subtle::AtomicWord* state,
-                                      subtle::AtomicWord new_instance,
-                                      void* lazy_instance,
-                                      void (*dtor)(void*));
+template <typename Type>
+struct ErrorMustSelectLazyOrDestructorAtExitForLazyInstance {};
 
 }  // namespace internal
 
-template <typename Type, typename Traits = DefaultLazyInstanceTraits<Type> >
+template <
+    typename Type,
+    typename Traits =
+        internal::ErrorMustSelectLazyOrDestructorAtExitForLazyInstance<Type>>
 class LazyInstance {
  public:
   // Do not define a destructor, as doing so makes LazyInstance a
@@ -126,67 +139,54 @@ class LazyInstance {
 
   // Convenience typedef to avoid having to repeat Type for leaky lazy
   // instances.
-  typedef LazyInstance<Type, internal::LeakyLazyInstanceTraits<Type> > Leaky;
+  typedef LazyInstance<Type, internal::LeakyLazyInstanceTraits<Type>> Leaky;
+  typedef LazyInstance<Type, internal::DestructorAtExitLazyInstanceTraits<Type>>
+      DestructorAtExit;
 
   Type& Get() {
     return *Pointer();
   }
 
   Type* Pointer() {
-#ifndef NDEBUG
-    // Avoid making TLS lookup on release builds.
+#if DCHECK_IS_ON()
     if (!Traits::kAllowedToAccessOnNonjoinableThread)
       ThreadRestrictions::AssertSingletonAllowed();
 #endif
-    // If any bit in the created mask is true, the instance has already been
-    // fully constructed.
-    static const subtle::AtomicWord kLazyInstanceCreatedMask =
-        ~internal::kLazyInstanceStateCreating;
 
-    // We will hopefully have fast access when the instance is already created.
-    // Since a thread sees private_instance_ == 0 or kLazyInstanceStateCreating
-    // at most once, the load is taken out of NeedsInstance() as a fast-path.
-    // The load has acquire memory ordering as a thread which sees
-    // private_instance_ > creating needs to acquire visibility over
-    // the associated data (private_buf_). Pairing Release_Store is in
-    // CompleteLazyInstance().
-    subtle::AtomicWord value = subtle::Acquire_Load(&private_instance_);
-    if (!(value & kLazyInstanceCreatedMask) &&
-        internal::NeedsLazyInstance(&private_instance_)) {
-      // Create the instance in the space provided by |private_buf_|.
-      value = reinterpret_cast<subtle::AtomicWord>(
-          Traits::New(private_buf_.void_data()));
-      internal::CompleteLazyInstance(&private_instance_, value, this,
-                                     Traits::kRegisterOnExit ? OnExit : NULL);
-    }
-
-    // This annotation helps race detectors recognize correct lock-less
-    // synchronization between different threads calling Pointer().
-    // We suggest dynamic race detection tool that "Traits::New" above
-    // and CompleteLazyInstance(...) happens before "return instance()" below.
-    // See the corresponding HAPPENS_BEFORE in CompleteLazyInstance(...).
-    ANNOTATE_HAPPENS_AFTER(&private_instance_);
-    return instance();
+    return subtle::GetOrCreateLazyPointer(
+        &private_instance_, &Traits::New, private_buf_,
+        Traits::kRegisterOnExit ? OnExit : nullptr, this);
   }
 
-  bool operator==(Type* p) {
-    switch (subtle::NoBarrier_Load(&private_instance_)) {
-      case 0:
-        return p == NULL;
-      case internal::kLazyInstanceStateCreating:
-        return static_cast<void*>(p) == private_buf_.void_data();
-      default:
-        return p == instance();
-    }
+  // Returns true if the lazy instance has been created.  Unlike Get() and
+  // Pointer(), calling IsCreated() will not instantiate the object of Type.
+  bool IsCreated() {
+    // Return true (i.e. "created") if |private_instance_| is either being
+    // created right now (i.e. |private_instance_| has value of
+    // internal::kLazyInstanceStateCreating) or was already created (i.e.
+    // |private_instance_| has any other non-zero value).
+    return 0 != subtle::NoBarrier_Load(&private_instance_);
   }
+
+  // MSVC gives a warning that the alignment expands the size of the
+  // LazyInstance struct to make the size a multiple of the alignment. This
+  // is expected in this case.
+#if defined(OS_WIN)
+#pragma warning(push)
+#pragma warning(disable: 4324)
+#endif
 
   // Effectively private: member data is only public to allow the linker to
   // statically initialize it and to maintain a POD class. DO NOT USE FROM
   // OUTSIDE THIS CLASS.
-
   subtle::AtomicWord private_instance_;
+
   // Preallocated space for the Type instance.
-  base::AlignedMemory<sizeof(Type), ALIGNOF(Type)> private_buf_;
+  alignas(Type) char private_buf_[sizeof(Type)];
+
+#if defined(OS_WIN)
+#pragma warning(pop)
+#endif
 
  private:
   Type* instance() {

@@ -14,18 +14,19 @@
 
 #include "cobalt/webdriver/server.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/base/tcp_listen_socket.h"
 #include "net/server/http_server_request_info.h"
+#include "net/server/http_server_response_info.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -33,13 +34,15 @@ namespace {
 
 const char kJsonContentType[] = "application/json;charset=UTF-8";
 const char kTextPlainContentType[] = "text/plain";
+constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
+    net::DefineNetworkTrafficAnnotation("webdriver_server", "WebDriver Server");
 
 WebDriverServer::HttpMethod StringToHttpMethod(const std::string& method) {
-  if (LowerCaseEqualsASCII(method, "get")) {
+  if (base::LowerCaseEqualsASCII(method, "get")) {
     return WebDriverServer::kGet;
-  } else if (LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::LowerCaseEqualsASCII(method, "post")) {
     return WebDriverServer::kPost;
-  } else if (LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
     return WebDriverServer::kDelete;
   }
   return WebDriverServer::kUnknownMethod;
@@ -68,35 +71,34 @@ std::string HttpMethodToString(WebDriverServer::HttpMethod method) {
 // instance.
 class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
  public:
-  ResponseHandlerImpl(const scoped_refptr<net::HttpServer>& server,
-                      int connection_id)
-      : server_message_loop_(base::MessageLoopProxy::current()),
+  ResponseHandlerImpl(net::HttpServer* server, int connection_id)
+      : task_runner_(base::MessageLoop::current()->task_runner()),
         server_(server),
         connection_id_(connection_id) {}
 
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
-  void Success(scoped_ptr<base::Value> value) override {
+  void Success(std::unique_ptr<base::Value> value) override {
     DCHECK(value);
     std::string data;
-    base::JSONWriter::Write(value.get(), &data);
+    base::JSONWriter::Write(*value, &data);
     SendInternal(net::HTTP_OK, data, kJsonContentType);
   }
 
   void SuccessData(const std::string& content_type, const char* data,
                    int len) override {
-    std::vector<std::string> headers;
     std::string data_copied(data, len);
-    server_->Send(connection_id_, net::HTTP_OK, data_copied, content_type, headers);
+    server_->Send(connection_id_, net::HTTP_OK, data_copied, content_type,
+                  kTrafficAnnotation);
   }
 
   // Failed commands map to a valid WebDriver command and contain the expected
   // parameters, but otherwise failed to execute for some reason. This should
   // send a 500 Internal Server Error.
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Error_Handling
-  void FailedCommand(scoped_ptr<base::Value> value) override {
+  void FailedCommand(std::unique_ptr<base::Value> value) override {
     DCHECK(value);
     std::string data;
-    base::JSONWriter::Write(value.get(), &data);
+    base::JSONWriter::Write(*value, &data);
     SendInternal(net::HTTP_INTERNAL_SERVER_ERROR, data, kJsonContentType);
   }
 
@@ -108,8 +110,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // The command request is not mapped to anything.
   void UnknownCommand(const std::string& path) override {
     LOG(INFO) << "Unknown command: " << path;
-    SendInternal(net::HTTP_NOT_FOUND, "Unknown command",
-                 kTextPlainContentType);
+    SendInternal(net::HTTP_NOT_FOUND, "Unknown command", kTextPlainContentType);
   }
 
   // The command request is mapped to a valid command, but this WebDriver
@@ -137,11 +138,12 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
     for (int i = 0; i < allowed_methods.size(); ++i) {
       allowed_method_strings.push_back(HttpMethodToString(allowed_methods[i]));
     }
-    std::vector<std::string> headers;
-    headers.push_back("Allow: " + JoinString(allowed_method_strings, ", "));
+    net::HttpServerResponseInfo response_info;
+    response_info.AddHeader("Allow",
+                            base::JoinString(allowed_method_strings, ", "));
     SendInternal(net::HTTP_METHOD_NOT_ALLOWED,
                  "Invalid method: " + HttpMethodToString(requested_method),
-                 kTextPlainContentType, headers);
+                 kTextPlainContentType, response_info);
   }
 
   // The POST command's JSON request body does not contain the required
@@ -151,38 +153,36 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   }
 
  private:
-  static void SendToServer(const scoped_refptr<net::HttpServer>& server,
-                           int connection_id, net::HttpStatusCode status,
-                           const std::string& message,
-                           const std::string& content_type,
-                           const std::vector<std::string>& headers) {
-    server->Send(connection_id, status, message, content_type, headers);
-  }
-
-  // Send response with no additional headers specified.
-  void SendInternal(net::HttpStatusCode status, const std::string& message,
-                    const std::string& content_type) {
-    std::vector<std::string> headers;
-    SendInternal(status, message, content_type, headers);
+  static void SendToServer(
+      net::HttpServer* server, int connection_id, net::HttpStatusCode status,
+      const std::string& message, const std::string& content_type,
+      const base::Optional<net::HttpServerResponseInfo>& response_info) {
+    if (response_info) {
+      server->SendResponse(connection_id, response_info.value(),
+                           kTrafficAnnotation);
+    }
+    server->Send(connection_id, status, message, content_type,
+                 kTrafficAnnotation);
   }
 
   // Send a response on the Http Server's thread.
   void SendInternal(net::HttpStatusCode status, const std::string& message,
                     const std::string& content_type,
-                    const std::vector<std::string>& headers) {
-    if (base::MessageLoopProxy::current() == server_message_loop_) {
+                    base::Optional<net::HttpServerResponseInfo> response_info =
+                        base::Optional<net::HttpServerResponseInfo>()) {
+    if (base::MessageLoop::current()->task_runner() == task_runner_) {
       SendToServer(server_, connection_id_, status, message, content_type,
-                   headers);
+                   response_info);
     } else {
       base::Closure closure =
           base::Bind(&SendToServer, server_, connection_id_, status, message,
-                     content_type, headers);
-      server_message_loop_->PostTask(FROM_HERE, closure);
+                     content_type, response_info);
+      task_runner_->PostTask(FROM_HERE, closure);
     }
   }
 
-  scoped_refptr<base::MessageLoopProxy> server_message_loop_;
-  scoped_refptr<net::HttpServer> server_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  net::HttpServer* server_;
   int connection_id_;
 };
 }  // namespace
@@ -194,8 +194,10 @@ WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
       server_address_(address_cval_name,
                       "Address to communicate with WebDriver.") {
   // Create http server
-  factory_.reset(new net::TCPListenSocketFactory(listen_ip, port));
-  server_ = new net::HttpServer(*factory_, this);
+  std::unique_ptr<net::ServerSocket> server_socket =
+      std::make_unique<net::TCPServerSocket>(nullptr, net::NetLogSource());
+  server_socket->ListenWithAddressAndPort(listen_ip, port, 1 /*backlog*/);
+  server_ = std::make_unique<net::HttpServer>(std::move(server_socket), this);
   GURL address;
   int result = GetLocalAddress(&address);
   if (result == net::OK) {
@@ -206,6 +208,8 @@ WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
     server_address_ = "<NOT RUNNING>";
   }
 }
+
+void WebDriverServer::OnConnect(int /*connection_id*/) {}
 
 void WebDriverServer::OnHttpRequest(int connection_id,
                                     const net::HttpServerRequestInfo& info) {
@@ -221,14 +225,14 @@ void WebDriverServer::OnHttpRequest(int connection_id,
 
   DLOG(INFO) << "Got request: " << path;
   // Create a new ResponseHandler that will send a response to this connection.
-  scoped_ptr<ResponseHandler> response_handler(
-      new ResponseHandlerImpl(server_, connection_id));
+  std::unique_ptr<ResponseHandler> response_handler(
+      new ResponseHandlerImpl(server_.get(), connection_id));
 
-  scoped_ptr<base::Value> parameters;
+  std::unique_ptr<base::Value> parameters;
   HttpMethod method = StringToHttpMethod(info.method);
   if (method == kPost) {
     base::JSONReader reader;
-    parameters.reset(reader.ReadToValue(info.data));
+    parameters = std::move(reader.ReadToValue(info.data));
     if (!parameters) {
       // Failed to parse request body as JSON.
       response_handler->MissingCommandParameters(reader.GetErrorMessage());
@@ -238,7 +242,8 @@ void WebDriverServer::OnHttpRequest(int connection_id,
 
   // Call the HandleRequestCallback.
   handle_request_callback_.Run(StringToHttpMethod(info.method), path,
-                               parameters.Pass(), response_handler.Pass());
+                               std::move(parameters),
+                               std::move(response_handler));
 }
 
 int WebDriverServer::GetLocalAddress(GURL* out) const {

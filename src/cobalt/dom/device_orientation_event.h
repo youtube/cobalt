@@ -41,17 +41,17 @@ class DeviceOrientationEvent : public Event {
   DeviceOrientationEvent(const std::string& type,
                          const DeviceOrientationEventInit& init);
 
-  base::optional<double> alpha() const { return alpha_; }
-  base::optional<double> beta() const { return beta_; }
-  base::optional<double> gamma() const { return gamma_; }
+  base::Optional<double> alpha() const { return alpha_; }
+  base::Optional<double> beta() const { return beta_; }
+  base::Optional<double> gamma() const { return gamma_; }
   bool absolute() const { return absolute_; }
 
   DEFINE_WRAPPABLE_TYPE(DeviceOrientationEvent);
 
  private:
-  base::optional<double> alpha_;
-  base::optional<double> beta_;
-  base::optional<double> gamma_;
+  base::Optional<double> alpha_;
+  base::Optional<double> beta_;
+  base::Optional<double> gamma_;
   bool absolute_;
 
   DISALLOW_COPY_AND_ASSIGN(DeviceOrientationEvent);

@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/property_value.h"
 
-#include "base/time.h"
+#include "base/memory/ptr_util.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -45,8 +50,8 @@
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
-#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace cssom {
@@ -135,12 +140,12 @@ TEST(PropertyValueToStringTest, PercentageValueDecimal) {
 }
 
 TEST(PropertyValueToStringTest, PropertyListValue) {
-  scoped_ptr<PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<PropertyListValue::Builder> property_value_builder(
       new PropertyListValue::Builder());
-  property_value_builder->push_back(new PercentageValue(0.50f));
-  property_value_builder->push_back(new LengthValue(128, kPixelsUnit));
+  property_value_builder->emplace_back(new PercentageValue(0.50f));
+  property_value_builder->emplace_back(new LengthValue(128, kPixelsUnit));
   scoped_refptr<PropertyListValue> property(
-      new PropertyListValue(property_value_builder.Pass()));
+      new PropertyListValue(std::move(property_value_builder)));
 
   EXPECT_EQ(property->ToString(), "50%, 128px");
 }
@@ -150,7 +155,7 @@ TEST(PropertyValueToStringTest, PropertyKeyListValue) {
   property_list.push_back(kBackgroundColorProperty);
   property_list.push_back(kOpacityProperty);
   scoped_refptr<PropertyKeyListValue> property(new PropertyKeyListValue(
-      make_scoped_ptr(new PropertyKeyListValue::Builder(property_list))));
+      base::WrapUnique(new PropertyKeyListValue::Builder(property_list))));
 
   EXPECT_EQ(property->ToString(), "background-color, opacity");
 }
@@ -161,23 +166,25 @@ TEST(PropertyValueToStringTest, RadialGradientValueSizeKeyword) {
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length_1(
       new LengthValue(212, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_1, property_length_1));
   scoped_refptr<RGBAColorValue> property_color_2(
       new RGBAColorValue(55, 66, 77, 255));
   scoped_refptr<LengthValue> property_length_2(
       new LengthValue(42, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_2, property_length_2));
 
-  scoped_ptr<PropertyListValue::Builder> position_value_builder(
+  std::unique_ptr<PropertyListValue::Builder> position_value_builder(
       new PropertyListValue::Builder());
-  position_value_builder->push_back(new PercentageValue(0.50f));
-  position_value_builder->push_back(new LengthValue(128, kPixelsUnit));
+  position_value_builder->emplace_back(new PercentageValue(0.50f));
+  position_value_builder->emplace_back(new LengthValue(128, kPixelsUnit));
   scoped_refptr<PropertyListValue> position_property(
-      new PropertyListValue(position_value_builder.Pass()));
+      new PropertyListValue(std::move(position_value_builder)));
 
   scoped_refptr<RadialGradientValue> property(new RadialGradientValue(
       RadialGradientValue::kEllipse, RadialGradientValue::kClosestCorner,
-      position_property, color_stop_list.Pass()));
+      position_property, std::move(color_stop_list)));
 
   EXPECT_EQ(property->ToString(),
             "ellipse closest-corner at 50% 128px, rgb(100, 0, 50) 212px, "
@@ -190,29 +197,31 @@ TEST(PropertyValueToStringTest, RadialGradientValueSizeValue) {
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length_1(
       new LengthValue(212, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_1, property_length_1));
   scoped_refptr<RGBAColorValue> property_color_2(
       new RGBAColorValue(55, 66, 77, 255));
   scoped_refptr<LengthValue> property_length_2(
       new LengthValue(42, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_2, property_length_2));
 
-  scoped_ptr<PropertyListValue::Builder> size_value_builder(
+  std::unique_ptr<PropertyListValue::Builder> size_value_builder(
       new PropertyListValue::Builder());
-  size_value_builder->push_back(new LengthValue(0.5, kFontSizesAkaEmUnit));
+  size_value_builder->emplace_back(new LengthValue(0.5, kFontSizesAkaEmUnit));
   scoped_refptr<PropertyListValue> size_property(
-      new PropertyListValue(size_value_builder.Pass()));
+      new PropertyListValue(std::move(size_value_builder)));
 
-  scoped_ptr<PropertyListValue::Builder> position_value_builder(
+  std::unique_ptr<PropertyListValue::Builder> position_value_builder(
       new PropertyListValue::Builder());
   position_value_builder->push_back(KeywordValue::GetCenter());
   position_value_builder->push_back(KeywordValue::GetTop());
   scoped_refptr<PropertyListValue> position_property(
-      new PropertyListValue(position_value_builder.Pass()));
+      new PropertyListValue(std::move(position_value_builder)));
 
   scoped_refptr<RadialGradientValue> property(
       new RadialGradientValue(RadialGradientValue::kCircle, size_property,
-                              position_property, color_stop_list.Pass()));
+                              position_property, std::move(color_stop_list)));
 
   EXPECT_EQ(property->ToString(),
             "circle 0.5em at center top, rgb(100, 0, 50) 212px, rgb(55, 66, "
@@ -247,15 +256,17 @@ TEST(PropertyValueToStringTest, LinearGradientValueAngle) {
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length_1(
       new LengthValue(212, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_1, property_length_1));
   scoped_refptr<RGBAColorValue> property_color_2(
       new RGBAColorValue(55, 66, 77, 255));
   scoped_refptr<LengthValue> property_length_2(
       new LengthValue(42, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_2, property_length_2));
 
   scoped_refptr<LinearGradientValue> property(
-      new LinearGradientValue(123.0f, color_stop_list.Pass()));
+      new LinearGradientValue(123.0f, std::move(color_stop_list)));
 
   EXPECT_EQ(property->ToString(),
             "123rad, rgb(100, 0, 50) 212px, rgb(55, 66, 77) 42px");
@@ -267,15 +278,17 @@ TEST(PropertyValueToStringTest, LinearGradientValueSideOrCorner) {
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length_1(
       new LengthValue(212, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_1, property_length_1));
   scoped_refptr<RGBAColorValue> property_color_2(
       new RGBAColorValue(55, 66, 77, 255));
   scoped_refptr<LengthValue> property_length_2(
       new LengthValue(42, kPixelsUnit));
-  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
+  color_stop_list.emplace_back(
+      new ColorStop(property_color_2, property_length_2));
 
   scoped_refptr<LinearGradientValue> property(new LinearGradientValue(
-      LinearGradientValue::kBottom, color_stop_list.Pass()));
+      LinearGradientValue::kBottom, std::move(color_stop_list)));
 
   EXPECT_EQ(property->ToString(),
             "to bottom, rgb(100, 0, 50) 212px, rgb(55, 66, 77) 42px");
@@ -292,19 +305,19 @@ TEST(PropertyValueToStringTest, TimeListValue) {
   time_list.push_back(base::TimeDelta::FromMilliseconds(14));
 
   scoped_refptr<TimeListValue> property(new TimeListValue(
-      make_scoped_ptr(new TimeListValue::Builder(time_list))));
+      base::WrapUnique(new TimeListValue::Builder(time_list))));
   EXPECT_EQ(property->ToString(), "3s, 14ms");
 }
 
 TEST(PropertyValueToStringTest, TimingFunctionListValue) {
-  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list(
+  std::unique_ptr<TimingFunctionListValue::Builder> timing_function_list(
       new TimingFunctionListValue::Builder());
   timing_function_list->push_back(
       new CubicBezierTimingFunction(0.0f, 0.5f, 1.0f, 1.0f));
   timing_function_list->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> property(
-      new TimingFunctionListValue(timing_function_list.Pass()));
+      new TimingFunctionListValue(std::move(timing_function_list)));
   EXPECT_EQ(property->ToString(), "cubic-bezier(0,0.5,1,1), steps(3, end)");
 }
 
@@ -329,16 +342,28 @@ TEST(PropertyValueToStringTest, TranslateFunction) {
   EXPECT_EQ(function.ToString(), "translateY(3em)");
 }
 
+TEST(PropertyValueToStringTest, CobaltUiNavFocusTransformFunction) {
+  CobaltUiNavFocusTransformFunction function;
+  EXPECT_EQ(function.ToString(), "-cobalt-ui-nav-focus-transform()");
+}
+
+TEST(PropertyValueToStringTest, CobaltUiNavSpotlightTransformFunction) {
+  CobaltUiNavSpotlightTransformFunction function;
+  EXPECT_EQ(function.ToString(), "-cobalt-ui-nav-spotlight-transform()");
+}
+
 TEST(PropertyValueToStringTest, TransformFunctionListValue) {
   TransformFunctionListValue::Builder transform_list;
-  transform_list.push_back(new TranslateFunction(
+  transform_list.emplace_back(new TranslateFunction(
       TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
-  transform_list.push_back(new ScaleFunction(2.0f, 2.0f));
-  transform_list.push_back(new RotateFunction(1.0f));
+  transform_list.emplace_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list.emplace_back(new RotateFunction(1.0f));
+  transform_list.emplace_back(new CobaltUiNavSpotlightTransformFunction);
   scoped_refptr<TransformFunctionListValue> property(
-      new TransformFunctionListValue(transform_list.Pass()));
+      new TransformFunctionListValue(std::move(transform_list)));
 
-  EXPECT_EQ(property->ToString(), "translateX(1px) scale(2, 2) rotate(1rad)");
+  EXPECT_EQ(property->ToString(), "translateX(1px) scale(2, 2) rotate(1rad) "
+      "-cobalt-ui-nav-spotlight-transform()");
 }
 
 TEST(PropertyValueToStringTest, URLValue) {
@@ -347,9 +372,9 @@ TEST(PropertyValueToStringTest, URLValue) {
 }
 
 TEST(PropertyValueToStringTest, MapToMeshFunctionSingleMesh) {
-  scoped_ptr<MapToMeshFunction> function(new MapToMeshFunction(
+  std::unique_ptr<MapToMeshFunction> function(new MapToMeshFunction(
       new URLValue("-.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 2.5f, 3.14f,
+      (MapToMeshFunction::ResolutionMatchedMeshListBuilder()), 2.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
@@ -362,7 +387,7 @@ TEST(PropertyValueToStringTest, MapToMeshFunctionSingleMesh) {
 }
 
 TEST(PropertyValueToStringTest, MapToMeshFunctionEquirectangular) {
-  scoped_ptr<MapToMeshFunction> function(new MapToMeshFunction(
+  std::unique_ptr<MapToMeshFunction> function(new MapToMeshFunction(
       MapToMeshFunction::kEquirectangular, 2.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
@@ -377,12 +402,12 @@ TEST(PropertyValueToStringTest, MapToMeshFunctionEquirectangular) {
 
 TEST(PropertyValueToStringTest, MapToMeshFunctionWithResolutionMatchedMeshes) {
   MapToMeshFunction::ResolutionMatchedMeshListBuilder meshes;
-  meshes.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
+  meshes.emplace_back(new MapToMeshFunction::ResolutionMatchedMesh(
       1920, 2000000, new URLValue("a.msh")));
-  meshes.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
+  meshes.emplace_back(new MapToMeshFunction::ResolutionMatchedMesh(
       640, 5, new URLValue("b.msh")));
-  scoped_ptr<MapToMeshFunction> function(new MapToMeshFunction(
-      new URLValue("-.msh"), meshes.Pass(), 28.5f, 3.14f,
+  std::unique_ptr<MapToMeshFunction> function(new MapToMeshFunction(
+      new URLValue("-.msh"), std::move(meshes), 28.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
@@ -396,33 +421,33 @@ TEST(PropertyValueToStringTest, MapToMeshFunctionWithResolutionMatchedMeshes) {
 
 TEST(PropertyValueToStringTest, FilterFunctionListValue) {
   FilterFunctionListValue::Builder filter_list;
-  filter_list.push_back(new MapToMeshFunction(
+  filter_list.emplace_back(new MapToMeshFunction(
       new URLValue("-.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      (MapToMeshFunction::ResolutionMatchedMeshListBuilder()), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list.push_back(new MapToMeshFunction(
+  filter_list.emplace_back(new MapToMeshFunction(
       new URLValue("world.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
+      (MapToMeshFunction::ResolutionMatchedMeshListBuilder()), 8.5f, 39.0f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list.push_back(new MapToMeshFunction(
+  filter_list.emplace_back(new MapToMeshFunction(
       new URLValue("stereoscopic-world.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
+      (MapToMeshFunction::ResolutionMatchedMeshListBuilder()), 8.5f, 39.0f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
-  filter_list.push_back(new MapToMeshFunction(
+  filter_list.emplace_back(new MapToMeshFunction(
       new URLValue("stereoscopic-top-bottom-world.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
+      (MapToMeshFunction::ResolutionMatchedMeshListBuilder()), 8.5f, 39.0f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicTopBottom()));
 
   scoped_refptr<FilterFunctionListValue> property(
-      new FilterFunctionListValue(filter_list.Pass()));
+      new FilterFunctionListValue(std::move(filter_list)));
 
   EXPECT_EQ(
       "map-to-mesh(url(-.msh), "

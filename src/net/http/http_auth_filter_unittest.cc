@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/http/http_auth_filter.h"
+
+#include <memory>
 #include <ostream>
 
-
-#include "base/memory/scoped_ptr.h"
-#include "googleurl/src/gurl.h"
-#include "net/http/http_auth_filter.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace net {
 
@@ -35,22 +35,17 @@ struct UrlData {
 };
 
 static const UrlData urls[] = {
-  { GURL(""),
-    HttpAuth::AUTH_NONE, false, 0 },
-  { GURL("http://foo.cn"),
-    HttpAuth::AUTH_PROXY, true, ALL_SERVERS_MATCH },
-  { GURL("http://foo.cn"),
-    HttpAuth::AUTH_SERVER, false, 0 },
-  { GURL("http://slashdot.org"),
-    HttpAuth::AUTH_NONE, false, 0 },
-  { GURL("http://www.google.com"),
-    HttpAuth::AUTH_SERVER, true, 1 << 0 },
-  { GURL("http://www.google.com"),
-    HttpAuth::AUTH_PROXY, true, ALL_SERVERS_MATCH },
+  { GURL(std::string()), HttpAuth::AUTH_NONE, false, 0 },
+  { GURL("http://foo.cn"), HttpAuth::AUTH_PROXY, true, ALL_SERVERS_MATCH },
+  { GURL("http://foo.cn"), HttpAuth::AUTH_SERVER, false, 0 },
+  { GURL("http://slashdot.org"), HttpAuth::AUTH_NONE, false, 0 },
+  { GURL("http://www.google.com"), HttpAuth::AUTH_SERVER, true, 1 << 0 },
+  { GURL("http://www.google.com"), HttpAuth::AUTH_PROXY, true,
+    ALL_SERVERS_MATCH },
   { GURL("https://login.facebook.com/login.php?login_attempt=1"),
     HttpAuth::AUTH_NONE, false, 0 },
-  { GURL("http://codereview.chromium.org/634002/show"),
-    HttpAuth::AUTH_SERVER, true, 1 << 3 },
+  { GURL("http://codereview.chromium.org/634002/show"), HttpAuth::AUTH_SERVER,
+    true, 1 << 3 },
   { GURL("http://code.google.com/p/chromium/issues/detail?id=34505"),
     HttpAuth::AUTH_SERVER, true, 1 << 0 },
   { GURL("http://code.google.com/p/chromium/issues/list?can=2&q=label:"
@@ -77,7 +72,7 @@ static const UrlData urls[] = {
 
 TEST(HttpAuthFilterTest, EmptyFilter) {
   // Create an empty filter
-  HttpAuthFilterWhitelist filter("");
+  HttpAuthFilterWhitelist filter((std::string()));
   for (size_t i = 0; i < arraysize(urls); i++) {
     EXPECT_EQ(urls[i].target == HttpAuth::AUTH_PROXY,
               filter.IsValid(urls[i].url, urls[i].target))

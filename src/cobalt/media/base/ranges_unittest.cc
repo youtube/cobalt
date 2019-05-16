@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

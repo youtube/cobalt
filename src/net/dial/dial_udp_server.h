@@ -10,10 +10,9 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "net/base/net_export.h"
-#include "net/udp/udp_listen_socket.h"
+#include "net/socket/udp_socket.h"
 
 namespace net {
 
@@ -21,19 +20,15 @@ class IPEndPoint;
 class UdpSocketFactory;
 class HttpServerRequestInfo;
 
-class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
+class NET_EXPORT DialUdpServer {
  public:
   DialUdpServer(const std::string& location_url,
                 const std::string& server_agent);
   virtual ~DialUdpServer();
 
-  // UDPListenSocket::Delegate
-  virtual void DidRead(UDPListenSocket* server,
-                       const char* data,
-                       int len,
-                       const IPEndPoint* address) override;
+  virtual void DidRead(int rv);
 
-  virtual void DidClose(UDPListenSocket* sock) override;
+  virtual void DidClose(UDPSocket* sock);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialUdpServerTest, ParseSearchRequest);
@@ -44,6 +39,7 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
   // Create the listen socket. Runs on a separate thread.
   void CreateAndBind();
   void Shutdown();
+  void AcceptAndProcessConnection();
 
   // Construct the appropriate search response.
   const std::string ConstructSearchResponse() const;
@@ -54,8 +50,8 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
   // Is the valid SSDP request a valid M-Search request too ?
   static bool IsValidMSearchRequest(const HttpServerRequestInfo& info);
 
-  scoped_refptr<UDPListenSocket> socket_;
-  scoped_ptr<UdpSocketFactory> factory_;
+  std::unique_ptr<UDPSocket> socket_;
+  std::unique_ptr<UdpSocketFactory> factory_;
 
   // Value to pass in LOCATION: header
   std::string location_url_;
@@ -64,11 +60,14 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
   std::string server_agent_;
 
   base::Thread thread_;
+  THREAD_CHECKER(thread_checker_);
 
   bool is_running_;
+
+  scoped_refptr<IOBuffer> read_buf_;
+  IPEndPoint client_address_;
 };
 
-} // namespace net
+}  // namespace net
 
-#endif // NET_DIAL_DIAL_UDP_SERVER_H
-
+#endif  // NET_DIAL_DIAL_UDP_SERVER_H

@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_IMAGE_STUB_IMAGE_DECODER_H_
 #define COBALT_LOADER_IMAGE_STUB_IMAGE_DECODER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -36,15 +37,15 @@ class StubImageDecoder : public ImageDataDecoder {
   std::string GetTypeString() const override { return "StubImageDecoder"; }
 
   static bool IsValidSignature(const uint8* header) {
-    UNREFERENCED_PARAMETER(header);
+    SB_UNREFERENCED_PARAMETER(header);
     return true;
   }
 
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override {
-    UNREFERENCED_PARAMETER(data);
-    UNREFERENCED_PARAMETER(input_byte);
+    SB_UNREFERENCED_PARAMETER(data);
+    SB_UNREFERENCED_PARAMETER(input_byte);
     if (!decoded_image_data_) {
       decoded_image_data_ = AllocateImageData(math::Size(4, 4), true);
       DCHECK(decoded_image_data_);
@@ -53,10 +54,10 @@ class StubImageDecoder : public ImageDataDecoder {
     return input_byte;
   }
   scoped_refptr<Image> FinishInternal() override {
-    return CreateStaticImage(decoded_image_data_.Pass());
+    return CreateStaticImage(std::move(decoded_image_data_));
   }
 
-  scoped_ptr<render_tree::ImageData> decoded_image_data_;
+  std::unique_ptr<render_tree::ImageData> decoded_image_data_;
 };
 
 }  // namespace image

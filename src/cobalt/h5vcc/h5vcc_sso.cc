@@ -17,7 +17,7 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSso::H5vccSso() : sso_(sso::CreateSSO().Pass()) {}
+H5vccSso::H5vccSso() : sso_(std::move(sso::CreateSSO())) {}
 
 std::string H5vccSso::GetApiKey() {
   DCHECK(sso_);

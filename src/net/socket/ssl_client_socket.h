@@ -6,45 +6,53 @@
 #define NET_SOCKET_SSL_CLIENT_SOCKET_H_
 
 #include <string>
+#include <vector>
 
+#include "base/gtest_prod_util.h"
+#include "base/strings/string_piece.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_export.h"
 #include "net/socket/ssl_socket.h"
 #include "net/socket/stream_socket.h"
+#include "starboard/types.h"
 
 namespace net {
 
+class CTPolicyEnforcer;
 class CertVerifier;
-class ServerBoundCertService;
-class SSLCertRequestInfo;
-class SSLInfo;
+class ChannelIDService;
+class CTVerifier;
+class SSLKeyLogger;
 class TransportSecurityState;
 
 // This struct groups together several fields which are used by various
 // classes related to SSLClientSocket.
 struct SSLClientSocketContext {
-  SSLClientSocketContext()
-      : cert_verifier(NULL),
-        server_bound_cert_service(NULL),
-        transport_security_state(NULL) {}
-
+  SSLClientSocketContext() = default;
   SSLClientSocketContext(CertVerifier* cert_verifier_arg,
-                         ServerBoundCertService* server_bound_cert_service_arg,
+                         ChannelIDService* channel_id_service_arg,
                          TransportSecurityState* transport_security_state_arg,
+                         CTVerifier* cert_transparency_verifier_arg,
+                         CTPolicyEnforcer* ct_policy_enforcer_arg,
                          const std::string& ssl_session_cache_shard_arg)
       : cert_verifier(cert_verifier_arg),
-        server_bound_cert_service(server_bound_cert_service_arg),
+        channel_id_service(channel_id_service_arg),
         transport_security_state(transport_security_state_arg),
+        cert_transparency_verifier(cert_transparency_verifier_arg),
+        ct_policy_enforcer(ct_policy_enforcer_arg),
         ssl_session_cache_shard(ssl_session_cache_shard_arg) {}
 
-  CertVerifier* cert_verifier;
-  ServerBoundCertService* server_bound_cert_service;
-  TransportSecurityState* transport_security_state;
+  CertVerifier* cert_verifier = nullptr;
+  ChannelIDService* channel_id_service = nullptr;
+  TransportSecurityState* transport_security_state = nullptr;
+  CTVerifier* cert_transparency_verifier = nullptr;
+  CTPolicyEnforcer* ct_policy_enforcer = nullptr;
   // ssl_session_cache_shard is an opaque string that identifies a shard of the
   // SSL session cache. SSL sockets with the same ssl_session_cache_shard may
   // resume each other's SSL sessions but we'll never sessions between shards.
-  const std::string ssl_session_cache_shard;
+  std::string ssl_session_cache_shard;
 };
 
 // A client socket that uses SSL as the transport layer.
@@ -57,83 +65,52 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
  public:
   SSLClientSocket();
 
-  // Next Protocol Negotiation (NPN) allows a TLS client and server to come to
-  // an agreement about the application level protocol to speak over a
-  // connection.
-  enum NextProtoStatus {
-    // WARNING: These values are serialized to disk. Don't change them.
+  // Log SSL key material to |logger|. Must be called before any
+  // SSLClientSockets are created.
+  //
+  // TODO(davidben): Switch this to a parameter on the SSLClientSocketContext
+  // once https://crbug.com/458365 is resolved.
+  static void SetSSLKeyLogger(std::unique_ptr<SSLKeyLogger> logger);
 
-    kNextProtoUnsupported = 0,  // The server doesn't support NPN.
-    kNextProtoNegotiated = 1,   // We agreed on a protocol.
-    kNextProtoNoOverlap = 2,    // No protocols in common. We requested
-                                // the first protocol in our list.
-  };
-
-  // StreamSocket:
-  virtual bool WasNpnNegotiated() const override;
-  virtual NextProto GetNegotiatedProtocol() const override;
-
-  // Gets the SSL CertificateRequest info of the socket after Connect failed
-  // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
-  virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) = 0;
-
-  // Get the application level protocol that we negotiated with the server.
-  // *proto is set to the resulting protocol (n.b. that the string may have
-  // embedded NULs).
-  //   kNextProtoUnsupported: *proto is cleared.
-  //   kNextProtoNegotiated:  *proto is set to the negotiated protocol.
-  //   kNextProtoNoOverlap:   *proto is set to the first protocol in the
-  //                          supported list.
-  // *server_protos is set to the server advertised protocols.
-  virtual NextProtoStatus GetNextProto(std::string* proto,
-                                       std::string* server_protos) = 0;
-
-  static NextProto NextProtoFromString(const std::string& proto_string);
-
-  static const char* NextProtoToString(NextProto next_proto);
-
-  static const char* NextProtoStatusToString(const NextProtoStatus status);
-
-  // Can be used with the second argument(|server_protos|) of |GetNextProto| to
-  // construct a comma separated string of server advertised protocols.
-  static std::string ServerProtosToString(const std::string& server_protos);
-
+  // Returns true if |error| is OK or |load_flags| ignores certificate errors
+  // and |error| is a certificate error.
   static bool IgnoreCertError(int error, int load_flags);
 
   // ClearSessionCache clears the SSL session cache, used to resume SSL
   // sessions.
   static void ClearSessionCache();
 
-  virtual bool set_was_npn_negotiated(bool negotiated);
+ protected:
+  void set_signed_cert_timestamps_received(
+      bool signed_cert_timestamps_received) {
+    signed_cert_timestamps_received_ = signed_cert_timestamps_received;
+  }
 
-  virtual bool was_spdy_negotiated() const;
+  void set_stapled_ocsp_response_received(bool stapled_ocsp_response_received) {
+    stapled_ocsp_response_received_ = stapled_ocsp_response_received;
+  }
 
-  virtual bool set_was_spdy_negotiated(bool negotiated);
-
-  virtual void set_protocol_negotiated(NextProto protocol_negotiated);
-
-  // Returns the ServerBoundCertService used by this socket, or NULL if
-  // server bound certificates are not supported.
-  virtual ServerBoundCertService* GetServerBoundCertService() const = 0;
-
-  // Returns true if a channel ID was sent on this connection.
-  // This may be useful for protocols, like SPDY, which allow the same
-  // connection to be shared between multiple domains, each of which need
-  // a channel ID.
-  virtual bool WasChannelIDSent() const;
-
-  virtual void set_channel_id_sent(bool channel_id_sent);
+  // Serialize |next_protos| in the wire format for ALPN and NPN: protocols are
+  // listed in order, each prefixed by a one-byte length.
+  static std::vector<uint8_t> SerializeNextProtos(
+      const NextProtoVector& next_protos);
 
  private:
-  // True if NPN was responded to, independent of selecting SPDY or HTTP.
-  bool was_npn_negotiated_;
-  // True if NPN successfully negotiated SPDY.
-  bool was_spdy_negotiated_;
-  // Protocol that we negotiated with the server.
-  NextProto protocol_negotiated_;
-  // True if a channel ID was sent.
-  bool channel_id_sent_;
+  FRIEND_TEST_ALL_PREFIXES(SSLClientSocket, SerializeNextProtos);
+  // For signed_cert_timestamps_received_ and stapled_ocsp_response_received_.
+  FRIEND_TEST_ALL_PREFIXES(SSLClientSocketTest,
+                           ConnectSignedCertTimestampsTLSExtension);
+  FRIEND_TEST_ALL_PREFIXES(SSLClientSocketTest,
+                           ConnectSignedCertTimestampsEnablesOCSP);
+  FRIEND_TEST_ALL_PREFIXES(SSLClientSocketTest,
+                           ConnectSignedCertTimestampsDisabled);
+  FRIEND_TEST_ALL_PREFIXES(SSLClientSocketTest,
+                           VerifyServerChainProperlyOrdered);
+
+  // True if SCTs were received via a TLS extension.
+  bool signed_cert_timestamps_received_;
+  // True if a stapled OCSP response was received.
+  bool stapled_ocsp_response_received_;
 };
 
 }  // namespace net

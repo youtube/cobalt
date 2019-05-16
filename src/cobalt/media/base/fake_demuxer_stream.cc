@@ -176,8 +176,8 @@ void FakeDemuxerStream::DoRead() {
   if (num_buffers_left_in_current_config_ == 0) {
     // End of stream.
     if (num_configs_left_ == 0) {
-      base::ResetAndReturn(&read_cb_)
-          .Run(kOk, DecoderBuffer::CreateEOSBuffer());
+      base::ResetAndReturn(&read_cb_).Run(kOk,
+                                          DecoderBuffer::CreateEOSBuffer());
       return;
     }
 

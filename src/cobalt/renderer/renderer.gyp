@@ -131,30 +131,5 @@
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
-    {
-      'target_name': 'renderer_benchmark',
-      'type': '<(final_executable_type)',
-      'sources': [
-        'rasterizer/benchmark.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/test/scenes/scenes.gyp:scenes',
-        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
-        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
-        'renderer',
-      ],
-    },
-    {
-      'target_name': 'renderer_benchmark_deploy',
-      'type': 'none',
-      'dependencies': [
-        'renderer_benchmark',
-      ],
-      'variables': {
-        'executable_name': 'renderer_benchmark',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-    },
   ],
 }

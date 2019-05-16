@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/timing_function.h"

@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
 #define COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -37,10 +39,10 @@ class GraphicsContextStub : public GraphicsContext {
     return scoped_refptr<RenderTarget>(new RenderTargetStub(dimensions));
   }
 
-  scoped_array<uint8_t> DownloadPixelDataAsRGBA(
+  std::unique_ptr<uint8_t[]> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) override {
     // Since we're a stub, just return garbage data of the right size.
-    return scoped_array<uint8_t>(
+    return std::unique_ptr<uint8_t[]>(
         new uint8_t[render_target->GetSize().GetArea() * 4]);
   }
 

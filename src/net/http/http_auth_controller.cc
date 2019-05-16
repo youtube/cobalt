@@ -4,15 +4,18 @@
 
 #include "net/http/http_auth_controller.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/metrics/histogram.h"
-#include "base/string_util.h"
+#include "base/callback_helpers.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/threading/platform_thread.h"
-#include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
-#include "net/base/host_resolver.h"
-#include "net/base/net_util.h"
+#include "net/base/url_util.h"
+#include "net/dns/host_resolver.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
@@ -23,35 +26,6 @@
 namespace net {
 
 namespace {
-
-// Returns a log message for all the response headers related to the auth
-// challenge.
-std::string AuthChallengeLogMessage(HttpResponseHeaders* headers) {
-  std::string msg;
-  std::string header_val;
-  void* iter = NULL;
-  while (headers->EnumerateHeader(&iter, "proxy-authenticate", &header_val)) {
-    msg.append("\n  Has header Proxy-Authenticate: ");
-    msg.append(header_val);
-  }
-
-  iter = NULL;
-  while (headers->EnumerateHeader(&iter, "www-authenticate", &header_val)) {
-    msg.append("\n  Has header WWW-Authenticate: ");
-    msg.append(header_val);
-  }
-
-  // RFC 4559 requires that a proxy indicate its support of NTLM/Negotiate
-  // authentication with a "Proxy-Support: Session-Based-Authentication"
-  // response header.
-  iter = NULL;
-  while (headers->EnumerateHeader(&iter, "proxy-support", &header_val)) {
-    msg.append("\n  Has header Proxy-Support: ");
-    msg.append(header_val);
-  }
-
-  return msg;
-}
 
 enum AuthEvent {
   AUTH_EVENT_START = 0,
@@ -70,12 +44,12 @@ enum AuthTarget {
 AuthTarget DetermineAuthTarget(const HttpAuthHandler* handler) {
   switch (handler->target()) {
     case HttpAuth::AUTH_PROXY:
-      if (handler->origin().SchemeIsSecure())
+      if (handler->origin().SchemeIsCryptographic())
         return AUTH_TARGET_SECURE_PROXY;
       else
         return AUTH_TARGET_PROXY;
     case HttpAuth::AUTH_SERVER:
-      if (handler->origin().SchemeIsSecure())
+      if (handler->origin().SchemeIsCryptographic())
         return AUTH_TARGET_SECURE_SERVER;
       else
         return AUTH_TARGET_SERVER;
@@ -167,13 +141,15 @@ HttpAuthController::HttpAuthController(
 }
 
 HttpAuthController::~HttpAuthController() {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 int HttpAuthController::MaybeGenerateAuthToken(
-    const HttpRequestInfo* request, const CompletionCallback& callback,
-    const BoundNetLog& net_log) {
-  DCHECK(CalledOnValidThread());
+    const HttpRequestInfo* request,
+    CompletionOnceCallback callback,
+    const NetLogWithSource& net_log) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!auth_info_);
   bool needs_auth = HaveAuth() || SelectPreemptiveAuth(net_log);
   if (!needs_auth)
     return OK;
@@ -184,19 +160,20 @@ int HttpAuthController::MaybeGenerateAuthToken(
   DCHECK(callback_.is_null());
   int rv = handler_->GenerateAuthToken(
       credentials, request,
-      base::Bind(&HttpAuthController::OnIOComplete, base::Unretained(this)),
+      base::BindOnce(&HttpAuthController::OnGenerateAuthTokenDone,
+                     base::Unretained(this)),
       &auth_token_);
-  if (DisableOnAuthHandlerResult(rv))
-    rv = OK;
-  if (rv == ERR_IO_PENDING)
-    callback_ = callback;
-  else
-    OnIOComplete(rv);
-  return rv;
+
+  if (rv == ERR_IO_PENDING) {
+    callback_ = std::move(callback);
+    return rv;
+  }
+
+  return HandleGenerateTokenResult(rv);
 }
 
-bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
-  DCHECK(CalledOnValidThread());
+bool HttpAuthController::SelectPreemptiveAuth(const NetLogWithSource& net_log) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!HaveAuth());
   DCHECK(identity_.invalid);
 
@@ -215,7 +192,7 @@ bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
     return false;
 
   // Try to create a handler using the previous auth challenge.
-  scoped_ptr<HttpAuthHandler> handler_preemptive;
+  std::unique_ptr<HttpAuthHandler> handler_preemptive;
   int rv_create = http_auth_handler_factory_->
       CreatePreemptiveAuthHandlerFromString(entry->auth_challenge(), target_,
                                             auth_origin_,
@@ -234,7 +211,7 @@ bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
 
 void HttpAuthController::AddAuthorizationHeader(
     HttpRequestHeaders* authorization_headers) {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(HaveAuth());
   // auth_token_ can be empty if we encountered a permanent error with
   // the auth scheme and want to retry.
@@ -247,15 +224,14 @@ void HttpAuthController::AddAuthorizationHeader(
 
 int HttpAuthController::HandleAuthChallenge(
     scoped_refptr<HttpResponseHeaders> headers,
+    const SSLInfo& ssl_info,
     bool do_not_send_server_auth,
     bool establishing_tunnel,
-    const BoundNetLog& net_log) {
-  DCHECK(CalledOnValidThread());
-  DCHECK(headers);
+    const NetLogWithSource& net_log) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(headers.get());
   DCHECK(auth_origin_.is_valid());
-  VLOG(1) << "The " << HttpAuth::GetAuthTargetString(target_) << " "
-          << auth_origin_ << " requested auth "
-          << AuthChallengeLogMessage(headers.get());
+  DCHECK(!auth_info_);
 
   // Give the existing auth handler first try at the authentication headers.
   // This will also evict the entry in the HttpAuthCache if the previous
@@ -264,7 +240,7 @@ int HttpAuthController::HandleAuthChallenge(
   if (HaveAuth()) {
     std::string challenge_used;
     HttpAuth::AuthorizationResult result = HttpAuth::HandleChallengeResponse(
-        handler_.get(), headers, target_, disabled_schemes_, &challenge_used);
+        handler_.get(), *headers, target_, disabled_schemes_, &challenge_used);
     switch (result) {
       case HttpAuth::AUTHORIZATION_RESULT_ACCEPT:
         break;
@@ -306,28 +282,21 @@ int HttpAuthController::HandleAuthChallenge(
   }
 
   identity_.invalid = true;
-
   bool can_send_auth = (target_ != HttpAuth::AUTH_SERVER ||
                         !do_not_send_server_auth);
 
   do {
     if (!handler_.get() && can_send_auth) {
       // Find the best authentication challenge that we support.
-      HttpAuth::ChooseBestChallenge(http_auth_handler_factory_,
-                                    headers, target_, auth_origin_,
-                                    disabled_schemes_, net_log,
-                                    &handler_);
+      HttpAuth::ChooseBestChallenge(http_auth_handler_factory_, *headers,
+                                    ssl_info, target_, auth_origin_,
+                                    disabled_schemes_, net_log, &handler_);
       if (handler_.get())
         HistogramAuthEvent(handler_.get(), AUTH_EVENT_START);
     }
 
     if (!handler_.get()) {
       if (establishing_tunnel) {
-        LOG(ERROR) << "Can't perform auth to the "
-                   << HttpAuth::GetAuthTargetString(target_) << " "
-                   << auth_origin_ << " when establishing a tunnel"
-                   << AuthChallengeLogMessage(headers.get());
-
         // We are establishing a tunnel, we can't show the error page because an
         // active network attacker could control its contents.  Instead, we just
         // fail to establish the tunnel.
@@ -361,8 +330,6 @@ int HttpAuthController::HandleAuthChallenge(
         // Pass the challenge information back to the client.
         PopulateAuthChallenge();
       }
-    } else {
-      auth_info_ = NULL;
     }
 
     // If we get here and we don't have a handler_, that's because we
@@ -375,7 +342,7 @@ int HttpAuthController::HandleAuthChallenge(
 }
 
 void HttpAuthController::ResetAuth(const AuthCredentials& credentials) {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(identity_.invalid || credentials.Empty());
 
   if (identity_.invalid) {
@@ -383,6 +350,9 @@ void HttpAuthController::ResetAuth(const AuthCredentials& credentials) {
     identity_.source = HttpAuth::IDENT_SRC_EXTERNAL;
     identity_.invalid = false;
     identity_.credentials = credentials;
+
+    // auth_info_ is no longer necessary.
+    auth_info_ = nullptr;
   }
 
   DCHECK(identity_.source != HttpAuth::IDENT_SRC_PATH_LOOKUP);
@@ -421,9 +391,13 @@ bool HttpAuthController::HaveAuth() const {
   return handler_.get() && !identity_.invalid;
 }
 
+bool HttpAuthController::NeedsHTTP11() const {
+  return handler_ && handler_->is_connection_based();
+}
+
 void HttpAuthController::InvalidateCurrentHandler(
     InvalidateHandlerAction action) {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(handler_.get());
 
   if (action == INVALIDATE_HANDLER_AND_CACHED_CREDENTIALS)
@@ -435,7 +409,7 @@ void HttpAuthController::InvalidateCurrentHandler(
 }
 
 void HttpAuthController::InvalidateRejectedAuthFromCache() {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(HaveAuth());
 
   // Clear the cache entry for the identity we just failed on.
@@ -446,7 +420,7 @@ void HttpAuthController::InvalidateRejectedAuthFromCache() {
 }
 
 bool HttpAuthController::SelectNextAuthIdentityToTry() {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(handler_.get());
   DCHECK(identity_.invalid);
 
@@ -456,8 +430,8 @@ bool HttpAuthController::SelectNextAuthIdentityToTry() {
     identity_.source = HttpAuth::IDENT_SRC_URL;
     identity_.invalid = false;
     // Extract the username:password from the URL.
-    string16 username;
-    string16 password;
+    base::string16 username;
+    base::string16 password;
     GetIdentityFromURL(auth_url_, &username, &password);
     identity_.credentials.Set(username, password);
     embedded_identity_used_ = true;
@@ -495,22 +469,41 @@ bool HttpAuthController::SelectNextAuthIdentityToTry() {
 }
 
 void HttpAuthController::PopulateAuthChallenge() {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Populates response_.auth_challenge with the authentication challenge info.
   // This info is consumed by URLRequestHttpJob::GetAuthChallengeInfo().
 
   auth_info_ = new AuthChallengeInfo;
   auth_info_->is_proxy = (target_ == HttpAuth::AUTH_PROXY);
-  auth_info_->challenger = HostPortPair::FromURL(auth_origin_);
+  auth_info_->challenger = url::Origin::Create(auth_origin_);
   auth_info_->scheme = HttpAuth::SchemeToString(handler_->auth_scheme());
   auth_info_->realm = handler_->realm();
 }
 
-bool HttpAuthController::DisableOnAuthHandlerResult(int result) {
-  DCHECK(CalledOnValidThread());
-
+int HttpAuthController::HandleGenerateTokenResult(int result) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   switch (result) {
+    // Occurs if the credential handle is found to be invalid at the point it is
+    // exercised (i.e. GenerateAuthToken stage). We are going to consider this
+    // to be an error that invalidates the identity but not necessarily the
+    // scheme. Doing so allows a different identity to be used with the same
+    // scheme. See https://crbug.com/648366.
+    case ERR_INVALID_HANDLE:
+
+    // If the GenerateAuthToken call fails with this error, this means that the
+    // handler can no longer be used. However, the authentication scheme is
+    // considered still usable. This allows a scheme that attempted and failed
+    // to use default credentials to recover and use explicit credentials.
+    //
+    // The current handler may be tied to external state that is no longer
+    // valid, hence should be discarded. Since the scheme is still valid, a new
+    // handler can be created for the current scheme.
+    case ERR_INVALID_AUTH_CREDENTIALS:
+      InvalidateCurrentHandler(INVALIDATE_HANDLER_AND_CACHED_CREDENTIALS);
+      auth_token_.clear();
+      return OK;
+
     // Occurs with GSSAPI, if the user has not already logged in.
     case ERR_MISSING_AUTH_CREDENTIALS:
 
@@ -528,39 +521,46 @@ bool HttpAuthController::DisableOnAuthHandlerResult(int result) {
 
       // In these cases, disable the current scheme as it cannot
       // succeed.
-      DisableAuthScheme(handler_->auth_scheme());
+      InvalidateCurrentHandler(INVALIDATE_HANDLER_AND_DISABLE_SCHEME);
       auth_token_.clear();
-      return true;
+      return OK;
 
     default:
-      return false;
+      return result;
   }
 }
 
-void HttpAuthController::OnIOComplete(int result) {
-  DCHECK(CalledOnValidThread());
-  if (DisableOnAuthHandlerResult(result))
-    result = OK;
+void HttpAuthController::OnGenerateAuthTokenDone(int result) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  result = HandleGenerateTokenResult(result);
   if (!callback_.is_null()) {
-    CompletionCallback c = callback_;
-    callback_.Reset();
-    c.Run(result);
+    base::ResetAndReturn(&callback_).Run(result);
   }
 }
 
 scoped_refptr<AuthChallengeInfo> HttpAuthController::auth_info() {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return auth_info_;
 }
 
 bool HttpAuthController::IsAuthSchemeDisabled(HttpAuth::Scheme scheme) const {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return disabled_schemes_.find(scheme) != disabled_schemes_.end();
 }
 
 void HttpAuthController::DisableAuthScheme(HttpAuth::Scheme scheme) {
-  DCHECK(CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   disabled_schemes_.insert(scheme);
+}
+
+void HttpAuthController::DisableEmbeddedIdentity() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  embedded_identity_used_ = true;
+}
+
+void HttpAuthController::OnConnectionClosed() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  InvalidateCurrentHandler(INVALIDATE_HANDLER);
 }
 
 }  // namespace net

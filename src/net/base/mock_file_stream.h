@@ -7,11 +7,13 @@
 #ifndef NET_BASE_MOCK_FILE_STREAM_H_
 #define NET_BASE_MOCK_FILE_STREAM_H_
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
+#include "base/memory/weak_ptr.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/file_stream.h"
 #include "net/base/net_errors.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -19,41 +21,48 @@ class IOBuffer;
 
 namespace testing {
 
-class MockFileStream : public net::FileStream {
+class MockFileStream : public FileStream {
  public:
-  MockFileStream(net::NetLog* net_log)
-      : net::FileStream(net_log), forced_error_(net::OK) {}
-
-  MockFileStream(base::PlatformFile file, int flags, net::NetLog* net_log)
-      : net::FileStream(file, flags, net_log), forced_error_(net::OK) {}
+  explicit MockFileStream(const scoped_refptr<base::TaskRunner>& task_runner);
+  MockFileStream(base::File file,
+                 const scoped_refptr<base::TaskRunner>& task_runner);
+  ~MockFileStream() override;
 
   // FileStream methods.
-  virtual int OpenSync(const FilePath& path, int open_flags) override;
-  virtual int Seek(net::Whence whence, int64 offset,
-                   const Int64CompletionCallback& callback) override;
-  virtual int64 SeekSync(net::Whence whence, int64 offset) override;
-  virtual int64 Available() override;
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
-                   const CompletionCallback& callback) override;
-  virtual int ReadSync(char* buf, int buf_len) override;
-  virtual int ReadUntilComplete(char *buf, int buf_len) override;
-  virtual int Write(IOBuffer* buf,
-                    int buf_len,
-                    const CompletionCallback& callback) override;
-  virtual int WriteSync(const char* buf, int buf_len) override;
-  virtual int64 Truncate(int64 bytes) override;
-  virtual int Flush(const CompletionCallback& callback) override;
-  virtual int FlushSync() override;
+  int Seek(int64_t offset, Int64CompletionOnceCallback callback) override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback) override;
+  int Flush(CompletionOnceCallback callback) override;
 
-  void set_forced_error(int error) { forced_error_ = error; }
-  void clear_forced_error() { forced_error_ = net::OK; }
+  void set_forced_error_async(int error) {
+    forced_error_ = error;
+    async_error_ = true;
+  }
+  void set_forced_error(int error) {
+    forced_error_ = error;
+    async_error_ = false;
+  }
+  void clear_forced_error() {
+    forced_error_ = OK;
+    async_error_ = false;
+  }
   int forced_error() const { return forced_error_; }
-  const FilePath& get_path() const { return path_; }
+  const base::FilePath& get_path() const { return path_; }
+
+  // Throttles all asynchronous callbacks, including forced errors, until a
+  // matching ReleaseCallbacks call.
+  void ThrottleCallbacks();
+
+  // Resumes running asynchronous callbacks and runs any throttled callbacks.
+  void ReleaseCallbacks();
 
  private:
   int ReturnError(int function_error) {
-    if (forced_error_ != net::OK) {
+    if (forced_error_ != OK) {
       int ret = forced_error_;
       clear_forced_error();
       return ret;
@@ -62,9 +71,9 @@ class MockFileStream : public net::FileStream {
     return function_error;
   }
 
-  int64 ReturnError64(int64 function_error) {
-    if (forced_error_ != net::OK) {
-      int64 ret = forced_error_;
+  int64_t ReturnError64(int64_t function_error) {
+    if (forced_error_ != OK) {
+      int64_t ret = forced_error_;
       clear_forced_error();
       return ret;
     }
@@ -72,8 +81,23 @@ class MockFileStream : public net::FileStream {
     return function_error;
   }
 
+  // Wrappers for callbacks to make them honor ThrottleCallbacks and
+  // ReleaseCallbacks.
+  void DoCallback(CompletionOnceCallback callback, int result);
+  void DoCallback64(Int64CompletionOnceCallback callback, int64_t result);
+
+  // Depending on |async_error_|, either synchronously returns |forced_error_|
+  // asynchronously calls |callback| with |async_error_|.
+  int ErrorCallback(CompletionOnceCallback callback);
+  int64_t ErrorCallback64(Int64CompletionOnceCallback callback);
+
   int forced_error_;
-  FilePath path_;
+  bool async_error_;
+  bool throttled_;
+  base::OnceClosure throttled_task_;
+  base::FilePath path_;
+
+  base::WeakPtrFactory<MockFileStream> weak_factory_;
 };
 
 }  // namespace testing

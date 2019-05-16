@@ -5,13 +5,15 @@
 #include "net/dns/dns_socket_pool.h"
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/rand_util.h"
-#include "base/stl_util.h"
+#include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/base/rand_callback.h"
+#include "net/log/net_log_source.h"
 #include "net/socket/client_socket_factory.h"
-#include "net/udp/datagram_client_socket.h"
+#include "net/socket/datagram_client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
@@ -36,12 +38,13 @@ const unsigned kAllocateMinSize = 1;
 
 } // namespace
 
-DnsSocketPool::DnsSocketPool(ClientSocketFactory* socket_factory)
+DnsSocketPool::DnsSocketPool(ClientSocketFactory* socket_factory,
+                             const RandIntCallback& rand_int_callback)
     : socket_factory_(socket_factory),
+      rand_int_callback_(rand_int_callback),
       net_log_(NULL),
       nameservers_(NULL),
-      initialized_(false) {
-}
+      initialized_(false) {}
 
 void DnsSocketPool::InitializeInternal(
     const std::vector<IPEndPoint>* nameservers,
@@ -54,94 +57,109 @@ void DnsSocketPool::InitializeInternal(
   initialized_ = true;
 }
 
-scoped_ptr<DatagramClientSocket> DnsSocketPool::CreateConnectedSocket(
+std::unique_ptr<StreamSocket> DnsSocketPool::CreateTCPSocket(
+    unsigned server_index,
+    const NetLogSource& source) {
+  DCHECK_LT(server_index, nameservers_->size());
+
+  return std::unique_ptr<StreamSocket>(
+      socket_factory_->CreateTransportClientSocket(
+          AddressList((*nameservers_)[server_index]), NULL, net_log_, source));
+}
+
+std::unique_ptr<DatagramClientSocket> DnsSocketPool::CreateConnectedSocket(
     unsigned server_index) {
   DCHECK_LT(server_index, nameservers_->size());
 
-  scoped_ptr<DatagramClientSocket> socket;
+  std::unique_ptr<DatagramClientSocket> socket;
 
-  NetLog::Source no_source;
-  socket.reset(socket_factory_->CreateDatagramClientSocket(
-      kBindType, base::Bind(&base::RandInt), net_log_, no_source));
+  NetLogSource no_source;
+  socket = socket_factory_->CreateDatagramClientSocket(kBindType, net_log_,
+                                                       no_source);
 
   if (socket.get()) {
     int rv = socket->Connect((*nameservers_)[server_index]);
     if (rv != OK) {
-      LOG(WARNING) << "Failed to connect socket: " << rv;
+      DVLOG(1) << "Failed to connect socket: " << rv;
       socket.reset();
     }
   } else {
-    LOG(WARNING) << "Failed to create socket.";
+    DVLOG(1) << "Failed to create socket.";
   }
 
-  return socket.Pass();
+  return socket;
+}
+
+int DnsSocketPool::GetRandomInt(int min, int max) {
+  return rand_int_callback_.Run(min, max);
 }
 
 class NullDnsSocketPool : public DnsSocketPool {
  public:
-  NullDnsSocketPool(ClientSocketFactory* factory)
-     : DnsSocketPool(factory) {
-  }
+  NullDnsSocketPool(ClientSocketFactory* factory,
+                    const RandIntCallback& rand_int_callback)
+      : DnsSocketPool(factory, rand_int_callback) {}
 
-  virtual void Initialize(
-      const std::vector<IPEndPoint>* nameservers,
-      NetLog* net_log) override {
+  void Initialize(const std::vector<IPEndPoint>* nameservers,
+                  NetLog* net_log) override {
     InitializeInternal(nameservers, net_log);
   }
 
-  virtual scoped_ptr<DatagramClientSocket> AllocateSocket(
+  std::unique_ptr<DatagramClientSocket> AllocateSocket(
       unsigned server_index) override {
     return CreateConnectedSocket(server_index);
   }
 
-  virtual void FreeSocket(
-      unsigned server_index,
-      scoped_ptr<DatagramClientSocket> socket) override {
-  }
+  void FreeSocket(unsigned server_index,
+                  std::unique_ptr<DatagramClientSocket> socket) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullDnsSocketPool);
 };
 
 // static
-scoped_ptr<DnsSocketPool> DnsSocketPool::CreateNull(
-    ClientSocketFactory* factory) {
-  return scoped_ptr<DnsSocketPool>(new NullDnsSocketPool(factory));
+std::unique_ptr<DnsSocketPool> DnsSocketPool::CreateNull(
+    ClientSocketFactory* factory,
+    const RandIntCallback& rand_int_callback) {
+  return std::unique_ptr<DnsSocketPool>(
+      new NullDnsSocketPool(factory, rand_int_callback));
 }
 
 class DefaultDnsSocketPool : public DnsSocketPool {
  public:
-  DefaultDnsSocketPool(ClientSocketFactory* factory)
-     : DnsSocketPool(factory) {
-  };
+  DefaultDnsSocketPool(ClientSocketFactory* factory,
+                       const RandIntCallback& rand_int_callback)
+      : DnsSocketPool(factory, rand_int_callback){};
 
-  virtual ~DefaultDnsSocketPool();
+  ~DefaultDnsSocketPool() override;
 
-  virtual void Initialize(
-      const std::vector<IPEndPoint>* nameservers,
-      NetLog* net_log) override;
+  void Initialize(const std::vector<IPEndPoint>* nameservers,
+                  NetLog* net_log) override;
 
-  virtual scoped_ptr<DatagramClientSocket> AllocateSocket(
+  std::unique_ptr<DatagramClientSocket> AllocateSocket(
       unsigned server_index) override;
 
-  virtual void FreeSocket(
-      unsigned server_index,
-      scoped_ptr<DatagramClientSocket> socket) override;
+  void FreeSocket(unsigned server_index,
+                  std::unique_ptr<DatagramClientSocket> socket) override;
 
  private:
   void FillPool(unsigned server_index, unsigned size);
 
-  typedef std::vector<DatagramClientSocket*> SocketVector;
+  typedef std::vector<std::unique_ptr<DatagramClientSocket>> SocketVector;
 
   std::vector<SocketVector> pools_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultDnsSocketPool);
 };
 
+DnsSocketPool::~DnsSocketPool() = default;
+
 // static
-scoped_ptr<DnsSocketPool> DnsSocketPool::CreateDefault(
-    ClientSocketFactory* factory) {
-  return scoped_ptr<DnsSocketPool>(new DefaultDnsSocketPool(factory));
+std::unique_ptr<DnsSocketPool> DnsSocketPool::CreateDefault(
+    ClientSocketFactory* factory,
+    const RandIntCallback& rand_int_callback) {
+  return std::unique_ptr<DnsSocketPool>(
+      new DefaultDnsSocketPool(factory, rand_int_callback));
 }
 
 void DefaultDnsSocketPool::Initialize(
@@ -156,42 +174,36 @@ void DefaultDnsSocketPool::Initialize(
     FillPool(server_index, kInitialPoolSize);
 }
 
-DefaultDnsSocketPool::~DefaultDnsSocketPool() {
-  unsigned num_servers = pools_.size();
-  for (unsigned server_index = 0; server_index < num_servers; ++server_index) {
-    SocketVector& pool = pools_[server_index];
-    STLDeleteElements(&pool);
-  }
-}
+DefaultDnsSocketPool::~DefaultDnsSocketPool() = default;
 
-scoped_ptr<DatagramClientSocket> DefaultDnsSocketPool::AllocateSocket(
+std::unique_ptr<DatagramClientSocket> DefaultDnsSocketPool::AllocateSocket(
     unsigned server_index) {
   DCHECK_LT(server_index, pools_.size());
   SocketVector& pool = pools_[server_index];
 
   FillPool(server_index, kAllocateMinSize);
   if (pool.size() == 0) {
-    LOG(WARNING) << "No DNS sockets available in pool " << server_index << "!";
-    return scoped_ptr<DatagramClientSocket>(NULL);
+    DVLOG(1) << "No DNS sockets available in pool " << server_index << "!";
+    return std::unique_ptr<DatagramClientSocket>();
   }
 
   if (pool.size() < kAllocateMinSize) {
-    LOG(WARNING) << "Low DNS port entropy: wanted " << kAllocateMinSize
-                 << " sockets to choose from, but only have " << pool.size()
-                 << " in pool " << server_index << ".";
+    DVLOG(1) << "Low DNS port entropy: wanted " << kAllocateMinSize
+             << " sockets to choose from, but only have " << pool.size()
+             << " in pool " << server_index << ".";
   }
 
-  unsigned socket_index = base::RandInt(0, pool.size() - 1);
-  DatagramClientSocket* socket = pool[socket_index];
-  pool[socket_index] = pool.back();
+  unsigned socket_index = GetRandomInt(0, pool.size() - 1);
+  std::unique_ptr<DatagramClientSocket> socket = std::move(pool[socket_index]);
+  pool[socket_index] = std::move(pool.back());
   pool.pop_back();
 
-  return scoped_ptr<DatagramClientSocket>(socket);
+  return socket;
 }
 
 void DefaultDnsSocketPool::FreeSocket(
     unsigned server_index,
-    scoped_ptr<DatagramClientSocket> socket) {
+    std::unique_ptr<DatagramClientSocket> socket) {
   DCHECK_LT(server_index, pools_.size());
 }
 
@@ -199,11 +211,11 @@ void DefaultDnsSocketPool::FillPool(unsigned server_index, unsigned size) {
   SocketVector& pool = pools_[server_index];
 
   for (unsigned pool_index = pool.size(); pool_index < size; ++pool_index) {
-    DatagramClientSocket* socket =
-        CreateConnectedSocket(server_index).release();
+    std::unique_ptr<DatagramClientSocket> socket =
+        CreateConnectedSocket(server_index);
     if (!socket)
       break;
-    pool.push_back(socket);
+    pool.push_back(std::move(socket));
   }
 }
 

@@ -15,12 +15,19 @@
 #include "cobalt/cssom/scale_function.h"
 
 #include "cobalt/cssom/transform_function_visitor.h"
+#include "cobalt/math/transform_2d.h"
 
 namespace cobalt {
 namespace cssom {
 
 void ScaleFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitScale(this);
+}
+
+math::Matrix3F ScaleFunction::ToMatrix(const math::SizeF& /* used_size */,
+    const scoped_refptr<ui_navigation::NavItem>& /* used_ui_nav_focus */)
+    const {
+  return math::ScaleMatrix(x_factor_, y_factor_);
 }
 
 }  // namespace cssom

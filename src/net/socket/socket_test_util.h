@@ -6,35 +6,57 @@
 #define NET_SOCKET_SOCKET_TEST_UTIL_H_
 
 #include <cstring>
-#include <deque>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/callback.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
+#include "base/macros.h"
+#include "base/memory/ptr_util.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/string16.h"
+#include "base/optional.h"
+#include "base/strings/string16.h"
+#include "build/build_config.h"
 #include "net/base/address_list.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_log.h"
-#include "net/base/ssl_config_service.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_controller.h"
 #include "net/http/http_proxy_client_socket_pool.h"
+#include "net/http/proxy_client_socket.h"
+#include "net/log/net_log_with_source.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/connection_attempts.h"
+#include "net/socket/datagram_client_socket.h"
+#include "net/socket/socket_performance_watcher.h"
+#include "net/socket/socket_tag.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
+#include "net/socket/transport_client_socket.h"
 #include "net/socket/transport_client_socket_pool.h"
-#include "net/udp/datagram_client_socket.h"
+#include "net/ssl/ssl_config_service.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace base {
+class RunLoop;
+}
+
 namespace net {
+
+class NetLog;
+
+const NetworkChangeNotifier::NetworkHandle kDefaultNetworkForTests = 1;
+const NetworkChangeNotifier::NetworkHandle kNewNetworkForTests = 2;
 
 enum {
   // A private network error code used by the socket test utility classes.
@@ -46,8 +68,8 @@ enum {
 };
 
 class AsyncSocket;
+class ChannelIDService;
 class MockClientSocket;
-class ServerBoundCertService;
 class SSLClientSocket;
 class StreamSocket;
 
@@ -96,95 +118,203 @@ struct MockReadWrite {
   };
 
   // Default
-  MockReadWrite() : mode(SYNCHRONOUS), result(0), data(NULL), data_len(0),
-      sequence_number(0), time_stamp(base::Time::Now()) {}
+  MockReadWrite()
+      : mode(SYNCHRONOUS),
+        result(0),
+        data(NULL),
+        data_len(0),
+        sequence_number(0) {}
 
   // Read/write failure (no data).
-  MockReadWrite(IoMode io_mode, int result) : mode(io_mode), result(result),
-      data(NULL), data_len(0), sequence_number(0),
-      time_stamp(base::Time::Now()) { }
+  MockReadWrite(IoMode io_mode, int result)
+      : mode(io_mode),
+        result(result),
+        data(NULL),
+        data_len(0),
+        sequence_number(0) {}
 
   // Read/write failure (no data), with sequence information.
-  MockReadWrite(IoMode io_mode, int result, int seq) : mode(io_mode),
-      result(result), data(NULL), data_len(0), sequence_number(seq),
-      time_stamp(base::Time::Now()) { }
+  MockReadWrite(IoMode io_mode, int result, int seq)
+      : mode(io_mode),
+        result(result),
+        data(NULL),
+        data_len(0),
+        sequence_number(seq) {}
 
   // Asynchronous read/write success (inferred data length).
-  explicit MockReadWrite(const char* data) : mode(ASYNC),  result(0),
-      data(data), data_len(strlen(data)), sequence_number(0),
-      time_stamp(base::Time::Now()) { }
+  explicit MockReadWrite(const char* data)
+      : mode(ASYNC),
+        result(0),
+        data(data),
+        data_len(SbStringGetLength(data)),
+        sequence_number(0) {}
 
   // Read/write success (inferred data length).
-  MockReadWrite(IoMode io_mode, const char* data) : mode(io_mode), result(0),
-      data(data), data_len(strlen(data)), sequence_number(0),
-      time_stamp(base::Time::Now()) { }
+  MockReadWrite(IoMode io_mode, const char* data)
+      : mode(io_mode),
+        result(0),
+        data(data),
+        data_len(SbStringGetLength(data)),
+        sequence_number(0) {}
 
   // Read/write success.
-  MockReadWrite(IoMode io_mode, const char* data, int data_len) : mode(io_mode),
-      result(0), data(data), data_len(data_len), sequence_number(0),
-      time_stamp(base::Time::Now()) { }
+  MockReadWrite(IoMode io_mode, const char* data, int data_len)
+      : mode(io_mode),
+        result(0),
+        data(data),
+        data_len(data_len),
+        sequence_number(0) {}
 
   // Read/write success (inferred data length) with sequence information.
-  MockReadWrite(IoMode io_mode, int seq, const char* data) : mode(io_mode),
-      result(0), data(data), data_len(strlen(data)), sequence_number(seq),
-      time_stamp(base::Time::Now()) { }
+  MockReadWrite(IoMode io_mode, int seq, const char* data)
+      : mode(io_mode),
+        result(0),
+        data(data),
+        data_len(SbStringGetLength(data)),
+        sequence_number(seq) {}
 
   // Read/write success with sequence information.
-  MockReadWrite(IoMode io_mode, const char* data, int data_len, int seq) :
-      mode(io_mode), result(0), data(data), data_len(data_len),
-      sequence_number(seq), time_stamp(base::Time::Now()) { }
+  MockReadWrite(IoMode io_mode, const char* data, int data_len, int seq)
+      : mode(io_mode),
+        result(0),
+        data(data),
+        data_len(data_len),
+        sequence_number(seq) {}
 
   IoMode mode;
   int result;
   const char* data;
   int data_len;
 
-  // For OrderedSocketData, which only allows reads to occur in a particular
+  // For data providers that only allows reads to occur in a particular
   // sequence.  If a read occurs before the given |sequence_number| is reached,
   // an ERR_IO_PENDING is returned.
-  int sequence_number;      // The sequence number at which a read is allowed
-                            // to occur.
-  base::Time time_stamp;    // The time stamp at which the operation occurred.
+  int sequence_number;    // The sequence number at which a read is allowed
+                          // to occur.
 };
 
 typedef MockReadWrite<MOCK_READ> MockRead;
 typedef MockReadWrite<MOCK_WRITE> MockWrite;
 
 struct MockWriteResult {
-  MockWriteResult(IoMode io_mode, int result)
-      : mode(io_mode),
-        result(result) {}
+  MockWriteResult(IoMode io_mode, int result) : mode(io_mode), result(result) {}
 
   IoMode mode;
   int result;
 };
 
 // The SocketDataProvider is an interface used by the MockClientSocket
-// for getting data about individual reads and writes on the socket.
+// for getting data about individual reads and writes on the socket.  Can be
+// used with at most one socket at a time.
+// TODO(mmenke):  Do these really need to be re-useable?
 class SocketDataProvider {
  public:
-  SocketDataProvider() : socket_(NULL) {}
-
-  virtual ~SocketDataProvider() {}
+  SocketDataProvider();
+  virtual ~SocketDataProvider();
 
   // Returns the buffer and result code for the next simulated read.
   // If the |MockRead.result| is ERR_IO_PENDING, it informs the caller
   // that it will be called via the AsyncSocket::OnReadComplete()
   // function at a later time.
-  virtual MockRead GetNextRead() = 0;
+  virtual MockRead OnRead() = 0;
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
-  virtual void Reset() = 0;
+  virtual bool AllReadDataConsumed() const = 0;
+  virtual bool AllWriteDataConsumed() const = 0;
+  virtual void CancelPendingRead() {}
+
+  virtual void OnEnableTCPFastOpenIfSupported();
+
+  // Returns the last set receive buffer size, or -1 if never set.
+  int receive_buffer_size() const { return receive_buffer_size_; }
+  void set_receive_buffer_size(int receive_buffer_size) {
+    receive_buffer_size_ = receive_buffer_size;
+  }
+
+  // Returns the last set send buffer size, or -1 if never set.
+  int send_buffer_size() const { return send_buffer_size_; }
+  void set_send_buffer_size(int send_buffer_size) {
+    send_buffer_size_ = send_buffer_size;
+  }
+
+  // Returns the last set value of TCP no delay, or false if never set.
+  bool no_delay() const { return no_delay_; }
+  void set_no_delay(bool no_delay) { no_delay_ = no_delay; }
+
+  // Returns whether TCP keepalives were enabled or not. Returns 0 by default,
+  // which may not match the default behavior on all platforms.
+  bool keep_alive_enabled() const { return keep_alive_enabled_; }
+  // Last set TCP keepalive delay.
+  int keep_alive_delay() const { return keep_alive_delay_; }
+  void set_keep_alive(bool enable, int delay) {
+    keep_alive_enabled_ = enable;
+    keep_alive_delay_ = delay;
+  }
+
+  // Setters / getters for the return values of the corresponding Set*()
+  // methods. By default, they all succeed, if the socket is connected.
+
+  void set_set_receive_buffer_size_result(int receive_buffer_size_result) {
+    set_receive_buffer_size_result_ = receive_buffer_size_result;
+  }
+  int set_receive_buffer_size_result() const {
+    return set_receive_buffer_size_result_;
+  }
+
+  void set_set_send_buffer_size_result(int set_send_buffer_size_result) {
+    set_send_buffer_size_result_ = set_send_buffer_size_result;
+  }
+  int set_send_buffer_size_result() const {
+    return set_send_buffer_size_result_;
+  }
+
+  void set_set_no_delay_result(bool set_no_delay_result) {
+    set_no_delay_result_ = set_no_delay_result;
+  }
+  bool set_no_delay_result() const { return set_no_delay_result_; }
+
+  void set_set_keep_alive_result(bool set_keep_alive_result) {
+    set_keep_alive_result_ = set_keep_alive_result;
+  }
+  bool set_keep_alive_result() const { return set_keep_alive_result_; }
+
+  // Returns true if the request should be considered idle, for the purposes of
+  // IsConnectedAndIdle.
+  virtual bool IsIdle() const;
+
+  // Initializes the SocketDataProvider for use with |socket|.  Must be called
+  // before use
+  void Initialize(AsyncSocket* socket);
+  // Detaches the socket associated with a SocketDataProvider.  Must be called
+  // before |socket_| is destroyed, unless the SocketDataProvider has informed
+  // |socket_| it was destroyed.  Must also be called before Initialize() may
+  // be called again with a new socket.
+  void DetachSocket();
 
   // Accessor for the socket which is using the SocketDataProvider.
   AsyncSocket* socket() { return socket_; }
-  void set_socket(AsyncSocket* socket) { socket_ = socket; }
 
   MockConnect connect_data() const { return connect_; }
   void set_connect_data(const MockConnect& connect) { connect_ = connect; }
 
  private:
+  // Called to inform subclasses of initialization.
+  virtual void Reset() = 0;
+
   MockConnect connect_;
-  AsyncSocket* socket_;
+  AsyncSocket* socket_ = nullptr;
+
+  int receive_buffer_size_ = -1;
+  int send_buffer_size_ = -1;
+  // This reflects the default state of TCPClientSockets.
+  bool no_delay_ = true;
+  // Default varies by platform. Just pretend it's disabled.
+  bool keep_alive_enabled_ = false;
+  int keep_alive_delay_ = 0;
+
+  int set_receive_buffer_size_result_ = net::OK;
+  int set_send_buffer_size_result_ = net::OK;
+  bool set_no_delay_result_ = true;
+  bool set_keep_alive_result_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(SocketDataProvider);
 };
@@ -198,7 +328,64 @@ class AsyncSocket {
   // is called to complete the asynchronous read operation.
   // data.async is ignored, and this read is completed synchronously as
   // part of this call.
+  // TODO(rch): this should take a StringPiece since most of the fields
+  // are ignored.
   virtual void OnReadComplete(const MockRead& data) = 0;
+  // If an async IO is pending because the SocketDataProvider returned
+  // ERR_IO_PENDING, then the AsyncSocket waits until this OnReadComplete
+  // is called to complete the asynchronous read operation.
+  virtual void OnWriteComplete(int rv) = 0;
+  virtual void OnConnectComplete(const MockConnect& data) = 0;
+
+  // Called when the SocketDataProvider associated with the socket is destroyed.
+  // The socket may continue to be used after the data provider is destroyed,
+  // so it should be sure not to dereference the provider after this is called.
+  virtual void OnDataProviderDestroyed() = 0;
+};
+
+// StaticSocketDataHelper manages a list of reads and writes.
+class StaticSocketDataHelper {
+ public:
+  StaticSocketDataHelper(base::span<const MockRead> reads,
+                         base::span<const MockWrite> writes);
+  ~StaticSocketDataHelper();
+
+  // These functions get access to the next available read and write data. They
+  // CHECK fail if there is no data available.
+  const MockRead& PeekRead() const;
+  const MockWrite& PeekWrite() const;
+
+  // Returns the current read or write, and then advances to the next one.
+  const MockRead& AdvanceRead();
+  const MockWrite& AdvanceWrite();
+
+  // Resets the read and write indexes to 0.
+  void Reset();
+
+  // Returns true if |data| is valid data for the next write. In order
+  // to support short writes, the next write may be longer than |data|
+  // in which case this method will still return true.
+  bool VerifyWriteData(const std::string& data);
+
+  size_t read_index() const { return read_index_; }
+  size_t write_index() const { return write_index_; }
+  size_t read_count() const { return reads_.size(); }
+  size_t write_count() const { return writes_.size(); }
+
+  bool AllReadDataConsumed() const { return read_index() >= read_count(); }
+  bool AllWriteDataConsumed() const { return write_index() >= write_count(); }
+
+ private:
+  // Returns the next available read or write that is not a pause event. CHECK
+  // fails if no data is available.
+  const MockWrite& PeekRealWrite() const;
+
+  const base::span<const MockRead> reads_;
+  size_t read_index_;
+  const base::span<const MockWrite> writes_;
+  size_t write_index_;
+
+  DISALLOW_COPY_AND_ASSIGN(StaticSocketDataHelper);
 };
 
 // SocketDataProvider which responds based on static tables of mock reads and
@@ -206,314 +393,190 @@ class AsyncSocket {
 class StaticSocketDataProvider : public SocketDataProvider {
  public:
   StaticSocketDataProvider();
-  StaticSocketDataProvider(MockRead* reads, size_t reads_count,
-                           MockWrite* writes, size_t writes_count);
-  virtual ~StaticSocketDataProvider();
+  StaticSocketDataProvider(base::span<const MockRead> reads,
+                           base::span<const MockWrite> writes);
+#ifdef STARBOARD
+  StaticSocketDataProvider(const std::vector<MockRead>& reads,
+                           const std::vector<MockWrite>& writes);
+#endif
+  ~StaticSocketDataProvider() override;
 
-  // These functions get access to the next available read and write data.
-  const MockRead& PeekRead() const;
-  const MockWrite& PeekWrite() const;
-  // These functions get random access to the read and write data, for timing.
-  const MockRead& PeekRead(size_t index) const;
-  const MockWrite& PeekWrite(size_t index) const;
-  size_t read_index() const { return read_index_; }
-  size_t write_index() const { return write_index_; }
-  size_t read_count() const { return read_count_; }
-  size_t write_count() const { return write_count_; }
+  // Pause/resume reads from this provider.
+  void Pause();
+  void Resume();
 
-  bool at_read_eof() const { return read_index_ >= read_count_; }
-  bool at_write_eof() const { return write_index_ >= write_count_; }
+  // From SocketDataProvider:
+  MockRead OnRead() override;
+  MockWriteResult OnWrite(const std::string& data) override;
+  bool AllReadDataConsumed() const override;
+  bool AllWriteDataConsumed() const override;
 
-  virtual void CompleteRead() {}
-
-  // SocketDataProvider implementation.
-  virtual MockRead GetNextRead() override;
-  virtual MockWriteResult OnWrite(const std::string& data) override;
-  virtual void Reset() override;
+  size_t read_index() const { return helper_.read_index(); }
+  size_t write_index() const { return helper_.write_index(); }
+  size_t read_count() const { return helper_.read_count(); }
+  size_t write_count() const { return helper_.write_count(); }
 
  private:
-  MockRead* reads_;
-  size_t read_index_;
-  size_t read_count_;
-  MockWrite* writes_;
-  size_t write_index_;
-  size_t write_count_;
+  // From SocketDataProvider:
+  void Reset() override;
+
+  StaticSocketDataHelper helper_;
+  bool paused_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(StaticSocketDataProvider);
 };
 
-// SocketDataProvider which can make decisions about next mock reads based on
-// received writes. It can also be used to enforce order of operations, for
-// example that tested code must send the "Hello!" message before receiving
-// response. This is useful for testing conversation-like protocols like FTP.
-class DynamicSocketDataProvider : public SocketDataProvider {
- public:
-  DynamicSocketDataProvider();
-  virtual ~DynamicSocketDataProvider();
+// ProxyClientSocketDataProvider only need to keep track of the return code from
+// calls to Connect().
+struct ProxyClientSocketDataProvider {
+  ProxyClientSocketDataProvider(IoMode mode, int result);
+  ProxyClientSocketDataProvider(const ProxyClientSocketDataProvider& other);
+  ~ProxyClientSocketDataProvider();
 
-  int short_read_limit() const { return short_read_limit_; }
-  void set_short_read_limit(int limit) { short_read_limit_ = limit; }
-
-  void allow_unconsumed_reads(bool allow) { allow_unconsumed_reads_ = allow; }
-
-  // SocketDataProvider implementation.
-  virtual MockRead GetNextRead() override;
-  virtual MockWriteResult OnWrite(const std::string& data) = 0;
-  virtual void Reset() override;
-
- protected:
-  // The next time there is a read from this socket, it will return |data|.
-  // Before calling SimulateRead next time, the previous data must be consumed.
-  void SimulateRead(const char* data, size_t length);
-  void SimulateRead(const char* data) {
-    SimulateRead(data, std::strlen(data));
-  }
-
- private:
-  std::deque<MockRead> reads_;
-
-  // Max number of bytes we will read at a time. 0 means no limit.
-  int short_read_limit_;
-
-  // If true, we'll not require the client to consume all data before we
-  // mock the next read.
-  bool allow_unconsumed_reads_;
-
-  DISALLOW_COPY_AND_ASSIGN(DynamicSocketDataProvider);
+  // Result for Connect().
+  MockConnect connect;
 };
 
 // SSLSocketDataProviders only need to keep track of the return code from calls
 // to Connect().
 struct SSLSocketDataProvider {
   SSLSocketDataProvider(IoMode mode, int result);
+  SSLSocketDataProvider(const SSLSocketDataProvider& other);
   ~SSLSocketDataProvider();
 
-  void SetNextProto(NextProto proto);
+  // Returns whether MockConnect data has been consumed.
+  bool ConnectDataConsumed() const { return is_connect_data_consumed; }
 
+  // Result for Connect().
   MockConnect connect;
-  SSLClientSocket::NextProtoStatus next_proto_status;
-  std::string next_proto;
-  std::string server_protos;
-  bool was_npn_negotiated;
-  NextProto protocol_negotiated;
-  bool client_cert_sent;
+
+  // Result for GetNegotiatedProtocol().
+  NextProto next_proto;
+
+  // Result for GetSSLInfo().
+  SSLInfo ssl_info;
+
+  // Result for GetSSLCertRequestInfo().
   SSLCertRequestInfo* cert_request_info;
-  scoped_refptr<X509Certificate> cert;
-  bool channel_id_sent;
-  ServerBoundCertService* server_bound_cert_service;
+
+  ChannelIDService* channel_id_service;
+  base::Optional<NextProtoVector> next_protos_expected_in_ssl_config;
+
+  uint16_t expected_ssl_version_min;
+  uint16_t expected_ssl_version_max;
+
+  bool is_connect_data_consumed = false;
 };
 
-// A DataProvider where the client must write a request before the reads (e.g.
-// the response) will complete.
-class DelayedSocketData : public StaticSocketDataProvider {
+// Uses the sequence_number field in the mock reads and writes to
+// complete the operations in a specified order.
+class SequencedSocketData : public SocketDataProvider {
  public:
-  // |write_delay| the number of MockWrites to complete before allowing
-  //               a MockRead to complete.
-  // |reads| the list of MockRead completions.
-  // |writes| the list of MockWrite completions.
-  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
-  //       MockRead(true, 0, 0);
-  DelayedSocketData(int write_delay,
-                    MockRead* reads, size_t reads_count,
-                    MockWrite* writes, size_t writes_count);
+  SequencedSocketData();
 
-  // |connect| the result for the connect phase.
-  // |reads| the list of MockRead completions.
-  // |write_delay| the number of MockWrites to complete before allowing
-  //               a MockRead to complete.
-  // |writes| the list of MockWrite completions.
-  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
-  //       MockRead(true, 0, 0);
-  DelayedSocketData(const MockConnect& connect, int write_delay,
-                    MockRead* reads, size_t reads_count,
-                    MockWrite* writes, size_t writes_count);
-  virtual ~DelayedSocketData();
+  // |reads| is the list of MockRead completions.
+  // |writes| is the list of MockWrite completions.
+  SequencedSocketData(base::span<const MockRead> reads,
+                      base::span<const MockWrite> writes);
 
-  void ForceNextRead();
+#ifdef STARBOARD
+  SequencedSocketData(const std::vector<MockRead>& reads,
+                      base::span<const MockWrite> writes)
+      : SequencedSocketData(
+            base::span<const MockRead>(reads.data(), reads.size()),
+            writes) {}
 
-  // StaticSocketDataProvider:
-  virtual MockRead GetNextRead() override;
-  virtual MockWriteResult OnWrite(const std::string& data) override;
-  virtual void Reset() override;
-  virtual void CompleteRead() override;
+  SequencedSocketData(const std::vector<MockRead>& reads,
+                      const std::vector<MockWrite>& writes)
+      : SequencedSocketData(
+            base::span<const MockRead>(reads.data(), reads.size()),
+            base::span<const MockWrite>(writes.data(), writes.size())) {}
+#endif
 
- private:
-  int write_delay_;
-  bool read_in_progress_;
-  base::WeakPtrFactory<DelayedSocketData> weak_factory_;
-};
+  // |connect| is the result for the connect phase.
+  // |reads| is the list of MockRead completions.
+  // |writes| is the list of MockWrite completions.
+  SequencedSocketData(const MockConnect& connect,
+                      base::span<const MockRead> reads,
+                      base::span<const MockWrite> writes);
 
-// A DataProvider where the reads are ordered.
-// If a read is requested before its sequence number is reached, we return an
-// ERR_IO_PENDING (that way we don't have to explicitly add a MockRead just to
-// wait).
-// The sequence number is incremented on every read and write operation.
-// The message loop may be interrupted by setting the high bit of the sequence
-// number in the MockRead's sequence number.  When that MockRead is reached,
-// we post a Quit message to the loop.  This allows us to interrupt the reading
-// of data before a complete message has arrived, and provides support for
-// testing server push when the request is issued while the response is in the
-// middle of being received.
-class OrderedSocketData : public StaticSocketDataProvider {
- public:
-  // |reads| the list of MockRead completions.
-  // |writes| the list of MockWrite completions.
-  // Note: All MockReads and MockWrites must be async.
-  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
-  //       MockRead(true, 0, 0);
-  OrderedSocketData(MockRead* reads, size_t reads_count,
-                    MockWrite* writes, size_t writes_count);
-  virtual ~OrderedSocketData();
+  ~SequencedSocketData() override;
 
-  // |connect| the result for the connect phase.
-  // |reads| the list of MockRead completions.
-  // |writes| the list of MockWrite completions.
-  // Note: All MockReads and MockWrites must be async.
-  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
-  //       MockRead(true, 0, 0);
-  OrderedSocketData(const MockConnect& connect,
-                    MockRead* reads, size_t reads_count,
-                    MockWrite* writes, size_t writes_count);
+  // From SocketDataProvider:
+  MockRead OnRead() override;
+  MockWriteResult OnWrite(const std::string& data) override;
+  bool AllReadDataConsumed() const override;
+  bool AllWriteDataConsumed() const override;
+  void OnEnableTCPFastOpenIfSupported() override;
+  bool IsIdle() const override;
+  void CancelPendingRead() override;
 
-  // Posts a quit message to the current message loop, if one is running.
-  void EndLoop();
+  // An ASYNC read event with a return value of ERR_IO_PENDING will cause the
+  // socket data to pause at that event, and advance no further, until Resume is
+  // invoked.  At that point, the socket will continue at the next event in the
+  // sequence.
+  //
+  // If a request just wants to simulate a connection that stays open and never
+  // receives any more data, instead of pausing and then resuming a request, it
+  // should use a SYNCHRONOUS event with a return value of ERR_IO_PENDING
+  // instead.
+  bool IsPaused() const;
+  // Resumes events once |this| is in the paused state.  The next even will
+  // occur synchronously with the call if it can.
+  void Resume();
+  void RunUntilPaused();
 
-  // StaticSocketDataProvider:
-  virtual MockRead GetNextRead() override;
-  virtual MockWriteResult OnWrite(const std::string& data) override;
-  virtual void Reset() override;
-  virtual void CompleteRead() override;
+  bool IsUsingTCPFastOpen() const;
 
- private:
-  int sequence_number_;
-  int loop_stop_stage_;
-  bool blocked_;
-  base::WeakPtrFactory<OrderedSocketData> weak_factory_;
-};
-
-class DeterministicMockTCPClientSocket;
-
-// This class gives the user full control over the network activity,
-// specifically the timing of the COMPLETION of I/O operations.  Regardless of
-// the order in which I/O operations are initiated, this class ensures that they
-// complete in the correct order.
-//
-// Network activity is modeled as a sequence of numbered steps which is
-// incremented whenever an I/O operation completes.  This can happen under two
-// different circumstances:
-//
-// 1) Performing a synchronous I/O operation.  (Invoking Read() or Write()
-//    when the corresponding MockRead or MockWrite is marked !async).
-// 2) Running the Run() method of this class.  The run method will invoke
-//    the current MessageLoop, running all pending events, and will then
-//    invoke any pending IO callbacks.
-//
-// In addition, this class allows for I/O processing to "stop" at a specified
-// step, by calling SetStop(int) or StopAfter(int).  Initiating an I/O operation
-// by calling Read() or Write() while stopped is permitted if the operation is
-// asynchronous.  It is an error to perform synchronous I/O while stopped.
-//
-// When creating the MockReads and MockWrites, note that the sequence number
-// refers to the number of the step in which the I/O will complete.  In the
-// case of synchronous I/O, this will be the same step as the I/O is initiated.
-// However, in the case of asynchronous I/O, this I/O may be initiated in
-// a much earlier step. Furthermore, when the a Read() or Write() is separated
-// from its completion by other Read() or Writes()'s, it can not be marked
-// synchronous.  If it is, ERR_UNUEXPECTED will be returned indicating that a
-// synchronous Read() or Write() could not be completed synchronously because of
-// the specific ordering constraints.
-//
-// Sequence numbers are preserved across both reads and writes. There should be
-// no gaps in sequence numbers, and no repeated sequence numbers. i.e.
-//  MockRead reads[] = {
-//    MockRead(false, "first read", length, 0)   // sync
-//    MockRead(true, "second read", length, 2)   // async
-//  };
-//  MockWrite writes[] = {
-//    MockWrite(true, "first write", length, 1),    // async
-//    MockWrite(false, "second write", length, 3),  // sync
-//  };
-//
-// Example control flow:
-// Read() is called.  The current step is 0.  The first available read is
-// synchronous, so the call to Read() returns length.  The current step is
-// now 1.  Next, Read() is called again.  The next available read can
-// not be completed until step 2, so Read() returns ERR_IO_PENDING.  The current
-// step is still 1.  Write is called().  The first available write is able to
-// complete in this step, but is marked asynchronous.  Write() returns
-// ERR_IO_PENDING.  The current step is still 1.  At this point RunFor(1) is
-// called which will cause the write callback to be invoked, and will then
-// stop.  The current state is now 2.  RunFor(1) is called again, which
-// causes the read callback to be invoked, and will then stop.  Then current
-// step is 2.  Write() is called again.  Then next available write is
-// synchronous so the call to Write() returns length.
-//
-// For examples of how to use this class, see:
-//   deterministic_socket_data_unittests.cc
-class DeterministicSocketData
-    : public StaticSocketDataProvider {
- public:
-  // |reads| the list of MockRead completions.
-  // |writes| the list of MockWrite completions.
-  DeterministicSocketData(MockRead* reads, size_t reads_count,
-                          MockWrite* writes, size_t writes_count);
-  virtual ~DeterministicSocketData();
-
-  // Consume all the data up to the give stop point (via SetStop()).
-  void Run();
-
-  // Set the stop point to be |steps| from now, and then invoke Run().
-  void RunFor(int steps);
-
-  // Stop at step |seq|, which must be in the future.
-  virtual void SetStop(int seq);
-
-  // Stop |seq| steps after the current step.
-  virtual void StopAfter(int seq);
-  bool stopped() const { return stopped_; }
-  void SetStopped(bool val) { stopped_ = val; }
-  MockRead& current_read() { return current_read_; }
-  MockWrite& current_write() { return current_write_; }
-  int sequence_number() const { return sequence_number_; }
-  void set_socket(base::WeakPtr<DeterministicMockTCPClientSocket> socket) {
-    socket_ = socket;
+  // When true, IsConnectedAndIdle() will return false if the next event in the
+  // sequence is a synchronous.  Otherwise, the socket claims to be idle as
+  // long as it's connected.  Defaults to false.
+  // TODO(mmenke):  See if this can be made the default behavior, and consider
+  // removing this mehtod.  Need to make sure it doesn't change what code any
+  // tests are targetted at testing.
+  void set_busy_before_sync_reads(bool busy_before_sync_reads) {
+    busy_before_sync_reads_ = busy_before_sync_reads;
   }
 
-  // StaticSocketDataProvider:
-
-  // When the socket calls Read(), that calls GetNextRead(), and expects either
-  // ERR_IO_PENDING or data.
-  virtual MockRead GetNextRead() override;
-
-  // When the socket calls Write(), it always completes synchronously. OnWrite()
-  // checks to make sure the written data matches the expected data. The
-  // callback will not be invoked until its sequence number is reached.
-  virtual MockWriteResult OnWrite(const std::string& data) override;
-  virtual void Reset() override;
-  virtual void CompleteRead() override {}
-
  private:
-  // Invoke the read and write callbacks, if the timing is appropriate.
-  void InvokeCallbacks();
+  // Defines the state for the read or write path.
+  enum IoState {
+    IDLE,        // No async operation is in progress.
+    PENDING,     // An async operation in waiting for another opteration to
+                 // complete.
+    COMPLETING,  // A task has been posted to complete an async operation.
+    PAUSED,      // IO is paused until Resume() is called.
+  };
 
-  void NextStep();
+  // From SocketDataProvider:
+  void Reset() override;
 
-  void VerifyCorrectSequenceNumbers(MockRead* reads, size_t reads_count,
-                                    MockWrite* writes, size_t writes_count);
+  void OnReadComplete();
+  void OnWriteComplete();
 
+  void MaybePostReadCompleteTask();
+  void MaybePostWriteCompleteTask();
+
+  StaticSocketDataHelper helper_;
   int sequence_number_;
-  MockRead current_read_;
-  MockWrite current_write_;
-  int stopping_sequence_number_;
-  bool stopped_;
-  base::WeakPtr<DeterministicMockTCPClientSocket> socket_;
-  bool print_debug_;
+  IoState read_state_;
+  IoState write_state_;
+
+  bool busy_before_sync_reads_;
+  bool is_using_tcp_fast_open_;
+
+  // Used by RunUntilPaused.  NULL at all other times.
+  std::unique_ptr<base::RunLoop> run_until_paused_run_loop_;
+
+  base::WeakPtrFactory<SequencedSocketData> weak_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(SequencedSocketData);
 };
 
 // Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}StreamSocket
 // objects get instantiated, they take their data from the i'th element of this
 // array.
-template<typename T>
+template <typename T>
 class SocketDataProviderArray {
  public:
   SocketDataProviderArray() : next_index_(0) {}
@@ -528,9 +591,9 @@ class SocketDataProviderArray {
     data_providers_.push_back(data_provider);
   }
 
-  void ResetNextIndex() {
-    next_index_ = 0;
-  }
+  size_t next_index() { return next_index_; }
+
+  void ResetNextIndex() { next_index_ = 0; }
 
  private:
   // Index of the next |data_providers_| element to use. Not an iterator
@@ -544,6 +607,7 @@ class SocketDataProviderArray {
 class MockUDPClientSocket;
 class MockTCPClientSocket;
 class MockSSLClientSocket;
+class MockProxyClientSocket;
 
 // ClientSocketFactory which contains arrays of sockets of each type.
 // You should first fill the arrays using AddMock{SSL,}Socket. When the factory
@@ -553,132 +617,193 @@ class MockSSLClientSocket;
 class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory();
-  virtual ~MockClientSocketFactory();
+  ~MockClientSocketFactory() override;
 
   void AddSocketDataProvider(SocketDataProvider* socket);
   void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
+  void AddProxyClientSocketDataProvider(ProxyClientSocketDataProvider* socket);
   void ResetNextMockIndexes();
 
   SocketDataProviderArray<SocketDataProvider>& mock_data() {
     return mock_data_;
   }
 
+  void set_enable_read_if_ready(bool enable_read_if_ready) {
+    enable_read_if_ready_ = enable_read_if_ready;
+  }
+
+  // Uses mock ProxyClientSocket instead of the default ProxyClientSocket.
+  void UseMockProxyClientSockets() { use_mock_proxy_client_sockets_ = true; }
+
   // ClientSocketFactory
-  virtual DatagramClientSocket* CreateDatagramClientSocket(
+  std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
-      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
-      const NetLog::Source& source) override;
-  virtual StreamSocket* CreateTransportClientSocket(
+      const NetLogSource& source) override;
+  std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList& addresses,
+      std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
       NetLog* net_log,
-      const NetLog::Source& source) override;
-  virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocketHandle* transport_socket,
+      const NetLogSource& source) override;
+  std::unique_ptr<SSLClientSocket> CreateSSLClientSocket(
+      std::unique_ptr<ClientSocketHandle> transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       const SSLClientSocketContext& context) override;
-  virtual void ClearSSLSessionCache() override;
+  std::unique_ptr<ProxyClientSocket> CreateProxyClientSocket(
+      std::unique_ptr<ClientSocketHandle> transport_socket,
+      const std::string& user_agent,
+      const HostPortPair& endpoint,
+      HttpAuthController* http_auth_controller,
+      bool tunnel,
+      bool using_spdy,
+      NextProto negotiated_protocol,
+      bool is_https_proxy,
+      const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  void ClearSSLSessionCache() override;
+
+  const std::vector<uint16_t>& udp_client_socket_ports() const {
+    return udp_client_socket_ports_;
+  }
 
  private:
   SocketDataProviderArray<SocketDataProvider> mock_data_;
   SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
+  SocketDataProviderArray<ProxyClientSocketDataProvider> mock_proxy_data_;
+  std::vector<uint16_t> udp_client_socket_ports_;
+
+  // If true, ReadIfReady() is enabled; otherwise ReadIfReady() returns
+  // ERR_READ_IF_READY_NOT_IMPLEMENTED.
+  bool enable_read_if_ready_;
+  bool use_mock_proxy_client_sockets_ = false;
+
+  DISALLOW_COPY_AND_ASSIGN(MockClientSocketFactory);
 };
 
-class MockClientSocket : public SSLClientSocket {
+class MockClientSocket : public TransportClientSocket {
  public:
-  // Value returned by GetTLSUniqueChannelBinding().
-  static const char kTlsUnique[];
-
-  // TODO(ajwong): Why do we need net::NetLog?
-  explicit MockClientSocket(net::NetLog* net_log);
+  // The NetLogWithSource is needed to test LoadTimingInfo, which uses NetLog
+  // IDs as
+  // unique socket IDs.
+  explicit MockClientSocket(const NetLogWithSource& net_log);
 
   // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) = 0;
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) = 0;
-  virtual bool SetReceiveBufferSize(int32 size) override;
-  virtual bool SetSendBufferSize(int32 size) override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override = 0;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override = 0;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
+
+  // TransportClientSocket implementation.
+  int Bind(const net::IPEndPoint& local_addr) override;
+  bool SetNoDelay(bool no_delay) override;
+  bool SetKeepAlive(bool enable, int delay) override;
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) = 0;
-  virtual void Disconnect() override;
-  virtual bool IsConnected() const override;
-  virtual bool IsConnectedAndIdle() const override;
-  virtual int GetPeerAddress(IPEndPoint* address) const override;
-  virtual int GetLocalAddress(IPEndPoint* address) const override;
-  virtual const BoundNetLog& NetLog() const override;
-  virtual void SetSubresourceSpeculation() override {}
-  virtual void SetOmniboxSpeculation() override {}
-
-  // SSLClientSocket implementation.
-  virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) override;
-  virtual int ExportKeyingMaterial(const base::StringPiece& label,
-                                   bool has_context,
-                                   const base::StringPiece& context,
-                                   unsigned char* out,
-                                   unsigned int outlen) override;
-  virtual int GetTLSUniqueChannelBinding(std::string* out) override;
-  virtual NextProtoStatus GetNextProto(std::string* proto,
-                                       std::string* server_protos) override;
-  virtual ServerBoundCertService* GetServerBoundCertService() const override;
+  int Connect(CompletionOnceCallback callback) override = 0;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  const NetLogWithSource& NetLog() const override;
+  bool WasAlpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override {}
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
+  int64_t GetTotalReceivedBytes() const override;
+  void ApplySocketTag(const SocketTag& tag) override {}
 
  protected:
-  virtual ~MockClientSocket();
-  void RunCallbackAsync(const CompletionCallback& callback, int result);
-  void RunCallback(const CompletionCallback& callback, int result);
-
-  base::WeakPtrFactory<MockClientSocket> weak_factory_;
+  ~MockClientSocket() override;
+  void RunCallbackAsync(CompletionOnceCallback callback, int result);
+  void RunCallback(CompletionOnceCallback callback, int result);
 
   // True if Connect completed successfully and Disconnect hasn't been called.
   bool connected_;
 
-  // Address of the "remote" peer we're connected to.
+  IPEndPoint local_addr_;
   IPEndPoint peer_addr_;
 
-  BoundNetLog net_log_;
+  NetLogWithSource net_log_;
+
+ private:
+  base::WeakPtrFactory<MockClientSocket> weak_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockClientSocket);
 };
 
 class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
  public:
-  MockTCPClientSocket(const AddressList& addresses, net::NetLog* net_log,
+  MockTCPClientSocket(const AddressList& addresses,
+                      net::NetLog* net_log,
                       SocketDataProvider* socket);
-  virtual ~MockTCPClientSocket();
+  ~MockTCPClientSocket() override;
 
   const AddressList& addresses() const { return addresses_; }
 
   // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) override;
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadIfReady(IOBuffer* buf,
+                  int buf_len,
+                  CompletionOnceCallback callback) override;
+  int CancelReadIfReady() override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
+
+  // TransportClientSocket implementation.
+  bool SetNoDelay(bool no_delay) override;
+  bool SetKeepAlive(bool enable, int delay) override;
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) override;
-  virtual void Disconnect() override;
-  virtual bool IsConnected() const override;
-  virtual bool IsConnectedAndIdle() const override;
-  virtual int GetPeerAddress(IPEndPoint* address) const override;
-  virtual bool WasEverUsed() const override;
-  virtual bool UsingTCPFastOpen() const override;
-  virtual int64 NumBytesRead() const override;
-  virtual base::TimeDelta GetConnectTimeMicros() const override;
-  virtual bool WasNpnNegotiated() const override;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void SetBeforeConnectCallback(
+      const BeforeConnectCallback& before_connect_callback) override;
+  int Connect(CompletionOnceCallback callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  bool WasEverUsed() const override;
+  void EnableTCPFastOpenIfSupported() override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override;
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override;
 
   // AsyncSocket:
-  virtual void OnReadComplete(const MockRead& data) override;
+  void OnReadComplete(const MockRead& data) override;
+  void OnWriteComplete(int rv) override;
+  void OnConnectComplete(const MockConnect& data) override;
+  void OnDataProviderDestroyed() override;
+
+  void set_enable_read_if_ready(bool enable_read_if_ready) {
+    enable_read_if_ready_ = enable_read_if_ready;
+  }
 
  private:
-  int CompleteRead();
+  void RetryRead(int rv);
+  int ReadIfReadyImpl(IOBuffer* buf,
+                      int buf_len,
+                      CompletionOnceCallback callback);
+
+  // Helper method to run |pending_read_if_ready_callback_| if it is not null.
+  void RunReadIfReadyCallback(int result);
 
   AddressList addresses_;
 
   SocketDataProvider* data_;
   int read_offset_;
-  int num_bytes_read_;
   MockRead read_data_;
   bool need_read_data_;
 
@@ -687,167 +812,276 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
   // TCPClientSocket.
   bool peer_closed_connection_;
 
-  // While an asynchronous IO is pending, we save our user-buffer state.
-  IOBuffer* pending_buf_;
-  int pending_buf_len_;
-  CompletionCallback pending_callback_;
+  // While an asynchronous read is pending, we save our user-buffer state.
+  scoped_refptr<IOBuffer> pending_read_buf_;
+  int pending_read_buf_len_;
+  CompletionOnceCallback pending_read_callback_;
+
+  // Non-null when a ReadIfReady() is pending.
+  CompletionOnceCallback pending_read_if_ready_callback_;
+
+  CompletionOnceCallback pending_connect_callback_;
+  CompletionOnceCallback pending_write_callback_;
   bool was_used_to_convey_data_;
+
+  // If true, ReadIfReady() is enabled; otherwise ReadIfReady() returns
+  // ERR_READ_IF_READY_NOT_IMPLEMENTED.
+  bool enable_read_if_ready_;
+
+  BeforeConnectCallback before_connect_callback_;
+
+  ConnectionAttempts connection_attempts_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocket);
 };
 
-class DeterministicMockTCPClientSocket
-    : public MockClientSocket,
-      public AsyncSocket,
-      public base::SupportsWeakPtr<DeterministicMockTCPClientSocket> {
+class MockProxyClientSocket : public AsyncSocket, public ProxyClientSocket {
  public:
-  DeterministicMockTCPClientSocket(net::NetLog* net_log,
-                                   DeterministicSocketData* data);
-  virtual ~DeterministicMockTCPClientSocket();
-
-  bool write_pending() const { return write_pending_; }
-  bool read_pending() const { return read_pending_; }
-
-  void CompleteWrite();
-  int CompleteRead();
+  MockProxyClientSocket(std::unique_ptr<ClientSocketHandle> transport_socket,
+                        HttpAuthController* auth_controller,
+                        ProxyClientSocketDataProvider* data);
+  ~MockProxyClientSocket() override;
+  // ProxyClientSocket implementation.
+  const HttpResponseInfo* GetConnectResponseInfo() const override;
+  std::unique_ptr<HttpStream> CreateConnectResponseStream() override;
+  const scoped_refptr<HttpAuthController>& GetAuthController() const override;
+  int RestartWithAuth(CompletionOnceCallback callback) override;
+  bool IsUsingSpdy() const override;
+  NextProto GetProxyNegotiatedProtocol() const override;
 
   // Socket implementation.
-  // Socket:
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) override;
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadIfReady(IOBuffer* buf,
+                  int buf_len,
+                  CompletionOnceCallback callback) override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) override;
-  virtual void Disconnect() override;
-  virtual bool IsConnected() const override;
-  virtual bool IsConnectedAndIdle() const override;
-  virtual bool WasEverUsed() const override;
-  virtual bool UsingTCPFastOpen() const override;
-  virtual int64 NumBytesRead() const override;
-  virtual base::TimeDelta GetConnectTimeMicros() const override;
-  virtual bool WasNpnNegotiated() const override;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) override;
-
-  // AsyncSocket:
-  virtual void OnReadComplete(const MockRead& data) override;
-
- private:
-  bool write_pending_;
-  CompletionCallback write_callback_;
-  int write_result_;
-
-  MockRead read_data_;
-
-  IOBuffer* read_buf_;
-  int read_buf_len_;
-  bool read_pending_;
-  CompletionCallback read_callback_;
-  DeterministicSocketData* data_;
-  bool was_used_to_convey_data_;
-};
-
-class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
- public:
-  MockSSLClientSocket(
-      ClientSocketHandle* transport_socket,
-      const HostPortPair& host_and_port,
-      const SSLConfig& ssl_config,
-      SSLSocketDataProvider* socket);
-  virtual ~MockSSLClientSocket();
-
-  // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) override;
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) override;
-
-  // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) override;
-  virtual void Disconnect() override;
-  virtual bool IsConnected() const override;
-  virtual bool WasEverUsed() const override;
-  virtual bool UsingTCPFastOpen() const override;
-  virtual int64 NumBytesRead() const override;
-  virtual int GetPeerAddress(IPEndPoint* address) const override;
-  virtual base::TimeDelta GetConnectTimeMicros() const override;
-  virtual bool WasNpnNegotiated() const override;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) override;
-
-  // SSLClientSocket implementation.
-  virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) override;
-  virtual NextProtoStatus GetNextProto(std::string* proto,
-                                       std::string* server_protos) override;
-  virtual bool set_was_npn_negotiated(bool negotiated) override;
-  virtual void set_protocol_negotiated(
-      NextProto protocol_negotiated) override;
-  virtual NextProto GetNegotiatedProtocol() const override;
+  int Connect(CompletionOnceCallback callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  bool WasEverUsed() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  bool WasAlpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void ApplySocketTag(const SocketTag& tag) override;
+  const NetLogWithSource& NetLog() const override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override {}
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
+  int64_t GetTotalReceivedBytes() const override;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
 
   // This MockSocket does not implement the manual async IO feature.
-  virtual void OnReadComplete(const MockRead& data) override;
-
-  virtual bool WasChannelIDSent() const override;
-  virtual void set_channel_id_sent(bool channel_id_sent) override;
-  virtual ServerBoundCertService* GetServerBoundCertService() const override;
+  void OnReadComplete(const MockRead& data) override;
+  void OnWriteComplete(int rv) override;
+  void OnConnectComplete(const MockConnect& data) override;
+  void OnDataProviderDestroyed() override {}
 
  private:
-  static void ConnectCallback(MockSSLClientSocket *ssl_client_socket,
-                              const CompletionCallback& callback,
-                              int rv);
+  void RunCallback(CompletionOnceCallback callback, int result);
+  void RunCallbackAsync(CompletionOnceCallback callback, int result);
 
-  scoped_ptr<ClientSocketHandle> transport_;
-  SSLSocketDataProvider* data_;
-  bool is_npn_state_set_;
-  bool new_npn_value_;
-  bool is_protocol_negotiated_set_;
-  NextProto protocol_negotiated_;
+  NetLogWithSource net_log_;
+  std::unique_ptr<ClientSocketHandle> transport_;
+  ProxyClientSocketDataProvider* data_;
+  scoped_refptr<HttpAuthController> auth_controller_;
+
+  base::WeakPtrFactory<MockProxyClientSocket> weak_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockProxyClientSocket);
 };
 
-class MockUDPClientSocket
-    : public DatagramClientSocket,
-      public AsyncSocket {
+class MockSSLClientSocket : public AsyncSocket, public SSLClientSocket {
  public:
-  MockUDPClientSocket(SocketDataProvider* data, net::NetLog* net_log);
-  virtual ~MockUDPClientSocket();
+  MockSSLClientSocket(std::unique_ptr<ClientSocketHandle> transport_socket,
+                      const HostPortPair& host_and_port,
+                      const SSLConfig& ssl_config,
+                      SSLSocketDataProvider* socket);
+  ~MockSSLClientSocket() override;
 
   // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) override;
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) override;
-  virtual bool SetReceiveBufferSize(int32 size) override;
-  virtual bool SetSendBufferSize(int32 size) override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadIfReady(IOBuffer* buf,
+                  int buf_len,
+                  CompletionOnceCallback callback) override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  int CancelReadIfReady() override;
+
+  // StreamSocket implementation.
+  int Connect(CompletionOnceCallback callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  bool WasEverUsed() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  bool WasAlpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void GetSSLCertRequestInfo(
+      SSLCertRequestInfo* cert_request_info) const override;
+  ChannelIDService* GetChannelIDService() const override;
+  crypto::ECPrivateKey* GetChannelIDKey() const override;
+  void ApplySocketTag(const SocketTag& tag) override;
+  const NetLogWithSource& NetLog() const override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override {}
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
+  int64_t GetTotalReceivedBytes() const override;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
+
+  // SSLSocket implementation.
+  int ExportKeyingMaterial(const base::StringPiece& label,
+                           bool has_context,
+                           const base::StringPiece& context,
+                           unsigned char* out,
+                           unsigned int outlen) override;
+
+  // This MockSocket does not implement the manual async IO feature.
+  void OnReadComplete(const MockRead& data) override;
+  void OnWriteComplete(int rv) override;
+  void OnConnectComplete(const MockConnect& data) override;
+  // SSL sockets don't need magic to deal with destruction of their data
+  // provider.
+  // TODO(mmenke):  Probably a good idea to support it, anyways.
+  void OnDataProviderDestroyed() override {}
+
+ private:
+  static void ConnectCallback(MockSSLClientSocket* ssl_client_socket,
+                              CompletionOnceCallback callback,
+                              int rv);
+
+  void RunCallbackAsync(CompletionOnceCallback callback, int result);
+  void RunCallback(CompletionOnceCallback callback, int result);
+
+  bool connected_ = false;
+  NetLogWithSource net_log_;
+  std::unique_ptr<ClientSocketHandle> transport_;
+  SSLSocketDataProvider* data_;
+  // Address of the "remote" peer we're connected to.
+  IPEndPoint peer_addr_;
+
+  base::WeakPtrFactory<MockSSLClientSocket> weak_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockSSLClientSocket);
+};
+
+class MockUDPClientSocket : public DatagramClientSocket, public AsyncSocket {
+ public:
+  MockUDPClientSocket(SocketDataProvider* data, net::NetLog* net_log);
+  ~MockUDPClientSocket() override;
+
+  // Socket implementation.
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  int WriteAsync(
+      DatagramBuffers buffers,
+      CompletionOnceCallback callback,
+      const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  int WriteAsync(
+      const char* buffer,
+      size_t buf_len,
+      CompletionOnceCallback callback,
+      const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  DatagramBuffers GetUnwrittenBuffers() override;
+
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
+  int SetDoNotFragment() override;
 
   // DatagramSocket implementation.
-  virtual void Close() override;
-  virtual int GetPeerAddress(IPEndPoint* address) const override;
-  virtual int GetLocalAddress(IPEndPoint* address) const override;
-  virtual const BoundNetLog& NetLog() const override;
+  void Close() override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  void UseNonBlockingIO() override;
+  void SetWriteAsyncEnabled(bool enabled) override;
+  void SetMaxPacketSize(size_t max_packet_size) override;
+  bool WriteAsyncEnabled() override;
+  void SetWriteMultiCoreEnabled(bool enabled) override;
+  void SetSendmmsgEnabled(bool enabled) override;
+  void SetWriteBatchingActive(bool active) override;
+  const NetLogWithSource& NetLog() const override;
 
   // DatagramClientSocket implementation.
-  virtual int Connect(const IPEndPoint& address) override;
+  int Connect(const IPEndPoint& address) override;
+  int ConnectUsingNetwork(NetworkChangeNotifier::NetworkHandle network,
+                          const IPEndPoint& address) override;
+  int ConnectUsingDefaultNetwork(const IPEndPoint& address) override;
+  NetworkChangeNotifier::NetworkHandle GetBoundNetwork() const override;
+  void ApplySocketTag(const SocketTag& tag) override;
+  void SetMsgConfirm(bool confirm) override {}
 
   // AsyncSocket implementation.
-  virtual void OnReadComplete(const MockRead& data) override;
+  void OnReadComplete(const MockRead& data) override;
+  void OnWriteComplete(int rv) override;
+  void OnConnectComplete(const MockConnect& data) override;
+  void OnDataProviderDestroyed() override;
+
+  void set_source_port(uint16_t port) { source_port_ = port; }
+  uint16_t source_port() const { return source_port_; }
+
+  // Returns last tag applied to socket.
+  SocketTag tag() const { return tag_; }
+
+  // Returns false if socket's tag was changed after the socket was used for
+  // data transfer (e.g. Read/Write() called), otherwise returns true.
+  bool tagged_before_data_transferred() const {
+    return tagged_before_data_transferred_;
+  }
 
  private:
   int CompleteRead();
 
-  void RunCallbackAsync(const CompletionCallback& callback, int result);
-  void RunCallback(const CompletionCallback& callback, int result);
+  void RunCallbackAsync(CompletionOnceCallback callback, int result);
+  void RunCallback(CompletionOnceCallback callback, int result);
 
   bool connected_;
   SocketDataProvider* data_;
   int read_offset_;
   MockRead read_data_;
   bool need_read_data_;
+  uint16_t source_port_;  // Ephemeral source port.
+
+  // Address of the "remote" peer we're connected to.
+  IPEndPoint peer_addr_;
+
+  // Network that the socket is bound to.
+  NetworkChangeNotifier::NetworkHandle network_;
 
   // While an asynchronous IO is pending, we save our user-buffer state.
-  IOBuffer* pending_buf_;
-  int pending_buf_len_;
-  CompletionCallback pending_callback_;
+  scoped_refptr<IOBuffer> pending_read_buf_;
+  int pending_read_buf_len_;
+  CompletionOnceCallback pending_read_callback_;
+  CompletionOnceCallback pending_write_callback_;
 
-  BoundNetLog net_log_;
+  NetLogWithSource net_log_;
+
+  DatagramBuffers unwritten_buffers_;
+
+  SocketTag tag_;
+  bool data_transferred_ = false;
+  bool tagged_before_data_transferred_ = true;
 
   base::WeakPtrFactory<MockUDPClientSocket> weak_factory_;
 
@@ -858,11 +1092,14 @@ class TestSocketRequest : public TestCompletionCallbackBase {
  public:
   TestSocketRequest(std::vector<TestSocketRequest*>* request_order,
                     size_t* completion_count);
-  virtual ~TestSocketRequest();
+  ~TestSocketRequest() override;
 
   ClientSocketHandle* handle() { return &handle_; }
 
-  const net::CompletionCallback& callback() const { return callback_; }
+  CompletionOnceCallback callback() {
+    return base::BindOnce(&TestSocketRequest::OnComplete,
+                          base::Unretained(this));
+  }
 
  private:
   void OnComplete(int result);
@@ -870,7 +1107,6 @@ class TestSocketRequest : public TestCompletionCallbackBase {
   ClientSocketHandle handle_;
   std::vector<TestSocketRequest*>* request_order_;
   size_t* completion_count_;
-  CompletionCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(TestSocketRequest);
 };
@@ -890,18 +1126,20 @@ class ClientSocketPoolTest {
   ClientSocketPoolTest();
   ~ClientSocketPoolTest();
 
-  template <typename PoolType, typename SocketParams>
-  int StartRequestUsingPool(PoolType* socket_pool,
-                            const std::string& group_name,
-                            RequestPriority priority,
-                            const scoped_refptr<SocketParams>& socket_params) {
+  template <typename PoolType>
+  int StartRequestUsingPool(
+      PoolType* socket_pool,
+      const std::string& group_name,
+      RequestPriority priority,
+      ClientSocketPool::RespectLimits respect_limits,
+      const scoped_refptr<typename PoolType::SocketParams>& socket_params) {
     DCHECK(socket_pool);
-    TestSocketRequest* request = new TestSocketRequest(&request_order_,
-                                                       &completion_count_);
-    requests_.push_back(request);
+    TestSocketRequest* request(
+        new TestSocketRequest(&request_order_, &completion_count_));
+    requests_.push_back(base::WrapUnique(request));
     int rv = request->handle()->Init(
-        group_name, socket_params, priority, request->callback(),
-        socket_pool, BoundNetLog());
+        group_name, socket_params, priority, SocketTag(), respect_limits,
+        request->callback(), socket_pool, NetLogWithSource());
     if (rv != ERR_IO_PENDING)
       request_order_.push_back(request);
     return rv;
@@ -920,23 +1158,43 @@ class ClientSocketPoolTest {
   // Releases connections until there is nothing to release.
   void ReleaseAllConnections(KeepAlive keep_alive);
 
-  TestSocketRequest* request(int i) { return requests_[i]; }
+  // Note that this uses 0-based indices, while GetOrderOfRequest takes and
+  // returns 1-based indices.
+  TestSocketRequest* request(int i) { return requests_[i].get(); }
+
   size_t requests_size() const { return requests_.size(); }
-  ScopedVector<TestSocketRequest>* requests() { return &requests_; }
+  std::vector<std::unique_ptr<TestSocketRequest>>* requests() {
+    return &requests_;
+  }
   size_t completion_count() const { return completion_count_; }
 
  private:
-  ScopedVector<TestSocketRequest> requests_;
+  std::vector<std::unique_ptr<TestSocketRequest>> requests_;
   std::vector<TestSocketRequest*> request_order_;
   size_t completion_count_;
+
+  DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolTest);
+};
+
+class MockTransportSocketParams
+    : public base::RefCounted<MockTransportSocketParams> {
+ private:
+  friend class base::RefCounted<MockTransportSocketParams>;
+  ~MockTransportSocketParams() {}
+
+  DISALLOW_COPY_AND_ASSIGN(MockTransportSocketParams);
 };
 
 class MockTransportClientSocketPool : public TransportClientSocketPool {
  public:
+  typedef MockTransportSocketParams SocketParams;
+
   class MockConnectJob {
    public:
-    MockConnectJob(StreamSocket* socket, ClientSocketHandle* handle,
-                   const CompletionCallback& callback);
+    MockConnectJob(std::unique_ptr<StreamSocket> socket,
+                   ClientSocketHandle* handle,
+                   const SocketTag& socket_tag,
+                   CompletionOnceCallback callback);
     ~MockConnectJob();
 
     int Connect();
@@ -945,120 +1203,199 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
    private:
     void OnConnect(int rv);
 
-    scoped_ptr<StreamSocket> socket_;
+    std::unique_ptr<StreamSocket> socket_;
     ClientSocketHandle* handle_;
-    CompletionCallback user_callback_;
+    const SocketTag socket_tag_;
+    CompletionOnceCallback user_callback_;
 
     DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
   };
 
-  MockTransportClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
-      ClientSocketPoolHistograms* histograms,
-      ClientSocketFactory* socket_factory);
+  MockTransportClientSocketPool(int max_sockets,
+                                int max_sockets_per_group,
+                                ClientSocketFactory* socket_factory);
 
-  virtual ~MockTransportClientSocketPool();
+  ~MockTransportClientSocketPool() override;
 
+  RequestPriority last_request_priority() const {
+    return last_request_priority_;
+  }
   int release_count() const { return release_count_; }
   int cancel_count() const { return cancel_count_; }
 
   // TransportClientSocketPool implementation.
-  virtual int RequestSocket(const std::string& group_name,
-                            const void* socket_params,
-                            RequestPriority priority,
-                            ClientSocketHandle* handle,
-                            const CompletionCallback& callback,
-                            const BoundNetLog& net_log) override;
-
-  virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle) override;
-  virtual void ReleaseSocket(const std::string& group_name,
-                             StreamSocket* socket, int id) override;
+  int RequestSocket(const std::string& group_name,
+                    const void* socket_params,
+                    RequestPriority priority,
+                    const SocketTag& socket_tag,
+                    RespectLimits respect_limits,
+                    ClientSocketHandle* handle,
+                    CompletionOnceCallback callback,
+                    const NetLogWithSource& net_log) override;
+  void SetPriority(const std::string& group_name,
+                   ClientSocketHandle* handle,
+                   RequestPriority priority) override;
+  void CancelRequest(const std::string& group_name,
+                     ClientSocketHandle* handle) override;
+  void ReleaseSocket(const std::string& group_name,
+                     std::unique_ptr<StreamSocket> socket,
+                     int id) override;
 
  private:
   ClientSocketFactory* client_socket_factory_;
-  ScopedVector<MockConnectJob> job_list_;
+  std::vector<std::unique_ptr<MockConnectJob>> job_list_;
+  RequestPriority last_request_priority_;
   int release_count_;
   int cancel_count_;
 
   DISALLOW_COPY_AND_ASSIGN(MockTransportClientSocketPool);
 };
 
-class DeterministicMockClientSocketFactory : public ClientSocketFactory {
- public:
-  DeterministicMockClientSocketFactory();
-  virtual ~DeterministicMockClientSocketFactory();
-
-  void AddSocketDataProvider(DeterministicSocketData* socket);
-  void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
-  void ResetNextMockIndexes();
-
-  // Return |index|-th MockSSLClientSocket (starting from 0) that the factory
-  // created.
-  MockSSLClientSocket* GetMockSSLClientSocket(size_t index) const;
-
-  SocketDataProviderArray<DeterministicSocketData>& mock_data() {
-    return mock_data_;
-  }
-  std::vector<DeterministicMockTCPClientSocket*>& tcp_client_sockets() {
-    return tcp_client_sockets_;
-  }
-
-  // ClientSocketFactory
-  virtual DatagramClientSocket* CreateDatagramClientSocket(
-      DatagramSocket::BindType bind_type,
-      const RandIntCallback& rand_int_cb,
-      NetLog* net_log,
-      const NetLog::Source& source) override;
-  virtual StreamSocket* CreateTransportClientSocket(
-      const AddressList& addresses,
-      NetLog* net_log,
-      const NetLog::Source& source) override;
-  virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocketHandle* transport_socket,
-      const HostPortPair& host_and_port,
-      const SSLConfig& ssl_config,
-      const SSLClientSocketContext& context) override;
-  virtual void ClearSSLSessionCache() override;
-
- private:
-  SocketDataProviderArray<DeterministicSocketData> mock_data_;
-  SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
-
-  // Store pointers to handed out sockets in case the test wants to get them.
-  std::vector<DeterministicMockTCPClientSocket*> tcp_client_sockets_;
-  std::vector<MockSSLClientSocket*> ssl_client_sockets_;
-};
-
 class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
  public:
-  MockSOCKSClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
-      ClientSocketPoolHistograms* histograms,
-      TransportClientSocketPool* transport_pool);
+  MockSOCKSClientSocketPool(int max_sockets,
+                            int max_sockets_per_group,
+                            TransportClientSocketPool* transport_pool);
 
-  virtual ~MockSOCKSClientSocketPool();
+  ~MockSOCKSClientSocketPool() override;
 
   // SOCKSClientSocketPool implementation.
-  virtual int RequestSocket(const std::string& group_name,
-                            const void* socket_params,
-                            RequestPriority priority,
-                            ClientSocketHandle* handle,
-                            const CompletionCallback& callback,
-                            const BoundNetLog& net_log) override;
-
-  virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle) override;
-  virtual void ReleaseSocket(const std::string& group_name,
-                             StreamSocket* socket, int id) override;
+  int RequestSocket(const std::string& group_name,
+                    const void* socket_params,
+                    RequestPriority priority,
+                    const SocketTag& socket_tag,
+                    RespectLimits respect_limits,
+                    ClientSocketHandle* handle,
+                    CompletionOnceCallback callback,
+                    const NetLogWithSource& net_log) override;
+  void SetPriority(const std::string& group_name,
+                   ClientSocketHandle* handle,
+                   RequestPriority priority) override;
+  void CancelRequest(const std::string& group_name,
+                     ClientSocketHandle* handle) override;
+  void ReleaseSocket(const std::string& group_name,
+                     std::unique_ptr<StreamSocket> socket,
+                     int id) override;
 
  private:
   TransportClientSocketPool* const transport_pool_;
 
   DISALLOW_COPY_AND_ASSIGN(MockSOCKSClientSocketPool);
 };
+
+// WrappedStreamSocket is a base class that wraps an existing StreamSocket,
+// forwarding the Socket and StreamSocket interfaces to the underlying
+// transport.
+// This is to provide a common base class for subclasses to override specific
+// StreamSocket methods for testing, while still communicating with a 'real'
+// StreamSocket.
+class WrappedStreamSocket : public TransportClientSocket {
+ public:
+  explicit WrappedStreamSocket(std::unique_ptr<StreamSocket> transport);
+  ~WrappedStreamSocket() override;
+
+  // StreamSocket implementation:
+  int Bind(const net::IPEndPoint& local_addr) override;
+  int Connect(CompletionOnceCallback callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  const NetLogWithSource& NetLog() const override;
+  bool WasEverUsed() const override;
+  bool WasAlpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override;
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override;
+  int64_t GetTotalReceivedBytes() const override;
+  void ApplySocketTag(const SocketTag& tag) override;
+
+  // Socket implementation:
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadIfReady(IOBuffer* buf,
+                  int buf_len,
+                  CompletionOnceCallback callback) override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
+
+ protected:
+  std::unique_ptr<StreamSocket> transport_;
+};
+
+// StreamSocket that wraps another StreamSocket, but keeps track of any
+// SocketTag applied to the socket.
+class MockTaggingStreamSocket : public WrappedStreamSocket {
+ public:
+  explicit MockTaggingStreamSocket(std::unique_ptr<StreamSocket> transport)
+      : WrappedStreamSocket(std::move(transport)) {}
+  ~MockTaggingStreamSocket() override {}
+
+  // StreamSocket implementation.
+  int Connect(CompletionOnceCallback callback) override;
+  void ApplySocketTag(const SocketTag& tag) override;
+
+  // Returns false if socket's tag was changed after the socket was connected,
+  // otherwise returns true.
+  bool tagged_before_connected() const { return tagged_before_connected_; }
+
+  // Returns last tag applied to socket.
+  SocketTag tag() const { return tag_; }
+
+ private:
+  bool connected_ = false;
+  bool tagged_before_connected_ = true;
+  SocketTag tag_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockTaggingStreamSocket);
+};
+
+// Extend MockClientSocketFactory to return MockTaggingStreamSockets and
+// keep track of last socket produced for test inspection.
+class MockTaggingClientSocketFactory : public MockClientSocketFactory {
+ public:
+  MockTaggingClientSocketFactory() = default;
+
+  // ClientSocketFactory implementation.
+  std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      NetLog* net_log,
+      const NetLogSource& source) override;
+  std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
+      const AddressList& addresses,
+      std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
+      NetLog* net_log,
+      const NetLogSource& source) override;
+
+  // These methods return pointers to last TCP and UDP sockets produced by this
+  // factory. NOTE: Socket must still exist, or pointer will be to freed memory.
+  MockTaggingStreamSocket* GetLastProducedTCPSocket() const {
+    return tcp_socket_;
+  }
+  MockUDPClientSocket* GetLastProducedUDPSocket() const { return udp_socket_; }
+
+ private:
+  MockTaggingStreamSocket* tcp_socket_ = nullptr;
+  MockUDPClientSocket* udp_socket_ = nullptr;
+
+  DISALLOW_COPY_AND_ASSIGN(MockTaggingClientSocketFactory);
+};
+
+// Constants for a successful SOCKS v4 handshake (connecting to localhost on
+// port 80, for the request).
+extern const char kSOCKS4OkRequestLocalHostPort80[];
+extern const int kSOCKS4OkRequestLocalHostPort80Length;
+
+extern const char kSOCKS4OkReply[];
+extern const int kSOCKS4OkReplyLength;
 
 // Constants for a successful SOCKS v5 handshake.
 extern const char kSOCKS5GreetRequest[];
@@ -1072,6 +1409,18 @@ extern const int kSOCKS5OkRequestLength;
 
 extern const char kSOCKS5OkResponse[];
 extern const int kSOCKS5OkResponseLength;
+
+// Helper function to get the total data size of the MockReads in |reads|.
+int64_t CountReadBytes(base::span<const MockRead> reads);
+
+// Helper function to get the total data size of the MockWrites in |writes|.
+int64_t CountWriteBytes(base::span<const MockWrite> writes);
+
+#if defined(OS_ANDROID)
+// Query the system to find out how many bytes were received with tag
+// |expected_tag| for our UID.  Return the count of recieved bytes.
+uint64_t GetTaggedBytes(int32_t expected_tag);
+#endif
 
 }  // namespace net
 

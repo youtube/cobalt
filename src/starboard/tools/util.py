@@ -215,3 +215,7 @@ def Compress(job_list):
   for proc in compress_procs:
     proc.join()
   return outputs
+
+def SetupDefaultLoggingConfig(logging_lvl=logging.INFO):
+  fmt = '[%(filename)s:%(lineno)s:%(levelname)s] %(message)s'
+  logging.basicConfig(format=fmt, level=logging_lvl)

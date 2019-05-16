@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
@@ -86,7 +87,7 @@ class MutationObserverTest : public ::testing::Test {
   MutationObserverTaskManager task_manager_;
   test::EmptyDocument empty_document_;
   MutationCallbackMock callback_mock_;
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
 };
 
 TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {
@@ -265,11 +266,11 @@ TEST_F(MutationObserverTest, ReportMutation) {
   init.set_character_data(true);
 
   // Create a MutationReporter for the list of registered observers.
-  scoped_ptr<std::vector<RegisteredObserver> > registered_observers(
+  std::unique_ptr<std::vector<RegisteredObserver> > registered_observers(
       new std::vector<RegisteredObserver>());
   registered_observers->push_back(
       RegisteredObserver(target.get(), observer, init));
-  MutationReporter reporter(target.get(), registered_observers.Pass());
+  MutationReporter reporter(target.get(), std::move(registered_observers));
 
   // Report a few mutations.
   reporter.ReportAttributesMutation("attribute_name", std::string("old_value"));
@@ -299,11 +300,11 @@ TEST_F(MutationObserverTest, AttributeFilter) {
   init.set_attributes(true);
 
   // Create a MutationReporter for the list of registered observers.
-  scoped_ptr<std::vector<RegisteredObserver> > registered_observers(
+  std::unique_ptr<std::vector<RegisteredObserver> > registered_observers(
       new std::vector<RegisteredObserver>());
   registered_observers->push_back(
       RegisteredObserver(target.get(), observer, init));
-  MutationReporter reporter(target.get(), registered_observers.Pass());
+  MutationReporter reporter(target.get(), std::move(registered_observers));
 
   // Report a few attribute mutations.
   reporter.ReportAttributesMutation("banana", std::string("rotten"));

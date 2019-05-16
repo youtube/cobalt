@@ -5,12 +5,12 @@
 #ifndef BASE_I18N_BIDI_LINE_ITERATOR_H_
 #define BASE_I18N_BIDI_LINE_ITERATOR_H_
 
-#include "unicode/ubidi.h"
-
-#include "base/basictypes.h"
 #include "base/i18n/base_i18n_export.h"
 #include "base/i18n/rtl.h"
-#include "base/string16.h"
+#include "base/macros.h"
+#include "base/strings/string16.h"
+#include "third_party/icu/source/common/unicode/ubidi.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
 
 namespace base {
 namespace i18n {
@@ -20,21 +20,33 @@ namespace i18n {
 // bidirectional texts into visual runs in its display order.
 class BASE_I18N_EXPORT BiDiLineIterator {
  public:
+  // Specifies some alternative iteration behavior.
+  enum class CustomBehavior {
+    // No special behavior.
+    NONE,
+    // Treat URL delimiter characters as strong LTR. This is a special treatment
+    // for URLs that purposefully violates the URL Standard, as an experiment.
+    // It should only be used behind a flag.
+    AS_URL
+  };
+
   BiDiLineIterator();
   ~BiDiLineIterator();
 
   // Initializes the bidirectional iterator with the specified text.  Returns
   // whether initialization succeeded.
-  bool Open(const string16& text, TextDirection direction);
+  bool Open(const string16& text,
+            TextDirection direction,
+            CustomBehavior behavior);
 
   // Returns the number of visual runs in the text, or zero on error.
-  int CountRuns();
+  int CountRuns() const;
 
   // Gets the logical offset, length, and direction of the specified visual run.
-  UBiDiDirection GetVisualRun(int index, int* start, int* length);
+  UBiDiDirection GetVisualRun(int index, int* start, int* length) const;
 
   // Given a start position, figure out where the run ends (and the BiDiLevel).
-  void GetLogicalRun(int start, int* end, UBiDiLevel* level);
+  void GetLogicalRun(int start, int* end, UBiDiLevel* level) const;
 
  private:
   UBiDi* bidi_;

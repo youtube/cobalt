@@ -15,39 +15,33 @@
 #ifndef COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 #define COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
-#include "base/circular_buffer_shell.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/base/circular_buffer_shell.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/origin.h"
-#include "cobalt/network/network_module.h"
-#include "googleurl/src/gurl.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/player/buffered_data_source.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/player/buffered_data_source.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
 
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::BufferedDataSource BufferedDataSource;
-#endif  // !defined(WebMediaPlayerDelegate)
-
 // TODO: This class requires a large block of memory.  Consider to
 // use ShellBufferFactory for its memory if possible to avoid possible OOM.
 
-// A BufferedDataSource based on URLFetcher that can be used to retrieve
+// A BufferedDataSource based on net::URLFetcher that can be used to retrieve
 // progressive videos from both local and network sources.
 // It uses a fixed size circular buffer so we may not be able to store all data
 // into this buffer.  It is based on the following assumptions/strategies:
@@ -68,9 +62,9 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   static const int64 kInvalidSize = -1;
 
   // Because the Fetchers have to be created and destroyed on the same thread,
-  // we use the message_loop passed in to create and destroy Fetchers.
+  // we use the task_runner passed in to create and destroy Fetchers.
   FetcherBufferedDataSource(
-      const scoped_refptr<base::MessageLoopProxy>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GURL& url, const csp::SecurityCallback& security_callback,
       network::NetworkModule* network_module, loader::RequestMode requset_mode,
       loader::Origin origin);
@@ -82,7 +76,7 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   void Stop() override;
   bool GetSize(int64* size_out) override;
   bool IsStreaming() override { return false; }
-  void SetBitrate(int bitrate) override { UNREFERENCED_PARAMETER(bitrate); }
+  void SetBitrate(int bitrate) override { SB_UNREFERENCED_PARAMETER(bitrate); }
 
   // BufferedDataSource methods.
   void SetDownloadingStatusCB(
@@ -106,9 +100,9 @@ class FetcherBufferedDataSource : public BufferedDataSource,
 
   // net::URLFetcherDelegate methods
   void OnURLFetchResponseStarted(const net::URLFetcher* source) override;
-  bool ShouldSendDownloadData() override { return true; }
-  void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) override;
+  void OnURLFetchDownloadProgress(const net::URLFetcher* source,
+                                  int64_t current, int64_t total,
+                                  int64_t current_network_bytes) override;
   void OnURLFetchComplete(const net::URLFetcher* source) override;
 
   void CreateNewFetcher();
@@ -119,10 +113,10 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   void TryToSendRequest_Locked();
 
   base::Lock lock_;
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   GURL url_;
   network::NetworkModule* network_module_;
-  scoped_ptr<net::URLFetcher> fetcher_;
+  std::unique_ptr<net::URLFetcher> fetcher_;
 
   bool is_downloading_;
   DownloadingStatusCB downloading_status_cb_;
@@ -132,7 +126,7 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   // |fetcher_to_be_destroyed_| to ensure that it is properly destroyed either
   // inside CreateNewFetcher() or in the dtor while still allow |fetcher_| to be
   // set to NULL to invalidate outstanding read.
-  scoped_ptr<net::URLFetcher> fetcher_to_be_destroyed_;
+  std::unique_ptr<net::URLFetcher> fetcher_to_be_destroyed_;
 
   // |buffer_| stores a continuous block of data of target resource starts from
   // |buffer_offset_|.  When the target resource can be fit into |buffer_|,
@@ -140,7 +134,7 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   base::CircularBufferShell buffer_;
   uint64 buffer_offset_;
 
-  base::optional<uint64> total_size_of_resource_;
+  base::Optional<uint64> total_size_of_resource_;
   bool error_occured_;
 
   uint64 last_request_offset_;

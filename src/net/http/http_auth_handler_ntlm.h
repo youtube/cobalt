@@ -20,18 +20,24 @@
 #include <windows.h>
 #include <security.h>
 #include "net/http/http_auth_sspi_win.h"
+#elif defined(NTLM_PORTABLE)
+#include "net/ntlm/ntlm_client.h"
 #endif
 
 #include <string>
+#include <vector>
 
-#include "base/basictypes.h"
-#include "base/string16.h"
+#include "base/containers/span.h"
+#include "base/strings/string16.h"
+#include "net/base/completion_once_callback.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "starboard/types.h"
 
 namespace net {
 
-class URLSecurityManager;
+class HttpAuthPreferences;
 
 // Code for handling HTTP NTLM authentication.
 class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
@@ -39,16 +45,16 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
   class Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
-    virtual ~Factory();
+    ~Factory() override;
 
-    virtual int CreateAuthHandler(
-        HttpAuth::ChallengeTokenizer* challenge,
-        HttpAuth::Target target,
-        const GURL& origin,
-        CreateReason reason,
-        int digest_nonce_count,
-        const BoundNetLog& net_log,
-        scoped_ptr<HttpAuthHandler>* handler) override;
+    int CreateAuthHandler(HttpAuthChallengeTokenizer* challenge,
+                          HttpAuth::Target target,
+                          const SSLInfo& ssl_info,
+                          const GURL& origin,
+                          CreateReason reason,
+                          int digest_nonce_count,
+                          const NetLogWithSource& net_log,
+                          std::unique_ptr<HttpAuthHandler>* handler) override;
 #if defined(NTLM_SSPI)
     // Set the SSPILibrary to use. Typically the only callers which need to use
     // this are unit tests which pass in a mocked-out version of the SSPI
@@ -61,15 +67,18 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
    private:
 #if defined(NTLM_SSPI)
     ULONG max_token_length_;
-    bool first_creation_;
     bool is_unsupported_;
-    scoped_ptr<SSPILibrary> sspi_library_;
+    std::unique_ptr<SSPILibrary> sspi_library_;
 #endif  // defined(NTLM_SSPI)
   };
 
 #if defined(NTLM_PORTABLE)
+  // A function that returns the time as the number of 100 nanosecond ticks
+  // since Jan 1, 1601 (UTC).
+  typedef uint64_t (*GetMSTimeProc)();
+
   // A function that generates n random bytes in the output buffer.
-  typedef void (*GenerateRandomProc)(uint8* output, size_t n);
+  typedef void (*GenerateRandomProc)(uint8_t* output, size_t n);
 
   // A function that returns the local host name. Returns an empty string if
   // the local host name is not available.
@@ -79,92 +88,100 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
   // GetHostName functions.
   class ScopedProcSetter {
    public:
-    ScopedProcSetter(GenerateRandomProc random_proc,
+    ScopedProcSetter(GetMSTimeProc ms_time_proc,
+                     GenerateRandomProc random_proc,
                      HostNameProc host_name_proc) {
+      old_ms_time_proc_ = SetGetMSTimeProc(ms_time_proc);
       old_random_proc_ = SetGenerateRandomProc(random_proc);
       old_host_name_proc_ = SetHostNameProc(host_name_proc);
     }
 
     ~ScopedProcSetter() {
+      SetGetMSTimeProc(old_ms_time_proc_);
       SetGenerateRandomProc(old_random_proc_);
       SetHostNameProc(old_host_name_proc_);
     }
 
    private:
+    GetMSTimeProc old_ms_time_proc_;
     GenerateRandomProc old_random_proc_;
     HostNameProc old_host_name_proc_;
   };
 #endif
 
 #if defined(NTLM_PORTABLE)
-  HttpAuthHandlerNTLM();
+  explicit HttpAuthHandlerNTLM(
+      const HttpAuthPreferences* http_auth_preferences);
 #endif
 #if defined(NTLM_SSPI)
-  HttpAuthHandlerNTLM(SSPILibrary* sspi_library, ULONG max_token_length,
-                      URLSecurityManager* url_security_manager);
+  HttpAuthHandlerNTLM(SSPILibrary* sspi_library,
+                      ULONG max_token_length,
+                      const HttpAuthPreferences* http_auth_preferences);
 #endif
 
-  virtual bool NeedsIdentity() override;
+  bool NeedsIdentity() override;
 
-  virtual bool AllowsDefaultCredentials() override;
+  bool AllowsDefaultCredentials() override;
 
-  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge) override;
+  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuthChallengeTokenizer* challenge) override;
 
  protected:
   // This function acquires a credentials handle in the SSPI implementation.
   // It does nothing in the portable implementation.
   int InitializeBeforeFirstChallenge();
 
-  virtual bool Init(HttpAuth::ChallengeTokenizer* tok) override;
+  bool Init(HttpAuthChallengeTokenizer* tok, const SSLInfo& ssl_info) override;
 
-  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
-                                    const HttpRequestInfo* request,
-                                    const CompletionCallback& callback,
-                                    std::string* auth_token) override;
+  int GenerateAuthTokenImpl(const AuthCredentials* credentials,
+                            const HttpRequestInfo* request,
+                            CompletionOnceCallback callback,
+                            std::string* auth_token) override;
 
  private:
-  virtual ~HttpAuthHandlerNTLM();
+  ~HttpAuthHandlerNTLM() override;
 
 #if defined(NTLM_PORTABLE)
-  // For unit tests to override the GenerateRandom and GetHostName functions.
-  // Returns the old function.
+  // For unit tests to override the GetMSTime, GenerateRandom and GetHostName
+  // functions. Returns the old function.
+  static GetMSTimeProc SetGetMSTimeProc(GetMSTimeProc proc);
   static GenerateRandomProc SetGenerateRandomProc(GenerateRandomProc proc);
   static HostNameProc SetHostNameProc(HostNameProc proc);
+
+  // Given an input token received from the server, generate the next output
+  // token to be sent to the server.
+  std::vector<uint8_t> GetNextToken(base::span<const uint8_t> in_token);
 #endif
 
   // Parse the challenge, saving the results into this instance.
   HttpAuth::AuthorizationResult ParseChallenge(
-      HttpAuth::ChallengeTokenizer* tok, bool initial_challenge);
-
-  // Given an input token received from the server, generate the next output
-  // token to be sent to the server.
-  int GetNextToken(const void* in_token,
-                   uint32 in_token_len,
-                   void** out_token,
-                   uint32* out_token_len);
+      HttpAuthChallengeTokenizer* tok, bool initial_challenge);
 
   // Create an NTLM SPN to identify the |origin| server.
-  static std::wstring CreateSPN(const GURL& origin);
+  static std::string CreateSPN(const GURL& origin);
 
 #if defined(NTLM_SSPI)
   HttpAuthSSPI auth_sspi_;
+#elif defined(NTLM_PORTABLE)
+  ntlm::NtlmClient ntlm_client_;
 #endif
 
 #if defined(NTLM_PORTABLE)
+  static GetMSTimeProc get_ms_time_proc_;
   static GenerateRandomProc generate_random_proc_;
   static HostNameProc get_host_name_proc_;
 #endif
 
-  string16 domain_;
+  base::string16 domain_;
   AuthCredentials credentials_;
+  std::string channel_bindings_;
 
   // The base64-encoded string following "NTLM" in the "WWW-Authenticate" or
   // "Proxy-Authenticate" response header.
   std::string auth_data_;
 
 #if defined(NTLM_SSPI)
-  URLSecurityManager* url_security_manager_;
+  const HttpAuthPreferences* http_auth_preferences_;
 #endif
 };
 

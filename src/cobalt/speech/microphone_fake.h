@@ -19,12 +19,13 @@
 
 #if defined(ENABLE_FAKE_MICROPHONE)
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_path.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/speech/microphone.h"
@@ -50,8 +51,8 @@ class MicrophoneFake : public Microphone {
   base::ThreadChecker thread_checker_;
 
   bool read_data_from_file_;
-  std::vector<FilePath> file_paths_;
-  scoped_ptr<audio::ShellAudioBus> audio_bus_;
+  std::vector<base::FilePath> file_paths_;
+  std::unique_ptr<audio::ShellAudioBus> audio_bus_;
   int file_length_;
   int read_index_;
   bool is_valid_;

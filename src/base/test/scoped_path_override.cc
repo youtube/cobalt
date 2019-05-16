@@ -12,13 +12,23 @@ namespace base {
 ScopedPathOverride::ScopedPathOverride(int key) : key_(key) {
   bool result = temp_dir_.CreateUniqueTempDir();
   CHECK(result);
-  result = PathService::Override(key, temp_dir_.path());
+  result = PathService::Override(key, temp_dir_.GetPath());
   CHECK(result);
 }
 
-ScopedPathOverride::ScopedPathOverride(int key, const FilePath& dir)
+ScopedPathOverride::ScopedPathOverride(int key, const base::FilePath& dir)
     : key_(key) {
   bool result = PathService::Override(key, dir);
+  CHECK(result);
+}
+
+ScopedPathOverride::ScopedPathOverride(int key,
+                                       const FilePath& path,
+                                       bool is_absolute,
+                                       bool create)
+    : key_(key) {
+  bool result =
+      PathService::OverrideAndCreateIfNeeded(key, path, is_absolute, create);
   CHECK(result);
 }
 

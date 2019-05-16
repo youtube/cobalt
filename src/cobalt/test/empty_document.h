@@ -15,6 +15,8 @@
 #ifndef COBALT_TEST_EMPTY_DOCUMENT_H_
 #define COBALT_TEST_EMPTY_DOCUMENT_H_
 
+#include <memory>
+
 #include "cobalt/base/application_state.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/document.h"
@@ -40,8 +42,8 @@ class EmptyDocument {
   dom::Document* document() { return document_.get(); }
 
  private:
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
 };

@@ -5,7 +5,7 @@
 #include "dial_service.h"
 
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "net/dial/dial_test_helpers.h"
 #include "net/server/http_server_request_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -16,11 +16,9 @@ namespace net {
 
 class DialServiceTest : public testing::Test {
  protected:
-  scoped_ptr<DialService> service_;
+  std::unique_ptr<DialService> service_;
 
-  virtual void TearDown() override {
-    service_.reset();
-  }
+  virtual void TearDown() override { service_.reset(); }
 
   void GetHandlerTest(
       const std::string& path,
@@ -74,5 +72,4 @@ TEST_F(DialServiceTest, ReleasedHandler) {
   service_->Terminate();
 }
 
-} // namespace net
-
+}  // namespace net

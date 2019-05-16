@@ -4,14 +4,14 @@
 
 #include "base/i18n/char_iterator.h"
 
-#include "base/utf_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace i18n {
 
 TEST(CharIteratorsTest, TestUTF8) {
-  std::string empty("");
+  std::string empty;
   UTF8CharIterator empty_iter(&empty);
   ASSERT_TRUE(empty_iter.end());
   ASSERT_EQ(0, empty_iter.array_pos());

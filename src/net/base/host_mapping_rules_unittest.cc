@@ -72,7 +72,7 @@ TEST(HostMappingRulesTest, ParseInvalidRules) {
   HostMappingRules rules;
 
   EXPECT_FALSE(rules.AddRuleFromString("xyz"));
-  EXPECT_FALSE(rules.AddRuleFromString(""));
+  EXPECT_FALSE(rules.AddRuleFromString(std::string()));
   EXPECT_FALSE(rules.AddRuleFromString(" "));
   EXPECT_FALSE(rules.AddRuleFromString("EXCLUDE"));
   EXPECT_FALSE(rules.AddRuleFromString("EXCLUDE foo bar"));

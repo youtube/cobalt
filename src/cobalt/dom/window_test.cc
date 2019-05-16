@@ -14,11 +14,12 @@
 
 #include "cobalt/dom/window.h"
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -30,25 +31,25 @@
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
-#include "googleurl/src/gurl.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
 class MockErrorCallback
-    : public base::Callback<void(const base::optional<std::string> &)> {
+    : public base::Callback<void(const base::Optional<std::string> &)> {
  public:
-  MOCK_METHOD1(Run, void(const base::optional<std::string> &));
+  MOCK_METHOD1(Run, void(const base::Optional<std::string> &));
 };
 
 class WindowTest : public ::testing::Test {
  protected:
   WindowTest()
-      : message_loop_(MessageLoop::TYPE_DEFAULT),
+      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
@@ -78,13 +79,13 @@ class WindowTest : public ::testing::Test {
 
   ~WindowTest() override {}
 
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   dom::LocalStorageDatabase local_storage_database_;
-  scoped_ptr<script::JavaScriptEngine> engine_;
+  std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   GURL url_;
   scoped_refptr<Window> window_;

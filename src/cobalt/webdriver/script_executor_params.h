@@ -17,11 +17,12 @@
 
 #if defined(ENABLE_WEBDRIVER)
 
+#include <memory>
 #include <string>
 
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
@@ -76,23 +77,23 @@ class ScriptExecutorParams : public script::Wrappable {
   static GCPreventedParams Create(
       const scoped_refptr<script::GlobalEnvironment>& global_environment,
       const std::string& function_body, const std::string& json_args,
-      base::optional<base::TimeDelta> async_timeout);
+      base::Optional<base::TimeDelta> async_timeout);
 
   const script::ValueHandleHolder* function_object() {
     return function_object_ ? &function_object_->referenced_value() : NULL;
   }
   const std::string& json_args() { return json_args_; }
-  base::optional<int32_t> async_timeout() { return async_timeout_; }
+  base::Optional<int32_t> async_timeout() { return async_timeout_; }
 
   DEFINE_WRAPPABLE_TYPE(ScriptExecutorParams);
 
  private:
   std::string function_body_;
-  base::optional<script::ValueHandleHolder::Reference> function_object_;
-  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+  base::Optional<script::ValueHandleHolder::Reference> function_object_;
+  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_create_complete_;
   std::string json_args_;
-  base::optional<int32_t> async_timeout_;
+  base::Optional<int32_t> async_timeout_;
 };
 
 }  // namespace webdriver

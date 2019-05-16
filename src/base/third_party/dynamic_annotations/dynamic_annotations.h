@@ -428,9 +428,6 @@
 extern "C" {
 #endif
 
-#if defined(COMPILER_GHS)
-#pragma ghs nowarning 76 // Argument to macro is empty.
-#endif
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockCreate)(
     const char *file, int line,
@@ -534,10 +531,6 @@ void DYNAMIC_ANNOTATIONS_NAME(AnnotateNoOp)(
     const volatile void *arg) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateFlushState)(
     const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
-
-#if defined(COMPILER_GHS)
-#pragma ghs endnowarning
-#endif
 
 #if DYNAMIC_ANNOTATIONS_PROVIDE_RUNNING_ON_VALGRIND == 1
 /* Return non-zero value if running under valgrind.

@@ -33,9 +33,6 @@ ANativeWindow* GetVideoWindow();
 // regardless of whether the video window has been initialized or not.
 void ClearVideoWindow();
 
-// Wait for all outstanding adjustments of video bounds before returning.
-void WaitForVideoBoundsUpdate();
-
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

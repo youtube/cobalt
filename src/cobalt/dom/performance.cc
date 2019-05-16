@@ -14,13 +14,13 @@
 
 #include "cobalt/dom/performance.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/dom/memory_info.h"
 
 namespace cobalt {
 namespace dom {
 
-Performance::Performance(const scoped_refptr<base::Clock>& clock)
+Performance::Performance(const scoped_refptr<base::BasicClock>& clock)
     : timing_(new PerformanceTiming(clock)), memory_(new MemoryInfo()) {}
 
 double Performance::Now() const {

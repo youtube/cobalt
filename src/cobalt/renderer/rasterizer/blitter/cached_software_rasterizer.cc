@@ -162,7 +162,7 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(node->GetBounds(),
                                                   scaled_transform.ToMatrix(),
-                                                  base::optional<math::Rect>());
+                                                  base::Optional<math::Rect>());
 
   software_surface.coord_mapping = coord_mapping;
 
@@ -171,12 +171,10 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
     return software_surface;
   }
 
-  DCHECK_GE(0.001f, std::abs(1.0f -
-                             scaled_transform.scale().x() *
-                                 coord_mapping.output_post_scale.x()));
-  DCHECK_GE(0.001f, std::abs(1.0f -
-                             scaled_transform.scale().y() *
-                                 coord_mapping.output_post_scale.y()));
+  DCHECK_GE(0.001f, std::abs(1.0f - scaled_transform.scale().x() *
+                                        coord_mapping.output_post_scale.x()));
+  DCHECK_GE(0.001f, std::abs(1.0f - scaled_transform.scale().y() *
+                                        coord_mapping.output_post_scale.y()));
 
   SkImageInfo output_image_info = SkImageInfo::MakeN32(
       coord_mapping.output_bounds.width(), coord_mapping.output_bounds.height(),

@@ -21,8 +21,9 @@ namespace debug {
 namespace console {
 
 ConsoleCommandManager* ConsoleCommandManager::GetInstance() {
-  return Singleton<ConsoleCommandManager,
-                   StaticMemorySingletonTraits<ConsoleCommandManager> >::get();
+  return base::Singleton<
+      ConsoleCommandManager,
+      base::StaticMemorySingletonTraits<ConsoleCommandManager> >::get();
 }
 
 ConsoleCommandManager::CommandHandler::CommandHandler(

@@ -65,24 +65,23 @@
 #ifndef BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 #define BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 
-#include "build/build_config.h"
-
-#if defined(OS_STARBOARD)
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
-#elif defined(__LB_SHELL__)
-#include "lb_mutex.h"
-#elif defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <pthread.h>
 #endif
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/logging.h"
+#include "base/macros.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include "base/win/windows_types.h"
+#include "starboard/types.h"
+#endif
 
 namespace base {
 
-class ConditionVarImpl;
 class TimeDelta;
 
 class BASE_EXPORT ConditionVariable {
@@ -93,32 +92,33 @@ class BASE_EXPORT ConditionVariable {
   ~ConditionVariable();
 
   // Wait() releases the caller's critical section atomically as it starts to
-  // sleep, and the reacquires it when it is signaled.
+  // sleep, and the reacquires it when it is signaled. The wait functions are
+  // susceptible to spurious wakeups. (See usage note 1 for more details.)
   void Wait();
   void TimedWait(const TimeDelta& max_time);
 
-  // Broadcast() revives all waiting threads.
+  // Broadcast() revives all waiting threads. (See usage note 2 for more
+  // details.)
   void Broadcast();
   // Signal() revives one waiting thread.
   void Signal();
 
  private:
-
-#if defined(OS_WIN)
-  ConditionVarImpl* impl_;
-#elif defined(OS_STARBOARD)
+#if defined(STARBOARD)
   SbConditionVariable condition_;
   SbMutex* user_mutex_;
-#elif defined(__LB_SHELL__)
-  lb_shell_cond_t condition_;
-  lb_shell_mutex_t* user_mutex_;
-#elif defined(OS_POSIX)
+#else
+#if defined(OS_WIN)
+  CHROME_CONDITION_VARIABLE cv_;
+  CHROME_SRWLOCK* const srwlock_;
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
 #endif
+#endif
 
-#if !defined(NDEBUG) && !defined(OS_WIN)
-  base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
+#if DCHECK_IS_ON()
+  base::Lock* const user_lock_;  // Needed to adjust shadow lock state on wait.
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(ConditionVariable);

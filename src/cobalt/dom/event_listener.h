@@ -32,7 +32,7 @@ class EventListener {
   //
   // Cobalt's implementation of callback interfaces requires the 'callback this'
   // to be explicitly passed in.
-  virtual base::optional<bool> HandleEvent(
+  virtual base::Optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<Event>& event, bool* had_exception) const = 0;
 };

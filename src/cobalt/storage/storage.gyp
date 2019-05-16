@@ -45,6 +45,9 @@
     {
       'target_name': 'storage_test',
       'type': '<(gtest_target_type)',
+      'defines': [
+        'GMOCK_NO_MOVE_MOCK',
+      ],
       'sources': [
         'savegame_test.cc',
         'storage_manager_test.cc',

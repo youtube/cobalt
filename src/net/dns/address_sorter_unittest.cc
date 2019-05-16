@@ -8,38 +8,44 @@
 #include <winsock2.h>
 #endif
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/logging.h"
+#include "base/test/scoped_task_environment.h"
 #include "net/base/address_list.h"
-#include "net/base/net_util.h"
+#include "net/base/completion_once_callback.h"
+#include "net/base/ip_address.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
 namespace {
 
 IPEndPoint MakeEndPoint(const std::string& str) {
-  IPAddressNumber addr;
-  CHECK(ParseIPLiteralToNumber(str, &addr));
+  IPAddress addr;
+  CHECK(addr.AssignFromIPLiteral(str));
   return IPEndPoint(addr, 0);
 }
 
 void OnSortComplete(AddressList* result_buf,
-                    const CompletionCallback& callback,
+                    CompletionOnceCallback callback,
                     bool success,
                     const AddressList& result) {
   if (success)
     *result_buf = result;
-  callback.Run(success ? OK : ERR_FAILED);
+  std::move(callback).Run(success ? OK : ERR_FAILED);
 }
 
 TEST(AddressSorterTest, Sort) {
   int expected_result = OK;
 #if defined(OS_WIN)
+  base::test::ScopedTaskEnvironment scoped_task_environment;
   EnsureWinsockInit();
   SOCKET sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
   if (sock == INVALID_SOCKET) {
@@ -48,7 +54,7 @@ TEST(AddressSorterTest, Sort) {
     closesocket(sock);
   }
 #endif
-  scoped_ptr<AddressSorter> sorter(AddressSorter::CreateAddressSorter());
+  std::unique_ptr<AddressSorter> sorter(AddressSorter::CreateAddressSorter());
   AddressList list;
   list.push_back(MakeEndPoint("10.0.0.1"));
   list.push_back(MakeEndPoint("8.8.8.8"));
@@ -57,8 +63,8 @@ TEST(AddressSorterTest, Sort) {
 
   AddressList result;
   TestCompletionCallback callback;
-  sorter->Sort(list, base::Bind(&OnSortComplete, &result,
-                                callback.callback()));
+  sorter->Sort(list,
+               base::BindOnce(&OnSortComplete, &result, callback.callback()));
   EXPECT_EQ(expected_result, callback.WaitForResult());
 }
 

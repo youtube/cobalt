@@ -15,32 +15,33 @@
 #ifndef COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
 #define COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
 
-#include "base/file_path.h"
+#include "base/files/file_path.h"
+#include "base/files/platform_file.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/platform_file.h"
 
 namespace cobalt {
 namespace trace_event {
 
 // This class is a helper class to provide a callback for
-// base::debug::TraceLog::Flush() calls so that the JSON produced by TraceLog
-// can be directed to a file on disc.
+// base::trace_event::TraceLog::Flush() calls so that the JSON produced by
+// TraceLog can be directed to a file on disc.
 class JSONFileOutputter {
  public:
-  explicit JSONFileOutputter(const FilePath& output_path);
+  explicit JSONFileOutputter(const base::FilePath& output_path);
   ~JSONFileOutputter();
 
   void OutputTraceData(
-      const scoped_refptr<base::RefCountedString>& event_string);
+      const scoped_refptr<base::RefCountedString>& event_string,
+      bool has_more_events);
 
-  bool GetError() const { return file_ == base::kInvalidPlatformFileValue; }
+  bool GetError() const { return file_ == base::kInvalidPlatformFile; }
 
  private:
-  void Write(const char* buffer, size_t length);
+  void Write(const char* buffer, int length);
   void Close();
 
-  FilePath output_path_;
+  base::FilePath output_path_;
   base::PlatformFile file_;
 
   int output_trace_event_call_count_;

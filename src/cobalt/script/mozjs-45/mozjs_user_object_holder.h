@@ -15,7 +15,9 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_USER_OBJECT_HOLDER_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_USER_OBJECT_HOLDER_H_
 
-#include "base/hash_tables.h"
+#include <memory>
+
+#include "base/containers/hash_tables.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
@@ -44,8 +46,7 @@ class MozjsUserObjectHolder
   typedef ScriptValue<typename MozjsUserObjectType::BaseType> BaseClass;
 
   MozjsUserObjectHolder()
-      : context_(NULL),
-        prevent_garbage_collection_count_(0) {}
+      : context_(NULL), prevent_garbage_collection_count_(0) {}
 
   MozjsUserObjectHolder(JSContext* context, JS::HandleValue value)
       : context_(context),
@@ -124,12 +125,12 @@ class MozjsUserObjectHolder
     return handle_ ? &handle_.value() : NULL;
   }
 
-  scoped_ptr<BaseClass> MakeCopy() const override {
+  std::unique_ptr<BaseClass> MakeCopy() const override {
     TRACK_MEMORY_SCOPE("Javascript");
     DCHECK(handle_);
     JSAutoRequest auto_request(context_);
     JS::RootedValue rooted_value(context_, js_value());
-    return make_scoped_ptr<BaseClass>(
+    return std::unique_ptr<BaseClass>(
         new MozjsUserObjectHolder(context_, rooted_value));
   }
 
@@ -150,9 +151,9 @@ class MozjsUserObjectHolder
 
  private:
   JSContext* context_;
-  base::optional<MozjsUserObjectType> handle_;
+  base::Optional<MozjsUserObjectType> handle_;
   int prevent_garbage_collection_count_;
-  base::optional<JS::PersistentRootedValue> persistent_root_;
+  base::Optional<JS::PersistentRootedValue> persistent_root_;
 };
 
 }  // namespace mozjs

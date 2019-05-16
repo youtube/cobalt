@@ -5,18 +5,21 @@
 #ifndef NET_DNS_DNS_TRANSACTION_H_
 #define NET_DNS_DNS_TRANSACTION_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/callback_forward.h"
-#include "base/memory/scoped_ptr.h"
-#include "net/base/net_export.h"
+#include "base/callback.h"
+#include "net/base/request_priority.h"
+#include "net/dns/record_rdata.h"
+#include "starboard/types.h"
+#include "url/gurl.h"
 
 namespace net {
 
-class BoundNetLog;
 class DnsResponse;
 class DnsSession;
+class NetLogWithSource;
+class URLRequestContext;
 
 // DnsTransaction implements a stub DNS resolver as defined in RFC 1034.
 // The DnsTransaction takes care of retransmissions, name server fallback (or
@@ -32,12 +35,14 @@ class NET_EXPORT_PRIVATE DnsTransaction {
   virtual const std::string& GetHostname() const = 0;
 
   // Returns the |qtype|.
-  virtual uint16 GetType() const = 0;
+  virtual uint16_t GetType() const = 0;
 
-  // Starts the transaction. Returns the net error on synchronous failure or
-  // ERR_IO_PENDING in which case the result will be passed via the callback.
-  // Can be called at most once.
-  virtual int Start() = 0;
+  // Starts the transaction.  Always completes asynchronously.
+  virtual void Start() = 0;
+
+  virtual void SetRequestContext(URLRequestContext*) = 0;
+
+  virtual void SetRequestPriority(RequestPriority priority) = 0;
 };
 
 // Creates DnsTransaction which performs asynchronous DNS search.
@@ -49,9 +54,10 @@ class NET_EXPORT_PRIVATE DnsTransactionFactory {
   // Called with the response or NULL if no matching response was received.
   // Note that the |GetDottedName()| of the response may be different than the
   // original |hostname| as a result of suffix search.
-  typedef base::Callback<void(DnsTransaction* transaction,
-                              int neterror,
-                              const DnsResponse* response)> CallbackType;
+  typedef base::OnceCallback<void(DnsTransaction* transaction,
+                                  int neterror,
+                                  const DnsResponse* response)>
+      CallbackType;
 
   virtual ~DnsTransactionFactory() {}
 
@@ -62,19 +68,22 @@ class NET_EXPORT_PRIVATE DnsTransactionFactory {
   //
   // The transaction will run |callback| upon asynchronous completion.
   // The |net_log| is used as the parent log.
-  virtual scoped_ptr<DnsTransaction> CreateTransaction(
+  virtual std::unique_ptr<DnsTransaction> CreateTransaction(
       const std::string& hostname,
-      uint16 qtype,
-      const CallbackType& callback,
-      const BoundNetLog& net_log) WARN_UNUSED_RESULT = 0;
+      uint16_t qtype,
+      CallbackType callback,
+      const NetLogWithSource& net_log) WARN_UNUSED_RESULT = 0;
+
+  // The given EDNS0 option will be included in all DNS queries performed by
+  // transactions from this factory.
+  virtual void AddEDNSOption(const OptRecordRdata::Opt& opt) = 0;
 
   // Creates a DnsTransactionFactory which creates DnsTransactionImpl using the
   // |session|.
-  static scoped_ptr<DnsTransactionFactory> CreateFactory(
+  static std::unique_ptr<DnsTransactionFactory> CreateFactory(
       DnsSession* session) WARN_UNUSED_RESULT;
 };
 
 }  // namespace net
 
 #endif  // NET_DNS_DNS_TRANSACTION_H_
-

@@ -7,53 +7,25 @@
 
 #include <string>
 
-#include "base/time.h"
+#include "base/macros.h"
+#include "base/time/tick_clock.h"
+#include "base/time/time.h"
 #include "net/base/backoff_entry.h"
-#include "net/url_request/url_request_throttler_header_interface.h"
 
 namespace net {
 
-class MockBackoffEntry : public BackoffEntry {
+class TestTickClock : public base::TickClock {
  public:
-  explicit MockBackoffEntry(const BackoffEntry::Policy* const policy);
-  virtual ~MockBackoffEntry();
+  TestTickClock();
+  explicit TestTickClock(base::TimeTicks now);
+  ~TestTickClock() override;
 
-  // BackoffEntry overrides.
-  virtual base::TimeTicks ImplGetTimeNow() const override;
-
-  void set_fake_now(const base::TimeTicks& now);
+  base::TimeTicks NowTicks() const override;
+  void set_now(base::TimeTicks now) { now_ticks_ = now; }
 
  private:
-  base::TimeTicks fake_now_;
-};
-
-// Mocks the URLRequestThrottlerHeaderInterface, allowing testing code to
-// pass arbitrary fake headers to the throttling code.
-class MockURLRequestThrottlerHeaderAdapter
-    : public URLRequestThrottlerHeaderInterface {
- public:
-  // Constructs mock response headers with the given |response_code| and no
-  // custom response header fields.
-  explicit MockURLRequestThrottlerHeaderAdapter(int response_code);
-
-  // Constructs mock response headers with the given |response_code| and
-  // with a custom-retry header value |retry_value| if it is non-empty, and
-  // a custom opt-out header value |opt_out_value| if it is non-empty.
-  MockURLRequestThrottlerHeaderAdapter(const std::string& retry_value,
-                                       const std::string& opt_out_value,
-                                       int response_code);
-  virtual ~MockURLRequestThrottlerHeaderAdapter();
-
-  // URLRequestThrottlerHeaderInterface overrides.
-  virtual std::string GetNormalizedValue(const std::string& key) const override;
-  virtual int GetResponseCode() const override;
-
- private:
-  std::string fake_retry_value_;
-  std::string fake_opt_out_value_;
-  int fake_response_code_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockURLRequestThrottlerHeaderAdapter);
+  base::TimeTicks now_ticks_;
+  DISALLOW_COPY_AND_ASSIGN(TestTickClock);
 };
 
 }  // namespace net

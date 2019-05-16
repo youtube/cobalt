@@ -4,21 +4,24 @@
 
 #include "base/test/thread_test_helper.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/threading/thread_restrictions.h"
 
 namespace base {
 
-ThreadTestHelper::ThreadTestHelper(MessageLoopProxy* target_thread)
+ThreadTestHelper::ThreadTestHelper(
+    scoped_refptr<SequencedTaskRunner> target_sequence)
     : test_result_(false),
-      target_thread_(target_thread),
-      done_event_(false, false) {
-}
+      target_sequence_(std::move(target_sequence)),
+      done_event_(WaitableEvent::ResetPolicy::AUTOMATIC,
+                  WaitableEvent::InitialState::NOT_SIGNALED) {}
 
 bool ThreadTestHelper::Run() {
-  if (!target_thread_->PostTask(
-          FROM_HERE, base::Bind(&ThreadTestHelper::RunInThread, this))) {
+  if (!target_sequence_->PostTask(
+          FROM_HERE, base::BindOnce(&ThreadTestHelper::RunOnSequence, this))) {
     return false;
   }
   base::ThreadRestrictions::ScopedAllowWait allow_wait;
@@ -28,9 +31,9 @@ bool ThreadTestHelper::Run() {
 
 void ThreadTestHelper::RunTest() { set_test_result(true); }
 
-ThreadTestHelper::~ThreadTestHelper() {}
+ThreadTestHelper::~ThreadTestHelper() = default;
 
-void ThreadTestHelper::RunInThread() {
+void ThreadTestHelper::RunOnSequence() {
   RunTest();
   done_event_.Signal();
 }

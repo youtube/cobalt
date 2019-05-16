@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/css_rule_list.h"
 
 #include "cobalt/cssom/css_media_rule.h"
@@ -155,10 +157,10 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
-  scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
+  std::unique_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
-      new MediaQuery(true, media_features.Pass()));
+      new MediaQuery(true, std::move(media_features)));
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query);
   scoped_refptr<CSSMediaRule> rule =

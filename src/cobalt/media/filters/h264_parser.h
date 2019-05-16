@@ -10,10 +10,10 @@
 #include <sys/types.h>
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/ranges.h"
@@ -174,8 +174,8 @@ struct MEDIA_EXPORT H264SPS {
   // Helpers to compute frequently-used values. These methods return
   // base::nullopt if they encounter integer overflow. They do not verify that
   // the results are in-spec for the given profile or level.
-  base::optional<gfx::Size> GetCodedSize() const;
-  base::optional<gfx::Rect> GetVisibleRect() const;
+  base::Optional<gfx::Size> GetCodedSize() const;
+  base::Optional<gfx::Rect> GetVisibleRect() const;
 };
 
 struct MEDIA_EXPORT H264PPS {
@@ -399,8 +399,8 @@ class MEDIA_EXPORT H264Parser {
   // To get a pointer to a given SPS/PPS structure, use GetSPS()/GetPPS(),
   // passing the returned |*sps_id|/|*pps_id| as parameter.
   // TODO(posciak,fischman): consider replacing returning Result from Parse*()
-  // methods with a scoped_ptr and adding an AtEOS() function to check for EOS
-  // if Parse*() return NULL.
+  // methods with a std::unique_ptr and adding an AtEOS() function to check for
+  // EOS if Parse*() return NULL.
   Result ParseSPS(int* sps_id);
   Result ParsePPS(int* pps_id);
 

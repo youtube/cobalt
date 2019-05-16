@@ -6,35 +6,42 @@
 
 namespace base {
 
-namespace internal {
+namespace test {
 
-TaskTracker::TaskTracker() {}
+TaskTracker::TaskTracker() : task_runs_(0), task_runs_cv_(&lock_) {}
 
-TaskTracker::~TaskTracker() {}
+TaskTracker::~TaskTracker() = default;
 
 Closure TaskTracker::WrapTask(const Closure& task, int i) {
   return Bind(&TaskTracker::RunTask, this, task, i);
 }
 
 void TaskTracker::RunTask(const Closure& task, int i) {
-  AutoLock lock(task_run_counts_lock_);
+  AutoLock lock(lock_);
   if (!task.is_null()) {
     task.Run();
   }
   ++task_run_counts_[i];
+  ++task_runs_;
+  task_runs_cv_.Signal();
 }
 
 std::map<int, int> TaskTracker::GetTaskRunCounts() const {
-  AutoLock lock(task_run_counts_lock_);
+  AutoLock lock(lock_);
   return task_run_counts_;
 }
 
-void ExpectRunsTasksOnCurrentThread(
-    bool expected_value,
-    const scoped_refptr<TaskRunner>& task_runner) {
-  EXPECT_EQ(expected_value, task_runner->RunsTasksOnCurrentThread());
+void TaskTracker::WaitForCompletedTasks(int count) {
+  AutoLock lock(lock_);
+  while (task_runs_ < count)
+    task_runs_cv_.Wait();
 }
 
-}  // namespace internal
+void ExpectRunsTasksInCurrentSequence(bool expected_value,
+                                      TaskRunner* task_runner) {
+  EXPECT_EQ(expected_value, task_runner->RunsTasksInCurrentSequence());
+}
+
+}  // namespace test
 
 }  // namespace base

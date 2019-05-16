@@ -6,36 +6,33 @@
 // is functionally a wrapper around the LockImpl class, so the only
 // real intelligence in the class is in the debugging logic.
 
-#if !defined(NDEBUG)
-
 #include "base/synchronization/lock.h"
-#include "base/logging.h"
+
+#if DCHECK_IS_ON()
 
 namespace base {
 
 Lock::Lock() : lock_() {
-  owned_by_thread_ = false;
-  owning_thread_id_ = static_cast<PlatformThreadId>(0);
+}
+
+Lock::~Lock() {
+  DCHECK(owning_thread_ref_.is_null());
 }
 
 void Lock::AssertAcquired() const {
-  DCHECK(owned_by_thread_);
-  DCHECK_EQ(owning_thread_id_, PlatformThread::CurrentId());
+  DCHECK(owning_thread_ref_ == PlatformThread::CurrentRef());
 }
 
 void Lock::CheckHeldAndUnmark() {
-  DCHECK(owned_by_thread_);
-  DCHECK_EQ(owning_thread_id_, PlatformThread::CurrentId());
-  owned_by_thread_ = false;
-  owning_thread_id_ = static_cast<PlatformThreadId>(0);
+  DCHECK(owning_thread_ref_ == PlatformThread::CurrentRef());
+  owning_thread_ref_ = PlatformThreadRef();
 }
 
 void Lock::CheckUnheldAndMark() {
-  DCHECK(!owned_by_thread_);
-  owned_by_thread_ = true;
-  owning_thread_id_ = PlatformThread::CurrentId();
+  DCHECK(owning_thread_ref_.is_null());
+  owning_thread_ref_ = PlatformThread::CurrentRef();
 }
 
 }  // namespace base
 
-#endif  // NDEBUG
+#endif  // DCHECK_IS_ON()

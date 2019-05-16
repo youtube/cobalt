@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/network/network_system.h"
 
 namespace cobalt {
@@ -28,10 +30,9 @@ NetworkSystemStarboard::NetworkSystemStarboard() {}
 
 }  // namespace
 
-scoped_ptr<NetworkSystem> NetworkSystem::Create(
+std::unique_ptr<NetworkSystem> NetworkSystem::Create(
     base::EventDispatcher* /*event_dispatcher*/) {
-  scoped_ptr<NetworkSystem> network_system(new NetworkSystemStarboard());
-  return network_system.Pass();
+  return std::unique_ptr<NetworkSystem>(new NetworkSystemStarboard());
 }
 
 }  // namespace network

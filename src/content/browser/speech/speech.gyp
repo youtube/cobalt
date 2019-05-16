@@ -18,6 +18,8 @@
       'target_name': 'speech',
       'type': 'static_library',
       'sources': [
+        'audio_buffer.cc',
+        'audio_buffer.h',
         'chunked_byte_buffer.cc',
         'chunked_byte_buffer.h',
         'endpointer/endpointer.cc',
@@ -38,7 +40,7 @@
       'dependencies': [
         'speech',
         '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/media/media2.gyp:media2',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
     },

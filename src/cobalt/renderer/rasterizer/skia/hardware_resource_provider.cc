@@ -14,10 +14,12 @@
 
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 
+#include <memory>
+
 #include <GLES2/gl2ext.h>
 
-#include "base/debug/trace_event.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -55,7 +57,7 @@ HardwareResourceProvider::HardwareResourceProvider(
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
       max_texture_size_(gr_context->caps()->maxTextureSize()),
-      self_message_loop_(MessageLoop::current()) {
+      self_message_loop_(base::MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
   SkFontMgr::RefDefault();
@@ -84,8 +86,8 @@ HardwareResourceProvider::~HardwareResourceProvider() {
 void HardwareResourceProvider::Finish() {
   // Wait for any resource-related to complete (by waiting for all tasks to
   // complete).
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->WaitForFence();
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->WaitForFence();
   }
 }
 
@@ -101,7 +103,7 @@ bool HardwareResourceProvider::AlphaFormatSupported(
          alpha_format == render_tree::kAlphaFormatOpaque;
 }
 
-scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
+std::unique_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
     const math::Size& size, render_tree::PixelFormat pixel_format,
     render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("cobalt::renderer",
@@ -114,25 +116,25 @@ scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
                << "(" << size.width() << ", " << size.height() << ") "
                << "exceeds the maximum texture width (" << max_texture_size_
                << ")";
-    return scoped_ptr<ImageData>(nullptr);
+    return std::unique_ptr<ImageData>(nullptr);
   }
 
-  scoped_ptr<backend::TextureDataEGL> texture_data(
+  std::unique_ptr<backend::TextureDataEGL> texture_data(
       cobalt_context_->system_egl()->AllocateTextureData(
           size, ConvertRenderTreeFormatToGL(pixel_format)));
   if (texture_data) {
-    return scoped_ptr<ImageData>(
-        new HardwareImageData(texture_data.Pass(), pixel_format, alpha_format));
+    return std::unique_ptr<ImageData>(new HardwareImageData(
+        std::move(texture_data), pixel_format, alpha_format));
   } else {
-    return scoped_ptr<ImageData>();
+    return std::unique_ptr<ImageData>();
   }
 }
 
 scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
-    scoped_ptr<ImageData> source_data) {
+    std::unique_ptr<ImageData> source_data) {
   TRACE_EVENT0("cobalt::renderer", "HardwareResourceProvider::CreateImage()");
   DCHECK(source_data);
-  scoped_ptr<HardwareImageData> skia_hardware_source_data(
+  std::unique_ptr<HardwareImageData> skia_hardware_source_data(
       base::polymorphic_downcast<HardwareImageData*>(source_data.release()));
   const render_tree::ImageDataDescriptor& descriptor =
       skia_hardware_source_data->GetDescriptor();
@@ -152,8 +154,8 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
   // backend texture will be constructed, and associated with this frontend
   // texture through a map that will be accessed when the rasterizer visits
   // any subsequently submitted render trees referencing the frontend image.
-  return make_scoped_refptr(new HardwareFrontendImage(
-      skia_hardware_source_data.Pass(), cobalt_context_, gr_context_,
+  return base::WrapRefCounted(new HardwareFrontendImage(
+      std::move(skia_hardware_source_data), cobalt_context_, gr_context_,
       self_message_loop_));
 }
 
@@ -181,7 +183,8 @@ int PlanesPerFormat(SbDecodeTargetFormat format) {
 }
 #endif  // SB_API_VERSION < 6
 
-uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
+uint32_t DecodeTargetFormatToGLFormat(
+    SbDecodeTargetFormat format, int plane,
     const SbDecodeTargetInfoPlane* plane_info) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
@@ -220,7 +223,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
           CHECK(false);
           return 0;
       }
-#else  // SB_API_VERSION >= 7
+#else   // SB_API_VERSION >= 7
       switch (plane) {
         case 0:
           return GL_ALPHA;
@@ -295,8 +298,8 @@ void DoNothing(scoped_refptr<DecodeTargetReferenceCounted> decode_target_ref) {
 }  // namespace
 
 scoped_refptr<render_tree::Image>
-    HardwareResourceProvider::CreateImageFromSbDecodeTarget(
-        SbDecodeTarget decode_target) {
+HardwareResourceProvider::CreateImageFromSbDecodeTarget(
+    SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
   SbMemorySet(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
@@ -306,7 +309,7 @@ scoped_refptr<render_tree::Image>
   scoped_refptr<DecodeTargetReferenceCounted> decode_target_ref(
       new DecodeTargetReferenceCounted(decode_target));
 
-  // There is limited format support at this time.
+// There is limited format support at this time.
 #if SB_API_VERSION >= 6
   int planes_per_format = SbDecodeTargetNumberOfPlanesForFormat(info.format);
 #else
@@ -321,7 +324,7 @@ scoped_refptr<render_tree::Image>
         info.is_opaque ? render_tree::kAlphaFormatOpaque
                        : render_tree::kAlphaFormatUnpremultiplied;
 
-    scoped_ptr<math::RectF> content_region;
+    std::unique_ptr<math::RectF> content_region;
     if (plane.content_region.left != 0 || plane.content_region.top != 0 ||
         plane.content_region.right != plane.width ||
         plane.content_region.bottom != plane.height) {
@@ -333,7 +336,7 @@ scoped_refptr<render_tree::Image>
 
     uint32_t gl_format = DecodeTargetFormatToGLFormat(info.format, i, &plane);
 
-    scoped_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
+    std::unique_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
         cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
         gl_format, plane.gl_texture_target,
         base::Bind(&DoNothing, decode_target_ref)));
@@ -341,16 +344,16 @@ scoped_refptr<render_tree::Image>
     // If the decode target is specified as UYVY format, then we need to pass
     // this in as supplementary data, as the |texture| object only knows that
     // it is RGBA.
-    base::optional<AlternateRgbaFormat> alternate_rgba_format;
+    base::Optional<AlternateRgbaFormat> alternate_rgba_format;
 #if SB_API_VERSION >= 6
     if (info.format == kSbDecodeTargetFormat1PlaneUYVY) {
       alternate_rgba_format = AlternateRgbaFormat_UYVY;
     }
 #endif  // SB_API_VERSION >= 6
 
-    planes.push_back(make_scoped_refptr(new HardwareFrontendImage(
-        texture.Pass(), alpha_format, cobalt_context_, gr_context_,
-        content_region.Pass(), self_message_loop_, alternate_rgba_format)));
+    planes.push_back(base::WrapRefCounted(new HardwareFrontendImage(
+        std::move(texture), alpha_format, cobalt_context_, gr_context_,
+        std::move(content_region), self_message_loop_, alternate_rgba_format)));
   }
 
   if (planes_per_format == 1) {
@@ -384,11 +387,13 @@ void HardwareResourceProvider::GraphicsContextRunner(
       reinterpret_cast<HardwareResourceProvider*>(
           graphics_context_provider->gles_context_runner_context);
 
-  if (MessageLoop::current() != provider->self_message_loop_) {
+  if (base::MessageLoop::current() != provider->self_message_loop_) {
     // Post a task to the rasterizer thread to have it run the requested
     // function, and wait for it to complete before returning.
-    base::WaitableEvent done_event(true, false);
-    provider->self_message_loop_->PostTask(
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    provider->self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&RunGraphicsContextRunnerOnRasterizerThread,
                               target_function, target_function_context,
                               provider->cobalt_context_, &done_event));
@@ -404,18 +409,19 @@ void HardwareResourceProvider::GraphicsContextRunner(
 
 #endif  // SB_HAS(GRAPHICS)
 
-scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
-    size_t size_in_bytes, size_t alignment) {
+std::unique_ptr<RawImageMemory>
+HardwareResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
+                                                 size_t alignment) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::AllocateRawImageMemory()");
-  return scoped_ptr<RawImageMemory>(new HardwareRawImageMemory(
+  return std::unique_ptr<RawImageMemory>(new HardwareRawImageMemory(
       cobalt_context_->system_egl()->AllocateRawTextureMemory(size_in_bytes,
                                                               alignment)));
 }
 
 scoped_refptr<render_tree::Image>
 HardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
-    scoped_ptr<RawImageMemory> raw_image_memory,
+    std::unique_ptr<RawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor) {
   TRACE_EVENT0(
       "cobalt::renderer",
@@ -431,12 +437,12 @@ HardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
           3 == descriptor.num_planes()))
       << "Currently we only support 2-plane or 3-plane YUV multi plane images.";
 
-  scoped_ptr<HardwareRawImageMemory> skia_hardware_raw_image_memory(
+  std::unique_ptr<HardwareRawImageMemory> skia_hardware_raw_image_memory(
       base::polymorphic_downcast<HardwareRawImageMemory*>(
           raw_image_memory.release()));
 
-  return make_scoped_refptr(new HardwareMultiPlaneImage(
-      skia_hardware_raw_image_memory.Pass(), descriptor, cobalt_context_,
+  return base::WrapRefCounted(new HardwareMultiPlaneImage(
+      std::move(skia_hardware_raw_image_memory), descriptor, cobalt_context_,
       gr_context_, self_message_loop_));
 }
 
@@ -446,8 +452,7 @@ bool HardwareResourceProvider::HasLocalFontFamily(
                "HardwareResourceProvider::HasLocalFontFamily()");
 
   sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  sk_sp<SkFontStyleSet> style_set(
-      font_manager->matchFamily(font_family_name));
+  sk_sp<SkFontStyleSet> style_set(font_manager->matchFamily(font_family_name));
   return style_set->count() > 0;
 }
 
@@ -503,7 +508,8 @@ HardwareResourceProvider::GetCharacterFallbackTypeface(
 
 scoped_refptr<render_tree::Typeface>
 HardwareResourceProvider::CreateTypefaceFromRawData(
-    scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data,
+    std::unique_ptr<render_tree::ResourceProvider::RawTypefaceDataVector>
+        raw_data,
     std::string* error_string) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::CreateFontFromData()");
@@ -524,7 +530,7 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
   // Free the raw data now that we're done with it.
   raw_data.reset();
 
-  scoped_ptr<SkStreamAsset> stream;
+  std::unique_ptr<SkStreamAsset> stream;
   {
     sk_sp<SkData> skia_data(SkData::MakeWithCopy(
         sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
@@ -544,8 +550,9 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
 
 scoped_refptr<render_tree::GlyphBuffer>
 HardwareResourceProvider::CreateGlyphBuffer(
-    const char16* text_buffer, size_t text_length, const std::string& language,
-    bool is_rtl, render_tree::FontProvider* font_provider) {
+    const base::char16* text_buffer, size_t text_length,
+    const std::string& language, bool is_rtl,
+    render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
                                         is_rtl, font_provider);
 }
@@ -558,22 +565,23 @@ HardwareResourceProvider::CreateGlyphBuffer(
 }
 
 float HardwareResourceProvider::GetTextWidth(
-    const char16* text_buffer, size_t text_length, const std::string& language,
-    bool is_rtl, render_tree::FontProvider* font_provider,
+    const base::char16* text_buffer, size_t text_length,
+    const std::string& language, bool is_rtl,
+    render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {
   return text_shaper_.GetTextWidth(text_buffer, text_length, language, is_rtl,
                                    font_provider, maybe_used_fonts);
 }
 
 scoped_refptr<render_tree::Mesh> HardwareResourceProvider::CreateMesh(
-    scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
+    std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
-  return new HardwareMesh(vertices.Pass(), draw_mode, cobalt_context_);
+  return new HardwareMesh(std::move(vertices), draw_mode, cobalt_context_);
 }
 
 scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
     const scoped_refptr<render_tree::Node>& root) {
-  return make_scoped_refptr(new HardwareFrontendImage(
+  return base::WrapRefCounted(new HardwareFrontendImage(
       root, submit_offscreen_callback_, cobalt_context_, gr_context_,
       self_message_loop_));
 }

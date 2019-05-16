@@ -6,13 +6,16 @@
 
 #include "base/i18n/rtl.h"
 #include "base/i18n/string_search.h"
-#include "base/string16.h"
-#include "base/utf_string_conversions.h"
+#include "base/strings/string16.h"
+#include "base/strings/utf_string_conversions.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "unicode/usearch.h"
+#include "third_party/icu/source/i18n/unicode/usearch.h"
 
 namespace base {
 namespace i18n {
+
+#if !defined(UCONFIG_NO_COLLATION)
 
 // Note on setting default locale for testing: The current default locale on
 // the Mac trybot is en_US_POSIX, with which primary-level collation strength
@@ -20,7 +23,6 @@ namespace i18n {
 // case-insensitive. In other locales (including en_US which English speakers
 // in the U.S. use), this search would be case-insensitive as expected.
 
-#if !defined(UCONFIG_NO_COLLATION)
 TEST(StringSearchTest, ASCII) {
   std::string default_locale(uloc_getDefault());
   bool locale_is_posix = (default_locale == "en_US_POSIX");
@@ -188,18 +190,42 @@ TEST(StringSearchTest, UnicodeLocaleDependent) {
   // Composed characters
   const string16 a_with_ring = WideToUTF16(L"\u00e5");
 
-  EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      a_base, a_with_ring, NULL, NULL));
+  EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(a_base, a_with_ring, nullptr,
+                                                 nullptr));
 
   const char* default_locale = uloc_getDefault();
   SetICUDefaultLocale("da");
 
-  EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      a_base, a_with_ring, NULL, NULL));
+  EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(a_base, a_with_ring, nullptr,
+                                                  nullptr));
 
   SetICUDefaultLocale(default_locale);
 }
-#endif //  !defined(UCONFIG_NO_COLLATION)
+
+TEST(StringSearchTest, FixedPatternMultipleSearch) {
+  std::string default_locale(uloc_getDefault());
+  bool locale_is_posix = (default_locale == "en_US_POSIX");
+  if (locale_is_posix)
+    SetICUDefaultLocale("en_US");
+
+  size_t index = 0;
+  size_t length = 0;
+
+  // Search "hello" over multiple texts.
+  FixedPatternStringSearchIgnoringCaseAndAccents query(ASCIIToUTF16("hello"));
+  EXPECT_TRUE(query.Search(ASCIIToUTF16("12hello34"), &index, &length));
+  EXPECT_EQ(2U, index);
+  EXPECT_EQ(5U, length);
+  EXPECT_FALSE(query.Search(ASCIIToUTF16("bye"), &index, &length));
+  EXPECT_TRUE(query.Search(ASCIIToUTF16("hELLo"), &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(5U, length);
+
+  if (locale_is_posix)
+    SetICUDefaultLocale(default_locale.data());
+}
+
+#endif  // !defined(UCONFIG_NO_COLLATION)
 
 }  // namespace i18n
 }  // namespace base

@@ -121,7 +121,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // argument when the VideoFrame is to be destroyed.
   static scoped_refptr<VideoFrame> WrapNativeTextures(
       VideoPixelFormat format,
-      const gpu::MailboxHolder(&mailbox_holder)[kMaxPlanes],
+      const gpu::MailboxHolder (&mailbox_holder)[kMaxPlanes],
       const ReleaseMailboxCB& mailbox_holders_release_cb,
       const gfx::Size& coded_size, const gfx::Rect& visible_rect,
       const gfx::Size& natural_size, base::TimeDelta timestamp);
@@ -409,7 +409,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   VideoFrame(VideoPixelFormat format, StorageType storage_type,
              const gfx::Size& coded_size, const gfx::Rect& visible_rect,
              const gfx::Size& natural_size,
-             const gpu::MailboxHolder(&mailbox_holders)[kMaxPlanes],
+             const gpu::MailboxHolder (&mailbox_holders)[kMaxPlanes],
              const ReleaseMailboxCB& mailbox_holder_release_cb,
              base::TimeDelta timestamp);
 

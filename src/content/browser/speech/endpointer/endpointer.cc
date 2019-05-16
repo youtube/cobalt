@@ -4,15 +4,12 @@
 
 #include "content/browser/speech/endpointer/endpointer.h"
 
-#include "base/time.h"
-
-using base::Time;
+#include "base/time/time.h"
+#include "content/browser/speech/audio_buffer.h"
 
 namespace {
-// Only send |kFrameSize| of audio data to energy endpointer each time.
-// It should be smaller than the samples of audio bus which is passed in
-// |ProcessAudio|.
-const int kFrameSize = 160;
+const int64_t kMicrosecondsPerSecond = base::Time::kMicrosecondsPerSecond;
+const int kFrameRate = 50;  // 1 frame = 20ms of audio.
 }
 
 namespace content {
@@ -22,22 +19,24 @@ Endpointer::Endpointer(int sample_rate)
       speech_input_complete_silence_length_us_(-1),
       audio_frame_time_us_(0),
       sample_rate_(sample_rate),
-      frame_rate_(sample_rate / kFrameSize) {
+      frame_size_(0) {
   Reset();
 
+  frame_size_ = static_cast<int>(sample_rate / static_cast<float>(kFrameRate));
+
   speech_input_minimum_length_us_ =
-      static_cast<int64_t>(1.7 * Time::kMicrosecondsPerSecond);
+      static_cast<int64_t>(1.7 * kMicrosecondsPerSecond);
   speech_input_complete_silence_length_us_ =
-      static_cast<int64_t>(0.5 * Time::kMicrosecondsPerSecond);
+      static_cast<int64_t>(0.5 * kMicrosecondsPerSecond);
   long_speech_input_complete_silence_length_us_ = -1;
   long_speech_length_us_ = -1;
   speech_input_possibly_complete_silence_length_us_ =
-      1 * Time::kMicrosecondsPerSecond;
+      1 * kMicrosecondsPerSecond;
 
   // Set the default configuration for Push To Talk mode.
   EnergyEndpointerParams ep_config;
-  ep_config.set_frame_period(1.0f / static_cast<float>(frame_rate_));
-  ep_config.set_frame_duration(1.0f / static_cast<float>(frame_rate_));
+  ep_config.set_frame_period(1.0f / static_cast<float>(kFrameRate));
+  ep_config.set_frame_duration(1.0f / static_cast<float>(kFrameRate));
   ep_config.set_endpoint_margin(0.2f);
   ep_config.set_onset_window(0.15f);
   ep_config.set_speech_on_window(0.4f);
@@ -62,7 +61,7 @@ void Endpointer::Reset() {
   waiting_for_speech_complete_timeout_ = false;
   speech_previously_detected_ = false;
   speech_input_complete_ = false;
-  audio_frame_time_us_ = 0;  // Reset time for packets sent to endpointer.
+  audio_frame_time_us_ = 0; // Reset time for packets sent to endpointer.
   speech_end_time_us_ = -1;
   speech_start_time_us_ = -1;
 }
@@ -89,8 +88,10 @@ EpStatus Endpointer::Status(int64_t* time) {
   return energy_endpointer_.Status(time);
 }
 
-EpStatus Endpointer::ProcessAudio(
-    const ShellAudioBus& audio_bus, float* rms_out) {
+#if defined(STARBOARD)
+EpStatus Endpointer::ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out) {
+  // TODO[johnx]: replace ShellAudioData with AudioChunk and deprecate
+  // ShellAudioData.
   DCHECK_EQ(audio_bus.channels(), 1);
 
   const size_t num_samples = audio_bus.frames();
@@ -109,22 +110,26 @@ EpStatus Endpointer::ProcessAudio(
     audio_data =
         reinterpret_cast<const int16_t*>(audio_bus.interleaved_data());
   }
-
+#else
+EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
+  const int16_t* audio_data = raw_audio.SamplesData16();
+  const int num_samples = raw_audio.NumSamples();
+#endif
   EpStatus ep_status = EP_PRE_SPEECH;
 
-  // Process the input data in blocks of kFrameSize, dropping any incomplete
+  // Process the input data in blocks of frame_size_, dropping any incomplete
   // frames at the end (which is ok since typically the caller will be recording
   // audio in multiples of our frame size).
   int sample_index = 0;
-  while (static_cast<size_t>(sample_index + kFrameSize) <= num_samples) {
+  while (sample_index + frame_size_ <= num_samples) {
     // Have the endpointer process the frame.
     energy_endpointer_.ProcessAudioFrame(audio_frame_time_us_,
                                          audio_data + sample_index,
-                                         kFrameSize,
+                                         frame_size_,
                                          rms_out);
-    sample_index += kFrameSize;
+    sample_index += frame_size_;
     audio_frame_time_us_ +=
-        (kFrameSize * Time::kMicrosecondsPerSecond) / sample_rate_;
+        (frame_size_ * kMicrosecondsPerSecond) / sample_rate_;
 
     // Get the status of the endpointer.
     int64_t ep_time;

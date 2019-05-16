@@ -757,6 +757,7 @@ struct {
   int token;
 } known_dash_functions[] = {
   { "-cobalt-mtm", kCobaltMtmFunctionToken },
+  { "-cobalt-ui-nav-focus-transform", kCobaltUiNavFocusTransformFunctionToken },
   { "-cobalt-ui-nav-spotlight-transform",
     kCobaltUiNavSpotlightTransformFunctionToken },
 };

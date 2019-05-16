@@ -35,26 +35,28 @@ namespace layout_tests {
 
 namespace {
 void Quit(base::RunLoop* run_loop) {
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE, run_loop->QuitClosure());
 }
 
 // Called when layout completes and results have been produced.  We use this
 // signal to stop the WebModule's message loop since our work is done after a
 // layout has been performed.
 void WebModuleOnRenderTreeProducedCallback(
-    base::optional<browser::WebModule::LayoutResults>* out_results,
-    base::RunLoop* run_loop, MessageLoop* message_loop,
+    base::Optional<browser::WebModule::LayoutResults>* out_results,
+    base::RunLoop* run_loop, base::MessageLoop* message_loop,
     const browser::WebModule::LayoutResults& results) {
   out_results->emplace(results.render_tree, results.layout_time);
-  message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 // This callback, when called, quits a message loop, outputs the error message
 // and sets the success flag to false.
-void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
-                            const GURL& url, const std::string& error) {
+void WebModuleErrorCallback(base::RunLoop* run_loop,
+                            base::MessageLoop* message_loop, const GURL& url,
+                            const std::string& error) {
   LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
-  message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 }  // namespace
 
@@ -87,14 +89,15 @@ browser::WebModule::LayoutResults SnapshotURL(
   web_module_options.provide_screenshot_function = screenshot_provider;
 
   // Prepare a slot for our results to be placed when ready.
-  base::optional<browser::WebModule::LayoutResults> results;
+  base::Optional<browser::WebModule::LayoutResults> results;
 
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module(
       url, base::kApplicationStateStarted,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
-                 MessageLoop::current()),
-      base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
+                 base::MessageLoop::current()),
+      base::Bind(&WebModuleErrorCallback, &run_loop,
+                 base::MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
       NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,

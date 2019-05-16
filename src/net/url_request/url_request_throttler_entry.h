@@ -5,14 +5,16 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_H_
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_H_
 
-#include <queue>
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/time.h"
+#include "base/containers/queue.h"
+#include "base/macros.h"
+#include "base/time/time.h"
 #include "net/base/backoff_entry.h"
-#include "net/base/net_log.h"
+#include "net/base/net_export.h"
+#include "net/log/net_log_with_source.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -57,14 +59,6 @@ class NET_EXPORT URLRequestThrottlerEntry
   // Time after which the entry is considered outdated.
   static const int kDefaultEntryLifetimeMs;
 
-  // Name of the header that sites can use to opt out of exponential back-off
-  // throttling.
-  static const char kExponentialThrottlingHeader[];
-
-  // Value for exponential throttling header that can be used to opt out of
-  // exponential back-off throttling.
-  static const char kExponentialThrottlingDisableValue[];
-
   // The manager object's lifetime must enclose the lifetime of this object.
   URLRequestThrottlerEntry(URLRequestThrottlerManager* manager,
                            const std::string& url_id);
@@ -92,40 +86,29 @@ class NET_EXPORT URLRequestThrottlerEntry
   void DetachManager();
 
   // Implementation of URLRequestThrottlerEntryInterface.
-  virtual bool ShouldRejectRequest(const URLRequest& request) const override;
-  virtual int64 ReserveSendingTimeForNextRequest(
+  bool ShouldRejectRequest(const URLRequest& request) const override;
+  int64_t ReserveSendingTimeForNextRequest(
       const base::TimeTicks& earliest_time) override;
-  virtual base::TimeTicks GetExponentialBackoffReleaseTime() const override;
-  virtual void UpdateWithResponse(
-      const std::string& host,
-      const URLRequestThrottlerHeaderInterface* response) override;
-  virtual void ReceivedContentWasMalformed(int response_code) override;
+  base::TimeTicks GetExponentialBackoffReleaseTime() const override;
+  void UpdateWithResponse(int status_code) override;
+  void ReceivedContentWasMalformed(int response_code) override;
 
  protected:
-  virtual ~URLRequestThrottlerEntry();
+  ~URLRequestThrottlerEntry() override;
 
   void Initialize();
 
-  // Returns true if the given response code is considered an error for
+  // Returns true if the given response code is considered a success for
   // throttling purposes.
-  bool IsConsideredError(int response_code);
+  bool IsConsideredSuccess(int response_code);
 
   // Equivalent to TimeTicks::Now(), virtual to be mockable for testing purpose.
   virtual base::TimeTicks ImplGetTimeNow() const;
-
-  // Used internally to handle the opt-out header.
-  void HandleThrottlingHeader(const std::string& header_value,
-                              const std::string& host);
 
   // Retrieves the back-off entry object we're using. Used to enable a
   // unit testing seam for dependency injection in tests.
   virtual const BackoffEntry* GetBackoffEntry() const;
   virtual BackoffEntry* GetBackoffEntry();
-
-  // Returns true if |load_flags| contains a flag that indicates an
-  // explicit request by the user to load the resource. We never
-  // throttle requests with such load flags.
-  static bool ExplicitUserRequest(const int load_flags);
 
   // Used by tests.
   base::TimeTicks sliding_window_release_time() const {
@@ -148,7 +131,7 @@ class NET_EXPORT URLRequestThrottlerEntry
 
   // A list of the recent send events. We use them to decide whether there are
   // too many requests sent in sliding window.
-  std::queue<base::TimeTicks> send_log_;
+  base::queue<base::TimeTicks> send_log_;
 
   const base::TimeDelta sliding_window_period_;
   const int max_send_threshold_;
@@ -165,7 +148,7 @@ class NET_EXPORT URLRequestThrottlerEntry
   // Canonicalized URL string that this entry is for; used for logging only.
   std::string url_id_;
 
-  BoundNetLog net_log_;
+  NetLogWithSource net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerEntry);
 };

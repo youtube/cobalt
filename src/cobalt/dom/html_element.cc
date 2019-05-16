@@ -15,9 +15,11 @@
 #include "cobalt/dom/html_element.h"
 
 #include <map>
+#include <memory>
 
 #include "base/lazy_instance.h"
-#include "base/string_number_conversions.h"
+#include "base/message_loop/message_loop_task_runner.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/cssom/absolute_url_value.h"
@@ -148,8 +150,8 @@ struct NonTrivialStaticFields {
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -271,7 +273,7 @@ scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
   // 1. If the element on which it was invoked does not have an associated
   // layout box return an empty DOMRectList object and stop this algorithm.
   if (!layout_boxes_) {
-    return make_scoped_refptr(new DOMRectList());
+    return base::WrapRefCounted(new DOMRectList());
   }
 
   // The remaining steps are implemented in LayoutBoxes::GetClientRects().
@@ -537,8 +539,8 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
   return new_html_element;
 }
 
-base::optional<std::string> HTMLElement::GetStyleAttribute() const {
-  base::optional<std::string> value = Element::GetStyleAttribute();
+base::Optional<std::string> HTMLElement::GetStyleAttribute() const {
+  base::Optional<std::string> value = Element::GetStyleAttribute();
   return value.value_or(style_->css_text(NULL));
 }
 
@@ -1007,9 +1009,7 @@ bool HTMLElement::IsFocusable() {
 
 // Algorithm for HasTabindexFocusFlag:
 //  https://www.w3.org/TR/html5/editing.html#specially-focusable
-bool HTMLElement::HasTabindexFocusFlag() const {
-  return tabindex_.has_engaged();
-}
+bool HTMLElement::HasTabindexFocusFlag() const { return tabindex_.has_value(); }
 
 // An element is being rendered if it has any associated CSS layout boxes, SVG
 // layout boxes, or some equivalent in other styling languages.
@@ -1161,7 +1161,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
   // property declaration importance.
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style =
       PromoteToCascadedStyle(inline_style, matching_rules,
                              property_key_to_base_url_map);
 
@@ -1510,11 +1510,11 @@ void HTMLElement::UpdateComputedStyle(
   pseudo_elements_computed_styles_valid_ = true;
 }
 
-void HTMLElement::SetPseudoElement(PseudoElementType type,
-                                   scoped_ptr<PseudoElement> pseudo_element) {
+void HTMLElement::SetPseudoElement(
+    PseudoElementType type, std::unique_ptr<PseudoElement> pseudo_element) {
   DCHECK_EQ(this, pseudo_element->parent_element());
   DCHECK(type < kMaxPseudoElementType);
-  pseudo_elements_[type] = pseudo_element.Pass();
+  pseudo_elements_[type] = std::move(pseudo_element);
   pseudo_elements_computed_styles_valid_ = false;
 }
 
@@ -1544,7 +1544,7 @@ bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
 }
 
 void HTMLElement::UpdateUiNavigationType() {
-  base::optional<ui_navigation::NativeItemType> ui_nav_item_type;
+  base::Optional<ui_navigation::NativeItemType> ui_nav_item_type;
   if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
       computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
     ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
@@ -1563,19 +1563,23 @@ void HTMLElement::UpdateUiNavigationType() {
       // when all references to it are released.
       ui_nav_item_->SetEnabled(false);
     }
-    ui_nav_item_ = new ui_navigation::NavItem(*ui_nav_item_type,
-        base::Bind(&MessageLoop::PostTask,
-                   base::Unretained(MessageLoop::current()), FROM_HERE,
-                   base::Bind(&HTMLElement::OnUiNavBlur,
-                              base::AsWeakPtr(this))),
-        base::Bind(&MessageLoop::PostTask,
-                   base::Unretained(MessageLoop::current()), FROM_HERE,
-                   base::Bind(&HTMLElement::OnUiNavFocus,
-                              base::AsWeakPtr(this))),
-        base::Bind(&MessageLoop::PostTask,
-                   base::Unretained(MessageLoop::current()), FROM_HERE,
-                   base::Bind(&HTMLElement::OnUiNavScroll,
-                              base::AsWeakPtr(this))));
+    ui_nav_item_ = new ui_navigation::NavItem(
+        *ui_nav_item_type,
+        base::Bind(
+            base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+            base::Unretained(base::MessageLoop::current()->task_runner().get()),
+            FROM_HERE,
+            base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
+        base::Bind(
+            base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+            base::Unretained(base::MessageLoop::current()->task_runner().get()),
+            FROM_HERE,
+            base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
+        base::Bind(
+            base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+            base::Unretained(base::MessageLoop::current()->task_runner().get()),
+            FROM_HERE,
+            base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
     ui_nav_item_->SetEnabled(false);
@@ -1682,12 +1686,12 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
               absolute_url, loader::Origin());
       base::Closure loaded_callback = base::Bind(
           &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
-      cached_images.push_back(
+      cached_images.emplace_back(
           new loader::image::CachedImageReferenceWithCallbacks(
               cached_image, loaded_callback, base::Closure()));
     }
 
-    cached_background_images_ = cached_images.Pass();
+    cached_background_images_ = std::move(cached_images);
   } else {
     // Clear the previous cached background image if the display is "none".
     cached_background_images_.clear();
@@ -1702,7 +1706,7 @@ void HTMLElement::OnBackgroundImageLoaded() {
 bool HTMLElement::IsRootElement() {
   // The html element represents the root of an HTML document.
   //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
-  return AsHTMLHtmlElement() != NULL;
+  return AsHTMLHtmlElement().get() != NULL;
 }
 
 }  // namespace dom

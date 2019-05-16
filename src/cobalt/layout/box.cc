@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -26,6 +27,7 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/transform_property_value.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/render_tree_animations.h"
@@ -341,9 +343,8 @@ SizeLayoutUnit Box::GetClampedBorderBoxSize() const {
   // Its dimensions cannot be negative because the content, padding, and border
   // areas must be at least zero
   // (https://www.w3.org/TR/css-box-3/#the-css-box-model)
-  return SizeLayoutUnit(
-    std::max(LayoutUnit(0), GetBorderBoxWidth()),
-    std::max(LayoutUnit(0), GetBorderBoxHeight()));
+  return SizeLayoutUnit(std::max(LayoutUnit(0), GetBorderBoxWidth()),
+                        std::max(LayoutUnit(0), GetBorderBoxHeight()));
 }
 
 Vector2dLayoutUnit Box::GetBorderBoxOffsetFromRoot(
@@ -369,9 +370,8 @@ SizeLayoutUnit Box::GetClampedPaddingBoxSize() const {
   // Its dimensions cannot be negative because the content and padding areas
   // must be at least zero
   // (https://www.w3.org/TR/css-box-3/#the-css-box-model)
-  return SizeLayoutUnit(
-    std::max(LayoutUnit(0), GetPaddingBoxWidth()),
-    std::max(LayoutUnit(0), GetPaddingBoxHeight()));
+  return SizeLayoutUnit(std::max(LayoutUnit(0), GetPaddingBoxWidth()),
+                        std::max(LayoutUnit(0), GetPaddingBoxHeight()));
 }
 
 Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromRoot(
@@ -567,10 +567,10 @@ void Box::RenderAndAnimate(
   render_tree::CompositionNode::Builder border_node_builder(border_box_offset);
   AnimateNode::Builder animate_node_builder;
 
-  const base::optional<RoundedCorners> rounded_corners =
+  const base::Optional<RoundedCorners> rounded_corners =
       ComputeRoundedCorners();
 
-  const base::optional<RoundedCorners> padding_rounded_corners =
+  const base::Optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
   // The painting order is:
@@ -652,7 +652,7 @@ void Box::RenderAndAnimate(
 
   if (!border_node_builder.children().empty()) {
     scoped_refptr<render_tree::Node> border_node =
-        new CompositionNode(border_node_builder.Pass());
+        new CompositionNode(std::move(border_node_builder));
     if (ui_nav_item_ && !ui_nav_item_->IsContainer()) {
       // UI navigation focus items animate the border node.
       border_node = RenderAndAnimateUiNavigation(border_node,
@@ -743,23 +743,24 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 namespace {
 void PopulateBaseStyleForBackgroundColorNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForBackgroundNode() should match
   // the properties used by SetupBackgroundNodeFromStyle().
   destination_style->set_background_color(source_style->background_color());
 }
 
 void SetupBackgroundColorNodeFromStyle(
-    const base::optional<RoundedCorners>& rounded_corners,
+    const base::Optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
-      scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+      std::unique_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
           GetUsedColor(style->background_color())));
 
   if (rounded_corners) {
     rect_node_builder->rounded_corners =
-        scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
+        std::unique_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
   }
 }
 
@@ -811,7 +812,8 @@ Border CreateBorderFromStyle(
 
 void PopulateBaseStyleForBorderNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForBorderNode() should match the
   // properties used by SetupBorderNodeFromStyle().
 
@@ -840,21 +842,22 @@ void PopulateBaseStyleForBorderNode(
 }
 
 void SetupBorderNodeFromStyle(
-    const base::optional<RoundedCorners>& rounded_corners,
+    const base::Optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->border =
-      scoped_ptr<Border>(new Border(CreateBorderFromStyle(style)));
+      std::unique_ptr<Border>(new Border(CreateBorderFromStyle(style)));
 
   if (rounded_corners) {
     rect_node_builder->rounded_corners =
-        scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
+        std::unique_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
   }
 }
 
 void PopulateBaseStyleForOutlineNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForOutlineNode() should match the
   // properties used by SetupOutlineNodeFromStyle().
 
@@ -871,7 +874,7 @@ void SetupOutlineNodeFromStyleWithOutset(
   rect_node_builder->rect.Outset(outset_width, outset_width);
   if (outset_width != 0) {
     rect_node_builder->border =
-        scoped_ptr<Border>(new Border(render_tree::BorderSide(
+        std::unique_ptr<Border>(new Border(render_tree::BorderSide(
             outset_width, GetRenderTreeBorderStyle(style->outline_style()),
             GetUsedColor(style->outline_color()))));
   }
@@ -910,6 +913,11 @@ void Box::DumpProperties(std::ostream* stream) const {
   *stream << "padding=" << padding_insets_.ToString() << " ";
 
   *stream << "baseline=" << GetBaselineOffsetFromTopMarginEdge() << " ";
+  if (css_computed_style_declaration_ &&
+      css_computed_style_declaration_->data()) {
+    *stream << "is_inline_before_blockification="
+            << is_inline_before_blockification() << " ";
+  }
 }
 
 void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
@@ -1158,13 +1166,17 @@ namespace {
 math::Matrix3F GetCSSTransform(
     cssom::PropertyValue* transform_property_value,
     cssom::PropertyValue* transform_origin_property_value,
-    const math::RectF& used_rect) {
+    const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus) {
   if (transform_property_value == cssom::KeywordValue::GetNone()) {
     return math::Matrix3F::Identity();
   }
 
-  math::Matrix3F css_transform_matrix =
-      GetTransformMatrix(transform_property_value).ToMatrix3F(used_rect.size());
+  cssom::TransformPropertyValue* transform_value =
+      base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+          transform_property_value);
+  math::Matrix3F css_transform_matrix = transform_value->ToMatrix(
+      used_rect.size(), ui_nav_focus);
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
@@ -1175,30 +1187,33 @@ math::Matrix3F GetCSSTransform(
          math::TranslateMatrix(-origin.x(), -origin.y());
 }
 
-void PopulateBaseStyleForMatrixTransformNode(
-    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
-  // NOTE: Properties set by PopulateBaseStyleForMatrixTransformNode() should
-  // match the properties used by
-  // SetupMatrixTransformNodeFromCSSSStyleTransform().
-  destination_style->set_transform(source_style->transform());
-  destination_style->set_transform_origin(source_style->transform_origin());
-}
-
 // Used within the animation callback for CSS transforms.  This will set the
 // transform of a single-child matrix transform node to that specified by the
 // CSS transform of the provided CSS Style Declaration.
-void SetupMatrixTransformNodeFromCSSSStyleTransform(
+void SetupMatrixTransformNodeFromCSSStyle(
     const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     MatrixTransformNode::Builder* transform_node_builder) {
-  transform_node_builder->transform =
-      GetCSSTransform(style->transform(), style->transform_origin(), used_rect);
+  transform_node_builder->transform = GetCSSTransform(
+      style->transform().get(), style->transform_origin().get(),
+      used_rect, ui_nav_focus);
+}
+
+void SetupMatrixTransformNodeFromCSSTransform(
+    const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus,
+    const scoped_refptr<cssom::PropertyValue>& transform,
+    const scoped_refptr<cssom::PropertyValue>& transform_origin,
+    MatrixTransformNode::Builder* transform_node_builder) {
+  transform_node_builder->transform = GetCSSTransform(
+      transform.get(), transform_origin.get(), used_rect, ui_nav_focus);
 }
 
 void PopulateBaseStyleForFilterNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForFilterNode() should match the
   // properties used by SetupFilterNodeFromStyle().
   destination_style->set_opacity(source_style->opacity());
@@ -1241,7 +1256,7 @@ bool HasAnimatedOutline(const web_animations::AnimationSet* animation_set) {
 
 }  // namespace
 
-base::optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
+base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
   UsedBorderRadiusProvider border_radius_provider(GetClampedBorderBoxSize());
   render_tree::RoundedCorner border_top_left_radius;
   render_tree::RoundedCorner border_top_right_radius;
@@ -1277,7 +1292,7 @@ base::optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
         border_radius_provider.rounded_corner()->vertical);
   }
 
-  base::optional<RoundedCorners> rounded_corners;
+  base::Optional<RoundedCorners> rounded_corners;
   if (!border_top_left_radius.IsSquare() ||
       !border_top_right_radius.IsSquare() ||
       !border_bottom_right_radius.IsSquare() ||
@@ -1292,9 +1307,9 @@ base::optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
   return rounded_corners;
 }
 
-base::optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
-    const base::optional<RoundedCorners>& rounded_corners) const {
-  base::optional<RoundedCorners> padding_rounded_corners_if_different;
+base::Optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
+    const base::Optional<RoundedCorners>& rounded_corners) const {
+  base::Optional<RoundedCorners> padding_rounded_corners_if_different;
 
   if (rounded_corners && !border_insets_.zero()) {
     // If we have rounded corners and a non-zero border, then we need to
@@ -1305,25 +1320,44 @@ base::optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
         border_insets_.right().toFloat(), border_insets_.bottom().toFloat()));
   }
 
-  const base::optional<RoundedCorners>& padding_rounded_corners =
+  const base::Optional<RoundedCorners>& padding_rounded_corners =
       padding_rounded_corners_if_different
           ? padding_rounded_corners_if_different
           : rounded_corners;
 
   if (padding_rounded_corners) {
-    return padding_rounded_corners->Normalize(math::RectF(
-        GetClampedPaddingBoxSize()));
+    return padding_rounded_corners->Normalize(
+        math::RectF(GetClampedPaddingBoxSize()));
   } else {
     return padding_rounded_corners;
   }
 }
 
+scoped_refptr<ui_navigation::NavItem> Box::ComputeUiNavFocusForTransform()
+    const {
+  const cssom::TransformPropertyValue* transform_property_value =
+      base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+          computed_style()->transform().get());
+  if (!transform_property_value->HasTrait(
+      cssom::TransformFunction::kTraitUsesUiNavFocus)) {
+    return nullptr;
+  }
+
+  // Find the nearest UI navigation item that is a focus item.
+  for (const Box* box = this; box != nullptr; box = box->parent_) {
+    if (box->ui_nav_item_ && !box->ui_nav_item_->IsContainer()) {
+      return box->ui_nav_item_;
+    }
+  }
+  return nullptr;
+}
+
 void Box::RenderAndAnimateBoxShadow(
-    const base::optional<RoundedCorners>& outer_rounded_corners,
-    const base::optional<RoundedCorners>& inner_rounded_corners,
+    const base::Optional<RoundedCorners>& outer_rounded_corners,
+    const base::Optional<RoundedCorners>& inner_rounded_corners,
     CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
-  UNREFERENCED_PARAMETER(animate_node_builder);
+  SB_UNREFERENCED_PARAMETER(animate_node_builder);
 
   if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
     const cssom::PropertyListValue* box_shadow_list =
@@ -1359,9 +1393,9 @@ void Box::RenderAndAnimateBoxShadow(
                           GetUsedLength(shadow_value->offset_y()).toFloat()),
           shadow_blur_sigma, GetUsedColor(shadow_value->color()));
 
-      math::SizeF shadow_rect_size =
-          shadow_value->has_inset() ? GetClampedPaddingBoxSize() :
-                                      GetClampedBorderBoxSize();
+      math::SizeF shadow_rect_size = shadow_value->has_inset()
+                                         ? GetClampedPaddingBoxSize()
+                                         : GetClampedBorderBoxSize();
 
       // Inset nodes apply within the border, starting at the padding box.
       math::PointF rect_offset =
@@ -1400,7 +1434,7 @@ bool AllBorderSidesShareSameStyle(const Border& border) {
 }  // namespace
 
 void Box::RenderAndAnimateBorder(
-    const base::optional<RoundedCorners>& rounded_corners,
+    const base::Optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
   bool has_animated_border = HasAnimatedBorder(animations());
@@ -1424,7 +1458,8 @@ void Box::RenderAndAnimateBorder(
     return;
   }
 
-  scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
+  scoped_refptr<RectNode> border_node(
+      new RectNode(std::move(rect_node_builder)));
   border_node_builder->AddChild(border_node);
 
   if (has_animated_border) {
@@ -1447,7 +1482,8 @@ void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
     SetupOutlineNodeFromStyle(rect, computed_style(), &rect_node_builder);
   }
 
-  scoped_refptr<RectNode> outline_node(new RectNode(rect_node_builder.Pass()));
+  scoped_refptr<RectNode> outline_node(
+      new RectNode(std::move(rect_node_builder)));
 
   border_node_builder->AddChild(outline_node);
 
@@ -1466,7 +1502,7 @@ math::RectF Box::GetBackgroundRect() {
 }
 
 void Box::RenderAndAnimateBackgroundColor(
-    const base::optional<RoundedCorners>& rounded_corners,
+    const base::Optional<RoundedCorners>& rounded_corners,
     render_tree::CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
   bool background_color_animated =
@@ -1490,11 +1526,12 @@ void Box::RenderAndAnimateBackgroundColor(
       GetUsedColor(computed_style()->background_color()).a() == 0.0f;
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(GetBackgroundRect(),
-                                        scoped_ptr<Brush>());
+                                        std::unique_ptr<Brush>());
     SetupBackgroundColorNodeFromStyle(rounded_corners, computed_style(),
                                       &rect_node_builder);
     if (!rect_node_builder.rect.IsEmpty()) {
-      scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
+      scoped_refptr<RectNode> rect_node(
+          new RectNode(std::move(rect_node_builder)));
       border_node_builder->AddChild(rect_node);
 
       // TODO: Investigate if we could pass css_computed_style_declaration_
@@ -1510,14 +1547,14 @@ void Box::RenderAndAnimateBackgroundColor(
 }
 
 Box::RenderAndAnimateBackgroundImageResult Box::RenderAndAnimateBackgroundImage(
-    const base::optional<RoundedCorners>& rounded_corners) {
+    const base::Optional<RoundedCorners>& rounded_corners) {
   RenderAndAnimateBackgroundImageResult result;
   // We track a single render tree node because most of the time there will only
   // be one.  If there is more, we set |single_node| to NULL and instead
   // populate |composition|.  The code here tries to avoid using CompositionNode
   // if possible to avoid constructing an std::vector.
   scoped_refptr<render_tree::Node> single_node = NULL;
-  base::optional<CompositionNode::Builder> composition;
+  base::Optional<CompositionNode::Builder> composition;
   result.is_opaque = false;
 
   math::RectF image_frame(GetBackgroundRect());
@@ -1610,10 +1647,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const scoped_refptr<render_tree::Node>& content_node,
     const math::Vector2dF& border_offset) {
-  const base::optional<RoundedCorners> rounded_corners =
+  const base::Optional<RoundedCorners> rounded_corners =
       ComputeRoundedCorners();
 
-  const base::optional<RoundedCorners> padding_rounded_corners =
+  const base::Optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
   AnimateNode::Builder animate_node_builder;
@@ -1627,7 +1664,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
-    const base::optional<render_tree::RoundedCorners>& rounded_corners,
+    const base::Optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node,
     AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
@@ -1662,6 +1699,29 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     const scoped_refptr<render_tree::Node>& border_node,
     AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
+  // Certain transforms need a UI navigation focus item as input.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_focus;
+
+  // Some transform functions change over time, so they will need to be
+  // evaluated indefinitely.
+  bool transform_is_dynamic = false;
+
+  {
+    const scoped_refptr<cssom::PropertyValue>& property_value =
+        computed_style()->transform();
+    if (property_value != cssom::KeywordValue::GetNone()) {
+      ui_nav_focus = ComputeUiNavFocusForTransform();
+      cssom::TransformPropertyValue* transform_value =
+          base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+              property_value.get());
+      transform_is_dynamic =
+          transform_value->HasTrait(cssom::TransformFunction::kTraitIsDynamic);
+    }
+  }
+
+  math::RectF used_rect(PointAtOffsetFromOrigin(border_node_offset),
+                        GetClampedBorderBoxSize());
+
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
@@ -1672,22 +1732,44 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
 
     // Specifically animate only the matrix transform node with the CSS
     // transform.
-    AddAnimations<MatrixTransformNode>(
-        base::Bind(&PopulateBaseStyleForMatrixTransformNode),
-        base::Bind(&SetupMatrixTransformNodeFromCSSSStyleTransform,
-                   math::RectF(PointAtOffsetFromOrigin(border_node_offset),
-                               GetClampedBorderBoxSize())),
-        *css_computed_style_declaration(), css_transform_node,
-        animate_node_builder);
+    // Do AddAnimations<MatrixTransformNode> with a custom end time.
+    scoped_refptr<cssom::MutableCSSComputedStyleData> base_style =
+        new cssom::MutableCSSComputedStyleData();
+    base_style->set_transform(computed_style()->transform());
+    base_style->set_transform_origin(computed_style()->transform_origin());
+    web_animations::BakedAnimationSet baked_animation_set(
+        *css_computed_style_declaration()->animations());
+    animate_node_builder->Add(
+        css_transform_node,
+        base::Bind(&ApplyAnimation<MatrixTransformNode>,
+                   base::Bind(&SetupMatrixTransformNodeFromCSSStyle,
+                              used_rect, ui_nav_focus),
+                   baked_animation_set, base_style),
+        transform_is_dynamic ? base::TimeDelta::Max()
+                             : baked_animation_set.end_time());
 
     return css_transform_node;
   }
 
+  if (transform_is_dynamic) {
+    // The CSS transform uses function(s) whose value changes over time. Animate
+    // the matrix transform node indefinitely.
+    scoped_refptr<MatrixTransformNode> css_transform_node =
+        new MatrixTransformNode(border_node, math::Matrix3F::Identity());
+    animate_node_builder->Add(
+        css_transform_node,
+        base::Bind(&SetupMatrixTransformNodeFromCSSTransform,
+                   used_rect, ui_nav_focus,
+                   computed_style()->transform(),
+                   computed_style()->transform_origin()));
+    return css_transform_node;
+  }
+
   if (IsTransformed()) {
-    math::Matrix3F matrix = GetCSSTransform(
-        computed_style()->transform(), computed_style()->transform_origin(),
-        math::RectF(PointAtOffsetFromOrigin(border_node_offset),
-                    GetClampedBorderBoxSize()));
+    math::Matrix3F matrix =
+        GetCSSTransform(computed_style()->transform().get(),
+                        computed_style()->transform_origin().get(),
+                        used_rect, ui_nav_focus);
     if (matrix.IsIdentity()) {
       return border_node;
     } else {
@@ -1700,27 +1782,13 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
 }
 
 namespace {
-
-void AnimateUiNavContainer(
+void SetupCompositionNodeFromUiNavContainer(
     const scoped_refptr<ui_navigation::NavItem>& container,
     render_tree::CompositionNode::Builder* node_builder) {
   float offset_x, offset_y;
   container->GetContentOffset(&offset_x, &offset_y);
   node_builder->set_offset(math::Vector2dF(-offset_x, -offset_y));
 }
-
-void AnimateUiNavFocus(
-    const scoped_refptr<ui_navigation::NavItem>& focus,
-    render_tree::MatrixTransformNode::Builder* node_builder) {
-  ui_navigation::NativeTransform matrix;
-  if (focus->GetLocalTransform(&matrix)) {
-    node_builder->transform = math::Matrix3F::FromValues(
-        matrix.m[ 0], matrix.m[ 1], matrix.m[ 3],
-        matrix.m[ 4], matrix.m[ 5], matrix.m[ 7],
-        matrix.m[12], matrix.m[13], matrix.m[15]);
-  }
-}
-
 }  // namespace
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
@@ -1755,32 +1823,27 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
                             layout_rect.y().toFloat());
   ui_nav_item_->SetEnabled(true);
 
-  // Add an animation to update the position of this box.
+  // Only containers are animated automatically. Focus items may be animated
+  // using a custom transform function added to the CSS transform property.
   if (ui_nav_item_->IsContainer()) {
     scoped_refptr<CompositionNode> composition_node =
         new CompositionNode(node_to_animate, math::Vector2dF());
     animate_node_builder->Add(
         composition_node,
-        base::Bind(&AnimateUiNavContainer, ui_nav_item_));
+        base::Bind(&SetupCompositionNodeFromUiNavContainer, ui_nav_item_));
     return composition_node;
-  } else {
-    scoped_refptr<MatrixTransformNode> transform_node =
-        new MatrixTransformNode(node_to_animate, math::Matrix3F::Identity());
-    animate_node_builder->Add(
-        transform_node,
-        base::Bind(&AnimateUiNavFocus, ui_nav_item_));
-    return transform_node;
   }
+  return node_to_animate;
 }
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
 void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
     LayoutUnit containing_block_width, LayoutUnit border_box_width,
-    const base::optional<LayoutUnit>& possibly_overconstrained_margin_left,
-    const base::optional<LayoutUnit>& possibly_overconstrained_margin_right) {
-  base::optional<LayoutUnit> maybe_margin_left =
+    const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
+    const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right) {
+  base::Optional<LayoutUnit> maybe_margin_left =
       possibly_overconstrained_margin_left;
-  base::optional<LayoutUnit> maybe_margin_right =
+  base::Optional<LayoutUnit> maybe_margin_right =
       possibly_overconstrained_margin_right;
 
   // If "border-left-width" + "padding-left" + "width" + "padding-right" +
@@ -1855,12 +1918,13 @@ bool Box::ApplyTransformActionToCoordinates(
   }
 
   // Transform the coordinates.
-  math::Matrix3F matrix =
-      GetCSSTransform(transform, computed_style()->transform_origin(),
-                      math::RectF(transform_rect_offset.x().toFloat(),
-                                  transform_rect_offset.y().toFloat(),
-                                  GetBorderBoxWidth().toFloat(),
-                                  GetBorderBoxHeight().toFloat()));
+  math::Matrix3F matrix = GetCSSTransform(
+      transform.get(), computed_style()->transform_origin().get(),
+      math::RectF(transform_rect_offset.x().toFloat(),
+                  transform_rect_offset.y().toFloat(),
+                  GetBorderBoxWidth().toFloat(),
+                  GetBorderBoxHeight().toFloat()),
+      ComputeUiNavFocusForTransform());
   if (!matrix.IsIdentity()) {
     if (action == kEnterTransform) {
       matrix = matrix.Inverse();

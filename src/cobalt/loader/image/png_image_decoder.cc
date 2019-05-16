@@ -14,8 +14,8 @@
 
 #include "cobalt/loader/image/png_image_decoder.h"
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -118,7 +118,7 @@ scoped_refptr<Image> PNGImageDecoder::FinishInternal() {
     return NULL;
   }
   SB_DCHECK(decoded_image_data_);
-  return CreateStaticImage(decoded_image_data_.Pass());
+  return CreateStaticImage(std::move(decoded_image_data_));
 }
 
 PNGImageDecoder::~PNGImageDecoder() {
@@ -143,7 +143,7 @@ PNGImageDecoder::~PNGImageDecoder() {
 // static
 void PNGImageDecoder::HeaderAvailable(png_structp png, png_infop info) {
   TRACK_MEMORY_SCOPE("Rendering");
-  UNREFERENCED_PARAMETER(info);
+  SB_UNREFERENCED_PARAMETER(info);
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::~PNGImageDecoder()");
   PNGImageDecoder* decoder =
       static_cast<PNGImageDecoder*>(png_get_progressive_ptr(png));
@@ -154,7 +154,7 @@ void PNGImageDecoder::HeaderAvailable(png_structp png, png_infop info) {
 // static
 void PNGImageDecoder::RowAvailable(png_structp png, png_bytep row_buffer,
                                    png_uint_32 row_index, int interlace_pass) {
-  UNREFERENCED_PARAMETER(interlace_pass);
+  SB_UNREFERENCED_PARAMETER(interlace_pass);
   PNGImageDecoder* decoder =
       static_cast<PNGImageDecoder*>(png_get_progressive_ptr(png));
   decoder->RowAvailableCallback(row_buffer, row_index);
@@ -164,7 +164,7 @@ void PNGImageDecoder::RowAvailable(png_structp png, png_bytep row_buffer,
 // static
 void PNGImageDecoder::DecodeDone(png_structp png, png_infop info) {
   TRACK_MEMORY_SCOPE("Rendering");
-  UNREFERENCED_PARAMETER(info);
+  SB_UNREFERENCED_PARAMETER(info);
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::DecodeDone()");
 
   PNGImageDecoder* decoder =

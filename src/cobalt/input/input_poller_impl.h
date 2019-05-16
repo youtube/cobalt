@@ -19,8 +19,8 @@
 
 #include <map>
 
+#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
-#include "base/hash_tables.h"
 #include "cobalt/input/input_poller.h"
 #include "cobalt/system_window/input_event.h"
 #include "starboard/input.h"
@@ -42,7 +42,7 @@ class InputPollerImpl : public InputPoller {
   void UpdateInputEvent(const system_window::InputEvent* input_event);
 
  private:
-  typedef base::SmallMap<std::map<SbKey, float>, 8> KeyOffsetMap;
+  typedef base::small_map<std::map<SbKey, float>, 8> KeyOffsetMap;
 
   starboard::Mutex input_mutex_;
   base::hash_set<int> pressed_keys_;

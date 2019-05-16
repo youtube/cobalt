@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/render_tree/rect_node.h"
 
 #include "cobalt/render_tree/brush_visitor.h"
@@ -22,45 +24,47 @@ namespace render_tree {
 
 RectNode::Builder::Builder(const math::RectF& rect) : rect(rect) {}
 
-RectNode::Builder::Builder(const math::RectF& rect, scoped_ptr<Border> border)
-    : rect(rect), border(border.Pass()) {}
+RectNode::Builder::Builder(const math::RectF& rect,
+                           std::unique_ptr<Border> border)
+    : rect(rect), border(std::move(border)) {}
 
-RectNode::Builder::Builder(const math::RectF& rect, scoped_ptr<Border> border,
-                           scoped_ptr<RoundedCorners> rounded_corners)
+RectNode::Builder::Builder(const math::RectF& rect,
+                           std::unique_ptr<Border> border,
+                           std::unique_ptr<RoundedCorners> rounded_corners)
     : rect(rect),
-      border(border.Pass()),
-      rounded_corners(rounded_corners.Pass()) {}
+      border(std::move(border)),
+      rounded_corners(std::move(rounded_corners)) {}
 
 RectNode::Builder::Builder(const math::RectF& rect,
-                           scoped_ptr<Brush> background_brush)
-    : rect(rect), background_brush(background_brush.Pass()) {}
+                           std::unique_ptr<Brush> background_brush)
+    : rect(rect), background_brush(std::move(background_brush)) {}
 
 RectNode::Builder::Builder(const math::RectF& rect,
-                           scoped_ptr<RoundedCorners> rounded_corners)
-    : rect(rect), rounded_corners(rounded_corners.Pass()) {}
+                           std::unique_ptr<RoundedCorners> rounded_corners)
+    : rect(rect), rounded_corners(std::move(rounded_corners)) {}
 
 RectNode::Builder::Builder(const math::RectF& rect,
-                           scoped_ptr<Brush> background_brush,
-                           scoped_ptr<RoundedCorners> rounded_corners)
+                           std::unique_ptr<Brush> background_brush,
+                           std::unique_ptr<RoundedCorners> rounded_corners)
     : rect(rect),
-      background_brush(background_brush.Pass()),
-      rounded_corners(rounded_corners.Pass()) {}
+      background_brush(std::move(background_brush)),
+      rounded_corners(std::move(rounded_corners)) {}
 
 RectNode::Builder::Builder(const math::RectF& rect,
-                           scoped_ptr<Brush> background_brush,
-                           scoped_ptr<Border> border)
+                           std::unique_ptr<Brush> background_brush,
+                           std::unique_ptr<Border> border)
     : rect(rect),
-      background_brush(background_brush.Pass()),
-      border(border.Pass()) {}
+      background_brush(std::move(background_brush)),
+      border(std::move(border)) {}
 
 RectNode::Builder::Builder(const math::RectF& rect,
-                           scoped_ptr<Brush> background_brush,
-                           scoped_ptr<Border> border,
-                           scoped_ptr<RoundedCorners> rounded_corners)
+                           std::unique_ptr<Brush> background_brush,
+                           std::unique_ptr<Border> border,
+                           std::unique_ptr<RoundedCorners> rounded_corners)
     : rect(rect),
-      background_brush(background_brush.Pass()),
-      border(border.Pass()),
-      rounded_corners(rounded_corners.Pass()) {}
+      background_brush(std::move(background_brush)),
+      border(std::move(border)),
+      rounded_corners(std::move(rounded_corners)) {}
 
 RectNode::Builder::Builder(const Builder& other) : rect(other.rect) {
   if (other.background_brush) {
@@ -78,9 +82,9 @@ RectNode::Builder::Builder(const Builder& other) : rect(other.rect) {
 
 RectNode::Builder::Builder(Moved moved)
     : rect(moved->rect),
-      background_brush(moved->background_brush.Pass()),
-      border(moved->border.Pass()),
-      rounded_corners(moved->rounded_corners.Pass()) {}
+      background_brush(std::move(moved->background_brush)),
+      border(std::move(moved->border)),
+      rounded_corners(std::move(moved->rounded_corners)) {}
 
 bool RectNode::Builder::operator==(const Builder& other) const {
   bool brush_equals = !background_brush && !other.background_brush;

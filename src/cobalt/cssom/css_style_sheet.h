@@ -19,7 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
@@ -29,7 +29,7 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/exception_state.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace cssom {
@@ -117,7 +117,7 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
   // This stores the most recent media parameters, used to detect when they
   // change, which will require a re-evaluation of the media rule expressions.
-  base::optional<ViewportSize> previous_media_viewport_size_;
+  base::Optional<ViewportSize> previous_media_viewport_size_;
 
   // Origin of this style sheet.
   Origin origin_;

@@ -9,19 +9,21 @@
 #include "net/http/http_vary_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace net {
+
 namespace {
 
 typedef testing::Test HttpVaryDataTest;
 
 struct TestTransaction {
-  net::HttpRequestInfo request;
-  scoped_refptr<net::HttpResponseHeaders> response;
+  HttpRequestInfo request;
+  scoped_refptr<HttpResponseHeaders> response;
 
   void Init(const std::string& request_headers,
             const std::string& response_headers) {
     std::string temp(response_headers);
     std::replace(temp.begin(), temp.end(), '\n', '\0');
-    response = new net::HttpResponseHeaders(temp);
+    response = new HttpResponseHeaders(temp);
 
     request.extra_headers.Clear();
     request.extra_headers.AddHeadersFromString(request_headers);
@@ -31,38 +33,40 @@ struct TestTransaction {
 }  // namespace
 
 TEST(HttpVaryDataTest, IsInvalid) {
-  // All of these responses should result in an invalid vary data object.
-  const char* kTestResponses[] = {
+  // Only first of these result in an invalid vary data object.
+  const char* const kTestResponses[] = {
     "HTTP/1.1 200 OK\n\n",
     "HTTP/1.1 200 OK\nVary: *\n\n",
     "HTTP/1.1 200 OK\nVary: cookie, *, bar\n\n",
     "HTTP/1.1 200 OK\nVary: cookie\nFoo: 1\nVary: *\n\n",
   };
 
+  const bool kExpectedValid[] = {false, true, true, true};
+
   for (size_t i = 0; i < arraysize(kTestResponses); ++i) {
     TestTransaction t;
-    t.Init("", kTestResponses[i]);
+    t.Init(std::string(), kTestResponses[i]);
 
-    net::HttpVaryData v;
+    HttpVaryData v;
     EXPECT_FALSE(v.is_valid());
-    EXPECT_FALSE(v.Init(t.request, *t.response));
-    EXPECT_FALSE(v.is_valid());
+    EXPECT_EQ(kExpectedValid[i], v.Init(t.request, *t.response.get()));
+    EXPECT_EQ(kExpectedValid[i], v.is_valid());
   }
 }
 
 TEST(HttpVaryDataTest, MultipleInit) {
-  net::HttpVaryData v;
+  HttpVaryData v;
 
   // Init to something valid.
   TestTransaction t1;
   t1.Init("Foo: 1\r\nbar: 23", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
-  EXPECT_TRUE(v.Init(t1.request, *t1.response));
+  EXPECT_TRUE(v.Init(t1.request, *t1.response.get()));
   EXPECT_TRUE(v.is_valid());
 
   // Now overwrite by initializing to something invalid.
   TestTransaction t2;
-  t2.Init("Foo: 1\r\nbar: 23", "HTTP/1.1 200 OK\nVary: *\n\n");
-  EXPECT_FALSE(v.Init(t2.request, *t2.response));
+  t2.Init("Foo: 1\r\nbar: 23", "HTTP/1.1 200 OK\n\n");
+  EXPECT_FALSE(v.Init(t2.request, *t2.response.get()));
   EXPECT_FALSE(v.is_valid());
 }
 
@@ -73,10 +77,10 @@ TEST(HttpVaryDataTest, DoesVary) {
   TestTransaction b;
   b.Init("Foo: 2", "HTTP/1.1 200 OK\nVary: foo\n\n");
 
-  net::HttpVaryData v;
-  EXPECT_TRUE(v.Init(a.request, *a.response));
+  HttpVaryData v;
+  EXPECT_TRUE(v.Init(a.request, *a.response.get()));
 
-  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response));
+  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response.get()));
 }
 
 TEST(HttpVaryDataTest, DoesVary2) {
@@ -86,10 +90,27 @@ TEST(HttpVaryDataTest, DoesVary2) {
   TestTransaction b;
   b.Init("Foo: 12\r\nbar: 3", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
 
-  net::HttpVaryData v;
-  EXPECT_TRUE(v.Init(a.request, *a.response));
+  HttpVaryData v;
+  EXPECT_TRUE(v.Init(a.request, *a.response.get()));
 
-  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response));
+  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response.get()));
+}
+
+TEST(HttpVaryDataTest, DoesVaryStar) {
+  // Vary: * varies even when headers are identical
+  const char kRequestHeaders[] = "Foo:1";
+  const char kResponse[] = "HTTP/1.1 200 OK\nVary: *\n\n";
+
+  TestTransaction a;
+  a.Init(kRequestHeaders, kResponse);
+
+  TestTransaction b;
+  b.Init(kRequestHeaders, kResponse);
+
+  HttpVaryData v;
+  EXPECT_TRUE(v.Init(a.request, *a.response.get()));
+
+  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response.get()));
 }
 
 TEST(HttpVaryDataTest, DoesntVary) {
@@ -99,10 +120,10 @@ TEST(HttpVaryDataTest, DoesntVary) {
   TestTransaction b;
   b.Init("Foo: 1", "HTTP/1.1 200 OK\nVary: foo\n\n");
 
-  net::HttpVaryData v;
-  EXPECT_TRUE(v.Init(a.request, *a.response));
+  HttpVaryData v;
+  EXPECT_TRUE(v.Init(a.request, *a.response.get()));
 
-  EXPECT_TRUE(v.MatchesRequest(b.request, *b.response));
+  EXPECT_TRUE(v.MatchesRequest(b.request, *b.response.get()));
 }
 
 TEST(HttpVaryDataTest, DoesntVary2) {
@@ -112,36 +133,18 @@ TEST(HttpVaryDataTest, DoesntVary2) {
   TestTransaction b;
   b.Init("Foo: 1\r\nbaR: 2", "HTTP/1.1 200 OK\nVary: foo\nVary: bar\n\n");
 
-  net::HttpVaryData v;
-  EXPECT_TRUE(v.Init(a.request, *a.response));
+  HttpVaryData v;
+  EXPECT_TRUE(v.Init(a.request, *a.response.get()));
 
-  EXPECT_TRUE(v.MatchesRequest(b.request, *b.response));
+  EXPECT_TRUE(v.MatchesRequest(b.request, *b.response.get()));
 }
 
-TEST(HttpVaryDataTest, ImplicitCookieForRedirect) {
+TEST(HttpVaryDataTest, DoesntVaryByCookieForRedirect) {
   TestTransaction a;
   a.Init("Cookie: 1", "HTTP/1.1 301 Moved\nLocation: x\n\n");
 
-  TestTransaction b;
-  b.Init("Cookie: 2", "HTTP/1.1 301 Moved\nLocation: x\n\n");
-
-  net::HttpVaryData v;
-  EXPECT_TRUE(v.Init(a.request, *a.response));
-
-  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response));
+  HttpVaryData v;
+  EXPECT_FALSE(v.Init(a.request, *a.response.get()));
 }
 
-TEST(HttpVaryDataTest, ImplicitCookieForRedirect2) {
-  // This should be no different than the test above
-
-  TestTransaction a;
-  a.Init("Cookie: 1", "HTTP/1.1 301 Moved\nLocation: x\nVary: coOkie\n\n");
-
-  TestTransaction b;
-  b.Init("Cookie: 2", "HTTP/1.1 301 Moved\nLocation: x\nVary: cooKie\n\n");
-
-  net::HttpVaryData v;
-  EXPECT_TRUE(v.Init(a.request, *a.response));
-
-  EXPECT_FALSE(v.MatchesRequest(b.request, *b.response));
-}
+}  // namespace net

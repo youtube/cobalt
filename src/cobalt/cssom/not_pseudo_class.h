@@ -15,6 +15,8 @@
 #ifndef COBALT_CSSOM_NOT_PSEUDO_CLASS_H_
 #define COBALT_CSSOM_NOT_PSEUDO_CLASS_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/base/tokens.h"
@@ -58,10 +60,10 @@ class NotPseudoClass : public PseudoClass {
 
   // The compound selector within the pseudo class.
   CompoundSelector* selector() const;
-  void set_selector(scoped_ptr<CompoundSelector> compound_selector);
+  void set_selector(std::unique_ptr<CompoundSelector> compound_selector);
 
  private:
-  scoped_ptr<CompoundSelector> compound_selector_;
+  std::unique_ptr<CompoundSelector> compound_selector_;
 
   DISALLOW_COPY_AND_ASSIGN(NotPseudoClass);
 };

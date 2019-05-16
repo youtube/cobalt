@@ -6,89 +6,29 @@
 #define NET_DNS_DNS_CONFIG_SERVICE_H_
 
 #include <map>
-#include <string>
-#include <vector>
+#include <memory>
 
-#include "base/gtest_prod_util.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/threading/non_thread_safe.h"
-#include "base/time.h"
-#include "base/timer.h"
-// Needed on shared build with MSVS2010 to avoid multiple definitions of
-// std::vector<IPEndPoint>.
-#include "net/base/address_list.h"
-#include "net/base/ip_endpoint.h"  // win requires size of IPEndPoint
+#include "base/macros.h"
+#include "base/threading/thread_checker.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "net/base/net_export.h"
+#include "net/dns/dns_config.h"
 #include "net/dns/dns_hosts.h"
-
-namespace base {
-class Value;
-}
+#include "url/gurl.h"
 
 namespace net {
 
-// Always use 1 second timeout (followed by binary exponential backoff).
-// TODO(szym): Remove code which reads timeout from system.
-const unsigned kDnsTimeoutSeconds = 1;
-
-// DnsConfig stores configuration of the system resolver.
-struct NET_EXPORT_PRIVATE DnsConfig {
-  DnsConfig();
-  virtual ~DnsConfig();
-
-  bool Equals(const DnsConfig& d) const;
-
-  bool EqualsIgnoreHosts(const DnsConfig& d) const;
-
-  void CopyIgnoreHosts(const DnsConfig& src);
-
-  // Returns a Value representation of |this|.  Caller takes ownership of the
-  // returned Value.  For performance reasons, the Value only contains the
-  // number of hosts rather than the full list.
-  base::Value* ToValue() const;
-
-  bool IsValid() const {
-    return !nameservers.empty();
-  }
-
-  // List of name server addresses.
-  std::vector<IPEndPoint> nameservers;
-  // Suffix search list; used on first lookup when number of dots in given name
-  // is less than |ndots|.
-  std::vector<std::string> search;
-
-  DnsHosts hosts;
-
-  // AppendToMultiLabelName: is suffix search performed for multi-label names?
-  // True, except on Windows where it can be configured.
-  bool append_to_multi_label_name;
-
-  // Resolver options; see man resolv.conf.
-
-  // Minimum number of dots before global resolution precedes |search|.
-  int ndots;
-  // Time between retransmissions, see res_state.retrans.
-  base::TimeDelta timeout;
-  // Maximum number of attempts, see res_state.retry.
-  int attempts;
-  // Round robin entries in |nameservers| for subsequent requests.
-  bool rotate;
-  // Enable EDNS0 extensions.
-  bool edns0;
-};
-
-
 // Service for reading system DNS settings, on demand or when signalled by
 // internal watchers and NetworkChangeNotifier.
-class NET_EXPORT_PRIVATE DnsConfigService
-    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT_PRIVATE DnsConfigService {
  public:
   // Callback interface for the client, called on the same thread as
   // ReadConfig() and WatchConfig().
   typedef base::Callback<void(const DnsConfig& config)> CallbackType;
 
   // Creates the platform-specific DnsConfigService.
-  static scoped_ptr<DnsConfigService> CreateSystemService();
+  static std::unique_ptr<DnsConfigService> CreateSystemService();
 
   DnsConfigService();
   virtual ~DnsConfigService();
@@ -104,6 +44,15 @@ class NET_EXPORT_PRIVATE DnsConfigService
   void WatchConfig(const CallbackType& callback);
 
  protected:
+  enum WatchStatus {
+    DNS_CONFIG_WATCH_STARTED = 0,
+    DNS_CONFIG_WATCH_FAILED_TO_START_CONFIG,
+    DNS_CONFIG_WATCH_FAILED_TO_START_HOSTS,
+    DNS_CONFIG_WATCH_FAILED_CONFIG,
+    DNS_CONFIG_WATCH_FAILED_HOSTS,
+    DNS_CONFIG_WATCH_MAX,
+  };
+
   // Immediately attempts to read the current configuration.
   virtual void ReadNow() = 0;
   // Registers system watchers. Returns true iff succeeds.
@@ -120,6 +69,8 @@ class NET_EXPORT_PRIVATE DnsConfigService
   void OnHostsRead(const DnsHosts& hosts);
 
   void set_watch_failed(bool value) { watch_failed_ = value; }
+
+  THREAD_CHECKER(thread_checker_);
 
  private:
   // The timer counts from the last Invalidate* until complete config is read.
@@ -151,7 +102,7 @@ class NET_EXPORT_PRIVATE DnsConfigService
   base::TimeTicks last_sent_empty_time_;
 
   // Started in Invalidate*, cleared in On*Read.
-  base::OneShotTimer<DnsConfigService> timer_;
+  base::OneShotTimer timer_;
 
   DISALLOW_COPY_AND_ASSIGN(DnsConfigService);
 };

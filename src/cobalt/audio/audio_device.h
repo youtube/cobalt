@@ -15,15 +15,11 @@
 #ifndef COBALT_AUDIO_AUDIO_DEVICE_H_
 #define COBALT_AUDIO_AUDIO_DEVICE_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace audio {
@@ -32,11 +28,7 @@ class AudioDevice {
  public:
   class RenderCallback {
    public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
     typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-    typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
     // |all_consumed| will be set to true if all audio frames has been consumed.
     // This gives the AudioDestinationNode a chance to decide if the AudioDevice
@@ -58,7 +50,7 @@ class AudioDevice {
 
  private:
   class Impl;
-  const scoped_ptr<Impl> impl_;
+  const std::unique_ptr<Impl> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDevice);
 };

@@ -5,20 +5,29 @@
 #ifndef BASE_MEMORY_REF_COUNTED_MEMORY_H_
 #define BASE_MEMORY_REF_COUNTED_MEMORY_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/shared_memory.h"
+#include "base/memory/shared_memory_mapping.h"
+#include "starboard/types.h"
 
 namespace base {
 
-// A generic interface to memory. This object is reference counted because one
-// of its two subclasses own the data they carry, and we need to have
-// heterogeneous containers of these two types of memory.
+// Cobalt does not support multiple process and shared memory.
+#if !defined(STARBOARD)
+class ReadOnlySharedMemoryRegion;
+#endif
+
+// A generic interface to memory. This object is reference counted because most
+// of its subclasses own the data they carry, and this interface needs to
+// support heterogeneous containers of these different types of memory.
 class BASE_EXPORT RefCountedMemory
-    : public base::RefCountedThreadSafe<RefCountedMemory> {
+    : public RefCountedThreadSafe<RefCountedMemory> {
  public:
   // Retrieves a pointer to the beginning of the data we point to. If the data
   // is empty, this will return NULL.
@@ -30,8 +39,13 @@ class BASE_EXPORT RefCountedMemory
   // Returns true if |other| is byte for byte equal.
   bool Equals(const scoped_refptr<RefCountedMemory>& other) const;
 
+  // Handy method to simplify calling front() with a reinterpret_cast.
+  template<typename T> const T* front_as() const {
+    return reinterpret_cast<const T*>(front());
+  }
+
  protected:
-  friend class base::RefCountedThreadSafe<RefCountedMemory>;
+  friend class RefCountedThreadSafe<RefCountedMemory>;
   RefCountedMemory();
   virtual ~RefCountedMemory();
 };
@@ -40,17 +54,17 @@ class BASE_EXPORT RefCountedMemory
 // matter.
 class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
  public:
-  RefCountedStaticMemory()
-      : data_(NULL), length_(0) {}
-  RefCountedStaticMemory(const unsigned char* data, size_t length)
-      : data_(length ? data : NULL), length_(length) {}
+  RefCountedStaticMemory() : data_(nullptr), length_(0) {}
+  RefCountedStaticMemory(const void* data, size_t length)
+      : data_(static_cast<const unsigned char*>(length ? data : nullptr)),
+        length_(length) {}
 
-  // Overridden from RefCountedMemory:
-  virtual const unsigned char* front() const override;
-  virtual size_t size() const override;
+  // RefCountedMemory:
+  const unsigned char* front() const override;
+  size_t size() const override;
 
  private:
-  virtual ~RefCountedStaticMemory();
+  ~RefCountedStaticMemory() override;
 
   const unsigned char* data_;
   size_t length_;
@@ -58,36 +72,52 @@ class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
   DISALLOW_COPY_AND_ASSIGN(RefCountedStaticMemory);
 };
 
-// An implementation of RefCountedMemory, where we own our the data in a
+// An implementation of RefCountedMemory, where the data is stored in a STL
 // vector.
 class BASE_EXPORT RefCountedBytes : public RefCountedMemory {
  public:
   RefCountedBytes();
 
-  // Constructs a RefCountedBytes object by _copying_ from |initializer|.
-  RefCountedBytes(const std::vector<unsigned char>& initializer);
+  // Constructs a RefCountedBytes object by copying from |initializer|.
+  explicit RefCountedBytes(const std::vector<unsigned char>& initializer);
+
+  // Constructs a RefCountedBytes object by copying |size| bytes from |p|.
+  RefCountedBytes(const unsigned char* p, size_t size);
+
+  // Constructs a RefCountedBytes object by zero-initializing a new vector of
+  // |size| bytes.
+  explicit RefCountedBytes(size_t size);
 
   // Constructs a RefCountedBytes object by performing a swap. (To non
   // destructively build a RefCountedBytes, use the constructor that takes a
   // vector.)
-  static RefCountedBytes* TakeVector(std::vector<unsigned char>* to_destroy);
+  static scoped_refptr<RefCountedBytes> TakeVector(
+      std::vector<unsigned char>* to_destroy);
 
-  // Overridden from RefCountedMemory:
-  virtual const unsigned char* front() const override;
-  virtual size_t size() const override;
+  // RefCountedMemory:
+  const unsigned char* front() const override;
+  size_t size() const override;
 
   const std::vector<unsigned char>& data() const { return data_; }
   std::vector<unsigned char>& data() { return data_; }
 
+  // Non-const versions of front() and front_as() that are simply shorthand for
+  // data().data().
+  unsigned char* front() { return data_.data(); }
+  template <typename T>
+  T* front_as() {
+    return reinterpret_cast<T*>(front());
+  }
+
  private:
-  virtual ~RefCountedBytes();
+  ~RefCountedBytes() override;
 
   std::vector<unsigned char> data_;
 
   DISALLOW_COPY_AND_ASSIGN(RefCountedBytes);
 };
 
-// An implementation of RefCountedMemory, where the bytes are stored in an STL
+// An implementation of RefCountedMemory, where the bytes are stored in a STL
 // string. Use this if your data naturally arrives in that format.
 class BASE_EXPORT RefCountedString : public RefCountedMemory {
  public:
@@ -96,22 +126,75 @@ class BASE_EXPORT RefCountedString : public RefCountedMemory {
   // Constructs a RefCountedString object by performing a swap. (To non
   // destructively build a RefCountedString, use the default constructor and
   // copy into object->data()).
-  static RefCountedString* TakeString(std::string* to_destroy);
+  static scoped_refptr<RefCountedString> TakeString(std::string* to_destroy);
 
-  // Overridden from RefCountedMemory:
-  virtual const unsigned char* front() const override;
-  virtual size_t size() const override;
+  // RefCountedMemory:
+  const unsigned char* front() const override;
+  size_t size() const override;
 
   const std::string& data() const { return data_; }
   std::string& data() { return data_; }
 
  private:
-  virtual ~RefCountedString();
+  ~RefCountedString() override;
 
   std::string data_;
 
   DISALLOW_COPY_AND_ASSIGN(RefCountedString);
 };
+
+// Starboard doesn't curretly support multiple processes or shared memory.
+#if !defined(STARBOARD)
+// An implementation of RefCountedMemory, where the bytes are stored in
+// SharedMemory.
+class BASE_EXPORT RefCountedSharedMemory : public RefCountedMemory {
+ public:
+  // Constructs a RefCountedMemory object by taking ownership of an already
+  // mapped SharedMemory object.
+  RefCountedSharedMemory(std::unique_ptr<SharedMemory> shm, size_t size);
+
+  // RefCountedMemory:
+  const unsigned char* front() const override;
+  size_t size() const override;
+
+ private:
+  ~RefCountedSharedMemory() override;
+
+  const std::unique_ptr<SharedMemory> shm_;
+  const size_t size_;
+
+  DISALLOW_COPY_AND_ASSIGN(RefCountedSharedMemory);
+};
+
+// Cobalt does not support multiple process and shared memory.
+#if !defined(STARBOARD)
+// An implementation of RefCountedMemory, where the bytes are stored in
+// ReadOnlySharedMemoryMapping.
+class BASE_EXPORT RefCountedSharedMemoryMapping : public RefCountedMemory {
+ public:
+  // Constructs a RefCountedMemory object by taking ownership of an already
+  // mapped ReadOnlySharedMemoryMapping object.
+  explicit RefCountedSharedMemoryMapping(ReadOnlySharedMemoryMapping mapping);
+
+  // Convenience method to map all of |region| and take ownership of the
+  // mapping. Returns an empty scoped_refptr if the map operation fails.
+  static scoped_refptr<RefCountedSharedMemoryMapping> CreateFromWholeRegion(
+      const ReadOnlySharedMemoryRegion& region);
+
+  // RefCountedMemory:
+  const unsigned char* front() const override;
+  size_t size() const override;
+
+ private:
+  ~RefCountedSharedMemoryMapping() override;
+
+  const ReadOnlySharedMemoryMapping mapping_;
+  const size_t size_;
+
+  DISALLOW_COPY_AND_ASSIGN(RefCountedSharedMemoryMapping);
+};
+#endif  // !defined(STARBOARD)
+#endif
 
 }  // namespace base
 

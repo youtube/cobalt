@@ -23,22 +23,38 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/types.h"
 #endif
 
-#if (defined(OS_POSIX) || defined(OS_STARBOARD)) && !defined(COMPILER_MSVC)
-
-#if (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
+#if (defined(OS_POSIX) || defined(OS_FUCHSIA)) && \
+    (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
 #error "inttypes.h has already been included before this header file, but "
 #error "without __STDC_FORMAT_MACROS defined."
 #endif
 
-#if !defined(__STDC_FORMAT_MACROS)
+#if (defined(OS_POSIX) || defined(STARBOARD) || defined(OS_FUCHSIA)) && \
+    !defined(__STDC_FORMAT_MACROS)
 #define __STDC_FORMAT_MACROS
 #endif
 
 #include <inttypes.h>
+
+#if defined(OS_WIN)
+
+#if !defined(PRId64) || !defined(PRIu64) || !defined(PRIx64)
+#error "inttypes.h provided by win toolchain should define these."
+#endif
+
+#define WidePRId64 L"I64d"
+#define WidePRIu64 L"I64u"
+#define WidePRIx64 L"I64x"
+
+#if !defined(PRIuS)
+#define PRIuS "Iu"
+#endif
+
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 
 // GCC will concatenate wide and narrow strings correctly, so nothing needs to
 // be done here.
@@ -50,29 +66,34 @@
 #define PRIuS "zu"
 #endif
 
-#else  // (defined(OS_POSIX) || defined(OS_STARBOARD)) &&
-       // !defined(COMPILER_MSVC)
+#endif  // defined(OS_WIN)
 
-#if !defined(PRId64)
-#define PRId64 "I64d"
+// The size of NSInteger and NSUInteger varies between 32-bit and 64-bit
+// architectures and Apple does not provides standard format macros and
+// recommends casting. This has many drawbacks, so instead define macros
+// for formatting those types.
+#if defined(OS_MACOSX)
+#if defined(ARCH_CPU_64_BITS)
+#if !defined(PRIdNS)
+#define PRIdNS "ld"
 #endif
-
-#if !defined(PRIu64)
-#define PRIu64 "I64u"
+#if !defined(PRIuNS)
+#define PRIuNS "lu"
 #endif
-
-#if !defined(PRIx64)
-#define PRIx64 "I64x"
+#if !defined(PRIxNS)
+#define PRIxNS "lx"
 #endif
-
-#define WidePRId64 L"I64d"
-#define WidePRIu64 L"I64u"
-#define WidePRIx64 L"I64x"
-
-#if !defined(PRIuS)
-#define PRIuS "Iu"
+#else  // defined(ARCH_CPU_64_BITS)
+#if !defined(PRIdNS)
+#define PRIdNS "d"
 #endif
-
+#if !defined(PRIuNS)
+#define PRIuNS "u"
 #endif
+#if !defined(PRIxNS)
+#define PRIxNS "x"
+#endif
+#endif
+#endif  // defined(OS_MACOSX)
 
 #endif  // BASE_FORMAT_MACROS_H_

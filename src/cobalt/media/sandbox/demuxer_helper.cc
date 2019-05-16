@@ -213,29 +213,29 @@ class DemuxerHelper::DemuxerHostStub : public ::media::DemuxerHost {
  private:
   // DataSourceHost methods
   void SetTotalBytes(int64 total_bytes) override {
-    UNREFERENCED_PARAMETER(total_bytes);
+    SB_UNREFERENCED_PARAMETER(total_bytes);
   }
   void AddBufferedByteRange(int64 start, int64 end) override {
-    UNREFERENCED_PARAMETER(start);
-    UNREFERENCED_PARAMETER(end);
+    SB_UNREFERENCED_PARAMETER(start);
+    SB_UNREFERENCED_PARAMETER(end);
   }
   void AddBufferedTimeRange(base::TimeDelta start,
                             base::TimeDelta end) override {
-    UNREFERENCED_PARAMETER(start);
-    UNREFERENCED_PARAMETER(end);
+    SB_UNREFERENCED_PARAMETER(start);
+    SB_UNREFERENCED_PARAMETER(end);
   }
 
   // DemuxerHost methods
   void SetDuration(base::TimeDelta duration) override {
-    UNREFERENCED_PARAMETER(duration);
+    SB_UNREFERENCED_PARAMETER(duration);
   }
   void OnDemuxerError(::media::PipelineStatus error) override {
-    UNREFERENCED_PARAMETER(error);
+    SB_UNREFERENCED_PARAMETER(error);
   }
 };
 
 DemuxerHelper::DemuxerHelper(
-    const scoped_refptr<base::MessageLoopProxy>& media_message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
     loader::FetcherFactory* fetcher_factory, const GURL& video_url,
     const DemuxerReadyCB& demuxer_ready_cb)
     : host_(new DemuxerHostStub) {
@@ -244,7 +244,7 @@ DemuxerHelper::DemuxerHelper(
 }
 
 DemuxerHelper::DemuxerHelper(
-    const scoped_refptr<base::MessageLoopProxy>& media_message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
     loader::FetcherFactory* fetcher_factory, const GURL& video_url,
     const DemuxerReadyCB& demuxer_ready_cb, uint64 bytes_to_cache)
     : host_(new DemuxerHostStub) {
@@ -257,7 +257,7 @@ DemuxerHelper::DemuxerHelper(
 DemuxerHelper::~DemuxerHelper() { delete host_; }
 
 void DemuxerHelper::CreateDemuxer(
-    const scoped_refptr<base::MessageLoopProxy>& media_message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
     loader::FetcherFactory* fetcher_factory, const GURL& video_url,
     const DemuxerReadyCB& demuxer_ready_cb, uint64 bytes_to_cache) {
   DCHECK(media_message_loop);

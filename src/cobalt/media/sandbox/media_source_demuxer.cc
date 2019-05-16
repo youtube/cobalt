@@ -15,25 +15,19 @@
 #include "cobalt/media/sandbox/media_source_demuxer.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/sys_byteorder.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/bind_to_loop.h"
-#include "media/base/demuxer.h"
-#include "media/base/pipeline_status.h"
-#include "media/filters/chunk_demuxer.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -53,10 +47,10 @@ typedef base::Callback<void(::media::DecoderBuffer*)> AppendBufferCB;
 const char kSourceId[] = "id";
 
 // Stub log function.
-void Log(const std::string& message) { UNREFERENCED_PARAMETER(message); }
+void Log(const std::string& message) { SB_UNREFERENCED_PARAMETER(message); }
 
 // Stub need key callback.
-void NeedKeyCB(const std::string& type, scoped_array<uint8> init_data,
+void NeedKeyCB(const std::string& type, std::unique_ptr<uint8[]> init_data,
                int init_data_size) {
   NOTREACHED();
 }
@@ -107,7 +101,7 @@ class Loader : public ::media::DemuxerHost {
         this, ::media::BindToCurrentLoop(
                   Bind(&Loader::OnDemuxerStatus, base::Unretained(this))));
     while (valid_ && !ended_) {
-      MessageLoop::current()->RunUntilIdle();
+      base::RunLoop().RunUntilIdle();
     }
   }
 
@@ -116,20 +110,20 @@ class Loader : public ::media::DemuxerHost {
 
  private:
   void SetTotalBytes(int64 total_bytes) override {
-    UNREFERENCED_PARAMETER(total_bytes);
+    SB_UNREFERENCED_PARAMETER(total_bytes);
   }
   void AddBufferedByteRange(int64 start, int64 end) override {
-    UNREFERENCED_PARAMETER(start);
-    UNREFERENCED_PARAMETER(end);
+    SB_UNREFERENCED_PARAMETER(start);
+    SB_UNREFERENCED_PARAMETER(end);
   }
   void AddBufferedTimeRange(base::TimeDelta start,
                             base::TimeDelta end) override {
-    UNREFERENCED_PARAMETER(start);
-    UNREFERENCED_PARAMETER(end);
+    SB_UNREFERENCED_PARAMETER(start);
+    SB_UNREFERENCED_PARAMETER(end);
   }
 
   void SetDuration(base::TimeDelta duration) override {
-    UNREFERENCED_PARAMETER(duration);
+    SB_UNREFERENCED_PARAMETER(duration);
   }
   void OnDemuxerError(::media::PipelineStatus error) override {
     valid_ = false;
@@ -147,7 +141,7 @@ class Loader : public ::media::DemuxerHost {
     while (valid_ && !ended_) {
       ConsumeContent();
       ProduceBuffer();
-      MessageLoop::current()->RunUntilIdle();
+      base::RunLoop().RunUntilIdle();
     }
   }
   void OnDemuxerStatus(::media::PipelineStatus status) {

@@ -6,7 +6,10 @@
 #define BASE_I18N_STRING_SEARCH_H_
 
 #include "base/i18n/base_i18n_export.h"
-#include "base/string16.h"
+#include "base/strings/string16.h"
+#include "starboard/types.h"
+
+struct UStringSearch;
 
 namespace base {
 namespace i18n {
@@ -23,6 +26,27 @@ BASE_I18N_EXPORT
                                             const string16& in_this,
                                             size_t* match_index,
                                             size_t* match_length);
+
+// This class is for speeding up multiple StringSearchIgnoringCaseAndAccents()
+// with the same |find_this| argument. |find_this| is passed as the constructor
+// argument, and precomputation for searching is done only at that timing.
+class BASE_I18N_EXPORT FixedPatternStringSearchIgnoringCaseAndAccents {
+ public:
+  explicit FixedPatternStringSearchIgnoringCaseAndAccents(
+      const string16& find_this);
+  ~FixedPatternStringSearchIgnoringCaseAndAccents();
+
+  // Returns true if |in_this| contains |find_this|. If |match_index| or
+  // |match_length| are non-NULL, they are assigned the start position and total
+  // length of the match.
+  bool Search(const string16& in_this,
+              size_t* match_index,
+              size_t* match_length);
+
+ private:
+  string16 find_this_;
+  UStringSearch* search_;
+};
 
 }  // namespace i18n
 }  // namespace base

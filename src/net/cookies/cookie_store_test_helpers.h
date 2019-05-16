@@ -11,94 +11,180 @@
 #include <vector>
 
 #include "base/callback_forward.h"
+#include "base/macros.h"
+#include "base/synchronization/lock.h"
+#include "net/cookies/cookie_change_dispatcher.h"
+#include "net/log/net_log_with_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+class GURL;
+
 namespace net {
+
+class DelayedCookieMonsterChangeDispatcher : public CookieChangeDispatcher {
+ public:
+  DelayedCookieMonsterChangeDispatcher();
+  ~DelayedCookieMonsterChangeDispatcher() override;
+
+  // net::CookieChangeDispatcher
+  std::unique_ptr<CookieChangeSubscription> AddCallbackForCookie(
+      const GURL& url,
+      const std::string& name,
+      CookieChangeCallback callback) override WARN_UNUSED_RESULT;
+  std::unique_ptr<CookieChangeSubscription> AddCallbackForUrl(
+      const GURL& url,
+      CookieChangeCallback callback) override WARN_UNUSED_RESULT;
+  std::unique_ptr<CookieChangeSubscription> AddCallbackForAllChanges(
+      CookieChangeCallback callback) override WARN_UNUSED_RESULT;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(DelayedCookieMonsterChangeDispatcher);
+};
 
 class DelayedCookieMonster : public CookieStore {
  public:
   DelayedCookieMonster();
 
+  ~DelayedCookieMonster() override;
+
   // Call the asynchronous CookieMonster function, expect it to immediately
   // invoke the internal callback.
   // Post a delayed task to invoke the original callback with the results.
 
-  virtual void SetCookieWithOptionsAsync(
+  void SetCookieWithOptionsAsync(
       const GURL& url,
       const std::string& cookie_line,
       const CookieOptions& options,
-      const CookieMonster::SetCookiesCallback& callback) override;
+      CookieMonster::SetCookiesCallback callback) override;
 
-  virtual void GetCookiesWithOptionsAsync(
-      const GURL& url, const CookieOptions& options,
-      const CookieMonster::GetCookiesCallback& callback) override;
+  void SetCanonicalCookieAsync(std::unique_ptr<CanonicalCookie> cookie,
+                               bool secure_source,
+                               bool modify_http_only,
+                               SetCookiesCallback callback) override;
 
-  virtual void GetCookiesWithInfoAsync(
-      const GURL& url,
-      const CookieOptions& options,
-      const CookieMonster::GetCookieInfoCallback& callback) override;
+  void GetCookieListWithOptionsAsync(const GURL& url,
+                                     const CookieOptions& options,
+                                     GetCookieListCallback callback) override;
+
+  void GetAllCookiesAsync(GetCookieListCallback callback) override;
 
   virtual bool SetCookieWithOptions(const GURL& url,
                                     const std::string& cookie_line,
                                     const CookieOptions& options);
 
-  virtual std::string GetCookiesWithOptions(const GURL& url,
-                                            const CookieOptions& options);
-
-  virtual void GetCookiesWithInfo(const GURL& url,
-                                  const CookieOptions& options,
-                                  std::string* cookie_line,
-                                  std::vector<CookieInfo>* cookie_infos);
-
   virtual void DeleteCookie(const GURL& url,
                             const std::string& cookie_name);
 
-  virtual void DeleteCookieAsync(const GURL& url,
-                                 const std::string& cookie_name,
-                                 const base::Closure& callback) override;
+  void DeleteCookieAsync(const GURL& url,
+                         const std::string& cookie_name,
+                         base::OnceClosure callback) override;
 
-  virtual void DeleteAllCreatedBetweenAsync(
-      const base::Time& delete_begin,
-      const base::Time& delete_end,
-      const DeleteCallback& callback) override;
+  void DeleteCanonicalCookieAsync(const CanonicalCookie& cookie,
+                                  DeleteCallback callback) override;
 
-  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) override;
+  void DeleteAllCreatedInTimeRangeAsync(
+      const CookieDeletionInfo::TimeRange& creation_range,
+      DeleteCallback callback) override;
 
-  virtual CookieMonster* GetCookieMonster() override;
+  void DeleteAllMatchingInfoAsync(net::CookieDeletionInfo delete_info,
+                                  DeleteCallback callback) override;
+
+  void DeleteSessionCookiesAsync(DeleteCallback) override;
+
+  void FlushStore(base::OnceClosure callback) override;
+
+  CookieChangeDispatcher& GetChangeDispatcher() override;
+
+  bool IsEphemeral() override;
 
  private:
-
   // Be called immediately from CookieMonster.
-
-  void GetCookiesInternalCallback(
-      const std::string& cookie_line,
-      const std::vector<CookieStore::CookieInfo>& cookie_info);
 
   void SetCookiesInternalCallback(bool result);
 
   void GetCookiesWithOptionsInternalCallback(const std::string& cookie);
+  void GetCookieListWithOptionsInternalCallback(const CookieList& cookie);
 
   // Invoke the original callbacks.
 
-  void InvokeGetCookiesCallback(
-      const CookieMonster::GetCookieInfoCallback& callback);
+  void InvokeSetCookiesCallback(CookieMonster::SetCookiesCallback callback);
 
-  void InvokeSetCookiesCallback(
-      const CookieMonster::SetCookiesCallback& callback);
-
-  void InvokeGetCookieStringCallback(
-      const CookieMonster::GetCookiesCallback& callback);
+  void InvokeGetCookieListCallback(
+      CookieMonster::GetCookieListCallback callback);
 
   friend class base::RefCountedThreadSafe<DelayedCookieMonster>;
-  virtual ~DelayedCookieMonster();
 
-  scoped_refptr<CookieMonster> cookie_monster_;
+  std::unique_ptr<CookieMonster> cookie_monster_;
+  DelayedCookieMonsterChangeDispatcher change_dispatcher_;
 
   bool did_run_;
   bool result_;
   std::string cookie_;
   std::string cookie_line_;
-  std::vector<CookieStore::CookieInfo> cookie_info_;
+  CookieList cookie_list_;
+
+  DISALLOW_COPY_AND_ASSIGN(DelayedCookieMonster);
+};
+
+class CookieURLHelper {
+ public:
+  explicit CookieURLHelper(const std::string& url_string);
+
+  const std::string& domain() const { return domain_and_registry_; }
+  std::string host() const { return url_.host(); }
+  const GURL& url() const { return url_; }
+  const GURL AppendPath(const std::string& path) const;
+
+  // Return a new string with the following substitutions:
+  // 1. "%R" -> Domain registry (i.e. "com")
+  // 2. "%D" -> Domain + registry (i.e. "google.com")
+  std::string Format(const std::string& format_string) const;
+
+ private:
+  const GURL url_;
+  const std::string registry_;
+  const std::string domain_and_registry_;
+};
+
+// Mock PersistentCookieStore that keeps track of the number of Flush() calls.
+class FlushablePersistentStore : public CookieMonster::PersistentCookieStore {
+ public:
+  FlushablePersistentStore();
+
+  // CookieMonster::PersistentCookieStore implementation:
+  void Load(const LoadedCallback& loaded_callback,
+            const NetLogWithSource& net_log) override;
+  void LoadCookiesForKey(const std::string& key,
+                         const LoadedCallback& loaded_callback) override;
+  void AddCookie(const CanonicalCookie&) override;
+  void UpdateCookieAccessTime(const CanonicalCookie&) override;
+  void DeleteCookie(const CanonicalCookie&) override;
+  void SetForceKeepSessionState() override;
+  void SetBeforeFlushCallback(base::RepeatingClosure callback) override;
+  void Flush(base::OnceClosure callback) override;
+
+  int flush_count();
+
+ private:
+  ~FlushablePersistentStore() override;
+
+  int flush_count_;
+  base::Lock flush_count_lock_;  // Protects |flush_count_|.
+};
+
+// Counts the number of times Callback() has been run.
+class CallbackCounter : public base::RefCountedThreadSafe<CallbackCounter> {
+ public:
+  CallbackCounter();
+  void Callback();
+  int callback_count();
+
+ private:
+  friend class base::RefCountedThreadSafe<CallbackCounter>;
+  ~CallbackCounter();
+
+  int callback_count_;
+  base::Lock callback_count_lock_;  // Protects |callback_count_|.
 };
 
 }  // namespace net

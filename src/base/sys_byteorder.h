@@ -11,91 +11,74 @@
 #ifndef BASE_SYS_BYTEORDER_H_
 #define BASE_SYS_BYTEORDER_H_
 
-#include "base/basictypes.h"
+#include "base/logging.h"
 #include "build/build_config.h"
 
-#if defined(OS_STARBOARD)
-#include "starboard/client_porting/poem/inet_poem.h"
-#elif defined(OS_WIN)
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
-
-// Include headers to provide byteswap for all platforms.
-#if defined(OS_STARBOARD)
-#include "starboard/byte_swap.h"
-#elif defined(COMPILER_MSVC)
+#if defined(COMPILER_MSVC)
 #include <stdlib.h>
-#elif defined(OS_MACOSX)
-#include <libkern/OSByteOrder.h>
-#elif defined(OS_OPENBSD)
-#include <sys/endian.h>
-#else
-#include <byteswap.h>
-#endif
 
+#include "starboard/types.h"
+#endif
 
 namespace base {
 
 // Returns a value with all bytes in |x| swapped, i.e. reverses the endianness.
-inline uint16 ByteSwap(uint16 x) {
-#if defined(OS_STARBOARD)
-  return SbByteSwapU16(x);
-#elif defined(COMPILER_MSVC)
+inline uint16_t ByteSwap(uint16_t x) {
+#if defined(COMPILER_MSVC)
   return _byteswap_ushort(x);
-#elif defined(OS_MACOSX)
-  return OSSwapInt16(x);
-#elif defined(OS_OPENBSD)
-  return swap16(x);
 #else
-  return bswap_16(x);
+  return __builtin_bswap16(x);
 #endif
 }
-inline uint32 ByteSwap(uint32 x) {
-#if defined(OS_STARBOARD)
-  return SbByteSwapU32(x);
-#elif defined(COMPILER_MSVC)
+
+inline uint32_t ByteSwap(uint32_t x) {
+#if defined(COMPILER_MSVC)
   return _byteswap_ulong(x);
-#elif defined(OS_MACOSX)
-  return OSSwapInt32(x);
-#elif defined(OS_OPENBSD)
-  return swap32(x);
 #else
-  return bswap_32(x);
+  return __builtin_bswap32(x);
 #endif
 }
-inline uint64 ByteSwap(uint64 x) {
-#if defined(OS_STARBOARD)
-  return SbByteSwapU64(x);
-#elif defined(COMPILER_MSVC)
+
+inline uint64_t ByteSwap(uint64_t x) {
+#if defined(COMPILER_MSVC)
   return _byteswap_uint64(x);
-#elif defined(OS_MACOSX)
-  return OSSwapInt64(x);
-#elif defined(OS_OPENBSD)
-  return swap64(x);
 #else
-  return bswap_64(x);
+  return __builtin_bswap64(x);
 #endif
+}
+
+inline uintptr_t ByteSwapUintPtrT(uintptr_t x) {
+  // We do it this way because some build configurations are ILP32 even when
+  // defined(ARCH_CPU_64_BITS). Unfortunately, we can't use sizeof in #ifs. But,
+  // because these conditionals are constexprs, the irrelevant branches will
+  // likely be optimized away, so this construction should not result in code
+  // bloat.
+  if (sizeof(uintptr_t) == 4) {
+    return ByteSwap(static_cast<uint32_t>(x));
+  } else if (sizeof(uintptr_t) == 8) {
+    return ByteSwap(static_cast<uint64_t>(x));
+  } else {
+    NOTREACHED();
+  }
 }
 
 // Converts the bytes in |x| from host order (endianness) to little endian, and
 // returns the result.
-inline uint16 ByteSwapToLE16(uint16 x) {
+inline uint16_t ByteSwapToLE16(uint16_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return x;
 #else
   return ByteSwap(x);
 #endif
 }
-inline uint32 ByteSwapToLE32(uint32 x) {
+inline uint32_t ByteSwapToLE32(uint32_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return x;
 #else
   return ByteSwap(x);
 #endif
 }
-inline uint64 ByteSwapToLE64(uint64 x) {
+inline uint64_t ByteSwapToLE64(uint64_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return x;
 #else
@@ -105,21 +88,21 @@ inline uint64 ByteSwapToLE64(uint64 x) {
 
 // Converts the bytes in |x| from network to host order (endianness), and
 // returns the result.
-inline uint16 NetToHost16(uint16 x) {
+inline uint16_t NetToHost16(uint16_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
   return x;
 #endif
 }
-inline uint32 NetToHost32(uint32 x) {
+inline uint32_t NetToHost32(uint32_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
   return x;
 #endif
 }
-inline uint64 NetToHost64(uint64 x) {
+inline uint64_t NetToHost64(uint64_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
@@ -129,21 +112,21 @@ inline uint64 NetToHost64(uint64 x) {
 
 // Converts the bytes in |x| from host to network order (endianness), and
 // returns the result.
-inline uint16 HostToNet16(uint16 x) {
+inline uint16_t HostToNet16(uint16_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
   return x;
 #endif
 }
-inline uint32 HostToNet32(uint32 x) {
+inline uint32_t HostToNet32(uint32_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
   return x;
 #endif
 }
-inline uint64 HostToNet64(uint64 x) {
+inline uint64_t HostToNet64(uint64_t x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
@@ -152,6 +135,5 @@ inline uint64 HostToNet64(uint64 x) {
 }
 
 }  // namespace base
-
 
 #endif  // BASE_SYS_BYTEORDER_H_

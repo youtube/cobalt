@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include "base/logging.h"
 #include "net/http/http_util.h"
@@ -27,33 +28,25 @@ bool WebSocketExtension::Parameter::Equals(const Parameter& other) const {
   return name_ == other.name_ && value_ == other.value_;
 }
 
-WebSocketExtension::WebSocketExtension() {}
+WebSocketExtension::WebSocketExtension() = default;
 
-WebSocketExtension::WebSocketExtension(const std::string& name) : name_(name) {}
+WebSocketExtension::WebSocketExtension(const std::string& name)
+    : name_(name) {}
 
-WebSocketExtension::WebSocketExtension(const WebSocketExtension& other) {
-  name_ = other.name_;
-  parameters_ = other.parameters_;
-}
+WebSocketExtension::WebSocketExtension(const WebSocketExtension& other) =
+    default;
 
-WebSocketExtension::~WebSocketExtension() {}
+WebSocketExtension::~WebSocketExtension() = default;
 
 bool WebSocketExtension::Equals(const WebSocketExtension& other) const {
-  if (name_ != other.name_)
-    return false;
-  if (parameters_.size() != other.parameters_.size())
-    return false;
+  if (name_ != other.name_) return false;
+  if (parameters_.size() != other.parameters_.size()) return false;
 
   std::multimap<std::string, std::string> this_parameters, other_parameters;
-  for (std::vector<Parameter>::const_iterator iterator = parameters_.begin();
-       iterator != parameters_.end(); ++iterator) {
-    const Parameter& p(*iterator);
+  for (const auto& p : parameters_) {
     this_parameters.insert(std::make_pair(p.name(), p.value()));
   }
-  for (std::vector<Parameter>::const_iterator iterator =
-           other.parameters_.begin();
-       iterator != other.parameters_.end(); ++iterator) {
-    const Parameter& p(*iterator);
+  for (const auto& p : other.parameters_) {
     other_parameters.insert(std::make_pair(p.name(), p.value()));
   }
   return this_parameters == other_parameters;
@@ -65,9 +58,7 @@ std::string WebSocketExtension::ToString() const {
 
   std::string result = name_;
 
-  for (std::vector<Parameter>::const_iterator iterator = parameters_.begin();
-       iterator != parameters_.end(); ++iterator) {
-    const Parameter& param(*iterator);
+  for (const auto& param : parameters_) {
     result += "; " + param.name();
     if (!param.HasValue())
       continue;

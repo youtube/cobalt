@@ -5,15 +5,16 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H_
 #define NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H_
 
-#include <map>
 #include <string>
-#include <vector>
 
-#include "base/synchronization/lock.h"
-#include "base/threading/platform_thread.h"
+#include "base/macros.h"
+#include "base/threading/thread_checker.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request.h"
 
+namespace base {
 template <typename T> struct DefaultSingletonTraits;
+}  // namespace base
 
 namespace net {
 
@@ -23,12 +24,9 @@ namespace net {
 //
 // MULTI-THREADING NOTICE:
 //   URLRequest is designed to have all consumers on a single thread, and
-//   so no attempt is made to support ProtocolFactory or Interceptor instances
-//   being registered/unregistered or in any way poked on multiple threads.
-//   However, we do support checking for supported schemes FROM ANY THREAD
-//   (i.e., it is safe to call SupportsScheme on any thread).
-//
-class URLRequestJobManager {
+//   so no attempt is made to support Interceptor instances being
+//   registered/unregistered or in any way poked on multiple threads.
+class NET_EXPORT URLRequestJobManager {
  public:
   // Returns the singleton instance.
   static URLRequestJobManager* GetInstance();
@@ -52,40 +50,27 @@ class URLRequestJobManager {
   URLRequestJob* MaybeInterceptResponse(
       URLRequest* request, NetworkDelegate* network_delegate) const;
 
-  // Returns true if there is a protocol factory registered for the given
-  // scheme.  Note: also returns true if there is a built-in handler for the
-  // given scheme.
-  bool SupportsScheme(const std::string& scheme) const;
-
-  // Register a protocol factory associated with the given scheme.  The factory
-  // parameter may be null to clear any existing association.  Returns the
-  // previously registered protocol factory if any.
-  URLRequest::ProtocolFactory* RegisterProtocolFactory(
-      const std::string& scheme, URLRequest::ProtocolFactory* factory);
-
-  // Register/unregister a request interceptor.
-  void RegisterRequestInterceptor(URLRequest::Interceptor* interceptor);
-  void UnregisterRequestInterceptor(URLRequest::Interceptor* interceptor);
+  // Returns true if the manager has a built-in handler for |scheme|.
+  static bool SupportsScheme(const std::string& scheme);
 
  private:
-  typedef std::map<std::string, URLRequest::ProtocolFactory*> FactoryMap;
-  typedef std::vector<URLRequest::Interceptor*> InterceptorList;
-  friend struct DefaultSingletonTraits<URLRequestJobManager>;
+  friend struct base::DefaultSingletonTraits<URLRequestJobManager>;
 
   URLRequestJobManager();
   ~URLRequestJobManager();
 
-  // The first guy to call this function sets the allowed thread.  This way we
-  // avoid needing to define that thread externally.  Since we expect all
-  // callers to be on the same thread, we don't worry about threads racing to
-  // set the allowed thread.
+  // The first call to this function sets the allowed thread.  This way we avoid
+  // needing to define that thread externally.  Since we expect all callers to
+  // be on the same thread, we don't worry about threads racing to set the
+  // allowed thread.
   bool IsAllowedThread() const {
 #if 0
-    if (!allowed_thread_initialized_) {
-      allowed_thread_ = base::PlatformThread::CurrentId();
-      allowed_thread_initialized_ = true;
-    }
-    return allowed_thread_ == base::PlatformThread::CurrentId();
+    return thread_checker_.CalledOnValidThread();
+  }
+
+  // We use this to assert that CreateJob and the registration functions all
+  // run on the same thread.
+  base::ThreadChecker thread_checker_;
 #else
     // The previous version of this check used GetCurrentThread on Windows to
     // get thread handles to compare. Unfortunately, GetCurrentThread returns
@@ -97,16 +82,7 @@ class URLRequestJobManager {
     // check back on.
     return true;
   }
-
-  // We use this to assert that CreateJob and the registration functions all
-  // run on the same thread.
-  mutable base::PlatformThreadId allowed_thread_;
-  mutable bool allowed_thread_initialized_;
 #endif
-
-  mutable base::Lock lock_;
-  FactoryMap factories_;
-  InterceptorList interceptors_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJobManager);
 };

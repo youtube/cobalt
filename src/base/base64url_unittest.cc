@@ -4,6 +4,7 @@
 
 #include "base/base64url.h"
 
+#include "base/macros.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

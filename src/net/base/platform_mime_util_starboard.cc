@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@
 namespace net {
 
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
-    const FilePath::StringType& ext,
+    const base::FilePath::StringType& ext,
     std::string* result) const {
   // Returns false if the mime type is unknown. We don't know about any mime
   // types!
   return false;
 }
 
-bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
+bool PlatformMimeUtil::GetPlatformPreferredExtensionForMimeType(
     const std::string& mime_type,
-    FilePath::StringType* ext) const {
+    base::FilePath::StringType* ext) const {
   // This function is allowed to return false if there are no "preferred" mime
   // types according to the platform.
   return false;
@@ -36,6 +36,6 @@ bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
 
 void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
     const std::string& mime_type,
-    base::hash_set<FilePath::StringType>* extensions) const {}
+    std::unordered_set<base::FilePath::StringType>* extensions) const {}
 
 }  // namespace net

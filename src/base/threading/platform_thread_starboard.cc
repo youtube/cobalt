@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,14 @@
 
 #include "base/threading/platform_thread.h"
 
-#include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/threading/thread_local.h"
+#include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/tracked_objects.h"
 #include "starboard/thread.h"
 
 namespace base {
 
 namespace {
-
-LazyInstance< ThreadLocalPointer<char> >::Leaky current_thread_name =
-    LAZY_INSTANCE_INITIALIZER;
 
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
@@ -41,7 +36,17 @@ void* ThreadFunc(void* params) {
   }
 
   delete thread_params;
+
+  ThreadIdNameManager::GetInstance()->RegisterThread(
+      PlatformThread::CurrentHandle().platform_handle(),
+      PlatformThread::CurrentId());
+
   delegate->ThreadMain();
+
+  ThreadIdNameManager::GetInstance()->RemoveName(
+      PlatformThread::CurrentHandle().platform_handle(),
+      PlatformThread::CurrentId());
+
   return NULL;
 }
 
@@ -60,7 +65,7 @@ bool CreateThread(size_t stack_size,
                                    name, ThreadFunc, params);
   if (SbThreadIsValid(thread)) {
     if (thread_handle) {
-      *thread_handle = thread;
+      *thread_handle = PlatformThreadHandle(thread);
     }
 
     return true;
@@ -72,12 +77,21 @@ bool CreateThread(size_t stack_size,
 inline SbThreadPriority toSbPriority(ThreadPriority priority) {
   return static_cast<SbThreadPriority>(priority);
 }
-
 }  // namespace
 
 // static
 PlatformThreadId PlatformThread::CurrentId() {
   return SbThreadGetId();
+}
+
+// static
+PlatformThreadRef PlatformThread::CurrentRef() {
+  return PlatformThreadRef(SbThreadGetCurrent());
+}
+
+// static
+PlatformThreadHandle PlatformThread::CurrentHandle() {
+  return PlatformThreadHandle(SbThreadGetCurrent());
 }
 
 // static
@@ -91,28 +105,19 @@ void PlatformThread::Sleep(TimeDelta duration) {
 }
 
 // static
-void PlatformThread::SetName(const char* name) {
-  // have to cast away const because ThreadLocalPointer does not support const
-  // void*
-  current_thread_name.Pointer()->Set(const_cast<char*>(name));
-  SbThreadSetName(name);
+void PlatformThread::SetName(const std::string& name) {
+  ThreadIdNameManager::GetInstance()->SetName(name);
+  SbThreadSetName(name.c_str());
 }
 
 // static
 const char* PlatformThread::GetName() {
-  return current_thread_name.Pointer()->Get();
+  return ThreadIdNameManager::GetInstance()->GetName(CurrentId());
 }
 
 // static
-bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
-                            PlatformThreadHandle* thread_handle) {
-  return CreateThread(stack_size, kSbThreadNoPriority, kSbThreadNoAffinity,
-                      true /* joinable thread */, NULL, delegate,
-                      thread_handle);
-}
-
-// static
-bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
+bool PlatformThread::CreateWithPriority(size_t stack_size,
+                                        Delegate* delegate,
                                         PlatformThreadHandle* thread_handle,
                                         ThreadPriority priority) {
   return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
@@ -121,8 +126,10 @@ bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
 }
 
 // static
-bool PlatformThread::CreateNonJoinable(size_t stack_size, Delegate* delegate) {
-  return CreateThread(stack_size, kSbThreadNoPriority, kSbThreadNoAffinity,
+bool PlatformThread::CreateNonJoinableWithPriority(size_t stack_size,
+                                                   Delegate* delegate,
+                                                   ThreadPriority priority) {
+  return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
                       false /* joinable thread */, NULL, delegate, NULL);
 }
 
@@ -131,17 +138,26 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // Joining another thread may block the current thread for a long time, since
   // the thread referred to by |thread_handle| may still be running long-lived /
   // blocking tasks.
-  base::ThreadRestrictions::AssertIOAllowed();
-  SbThreadJoin(thread_handle, NULL);
+  AssertBlockingAllowed();
+  SbThreadJoin(thread_handle.platform_handle(), NULL);
+}
+
+void PlatformThread::Detach(PlatformThreadHandle thread_handle) {
+  SbThreadDetach(thread_handle.platform_handle());
+}
+
+void PlatformThread::SetCurrentThreadPriority(ThreadPriority priority) {
+  NOTIMPLEMENTED();
+}
+
+ThreadPriority PlatformThread::GetCurrentThreadPriority() {
+  NOTIMPLEMENTED();
+  return ThreadPriority::NORMAL;
 }
 
 // static
-bool PlatformThread::CreateWithOptions(const PlatformThreadOptions& options,
-                                       Delegate* delegate,
-                                       PlatformThreadHandle* thread_handle) {
-  return CreateThread(options.stack_size, toSbPriority(options.priority),
-                      options.affinity, true /* joinable */, NULL, delegate,
-                      thread_handle);
+bool PlatformThread::CanIncreaseThreadPriority(ThreadPriority priority) {
+  return false;
 }
 
 }  // namespace base

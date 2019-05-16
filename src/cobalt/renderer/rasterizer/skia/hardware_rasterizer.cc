@@ -15,9 +15,10 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
 #include <algorithm>
+#include <memory>
+#include <unordered_map>
 
-#include "base/containers/linked_hash_map.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -35,12 +36,12 @@
 #include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 #include "third_party/skia/include/gpu/GrRenderTarget.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
+#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
 
 namespace {
@@ -85,7 +86,7 @@ class HardwareRasterizer::Impl {
   void ReleaseContext();
 
  private:
-  typedef base::linked_hash_map<int32_t, sk_sp<SkSurface>> SkSurfaceMap;
+  typedef std::unordered_map<int32_t, sk_sp<SkSurface>> SkSurfaceMap;
   class CachedScratchSurfaceHolder
       : public RenderTreeNodeVisitor::ScratchSurface {
    public:
@@ -101,7 +102,7 @@ class HardwareRasterizer::Impl {
   };
 
   sk_sp<SkSurface> CreateSkSurface(const math::Size& size);
-  scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
+  std::unique_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
 
   void RasterizeRenderTreeToCanvas(
@@ -122,21 +123,21 @@ class HardwareRasterizer::Impl {
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextEGL* graphics_context_;
-  scoped_ptr<render_tree::ResourceProvider> resource_provider_;
+  std::unique_ptr<render_tree::ResourceProvider> resource_provider_;
 
   sk_sp<GrContext> gr_context_;
 
   SkSurfaceMap sk_output_surface_map_;
 
-  base::optional<ScratchSurfaceCache> scratch_surface_cache_;
+  base::Optional<ScratchSurfaceCache> scratch_surface_cache_;
 
-  base::optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
+  base::Optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
 
   // Valid only for the duration of a call to RasterizeRenderTreeToCanvas().
   // Useful for directing textured_mesh_renderer_ on whether to flip its y-axis
   // or not since Skia does not let us pull that information out of the
   // SkCanvas object (which Skia would internally use to get this information).
-  base::optional<GrSurfaceOrigin> current_surface_origin_;
+  base::Optional<GrSurfaceOrigin> current_surface_origin_;
 
   // If true, rasterizer will eschew performance optimizations in favor of
   // ensuring that each rasterization is pixel-wise deterministic, given
@@ -238,7 +239,7 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
 // pixel width is actually half the size specified because there are two Y
 // values in each pixel.
 math::RectF AdjustContentRegionForImageType(
-    const base::optional<AlternateRgbaFormat>& alternate_rgba_format,
+    const base::Optional<AlternateRgbaFormat>& alternate_rgba_format,
     const math::RectF& content_region) {
   if (!alternate_rgba_format) {
     return content_region;
@@ -350,46 +351,46 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
       result.type =
           egl::TexturedMeshRenderer::Image::YUV_3PLANE_BT601_FULL_RANGE;
       result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0),
+          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
           stereo_mode);
       result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1),
+          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
           stereo_mode);
       result.textures[2] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(2),
+          local_transform, hardware_image->GetHardwareFrontendImage(2).get(),
           stereo_mode);
     } else if (hardware_image->GetFormat() ==
                render_tree::kMultiPlaneImageFormatYUV2PlaneBT709) {
       result.type = egl::TexturedMeshRenderer::Image::YUV_2PLANE_BT709;
       result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0),
+          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
           stereo_mode);
       result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1),
+          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
           stereo_mode);
     } else if (hardware_image->GetFormat() ==
                render_tree::kMultiPlaneImageFormatYUV3PlaneBT709) {
       result.type = egl::TexturedMeshRenderer::Image::YUV_3PLANE_BT709;
       result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0),
+          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
           stereo_mode);
       result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1),
+          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
           stereo_mode);
       result.textures[2] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(2),
+          local_transform, hardware_image->GetHardwareFrontendImage(2).get(),
           stereo_mode);
     } else if (hardware_image->GetFormat() ==
                render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020) {
       result.type = egl::TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_BT2020;
       result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0),
+          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
           stereo_mode);
       result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1),
+          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
           stereo_mode);
       result.textures[2] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(2),
+          local_transform, hardware_image->GetHardwareFrontendImage(2).get(),
           stereo_mode);
     }
   } else {
@@ -682,7 +683,7 @@ void HardwareRasterizer::Impl::Submit(
   }
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
-      graphics_context_, render_target_egl);
+      graphics_context_, render_target_egl.get());
 
   // First reset the graphics context state for the pending render tree
   // draw calls, in case we have modified state in between.
@@ -711,7 +712,7 @@ void HardwareRasterizer::Impl::Submit(
     canvas->flush();
   }
 
-  graphics_context_->SwapBuffers(render_target_egl);
+  graphics_context_->SwapBuffers(render_target_egl.get());
   canvas->restore();
 }
 
@@ -735,7 +736,7 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
   }
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
-      graphics_context_, render_target_egl);
+      graphics_context_, render_target_egl.get());
 
   // Create a canvas from the render target.
   GrBackendRenderTargetDesc skia_desc =
@@ -783,17 +784,18 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateSkSurface(
                                      image_info);
 }
 
-scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>
+std::unique_ptr<RenderTreeNodeVisitor::ScratchSurface>
 HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
   TRACE_EVENT2("cobalt::renderer", "HardwareRasterizer::CreateScratchImage()",
                "width", size.width(), "height", size.height());
 
-  scoped_ptr<CachedScratchSurfaceHolder> scratch_surface(
+  std::unique_ptr<CachedScratchSurfaceHolder> scratch_surface(
       new CachedScratchSurfaceHolder(&scratch_surface_cache_.value(), size));
   if (scratch_surface->GetSurface()) {
-    return scratch_surface.PassAs<RenderTreeNodeVisitor::ScratchSurface>();
+    return std::unique_ptr<RenderTreeNodeVisitor::ScratchSurface>(
+        scratch_surface.release());
   } else {
-    return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>();
+    return std::unique_ptr<RenderTreeNodeVisitor::ScratchSurface>();
   }
 }
 
@@ -846,7 +848,7 @@ void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
   // expected. Remove after switching to webdriver benchmark.
   TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
 
-  base::optional<GrSurfaceOrigin> old_origin = current_surface_origin_;
+  base::Optional<GrSurfaceOrigin> old_origin = current_surface_origin_;
   current_surface_origin_.emplace(origin);
 
   RenderTreeNodeVisitor::CreateScratchSurfaceFunction

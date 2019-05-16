@@ -17,9 +17,9 @@
 
 #include <string>
 
-#include "googleurl/src/gurl.h"
 #include "net/base/static_cookie_policy.h"
 #include "net/url_request/url_request.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace network {
@@ -47,44 +47,72 @@ class NetworkDelegate : public net::NetworkDelegate {
  protected:
   // net::NetworkDelegate implementation.
   int OnBeforeURLRequest(net::URLRequest* request,
-                         const net::CompletionCallback& callback,
+                         net::CompletionOnceCallback callback,
                          GURL* new_url) override;
-  int OnBeforeSendHeaders(net::URLRequest* request,
-                          const net::CompletionCallback& callback,
-                          net::HttpRequestHeaders* headers) override;
-  void OnSendHeaders(net::URLRequest* request,
-                     const net::HttpRequestHeaders& headers) override;
+  int OnBeforeStartTransaction(net::URLRequest* request,
+                               net::CompletionOnceCallback callback,
+                               net::HttpRequestHeaders* headers) override;
+  void OnBeforeSendHeaders(net::URLRequest* request,
+                           const net::ProxyInfo& proxy_info,
+                           const net::ProxyRetryInfoMap& proxy_retry_info,
+                           net::HttpRequestHeaders* headers) override;
+  void OnStartTransaction(net::URLRequest* request,
+                          const net::HttpRequestHeaders& headers) override;
   int OnHeadersReceived(
-      net::URLRequest* request, const net::CompletionCallback& callback,
+      net::URLRequest* request, net::CompletionOnceCallback callback,
       const net::HttpResponseHeaders* original_response_headers,
-      scoped_refptr<net::HttpResponseHeaders>* override_response_headers)
-      override;
+      scoped_refptr<net::HttpResponseHeaders>* override_response_headers,
+      GURL* allowed_unsafe_redirect_url) override;
   void OnBeforeRedirect(net::URLRequest* request,
                         const GURL& new_location) override;
-  void OnResponseStarted(net::URLRequest* request) override;
-  void OnRawBytesRead(const net::URLRequest& request, int bytes_read) override;
-  void OnCompleted(net::URLRequest* request, bool started) override;
+  void OnResponseStarted(net::URLRequest* request, int net_error) override;
+  void OnNetworkBytesReceived(net::URLRequest* request,
+                              int64_t bytes_received) override;
+  void OnNetworkBytesSent(net::URLRequest* request,
+                          int64_t bytes_sent) override;
+  void OnCompleted(net::URLRequest* request, bool started,
+                   int net_error) override;
   void OnURLRequestDestroyed(net::URLRequest* request) override;
 
-  void OnPACScriptError(int line_number, const string16& error) override;
-  AuthRequiredResponse OnAuthRequired(
+  void OnPACScriptError(int line_number, const base::string16& error) override;
+  net::NetworkDelegate::AuthRequiredResponse OnAuthRequired(
       net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
-      const AuthCallback& callback, net::AuthCredentials* credentials) override;
+      AuthCallback callback, net::AuthCredentials* credentials) override;
   bool OnCanGetCookies(const net::URLRequest& request,
-                       const net::CookieList& cookie_list) override;
+                       const net::CookieList& cookie_list,
+                       bool allowed_from_caller) override;
   bool OnCanSetCookie(const net::URLRequest& request,
-                      const std::string& cookie_line,
-                      net::CookieOptions* options) override;
+                      const net::CanonicalCookie& cookie,
+                      net::CookieOptions* options,
+                      bool allowed_from_caller) override;
   bool OnCanAccessFile(const net::URLRequest& request,
-                       const FilePath& path) const override;
-  bool OnCanThrottleRequest(const net::URLRequest& request) const override;
+                       const base::FilePath& original_path,
+                       const base::FilePath& absolute_path) const override;
+  virtual bool OnCanEnablePrivacyMode(
+      const GURL& url, const GURL& site_for_cookies) const override;
+  virtual bool OnAreExperimentalCookieFeaturesEnabled() const override;
+  virtual bool OnCancelURLRequestWithPolicyViolatingReferrerHeader(
+      const net::URLRequest& request, const GURL& target_url,
+      const GURL& referrer_url) const override;
 
-  int OnBeforeSocketStreamConnect(
-      net::SocketStream* stream,
-      const net::CompletionCallback& callback) override;
+  // Background knowledge for the following functions taken from Chromium's
+  // README in net/reporting/:
+  // Reporting is a central mechanism for sending out-of-band error reports
+  // to origins from various other components (e.g. HTTP Public Key Pinning,
+  // Interventions, or Content Security Policy could potentially use it).
+  virtual bool OnCanQueueReportingReport(
+      const url::Origin& origin) const override;
 
-  void OnRequestWaitStateChange(const net::URLRequest& request,
-                                RequestWaitState state) override;
+  virtual void OnCanSendReportingReports(
+      std::set<url::Origin> origins,
+      base::OnceCallback<void(std::set<url::Origin>)> result_callback)
+      const override;
+
+  virtual bool OnCanSetReportingClient(const url::Origin& origin,
+                                       const GURL& endpoint) const override;
+
+  virtual bool OnCanUseReportingClient(const url::Origin& origin,
+                                       const GURL& endpoint) const override;
 
   net::StaticCookiePolicy::Type ComputeCookiePolicy() const;
 

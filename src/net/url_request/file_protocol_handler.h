@@ -5,9 +5,17 @@
 #ifndef NET_URL_REQUEST_FILE_PROTOCOL_HANDLER_H_
 #define NET_URL_REQUEST_FILE_PROTOCOL_HANDLER_H_
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
+#include "base/memory/ref_counted.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request_job_factory.h"
+
+class GURL;
+
+namespace base {
+class TaskRunner;
+}
 
 namespace net {
 
@@ -19,11 +27,16 @@ class URLRequestJob;
 class NET_EXPORT FileProtocolHandler :
     public URLRequestJobFactory::ProtocolHandler {
  public:
-  FileProtocolHandler();
-  virtual URLRequestJob* MaybeCreateJob(
-      URLRequest* request, NetworkDelegate* network_delegate) const override;
+  explicit FileProtocolHandler(
+      const scoped_refptr<base::TaskRunner>& file_task_runner);
+  ~FileProtocolHandler() override;
+  URLRequestJob* MaybeCreateJob(
+      URLRequest* request,
+      NetworkDelegate* network_delegate) const override;
+  bool IsSafeRedirectTarget(const GURL& location) const override;
 
  private:
+  const scoped_refptr<base::TaskRunner> file_task_runner_;
   DISALLOW_COPY_AND_ASSIGN(FileProtocolHandler);
 };
 

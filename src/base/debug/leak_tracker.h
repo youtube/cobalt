@@ -5,8 +5,10 @@
 #ifndef BASE_DEBUG_LEAK_TRACKER_H_
 #define BASE_DEBUG_LEAK_TRACKER_H_
 
-// Only enable leak tracking in debug builds.
-#ifndef NDEBUG
+#include "build/build_config.h"
+
+// Only enable leak tracking in non-uClibc debug builds.
+#if !defined(NDEBUG) && !defined(__UCLIBC__)
 #define ENABLE_LEAK_TRACKER
 #endif
 
@@ -14,6 +16,7 @@
 #include "base/containers/linked_list.h"
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 #endif  // ENABLE_LEAK_TRACKER
 
 // LeakTracker is a helper to verify that all instances of a class
@@ -52,6 +55,8 @@ namespace debug {
 template<typename T>
 class LeakTracker {
  public:
+  // This destructor suppresses warnings about instances of this class not being
+  // used.
   ~LeakTracker() {}
   static void CheckForLeaks() {}
   static int NumLiveInstances() { return -1; }
@@ -103,7 +108,7 @@ class LeakTracker : public LinkNode<LeakTracker<T> > {
     // doesn't optimize it out, and it will appear in mini-dumps).
     if (count == 0x1234) {
       for (size_t i = 0; i < kMaxStackTracesToCopyOntoStack; ++i)
-        stacktraces[i].PrintBacktrace();
+        stacktraces[i].Print();
     }
   }
 

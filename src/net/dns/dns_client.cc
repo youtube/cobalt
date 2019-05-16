@@ -4,11 +4,12 @@
 
 #include "net/dns/dns_client.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/rand_util.h"
-#include "net/base/net_log.h"
 #include "net/dns/address_sorter.h"
-#include "net/dns/dns_config_service.h"
+#include "net/dns/dns_config.h"
 #include "net/dns/dns_session.h"
 #include "net/dns/dns_socket_pool.h"
 #include "net/dns/dns_transaction.h"
@@ -20,49 +21,68 @@ namespace {
 
 class DnsClientImpl : public DnsClient {
  public:
-  explicit DnsClientImpl(NetLog* net_log)
+  DnsClientImpl(NetLog* net_log,
+                ClientSocketFactory* socket_factory,
+                const RandIntCallback& rand_int_callback)
       : address_sorter_(AddressSorter::CreateAddressSorter()),
-        net_log_(net_log) {}
+        net_log_(net_log),
+        socket_factory_(socket_factory),
+        rand_int_callback_(rand_int_callback) {}
 
-  virtual void SetConfig(const DnsConfig& config) override {
+  void SetConfig(const DnsConfig& config) override {
     factory_.reset();
-    session_ = NULL;
-    if (config.IsValid()) {
-      ClientSocketFactory* factory = ClientSocketFactory::GetDefaultFactory();
-      session_ = new DnsSession(config,
-                                DnsSocketPool::CreateDefault(factory),
-                                base::Bind(&base::RandInt),
-                                net_log_);
-      factory_ = DnsTransactionFactory::CreateFactory(session_);
+    session_ = nullptr;
+    if (config.IsValid() && !config.unhandled_options) {
+      std::unique_ptr<DnsSocketPool> socket_pool(
+          config.randomize_ports
+              ? DnsSocketPool::CreateDefault(socket_factory_,
+                                             rand_int_callback_)
+              : DnsSocketPool::CreateNull(socket_factory_, rand_int_callback_));
+      session_ = new DnsSession(config, std::move(socket_pool),
+                                rand_int_callback_, net_log_);
+      factory_ = DnsTransactionFactory::CreateFactory(session_.get());
     }
   }
 
-  virtual const DnsConfig* GetConfig() const override {
+  const DnsConfig* GetConfig() const override {
     return session_.get() ? &session_->config() : NULL;
   }
 
-  virtual DnsTransactionFactory* GetTransactionFactory() override {
+  DnsTransactionFactory* GetTransactionFactory() override {
     return session_.get() ? factory_.get() : NULL;
   }
 
-  virtual AddressSorter* GetAddressSorter() override {
-    return address_sorter_.get();
-  }
+  AddressSorter* GetAddressSorter() override { return address_sorter_.get(); }
 
  private:
   scoped_refptr<DnsSession> session_;
-  scoped_ptr<DnsTransactionFactory> factory_;
-  scoped_ptr<AddressSorter> address_sorter_;
+  std::unique_ptr<DnsTransactionFactory> factory_;
+  std::unique_ptr<AddressSorter> address_sorter_;
 
   NetLog* net_log_;
+
+  ClientSocketFactory* socket_factory_;
+  const RandIntCallback rand_int_callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsClientImpl);
 };
 
 }  // namespace
 
 // static
-scoped_ptr<DnsClient> DnsClient::CreateClient(NetLog* net_log) {
-  return scoped_ptr<DnsClient>(new DnsClientImpl(net_log));
+std::unique_ptr<DnsClient> DnsClient::CreateClient(NetLog* net_log) {
+  return std::make_unique<DnsClientImpl>(
+      net_log, ClientSocketFactory::GetDefaultFactory(),
+      base::Bind(&base::RandInt));
+}
+
+// static
+std::unique_ptr<DnsClient> DnsClient::CreateClientForTesting(
+    NetLog* net_log,
+    ClientSocketFactory* socket_factory,
+    const RandIntCallback& rand_int_callback) {
+  return std::make_unique<DnsClientImpl>(net_log, socket_factory,
+                                         rand_int_callback);
 }
 
 }  // namespace net
-

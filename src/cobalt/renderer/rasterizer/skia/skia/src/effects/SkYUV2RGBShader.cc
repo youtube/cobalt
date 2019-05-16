@@ -22,8 +22,8 @@
 #include "third_party/skia/include/core/SkString.h"
 #include "third_party/skia/include/core/SkWriteBuffer.h"
 #include "third_party/skia/src/core/SkReadBuffer.h"
-#include "third_party/skia/src/gpu/effects/GrYUVEffect.h"
 #include "third_party/skia/src/gpu/GrFragmentProcessor.h"
+#include "third_party/skia/src/gpu/effects/GrYUVEffect.h"
 #include "third_party/skia/src/shaders/SkImageShader.h"
 
 SkYUV2RGBShader::SkYUV2RGBShader(SkYUVColorSpace color_space,

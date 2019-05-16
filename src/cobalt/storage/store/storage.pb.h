@@ -21,10 +21,10 @@
 
 #include <google/protobuf/arena.h>
 #include <google/protobuf/arenastring.h>
+#include <google/protobuf/extension_set.h>
 #include <google/protobuf/generated_message_util.h>
 #include <google/protobuf/message_lite.h>
 #include <google/protobuf/repeated_field.h>
-#include <google/protobuf/extension_set.h>
 // @@protoc_insertion_point(includes)
 
 namespace cobalt {
@@ -56,7 +56,7 @@ class Cookie : public ::google::protobuf::MessageLite {
 
   static const Cookie& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
@@ -64,7 +64,7 @@ class Cookie : public ::google::protobuf::MessageLite {
   static inline const Cookie* internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(Cookie* other);
 
@@ -86,20 +86,22 @@ class Cookie : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(Cookie* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
@@ -182,7 +184,6 @@ class Cookie : public ::google::protobuf::MessageLite {
 
   // @@protoc_insertion_point(class_scope:cobalt.storage.Cookie)
  private:
-
   ::google::protobuf::internal::ArenaStringPtr _unknown_fields_;
   ::google::protobuf::Arena* _arena_ptr_;
 
@@ -197,13 +198,15 @@ class Cookie : public ::google::protobuf::MessageLite {
   bool secure_;
   bool http_only_;
   mutable int _cached_size_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void
+  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+#endif
   friend void protobuf_AssignDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  friend void protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+  friend void
+  protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
 
   void InitAsDefaultInstance();
   static Cookie* default_instance_;
@@ -224,7 +227,7 @@ class LocalStorageEntry : public ::google::protobuf::MessageLite {
 
   static const LocalStorageEntry& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
@@ -232,7 +235,7 @@ class LocalStorageEntry : public ::google::protobuf::MessageLite {
   static inline const LocalStorageEntry* internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(LocalStorageEntry* other);
 
@@ -254,20 +257,22 @@ class LocalStorageEntry : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(LocalStorageEntry* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
@@ -298,7 +303,6 @@ class LocalStorageEntry : public ::google::protobuf::MessageLite {
 
   // @@protoc_insertion_point(class_scope:cobalt.storage.LocalStorageEntry)
  private:
-
   ::google::protobuf::internal::ArenaStringPtr _unknown_fields_;
   ::google::protobuf::Arena* _arena_ptr_;
 
@@ -306,13 +310,15 @@ class LocalStorageEntry : public ::google::protobuf::MessageLite {
   ::google::protobuf::internal::ArenaStringPtr key_;
   ::google::protobuf::internal::ArenaStringPtr value_;
   mutable int _cached_size_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void
+  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+#endif
   friend void protobuf_AssignDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  friend void protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+  friend void
+  protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
 
   void InitAsDefaultInstance();
   static LocalStorageEntry* default_instance_;
@@ -333,7 +339,7 @@ class LocalStorage : public ::google::protobuf::MessageLite {
 
   static const LocalStorage& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
@@ -341,7 +347,7 @@ class LocalStorage : public ::google::protobuf::MessageLite {
   static inline const LocalStorage* internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(LocalStorage* other);
 
@@ -363,20 +369,22 @@ class LocalStorage : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(LocalStorage* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
@@ -398,31 +406,36 @@ class LocalStorage : public ::google::protobuf::MessageLite {
   int local_storage_entries_size() const;
   void clear_local_storage_entries();
   static const int kLocalStorageEntriesFieldNumber = 2;
-  const ::cobalt::storage::LocalStorageEntry& local_storage_entries(int index) const;
-  ::cobalt::storage::LocalStorageEntry* mutable_local_storage_entries(int index);
+  const ::cobalt::storage::LocalStorageEntry& local_storage_entries(
+      int index) const;
+  ::cobalt::storage::LocalStorageEntry* mutable_local_storage_entries(
+      int index);
   ::cobalt::storage::LocalStorageEntry* add_local_storage_entries();
-  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry >*
-      mutable_local_storage_entries();
-  const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry >&
-      local_storage_entries() const;
+  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry>*
+  mutable_local_storage_entries();
+  const ::google::protobuf::RepeatedPtrField<
+      ::cobalt::storage::LocalStorageEntry>&
+  local_storage_entries() const;
 
   // @@protoc_insertion_point(class_scope:cobalt.storage.LocalStorage)
  private:
-
   ::google::protobuf::internal::ArenaStringPtr _unknown_fields_;
   ::google::protobuf::Arena* _arena_ptr_;
 
   bool _is_default_instance_;
   ::google::protobuf::internal::ArenaStringPtr serialized_origin_;
-  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry > local_storage_entries_;
+  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry>
+      local_storage_entries_;
   mutable int _cached_size_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void
+  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+#endif
   friend void protobuf_AssignDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  friend void protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+  friend void
+  protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
 
   void InitAsDefaultInstance();
   static LocalStorage* default_instance_;
@@ -443,7 +456,7 @@ class Storage : public ::google::protobuf::MessageLite {
 
   static const Storage& default_instance();
 
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
   // Returns the internal default instance pointer. This function can
   // return NULL thus should not be used by the user. This is intended
   // for Protobuf internal code. Please use default_instance() declared
@@ -451,7 +464,7 @@ class Storage : public ::google::protobuf::MessageLite {
   static inline const Storage* internal_default_instance() {
     return default_instance_;
   }
-  #endif
+#endif
 
   GOOGLE_ATTRIBUTE_NOINLINE void Swap(Storage* other);
 
@@ -473,20 +486,22 @@ class Storage : public ::google::protobuf::MessageLite {
       ::google::protobuf::io::CodedOutputStream* output) const;
   void DiscardUnknownFields();
   int GetCachedSize() const { return _cached_size_; }
-  private:
+
+ private:
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(Storage* other);
-  private:
+
+ private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _arena_ptr_;
   }
   inline ::google::protobuf::Arena* MaybeArenaPtr() const {
     return _arena_ptr_;
   }
-  public:
 
+ public:
   ::std::string GetTypeName() const;
 
   // nested types ----------------------------------------------------
@@ -500,10 +515,10 @@ class Storage : public ::google::protobuf::MessageLite {
   const ::cobalt::storage::Cookie& cookies(int index) const;
   ::cobalt::storage::Cookie* mutable_cookies(int index);
   ::cobalt::storage::Cookie* add_cookies();
-  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie >*
-      mutable_cookies();
-  const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie >&
-      cookies() const;
+  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie>*
+  mutable_cookies();
+  const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie>&
+  cookies() const;
 
   // repeated .cobalt.storage.LocalStorage local_storages = 2;
   int local_storages_size() const;
@@ -512,28 +527,30 @@ class Storage : public ::google::protobuf::MessageLite {
   const ::cobalt::storage::LocalStorage& local_storages(int index) const;
   ::cobalt::storage::LocalStorage* mutable_local_storages(int index);
   ::cobalt::storage::LocalStorage* add_local_storages();
-  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage >*
-      mutable_local_storages();
-  const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage >&
-      local_storages() const;
+  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage>*
+  mutable_local_storages();
+  const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage>&
+  local_storages() const;
 
   // @@protoc_insertion_point(class_scope:cobalt.storage.Storage)
  private:
-
   ::google::protobuf::internal::ArenaStringPtr _unknown_fields_;
   ::google::protobuf::Arena* _arena_ptr_;
 
   bool _is_default_instance_;
-  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie > cookies_;
-  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage > local_storages_;
+  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie> cookies_;
+  ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage>
+      local_storages_;
   mutable int _cached_size_;
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
-  #else
-  friend void  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  #endif
+#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
+  friend void
+  protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto_impl();
+#else
+  friend void protobuf_AddDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+#endif
   friend void protobuf_AssignDesc_cobalt_2fstorage_2fstore_2fstorage_2eproto();
-  friend void protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
+  friend void
+  protobuf_ShutdownFile_cobalt_2fstorage_2fstore_2fstorage_2eproto();
 
   void InitAsDefaultInstance();
   static Storage* default_instance_;
@@ -548,177 +565,185 @@ class Storage : public ::google::protobuf::MessageLite {
 
 // optional string name = 1;
 inline void Cookie::clear_name() {
-  name_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  name_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& Cookie::name() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Cookie.name)
-  return name_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return name_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_name(const ::std::string& value) {
-  
-  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+                   value);
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.name)
 }
 inline void Cookie::set_name(const char* value) {
-  
-  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+                   ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.Cookie.name)
 }
 inline void Cookie::set_name(const char* value, size_t size) {
-  
   name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
+                   ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.Cookie.name)
 }
 inline ::std::string* Cookie::mutable_name() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.Cookie.name)
-  return name_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return name_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* Cookie::release_name() {
   // @@protoc_insertion_point(field_release:cobalt.storage.Cookie.name)
-  
-  return name_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return name_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_allocated_name(::std::string* name) {
   if (name != NULL) {
-    
   } else {
-    
   }
-  name_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), name);
+  name_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), name);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.Cookie.name)
 }
 
 // optional string value = 2;
 inline void Cookie::clear_value() {
-  value_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  value_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& Cookie::value() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Cookie.value)
-  return value_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return value_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_value(const ::std::string& value) {
-  
-  value_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  value_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.value)
 }
 inline void Cookie::set_value(const char* value) {
-  
-  value_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  value_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.Cookie.value)
 }
 inline void Cookie::set_value(const char* value, size_t size) {
-  
-  value_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+  value_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.Cookie.value)
 }
 inline ::std::string* Cookie::mutable_value() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.Cookie.value)
-  return value_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return value_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* Cookie::release_value() {
   // @@protoc_insertion_point(field_release:cobalt.storage.Cookie.value)
-  
-  return value_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return value_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_allocated_value(::std::string* value) {
   if (value != NULL) {
-    
   } else {
-    
   }
-  value_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  value_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.Cookie.value)
 }
 
 // optional string domain = 3;
 inline void Cookie::clear_domain() {
-  domain_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  domain_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& Cookie::domain() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Cookie.domain)
-  return domain_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return domain_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_domain(const ::std::string& value) {
-  
-  domain_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  domain_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.domain)
 }
 inline void Cookie::set_domain(const char* value) {
-  
-  domain_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  domain_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.Cookie.domain)
 }
 inline void Cookie::set_domain(const char* value, size_t size) {
-  
-  domain_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+  domain_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.Cookie.domain)
 }
 inline ::std::string* Cookie::mutable_domain() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.Cookie.domain)
-  return domain_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return domain_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* Cookie::release_domain() {
   // @@protoc_insertion_point(field_release:cobalt.storage.Cookie.domain)
-  
-  return domain_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return domain_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_allocated_domain(::std::string* domain) {
   if (domain != NULL) {
-    
   } else {
-    
   }
-  domain_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), domain);
+  domain_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), domain);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.Cookie.domain)
 }
 
 // optional string path = 4;
 inline void Cookie::clear_path() {
-  path_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  path_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& Cookie::path() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Cookie.path)
-  return path_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return path_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_path(const ::std::string& value) {
-  
-  path_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  path_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+                   value);
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.path)
 }
 inline void Cookie::set_path(const char* value) {
-  
-  path_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  path_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+                   ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.Cookie.path)
 }
 inline void Cookie::set_path(const char* value, size_t size) {
-  
   path_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
+                   ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.Cookie.path)
 }
 inline ::std::string* Cookie::mutable_path() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.Cookie.path)
-  return path_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return path_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* Cookie::release_path() {
   // @@protoc_insertion_point(field_release:cobalt.storage.Cookie.path)
-  
-  return path_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return path_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Cookie::set_allocated_path(::std::string* path) {
   if (path != NULL) {
-    
   } else {
-    
   }
-  path_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), path);
+  path_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), path);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.Cookie.path)
 }
 
@@ -731,7 +756,6 @@ inline ::google::protobuf::int64 Cookie::creation_time_us() const {
   return creation_time_us_;
 }
 inline void Cookie::set_creation_time_us(::google::protobuf::int64 value) {
-  
   creation_time_us_ = value;
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.creation_time_us)
 }
@@ -745,7 +769,6 @@ inline ::google::protobuf::int64 Cookie::expiration_time_us() const {
   return expiration_time_us_;
 }
 inline void Cookie::set_expiration_time_us(::google::protobuf::int64 value) {
-  
   expiration_time_us_ = value;
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.expiration_time_us)
 }
@@ -759,35 +782,28 @@ inline ::google::protobuf::int64 Cookie::last_access_time_us() const {
   return last_access_time_us_;
 }
 inline void Cookie::set_last_access_time_us(::google::protobuf::int64 value) {
-  
   last_access_time_us_ = value;
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.last_access_time_us)
 }
 
 // optional bool secure = 8;
-inline void Cookie::clear_secure() {
-  secure_ = false;
-}
+inline void Cookie::clear_secure() { secure_ = false; }
 inline bool Cookie::secure() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Cookie.secure)
   return secure_;
 }
 inline void Cookie::set_secure(bool value) {
-  
   secure_ = value;
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.secure)
 }
 
 // optional bool http_only = 9;
-inline void Cookie::clear_http_only() {
-  http_only_ = false;
-}
+inline void Cookie::clear_http_only() { http_only_ = false; }
 inline bool Cookie::http_only() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Cookie.http_only)
   return http_only_;
 }
 inline void Cookie::set_http_only(bool value) {
-  
   http_only_ = value;
   // @@protoc_insertion_point(field_set:cobalt.storage.Cookie.http_only)
 }
@@ -798,89 +814,93 @@ inline void Cookie::set_http_only(bool value) {
 
 // optional string key = 1;
 inline void LocalStorageEntry::clear_key() {
-  key_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  key_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& LocalStorageEntry::key() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.LocalStorageEntry.key)
-  return key_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return key_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void LocalStorageEntry::set_key(const ::std::string& value) {
-  
-  key_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  key_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+                  value);
   // @@protoc_insertion_point(field_set:cobalt.storage.LocalStorageEntry.key)
 }
 inline void LocalStorageEntry::set_key(const char* value) {
-  
-  key_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  key_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+                  ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.LocalStorageEntry.key)
 }
 inline void LocalStorageEntry::set_key(const char* value, size_t size) {
-  
   key_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
+                  ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.LocalStorageEntry.key)
 }
 inline ::std::string* LocalStorageEntry::mutable_key() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.LocalStorageEntry.key)
-  return key_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return key_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* LocalStorageEntry::release_key() {
   // @@protoc_insertion_point(field_release:cobalt.storage.LocalStorageEntry.key)
-  
-  return key_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return key_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void LocalStorageEntry::set_allocated_key(::std::string* key) {
   if (key != NULL) {
-    
   } else {
-    
   }
-  key_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), key);
+  key_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), key);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.LocalStorageEntry.key)
 }
 
 // optional string value = 2;
 inline void LocalStorageEntry::clear_value() {
-  value_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  value_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& LocalStorageEntry::value() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.LocalStorageEntry.value)
-  return value_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return value_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void LocalStorageEntry::set_value(const ::std::string& value) {
-  
-  value_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  value_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set:cobalt.storage.LocalStorageEntry.value)
 }
 inline void LocalStorageEntry::set_value(const char* value) {
-  
-  value_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  value_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.LocalStorageEntry.value)
 }
 inline void LocalStorageEntry::set_value(const char* value, size_t size) {
-  
-  value_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+  value_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.LocalStorageEntry.value)
 }
 inline ::std::string* LocalStorageEntry::mutable_value() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.LocalStorageEntry.value)
-  return value_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return value_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* LocalStorageEntry::release_value() {
   // @@protoc_insertion_point(field_release:cobalt.storage.LocalStorageEntry.value)
-  
-  return value_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return value_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void LocalStorageEntry::set_allocated_value(::std::string* value) {
   if (value != NULL) {
-    
   } else {
-    
   }
-  value_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  value_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.LocalStorageEntry.value)
 }
 
@@ -890,45 +910,51 @@ inline void LocalStorageEntry::set_allocated_value(::std::string* value) {
 
 // optional string serialized_origin = 1;
 inline void LocalStorage::clear_serialized_origin() {
-  serialized_origin_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  serialized_origin_.ClearToEmptyNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline const ::std::string& LocalStorage::serialized_origin() const {
   // @@protoc_insertion_point(field_get:cobalt.storage.LocalStorage.serialized_origin)
-  return serialized_origin_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return serialized_origin_.GetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void LocalStorage::set_serialized_origin(const ::std::string& value) {
-  
-  serialized_origin_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  serialized_origin_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
   // @@protoc_insertion_point(field_set:cobalt.storage.LocalStorage.serialized_origin)
 }
 inline void LocalStorage::set_serialized_origin(const char* value) {
-  
-  serialized_origin_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  serialized_origin_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(value));
   // @@protoc_insertion_point(field_set_char:cobalt.storage.LocalStorage.serialized_origin)
 }
-inline void LocalStorage::set_serialized_origin(const char* value, size_t size) {
-  
-  serialized_origin_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+inline void LocalStorage::set_serialized_origin(const char* value,
+                                                size_t size) {
+  serialized_origin_.SetNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
   // @@protoc_insertion_point(field_set_pointer:cobalt.storage.LocalStorage.serialized_origin)
 }
 inline ::std::string* LocalStorage::mutable_serialized_origin() {
-  
   // @@protoc_insertion_point(field_mutable:cobalt.storage.LocalStorage.serialized_origin)
-  return serialized_origin_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  return serialized_origin_.MutableNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* LocalStorage::release_serialized_origin() {
   // @@protoc_insertion_point(field_release:cobalt.storage.LocalStorage.serialized_origin)
-  
-  return serialized_origin_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+
+  return serialized_origin_.ReleaseNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline void LocalStorage::set_allocated_serialized_origin(::std::string* serialized_origin) {
+inline void LocalStorage::set_allocated_serialized_origin(
+    ::std::string* serialized_origin) {
   if (serialized_origin != NULL) {
-    
   } else {
-    
   }
-  serialized_origin_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), serialized_origin);
+  serialized_origin_.SetAllocatedNoArena(
+      &::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      serialized_origin);
   // @@protoc_insertion_point(field_set_allocated:cobalt.storage.LocalStorage.serialized_origin)
 }
 
@@ -939,24 +965,29 @@ inline int LocalStorage::local_storage_entries_size() const {
 inline void LocalStorage::clear_local_storage_entries() {
   local_storage_entries_.Clear();
 }
-inline const ::cobalt::storage::LocalStorageEntry& LocalStorage::local_storage_entries(int index) const {
+inline const ::cobalt::storage::LocalStorageEntry&
+LocalStorage::local_storage_entries(int index) const {
   // @@protoc_insertion_point(field_get:cobalt.storage.LocalStorage.local_storage_entries)
   return local_storage_entries_.Get(index);
 }
-inline ::cobalt::storage::LocalStorageEntry* LocalStorage::mutable_local_storage_entries(int index) {
+inline ::cobalt::storage::LocalStorageEntry*
+LocalStorage::mutable_local_storage_entries(int index) {
   // @@protoc_insertion_point(field_mutable:cobalt.storage.LocalStorage.local_storage_entries)
   return local_storage_entries_.Mutable(index);
 }
-inline ::cobalt::storage::LocalStorageEntry* LocalStorage::add_local_storage_entries() {
+inline ::cobalt::storage::LocalStorageEntry*
+LocalStorage::add_local_storage_entries() {
   // @@protoc_insertion_point(field_add:cobalt.storage.LocalStorage.local_storage_entries)
   return local_storage_entries_.Add();
 }
-inline ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry >*
+inline ::google::protobuf::RepeatedPtrField<
+    ::cobalt::storage::LocalStorageEntry>*
 LocalStorage::mutable_local_storage_entries() {
   // @@protoc_insertion_point(field_mutable_list:cobalt.storage.LocalStorage.local_storage_entries)
   return &local_storage_entries_;
 }
-inline const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorageEntry >&
+inline const ::google::protobuf::RepeatedPtrField<
+    ::cobalt::storage::LocalStorageEntry>&
 LocalStorage::local_storage_entries() const {
   // @@protoc_insertion_point(field_list:cobalt.storage.LocalStorage.local_storage_entries)
   return local_storage_entries_;
@@ -967,12 +998,8 @@ LocalStorage::local_storage_entries() const {
 // Storage
 
 // repeated .cobalt.storage.Cookie cookies = 1;
-inline int Storage::cookies_size() const {
-  return cookies_.size();
-}
-inline void Storage::clear_cookies() {
-  cookies_.Clear();
-}
+inline int Storage::cookies_size() const { return cookies_.size(); }
+inline void Storage::clear_cookies() { cookies_.Clear(); }
 inline const ::cobalt::storage::Cookie& Storage::cookies(int index) const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Storage.cookies)
   return cookies_.Get(index);
@@ -985,12 +1012,12 @@ inline ::cobalt::storage::Cookie* Storage::add_cookies() {
   // @@protoc_insertion_point(field_add:cobalt.storage.Storage.cookies)
   return cookies_.Add();
 }
-inline ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie >*
+inline ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie>*
 Storage::mutable_cookies() {
   // @@protoc_insertion_point(field_mutable_list:cobalt.storage.Storage.cookies)
   return &cookies_;
 }
-inline const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie >&
+inline const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::Cookie>&
 Storage::cookies() const {
   // @@protoc_insertion_point(field_list:cobalt.storage.Storage.cookies)
   return cookies_;
@@ -1000,14 +1027,14 @@ Storage::cookies() const {
 inline int Storage::local_storages_size() const {
   return local_storages_.size();
 }
-inline void Storage::clear_local_storages() {
-  local_storages_.Clear();
-}
-inline const ::cobalt::storage::LocalStorage& Storage::local_storages(int index) const {
+inline void Storage::clear_local_storages() { local_storages_.Clear(); }
+inline const ::cobalt::storage::LocalStorage& Storage::local_storages(
+    int index) const {
   // @@protoc_insertion_point(field_get:cobalt.storage.Storage.local_storages)
   return local_storages_.Get(index);
 }
-inline ::cobalt::storage::LocalStorage* Storage::mutable_local_storages(int index) {
+inline ::cobalt::storage::LocalStorage* Storage::mutable_local_storages(
+    int index) {
   // @@protoc_insertion_point(field_mutable:cobalt.storage.Storage.local_storages)
   return local_storages_.Mutable(index);
 }
@@ -1015,12 +1042,13 @@ inline ::cobalt::storage::LocalStorage* Storage::add_local_storages() {
   // @@protoc_insertion_point(field_add:cobalt.storage.Storage.local_storages)
   return local_storages_.Add();
 }
-inline ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage >*
+inline ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage>*
 Storage::mutable_local_storages() {
   // @@protoc_insertion_point(field_mutable_list:cobalt.storage.Storage.local_storages)
   return &local_storages_;
 }
-inline const ::google::protobuf::RepeatedPtrField< ::cobalt::storage::LocalStorage >&
+inline const ::google::protobuf::RepeatedPtrField<
+    ::cobalt::storage::LocalStorage>&
 Storage::local_storages() const {
   // @@protoc_insertion_point(field_list:cobalt.storage.Storage.local_storages)
   return local_storages_;

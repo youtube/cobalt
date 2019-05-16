@@ -5,12 +5,14 @@
 #ifndef NET_BASE_IO_BUFFER_H_
 #define NET_BASE_IO_BUFFER_H_
 
+#include <memory>
 #include <string>
 
+#include "base/memory/free_deleter.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -73,9 +75,12 @@ namespace net {
 class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
   IOBuffer();
-  explicit IOBuffer(int buffer_size);
 
-  char* data() { return data_; }
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
+  explicit IOBuffer(int buffer_size);
+  explicit IOBuffer(size_t buffer_size);
+
+  char* data() const { return data_; }
 
  protected:
   friend class base::RefCountedThreadSafe<IOBuffer>;
@@ -95,16 +100,21 @@ class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 // argument to IO functions. Please keep using IOBuffer* for API declarations.
 class NET_EXPORT IOBufferWithSize : public IOBuffer {
  public:
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
   explicit IOBufferWithSize(int size);
+  explicit IOBufferWithSize(size_t size);
 
   int size() const { return size_; }
 
  protected:
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
+  IOBufferWithSize(char* data, int size);
+
   // Purpose of this constructor is to give a subclass access to the base class
   // constructor IOBuffer(char*) thus allowing subclass to use underlying
   // memory it does not own.
-  IOBufferWithSize(char* data, int size);
-  virtual ~IOBufferWithSize();
+  IOBufferWithSize(char* data, size_t size);
+  ~IOBufferWithSize() override;
 
   int size_;
 };
@@ -114,11 +124,12 @@ class NET_EXPORT IOBufferWithSize : public IOBuffer {
 class NET_EXPORT StringIOBuffer : public IOBuffer {
  public:
   explicit StringIOBuffer(const std::string& s);
+  explicit StringIOBuffer(std::unique_ptr<std::string> s);
 
   int size() const { return static_cast<int>(string_data_.size()); }
 
  private:
-  virtual ~StringIOBuffer();
+  ~StringIOBuffer() override;
 
   std::string string_data_;
 };
@@ -131,7 +142,7 @@ class NET_EXPORT StringIOBuffer : public IOBuffer {
 // than char*. DrainableIOBuffer can be used as follows:
 //
 // // payload is the IOBuffer containing the data to be written.
-// buf = new DrainableIOBuffer(payload, payload_size);
+// buf = base::MakeRefCounted<DrainableIOBuffer>(payload, payload_size);
 //
 // while (buf->BytesRemaining() > 0) {
 //   // Write() takes an IOBuffer. If it takes char*, we could
@@ -142,7 +153,9 @@ class NET_EXPORT StringIOBuffer : public IOBuffer {
 //
 class NET_EXPORT DrainableIOBuffer : public IOBuffer {
  public:
-  DrainableIOBuffer(IOBuffer* base, int size);
+  // TODO(eroman): Deprecated. Use the size_t flavor instead. crbug.com/488553
+  DrainableIOBuffer(scoped_refptr<IOBuffer> base, int size);
+  DrainableIOBuffer(scoped_refptr<IOBuffer> base, size_t size);
 
   // DidConsume() changes the |data_| pointer so that |data_| always points
   // to the first unconsumed byte.
@@ -161,7 +174,7 @@ class NET_EXPORT DrainableIOBuffer : public IOBuffer {
   int size() const { return size_; }
 
  private:
-  virtual ~DrainableIOBuffer();
+  ~DrainableIOBuffer() override;
 
   scoped_refptr<IOBuffer> base_;
   int size_;
@@ -174,7 +187,7 @@ class NET_EXPORT DrainableIOBuffer : public IOBuffer {
 // knowing the total size in advance. GrowableIOBuffer can be used as
 // follows:
 //
-// buf = new GrowableIOBuffer;
+// buf = base::MakeRefCounted<GrowableIOBuffer>();
 // buf->SetCapacity(1024);  // Initial capacity.
 //
 // while (!some_stream->IsEOF()) {
@@ -201,9 +214,9 @@ class NET_EXPORT GrowableIOBuffer : public IOBuffer {
   char* StartOfBuffer();
 
  private:
-  virtual ~GrowableIOBuffer();
+  ~GrowableIOBuffer() override;
 
-  scoped_ptr_malloc<char> real_data_;
+  std::unique_ptr<char, base::FreeDeleter> real_data_;
   int capacity_;
   int offset_;
 };
@@ -214,16 +227,16 @@ class NET_EXPORT PickledIOBuffer : public IOBuffer {
  public:
   PickledIOBuffer();
 
-  Pickle* pickle() { return &pickle_; }
+  base::Pickle* pickle() { return &pickle_; }
 
   // Signals that we are done writing to the pickle and we can use it for a
   // write-style IO operation.
   void Done();
 
  private:
-  virtual ~PickledIOBuffer();
+  ~PickledIOBuffer() override;
 
-  Pickle pickle_;
+  base::Pickle pickle_;
 };
 
 // This class allows the creation of a temporary IOBuffer that doesn't really
@@ -236,7 +249,7 @@ class NET_EXPORT WrappedIOBuffer : public IOBuffer {
   explicit WrappedIOBuffer(const char* data);
 
  protected:
-  virtual ~WrappedIOBuffer();
+  ~WrappedIOBuffer() override;
 };
 
 }  // namespace net

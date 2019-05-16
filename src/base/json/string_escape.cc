@@ -4,44 +4,70 @@
 
 #include "base/json/string_escape.h"
 
+#include <limits>
 #include <string>
 
-#include "base/stringprintf.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversion_utils.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/third_party/icu/icu_utf.h"
+#include "starboard/types.h"
 
 namespace base {
 
 namespace {
 
-// Try to escape |c| as a "SingleEscapeCharacter" (\n, etc).  If successful,
-// returns true and appends the escape sequence to |dst|.  This isn't required
-// by the spec, but it's more readable by humans than the \uXXXX alternatives.
-template<typename CHAR>
-static bool JsonSingleEscapeChar(const CHAR c, std::string* dst) {
+// Format string for printing a \uXXXX escape sequence.
+const char kU16EscapeFormat[] = "\\u%04X";
+
+// The code point to output for an invalid input code unit.
+const uint32_t kReplacementCodePoint = 0xFFFD;
+
+// Used below in EscapeSpecialCodePoint().
+static_assert('<' == 0x3C, "less than sign must be 0x3c");
+
+// Try to escape the |code_point| if it is a known special character. If
+// successful, returns true and appends the escape sequence to |dest|. This
+// isn't required by the spec, but it's more readable by humans.
+bool EscapeSpecialCodePoint(uint32_t code_point, std::string* dest) {
   // WARNING: if you add a new case here, you need to update the reader as well.
   // Note: \v is in the reader, but not here since the JSON spec doesn't
   // allow it.
-  switch (c) {
+  switch (code_point) {
     case '\b':
-      dst->append("\\b");
+      dest->append("\\b");
       break;
     case '\f':
-      dst->append("\\f");
+      dest->append("\\f");
       break;
     case '\n':
-      dst->append("\\n");
+      dest->append("\\n");
       break;
     case '\r':
-      dst->append("\\r");
+      dest->append("\\r");
       break;
     case '\t':
-      dst->append("\\t");
+      dest->append("\\t");
       break;
     case '\\':
-      dst->append("\\\\");
+      dest->append("\\\\");
       break;
     case '"':
-      dst->append("\\\"");
+      dest->append("\\\"");
+      break;
+    // Escape < to prevent script execution; escaping > is not necessary and
+    // not doing so save a few bytes.
+    case '<':
+      dest->append("\\u003C");
+      break;
+    // Escape the "Line Separator" and "Paragraph Separator" characters, since
+    // they should be treated like a new line \r or \n.
+    case 0x2028:
+      dest->append("\\u2028");
+      break;
+    case 0x2029:
+      dest->append("\\u2029");
       break;
     default:
       return false;
@@ -49,57 +75,91 @@ static bool JsonSingleEscapeChar(const CHAR c, std::string* dst) {
   return true;
 }
 
-template <class STR>
-void JsonDoubleQuoteT(const STR& str,
-                      bool put_in_quotes,
-                      std::string* dst) {
-  if (put_in_quotes)
-    dst->push_back('"');
+template <typename S>
+bool EscapeJSONStringImpl(const S& str, bool put_in_quotes, std::string* dest) {
+  bool did_replacement = false;
 
-  for (typename STR::const_iterator it = str.begin(); it != str.end(); ++it) {
-    typename ToUnsigned<typename STR::value_type>::Unsigned c = *it;
-    if (!JsonSingleEscapeChar(c, dst)) {
-      if (c < 32 || c > 126 || c == '<' || c == '>') {
-        // 1. Escaping <, > to prevent script execution.
-        // 2. Technically, we could also pass through c > 126 as UTF8, but this
-        //    is also optional.  It would also be a pain to implement here.
-        unsigned int as_uint = static_cast<unsigned int>(c);
-        base::StringAppendF(dst, "\\u%04X", as_uint);
-      } else {
-        unsigned char ascii = static_cast<unsigned char>(*it);
-        dst->push_back(ascii);
-      }
+  if (put_in_quotes)
+    dest->push_back('"');
+
+  // Casting is necessary because ICU uses int32_t. Try and do so safely.
+  CHECK_LE(str.length(),
+           static_cast<size_t>(std::numeric_limits<int32_t>::max()));
+  const int32_t length = static_cast<int32_t>(str.length());
+
+  for (int32_t i = 0; i < length; ++i) {
+    uint32_t code_point;
+    if (!ReadUnicodeCharacter(str.data(), length, &i, &code_point) ||
+        code_point == static_cast<decltype(code_point)>(CBU_SENTINEL) ||
+        !IsValidCharacter(code_point)) {
+      code_point = kReplacementCodePoint;
+      did_replacement = true;
     }
+
+    if (EscapeSpecialCodePoint(code_point, dest))
+      continue;
+
+    // Escape non-printing characters.
+    if (code_point < 32)
+      base::StringAppendF(dest, kU16EscapeFormat, code_point);
+    else
+      WriteUnicodeCharacter(code_point, dest);
   }
 
   if (put_in_quotes)
-    dst->push_back('"');
+    dest->push_back('"');
+
+  return !did_replacement;
 }
 
 }  // namespace
 
-void JsonDoubleQuote(const std::string& str,
-                     bool put_in_quotes,
-                     std::string* dst) {
-  JsonDoubleQuoteT(str, put_in_quotes, dst);
+bool EscapeJSONString(StringPiece str, bool put_in_quotes, std::string* dest) {
+  return EscapeJSONStringImpl(str, put_in_quotes, dest);
 }
 
-std::string GetDoubleQuotedJson(const std::string& str) {
-  std::string dst;
-  JsonDoubleQuote(str, true, &dst);
-  return dst;
+bool EscapeJSONString(StringPiece16 str,
+                      bool put_in_quotes,
+                      std::string* dest) {
+  return EscapeJSONStringImpl(str, put_in_quotes, dest);
 }
 
-void JsonDoubleQuote(const string16& str,
-                     bool put_in_quotes,
-                     std::string* dst) {
-  JsonDoubleQuoteT(str, put_in_quotes, dst);
+std::string GetQuotedJSONString(StringPiece str) {
+  std::string dest;
+  bool ok = EscapeJSONStringImpl(str, true, &dest);
+  DCHECK(ok);
+  return dest;
 }
 
-std::string GetDoubleQuotedJson(const string16& str) {
-  std::string dst;
-  JsonDoubleQuote(str, true, &dst);
-  return dst;
+std::string GetQuotedJSONString(StringPiece16 str) {
+  std::string dest;
+  bool ok = EscapeJSONStringImpl(str, true, &dest);
+  DCHECK(ok);
+  return dest;
+}
+
+std::string EscapeBytesAsInvalidJSONString(StringPiece str,
+                                           bool put_in_quotes) {
+  std::string dest;
+
+  if (put_in_quotes)
+    dest.push_back('"');
+
+  for (StringPiece::const_iterator it = str.begin(); it != str.end(); ++it) {
+    unsigned char c = *it;
+    if (EscapeSpecialCodePoint(c, &dest))
+      continue;
+
+    if (c < 32 || c > 126)
+      base::StringAppendF(&dest, kU16EscapeFormat, c);
+    else
+      dest.push_back(*it);
+  }
+
+  if (put_in_quotes)
+    dest.push_back('"');
+
+  return dest;
 }
 
 }  // namespace base

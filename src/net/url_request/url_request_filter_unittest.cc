@@ -4,11 +4,16 @@
 
 #include "net/url_request/url_request_filter.h"
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
+#include "base/macros.h"
+#include "base/test/scoped_task_environment.h"
+#include "net/base/request_priority.h"
+#include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_interceptor.h"
 #include "net/url_request/url_request_job.h"
-#include "net/url_request/url_request_job_factory.h"
 #include "net/url_request/url_request_test_job.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -17,113 +22,95 @@ namespace net {
 
 namespace {
 
-URLRequestTestJob* job_a;
+class TestURLRequestInterceptor : public URLRequestInterceptor {
+ public:
+  TestURLRequestInterceptor() : job_(nullptr) {}
+  ~TestURLRequestInterceptor() override = default;
 
-URLRequestJob* FactoryA(URLRequest* request,
-                        NetworkDelegate* network_delegate,
-                        const std::string& scheme) {
-  job_a = new URLRequestTestJob(request, network_delegate);
-  return job_a;
-}
+  // URLRequestInterceptor implementation:
+  URLRequestJob* MaybeInterceptRequest(
+      URLRequest* request,
+      NetworkDelegate* network_delegate) const override {
+    job_ = new URLRequestTestJob(request, network_delegate);
+    return job_;
+  }
 
-URLRequestTestJob* job_b;
+  // Is |job| the URLRequestJob generated during interception?
+  bool WasLastJobCreated(URLRequestJob* job) const {
+    return job_ && job_ == job;
+  }
 
-URLRequestJob* FactoryB(URLRequest* request,
-                        NetworkDelegate* network_delegate,
-                        const std::string& scheme) {
-  job_b = new URLRequestTestJob(request, network_delegate);
-  return job_b;
-}
+ private:
+  mutable URLRequestTestJob* job_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestURLRequestInterceptor);
+};
 
 TEST(URLRequestFilter, BasicMatching) {
+  base::test::ScopedTaskEnvironment scoped_task_environment(
+      base::test::ScopedTaskEnvironment::MainThreadType::IO);
   TestDelegate delegate;
   TestURLRequestContext request_context;
+  URLRequestFilter* filter = URLRequestFilter::GetInstance();
 
-  GURL url_1("http://foo.com/");
-  TestURLRequest request_1(url_1, &delegate, &request_context);
+  const GURL kUrl1("http://foo.com/");
+  std::unique_ptr<URLRequest> request1(request_context.CreateRequest(
+      kUrl1, DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
 
-  GURL url_2("http://bar.com/");
-  TestURLRequest request_2(url_2, &delegate, &request_context);
+  const GURL kUrl2("http://bar.com/");
+  std::unique_ptr<URLRequest> request2(request_context.CreateRequest(
+      kUrl2, DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
 
-  // Check AddUrlHandler checks for invalid URLs.
-  EXPECT_FALSE(URLRequestFilter::GetInstance()->AddUrlHandler(GURL(),
-                                                              &FactoryA));
+  // Check AddUrlInterceptor checks for invalid URLs.
+  EXPECT_FALSE(filter->AddUrlInterceptor(
+      GURL(),
+      std::unique_ptr<URLRequestInterceptor>(new TestURLRequestInterceptor())));
 
-  // Check URL matching.
-  URLRequestFilter::GetInstance()->ClearHandlers();
-  EXPECT_TRUE(URLRequestFilter::GetInstance()->AddUrlHandler(url_1,
-                                                             &FactoryA));
+  // Check URLRequestInterceptor URL matching.
+  filter->ClearHandlers();
+  TestURLRequestInterceptor* interceptor = new TestURLRequestInterceptor();
+  EXPECT_TRUE(filter->AddUrlInterceptor(
+      kUrl1, std::unique_ptr<URLRequestInterceptor>(interceptor)));
   {
-    scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, request_context.network_delegate(), url_1.scheme());
-    EXPECT_EQ(job_a, found);
-    EXPECT_TRUE(job_a != NULL);
-    job_a = NULL;
+    std::unique_ptr<URLRequestJob> found(
+        filter->MaybeInterceptRequest(request1.get(), NULL));
+    EXPECT_TRUE(interceptor->WasLastJobCreated(found.get()));
   }
-  EXPECT_EQ(URLRequestFilter::GetInstance()->hit_count(), 1);
+  EXPECT_EQ(filter->hit_count(), 1);
 
   // Check we don't match other URLs.
-  EXPECT_TRUE(URLRequestFilter::Factory(
-      &request_2, request_context.network_delegate(), url_2.scheme()) == NULL);
-  EXPECT_EQ(1, URLRequestFilter::GetInstance()->hit_count());
-
-  // Check we can overwrite URL handler.
-  EXPECT_TRUE(URLRequestFilter::GetInstance()->AddUrlHandler(url_1,
-                                                             &FactoryB));
-  {
-    scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, request_context.network_delegate(), url_1.scheme());
-    EXPECT_EQ(job_b, found);
-    EXPECT_TRUE(job_b != NULL);
-    job_b = NULL;
-  }
-  EXPECT_EQ(2, URLRequestFilter::GetInstance()->hit_count());
+  EXPECT_TRUE(filter->MaybeInterceptRequest(request2.get(), NULL) == NULL);
+  EXPECT_EQ(1, filter->hit_count());
 
   // Check we can remove URL matching.
-  URLRequestFilter::GetInstance()->RemoveUrlHandler(url_1);
-  EXPECT_TRUE(URLRequestFilter::Factory(
-      &request_1, request_context.network_delegate(), url_1.scheme()) == NULL);
-  EXPECT_EQ(URLRequestFilter::GetInstance()->hit_count(), 2);
+  filter->RemoveUrlHandler(kUrl1);
+  EXPECT_TRUE(filter->MaybeInterceptRequest(request1.get(), NULL) == NULL);
+  EXPECT_EQ(1, filter->hit_count());
 
   // Check hostname matching.
-  URLRequestFilter::GetInstance()->ClearHandlers();
-  EXPECT_EQ(0, URLRequestFilter::GetInstance()->hit_count());
-  URLRequestFilter::GetInstance()->AddHostnameHandler(url_1.scheme(),
-                                                      url_1.host(),
-                                                      &FactoryB);
+  filter->ClearHandlers();
+  EXPECT_EQ(0, filter->hit_count());
+  interceptor = new TestURLRequestInterceptor();
+  filter->AddHostnameInterceptor(
+      kUrl1.scheme(), kUrl1.host(),
+      std::unique_ptr<URLRequestInterceptor>(interceptor));
   {
-    scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, request_context.network_delegate(), url_1.scheme());
-    EXPECT_EQ(job_b, found);
-    EXPECT_TRUE(job_b != NULL);
-    job_b = NULL;
+    std::unique_ptr<URLRequestJob> found(
+        filter->MaybeInterceptRequest(request1.get(), NULL));
+    EXPECT_TRUE(interceptor->WasLastJobCreated(found.get()));
   }
-  EXPECT_EQ(1, URLRequestFilter::GetInstance()->hit_count());
+  EXPECT_EQ(1, filter->hit_count());
 
   // Check we don't match other hostnames.
-  EXPECT_TRUE(URLRequestFilter::Factory(
-      &request_2, request_context.network_delegate(), url_2.scheme()) == NULL);
-  EXPECT_EQ(URLRequestFilter::GetInstance()->hit_count(), 1);
-
-  // Check we can overwrite hostname handler.
-  URLRequestFilter::GetInstance()->AddHostnameHandler(url_1.scheme(),
-                                                      url_1.host(),
-                                                      &FactoryA);
-  {
-    scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, request_context.network_delegate(), url_1.scheme());
-    EXPECT_EQ(job_a, found);
-    EXPECT_TRUE(job_a != NULL);
-    job_a = NULL;
-  }
-  EXPECT_EQ(2, URLRequestFilter::GetInstance()->hit_count());
+  EXPECT_TRUE(filter->MaybeInterceptRequest(request2.get(), NULL) == NULL);
+  EXPECT_EQ(1, filter->hit_count());
 
   // Check we can remove hostname matching.
-  URLRequestFilter::GetInstance()->RemoveHostnameHandler(url_1.scheme(),
-                                                         url_1.host());
-  EXPECT_TRUE(URLRequestFilter::Factory(
-      &request_1, request_context.network_delegate(), url_1.scheme()) == NULL);
-  EXPECT_EQ(2, URLRequestFilter::GetInstance()->hit_count());
+  filter->RemoveHostnameHandler(kUrl1.scheme(), kUrl1.host());
+  EXPECT_TRUE(filter->MaybeInterceptRequest(request1.get(), NULL) == NULL);
+  EXPECT_EQ(1, filter->hit_count());
+
+  filter->ClearHandlers();
 }
 
 }  // namespace

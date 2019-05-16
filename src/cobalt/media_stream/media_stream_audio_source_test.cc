@@ -20,11 +20,7 @@
 #include "cobalt/media_stream/testing/mock_media_stream_audio_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 using ::testing::_;
 using ::testing::Return;
@@ -39,11 +35,7 @@ void Increment(int* value) { ++(*value); }
 namespace cobalt {
 namespace media_stream {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 class MediaStreamAudioSourceTest : public testing::Test {
  public:
@@ -57,8 +49,7 @@ class MediaStreamAudioSourceTest : public testing::Test {
 };
 
 TEST_F(MediaStreamAudioSourceTest, SourceCanStart) {
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(true));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(true));
   // Source will be stopped when the last track is disconnected.
   // This happens when |track_| is destructed.
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
@@ -69,8 +60,7 @@ TEST_F(MediaStreamAudioSourceTest, SourceCanStart) {
 }
 
 TEST_F(MediaStreamAudioSourceTest, SourceCannotStart) {
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(false));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(false));
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started (if it is not stopped).
@@ -79,8 +69,7 @@ TEST_F(MediaStreamAudioSourceTest, SourceCannotStart) {
 }
 
 TEST_F(MediaStreamAudioSourceTest, CallStopCallback) {
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(true));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(true));
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   int times_callback_is_called = 0;
@@ -96,8 +85,7 @@ TEST_F(MediaStreamAudioSourceTest, CallStopCallback) {
 
 TEST_F(MediaStreamAudioSourceTest, EmptyStopCallback) {
   // This test should not crash.
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .WillOnce(Return(true));
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStarted()).WillOnce(Return(true));
   EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started.
@@ -114,7 +102,7 @@ TEST_F(MediaStreamAudioSourceTest, AddMultipleTracks) {
 
   // Adding a track ensures that the source is started.
   audio_source_->ConnectToTrack(track_);
-  auto track2 = make_scoped_refptr(new MediaStreamAudioTrack());
+  auto track2 = base::WrapRefCounted(new MediaStreamAudioTrack());
   audio_source_->ConnectToTrack(track2);
   audio_source_->StopSource();
 }

@@ -5,7 +5,7 @@
 #ifndef NET_BASE_STATIC_COOKIE_POLICY_H_
 #define NET_BASE_STATIC_COOKIE_POLICY_H_
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 
 class GURL;
@@ -21,8 +21,6 @@ class NET_EXPORT StaticCookiePolicy {
   enum Type {
     // Do not perform any cookie blocking.
     ALLOW_ALL_COOKIES = 0,
-    // Prevent only third-party cookies from being set.
-    BLOCK_SETTING_THIRD_PARTY_COOKIES,
     // Block all cookies (third-party or not) from begin set or read.
     BLOCK_ALL_COOKIES,
     // Prevent only third-party cookies from being set or read.
@@ -43,13 +41,8 @@ class NET_EXPORT StaticCookiePolicy {
   Type type() const { return type_; }
 
   // Consults the user's third-party cookie blocking preferences to determine
-  // whether the URL's cookies can be read.
-  int CanGetCookies(const GURL& url, const GURL& first_party_for_cookies) const;
-
-  // Consults the user's third-party cookie blocking preferences to determine
-  // whether the URL's cookies can be set.
-  int CanSetCookie(const GURL& url,
-                   const GURL& first_party_for_cookies) const;
+  // whether the URL's cookies can be accessed (i.e., can be get or set).
+  int CanAccessCookies(const GURL& url, const GURL& site_for_cookies) const;
 
  private:
   Type type_;

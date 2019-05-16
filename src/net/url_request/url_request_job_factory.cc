@@ -6,17 +6,17 @@
 
 namespace net {
 
-URLRequestJobFactory::ProtocolHandler::~ProtocolHandler() {}
+URLRequestJobFactory::ProtocolHandler::~ProtocolHandler() = default;
 
-URLRequestJobFactory::Interceptor::~Interceptor() {}
-
-bool URLRequestJobFactory::Interceptor::WillHandleProtocol(
-    const std::string& protocol) const {
-  return false;
+bool URLRequestJobFactory::ProtocolHandler::IsSafeRedirectTarget(
+    const GURL& location) const {
+  return true;
 }
 
-URLRequestJobFactory::URLRequestJobFactory() {}
+URLRequestJobFactory::URLRequestJobFactory() = default;
 
-URLRequestJobFactory::~URLRequestJobFactory() {}
+URLRequestJobFactory::~URLRequestJobFactory() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
 }  // namespace net

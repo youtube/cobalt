@@ -17,10 +17,6 @@
 //   If a linked_ptr<> is converted to a raw pointer and back, BAD THINGS
 //   will happen (double deletion).
 //
-// A good use of this class is storing object references in STL containers.
-// You can safely put linked_ptr<> in a vector<>.
-// Other uses may not be as good.
-//
 // Note: If you use an incomplete type with linked_ptr<>, the class
 // *containing* linked_ptr<> must have a constructor and destructor (even
 // if they do nothing!).
@@ -73,6 +69,8 @@ class linked_ptr_internal {
   mutable linked_ptr_internal const* next_;
 };
 
+// TODO(http://crbug.com/556939): DEPRECATED: Use unique_ptr instead (now that
+// we have support for moveable types inside STL containers).
 template <typename T>
 class linked_ptr {
  public:

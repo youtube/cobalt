@@ -8,39 +8,38 @@
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
+#include "net/base/net_export.h"
 #include "net/base/upload_element_reader.h"
+#include "starboard/types.h"
 
 namespace net {
 
-// An UploadElementReader implementation for bytes.
-// |data| should outlive this class because this class does not take the
-// ownership of the data.
+// An UploadElementReader implementation for bytes. The caller owns |bytes|,
+// and is responsible for ensuring it outlives the UploadBytesElementReader.
 class NET_EXPORT UploadBytesElementReader : public UploadElementReader {
  public:
-  UploadBytesElementReader(const char* bytes, uint64 length);
-  virtual ~UploadBytesElementReader();
+  UploadBytesElementReader(const char* bytes, uint64_t length);
+  ~UploadBytesElementReader() override;
 
   const char* bytes() const { return bytes_; }
-  uint64 length() const { return length_; }
+  uint64_t length() const { return length_; }
 
   // UploadElementReader overrides:
-  virtual const UploadBytesElementReader* AsBytesReader() const override;
-  virtual int Init(const CompletionCallback& callback) override;
-  virtual int InitSync() override;
-  virtual uint64 GetContentLength() const override;
-  virtual uint64 BytesRemaining() const override;
-  virtual bool IsInMemory() const override;
-  virtual int Read(IOBuffer* buf,
-                   int buf_length,
-                   const CompletionCallback& callback) override;
-  virtual int ReadSync(IOBuffer* buf, int buf_length) override;
+  const UploadBytesElementReader* AsBytesReader() const override;
+  int Init(CompletionOnceCallback callback) override;
+  uint64_t GetContentLength() const override;
+  uint64_t BytesRemaining() const override;
+  bool IsInMemory() const override;
+  int Read(IOBuffer* buf,
+           int buf_length,
+           CompletionOnceCallback callback) override;
 
  private:
   const char* const bytes_;
-  const uint64 length_;
-  uint64 offset_;
+  const uint64_t length_;
+  uint64_t offset_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadBytesElementReader);
 };
@@ -51,7 +50,7 @@ class NET_EXPORT UploadOwnedBytesElementReader
  public:
   // |data| is cleared by this ctor.
   explicit UploadOwnedBytesElementReader(std::vector<char>* data);
-  virtual ~UploadOwnedBytesElementReader();
+  ~UploadOwnedBytesElementReader() override;
 
   // Creates UploadOwnedBytesElementReader with a string.
   static UploadOwnedBytesElementReader* CreateWithString(

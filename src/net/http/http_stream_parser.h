@@ -5,17 +5,21 @@
 #ifndef NET_HTTP_HTTP_STREAM_PARSER_H_
 #define NET_HTTP_HTTP_STREAM_PARSER_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/string_piece.h"
-#include "net/base/completion_callback.h"
+#include "base/strings/string_piece.h"
+#include "crypto/ec_private_key.h"
+#include "net/base/completion_once_callback.h"
+#include "net/base/completion_repeating_callback.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_export.h"
-#include "net/base/net_log.h"
-#include "net/base/upload_progress.h"
+#include "net/log/net_log_with_source.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -27,7 +31,6 @@ struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
-class IOBufferWithSize;
 class SSLCertRequestInfo;
 class SSLInfo;
 class UploadDataStream;
@@ -42,28 +45,32 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   HttpStreamParser(ClientSocketHandle* connection,
                    const HttpRequestInfo* request,
                    GrowableIOBuffer* read_buffer,
-                   const BoundNetLog& net_log);
+                   const NetLogWithSource& net_log);
   virtual ~HttpStreamParser();
+
+  // Sets whether or not HTTP/0.9 is only allowed on default ports. It's not
+  // allowed, by default.
+  void set_http_09_on_non_default_ports_enabled(
+      bool http_09_on_non_default_ports_enabled) {
+    http_09_on_non_default_ports_enabled_ =
+        http_09_on_non_default_ports_enabled;
+  }
 
   // These functions implement the interface described in HttpStream with
   // some additional functionality
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
+                  const NetworkTrafficAnnotationTag& traffic_annotation,
                   HttpResponseInfo* response,
-                  const CompletionCallback& callback);
+                  CompletionOnceCallback callback);
 
-  int ReadResponseHeaders(const CompletionCallback& callback);
+  int ReadResponseHeaders(CompletionOnceCallback callback);
 
-  int ReadResponseBody(IOBuffer* buf, int buf_len,
-                       const CompletionCallback& callback);
+  int ReadResponseBody(IOBuffer* buf,
+                       int buf_len,
+                       CompletionOnceCallback callback);
 
   void Close(bool not_reusable);
-
-  // Returns the progress of uploading. When data is chunked, size is set to
-  // zero, but position will not be.
-  UploadProgress GetUploadProgress() const;
-
-  HttpResponseInfo* GetResponseInfo();
 
   bool IsResponseBodyComplete() const;
 
@@ -75,7 +82,20 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
 
   void SetConnectionReused();
 
-  bool IsConnectionReusable() const;
+  // Returns true if the underlying connection can be reused.
+  // The connection can be reused if:
+  // * It's still connected.
+  // * The response headers indicate the connection can be kept alive.
+  // * The end of the response can be found, though it may not have yet been
+  //     received.
+  //
+  // Note that if response headers have yet to be received, this will return
+  // false.
+  bool CanReuseConnection() const;
+
+  int64_t received_bytes() const { return received_bytes_; }
+
+  int64_t sent_bytes() const { return sent_bytes_; }
 
   void GetSSLInfo(SSLInfo* ssl_info);
 
@@ -108,17 +128,17 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // FOO_COMPLETE states implement the second half of potentially asynchronous
   // operations and don't necessarily mean that FOO is complete.
   enum State {
+    // STATE_NONE indicates that this is waiting on an external call before
+    // continuing.
     STATE_NONE,
-    STATE_SENDING_HEADERS,
-    // If the request comes with a body, either of the following two
-    // states will be executed, depending on whether the body is chunked
-    // or not.
-    STATE_SENDING_BODY,
-    STATE_SEND_REQUEST_READING_BODY,
-    STATE_REQUEST_SENT,
+    STATE_SEND_HEADERS,
+    STATE_SEND_HEADERS_COMPLETE,
+    STATE_SEND_BODY,
+    STATE_SEND_BODY_COMPLETE,
+    STATE_SEND_REQUEST_READ_BODY_COMPLETE,
+    STATE_SEND_REQUEST_COMPLETE,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
-    STATE_BODY_PENDING,
     STATE_READ_BODY,
     STATE_READ_BODY_COMPLETE,
     STATE_DONE
@@ -144,35 +164,55 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   int DoLoop(int result);
 
   // The implementations of each state of the state machine.
-  int DoSendHeaders(int result);
-  int DoSendBody(int result);
-  int DoSendRequestReadingBody(int result);
+  int DoSendHeaders();
+  int DoSendHeadersComplete(int result);
+  int DoSendBody();
+  int DoSendBodyComplete(int result);
+  int DoSendRequestReadBodyComplete(int result);
+  int DoSendRequestComplete(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
   int DoReadBodyComplete(int result);
 
+  // This handles most of the logic for DoReadHeadersComplete.
+  int HandleReadHeaderResult(int result);
+
   // Examines |read_buf_| to find the start and end of the headers. If they are
   // found, parse them with DoParseResponseHeaders().  Return the offset for
   // the end of the headers, or -1 if the complete headers were not found, or
   // with a net::Error if we encountered an error during parsing.
-  int ParseResponseHeaders();
+  //
+  // |new_bytes| is the number of new bytes that have been appended to the end
+  // of |read_buf_| since the last call to this method (which must have returned
+  // -1).
+  int FindAndParseResponseHeaders(int new_bytes);
 
   // Parse the headers into response_.  Returns OK on success or a net::Error on
   // failure.
-  int DoParseResponseHeaders(int end_of_header_offset);
+  int ParseResponseHeaders(int end_of_header_offset);
 
   // Examine the parsed headers to try to determine the response body size.
   void CalculateResponseBodySize();
 
-  // Current state of the request.
+  // Check if buffers used to send the request are empty.
+  bool SendRequestBuffersEmpty();
+
+  // Next state of the request, when the current one completes.
   State io_state_;
 
-  // The request to send.
+  // Null when read state machine is invoked.
   const HttpRequestInfo* request_;
 
-  // The request header data.
+  // The request header data.  May include a merged request body.
   scoped_refptr<DrainableIOBuffer> request_headers_;
+
+  // Size of just the request headers.  May be less than the length of
+  // |request_headers_| if the body was merged with the headers.
+  int request_headers_length_;
+
+  // True if HTTP/0.9 should be permitted on non-default ports.
+  bool http_09_on_non_default_ports_enabled_;
 
   // Temporary buffer for reading.
   scoped_refptr<GrowableIOBuffer> read_buf_;
@@ -186,19 +226,32 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // -1 if not found yet.
   int response_header_start_offset_;
 
-  // The parsed response headers.  Owned by the caller.
+  // The amount of received data.  If connection is reused then intermediate
+  // value may be bigger than final.
+  int64_t received_bytes_;
+
+  // The amount of sent data.
+  int64_t sent_bytes_;
+
+  // The parsed response headers.  Owned by the caller of SendRequest.   This
+  // cannot be safely accessed after reading the final set of headers, as the
+  // caller of SendRequest may have been destroyed - this happens in the case an
+  // HttpResponseBodyDrainer is used.
   HttpResponseInfo* response_;
 
   // Indicates the content length.  If this value is less than zero
   // (and chunked_decoder_ is null), then we must read until the server
   // closes the connection.
-  int64 response_body_length_;
+  int64_t response_body_length_;
+
+  // True if reading a keep-alive response. False if not, or if don't yet know.
+  bool response_is_keep_alive_;
 
   // Keep track of the number of response body bytes read so far.
-  int64 response_body_read_;
+  int64_t response_body_read_;
 
   // Helper if the data is chunked.
-  scoped_ptr<HttpChunkedDecoder> chunked_decoder_;
+  std::unique_ptr<HttpChunkedDecoder> chunked_decoder_;
 
   // Where the caller wants the body data.
   scoped_refptr<IOBuffer> user_read_buf_;
@@ -206,21 +259,15 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
 
   // The callback to notify a user that their request or response is
   // complete or there was an error
-  CompletionCallback callback_;
-
-  // In the client callback, the client can do anything, including
-  // destroying this class, so any pending callback must be issued
-  // after everything else is done.  When it is time to issue the client
-  // callback, move it from |callback_| to |scheduled_callback_|.
-  CompletionCallback scheduled_callback_;
+  CompletionOnceCallback callback_;
 
   // The underlying socket.
   ClientSocketHandle* const connection_;
 
-  BoundNetLog net_log_;
+  NetLogWithSource net_log_;
 
   // Callback to be used when doing IO.
-  CompletionCallback io_callback_;
+  CompletionRepeatingCallback io_callback_;
 
   // Buffer used to read the request body from UploadDataStream.
   scoped_refptr<SeekableIOBuffer> request_body_read_buf_;
@@ -228,6 +275,11 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // |request_body_read_buf_| unless the data is chunked.
   scoped_refptr<SeekableIOBuffer> request_body_send_buf_;
   bool sent_last_chunk_;
+
+  // Error received when uploading the body, if any.
+  int upload_error_;
+
+  MutableNetworkTrafficAnnotationTag traffic_annotation_;
 
   base::WeakPtrFactory<HttpStreamParser> weak_ptr_factory_;
 

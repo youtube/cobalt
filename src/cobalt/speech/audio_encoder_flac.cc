@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/speech/audio_encoder_flac.h"
 
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 
 namespace cobalt {
 namespace speech {
@@ -58,9 +59,9 @@ AudioEncoderFlac::~AudioEncoderFlac() {
 void AudioEncoderFlac::Encode(const ShellAudioBus* audio_bus) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  DCHECK_EQ(audio_bus->channels(), 1);
+  DCHECK_EQ(audio_bus->channels(), size_t(1));
   uint32 frames = static_cast<uint32>(audio_bus->frames());
-  scoped_array<FLAC__int32> flac_samples(new FLAC__int32[frames]);
+  std::unique_ptr<FLAC__int32[]> flac_samples(new FLAC__int32[frames]);
   for (uint32 i = 0; i < frames; ++i) {
     if (audio_bus->sample_type() == ShellAudioBus::kFloat32) {
       flac_samples[i] = static_cast<FLAC__int32>(
@@ -109,9 +110,9 @@ std::string AudioEncoderFlac::GetAndClearAvailableEncodedData() {
 FLAC__StreamEncoderWriteStatus AudioEncoderFlac::WriteCallback(
     const FLAC__StreamEncoder* encoder, const FLAC__byte buffer[], size_t bytes,
     unsigned int samples, unsigned int current_frame, void* client_data) {
-  UNREFERENCED_PARAMETER(encoder);
-  UNREFERENCED_PARAMETER(samples);
-  UNREFERENCED_PARAMETER(current_frame);
+  SB_UNREFERENCED_PARAMETER(encoder);
+  SB_UNREFERENCED_PARAMETER(samples);
+  SB_UNREFERENCED_PARAMETER(current_frame);
 
   AudioEncoderFlac* audio_encoder =
       reinterpret_cast<AudioEncoderFlac*>(client_data);

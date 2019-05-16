@@ -15,43 +15,32 @@
 #ifndef COBALT_DOM_HTML_MEDIA_ELEMENT_H_
 #define COBALT_DOM_HTML_MEDIA_ELEMENT_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
+#include "cobalt/dom/eme/media_keys.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/media_error.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/media/player/web_media_player.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/typed_arrays.h"
-#include "googleurl/src/gurl.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/dom/eme/media_keys.h"
-#include "cobalt/media/player/web_media_player.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/dom/media_source.h"
-#include "media/player/web_media_player.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
 
 class MediaSource;
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::ChunkDemuxer ChunkDemuxer;
 typedef media::WebMediaPlayer WebMediaPlayer;
 typedef media::WebMediaPlayerClient WebMediaPlayerClient;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ChunkDemuxer ChunkDemuxer;
-typedef ::media::WebMediaPlayer WebMediaPlayer;
-typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   https://www.w3.org/TR/html5/embedded-content-0.html#media-element
@@ -70,8 +59,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void set_src(const std::string& src);
   const std::string& current_src() const { return current_src_; }
 
-  base::optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::optional<std::string>& value);
+  base::Optional<std::string> cross_origin() const;
+  void set_cross_origin(const base::Optional<std::string>& value);
 
   enum NetworkState {
     kNetworkEmpty,
@@ -87,29 +76,15 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system);
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
   const EventListenerScriptValue* onencrypted() const;
   void set_onencrypted(const EventListenerScriptValue& event_listener);
 
   const scoped_refptr<eme::MediaKeys>& media_keys() const {
     return media_keys_;
   }
-  typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
+  typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
   script::Handle<script::Promise<void>> SetMediaKeys(
       const scoped_refptr<eme::MediaKeys>& media_keys);
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void GenerateKeyRequest(const std::string& key_system,
-                          const script::Handle<script::Uint8Array>& init_data,
-                          script::ExceptionState* exception_state);
-  void AddKey(const std::string& key_system,
-              const script::Handle<script::Uint8Array>& key,
-              const script::Handle<script::Uint8Array>& init_data,
-              const base::optional<std::string>& session_id,
-              script::ExceptionState* exception_state);
-  void CancelKeyRequest(const std::string& key_system,
-                        const base::optional<std::string>& session_id,
-                        script::ExceptionState* exception_state);
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   // Ready state
   enum ReadyState {
@@ -156,10 +131,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // From Node
   void OnInsertedIntoDocument() override;
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
   // Called by MediaSource
   void DurationChanged(double duration, bool request_seek);
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   // Let other objects add event to the EventQueue of HTMLMediaElement.  This
   // function won't modify the target of the |event| passed in.
@@ -250,28 +223,12 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
   std::string SourceURL() const override;
   bool PreferDecodeToTexture() override;
-#if defined(COBALT_MEDIA_SOURCE_2016)
   void EncryptedMediaInitDataEncountered(
       media::EmeInitDataType init_data_type, const unsigned char* init_data,
       unsigned int init_data_length) override;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void KeyAdded(const std::string& key_system,
-                const std::string& session_id) override;
-  void KeyError(const std::string& key_system, const std::string& session_id,
-                MediaKeyErrorCode error_code, uint16 system_code) override;
-  void KeyMessage(const std::string& key_system, const std::string& session_id,
-                  const unsigned char* message, unsigned int message_length,
-                  const std::string& default_url) override;
-  void KeyNeeded(const std::string& key_system, const std::string& session_id,
-                 const unsigned char* init_data,
-                 unsigned int init_data_length) override;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   void ClearMediaSource();
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-  void SetSourceState(MediaSourceReadyState ready_state);
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
-  scoped_ptr<WebMediaPlayer> player_;
+  std::unique_ptr<WebMediaPlayer> player_;
 
   std::string current_src_;
   // Loading state.
@@ -280,9 +237,9 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 
   EventQueue event_queue_;
 
-  base::OneShotTimer<HTMLMediaElement> load_timer_;
-  base::RepeatingTimer<HTMLMediaElement> progress_event_timer_;
-  base::RepeatingTimer<HTMLMediaElement> playback_progress_timer_;
+  base::OneShotTimer load_timer_;
+  base::RepeatingTimer progress_event_timer_;
+  base::RepeatingTimer playback_progress_timer_;
   scoped_refptr<TimeRanges> played_time_ranges_;
   float playback_rate_;
   float default_playback_rate_;
@@ -325,12 +282,10 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   scoped_refptr<MediaError> error_;
 
   // Helper object to reduce the image capacity while a video is playing.
-  base::optional<loader::image::ReducedCacheCapacityManager::Request>
+  base::Optional<loader::image::ReducedCacheCapacityManager::Request>
       reduced_image_cache_capacity_request_;
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
   scoped_refptr<eme::MediaKeys> media_keys_;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   loader::RequestMode request_mode_;
 

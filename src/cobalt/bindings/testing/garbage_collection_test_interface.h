@@ -40,7 +40,7 @@ class GarbageCollectionTestInterface : public script::Wrappable {
   void set_previous(
       const scoped_refptr<GarbageCollectionTestInterface>& previous);
   scoped_refptr<GarbageCollectionTestInterface> previous() {
-    return make_scoped_refptr(previous_);
+    return base::WrapRefCounted(previous_);
   }
 
   // The current |next| node will become the head of a new list.

@@ -14,12 +14,14 @@
 
 #include "cobalt/cssom/computed_style.h"
 
+#include <memory>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -127,7 +129,7 @@ scoped_refptr<PropertyListValue> ProvideAbsoluteLengthsForNonNullLengthsInList(
     const LengthValue* computed_font_size,
     const LengthValue* root_computed_font_size,
     const math::Size& viewport_size) {
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(specified_value->value().size());
 
@@ -138,7 +140,7 @@ scoped_refptr<PropertyListValue> ProvideAbsoluteLengthsForNonNullLengthsInList(
         *iter, computed_font_size, root_computed_font_size, viewport_size));
   }
 
-  return new PropertyListValue(builder.Pass());
+  return new PropertyListValue(std::move(builder));
 }
 
 // Computed value: absolute length;
@@ -1444,7 +1446,7 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
   }
 
   void VisitDefault(PropertyValue* property_value) override {
-    UNREFERENCED_PARAMETER(property_value);
+    SB_UNREFERENCED_PARAMETER(property_value);
   }
 
   bool computed_length_is_negative() { return computed_length_is_negative_; }
@@ -1868,13 +1870,13 @@ ColorStopList ComputeColorStopList(const ColorStopList& color_stops,
        iter != color_stops.end(); ++iter) {
     const ColorStop& color_stop = **iter;
 
-    computed_color_stops.push_back(new ColorStop(
+    computed_color_stops.emplace_back(new ColorStop(
         color_stop.rgba(), ProvideAbsoluteLengthIfNonNullLength(
                                color_stop.position(), computed_font_size,
                                root_computed_font_size, viewport_size)));
   }
 
-  return computed_color_stops.Pass();
+  return computed_color_stops;
 }
 }  // namespace
 
@@ -1889,10 +1891,11 @@ void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
   if (linear_gradient_value->angle_in_radians()) {
     computed_background_image_ =
         new LinearGradientValue(*linear_gradient_value->angle_in_radians(),
-                                computed_color_stops.Pass());
+                                std::move(computed_color_stops));
   } else {
-    computed_background_image_ = new LinearGradientValue(
-        *linear_gradient_value->side_or_corner(), computed_color_stops.Pass());
+    computed_background_image_ =
+        new LinearGradientValue(*linear_gradient_value->side_or_corner(),
+                                std::move(computed_color_stops));
   }
 }
 
@@ -1904,9 +1907,9 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
     const math::Size& viewport_size) {
   if (!specified_position) {
     // If no position is specified, we default to 'center'.
-    scoped_ptr<PropertyListValue::Builder> builder(
+    std::unique_ptr<PropertyListValue::Builder> builder(
         new PropertyListValue::Builder(2, new PercentageValue(0.5f)));
-    return new PropertyListValue(builder.Pass());
+    return new PropertyListValue(std::move(builder));
   }
 
   size_t size = specified_position->value().size();
@@ -1915,12 +1918,12 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
 
   ComputedPositionHelper position_helper(
       computed_font_size, root_computed_font_size, viewport_size);
-  scoped_ptr<PropertyListValue::Builder> computed_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> computed_position_builder(
       new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
   position_helper.ComputePosition(specified_position->value(),
                                   computed_position_builder.get());
 
-  return new PropertyListValue(computed_position_builder.Pass());
+  return new PropertyListValue(std::move(computed_position_builder));
 }
 }  // namespace
 
@@ -1946,11 +1949,11 @@ void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
         ProvideAbsoluteLengthsForNonNullLengthsInList(
             radial_gradient_value->size_value(), computed_font_size_,
             root_computed_font_size_, viewport_size_),
-        computed_position, computed_color_stops.Pass());
+        computed_position, std::move(computed_color_stops));
   } else {
     computed_background_image_ = new RadialGradientValue(
         radial_gradient_value->shape(), *radial_gradient_value->size_keyword(),
-        computed_position, computed_color_stops.Pass());
+        computed_position, std::move(computed_color_stops));
   }
 }
 
@@ -2006,7 +2009,7 @@ class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
 
 void ComputedBackgroundImageProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(property_list_value->value().size());
 
@@ -2019,7 +2022,7 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
     builder->push_back(computed_background_image);
   }
 
-  computed_background_image_ = new PropertyListValue(builder.Pass());
+  computed_background_image_ = new PropertyListValue(std::move(builder));
 }
 
 class ComputedBackgroundSizeSingleValueProvider
@@ -2192,14 +2195,14 @@ void ComputedBackgroundPositionProvider::VisitPropertyList(
 
   ComputedPositionHelper position_helper(
       computed_font_size_, root_computed_font_size_, viewport_size_);
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
 
   position_helper.ComputePosition(property_list_value->value(),
                                   background_position_builder.get());
 
   computed_background_position_ =
-      new PropertyListValue(background_position_builder.Pass());
+      new PropertyListValue(std::move(background_position_builder));
 }
 
 class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
@@ -2246,12 +2249,12 @@ void ComputedBackgroundSizeProvider::VisitPropertyList(
       computed_font_size_, root_computed_font_size_, viewport_size_);
   property_list_value->value()[1]->Accept(&right_value_provider);
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(2);
   builder->push_back(left_value_provider.computed_background_size());
   builder->push_back(right_value_provider.computed_background_size());
-  computed_background_size_ = new PropertyListValue(builder.Pass());
+  computed_background_size_ = new PropertyListValue(std::move(builder));
 }
 
 //    https://www.w3.org/TR/css3-background/#border-radius
@@ -2415,7 +2418,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
 
 void ComputedShadowProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(property_list_value->value().size());
 
@@ -2442,7 +2445,7 @@ void ComputedShadowProvider::VisitPropertyList(
         new ShadowValue(computed_lengths, color, shadow_value->has_inset()));
   }
 
-  computed_shadow_ = new PropertyListValue(builder.Pass());
+  computed_shadow_ = new PropertyListValue(std::move(builder));
 }
 
 // Computed value: for length of translation transforms.
@@ -2457,13 +2460,17 @@ class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
   void VisitRotate(const RotateFunction* rotate_function) override;
   void VisitScale(const ScaleFunction* scale_function) override;
   void VisitTranslate(const TranslateFunction* translate_function) override;
+  void VisitCobaltUiNavFocusTransform(
+      const CobaltUiNavFocusTransformFunction* focus_function) override;
+  void VisitCobaltUiNavSpotlightTransform(
+      const CobaltUiNavSpotlightTransformFunction* spotlight_function) override;
 
-  scoped_ptr<TransformFunction> PassComputedTransformFunction() {
-    return computed_transform_function_.Pass();
+  std::unique_ptr<TransformFunction> PassComputedTransformFunction() {
+    return std::move(computed_transform_function_);
   }
 
  private:
-  scoped_ptr<TransformFunction> computed_transform_function_;
+  std::unique_ptr<TransformFunction> computed_transform_function_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
   const math::Size& viewport_size_;
@@ -2516,6 +2523,18 @@ void ComputedTransformFunctionProvider::VisitTranslate(
                         calc_value->percentage_value())));
     } break;
   }
+}
+
+void ComputedTransformFunctionProvider::VisitCobaltUiNavFocusTransform(
+    const CobaltUiNavFocusTransformFunction* focus_function) {
+  computed_transform_function_.reset(new CobaltUiNavFocusTransformFunction(
+      *focus_function));
+}
+
+void ComputedTransformFunctionProvider::VisitCobaltUiNavSpotlightTransform(
+    const CobaltUiNavSpotlightTransformFunction* spotlight_function) {
+  computed_transform_function_.reset(new CobaltUiNavSpotlightTransformFunction(
+      *spotlight_function));
 }
 
 // Absolutizes the value of "text-indent" property.
@@ -2597,7 +2616,7 @@ void ComputedTransformOriginProvider::VisitPropertyList(
 
   ComputedPositionHelper position_helper(
       computed_font_size_, root_computed_font_size_, viewport_size_);
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder(3, scoped_refptr<PropertyValue>()));
 
   // If one or two values are specified, the third value is assumed to be 0px.
@@ -2620,58 +2639,8 @@ void ComputedTransformOriginProvider::VisitPropertyList(
   }
 
   computed_transform_origin_ =
-      new PropertyListValue(transform_origin_builder.Pass());
+      new PropertyListValue(std::move(transform_origin_builder));
 }
-
-namespace {
-
-// Functionality to check if a transform contains any relative units, such as
-// "em" or "rem".
-
-class TransformFunctionContainsRelativeUnitVisitor
-    : public TransformFunctionVisitor {
- public:
-  TransformFunctionContainsRelativeUnitVisitor()
-      : contains_relative_unit_(false) {}
-
-  void VisitMatrix(const MatrixFunction* matrix_function) override {
-    UNREFERENCED_PARAMETER(matrix_function);
-  }
-  void VisitRotate(const RotateFunction* rotate_function) override {
-    UNREFERENCED_PARAMETER(rotate_function);
-  }
-  void VisitScale(const ScaleFunction* scale_function) override {
-    UNREFERENCED_PARAMETER(scale_function);
-  }
-  void VisitTranslate(const TranslateFunction* translate_function) override {
-    contains_relative_unit_ =
-        translate_function->offset_type() == TranslateFunction::kLength &&
-        translate_function->offset_as_length()->IsUnitRelative();
-  }
-
-  bool contains_relative_unit() const { return contains_relative_unit_; }
-
- private:
-  bool contains_relative_unit_;
-};
-
-bool TransformListContainsRelativeUnits(
-    TransformFunctionListValue* transform_function_list) {
-  for (TransformFunctionListValue::Builder::const_iterator iter =
-           transform_function_list->value().begin();
-       iter != transform_function_list->value().end(); ++iter) {
-    TransformFunction* transform_function = *iter;
-
-    TransformFunctionContainsRelativeUnitVisitor contains_ems_visitor;
-    transform_function->Accept(&contains_ems_visitor);
-    if (contains_ems_visitor.contains_relative_unit()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
 
 class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
  public:
@@ -2680,8 +2649,8 @@ class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
                             const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) override;
-  void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_function_list) override;
+  void VisitTransformPropertyValue(
+      TransformPropertyValue* transform_property_value) override;
 
   const scoped_refptr<PropertyValue>& computed_transform_list() const {
     return computed_transform_list_;
@@ -2704,9 +2673,14 @@ ComputedTransformProvider::ComputedTransformProvider(
       root_computed_font_size_(root_computed_font_size),
       viewport_size_(viewport_size) {}
 
-void ComputedTransformProvider::VisitTransformFunctionList(
-    TransformFunctionListValue* transform_function_list) {
-  if (!TransformListContainsRelativeUnits(transform_function_list)) {
+void ComputedTransformProvider::VisitTransformPropertyValue(
+    TransformPropertyValue* transform_property_value) {
+  // This should only ever be a TransformFunctionListValue at this point.
+  TransformFunctionListValue* transform_function_list =
+      base::polymorphic_downcast<TransformFunctionListValue*>(
+          transform_property_value);
+  if (!transform_function_list->value().HasTrait(
+      TransformFunction::kTraitUsesRelativeUnits)) {
     // If the transform list contains no transforms that use relative units,
     // then we do not need to do anything and we can pass through the existing
     // transform.
@@ -2719,19 +2693,18 @@ void ComputedTransformProvider::VisitTransformFunctionList(
     for (TransformFunctionListValue::Builder::const_iterator iter =
              transform_function_list->value().begin();
          iter != transform_function_list->value().end(); ++iter) {
-      TransformFunction* transform_function = *iter;
+      TransformFunction* transform_function = iter->get();
 
       ComputedTransformFunctionProvider computed_transform_function_provider(
           computed_font_size_, root_computed_font_size_, viewport_size_);
       transform_function->Accept(&computed_transform_function_provider);
 
       computed_list_builder.push_back(
-          computed_transform_function_provider.PassComputedTransformFunction()
-              .release());
+          computed_transform_function_provider.PassComputedTransformFunction());
     }
 
     computed_transform_list_ =
-        new TransformFunctionListValue(computed_list_builder.Pass());
+        new TransformFunctionListValue(std::move(computed_list_builder));
   }
 }
 
@@ -2826,7 +2799,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
 class CalculateComputedStyleContext {
  public:
   CalculateComputedStyleContext(
-      CSSComputedStyleData* cascaded_style,
+      MutableCSSComputedStyleData* cascaded_style,
       const scoped_refptr<CSSComputedStyleDeclaration>&
           parent_computed_style_declaration,
       const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
@@ -2844,6 +2817,17 @@ class CalculateComputedStyleContext {
   // Updates the property specified by the iterator to its computed value.
   void SetComputedStyleForProperty(PropertyKey key,
                                    scoped_refptr<PropertyValue>* value);
+
+  // For certain elements, the computed value of display becomes 'block'.
+  //   https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
+  // This is amended by flexbox for 'inline-flex' and 'flex'.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-containers
+  // Flex items are also modified in this way.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-items
+  // In CSS Display 3 (which Cobalt does not yet implement), this process is
+  // called 'blockification'/'blockify'.
+  //   https://www.w3.org/TR/css-display-3/#blockify
+  void BlockifyIfNeeded();
 
  private:
   // Immediately promote the specified property key to computed value (if
@@ -2891,7 +2875,7 @@ class CalculateComputedStyleContext {
 
   // The style that, during the scope of CalculateComputedStyleContext, is
   // promoted from being a cascaded style to a computed style.
-  CSSComputedStyleData* cascaded_style_;
+  MutableCSSComputedStyleData* cascaded_style_;
 
   // The parent computed style.
   const CSSComputedStyleData& parent_computed_style_;
@@ -2929,6 +2913,33 @@ void CalculateComputedStyleContext::SetComputedStyleForProperty(
     HandleSpecifiedValue(key, value);
   }
   OnComputedStyleCalculated(key, *value);
+}
+
+void CalculateComputedStyleContext::BlockifyIfNeeded() {
+  auto display = cascaded_style_->display();
+  bool is_inline_flex = display == KeywordValue::GetInlineFlex();
+  bool is_inline = display == KeywordValue::GetInline() ||
+                   display == KeywordValue::GetInlineBlock() || is_inline_flex;
+  auto parent_display = parent_computed_style_.display();
+  bool parent_is_flex_container =
+      parent_display == KeywordValue::GetFlex() ||
+      parent_display == KeywordValue::GetInlineFlex();
+
+  // Blockification is applied for elements with in inline outer display type
+  // inline when they are either absolutely positioned,
+  //   https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
+  // or when they are flex items.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-items
+  // Since children of flex containers are either flex items or absolutely
+  // positioned, we apply blockification for all flex children.
+  if (is_inline && (IsAbsolutelyPositioned() || parent_is_flex_container)) {
+    if (is_inline_flex) {
+      cascaded_style_->set_display(KeywordValue::GetFlex());
+    } else {
+      cascaded_style_->set_display(KeywordValue::GetBlock());
+    }
+  }
+  cascaded_style_->set_is_inline_before_blockification(is_inline);
 }
 
 bool CalculateComputedStyleContext::IsAbsolutelyPositioned() {
@@ -3109,22 +3120,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       (*value)->Accept(&shadow_provider);
       *value = shadow_provider.computed_shadow();
     } break;
-    case kDisplayProperty: {
-      // According to https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
-      // "inline" and "inline-block" values of "display" become "block" if
-      // "position" is "absolute" or "fixed".
-      // TODO: Modify this logic so that the original display value is
-      // not lost. Being unable to determine the original value breaks static
-      // positioning of "inline" and "inline-block" values with absolute
-      // positioning, because they are treated as block boxes but are supposed
-      // to placed at the position they would be in the normal flow.
-      // https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-      if ((*value == KeywordValue::GetInline() ||
-           *value == KeywordValue::GetInlineBlock()) &&
-          IsAbsolutelyPositioned()) {
-        *value = KeywordValue::GetBlock();
-      }
-    } break;
     case kFlexBasisProperty: {
       ComputedFlexBasisProvider flex_basis_provider(
           GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
@@ -3287,6 +3282,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderTopStyleProperty:
     case kColorProperty:
     case kContentProperty:
+    case kDisplayProperty:
     case kFilterProperty:
     case kFlexDirectionProperty:
     case kFlexGrowProperty:
@@ -3490,7 +3486,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
 }  // namespace
 
 void PromoteToComputedStyle(
-    const scoped_refptr<CSSComputedStyleData>& cascaded_style,
+    const scoped_refptr<MutableCSSComputedStyleData>& cascaded_style,
     const scoped_refptr<CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
@@ -3533,13 +3529,15 @@ void PromoteToComputedStyle(
     calculate_computed_style_context.SetComputedStyleForProperty(
         property_value_iterator->first, &property_value_iterator->second);
   }
+
+  calculate_computed_style_context.BlockifyIfNeeded();
 }
 
 scoped_refptr<CSSComputedStyleData> GetComputedStyleOfAnonymousBox(
     const scoped_refptr<CSSComputedStyleDeclaration>&
         parent_computed_style_declaration) {
-  scoped_refptr<CSSComputedStyleData> computed_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> computed_style =
+      new MutableCSSComputedStyleData();
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
                          parent_computed_style_declaration->data(),
                          math::Size(), NULL);

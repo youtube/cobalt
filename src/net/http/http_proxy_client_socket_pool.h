@@ -5,51 +5,61 @@
 #ifndef NET_HTTP_HTTP_PROXY_CLIENT_SOCKET_POOL_H_
 #define NET_HTTP_HTTP_PROXY_CLIENT_SOCKET_POOL_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_response_info.h"
 #include "net/http/proxy_client_socket.h"
-#include "net/socket/client_socket_pool_base.h"
-#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/client_socket_pool_base.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/spdy/spdy_session.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 
-class HostResolver;
 class HttpAuthCache;
 class HttpAuthHandlerFactory;
+class HttpProxyClientSocketWrapper;
+class NetLog;
+class NetworkQualityProvider;
+class QuicStreamFactory;
 class SSLClientSocketPool;
 class SSLSocketParams;
 class SpdySessionPool;
-class SpdyStream;
 class TransportClientSocketPool;
 class TransportSocketParams;
 
 // HttpProxySocketParams only needs the socket params for one of the proxy
-// types.  The other param must be NULL.  When using an HTTP Proxy,
-// |transport_params| must be set.  When using an HTTPS Proxy, |ssl_params|
-// must be set.
+// types.  The other param must be NULL.  When using an HTTP proxy,
+// |transport_params| must be set.  When using an HTTPS proxy or QUIC proxy,
+// |ssl_params| must be set. Also, if using a QUIC proxy, |quic_version| must
+// not be quic::QUIC_VERSION_UNSUPPORTED.
 class NET_EXPORT_PRIVATE HttpProxySocketParams
     : public base::RefCounted<HttpProxySocketParams> {
  public:
   HttpProxySocketParams(
       const scoped_refptr<TransportSocketParams>& transport_params,
       const scoped_refptr<SSLSocketParams>& ssl_params,
-      const GURL& request_url,
+      quic::QuicTransportVersion quic_version,
       const std::string& user_agent,
       const HostPortPair& endpoint,
       HttpAuthCache* http_auth_cache,
       HttpAuthHandlerFactory* http_auth_handler_factory,
       SpdySessionPool* spdy_session_pool,
-      bool tunnel);
+      QuicStreamFactory* quic_stream_factory,
+      bool is_trusted_proxy,
+      bool tunnel,
+      const NetworkTrafficAnnotationTag traffic_annotation);
 
   const scoped_refptr<TransportSocketParams>& transport_params() const {
     return transport_params_;
@@ -57,7 +67,7 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
   const scoped_refptr<SSLSocketParams>& ssl_params() const {
     return ssl_params_;
   }
-  const GURL& request_url() const { return request_url_; }
+  quic::QuicTransportVersion quic_version() const { return quic_version_; }
   const std::string& user_agent() const { return user_agent_; }
   const HostPortPair& endpoint() const { return endpoint_; }
   HttpAuthCache* http_auth_cache() const { return http_auth_cache_; }
@@ -67,9 +77,15 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
   SpdySessionPool* spdy_session_pool() {
     return spdy_session_pool_;
   }
+  QuicStreamFactory* quic_stream_factory() const {
+    return quic_stream_factory_;
+  }
   const HostResolver::RequestInfo& destination() const;
+  bool is_trusted_proxy() const { return is_trusted_proxy_; }
   bool tunnel() const { return tunnel_; }
-  bool ignore_limits() const { return ignore_limits_; }
+  const NetworkTrafficAnnotationTag traffic_annotation() const {
+    return traffic_annotation_;
+  }
 
  private:
   friend class base::RefCounted<HttpProxySocketParams>;
@@ -77,14 +93,16 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
 
   const scoped_refptr<TransportSocketParams> transport_params_;
   const scoped_refptr<SSLSocketParams> ssl_params_;
+  quic::QuicTransportVersion quic_version_;
   SpdySessionPool* spdy_session_pool_;
-  const GURL request_url_;
+  QuicStreamFactory* quic_stream_factory_;
   const std::string user_agent_;
   const HostPortPair endpoint_;
   HttpAuthCache* const http_auth_cache_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
+  const bool is_trusted_proxy_;
   const bool tunnel_;
-  bool ignore_limits_;
+  const NetworkTrafficAnnotationTag traffic_annotation_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxySocketParams);
 };
@@ -94,52 +112,23 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
 class HttpProxyConnectJob : public ConnectJob {
  public:
   HttpProxyConnectJob(const std::string& group_name,
+                      RequestPriority priority,
+                      const SocketTag& socket_tag,
+                      ClientSocketPool::RespectLimits respect_limits,
                       const scoped_refptr<HttpProxySocketParams>& params,
                       const base::TimeDelta& timeout_duration,
                       TransportClientSocketPool* transport_pool,
                       SSLClientSocketPool* ssl_pool,
-                      HostResolver* host_resolver,
                       Delegate* delegate,
                       NetLog* net_log);
-  virtual ~HttpProxyConnectJob();
+  ~HttpProxyConnectJob() override;
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const override;
+  LoadState GetLoadState() const override;
 
-  virtual void GetAdditionalErrorState(ClientSocketHandle* handle) override;
+  void GetAdditionalErrorState(ClientSocketHandle* handle) override;
 
  private:
-  enum State {
-    STATE_TCP_CONNECT,
-    STATE_TCP_CONNECT_COMPLETE,
-    STATE_SSL_CONNECT,
-    STATE_SSL_CONNECT_COMPLETE,
-    STATE_HTTP_PROXY_CONNECT,
-    STATE_HTTP_PROXY_CONNECT_COMPLETE,
-    STATE_SPDY_PROXY_CREATE_STREAM,
-    STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE,
-    STATE_SPDY_PROXY_CONNECT_COMPLETE,
-    STATE_NONE,
-  };
-
-  void OnIOComplete(int result);
-
-  // Runs the state transition loop.
-  int DoLoop(int result);
-
-  // Connecting to HTTP Proxy
-  int DoTransportConnect();
-  int DoTransportConnectComplete(int result);
-  // Connecting to HTTPS Proxy
-  int DoSSLConnect();
-  int DoSSLConnectComplete(int result);
-
-  int DoHttpProxyConnect();
-  int DoHttpProxyConnectComplete(int result);
-
-  int DoSpdyProxyCreateStream();
-  int DoSpdyProxyCreateStreamComplete(int result);
-
   // Begins the tcp connection and the optional Http proxy tunnel.  If the
   // request is not immediately servicable (likely), the request will return
   // ERR_IO_PENDING. An OK return from this function or the callback means
@@ -147,119 +136,138 @@ class HttpProxyConnectJob : public ConnectJob {
   // that the tunnel needs authentication credentials, the socket will be
   // returned in this case, and must be release back to the pool; or
   // a standard net error code will be returned.
-  virtual int ConnectInternal() override;
+  int ConnectInternal() override;
 
-  scoped_refptr<HttpProxySocketParams> params_;
-  TransportClientSocketPool* const transport_pool_;
-  SSLClientSocketPool* const ssl_pool_;
-  HostResolver* const resolver_;
+  void OnConnectComplete(int result);
 
-  State next_state_;
-  CompletionCallback callback_;
-  scoped_ptr<ClientSocketHandle> transport_socket_handle_;
-  scoped_ptr<ProxyClientSocket> transport_socket_;
-  bool using_spdy_;
-  // Protocol negotiated with the server.
-  NextProto protocol_negotiated_;
+  int HandleConnectResult(int result);
 
-  HttpResponseInfo error_response_info_;
+  std::unique_ptr<HttpProxyClientSocketWrapper> client_socket_;
 
-  scoped_refptr<SpdyStream> spdy_stream_;
+  std::unique_ptr<HttpResponseInfo> error_response_info_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJob);
 };
 
 class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
     : public ClientSocketPool,
-      public LayeredPool {
+      public HigherLayeredPool {
  public:
-  HttpProxyClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
-      ClientSocketPoolHistograms* histograms,
-      HostResolver* host_resolver,
-      TransportClientSocketPool* transport_pool,
-      SSLClientSocketPool* ssl_pool,
-      NetLog* net_log);
+  typedef HttpProxySocketParams SocketParams;
 
-  virtual ~HttpProxyClientSocketPool();
+  HttpProxyClientSocketPool(int max_sockets,
+                            int max_sockets_per_group,
+                            TransportClientSocketPool* transport_pool,
+                            SSLClientSocketPool* ssl_pool,
+                            NetworkQualityProvider* network_quality_provider,
+                            NetLog* net_log);
+
+  ~HttpProxyClientSocketPool() override;
 
   // ClientSocketPool implementation.
-  virtual int RequestSocket(const std::string& group_name,
-                            const void* connect_params,
-                            RequestPriority priority,
-                            ClientSocketHandle* handle,
-                            const CompletionCallback& callback,
-                            const BoundNetLog& net_log) override;
+  int RequestSocket(const std::string& group_name,
+                    const void* connect_params,
+                    RequestPriority priority,
+                    const SocketTag& socket_tag,
+                    RespectLimits respect_limits,
+                    ClientSocketHandle* handle,
+                    CompletionOnceCallback callback,
+                    const NetLogWithSource& net_log) override;
 
-  virtual void RequestSockets(const std::string& group_name,
-                              const void* params,
-                              int num_sockets,
-                              const BoundNetLog& net_log) override;
+  void RequestSockets(const std::string& group_name,
+                      const void* params,
+                      int num_sockets,
+                      const NetLogWithSource& net_log) override;
 
-  virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle) override;
+  void SetPriority(const std::string& group_name,
+                   ClientSocketHandle* handle,
+                   RequestPriority priority) override;
 
-  virtual void ReleaseSocket(const std::string& group_name,
-                             StreamSocket* socket,
-                             int id) override;
+  void CancelRequest(const std::string& group_name,
+                     ClientSocketHandle* handle) override;
 
-  virtual void FlushWithError(int error) override;
+  void ReleaseSocket(const std::string& group_name,
+                     std::unique_ptr<StreamSocket> socket,
+                     int id) override;
 
-  virtual bool IsStalled() const override;
+  void FlushWithError(int error) override;
 
-  virtual void CloseIdleSockets() override;
+  void CloseIdleSockets() override;
 
-  virtual int IdleSocketCount() const override;
+  void CloseIdleSocketsInGroup(const std::string& group_name) override;
 
-  virtual int IdleSocketCountInGroup(
-      const std::string& group_name) const override;
+  int IdleSocketCount() const override;
 
-  virtual LoadState GetLoadState(
-      const std::string& group_name,
-      const ClientSocketHandle* handle) const override;
+  int IdleSocketCountInGroup(const std::string& group_name) const override;
 
-  virtual void AddLayeredPool(LayeredPool* layered_pool) override;
+  LoadState GetLoadState(const std::string& group_name,
+                         const ClientSocketHandle* handle) const override;
 
-  virtual void RemoveLayeredPool(LayeredPool* layered_pool) override;
-
-  virtual base::DictionaryValue* GetInfoAsValue(
+  std::unique_ptr<base::DictionaryValue> GetInfoAsValue(
       const std::string& name,
       const std::string& type,
       bool include_nested_pools) const override;
 
-  virtual base::TimeDelta ConnectionTimeout() const override;
+  base::TimeDelta ConnectionTimeout() const override;
 
-  virtual ClientSocketPoolHistograms* histograms() const override;
+  // LowerLayeredPool implementation.
+  bool IsStalled() const override;
 
-  // LayeredPool implementation.
-  virtual bool CloseOneIdleConnection() override;
+  void AddHigherLayeredPool(HigherLayeredPool* higher_pool) override;
+
+  void RemoveHigherLayeredPool(HigherLayeredPool* higher_pool) override;
+
+  // HigherLayeredPool implementation.
+  bool CloseOneIdleConnection() override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(HttpProxyClientSocketPoolTest,
+                           ProxyPoolTimeoutWithConnectionProperty);
+
   typedef ClientSocketPoolBase<HttpProxySocketParams> PoolBase;
 
-  class HttpProxyConnectJobFactory : public PoolBase::ConnectJobFactory {
+  class NET_EXPORT_PRIVATE HttpProxyConnectJobFactory
+      : public PoolBase::ConnectJobFactory {
    public:
-    HttpProxyConnectJobFactory(
-        TransportClientSocketPool* transport_pool,
-        SSLClientSocketPool* ssl_pool,
-        HostResolver* host_resolver,
-        NetLog* net_log);
+    HttpProxyConnectJobFactory(TransportClientSocketPool* transport_pool,
+                               SSLClientSocketPool* ssl_pool,
+                               NetworkQualityProvider* network_quality_provider,
+                               NetLog* net_log);
 
     // ClientSocketPoolBase::ConnectJobFactory methods.
-    virtual ConnectJob* NewConnectJob(
+    std::unique_ptr<ConnectJob> NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
         ConnectJob::Delegate* delegate) const override;
 
-    virtual base::TimeDelta ConnectionTimeout() const override;
+    base::TimeDelta ConnectionTimeout() const override;
 
    private:
+    FRIEND_TEST_ALL_PREFIXES(HttpProxyClientSocketPoolTest,
+                             ProxyPoolTimeoutWithConnectionProperty);
+
+    // Returns proxy connection timeout for secure proxies if
+    // |is_secure_connection| is true. Otherwise, returns timeout for insecure
+    // proxies.
+    base::TimeDelta ConnectionTimeoutWithConnectionProperty(
+        bool is_secure_connection) const;
+
     TransportClientSocketPool* const transport_pool_;
     SSLClientSocketPool* const ssl_pool_;
-    HostResolver* const host_resolver_;
+    NetworkQualityProvider* const network_quality_provider_;
+
+    // For secure proxies, the connection timeout is set to
+    // |ssl_http_rtt_multiplier_| times the HTTP RTT estimate. For insecure
+    // proxies, the connection timeout is set to |non_ssl_http_rtt_multiplier_|
+    // times the HTTP RTT estimate. In either case, the connection timeout
+    // is clamped to be between |min_proxy_connection_timeout_| and
+    // |max_proxy_connection_timeout_|.
+    const int32_t ssl_http_rtt_multiplier_;
+    const int32_t non_ssl_http_rtt_multiplier_;
+    const base::TimeDelta min_proxy_connection_timeout_;
+    const base::TimeDelta max_proxy_connection_timeout_;
+
     NetLog* net_log_;
-    base::TimeDelta timeout_;
 
     DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJobFactory);
   };
@@ -270,9 +278,6 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxyClientSocketPool);
 };
-
-REGISTER_SOCKET_PARAMS_FOR_POOL(HttpProxyClientSocketPool,
-                                HttpProxySocketParams);
 
 }  // namespace net
 

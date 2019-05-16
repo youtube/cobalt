@@ -7,9 +7,10 @@
 
 #include <list>
 
-#include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
+#include "url/gurl.h"
 
 namespace net {
 
@@ -28,13 +29,8 @@ class NET_EXPORT_PRIVATE FtpAuthCache {
 
   struct Entry {
     Entry(const GURL& origin, const AuthCredentials& credentials);
-#if defined(DISABLE_FTP_SUPPORT)
-    ~Entry() {
-      NOTREACHED();
-    }
-#else
     ~Entry();
-#endif
+
     GURL origin;
     AuthCredentials credentials;
   };

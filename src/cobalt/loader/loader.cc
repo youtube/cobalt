@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/loader/loader.h"
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 
 namespace cobalt {
 namespace loader {
@@ -46,21 +48,20 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
   }
 
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    UNREFERENCED_PARAMETER(fetcher);
+    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnReceivedPassed(Fetcher* fetcher,
-                        scoped_ptr<std::string> data) override {
-    UNREFERENCED_PARAMETER(fetcher);
-    decoder_->DecodeChunkPassed(data.Pass());
+                        std::unique_ptr<std::string> data) override {
+    SB_UNREFERENCED_PARAMETER(fetcher);
+    decoder_->DecodeChunkPassed(std::move(data));
   }
   void OnDone(Fetcher* fetcher) override {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
   }
-  void OnError(Fetcher* fetcher, const std::string& error) override {
-    UNREFERENCED_PARAMETER(fetcher);
+  void OnError(Fetcher* /*fetcher*/, const std::string& error) override {
     load_complete_callback_.Run(error);
   }
 
@@ -86,8 +87,15 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
   DCHECK(!decoder_creator_.is_null());
   DCHECK(!on_load_complete_.is_null());
 
-  decoder_ = decoder_creator_.Run(
+  std::unique_ptr<Decoder> decoder = decoder_creator_.Run(
       base::Bind(&Loader::LoadComplete, base::Unretained(this)));
+  // We are doing this bizzare check because decoder_ used to be a scoped_ptr
+  // and scoped_ptr checks equality of held raw pointer and only delete rhs if
+  // not equal.
+  if (decoder.get() == decoder_.get()) {
+    decoder_.release();
+  }
+  decoder_ = std::move(decoder);
 
   if (!is_suspended_) {
     Start();
@@ -138,7 +146,7 @@ bool Loader::DidFailFromTransientError() const {
   return fetcher_ && fetcher_->did_fail_from_transient_error();
 }
 
-void Loader::LoadComplete(const base::optional<std::string>& error) {
+void Loader::LoadComplete(const base::Optional<std::string>& error) {
   is_load_complete_ = true;
   on_load_complete_.Run(error);
 }
@@ -158,8 +166,8 @@ void Loader::Start() {
     fetcher_creator_error_closure_.Reset(
         base::Bind(base::Bind(&Loader::LoadComplete, base::Unretained(this)),
                    std::string("Fetcher was not created.")));
-    MessageLoop::current()->PostTask(FROM_HERE,
-                                     fetcher_creator_error_closure_.callback());
+    base::MessageLoop::current()->task_runner()->PostTask(
+        FROM_HERE, fetcher_creator_error_closure_.callback());
   }
 }
 

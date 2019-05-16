@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/debug/trace_event.h"
+#include <memory>
+
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/pipeline.h"
@@ -36,15 +38,15 @@ const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
 
 int SandboxMain(int argc, char** argv) {
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
-      FilePath(FILE_PATH_LITERAL("scaling_text_sandbox_trace.json")));
+      base::FilePath(FILE_PATH_LITERAL("scaling_text_sandbox_trace.json")));
 
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
   cobalt::math::Size view_size(kViewportWidth, kViewportHeight);
-  scoped_ptr<SystemWindow> system_window(
+  std::unique_ptr<SystemWindow> system_window(
       new cobalt::system_window::SystemWindow(&event_dispatcher, view_size));
 
   // Construct a renderer module using default options.

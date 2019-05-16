@@ -7,15 +7,15 @@
 
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 
 class URLRequest;
-class URLRequestThrottlerHeaderInterface;
 
 // Interface provided on entries of the URL request throttler manager.
 class NET_EXPORT URLRequestThrottlerEntryInterface
@@ -25,8 +25,7 @@ class NET_EXPORT URLRequestThrottlerEntryInterface
 
   // Returns true when we have encountered server errors and are doing
   // exponential back-off, unless the request has load flags that mean
-  // it is likely to be user-initiated, or the NetworkDelegate returns
-  // false for |CanThrottleRequest(request)|.
+  // it is likely to be user-initiated.
   //
   // URLRequestHttpJob checks this method prior to every request; it
   // cancels requests if this method returns true.
@@ -41,16 +40,14 @@ class NET_EXPORT URLRequestThrottlerEntryInterface
   // milliseconds. The return value is always positive or 0.
   // Although it is not mandatory, respecting the value returned by this method
   // is helpful to avoid traffic overload.
-  virtual int64 ReserveSendingTimeForNextRequest(
+  virtual int64_t ReserveSendingTimeForNextRequest(
       const base::TimeTicks& earliest_time) = 0;
 
   // Returns the time after which requests are allowed.
   virtual base::TimeTicks GetExponentialBackoffReleaseTime() const = 0;
 
   // This method needs to be called each time a response is received.
-  virtual void UpdateWithResponse(
-      const std::string& host,
-      const URLRequestThrottlerHeaderInterface* response) = 0;
+  virtual void UpdateWithResponse(int status_code) = 0;
 
   // Lets higher-level modules, that know how to parse particular response
   // bodies, notify of receiving malformed content for the given URL. This will

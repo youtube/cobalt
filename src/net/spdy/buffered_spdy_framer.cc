@@ -4,298 +4,323 @@
 
 #include "net/spdy/buffered_spdy_framer.h"
 
+#include <algorithm>
+#include <utility>
+
 #include "base/logging.h"
+#include "base/strings/string_util.h"
+#include "base/trace_event/memory_usage_estimator.h"
 
 namespace net {
 
-BufferedSpdyFramer::BufferedSpdyFramer(int version, bool enable_compression)
-    : spdy_framer_(version),
+namespace {
+
+// GOAWAY frame debug data is only buffered up to this many bytes.
+size_t kGoAwayDebugDataMaxSize = 1024;
+
+}  // namespace
+
+BufferedSpdyFramer::BufferedSpdyFramer(uint32_t max_header_list_size,
+                                       const NetLogWithSource& net_log)
+    : spdy_framer_(spdy::SpdyFramer::ENABLE_COMPRESSION),
       visitor_(NULL),
-      header_buffer_used_(0),
-      header_buffer_valid_(false),
-      header_stream_id_(SpdyFramer::kInvalidStream),
-      frames_received_(0) {
-  spdy_framer_.set_enable_compression(enable_compression);
-  memset(header_buffer_, 0, sizeof(header_buffer_));
+      frames_received_(0),
+      max_header_list_size_(max_header_list_size),
+      net_log_(net_log) {
+  // Do not bother decoding response header payload above the limit.
+  deframer_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
+      max_header_list_size_);
 }
 
-BufferedSpdyFramer::~BufferedSpdyFramer() {
-}
+BufferedSpdyFramer::~BufferedSpdyFramer() = default;
 
 void BufferedSpdyFramer::set_visitor(
     BufferedSpdyFramerVisitorInterface* visitor) {
   visitor_ = visitor;
-  spdy_framer_.set_visitor(this);
+  deframer_.set_visitor(this);
 }
 
-void BufferedSpdyFramer::OnError(SpdyFramer* spdy_framer) {
-  DCHECK(spdy_framer);
-  visitor_->OnError(spdy_framer->error_code());
+void BufferedSpdyFramer::set_debug_visitor(
+    spdy::SpdyFramerDebugVisitorInterface* debug_visitor) {
+  spdy_framer_.set_debug_visitor(debug_visitor);
+  deframer_.set_debug_visitor(debug_visitor);
 }
 
-void BufferedSpdyFramer::OnSynStream(SpdyStreamId stream_id,
-                                     SpdyStreamId associated_stream_id,
-                                     SpdyPriority priority,
-                                     uint8 credential_slot,
-                                     bool fin,
-                                     bool unidirectional) {
+void BufferedSpdyFramer::OnError(
+    http2::Http2DecoderAdapter::SpdyFramerError spdy_framer_error) {
+  visitor_->OnError(spdy_framer_error);
+}
+
+void BufferedSpdyFramer::OnHeaders(spdy::SpdyStreamId stream_id,
+                                   bool has_priority,
+                                   int weight,
+                                   spdy::SpdyStreamId parent_stream_id,
+                                   bool exclusive,
+                                   bool fin,
+                                   bool end) {
   frames_received_++;
   DCHECK(!control_frame_fields_.get());
-  control_frame_fields_.reset(new ControlFrameFields());
-  control_frame_fields_->type = SYN_STREAM;
+  control_frame_fields_ = std::make_unique<ControlFrameFields>();
+  control_frame_fields_->type = spdy::SpdyFrameType::HEADERS;
   control_frame_fields_->stream_id = stream_id;
-  control_frame_fields_->associated_stream_id = associated_stream_id;
-  control_frame_fields_->priority = priority;
-  control_frame_fields_->credential_slot = credential_slot;
+  control_frame_fields_->has_priority = has_priority;
+  if (control_frame_fields_->has_priority) {
+    control_frame_fields_->weight = weight;
+    control_frame_fields_->parent_stream_id = parent_stream_id;
+    control_frame_fields_->exclusive = exclusive;
+  }
   control_frame_fields_->fin = fin;
-  control_frame_fields_->unidirectional = unidirectional;
-
-  InitHeaderStreaming(stream_id);
 }
 
-void BufferedSpdyFramer::OnHeaders(SpdyStreamId stream_id,
-                                   bool fin) {
+void BufferedSpdyFramer::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
+                                           size_t length,
+                                           bool fin) {
   frames_received_++;
-  DCHECK(!control_frame_fields_.get());
-  control_frame_fields_.reset(new ControlFrameFields());
-  control_frame_fields_->type = HEADERS;
-  control_frame_fields_->stream_id = stream_id;
-  control_frame_fields_->fin = fin;
-
-  InitHeaderStreaming(stream_id);
+  visitor_->OnDataFrameHeader(stream_id, length, fin);
 }
 
-void BufferedSpdyFramer::OnSynReply(SpdyStreamId stream_id,
-                                    bool fin) {
-  frames_received_++;
-  DCHECK(!control_frame_fields_.get());
-  control_frame_fields_.reset(new ControlFrameFields());
-  control_frame_fields_->type = SYN_REPLY;
-  control_frame_fields_->stream_id = stream_id;
-  control_frame_fields_->fin = fin;
-
-  InitHeaderStreaming(stream_id);
+void BufferedSpdyFramer::OnStreamFrameData(spdy::SpdyStreamId stream_id,
+                                           const char* data,
+                                           size_t len) {
+  visitor_->OnStreamFrameData(stream_id, data, len);
 }
 
-bool BufferedSpdyFramer::OnCredentialFrameData(const char* frame_data,
-                                               size_t len) {
-  DCHECK(false);
-  return false;
+void BufferedSpdyFramer::OnStreamEnd(spdy::SpdyStreamId stream_id) {
+  visitor_->OnStreamEnd(stream_id);
 }
 
-bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
-                                                  const char* header_data,
-                                                  size_t len) {
-  CHECK_EQ(header_stream_id_, stream_id);
+void BufferedSpdyFramer::OnStreamPadLength(spdy::SpdyStreamId stream_id,
+                                           size_t value) {
+  // Deliver the stream pad length byte for flow control handling.
+  visitor_->OnStreamPadding(stream_id, 1);
+}
 
-  if (len == 0) {
-    // Indicates end-of-header-block.
-    CHECK(header_buffer_valid_);
+void BufferedSpdyFramer::OnStreamPadding(spdy::SpdyStreamId stream_id,
+                                         size_t len) {
+  visitor_->OnStreamPadding(stream_id, len);
+}
 
-    SpdyHeaderBlock headers;
-    bool parsed_headers = spdy_framer_.ParseHeaderBlockInBuffer(
-        header_buffer_, header_buffer_used_, &headers);
-    if (!parsed_headers) {
-      visitor_->OnStreamError(
-          stream_id, "Could not parse Spdy Control Frame Header.");
-      return false;
+spdy::SpdyHeadersHandlerInterface* BufferedSpdyFramer::OnHeaderFrameStart(
+    spdy::SpdyStreamId stream_id) {
+  coalescer_ =
+      std::make_unique<HeaderCoalescer>(max_header_list_size_, net_log_);
+  return coalescer_.get();
+}
+
+void BufferedSpdyFramer::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
+  if (coalescer_->error_seen()) {
+    visitor_->OnStreamError(stream_id,
+                            "Could not parse Spdy Control Frame Header.");
+    control_frame_fields_.reset();
+    return;
+  }
+  DCHECK(control_frame_fields_.get());
+  switch (control_frame_fields_->type) {
+    case spdy::SpdyFrameType::HEADERS:
+      visitor_->OnHeaders(
+          control_frame_fields_->stream_id, control_frame_fields_->has_priority,
+          control_frame_fields_->weight,
+          control_frame_fields_->parent_stream_id,
+          control_frame_fields_->exclusive, control_frame_fields_->fin,
+          coalescer_->release_headers());
+      break;
+    case spdy::SpdyFrameType::PUSH_PROMISE:
+      visitor_->OnPushPromise(control_frame_fields_->stream_id,
+                              control_frame_fields_->promised_stream_id,
+                              coalescer_->release_headers());
+      break;
+    default:
+      DCHECK(false) << "Unexpect control frame type: "
+                    << control_frame_fields_->type;
+      break;
+  }
+  control_frame_fields_.reset(NULL);
+}
+
+void BufferedSpdyFramer::OnSettings() {
+  visitor_->OnSettings();
+}
+
+void BufferedSpdyFramer::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
+  visitor_->OnSetting(id, value);
+}
+
+void BufferedSpdyFramer::OnSettingsAck() {
+  visitor_->OnSettingsAck();
+}
+
+void BufferedSpdyFramer::OnSettingsEnd() {
+  visitor_->OnSettingsEnd();
+}
+
+void BufferedSpdyFramer::OnPing(spdy::SpdyPingId unique_id, bool is_ack) {
+  visitor_->OnPing(unique_id, is_ack);
+}
+
+void BufferedSpdyFramer::OnRstStream(spdy::SpdyStreamId stream_id,
+                                     spdy::SpdyErrorCode error_code) {
+  visitor_->OnRstStream(stream_id, error_code);
+}
+void BufferedSpdyFramer::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
+                                  spdy::SpdyErrorCode error_code) {
+  DCHECK(!goaway_fields_);
+  goaway_fields_ = std::make_unique<GoAwayFields>();
+  goaway_fields_->last_accepted_stream_id = last_accepted_stream_id;
+  goaway_fields_->error_code = error_code;
+}
+
+bool BufferedSpdyFramer::OnGoAwayFrameData(const char* goaway_data,
+                                           size_t len) {
+  if (len > 0) {
+    if (goaway_fields_->debug_data.size() < kGoAwayDebugDataMaxSize) {
+      goaway_fields_->debug_data.append(
+          goaway_data, std::min(len, kGoAwayDebugDataMaxSize -
+                                         goaway_fields_->debug_data.size()));
     }
-    DCHECK(control_frame_fields_.get());
-    switch (control_frame_fields_->type) {
-      case SYN_STREAM:
-        visitor_->OnSynStream(control_frame_fields_->stream_id,
-                              control_frame_fields_->associated_stream_id,
-                              control_frame_fields_->priority,
-                              control_frame_fields_->credential_slot,
-                              control_frame_fields_->fin,
-                              control_frame_fields_->unidirectional,
-                              headers);
-        break;
-      case SYN_REPLY:
-        visitor_->OnSynReply(control_frame_fields_->stream_id,
-                             control_frame_fields_->fin,
-                             headers);
-        break;
-      case HEADERS:
-        visitor_->OnHeaders(control_frame_fields_->stream_id,
-                            control_frame_fields_->fin,
-                            headers);
-        break;
-      default:
-        DCHECK(false) << "Unexpect control frame type: "
-                      << control_frame_fields_->type;
-        break;
-    }
-    control_frame_fields_.reset(NULL);
     return true;
   }
-
-  const size_t available = kHeaderBufferSize - header_buffer_used_;
-  if (len > available) {
-    header_buffer_valid_ = false;
-    visitor_->OnStreamError(
-        stream_id, "Received more data than the allocated size.");
-    return false;
-  }
-  memcpy(header_buffer_ + header_buffer_used_, header_data, len);
-  header_buffer_used_ += len;
+  visitor_->OnGoAway(goaway_fields_->last_accepted_stream_id,
+                     goaway_fields_->error_code, goaway_fields_->debug_data);
+  goaway_fields_.reset();
   return true;
 }
 
-void BufferedSpdyFramer::OnDataFrameHeader(const SpdyDataFrame* frame) {
-  frames_received_++;
-  header_stream_id_ = frame->stream_id();
-}
-
-void BufferedSpdyFramer::OnStreamFrameData(SpdyStreamId stream_id,
-                                           const char* data,
-                                           size_t len,
-                                           SpdyDataFlags flags) {
-  visitor_->OnStreamFrameData(stream_id, data, len, flags);
-}
-
-void BufferedSpdyFramer::OnSetting(SpdySettingsIds id,
-                                   uint8 flags,
-                                   uint32 value) {
-  visitor_->OnSetting(id, flags, value);
-}
-
-void BufferedSpdyFramer::OnPing(uint32 unique_id) {
-  visitor_->OnPing(unique_id);
-}
-
-void BufferedSpdyFramer::OnRstStream(SpdyStreamId stream_id,
-                                     SpdyStatusCodes status) {
-  visitor_->OnRstStream(stream_id, status);
-}
-void BufferedSpdyFramer::OnGoAway(SpdyStreamId last_accepted_stream_id,
-                                  SpdyGoAwayStatus status) {
-  visitor_->OnGoAway(last_accepted_stream_id, status);
-}
-
-void BufferedSpdyFramer::OnWindowUpdate(SpdyStreamId stream_id,
+void BufferedSpdyFramer::OnWindowUpdate(spdy::SpdyStreamId stream_id,
                                         int delta_window_size) {
   visitor_->OnWindowUpdate(stream_id, delta_window_size);
 }
 
-void BufferedSpdyFramer::OnControlFrameCompressed(
-    const SpdyControlFrame& uncompressed_frame,
-    const SpdyControlFrame& compressed_frame) {
-  visitor_->OnControlFrameCompressed(uncompressed_frame, compressed_frame);
+void BufferedSpdyFramer::OnPushPromise(spdy::SpdyStreamId stream_id,
+                                       spdy::SpdyStreamId promised_stream_id,
+                                       bool end) {
+  frames_received_++;
+  DCHECK(!control_frame_fields_.get());
+  control_frame_fields_ = std::make_unique<ControlFrameFields>();
+  control_frame_fields_->type = spdy::SpdyFrameType::PUSH_PROMISE;
+  control_frame_fields_->stream_id = stream_id;
+  control_frame_fields_->promised_stream_id = promised_stream_id;
 }
 
+void BufferedSpdyFramer::OnAltSvc(
+    spdy::SpdyStreamId stream_id,
+    base::StringPiece origin,
+    const spdy::SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector) {
+  visitor_->OnAltSvc(stream_id, origin, altsvc_vector);
+}
 
-int BufferedSpdyFramer::protocol_version() {
-  return spdy_framer_.protocol_version();
+void BufferedSpdyFramer::OnContinuation(spdy::SpdyStreamId stream_id,
+                                        bool end) {}
+
+bool BufferedSpdyFramer::OnUnknownFrame(spdy::SpdyStreamId stream_id,
+                                        uint8_t frame_type) {
+  return visitor_->OnUnknownFrame(stream_id, frame_type);
 }
 
 size_t BufferedSpdyFramer::ProcessInput(const char* data, size_t len) {
-  return spdy_framer_.ProcessInput(data, len);
+  return deframer_.ProcessInput(data, len);
+}
+
+void BufferedSpdyFramer::UpdateHeaderDecoderTableSize(uint32_t value) {
+  deframer_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(value);
 }
 
 void BufferedSpdyFramer::Reset() {
-  spdy_framer_.Reset();
+  deframer_.Reset();
 }
 
-SpdyFramer::SpdyError BufferedSpdyFramer::error_code() const {
-  return spdy_framer_.error_code();
+http2::Http2DecoderAdapter::SpdyFramerError
+BufferedSpdyFramer::spdy_framer_error() const {
+  return deframer_.spdy_framer_error();
 }
 
-SpdyFramer::SpdyState BufferedSpdyFramer::state() const {
-  return spdy_framer_.state();
+http2::Http2DecoderAdapter::SpdyState BufferedSpdyFramer::state() const {
+  return deframer_.state();
 }
 
 bool BufferedSpdyFramer::MessageFullyRead() {
-  return spdy_framer_.MessageFullyRead();
+  return state() == http2::Http2DecoderAdapter::SPDY_FRAME_COMPLETE;
 }
 
 bool BufferedSpdyFramer::HasError() {
-  return spdy_framer_.HasError();
+  return deframer_.HasError();
 }
 
-SpdySynStreamControlFrame* BufferedSpdyFramer::CreateSynStream(
-    SpdyStreamId stream_id,
-    SpdyStreamId associated_stream_id,
-    SpdyPriority priority,
-    uint8 credential_slot,
-    SpdyControlFlags flags,
-    bool compressed,
-    const SpdyHeaderBlock* headers) {
-  return spdy_framer_.CreateSynStream(stream_id, associated_stream_id, priority,
-                                      credential_slot, flags, compressed,
-                                      headers);
+// TODO(jgraettinger): Eliminate uses of this method (prefer
+// spdy::SpdyRstStreamIR).
+std::unique_ptr<spdy::SpdySerializedFrame> BufferedSpdyFramer::CreateRstStream(
+    spdy::SpdyStreamId stream_id,
+    spdy::SpdyErrorCode error_code) const {
+  spdy::SpdyRstStreamIR rst_ir(stream_id, error_code);
+  return std::make_unique<spdy::SpdySerializedFrame>(
+      spdy_framer_.SerializeRstStream(rst_ir));
 }
 
-SpdySynReplyControlFrame* BufferedSpdyFramer::CreateSynReply(
-    SpdyStreamId stream_id,
-    SpdyControlFlags flags,
-    bool compressed,
-    const SpdyHeaderBlock* headers) {
-  return spdy_framer_.CreateSynReply(stream_id, flags, compressed, headers);
+// TODO(jgraettinger): Eliminate uses of this method (prefer
+// spdy::SpdySettingsIR).
+std::unique_ptr<spdy::SpdySerializedFrame> BufferedSpdyFramer::CreateSettings(
+    const spdy::SettingsMap& values) const {
+  spdy::SpdySettingsIR settings_ir;
+  for (auto it = values.begin(); it != values.end(); ++it) {
+    settings_ir.AddSetting(it->first, it->second);
+  }
+  return std::make_unique<spdy::SpdySerializedFrame>(
+      spdy_framer_.SerializeSettings(settings_ir));
 }
 
-SpdyRstStreamControlFrame* BufferedSpdyFramer::CreateRstStream(
-    SpdyStreamId stream_id,
-    SpdyStatusCodes status) const {
-  return spdy_framer_.CreateRstStream(stream_id, status);
+// TODO(jgraettinger): Eliminate uses of this method (prefer spdy::SpdyPingIR).
+std::unique_ptr<spdy::SpdySerializedFrame> BufferedSpdyFramer::CreatePingFrame(
+    spdy::SpdyPingId unique_id,
+    bool is_ack) const {
+  spdy::SpdyPingIR ping_ir(unique_id);
+  ping_ir.set_is_ack(is_ack);
+  return std::make_unique<spdy::SpdySerializedFrame>(
+      spdy_framer_.SerializePing(ping_ir));
 }
 
-SpdySettingsControlFrame* BufferedSpdyFramer::CreateSettings(
-    const SettingsMap& values) const {
-  return spdy_framer_.CreateSettings(values);
+// TODO(jgraettinger): Eliminate uses of this method (prefer
+// spdy::SpdyWindowUpdateIR).
+std::unique_ptr<spdy::SpdySerializedFrame>
+BufferedSpdyFramer::CreateWindowUpdate(spdy::SpdyStreamId stream_id,
+                                       uint32_t delta_window_size) const {
+  spdy::SpdyWindowUpdateIR update_ir(stream_id, delta_window_size);
+  return std::make_unique<spdy::SpdySerializedFrame>(
+      spdy_framer_.SerializeWindowUpdate(update_ir));
 }
 
-SpdyPingControlFrame* BufferedSpdyFramer::CreatePingFrame(
-    uint32 unique_id) const {
-  return spdy_framer_.CreatePingFrame(unique_id);
+// TODO(jgraettinger): Eliminate uses of this method (prefer spdy::SpdyDataIR).
+std::unique_ptr<spdy::SpdySerializedFrame> BufferedSpdyFramer::CreateDataFrame(
+    spdy::SpdyStreamId stream_id,
+    const char* data,
+    uint32_t len,
+    spdy::SpdyDataFlags flags) {
+  spdy::SpdyDataIR data_ir(stream_id, base::StringPiece(data, len));
+  data_ir.set_fin((flags & spdy::DATA_FLAG_FIN) != 0);
+  return std::make_unique<spdy::SpdySerializedFrame>(
+      spdy_framer_.SerializeData(data_ir));
 }
 
-SpdyGoAwayControlFrame* BufferedSpdyFramer::CreateGoAway(
-    SpdyStreamId last_accepted_stream_id,
-    SpdyGoAwayStatus status) const {
-  return spdy_framer_.CreateGoAway(last_accepted_stream_id, status);
+// TODO(jgraettinger): Eliminate uses of this method (prefer
+// spdy::SpdyPriorityIR).
+std::unique_ptr<spdy::SpdySerializedFrame> BufferedSpdyFramer::CreatePriority(
+    spdy::SpdyStreamId stream_id,
+    spdy::SpdyStreamId dependency_id,
+    int weight,
+    bool exclusive) const {
+  spdy::SpdyPriorityIR priority_ir(stream_id, dependency_id, weight, exclusive);
+  return std::make_unique<spdy::SpdySerializedFrame>(
+      spdy_framer_.SerializePriority(priority_ir));
 }
 
-SpdyHeadersControlFrame* BufferedSpdyFramer::CreateHeaders(
-    SpdyStreamId stream_id,
-    SpdyControlFlags flags,
-    bool compressed,
-    const SpdyHeaderBlock* headers) {
-  return spdy_framer_.CreateHeaders(stream_id, flags, compressed, headers);
+size_t BufferedSpdyFramer::EstimateMemoryUsage() const {
+  return base::trace_event::EstimateMemoryUsage(spdy_framer_) +
+         base::trace_event::EstimateMemoryUsage(deframer_) +
+         base::trace_event::EstimateMemoryUsage(coalescer_) +
+         base::trace_event::EstimateMemoryUsage(control_frame_fields_) +
+         base::trace_event::EstimateMemoryUsage(goaway_fields_);
 }
 
-SpdyWindowUpdateControlFrame* BufferedSpdyFramer::CreateWindowUpdate(
-    SpdyStreamId stream_id,
-    uint32 delta_window_size) const {
-  return spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size);
-}
-
-SpdyCredentialControlFrame* BufferedSpdyFramer::CreateCredentialFrame(
-    const SpdyCredential& credential) const {
-  return spdy_framer_.CreateCredentialFrame(credential);
-}
-
-SpdyDataFrame* BufferedSpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
-                                                   const char* data,
-                                                   uint32 len,
-                                                   SpdyDataFlags flags) {
-  return spdy_framer_.CreateDataFrame(stream_id, data, len, flags);
-}
-
-SpdyPriority BufferedSpdyFramer::GetHighestPriority() const {
-  return spdy_framer_.GetHighestPriority();
-}
-
-bool BufferedSpdyFramer::IsCompressible(const SpdyFrame& frame) const {
-  return spdy_framer_.IsCompressible(frame);
-}
-
-void BufferedSpdyFramer::InitHeaderStreaming(SpdyStreamId stream_id) {
-  memset(header_buffer_, 0, kHeaderBufferSize);
-  header_buffer_used_ = 0;
-  header_buffer_valid_ = true;
-  header_stream_id_ = stream_id;
-  DCHECK_NE(header_stream_id_, SpdyFramer::kInvalidStream);
+size_t BufferedSpdyFramer::GoAwayFields::EstimateMemoryUsage() const {
+  return base::trace_event::EstimateMemoryUsage(debug_data);
 }
 
 }  // namespace net

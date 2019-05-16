@@ -15,19 +15,19 @@
 #ifndef COBALT_DEBUG_JSON_OBJECT_H_
 #define COBALT_DEBUG_JSON_OBJECT_H_
 
+#include <memory>
 #include <string>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 
 namespace cobalt {
 namespace debug {
 
-typedef scoped_ptr<base::DictionaryValue> JSONObject;
+typedef std::unique_ptr<base::DictionaryValue> JSONObject;
 
-typedef scoped_ptr<base::ListValue> JSONList;
+typedef std::unique_ptr<base::ListValue> JSONList;
 
 JSONObject JSONParse(const std::string& json, int* parse_error);
 

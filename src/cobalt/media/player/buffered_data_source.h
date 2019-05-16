@@ -17,10 +17,10 @@
 
 #include "base/basictypes.h"
 #include "base/callback.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/media/base/data_source.h"
-#include "googleurl/src/gurl.h"
 #include "starboard/types.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {
@@ -38,9 +38,11 @@ class BufferedDataSource : public DataSource {
 
   virtual void SetDownloadingStatusCB(
       const DownloadingStatusCB& downloading_status_cb) {
-    UNREFERENCED_PARAMETER(downloading_status_cb);
+    SB_UNREFERENCED_PARAMETER(downloading_status_cb);
   }
-  virtual void SetPreload(Preload preload) { UNREFERENCED_PARAMETER(preload); }
+  virtual void SetPreload(Preload preload) {
+    SB_UNREFERENCED_PARAMETER(preload);
+  }
   virtual bool HasSingleOrigin() { return true; }
   virtual bool DidPassCORSAccessCheck() const { return true; }
   virtual void Abort() {}

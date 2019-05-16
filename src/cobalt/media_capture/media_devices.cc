@@ -14,6 +14,7 @@
 
 #include "cobalt/media_capture/media_devices.h"
 
+#include <memory>
 #include <string>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -38,17 +39,18 @@ namespace {
 
 using speech::Microphone;
 
-scoped_ptr<Microphone> CreateMicrophone(const Microphone::Options& options) {
+std::unique_ptr<Microphone> CreateMicrophone(
+    const Microphone::Options& options) {
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (options.enable_fake_microphone) {
-    return make_scoped_ptr<speech::Microphone>(
+    return std::unique_ptr<speech::Microphone>(
         new speech::MicrophoneFake(options));
   }
 #else
-  UNREFERENCED_PARAMETER(options);
+  SB_UNREFERENCED_PARAMETER(options);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
-  scoped_ptr<Microphone> mic;
+  std::unique_ptr<Microphone> mic;
 
 #if defined(ENABLE_MICROPHONE_IDL)
   mic.reset(new speech::MicrophoneStarboard(
@@ -58,14 +60,14 @@ scoped_ptr<Microphone> CreateMicrophone(const Microphone::Options& options) {
           speech::MicrophoneStarboard::kSbMicrophoneSampleSizeInBytes));
 #endif  // defined(ENABLE_MICROPHONE_IDL)
 
-  return mic.Pass();
+  return mic;
 }
 
 }  // namespace.
 
 MediaDevices::MediaDevices(script::ScriptValueFactory* script_value_factory)
     : script_value_factory_(script_value_factory),
-      javascript_message_loop_(base::MessageLoopProxy::current()),
+      javascript_message_loop_(base::MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {}
 
@@ -77,12 +79,11 @@ MediaDevices::EnumerateDevices() {
       script_value_factory_->CreateBasicPromise<MediaInfoSequence>();
   script::Sequence<scoped_refptr<Wrappable>> output;
 
-  scoped_ptr<speech::Microphone> microphone =
+  std::unique_ptr<speech::Microphone> microphone =
       CreateMicrophone(settings_->microphone_options());
   if (microphone && microphone->IsValid()) {
     scoped_refptr<Wrappable> media_device(
-        new MediaDeviceInfo(script_value_factory_, kMediaDeviceKindAudioinput,
-                            microphone->Label()));
+        new MediaDeviceInfo(kMediaDeviceKindAudioinput, microphone->Label()));
     output.push_back(media_device);
   }
   promise->Resolve(output);
@@ -155,8 +156,9 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
 
 void MediaDevices::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error, std::string message) {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
-    javascript_message_loop_->PostTask(
+  if (javascript_message_loop_->task_runner() !=
+      base::MessageLoop::current()->task_runner()) {
+    javascript_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneError, weak_this_,
                               error, message));
     return;
@@ -175,8 +177,9 @@ void MediaDevices::OnMicrophoneError(
 }
 
 void MediaDevices::OnMicrophoneStopped() {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
-    javascript_message_loop_->PostTask(
+  if (javascript_message_loop_->task_runner() !=
+      base::MessageLoop::current()->task_runner()) {
+    javascript_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
     return;
   }
@@ -193,8 +196,9 @@ void MediaDevices::OnMicrophoneStopped() {
 }
 
 void MediaDevices::OnMicrophoneSuccess() {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
-    javascript_message_loop_->PostTask(
+  if (javascript_message_loop_->task_runner() !=
+      base::MessageLoop::current()->task_runner()) {
+    javascript_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneSuccess, this));
     return;
   }
@@ -208,7 +212,8 @@ void MediaDevices::OnMicrophoneSuccess() {
   pending_microphone_track_ = nullptr;
 
   for (auto& promise : pending_microphone_promises_) {
-    promise->value().Resolve(make_scoped_refptr(new MediaStream(audio_tracks)));
+    promise->value().Resolve(
+        base::WrapRefCounted(new MediaStream(audio_tracks)));
   }
   pending_microphone_promises_.clear();
 }

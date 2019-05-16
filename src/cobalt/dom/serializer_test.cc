@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <sstream>
 #include <string>
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/element.h"
@@ -32,13 +33,13 @@ class SerializerTest : public ::testing::Test {
   SerializerTest();
   ~SerializerTest() override {}
 
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   scoped_refptr<Element> root_;
   base::SourceLocation source_location_;
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
 };
 
 SerializerTest::SerializerTest()

@@ -47,7 +47,7 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
 
   unsigned int length() const override;
 
-  base::optional<std::string> Item(unsigned int index) const override;
+  base::Optional<std::string> Item(unsigned int index) const override;
 
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value,
@@ -72,7 +72,7 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
   // Returns whether or not this object or any ancestors have inherited
   // properties declared.
   bool HasInheritedProperties() const {
-    return data_with_inherited_properties_ != NULL;
+    return data_with_inherited_properties_.get() != NULL;
   }
 
   // Returns the reference to the property value for an inherited property.

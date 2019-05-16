@@ -42,8 +42,8 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node);
 
 template <typename T>
 void TestGetElementsByClassName(const scoped_refptr<T>& node) {
-  const scoped_refptr<Node> kNullNode;
-  const scoped_refptr<HTMLCollection> kNullCollection;
+  const scoped_refptr<Node> kNullNode{};
+  const scoped_refptr<HTMLCollection> kNullCollection{};
 
   Document* document = node->node_document();
 
@@ -141,8 +141,8 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
 
 template <typename T>
 void TestGetElementsByTagName(const scoped_refptr<T>& node) {
-  const scoped_refptr<Node> kNullNode;
-  const scoped_refptr<HTMLCollection> kNullCollection;
+  const scoped_refptr<Node> kNullNode{};
+  const scoped_refptr<HTMLCollection> kNullCollection{};
   Document* document = node->node_document();
 
   if (!document) {

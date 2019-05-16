@@ -5,6 +5,7 @@
 #include "crypto/random.h"
 
 #include "base/rand_util.h"
+#include "starboard/types.h"
 
 namespace crypto {
 

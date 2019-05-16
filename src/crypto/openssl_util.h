@@ -5,40 +5,17 @@
 #ifndef CRYPTO_OPENSSL_UTIL_H_
 #define CRYPTO_OPENSSL_UTIL_H_
 
-#include "base/basictypes.h"
 #include "base/location.h"
+#include "base/macros.h"
 #include "crypto/crypto_export.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace crypto {
 
-// A helper class that takes care of destroying OpenSSL objects when it goes out
-// of scope.
-template <typename T, void (*destructor)(T*)>
-class ScopedOpenSSL {
- public:
-  ScopedOpenSSL() : ptr_(NULL) { }
-  explicit ScopedOpenSSL(T* ptr) : ptr_(ptr) { }
-  ~ScopedOpenSSL() {
-    reset(NULL);
-  }
-
-  T* get() const { return ptr_; }
-  void reset(T* ptr) {
-    if (ptr != ptr_) {
-      if (ptr_) (*destructor)(ptr_);
-      ptr_ = ptr;
-    }
-  }
-
- private:
-  T* ptr_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedOpenSSL);
-};
-
 // Provides a buffer of at least MIN_SIZE bytes, for use when calling OpenSSL's
 // SHA256, HMAC, etc functions, adapting the buffer sizing rules to meet those
-// of the our base wrapper APIs.
+// of our base wrapper APIs.
 // This allows the library to write directly to the caller's buffer if it is of
 // sufficient size, but if not it will write to temporary |min_sized_buffer_|
 // of required size and then its content is automatically copied out on
@@ -54,7 +31,7 @@ class ScopedOpenSSLSafeSizeBuffer {
   ~ScopedOpenSSLSafeSizeBuffer() {
     if (output_len_ < MIN_SIZE) {
       // Copy the temporary buffer out, truncating as needed.
-      memcpy(output_, min_sized_buffer_, output_len_);
+      SbMemoryCopy(output_, min_sized_buffer_, output_len_);
     }
     // else... any writing already happened directly into |output_|.
   }
@@ -77,16 +54,16 @@ class ScopedOpenSSLSafeSizeBuffer {
 };
 
 // Initialize OpenSSL if it isn't already initialized. This must be called
-// before any other OpenSSL functions.
+// before any other OpenSSL functions though it is safe and cheap to call this
+// multiple times.
 // This function is thread-safe, and OpenSSL will only ever be initialized once.
 // OpenSSL will be properly shut down on program exit.
-void CRYPTO_EXPORT EnsureOpenSSLInit();
+CRYPTO_EXPORT void EnsureOpenSSLInit();
 
 // Drains the OpenSSL ERR_get_error stack. On a debug build the error codes
 // are send to VLOG(1), on a release build they are disregarded. In most
 // cases you should pass FROM_HERE as the |location|.
-void CRYPTO_EXPORT ClearOpenSSLERRStack(
-    const tracked_objects::Location& location);
+CRYPTO_EXPORT void ClearOpenSSLERRStack(const base::Location& location);
 
 // Place an instance of this class on the call stack to automatically clear
 // the OpenSSL error stack on function exit.
@@ -95,7 +72,7 @@ class OpenSSLErrStackTracer {
   // Pass FROM_HERE as |location|, to help track the source of OpenSSL error
   // messages. Note any diagnostic emitted will be tagged with the location of
   // the constructor call as it's not possible to trace a destructor's callsite.
-  explicit OpenSSLErrStackTracer(const tracked_objects::Location& location)
+  explicit OpenSSLErrStackTracer(const base::Location& location)
       : location_(location) {
     EnsureOpenSSLInit();
   }
@@ -104,7 +81,7 @@ class OpenSSLErrStackTracer {
   }
 
  private:
-  const tracked_objects::Location location_;
+  const base::Location location_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(OpenSSLErrStackTracer);
 };

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/script/script_debugger.h"
 
 #include "base/logging.h"
@@ -74,9 +76,9 @@ class StubScriptDebugger : public ScriptDebugger {
 };
 
 // Static factory method declared in public interface.
-scoped_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
+std::unique_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
     GlobalEnvironment* global_environment, Delegate* delegate) {
-  return scoped_ptr<ScriptDebugger>(
+  return std::unique_ptr<ScriptDebugger>(
       new StubScriptDebugger(global_environment, delegate));
 }
 

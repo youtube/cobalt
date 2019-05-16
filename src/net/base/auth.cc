@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "net/base/auth.h"
-#include "net/base/zap.h"
 
 namespace net {
 
@@ -12,33 +11,24 @@ AuthChallengeInfo::AuthChallengeInfo() : is_proxy(false) {
 
 bool AuthChallengeInfo::Equals(const AuthChallengeInfo& that) const {
   return (this->is_proxy == that.is_proxy &&
-          this->challenger.Equals(that.challenger) &&
-          this->scheme == that.scheme &&
+          this->challenger == that.challenger && this->scheme == that.scheme &&
           this->realm == that.realm);
 }
 
-AuthChallengeInfo::~AuthChallengeInfo() {
-}
+AuthChallengeInfo::~AuthChallengeInfo() = default;
 
-AuthData::AuthData() : state(AUTH_STATE_NEED_AUTH) {
-}
+AuthCredentials::AuthCredentials() = default;
 
-AuthData::~AuthData() {
-}
-
-AuthCredentials::AuthCredentials() {
-}
-
-AuthCredentials::AuthCredentials(const string16& username,
-                                 const string16& password)
+AuthCredentials::AuthCredentials(const base::string16& username,
+                                 const base::string16& password)
     : username_(username),
       password_(password) {
 }
 
-AuthCredentials::~AuthCredentials() {
-}
+AuthCredentials::~AuthCredentials() = default;
 
-void AuthCredentials::Set(const string16& username, const string16& password) {
+void AuthCredentials::Set(const base::string16& username,
+                          const base::string16& password) {
   username_ = username;
   password_ = password;
 }
@@ -49,10 +39,6 @@ bool AuthCredentials::Equals(const AuthCredentials& other) const {
 
 bool AuthCredentials::Empty() const {
   return username_.empty() && password_.empty();
-}
-
-void AuthCredentials::Zap() {
-  ZapString(&password_);
 }
 
 }  // namespace net

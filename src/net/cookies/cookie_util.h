@@ -6,14 +6,22 @@
 #define NET_COOKIES_COOKIE_UTIL_H_
 
 #include <string>
+#include <utility>
+#include <vector>
 
-#include "base/time.h"
+#include "base/strings/string_piece.h"
+#include "base/time/time.h"
 #include "net/base/net_export.h"
 
 class GURL;
 
 namespace net {
 namespace cookie_util {
+
+// Constants for use in VLOG
+const int kVlogPerCookieMonster = 1;
+const int kVlogSetCookies = 7;
+const int kVlogGarbageCollection = 5;
 
 // Returns the effective TLD+1 for a given host. This only makes sense for http
 // and https schemes. For other schemes, the host will be returned unchanged
@@ -34,10 +42,41 @@ NET_EXPORT bool GetCookieDomainWithString(const GURL& url,
 // i.e. it doesn't begin with a leading '.' character.
 NET_EXPORT bool DomainIsHostOnly(const std::string& domain_string);
 
-// Parses the string with the cookie time (very forgivingly).
-NET_EXPORT base::Time ParseCookieTime(const std::string& time_string);
+// Parses the string with the cookie expiration time (very forgivingly).
+// Returns the "null" time on failure.
+//
+// If the expiration date is below or above the platform-specific range
+// supported by Time::FromUTCExplodeded(), then this will return Time(1) or
+// Time::Max(), respectively.
+NET_EXPORT base::Time ParseCookieExpirationTime(const std::string& time_string);
 
-}  // namspace cookie_util
+// Convenience for converting a cookie origin (domain and https pair) to a URL.
+NET_EXPORT GURL CookieOriginToURL(const std::string& domain, bool is_https);
+
+// Returns true if the cookie |domain| matches the given |host| as described
+// in section 5.1.3 of RFC 6265.
+NET_EXPORT bool IsDomainMatch(const std::string& domain,
+                              const std::string& host);
+
+// A ParsedRequestCookie consists of the key and value of the cookie.
+typedef std::pair<base::StringPiece, base::StringPiece> ParsedRequestCookie;
+typedef std::vector<ParsedRequestCookie> ParsedRequestCookies;
+
+// Assumes that |header_value| is the cookie header value of a HTTP Request
+// following the cookie-string schema of RFC 6265, section 4.2.1, and returns
+// cookie name/value pairs. If cookie values are presented in double quotes,
+// these will appear in |parsed_cookies| as well. Assumes that the cookie
+// header is written by Chromium and therefore well-formed.
+NET_EXPORT void ParseRequestCookieLine(const std::string& header_value,
+                                       ParsedRequestCookies* parsed_cookies);
+
+// Writes all cookies of |parsed_cookies| into a HTTP Request header value
+// that belongs to the "Cookie" header. The entries of |parsed_cookies| must
+// already be appropriately escaped.
+NET_EXPORT std::string SerializeRequestCookieLine(
+    const ParsedRequestCookies& parsed_cookies);
+
+}  // namespace cookie_util
 }  // namespace net
 
 #endif  // NET_COOKIES_COOKIE_UTIL_H_

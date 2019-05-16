@@ -15,10 +15,10 @@
 #ifndef COBALT_CSSOM_PROPERTY_LIST_VALUE_H_
 #define COBALT_CSSOM_PROPERTY_LIST_VALUE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -30,8 +30,8 @@ namespace cssom {
 class PropertyListValue : public ScopedRefListValue<PropertyValue> {
  public:
   explicit PropertyListValue(
-      scoped_ptr<ScopedRefListValue<PropertyValue>::Builder> value)
-      : ScopedRefListValue<PropertyValue>(value.Pass()) {}
+      std::unique_ptr<ScopedRefListValue<PropertyValue>::Builder> value)
+      : ScopedRefListValue<PropertyValue>(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitPropertyList(this);

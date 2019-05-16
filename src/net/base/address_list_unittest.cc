@@ -4,72 +4,33 @@
 
 #include "net/base/address_list.h"
 
-#include "base/string_util.h"
+#include "base/stl_util.h"
+#include "base/strings/string_util.h"
 #include "base/sys_byteorder.h"
-#include "build/build_config.h"
-#include "net/base/net_util.h"
+#include "net/base/ip_address.h"
+#include "net/base/sockaddr_storage.h"
 #include "net/base/sys_addrinfo.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_STARBOARD)
-#include "starboard/memory.h"
-#include "starboard/socket.h"
-#endif
+// Starboard does not define sockaddr or other types from <sys/socket.h>.
+#if !defined(STARBOARD)
 
 namespace net {
 namespace {
 
-static const char* kCanonicalHostname = "canonical.bar.com";
+const char kCanonicalHostname[] = "canonical.bar.com";
 
-#if defined(OS_STARBOARD)
-TEST(AddressListTest, CreateFromSbSocketResolution) {
-  // Create an 4-element addrinfo.
-  const unsigned kNumElements = 4;
-  SbSocketResolution resolution = {0};
-  resolution.address_count = kNumElements;
-  struct SbSocketAddress addresses[kNumElements];
-  resolution.addresses = addresses;
-  for (int i = 0; i < kNumElements; ++i) {
-    SbSocketAddress* address = &addresses[i];
-    // Populating the address with { i, i, i, i }.
-    SbMemorySet(address->address, i, kIPv4AddressSize);
-    address->type = kSbSocketAddressTypeIpv4;
-    // Set port to i << 2;
-    address->port = i << 2;
-  }
-
-  AddressList list = AddressList::CreateFromSbSocketResolution(&resolution);
-
-  ASSERT_EQ(kNumElements, list.size());
-  for (size_t i = 0; i < list.size(); ++i) {
-    EXPECT_EQ(ADDRESS_FAMILY_IPV4, list[i].GetFamily());
-    // Only check the first byte of the address.
-    EXPECT_EQ(i, list[i].address()[0]);
-    EXPECT_EQ(static_cast<int>(i << 2), list[i].port());
-  }
-
-  // Check if operator= works.
-  AddressList copy;
-  copy = list;
-  ASSERT_EQ(kNumElements, copy.size());
-
-  // Check if copy is independent.
-  copy[1] = IPEndPoint(copy[2].address(), 0xBEEF);
-  // Original should be unchanged.
-  EXPECT_EQ(1u, list[1].address()[0]);
-  EXPECT_EQ(1 << 2, list[1].port());
-}
-#else   // defined(OS_STARBOARD)
 TEST(AddressListTest, Canonical) {
   // Create an addrinfo with a canonical name.
   struct sockaddr_in address;
   // The contents of address do not matter for this test,
   // so just zero-ing them out for consistency.
-  memset(&address, 0x0, sizeof(address));
+  SbMemorySet(&address, 0x0, sizeof(address));
   // But we need to set the family.
   address.sin_family = AF_INET;
   struct addrinfo ai;
-  memset(&ai, 0x0, sizeof(ai));
+  SbMemorySet(&ai, 0x0, sizeof(ai));
   ai.ai_family = AF_INET;
   ai.ai_socktype = SOCK_STREAM;
   ai.ai_addrlen = sizeof(address);
@@ -96,11 +57,11 @@ TEST(AddressListTest, CreateFromAddrinfo) {
         reinterpret_cast<struct sockaddr_in*>(storage[i].addr);
     storage[i].addr_len = sizeof(struct sockaddr_in);
     // Populating the address with { i, i, i, i }.
-    memset(&addr->sin_addr, i, kIPv4AddressSize);
+    SbMemorySet(&addr->sin_addr, i, IPAddress::kIPv4AddressSize);
     addr->sin_family = AF_INET;
     // Set port to i << 2;
-    addr->sin_port = base::HostToNet16(static_cast<uint16>(i << 2));
-    memset(&ai[i], 0x0, sizeof(ai[i]));
+    addr->sin_port = base::HostToNet16(static_cast<uint16_t>(i << 2));
+    SbMemorySet(&ai[i], 0x0, sizeof(ai[i]));
     ai[i].ai_family = addr->sin_family;
     ai[i].ai_socktype = SOCK_STREAM;
     ai[i].ai_addrlen = storage[i].addr_len;
@@ -115,7 +76,7 @@ TEST(AddressListTest, CreateFromAddrinfo) {
   for (size_t i = 0; i < list.size(); ++i) {
     EXPECT_EQ(ADDRESS_FAMILY_IPV4, list[i].GetFamily());
     // Only check the first byte of the address.
-    EXPECT_EQ(i, list[i].address()[0]);
+    EXPECT_EQ(i, list[i].address().bytes()[0]);
     EXPECT_EQ(static_cast<int>(i << 2), list[i].port());
   }
 
@@ -127,37 +88,59 @@ TEST(AddressListTest, CreateFromAddrinfo) {
   // Check if copy is independent.
   copy[1] = IPEndPoint(copy[2].address(), 0xBEEF);
   // Original should be unchanged.
-  EXPECT_EQ(1u, list[1].address()[0]);
+  EXPECT_EQ(1u, list[1].address().bytes()[0]);
   EXPECT_EQ(1 << 2, list[1].port());
 }
-#endif  // defined(OS_STARBOARD)
 
 TEST(AddressListTest, CreateFromIPAddressList) {
   struct TestData {
     std::string ip_address;
+    const char* in_addr;
+    int ai_family;
+    size_t ai_addrlen;
+    size_t in_addr_offset;
+    size_t in_addr_size;
   } tests[] = {
-    { "127.0.0.1" },
-#if defined(IN6ADDR_ANY_INIT)
-    { "2001:db8:0::42" },
-#endif
-    { "192.168.1.1" },
+    { "127.0.0.1",
+      "\x7f\x00\x00\x01",
+      AF_INET,
+      sizeof(struct sockaddr_in),
+      offsetof(struct sockaddr_in, sin_addr),
+      sizeof(struct in_addr),
+    },
+    { "2001:db8:0::42",
+      "\x20\x01\x0d\xb8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x42",
+      AF_INET6,
+      sizeof(struct sockaddr_in6),
+      offsetof(struct sockaddr_in6, sin6_addr),
+      sizeof(struct in6_addr),
+    },
+    { "192.168.1.1",
+      "\xc0\xa8\x01\x01",
+      AF_INET,
+      sizeof(struct sockaddr_in),
+      offsetof(struct sockaddr_in, sin_addr),
+      sizeof(struct in_addr),
+    },
   };
   const std::string kCanonicalName = "canonical.example.com";
 
   // Construct a list of ip addresses.
   IPAddressList ip_list;
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    IPAddressNumber ip_number;
-    ASSERT_TRUE(ParseIPLiteralToNumber(tests[i].ip_address, &ip_number));
-    ip_list.push_back(ip_number);
+  for (const auto& test : tests) {
+    IPAddress ip_address;
+    ASSERT_TRUE(ip_address.AssignFromIPLiteral(test.ip_address));
+    ip_list.push_back(ip_address);
   }
 
   AddressList test_list = AddressList::CreateFromIPAddressList(ip_list,
                                                                kCanonicalName);
   std::string canonical_name;
   EXPECT_EQ(kCanonicalName, test_list.canonical_name());
-  EXPECT_EQ(ARRAYSIZE_UNSAFE(tests), test_list.size());
+  EXPECT_EQ(base::size(tests), test_list.size());
 }
 
 }  // namespace
 }  // namespace net
+
+#endif  // !defined(STARBOARD)

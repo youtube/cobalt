@@ -5,25 +5,33 @@
 // This code implements SPAKE2, a variant of EKE:
 //  http://www.di.ens.fr/~pointche/pub.php?reference=AbPo04
 
-#include <crypto/p224_spake.h>
+#include "crypto/p224_spake.h"
 
-#include <base/logging.h>
-#include <crypto/p224.h>
-#include <crypto/random.h>
-#include <crypto/secure_util.h>
+#include <algorithm>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
+
+#include "base/logging.h"
+#include "crypto/p224.h"
+#include "crypto/random.h"
+#include "crypto/secure_util.h"
 
 namespace {
 
 // The following two points (M and N in the protocol) are verifiable random
 // points on the curve and can be generated with the following code:
 
-// #include <stdint.h>
 // #include <stdio.h>
 // #include <string.h>
 //
 // #include <openssl/ec.h>
 // #include <openssl/obj_mac.h>
 // #include <openssl/sha.h>
+//
+// // Silence a presubmit.
+// #define PRINTF printf
 //
 // static const char kSeed1[] = "P224 point generation seed (M)";
 // static const char kSeed2[] = "P224 point generation seed (N)";
@@ -50,7 +58,7 @@ namespace {
 //       EC_POINT_get_affine_coordinates_GFp(p224, p, &x, &y, NULL);
 //       char* x_str = BN_bn2hex(&x);
 //       char* y_str = BN_bn2hex(&y);
-//       printf("Found after %u iterations:\n%s\n%s\n", i, x_str, y_str);
+//       PRINTF("Found after %u iterations:\n%s\n%s\n", i, x_str, y_str);
 //       OPENSSL_free(x_str);
 //       OPENSSL_free(y_str);
 //       BN_free(&x);
@@ -80,7 +88,7 @@ const crypto::p224::Point kM = {
    33188520, 48266885, 177021753, 81038478},
   {104523827, 245682244, 266509668, 236196369,
    28372046, 145351378, 198520366, 113345994},
-  {1, 0, 0, 0, 0, 0, 0},
+  {1, 0, 0, 0, 0, 0, 0, 0},
 };
 
 const crypto::p224::Point kN = {
@@ -88,30 +96,33 @@ const crypto::p224::Point kN = {
    5034302, 185981975, 171998428, 11653062},
   {197567436, 51226044, 60372156, 175772188,
    42075930, 8083165, 160827401, 65097570},
-  {1, 0, 0, 0, 0, 0, 0},
+  {1, 0, 0, 0, 0, 0, 0, 0},
 };
 
 }  // anonymous namespace
 
 namespace crypto {
 
-P224EncryptedKeyExchange::P224EncryptedKeyExchange(
-    PeerType peer_type, const base::StringPiece& password)
-    : state_(kStateInitial),
-      is_server_(peer_type == kPeerTypeServer) {
-  memset(&x_, 0, sizeof(x_));
-  memset(&expected_authenticator_, 0, sizeof(expected_authenticator_));
+P224EncryptedKeyExchange::P224EncryptedKeyExchange(PeerType peer_type,
+                                                   base::StringPiece password)
+    : state_(kStateInitial), is_server_(peer_type == kPeerTypeServer) {
+  SbMemorySet(&x_, 0, sizeof(x_));
+  SbMemorySet(&expected_authenticator_, 0, sizeof(expected_authenticator_));
 
   // x_ is a random scalar.
   RandBytes(x_, sizeof(x_));
 
-  // X = g**x_
-  p224::Point X;
-  p224::ScalarBaseMult(x_, &X);
-
   // Calculate |password| hash to get SPAKE password value.
   SHA256HashString(std::string(password.data(), password.length()),
                    pw_, sizeof(pw_));
+
+  Init();
+}
+
+void P224EncryptedKeyExchange::Init() {
+  // X = g**x_
+  p224::Point X;
+  p224::ScalarBaseMult(x_, &X);
 
   // The client masks the Diffie-Hellman value, X, by adding M**pw and the
   // server uses N**pw.
@@ -125,7 +136,7 @@ P224EncryptedKeyExchange::P224EncryptedKeyExchange(
   next_message_ = Xstar.ToString();
 }
 
-const std::string& P224EncryptedKeyExchange::GetMessage() {
+const std::string& P224EncryptedKeyExchange::GetNextMessage() {
   if (state_ == kStateInitial) {
     state_ = kStateRecvDH;
     return next_message_;
@@ -134,14 +145,14 @@ const std::string& P224EncryptedKeyExchange::GetMessage() {
     return next_message_;
   }
 
-  LOG(FATAL) << "P224EncryptedKeyExchange::GetMessage called in"
+  LOG(FATAL) << "P224EncryptedKeyExchange::GetNextMessage called in"
                 " bad state " << state_;
   next_message_ = "";
   return next_message_;
 }
 
 P224EncryptedKeyExchange::Result P224EncryptedKeyExchange::ProcessMessage(
-    const base::StringPiece& message) {
+    base::StringPiece message) {
   if (state_ == kStateRecvHash) {
     // This is the final state of the protocol: we are reading the peer's
     // authentication hash and checking that it matches the one that we expect.
@@ -197,18 +208,18 @@ P224EncryptedKeyExchange::Result P224EncryptedKeyExchange::ProcessMessage(
 
   // Now we calculate the hashes that each side will use to prove to the other
   // that they derived the correct value for K.
-  uint8 client_hash[kSHA256Length], server_hash[kSHA256Length];
+  uint8_t client_hash[kSHA256Length], server_hash[kSHA256Length];
   CalculateHash(kPeerTypeClient, client_masked_dh, server_masked_dh, key_,
                 client_hash);
   CalculateHash(kPeerTypeServer, client_masked_dh, server_masked_dh, key_,
                 server_hash);
 
-  const uint8* my_hash = is_server_ ? server_hash : client_hash;
-  const uint8* their_hash = is_server_ ? client_hash : server_hash;
+  const uint8_t* my_hash = is_server_ ? server_hash : client_hash;
+  const uint8_t* their_hash = is_server_ ? client_hash : server_hash;
 
   next_message_ =
       std::string(reinterpret_cast<const char*>(my_hash), kSHA256Length);
-  memcpy(expected_authenticator_, their_hash, kSHA256Length);
+  SbMemoryCopy(expected_authenticator_, their_hash, kSHA256Length);
   state_ = kStateSendHash;
   return kResultPending;
 }
@@ -218,7 +229,7 @@ void P224EncryptedKeyExchange::CalculateHash(
     const std::string& client_masked_dh,
     const std::string& server_masked_dh,
     const std::string& k,
-    uint8* out_digest) {
+    uint8_t* out_digest) {
   std::string hash_contents;
 
   if (peer_type == kPeerTypeServer) {
@@ -240,9 +251,23 @@ const std::string& P224EncryptedKeyExchange::error() const {
   return error_;
 }
 
-const std::string& P224EncryptedKeyExchange::GetKey() {
+const std::string& P224EncryptedKeyExchange::GetKey() const {
   DCHECK_EQ(state_, kStateDone);
+  return GetUnverifiedKey();
+}
+
+const std::string& P224EncryptedKeyExchange::GetUnverifiedKey() const {
+  // Key is already final when state is kStateSendHash. Subsequent states are
+  // used only for verification of the key. Some users may combine verification
+  // with sending verifiable data instead of |expected_authenticator_|.
+  DCHECK_GE(state_, kStateSendHash);
   return key_;
+}
+
+void P224EncryptedKeyExchange::SetXForTesting(const std::string& x) {
+  SbMemorySet(&x_, 0, sizeof(x_));
+  SbMemoryCopy(&x_, x.data(), std::min(x.size(), sizeof(x_)));
+  Init();
 }
 
 }  // namespace crypto

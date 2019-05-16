@@ -9,7 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 #include "starboard/types.h"

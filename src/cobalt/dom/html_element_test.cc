@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/html_element.h"
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_vector.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"
@@ -51,17 +52,17 @@ ViewportSize kViewSize(320, 240);
 
 // Useful for using base::Bind() along with GMock actions.
 ACTION_P(InvokeCallback0, callback) {
-  UNREFERENCED_PARAMETER(args);
-  UNREFERENCED_PARAMETER(arg0);
-  UNREFERENCED_PARAMETER(arg1);
-  UNREFERENCED_PARAMETER(arg2);
-  UNREFERENCED_PARAMETER(arg3);
-  UNREFERENCED_PARAMETER(arg4);
-  UNREFERENCED_PARAMETER(arg5);
-  UNREFERENCED_PARAMETER(arg6);
-  UNREFERENCED_PARAMETER(arg7);
-  UNREFERENCED_PARAMETER(arg8);
-  UNREFERENCED_PARAMETER(arg9);
+  SB_UNREFERENCED_PARAMETER(args);
+  SB_UNREFERENCED_PARAMETER(arg0);
+  SB_UNREFERENCED_PARAMETER(arg1);
+  SB_UNREFERENCED_PARAMETER(arg2);
+  SB_UNREFERENCED_PARAMETER(arg3);
+  SB_UNREFERENCED_PARAMETER(arg4);
+  SB_UNREFERENCED_PARAMETER(arg5);
+  SB_UNREFERENCED_PARAMETER(arg6);
+  SB_UNREFERENCED_PARAMETER(arg7);
+  SB_UNREFERENCED_PARAMETER(arg8);
+  SB_UNREFERENCED_PARAMETER(arg9);
   callback.Run();
 }
 
@@ -132,7 +133,7 @@ class HTMLElementTest : public ::testing::Test {
                        HTMLElement* html_element);
 
   cssom::testing::MockCSSParser css_parser_;
-  scoped_ptr<DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
@@ -158,12 +159,13 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
             ->AsHTMLElement());
     DCHECK(child_html_element);
     child_html_element->css_computed_style_declaration()->SetData(
-        make_scoped_refptr(new cssom::CSSComputedStyleData()));
+        base::WrapRefCounted(new cssom::CSSComputedStyleData()));
 
     if (parent_html_element) {
       // Set layout boxes for all elements that have a child.
-      scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-      parent_html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
+      std::unique_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
+      parent_html_element->set_layout_boxes(
+          std::unique_ptr<LayoutBoxes>(layout_boxes.release()));
 
       parent_html_element->AppendChild(child_html_element);
     }
@@ -180,9 +182,9 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
     scoped_refptr<Element> child_element =
         parent_element->first_element_child();
     if (child_element) {
-      scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
+      std::unique_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
       parent_element->AsHTMLElement()->set_layout_boxes(
-          layout_boxes.PassAs<LayoutBoxes>());
+          std::unique_ptr<LayoutBoxes>(layout_boxes.release()));
     }
     parent_element = child_element;
   }
@@ -317,9 +319,10 @@ TEST_F(HTMLElementTest, LayoutBoxesGetter) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
 
-  scoped_ptr<MockLayoutBoxes> mock_layout_boxes(new MockLayoutBoxes);
+  std::unique_ptr<MockLayoutBoxes> mock_layout_boxes(new MockLayoutBoxes);
   MockLayoutBoxes* saved_mock_layout_boxes_ptr = mock_layout_boxes.get();
-  html_element->set_layout_boxes(mock_layout_boxes.PassAs<LayoutBoxes>());
+  html_element->set_layout_boxes(
+      std::unique_ptr<LayoutBoxes>(mock_layout_boxes.release()));
   DCHECK(mock_layout_boxes.get() == NULL);
 
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
@@ -355,8 +358,9 @@ TEST_F(HTMLElementTest, ClientTop) {
   // 1. If the element has no associated CSS layout box, return zero.
   EXPECT_FLOAT_EQ(html_element->client_top(), 0.0f);
 
-  scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
+  std::unique_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
+  html_element->set_layout_boxes(
+      std::unique_ptr<LayoutBoxes>(layout_boxes.release()));
 
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
@@ -389,8 +393,9 @@ TEST_F(HTMLElementTest, ClientLeft) {
   // 1. If the element has no associated CSS layout box, return zero.
   EXPECT_FLOAT_EQ(html_element->client_left(), 0.0f);
 
-  scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
+  std::unique_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
+  html_element->set_layout_boxes(
+      std::unique_ptr<LayoutBoxes>(layout_boxes.release()));
 
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
@@ -530,8 +535,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
   DCHECK(GetFirstChildAtDepth(root_html_element, 1)->AsHTMLBodyElement());
   EXPECT_FALSE(GetFirstChildAtDepth(root_html_element, 1)->offset_parent());
 
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style_relative =
-      make_scoped_refptr(new cssom::CSSComputedStyleData());
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style_relative(
+      new cssom::MutableCSSComputedStyleData());
   computed_style_relative->set_position(cssom::KeywordValue::GetRelative());
   GetFirstChildAtDepth(root_html_element, 2)
       ->css_computed_style_declaration()
@@ -543,8 +548,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
 
   // Return null if the element's computed value of the 'position' property is
   // 'fixed'.
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style_fixed =
-      make_scoped_refptr(new cssom::CSSComputedStyleData());
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style_fixed(
+      new cssom::MutableCSSComputedStyleData());
   computed_style_fixed->set_position(cssom::KeywordValue::GetFixed());
   GetFirstChildAtDepth(root_html_element, 3)
       ->css_computed_style_declaration()
@@ -673,8 +678,9 @@ TEST_F(HTMLElementTest, OffsetWidth) {
   // and terminate this algorithm.
   EXPECT_FLOAT_EQ(html_element->offset_width(), 0.0f);
 
-  scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
+  std::unique_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
+  html_element->set_layout_boxes(
+      std::unique_ptr<LayoutBoxes>(layout_boxes.release()));
 
   // 2. Return the border edge width of the first CSS layout box associated with
   // the element, ignoring any transforms that apply to the element and its
@@ -696,8 +702,9 @@ TEST_F(HTMLElementTest, OffsetHeight) {
   // and terminate this algorithm.
   EXPECT_FLOAT_EQ(html_element->offset_height(), 0.0f);
 
-  scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
+  std::unique_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
+  html_element->set_layout_boxes(
+      std::unique_ptr<LayoutBoxes>(layout_boxes.release()));
 
   // 2. Return the border edge height of the first CSS layout box associated
   // with the element, ignoring any transforms that apply to the element and its

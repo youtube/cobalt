@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/debug/trace_event.h"
+#include <memory>
+
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/pipeline.h"
@@ -42,13 +44,13 @@ class RendererSandbox {
  private:
   cobalt::trace_event::ScopedTraceToFile trace_to_file_;
   base::EventDispatcher event_dispatcher_;
-  scoped_ptr<SystemWindow> system_window_;
-  scoped_ptr<cobalt::renderer::RendererModule> renderer_module_;
+  std::unique_ptr<SystemWindow> system_window_;
+  std::unique_ptr<cobalt::renderer::RendererModule> renderer_module_;
 };
 
 RendererSandbox::RendererSandbox()
     : trace_to_file_(
-          FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json"))) {
+          base::FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json"))) {
   cobalt::math::Size view_size(kViewportWidth, kViewportHeight);
   // Create a system window to use as a render target.
   system_window_.reset(
@@ -85,8 +87,8 @@ void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
   g_renderer_sandbox = new RendererSandbox();
   DCHECK(g_renderer_sandbox);
 
-  MessageLoop::current()->PostDelayedTask(FROM_HERE, quit_closure,
-                                          base::TimeDelta::FromSeconds(30));
+  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+      FROM_HERE, quit_closure, base::TimeDelta::FromSeconds(30));
 }
 
 void StopApplication() {

@@ -71,7 +71,7 @@
             'thread_local_pointer.h',
           ],
           'dependencies': [
-            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
           ],
         }],
         ['target_arch == "ps4"', {
@@ -83,84 +83,6 @@
           ],
         }],
       ],
-    },
-
-    {
-      'target_name': 'nb_test',
-      'type': '<(gtest_target_type)',
-      'conditions': [
-        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
-          'sources': [
-            'analytics/memory_tracker_helpers_test.cc',
-            'analytics/memory_tracker_impl_test.cc',
-            'analytics/memory_tracker_test.cc',
-            'bidirectional_fit_reuse_allocator_test.cc',
-            'concurrent_map_test.cc',
-            'concurrent_ptr_test.cc',
-            'first_fit_reuse_allocator_test.cc',
-            'fixed_no_free_allocator_test.cc',
-            'memory_scope_test.cc',
-            'multipart_allocator_test.cc',
-            'rewindable_vector_test.cc',
-            'run_all_unittests.cc',
-            'simple_profiler_test.cc',
-            'std_allocator_test.cc',
-            'string_interner_test.cc',
-            'test_thread.h',
-            'thread_local_object_test.cc',
-          ],
-          'dependencies': [
-            'nb',
-            '<(DEPTH)/testing/gmock.gyp:gmock',
-            '<(DEPTH)/testing/gtest.gyp:gtest',
-          ],
-        }]
-      ],
-    },
-    {
-      'target_name': 'nb_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'nb_test',
-      ],
-      'variables': {
-        'executable_name': 'nb_test',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-    },
-
-    {
-      'target_name': 'reuse_allocator_benchmark',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'reuse_allocator_benchmark.cc',
-      ],
-      'dependencies': [
-        'nb',
-        'nb_copy_test_data',
-      ],
-    },
-    {
-      'target_name': 'reuse_allocator_benchmark_deploy',
-      'type': 'none',
-      'dependencies': [
-        'reuse_allocator_benchmark',
-      ],
-      'variables': {
-        'executable_name': 'reuse_allocator_benchmark',
-      },
-    },
-
-    {
-      'target_name': 'nb_copy_test_data',
-      'type': 'none',
-      'variables': {
-        'content_test_input_files': [
-          '<(DEPTH)/nb/testdata/',
-        ],
-        'content_test_output_subdir': 'nb/testdata',
-      },
-      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
 
   ],

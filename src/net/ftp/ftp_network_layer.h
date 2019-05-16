@@ -5,9 +5,10 @@
 #ifndef NET_FTP_FTP_NETWORK_LAYER_H_
 #define NET_FTP_FTP_NETWORK_LAYER_H_
 
-#include "base/basictypes.h"
+#include <memory>
+
 #include "base/compiler_specific.h"
-#include "base/memory/ref_counted.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/ftp/ftp_transaction_factory.h"
 
@@ -19,16 +20,14 @@ class HostResolver;
 class NET_EXPORT FtpNetworkLayer : public FtpTransactionFactory {
  public:
   explicit FtpNetworkLayer(HostResolver* host_resolver);
-  virtual ~FtpNetworkLayer();
-
-  static FtpTransactionFactory* CreateFactory(HostResolver* host_resolver);
+  ~FtpNetworkLayer() override;
 
   // FtpTransactionFactory methods:
-  virtual FtpTransaction* CreateTransaction() override;
-  virtual void Suspend(bool suspend) override;
+  std::unique_ptr<FtpTransaction> CreateTransaction() override;
+  void Suspend(bool suspend) override;
 
  private:
-  scoped_refptr<FtpNetworkSession> session_;
+  std::unique_ptr<FtpNetworkSession> session_;
   bool suspended_;
   DISALLOW_COPY_AND_ASSIGN(FtpNetworkLayer);
 };

@@ -5,13 +5,23 @@
 #ifndef NET_BASE_UPLOAD_FILE_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_FILE_ELEMENT_READER_H_
 
+#include <memory>
+
 #include "base/compiler_specific.h"
-#include "base/file_path.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/macros.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
+#include "net/base/net_export.h"
 #include "net/base/upload_element_reader.h"
+#include "starboard/types.h"
+
+namespace base {
+class TaskRunner;
+}
 
 namespace net {
 
@@ -20,76 +30,104 @@ class FileStream;
 // An UploadElementReader implementation for file.
 class NET_EXPORT UploadFileElementReader : public UploadElementReader {
  public:
-  // Deletes FileStream on the worker pool to avoid blocking the IO thread.
-  // This class is used as a template argument of scoped_ptr_malloc.
-  class FileStreamDeleter {
-   public:
-    void operator() (FileStream* file_stream) const;
-  };
-
-  typedef scoped_ptr_malloc<FileStream, FileStreamDeleter> ScopedFileStreamPtr;
-
-  UploadFileElementReader(const FilePath& path,
-                          uint64 range_offset,
-                          uint64 range_length,
+  // |file| must be valid and opened for reading. On Windows, the file must have
+  // been opened with File::FLAG_ASYNC, and elsewhere it must have ben opened
+  // without it. |path| is never validated or used to re-open the file. It's
+  // only used as the return value for path().
+  // |task_runner| is used to perform file operations. It must not be NULL.
+  //
+  // TODO(mmenke): Remove |task_runner| argument, and use the TaskScheduler
+  // instead.
+  UploadFileElementReader(base::TaskRunner* task_runner,
+                          base::File file,
+                          const base::FilePath& path,
+                          uint64_t range_offset,
+                          uint64_t range_length,
                           const base::Time& expected_modification_time);
-  virtual ~UploadFileElementReader();
 
-  const FilePath& path() const { return path_; }
-  uint64 range_offset() const { return range_offset_; }
-  uint64 range_length() const { return range_length_; }
+  // Same a above, but takes a FilePath instead.
+  // TODO(mmenke): Remove if all consumers can be switched to the first
+  // constructor.
+  UploadFileElementReader(base::TaskRunner* task_runner,
+                          const base::FilePath& path,
+                          uint64_t range_offset,
+                          uint64_t range_length,
+                          const base::Time& expected_modification_time);
+
+  ~UploadFileElementReader() override;
+
+  const base::FilePath& path() const { return path_; }
+  uint64_t range_offset() const { return range_offset_; }
+  uint64_t range_length() const { return range_length_; }
   const base::Time& expected_modification_time() const {
     return expected_modification_time_;
   }
 
   // UploadElementReader overrides:
-  virtual const UploadFileElementReader* AsFileReader() const override;
-  virtual int Init(const CompletionCallback& callback) override;
-  virtual int InitSync() override;
-  virtual uint64 GetContentLength() const override;
-  virtual uint64 BytesRemaining() const override;
-  virtual int Read(IOBuffer* buf,
-                   int buf_length,
-                   const CompletionCallback& callback) override;
-  virtual int ReadSync(IOBuffer* buf, int buf_length) override;
+  const UploadFileElementReader* AsFileReader() const override;
+  int Init(CompletionOnceCallback callback) override;
+  uint64_t GetContentLength() const override;
+  uint64_t BytesRemaining() const override;
+  int Read(IOBuffer* buf,
+           int buf_length,
+           CompletionOnceCallback callback) override;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, FileSmallerThanLength);
+  enum class State {
+    // No async operation is pending.
+    IDLE,
+
+    // The ordered sequence of events started by calling Init().
+
+    // Opens file. State is skipped if file already open.
+    OPEN,
+    OPEN_COMPLETE,
+    SEEK,
+    GET_FILE_INFO,
+    GET_FILE_INFO_COMPLETE,
+
+    // There is no READ state as reads are always started immediately on Read().
+    READ_COMPLETE,
+  };
+  FRIEND_TEST_ALL_PREFIXES(ElementsUploadDataStreamTest, FileSmallerThanLength);
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
                            UploadFileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
-                           UploadFileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy3Test,
-                           UploadFileSmallerThanLength);
 
-  // Resets this instance to the uninitialized state.
-  void Reset();
+  int DoLoop(int result);
 
-  // This method is used to implement Init().
-  void OnInitCompleted(ScopedFileStreamPtr* file_stream,
-                       uint64* content_length,
-                       const CompletionCallback& callback,
-                       int result);
+  int DoOpen();
+  int DoOpenComplete(int result);
+  int DoSeek();
+  int DoGetFileInfo(int result);
+  int DoGetFileInfoComplete(int result);
+  int DoReadComplete(int result);
 
-  // This method is used to implement Read().
-  void OnReadCompleted(ScopedFileStreamPtr file_stream,
-                       const CompletionCallback& callback,
-                       int result);
+  void OnIOComplete(int result);
 
   // Sets an value to override the result for GetContentLength().
   // Used for tests.
   struct NET_EXPORT_PRIVATE ScopedOverridingContentLengthForTests {
-    ScopedOverridingContentLengthForTests(uint64 value);
+    explicit ScopedOverridingContentLengthForTests(uint64_t value);
     ~ScopedOverridingContentLengthForTests();
   };
 
-  const FilePath path_;
-  const uint64 range_offset_;
-  const uint64 range_length_;
+  scoped_refptr<base::TaskRunner> task_runner_;
+  const base::FilePath path_;
+  const uint64_t range_offset_;
+  const uint64_t range_length_;
   const base::Time expected_modification_time_;
-  ScopedFileStreamPtr file_stream_;
-  uint64 content_length_;
-  uint64 bytes_remaining_;
+  std::unique_ptr<FileStream> file_stream_;
+  uint64_t content_length_;
+  uint64_t bytes_remaining_;
+
+  // File information. Only valid during GET_FILE_INFO_COMPLETE state.
+  base::File::Info file_info_;
+
+  State next_state_;
+  CompletionOnceCallback pending_callback_;
+  // True if Init() was called while an async operation was in progress.
+  bool init_called_while_operation_pending_;
+
   base::WeakPtrFactory<UploadFileElementReader> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadFileElementReader);

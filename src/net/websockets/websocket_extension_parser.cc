@@ -9,9 +9,9 @@
 
 namespace net {
 
-WebSocketExtensionParser::WebSocketExtensionParser() {}
+WebSocketExtensionParser::WebSocketExtensionParser() = default;
 
-WebSocketExtensionParser::~WebSocketExtensionParser() {}
+WebSocketExtensionParser::~WebSocketExtensionParser() = default;
 
 bool WebSocketExtensionParser::Parse(const char* data, size_t size) {
   current_ = data;

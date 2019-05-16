@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/audio_latency.h"

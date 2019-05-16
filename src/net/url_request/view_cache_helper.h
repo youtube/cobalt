@@ -7,15 +7,13 @@
 
 #include <string>
 
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
-#include "net/base/completion_callback.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
-
-namespace disk_cache {
-class Backend;
-class Entry;
-}  // namespace disk_cache
+#include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -33,7 +31,7 @@ class NET_EXPORT ViewCacheHelper {
   int GetEntryInfoHTML(const std::string& key,
                        const URLRequestContext* context,
                        std::string* out,
-                       const CompletionCallback& callback);
+                       CompletionOnceCallback callback);
 
   // Formats the cache contents as HTML. Returns a net error code.
   // If this method returns ERR_IO_PENDING, |callback| will be notified when the
@@ -43,7 +41,7 @@ class NET_EXPORT ViewCacheHelper {
   int GetContentsHTML(const URLRequestContext* context,
                       const std::string& url_prefix,
                       std::string* out,
-                      const CompletionCallback& callback);
+                      CompletionOnceCallback callback);
 
   // Lower-level helper to produce a textual representation of binary data.
   // The results are appended to |result| and can be used in HTML pages
@@ -70,7 +68,7 @@ class NET_EXPORT ViewCacheHelper {
                   const URLRequestContext* context,
                   const std::string& url_prefix,
                   std::string* out,
-                  const CompletionCallback& callback);
+                  CompletionOnceCallback callback);
 
   // This is a helper function used to trigger a completion callback. It may
   // only be called if callback_ is non-null.
@@ -102,7 +100,7 @@ class NET_EXPORT ViewCacheHelper {
   const URLRequestContext* context_;
   disk_cache::Backend* disk_cache_;
   disk_cache::Entry* entry_;
-  void* iter_;
+  std::unique_ptr<disk_cache::Backend::Iterator> iter_;
   scoped_refptr<IOBuffer> buf_;
   int buf_len_;
   int index_;
@@ -110,7 +108,7 @@ class NET_EXPORT ViewCacheHelper {
   std::string key_;
   std::string url_prefix_;
   std::string* data_;
-  CompletionCallback callback_;
+  CompletionOnceCallback callback_;
 
   State next_state_;
 

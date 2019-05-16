@@ -65,9 +65,7 @@ class HistogramTableCSVBase {
 
   virtual std::string ValueToString(const ValueType& value) const = 0;
 
-  void set_title(const std::string& title) {
-    title_ = title;
-  }
+  void set_title(const std::string& title) { title_ = title; }
 
   void BeginRow(const base::TimeDelta time_value) {
     time_values_.push_back(time_value);
@@ -80,7 +78,7 @@ class HistogramTableCSVBase {
     }
     const size_t n = time_values_.size();
     std::vector<ValueType>& column = table_data_[column_key];
-    while (column.size() < n-1) {
+    while (column.size() < n - 1) {
       column.push_back(default_value_);
     }
     column.push_back(value);
@@ -120,9 +118,7 @@ class HistogramTableCSVBase {
     }
   }
 
-  size_t NumberOfRows() const {
-    return time_values_.size();
-  }
+  size_t NumberOfRows() const { return time_values_.size(); }
 
  protected:
   static std::string JoinValues(const std::vector<std::string>& row_values) {

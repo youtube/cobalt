@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/file_path.h"
+#include <memory>
+
+#include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
@@ -22,9 +24,9 @@ using cobalt::renderer::test::png_utils::DecodePNGToPremultipliedAlphaRGBA;
 using cobalt::renderer::test::png_utils::DecodePNGToRGBA;
 
 namespace {
-FilePath GetPremultipliedAlphaTestImagePath() {
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+base::FilePath GetPremultipliedAlphaTestImagePath() {
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("test"))
       .Append(FILE_PATH_LITERAL("png_utils"))
       .Append(FILE_PATH_LITERAL("png_premultiplied_alpha_test_image.png"));
@@ -57,7 +59,7 @@ int CountDifferingPixels(const uint8_t* pixels, int width, int height,
 TEST(PNGDecodeTests, CanDecodeUnpremultipliedAlpha) {
   int width;
   int height;
-  scoped_array<uint8_t> pixels =
+  std::unique_ptr<uint8_t[]> pixels =
       DecodePNGToRGBA(GetPremultipliedAlphaTestImagePath(), &width, &height);
 
   // All pixels in the PNG image should have non-premultiplied alpha RGBA
@@ -76,7 +78,7 @@ TEST(PNGDecodeTests, CanDecodeUnpremultipliedAlpha) {
 TEST(PNGDecodeTests, CanDecodePremultipliedAlpha) {
   int width;
   int height;
-  scoped_array<uint8_t> pixels = DecodePNGToPremultipliedAlphaRGBA(
+  std::unique_ptr<uint8_t[]> pixels = DecodePNGToPremultipliedAlphaRGBA(
       GetPremultipliedAlphaTestImagePath(), &width, &height);
 
   // All pixels in the PNG image should have premultiplied alpha RGBA

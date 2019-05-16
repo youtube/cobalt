@@ -7,6 +7,8 @@
 
 #include <config.h>
 
+#include "starboard/types.h"
+
 inline int snprintf(char* buffer, size_t count, const char* format, ...) {
     int result;
     va_list args;

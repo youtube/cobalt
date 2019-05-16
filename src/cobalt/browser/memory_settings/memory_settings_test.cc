@@ -16,9 +16,9 @@
 
 #include "cobalt/browser/memory_settings/memory_settings.h"
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,7 +27,7 @@ namespace browser {
 namespace memory_settings {
 
 TEST(MemorySettingsTest, IntSetting) {
-  scoped_ptr<IntSetting> int_setting(new IntSetting("dummy"));
+  std::unique_ptr<IntSetting> int_setting(new IntSetting("dummy"));
   EXPECT_EQ(std::string("dummy"), int_setting->name());
   int_setting->set_value(MemorySetting::kCmdLine, 123);
   EXPECT_EQ(123, int_setting->value());
@@ -36,7 +36,8 @@ TEST(MemorySettingsTest, IntSetting) {
 }
 
 TEST(MemorySettingsTest, DimensionSetting) {
-  scoped_ptr<DimensionSetting> rect_setting(new TestDimensionSetting("dummy"));
+  std::unique_ptr<DimensionSetting> rect_setting(
+      new TestDimensionSetting("dummy"));
   rect_setting->set_value(MemorySetting::kCmdLine,
                           TextureDimensions(1234, 5678, 2));
   EXPECT_EQ(TextureDimensions(1234, 5678, 2), rect_setting->value());

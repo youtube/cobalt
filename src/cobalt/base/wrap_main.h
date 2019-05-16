@@ -23,7 +23,7 @@
 #include "base/at_exit.h"
 #include "base/callback.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "cobalt/base/init_cobalt.h"
@@ -84,9 +84,8 @@ int BaseMain(int argc, char** argv) {
   base::AtExitManager at_exit;
   InitCobalt(argc, argv, NULL);
 
-  MessageLoopForUI message_loop;
+  base::MessageLoopForUI message_loop;
   base::PlatformThread::SetName("Main");
-  message_loop.set_thread_name("Main");
 
   DCHECK(!message_loop.is_running());
   base::RunLoop run_loop;
@@ -105,9 +104,9 @@ int BaseMain(int argc, char** argv) {
     return ::cobalt::wrap_main::SimpleMain<main_function>(argc, argv); \
   }
 
-// Creates a MessageLoop and an AtExitManager, calls |start_function|, and
-// terminates once the MessageLoop terminates, calling |stop_function| on the
-// way out.
+// Creates a base::MessageLoop and an AtExitManager, calls |start_function|, and
+// terminates once the base::MessageLoop terminates, calling |stop_function| on
+// the way out.
 #define COBALT_WRAP_BASE_MAIN(start_function, stop_function)                   \
   int main(int argc, char** argv) {                                            \
     return ::cobalt::wrap_main::BaseMain<start_function, stop_function>(argc,  \
@@ -119,7 +118,7 @@ int BaseMain(int argc, char** argv) {
 #define COBALT_WRAP_EVENT_MAIN(start_function, event_function, stop_function) \
   COBALT_WRAP_BASE_MAIN(start_function, stop_function)
 
-// The generic main wrapper that initializes the main MessageLoop and
+// The generic main wrapper that initializes the main base::MessageLoop and
 // AtExitManager, supports a preload function, start function, event handler,
 // and stop function.
 #define COBALT_WRAP_MAIN(preload_function, start_function, event_function, \

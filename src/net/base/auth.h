@@ -8,9 +8,9 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/string16.h"
-#include "net/base/host_port_pair.h"
+#include "base/strings/string16.h"
 #include "net/base/net_export.h"
+#include "url/origin.h"
 
 namespace net {
 
@@ -28,7 +28,7 @@ class NET_EXPORT AuthChallengeInfo :
   bool is_proxy;
 
   // The service issuing the challenge.
-  HostPortPair challenger;
+  url::Origin challenger;
 
   // The authentication scheme used, such as "basic" or "digest". If the
   // |source| is FTP_SERVER, this is an empty string. The encoding is ASCII.
@@ -46,11 +46,12 @@ class NET_EXPORT AuthChallengeInfo :
 class NET_EXPORT AuthCredentials {
  public:
   AuthCredentials();
-  AuthCredentials(const string16& username, const string16& password);
+  AuthCredentials(const base::string16& username,
+                  const base::string16& password);
   ~AuthCredentials();
 
   // Set the |username| and |password|.
-  void Set(const string16& username, const string16& password);
+  void Set(const base::string16& username, const base::string16& password);
 
   // Determines if |this| is equivalent to |other|.
   bool Equals(const AuthCredentials& other) const;
@@ -58,23 +59,19 @@ class NET_EXPORT AuthCredentials {
   // Returns true if all credentials are empty.
   bool Empty() const;
 
-  // Overwrites the password memory to prevent it from being read if
-  // it's paged out to disk.
-  void Zap();
-
-  const string16& username() const { return username_; }
-  const string16& password() const { return password_; }
+  const base::string16& username() const { return username_; }
+  const base::string16& password() const { return password_; }
 
  private:
   // The username to provide, possibly empty. This should be ASCII only to
   // minimize compatibility problems, but arbitrary UTF-16 strings are allowed
   // and will be attempted.
-  string16 username_;
+  base::string16 username_;
 
   // The password to provide, possibly empty. This should be ASCII only to
   // minimize compatibility problems, but arbitrary UTF-16 strings are allowed
   // and will be attempted.
-  string16 password_;
+  base::string16 password_;
 
   // Intentionally allowing the implicit copy constructor and assignment
   // operators.
@@ -86,19 +83,6 @@ enum AuthState {
   AUTH_STATE_NEED_AUTH,
   AUTH_STATE_HAVE_AUTH,
   AUTH_STATE_CANCELED
-};
-
-class AuthData : public base::RefCountedThreadSafe<AuthData> {
- public:
-  AuthState state;  // whether we need, have, or gave up on authentication.
-  AuthCredentials credentials; // The credentials to use for auth.
-
-  // We wouldn't instantiate this class if we didn't need authentication.
-  AuthData();
-
- private:
-  friend class base::RefCountedThreadSafe<AuthData>;
-  ~AuthData();
 };
 
 }  // namespace net

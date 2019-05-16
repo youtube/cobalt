@@ -15,7 +15,7 @@
 #include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
 
 #include "base/basictypes.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_script_element.h"
 

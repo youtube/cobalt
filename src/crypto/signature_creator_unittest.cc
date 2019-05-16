@@ -2,46 +2,115 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "crypto/signature_creator.h"
+
+#include <memory>
+#include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/sha1.h"
 #include "crypto/rsa_private_key.h"
-#include "crypto/signature_creator.h"
+#include "crypto/sha2.h"
 #include "crypto/signature_verifier.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SignatureCreatorTest, BasicTest) {
   // Do a verify round trip.
-  scoped_ptr<crypto::RSAPrivateKey> key_original(
+  std::unique_ptr<crypto::RSAPrivateKey> key_original(
       crypto::RSAPrivateKey::Create(1024));
   ASSERT_TRUE(key_original.get());
 
-  std::vector<uint8> key_info;
+  std::vector<uint8_t> key_info;
   key_original->ExportPrivateKey(&key_info);
-  scoped_ptr<crypto::RSAPrivateKey> key(
+  std::unique_ptr<crypto::RSAPrivateKey> key(
       crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_info));
   ASSERT_TRUE(key.get());
 
-  scoped_ptr<crypto::SignatureCreator> signer(
-      crypto::SignatureCreator::Create(key.get()));
+  std::unique_ptr<crypto::SignatureCreator> signer(
+      crypto::SignatureCreator::Create(key.get(),
+                                       crypto::SignatureCreator::SHA1));
   ASSERT_TRUE(signer.get());
 
   std::string data("Hello, World!");
-  ASSERT_TRUE(signer->Update(reinterpret_cast<const uint8*>(data.c_str()),
+  ASSERT_TRUE(signer->Update(reinterpret_cast<const uint8_t*>(data.c_str()),
                              data.size()));
 
-  std::vector<uint8> signature;
+  std::vector<uint8_t> signature;
   ASSERT_TRUE(signer->Final(&signature));
 
-  std::vector<uint8> public_key_info;
+  std::vector<uint8_t> public_key_info;
   ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));
 
   crypto::SignatureVerifier verifier;
-  ASSERT_TRUE(verifier.VerifyInit(
-      crypto::SignatureVerifier::RSA_PKCS1_SHA1, &signature.front(),
-      signature.size(), &public_key_info.front(), public_key_info.size()));
+  ASSERT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
+                                  signature, public_key_info));
 
-  verifier.VerifyUpdate(reinterpret_cast<const uint8*>(data.c_str()),
-                        data.size());
+  verifier.VerifyUpdate(base::as_bytes(base::make_span(data)));
+  ASSERT_TRUE(verifier.VerifyFinal());
+}
+
+TEST(SignatureCreatorTest, SignDigestTest) {
+  // Do a verify round trip.
+  std::unique_ptr<crypto::RSAPrivateKey> key_original(
+      crypto::RSAPrivateKey::Create(1024));
+  ASSERT_TRUE(key_original.get());
+
+  std::vector<uint8_t> key_info;
+  key_original->ExportPrivateKey(&key_info);
+  std::unique_ptr<crypto::RSAPrivateKey> key(
+      crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_info));
+  ASSERT_TRUE(key.get());
+
+  std::string data("Hello, World!");
+  std::string sha1 = base::SHA1HashString(data);
+  // Sign sha1 of the input data.
+  std::vector<uint8_t> signature;
+  ASSERT_TRUE(crypto::SignatureCreator::Sign(
+      key.get(), crypto::SignatureCreator::SHA1,
+      reinterpret_cast<const uint8_t*>(sha1.c_str()), sha1.size(), &signature));
+
+  std::vector<uint8_t> public_key_info;
+  ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));
+
+  // Verify the input data.
+  crypto::SignatureVerifier verifier;
+  ASSERT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
+                                  signature, public_key_info));
+
+  verifier.VerifyUpdate(base::as_bytes(base::make_span(data)));
+  ASSERT_TRUE(verifier.VerifyFinal());
+}
+
+TEST(SignatureCreatorTest, SignSHA256DigestTest) {
+  // Do a verify round trip.
+  std::unique_ptr<crypto::RSAPrivateKey> key_original(
+      crypto::RSAPrivateKey::Create(1024));
+  ASSERT_TRUE(key_original.get());
+
+  std::vector<uint8_t> key_info;
+  key_original->ExportPrivateKey(&key_info);
+  std::unique_ptr<crypto::RSAPrivateKey> key(
+      crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_info));
+  ASSERT_TRUE(key.get());
+
+  std::string data("Hello, World!");
+  std::string sha256 = crypto::SHA256HashString(data);
+  // Sign sha256 of the input data.
+  std::vector<uint8_t> signature;
+  ASSERT_TRUE(crypto::SignatureCreator::Sign(
+      key.get(), crypto::SignatureCreator::HashAlgorithm::SHA256,
+      reinterpret_cast<const uint8_t*>(sha256.c_str()), sha256.size(),
+      &signature));
+
+  std::vector<uint8_t> public_key_info;
+  ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));
+
+  // Verify the input data.
+  crypto::SignatureVerifier verifier;
+  ASSERT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA256,
+                                  signature, public_key_info));
+
+  verifier.VerifyUpdate(base::as_bytes(base::make_span(data)));
   ASSERT_TRUE(verifier.VerifyFinal());
 }

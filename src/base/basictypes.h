@@ -2,34 +2,36 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This is a legacy file from old Chromium base, some repos still depend on it.
+
 #ifndef BASE_BASICTYPES_H_
 #define BASE_BASICTYPES_H_
 
-#include <limits.h>         // So we can set the bounds of our types
-#include <stddef.h>         // For size_t
-#include <string.h>         // for memcpy
+#include <limits.h>  // So we can set the bounds of our types
+#include <stddef.h>  // For size_t
+#include <string.h>  // for memcpy
 
-#include "base/port.h"    // Types that only need exist on certain systems
+#include "base/macros.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/types.h"
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 #ifndef COMPILER_MSVC
 // stdint.h is part of C99 but MSVC doesn't have it.
-#include <stdint.h>         // For intptr_t.
+#include <stdint.h>  // For intptr_t.
 #endif
 
-typedef signed char         schar;
-typedef signed char         int8;
-typedef short               int16;
-#if defined(OS_STARBOARD)
-typedef int32_t             int32;
+typedef signed char schar;
+typedef signed char int8;
+typedef short int16;
+#if defined(STARBOARD)
+typedef int32_t int32;
 #else
-typedef int                 int32;
-#endif  // defined(OS_STARBOARD)
+typedef int int32;
+#endif  // defined(STARBOARD)
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 typedef int64_t int64;
 #else
 // The NSPR system headers define 64-bit as |long| when possible, except on
@@ -38,11 +40,11 @@ typedef int64_t int64;
 // On Mac OS X, |long long| is used for 64-bit types for compatibility with
 // <inttypes.h> format macros even in the LP64 model.
 #if defined(__LP64__) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-typedef long                int64;
+typedef long int64;
 #else
-typedef long long           int64;
+typedef long long int64;
 #endif
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 // NOTE: unsigned types are DANGEROUS in loops and other arithmetical
 // places.  Use the signed types unless your variable represents a bit
@@ -50,17 +52,17 @@ typedef long long           int64;
 // use 'unsigned' to express "this value should always be positive";
 // use assertions for this.
 
-#if defined(OS_STARBOARD)
-typedef uint8_t            uint8;
-typedef uint16_t           uint16;
-typedef uint32_t           uint32;
+#if defined(STARBOARD)
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
 #else
-typedef unsigned char      uint8;
-typedef unsigned short     uint16;
-typedef unsigned int       uint32;
-#endif  // defined(OS_STARBOARD)
+typedef unsigned char uint8;
+typedef unsigned short uint16;
+typedef unsigned int uint32;
+#endif  // defined(STARBOARD)
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 typedef uint64_t uint64;
 #else
 // See the comment above about NSPR and 64-bit.
@@ -69,46 +71,39 @@ typedef unsigned long uint64;
 #else
 typedef unsigned long long uint64;
 #endif
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 // A type to represent a Unicode code-point value. As of Unicode 4.0,
 // such values require up to 21 bits.
 // (For type-checking on pointers, make this explicitly signed,
 // and it should always be the signed version of whatever int32 is.)
-#if defined(OS_STARBOARD)
-typedef int32_t         char32;
+#if defined(STARBOARD)
+typedef int32_t char32;
 #else
-typedef signed int      char32;
-#endif  // defined(OS_STARBOARD)
-
+typedef signed int char32;
+#endif  // defined(STARBOARD)
 
 #if defined(COBALT_WIN)
 #pragma warning(push)
 #pragma warning(disable : 4310)  // Cast truncates constant value.
 #endif
 
-const uint8  kuint8max  = (( uint8) 0xFF);
-const uint16 kuint16max = ((uint16) 0xFFFF);
-const uint32 kuint32max = ((uint32) 0xFFFFFFFF);
-const uint64 kuint64max = ((uint64) GG_LONGLONG(0xFFFFFFFFFFFFFFFF));
-const  int8  kint8min   = ((  int8) 0x80);
-const  int8  kint8max   = ((  int8) 0x7F);
-const  int16 kint16min  = (( int16) 0x8000);
-const  int16 kint16max  = (( int16) 0x7FFF);
-const  int32 kint32min  = (( int32) 0x80000000);
-const  int32 kint32max  = (( int32) 0x7FFFFFFF);
-const  int64 kint64min  = (( int64) GG_LONGLONG(0x8000000000000000));
-const  int64 kint64max  = (( int64) GG_LONGLONG(0x7FFFFFFFFFFFFFFF));
+const uint8 kuint8max = ((uint8)0xFF);
+const uint16 kuint16max = ((uint16)0xFFFF);
+const uint32 kuint32max = ((uint32)0xFFFFFFFF);
+// const uint64 kuint64max = ((uint64) GG_LONGLONG(0xFFFFFFFFFFFFFFFF));
+const int8 kint8min = ((int8)0x80);
+const int8 kint8max = ((int8)0x7F);
+const int16 kint16min = ((int16)0x8000);
+const int16 kint16max = ((int16)0x7FFF);
+const int32 kint32min = ((int32)0x80000000);
+const int32 kint32max = ((int32)0x7FFFFFFF);
+// const  int64 kint64min  = (( int64) GG_LONGLONG(0x8000000000000000));
+// const  int64 kint64max  = (( int64) GG_LONGLONG(0x7FFFFFFFFFFFFFFF));
 
 #if defined(COBALT_WIN)
 #pragma warning(pop)
 #endif
-
-// A macro to disallow the copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);               \
-  void operator=(const TypeName&)
 
 // An older, deprecated, politically incorrect name for the above.
 // NOTE: The usage of this macro was baned from our code base, but some
@@ -116,16 +111,6 @@ const  int64 kint64max  = (( int64) GG_LONGLONG(0x7FFFFFFFFFFFFFFF));
 // TODO(tfarina): Figure out how to fix the usage of this macro in the
 // third_party libraries and get rid of it.
 #define DISALLOW_EVIL_CONSTRUCTORS(TypeName) DISALLOW_COPY_AND_ASSIGN(TypeName)
-
-// A macro to disallow all the implicit constructors, namely the
-// default constructor, copy constructor and operator= functions.
-//
-// This should be used in the private: declarations for a class
-// that wants to prevent anyone from instantiating it. This is
-// especially useful for classes containing only static methods.
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
-  TypeName();                                    \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -153,7 +138,8 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
 
 #if defined(COMPILER_GHS)
-// GHS does not support local types as template arguments, so we must fall back to the unsafe version
+// GHS does not support local types as template arguments, so we must fall back
+// to the unsafe version
 #define arraysize ARRAYSIZE_UNSAFE
 #else
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
@@ -196,7 +182,7 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 // where a pointer is 4 bytes, this means all pointers to a type whose
 // size is 3 or greater than 4 will be (righteously) rejected.
 
-#define ARRAYSIZE_UNSAFE(a) \
+#define ARRAYSIZE_UNSAFE(a)     \
   ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
@@ -218,8 +204,8 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 // implicit_cast would have been part of the C++ standard library,
 // but the proposal was submitted too late.  It will probably make
 // its way into the language in the future.
-template<typename To, typename From>
-inline To implicit_cast(From const &f) {
+template <typename To, typename From>
+inline To implicit_cast(From const& f) {
   return f;
 }
 
@@ -239,8 +225,7 @@ inline To implicit_cast(From const &f) {
 // containing the name of the variable.
 
 template <bool>
-struct CompileAssert {
-};
+struct CompileAssert {};
 
 #undef COMPILE_ASSERT
 #define COMPILE_ASSERT(expr, msg) \
@@ -346,25 +331,12 @@ template <class Dest, class Source>
 inline Dest bit_cast(const Source& source) {
   // Compile time assertion: sizeof(Dest) == sizeof(Source)
   // A compile error here means your Dest and Source have different sizes.
-  typedef char VerifySizesAreEqual [sizeof(Dest) == sizeof(Source) ? 1 : -1];
+  typedef char VerifySizesAreEqual[sizeof(Dest) == sizeof(Source) ? 1 : -1];
 
   Dest dest;
   memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
-
-// Used to explicitly mark the return value of a function as unused. If you are
-// really sure you don't want to do anything with the return value of a function
-// that has been marked WARN_UNUSED_RESULT, wrap it with this. Example:
-//
-//   scoped_ptr<MyType> my_var = ...;
-//   if (TakeOwnership(my_var.get()) == SUCCESS)
-//     ignore_result(my_var.release());
-//
-template<typename T>
-inline void ignore_result(const T&) {
-}
-
 // The following enum should be used only as a constructor argument to indicate
 // that the variable has static storage class, and that the constructor should
 // do nothing to its state.  It indicates to the reader that it is legal to
@@ -387,6 +359,6 @@ enum LinkerInitialized { LINKER_INITIALIZED };
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
 
-}  // base
+}  // namespace base
 
 #endif  // BASE_BASICTYPES_H_

@@ -17,14 +17,14 @@
 
 #if defined(ENABLE_WEBDRIVER)
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
@@ -72,7 +72,7 @@ class WindowDriver : private ElementMapping {
                const GetGlobalEnvironmentFunction& get_global_environment,
                KeyboardEventInjector keyboard_event_injector,
                PointerEventInjector pointer_event_injector,
-               const scoped_refptr<base::MessageLoopProxy>& message_loop);
+               const scoped_refptr<base::SingleThreadTaskRunner>& task_runner);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
   ElementDriver* GetElementDriver(const protocol::ElementId& element_id);
@@ -105,7 +105,7 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<void> SendClick(const protocol::Button& button);
 
  private:
-  typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
+  typedef std::unordered_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
   typedef std::vector<protocol::ElementId> ElementIdVector;
 
@@ -116,7 +116,7 @@ class WindowDriver : private ElementMapping {
       const protocol::ElementId& id) override;
 
   dom::Window* GetWeak() {
-    DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+    DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
     return window_.get();
   }
 
@@ -132,11 +132,11 @@ class WindowDriver : private ElementMapping {
 
   util::CommandResult<protocol::ScriptResult> ExecuteScriptInternal(
       const protocol::Script& script,
-      base::optional<base::TimeDelta> async_timeout,
+      base::Optional<base::TimeDelta> async_timeout,
       ScriptExecutorResult::ResultHandler* result_handler);
 
   util::CommandResult<void> SendKeysInternal(
-      scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
+      std::unique_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
   util::CommandResult<void> NavigateInternal(const GURL& url);
 
@@ -174,27 +174,23 @@ class WindowDriver : private ElementMapping {
   PointerEventInjector pointer_event_injector_;
 
   // Anything that interacts with the window must be run on this message loop.
-  scoped_refptr<base::MessageLoopProxy> window_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> window_task_runner_;
 
   // Weak handle to the dom::Window that must only be accessed from
-  // |window_message_loop|
+  // |window_task_runner|
   base::WeakPtr<dom::Window> window_;
 
-  // This must only be accessed from |window_message_loop_|.
+  // This must only be accessed from |window_task_runner_|.
   GetGlobalEnvironmentFunction get_global_environment_;
 
   // Helper object for commands that execute script. This must only be accessed
-  // from the |window_message_loop_|.
+  // from the |window_task_runner_|.
   base::WeakPtr<ScriptExecutor> script_executor_;
 
   // Mapping of protocol::ElementId to ElementDriver*. This should only be
-  // accessed from the |window_message_loop_|, though it will be destructed
+  // accessed from the |window_task_runner_|, though it will be destructed
   // from the WebDriver thread.
   ElementDriverMap element_drivers_;
-
-  // Ensure ElementDrivers that this WindowDriver owns are deleted on
-  // destruction of the WindowDriver.
-  STLValueDeleter<ElementDriverMap> element_driver_map_deleter_;
 
   // Monotonically increasing number to provide unique element ids.
   int32 next_element_id_;

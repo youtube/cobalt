@@ -4,31 +4,37 @@
 
 #include "net/dns/dns_config_service.h"
 
-#include "base/basictypes.h"
+#include <memory>
+
 #include "base/bind.h"
 #include "base/cancelable_callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/location.h"
+#include "base/run_loop.h"
+#include "base/single_thread_task_runner.h"
+#include "base/strings/string_split.h"
 #include "base/test/test_timeouts.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "net/dns/dns_protocol.h"
+#include "net/test/test_with_scoped_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 namespace {
 
-class DnsConfigServiceTest : public testing::Test {
+class DnsConfigServiceTest : public TestWithScopedTaskEnvironment {
  public:
   void OnConfigChanged(const DnsConfig& config) {
     last_config_ = config;
     if (quit_on_config_)
-      MessageLoop::current()->Quit();
+      std::move(quit_on_config_).Run();
   }
 
  protected:
   class TestDnsConfigService : public DnsConfigService {
    public:
-    virtual void ReadNow() override {}
-    virtual bool StartWatching() override { return true; }
+    void ReadNow() override {}
+    bool StartWatching() override { return true; }
 
     // Expose the protected methods to this test suite.
     void InvalidateConfig() {
@@ -53,22 +59,18 @@ class DnsConfigServiceTest : public testing::Test {
   };
 
   void WaitForConfig(base::TimeDelta timeout) {
-    base::CancelableClosure closure(MessageLoop::QuitClosure());
-    MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                            closure.callback(),
-                                            timeout);
-    quit_on_config_ = true;
-    MessageLoop::current()->Run();
-    quit_on_config_ = false;
-    closure.Cancel();
+    base::RunLoop run_loop;
+    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+        FROM_HERE, run_loop.QuitClosure(), timeout);
+    quit_on_config_ = run_loop.QuitClosure();
+    run_loop.Run();
   }
 
   // Generate a config using the given seed..
   DnsConfig MakeConfig(unsigned seed) {
     DnsConfig config;
-    IPAddressNumber ip;
-    CHECK(ParseIPLiteralToNumber("1.2.3.4", &ip));
-    config.nameservers.push_back(IPEndPoint(ip, seed & 0xFFFF));
+    config.nameservers.push_back(
+        IPEndPoint(IPAddress(1, 2, 3, 4), seed & 0xFFFF));
     EXPECT_TRUE(config.IsValid());
     return config;
   }
@@ -83,9 +85,7 @@ class DnsConfigServiceTest : public testing::Test {
     return hosts;
   }
 
-  virtual void SetUp() override {
-    quit_on_config_ = false;
-
+  void SetUp() override {
     service_.reset(new TestDnsConfigService());
     service_->WatchConfig(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
                                      base::Unretained(this)));
@@ -93,10 +93,10 @@ class DnsConfigServiceTest : public testing::Test {
   }
 
   DnsConfig last_config_;
-  bool quit_on_config_;
+  base::OnceClosure quit_on_config_;
 
   // Service under test.
-  scoped_ptr<TestDnsConfigService> service_;
+  std::unique_ptr<TestDnsConfigService> service_;
 };
 
 }  // namespace
@@ -238,24 +238,5 @@ TEST_F(DnsConfigServiceTest, WatchFailure) {
   service_->OnConfigRead(config2);
   EXPECT_TRUE(last_config_.Equals(bad_config));
 }
-
-#if !defined(__LB_SHELL__)
-#if (defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)) || \
-    defined(OS_WIN)
-// TODO(szym): This is really an integration test and can time out if HOSTS is
-// huge. http://crbug.com/107810
-TEST_F(DnsConfigServiceTest, FLAKY_GetSystemConfig) {
-  service_.reset();
-  scoped_ptr<DnsConfigService> service(DnsConfigService::CreateSystemService());
-
-  service->ReadConfig(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
-                                 base::Unretained(this)));
-  base::TimeDelta kTimeout = TestTimeouts::action_max_timeout();
-  WaitForConfig(kTimeout);
-  ASSERT_TRUE(last_config_.IsValid()) << "Did not receive DnsConfig in " <<
-      kTimeout.InSecondsF() << "s";
-}
-#endif  // OS_POSIX || OS_WIN
-#endif  // !defined(__LB_SHELL__)
 
 }  // namespace net

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/test_data_stream.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -15,7 +16,7 @@ void TestDataStream::GetBytes(char* buffer, int length) {
   while (length) {
     AdvanceIndex();
     int bytes_to_copy = std::min(length, bytes_remaining_);
-    memcpy(buffer, buffer_ptr_, bytes_to_copy);
+    SbMemoryCopy(buffer, buffer_ptr_, bytes_to_copy);
     buffer += bytes_to_copy;
     Consume(bytes_to_copy);
     length -= bytes_to_copy;
@@ -26,7 +27,7 @@ bool TestDataStream::VerifyBytes(const char *buffer, int length) {
   while (length) {
     AdvanceIndex();
     int bytes_to_compare = std::min(length, bytes_remaining_);
-    if (memcmp(buffer, buffer_ptr_, bytes_to_compare))
+    if (SbMemoryCompare(buffer, buffer_ptr_, bytes_to_compare))
       return false;
     Consume(bytes_to_compare);
     length -= bytes_to_compare;
@@ -65,4 +66,3 @@ void TestDataStream::Consume(int bytes) {
 }
 
 }  // namespace net
-

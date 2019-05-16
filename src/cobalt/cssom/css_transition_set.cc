@@ -326,7 +326,7 @@ void TransitionSet::TransitionMap::Clear() {
 }
 
 namespace {
-base::LazyInstance<TransitionSet> g_empty_transition_set =
+base::LazyInstance<TransitionSet>::DestructorAtExit g_empty_transition_set =
     LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 

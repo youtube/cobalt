@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <ostream>
 #include <sstream>
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/json/json_reader.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
+#include "base/test/scoped_task_environment.h"
 #include "base/values.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -32,9 +34,9 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
-#include "googleurl/src/gurl.h"
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -49,22 +51,22 @@ namespace {
 class CspDelegatePermissive : public dom::CspDelegateSecure {
  public:
   CspDelegatePermissive(
-      scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      csp::CSPHeaderPolicy require_csp,
+      std::unique_ptr<dom::CspViolationReporter> violation_reporter,
+      const GURL& url, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback)
-      : dom::CspDelegateSecure(violation_reporter.Pass(), url, require_csp,
+      : dom::CspDelegateSecure(std::move(violation_reporter), url, require_csp,
                                policy_changed_callback) {
     // Lies, but some checks in our parent require this.
     was_header_received_ = true;
   }
 
   static CspDelegate* Create(
-      scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      csp::CSPHeaderPolicy require_csp,
+      std::unique_ptr<dom::CspViolationReporter> violation_reporter,
+      const GURL& url, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
-    UNREFERENCED_PARAMETER(insecure_allowed_token);
-    return new CspDelegatePermissive(violation_reporter.Pass(), url,
+    SB_UNREFERENCED_PARAMETER(insecure_allowed_token);
+    return new CspDelegatePermissive(std::move(violation_reporter), url,
                                      require_csp, policy_changed_callback);
   }
 
@@ -115,26 +117,28 @@ const char* kLogSuppressions[] = {
 };
 
 void Quit(base::RunLoop* run_loop) {
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE, run_loop->QuitClosure());
 }
 
 // Called when layout completes and results have been produced.  We use this
 // signal to stop the WebModule's message loop since our work is done after a
 // layout has been performed.
 void WebModuleOnRenderTreeProducedCallback(
-    base::optional<browser::WebModule::LayoutResults>* out_results,
-    base::RunLoop* run_loop, MessageLoop* message_loop,
+    base::Optional<browser::WebModule::LayoutResults>* out_results,
+    base::RunLoop* run_loop, base::MessageLoop* message_loop,
     const browser::WebModule::LayoutResults& results) {
   out_results->emplace(results.render_tree, results.layout_time);
-  message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 // This callback, when called, quits a message loop, outputs the error message
 // and sets the success flag to false.
-void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
-                            const GURL& url, const std::string& error) {
+void WebModuleErrorCallback(base::RunLoop* run_loop,
+                            base::MessageLoop* message_loop, const GURL& url,
+                            const std::string& error) {
   LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
-  message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
 std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
@@ -146,7 +150,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
   // thread.
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::test::ScopedTaskEnvironment scoped_task_environment;
 
   const ViewportSize kDefaultViewportSize(640, 360);
 
@@ -156,16 +160,16 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   network::NetworkModule::Options net_options;
   net_options.https_requirement = network::kHTTPSOptional;
   std::string custom_proxy =
-      CommandLine::ForCurrentProcess()->GetSwitchValueASCII("proxy");
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("proxy");
   if (!custom_proxy.empty()) net_options.custom_proxy = custom_proxy;
   network::NetworkModule network_module(net_options);
 
   // Media module
   render_tree::ResourceProviderStub resource_provider;
   media::MediaModule::Options options;
-  scoped_ptr<media::MediaModule> media_module(
+  std::unique_ptr<media::MediaModule> media_module(
       media::MediaModule::Create(NULL, &resource_provider, options));
-  scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler(
+  std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler(
       media::MediaModule::CreateCanPlayTypeHandler());
 
   dom::CspDelegateFactory::GetInstance()->OverrideCreator(
@@ -176,15 +180,16 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
 
   // Prepare a slot for our results to be placed when ready.
-  base::optional<browser::WebModule::LayoutResults> results;
+  base::Optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;
 
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module(
       url, base::kApplicationStateStarted,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
-                 MessageLoop::current()),
-      base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
+                 base::MessageLoop::current()),
+      base::Bind(&WebModuleErrorCallback, &run_loop,
+                 base::MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
       can_play_type_handler.get(), media_module.get(), &network_module,
@@ -201,10 +206,10 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 std::vector<TestResult> ParseResults(const std::string& json_results) {
   std::vector<TestResult> test_results;
 
-  scoped_ptr<base::Value> root;
+  std::unique_ptr<base::Value> root;
   base::JSONReader reader(
       base::JSONParserOptions::JSON_REPLACE_INVALID_CHARACTERS);
-  root.reset(reader.ReadToValue(json_results));
+  root = reader.ReadToValue(json_results);
   // Expect that parsing test result succeeded.
   EXPECT_EQ(base::JSONReader::JSON_NO_ERROR, reader.error_code());
   if (!root) {
@@ -291,7 +296,7 @@ TEST_P(WebPlatformTest, Run) {
   // Output the name of the current input file so that it is visible in test
   // output.
   std::string test_server =
-      CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           "web-platform-test-server");
   if (test_server.empty()) test_server = "http://web-platform.test:8000";
 

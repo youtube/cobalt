@@ -5,45 +5,37 @@
 #ifndef NET_BASE_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
 
-#include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/scoped_vector.h"
-#include "base/memory/weak_ptr.h"
-#include "net/base/completion_callback.h"
+#include <memory>
+#include <vector>
+
+#include "base/macros.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/upload_progress.h"
+#include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace net {
 
-class DrainableIOBuffer;
 class IOBuffer;
 class UploadElementReader;
 
-// A class to read all elements from an UploadData object.
+// A class for retrieving all data to be sent as a request body. Supports both
+// chunked and non-chunked uploads.
 class NET_EXPORT UploadDataStream {
  public:
-  // An enum used to construct chunked data stream.
-  enum Chunked { CHUNKED };
+  // |identifier| identifies a particular upload instance, which is used by the
+  // cache to formulate a cache key. This value should be unique across browser
+  // sessions. A value of 0 is used to indicate an unspecified identifier.
+  UploadDataStream(bool is_chunked, int64_t identifier);
 
-  // Constructs a non-chunked data stream.
-  // |element_readers| is cleared by this ctor.
-  UploadDataStream(ScopedVector<UploadElementReader>* element_readers,
-                   int64 identifier);
-
-  // Constructs a chunked data stream.
-  UploadDataStream(Chunked chunked, int64 identifier);
-
-  ~UploadDataStream();
-
-  // Creates UploadDataStream with a reader.
-  static UploadDataStream* CreateWithReader(
-      scoped_ptr<UploadElementReader> reader,
-      int64 identifier);
+  virtual ~UploadDataStream();
 
   // Initializes the stream. This function must be called before calling any
   // other method. It is not valid to call any method (other than the
-  // destructor) if Init() returns a failure. This method can be called multiple
-  // times. Calling this method after a Init() success results in resetting the
-  // state.
+  // destructor) if Init() fails. This method can be called multiple times.
+  // Calling this method after an Init() success results in resetting the
+  // state (i.e. the stream is rewound).
   //
   // Does the initialization synchronously and returns the result if possible,
   // otherwise returns ERR_IO_PENDING and runs the callback with the result.
@@ -51,11 +43,7 @@ class NET_EXPORT UploadDataStream {
   // Returns OK on success. Returns ERR_UPLOAD_FILE_CHANGED if the expected
   // file modification time is set (usually not set, but set for sliced
   // files) and the target file is changed.
-  int Init(const CompletionCallback& callback);
-
-  // Initializes the stream synchronously.
-  // Use this method only if the thread is IO allowed or the data is in-memory.
-  int InitSync();
+  int Init(CompletionOnceCallback callback, const NetLogWithSource& net_log);
 
   // When possible, reads up to |buf_len| bytes synchronously from the upload
   // data stream to |buf| and returns the number of bytes read; otherwise,
@@ -67,106 +55,92 @@ class NET_EXPORT UploadDataStream {
   // If there's less data to read than we initially observed (i.e. the actual
   // upload data is smaller than size()), zeros are padded to ensure that
   // size() bytes can be read, which can happen for TYPE_FILE payloads.
-  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
-
-  // Reads data always synchronously.
-  // Use this method only if the thread is IO allowed or the data is in-memory.
-  int ReadSync(IOBuffer* buf, int buf_len);
-
-  // Identifies a particular upload instance, which is used by the cache to
-  // formulate a cache key.  This value should be unique across browser
-  // sessions.  A value of 0 is used to indicate an unspecified identifier.
-  int64 identifier() const { return identifier_; }
+  //
+  // TODO(mmenke):  Investigate letting reads fail.
+  int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
   // Returns the total size of the data stream and the current position.
-  // size() is not to be used to determine whether the stream has ended
-  // because it is possible for the stream to end before its size is reached,
-  // for example, if the file is truncated. When the data is chunked, size()
-  // always returns zero.
-  uint64 size() const { return total_size_; }
-  uint64 position() const { return current_position_; }
+  // When the data is chunked, always returns zero. Must always return the same
+  // value after each call to Initialize().
+  uint64_t size() const { return total_size_; }
+  uint64_t position() const { return current_position_; }
+
+  // See constructor for description.
+  int64_t identifier() const { return identifier_; }
 
   bool is_chunked() const { return is_chunked_; }
-  bool last_chunk_appended() const { return last_chunk_appended_; }
-
-  const ScopedVector<UploadElementReader>& element_readers() const {
-    return element_readers_;
-  }
 
   // Returns true if all data has been consumed from this upload data
-  // stream.
+  // stream. For chunked uploads, returns false until the first read attempt.
+  // This makes some state machines a little simpler.
   bool IsEOF() const;
 
-  // Returns true if the upload data in the stream is entirely in memory.
-  bool IsInMemory() const;
-
-  // Adds the given chunk of bytes to be sent with chunked transfer encoding.
-  void AppendChunk(const char* bytes, int bytes_len, bool is_last_chunk);
-
- private:
-  friend class SpdyHttpStreamSpdy2Test;
-  friend class SpdyHttpStreamSpdy3Test;
-  friend class SpdyNetworkTransactionSpdy2Test;
-  friend class SpdyNetworkTransactionSpdy3Test;
-
-  // Resets this instance to the uninitialized state.
+  // Cancels all pending callbacks, and resets state. Any IOBuffer currently
+  // being read to is not safe for future use, as it may be in use on another
+  // thread.
   void Reset();
 
-  // Runs Init() for all element readers.
-  // This method is used to implement Init().
-  int InitInternal(int start_index, const CompletionCallback& callback);
+  // Returns true if the upload data in the stream is entirely in memory, and
+  // all read requests will succeed synchronously. Expected to return false for
+  // chunked requests.
+  virtual bool IsInMemory() const;
 
-  // Resumes initialization and runs callback with the result when necessary.
-  void ResumePendingInit(int start_index,
-                         const CompletionCallback& callback,
-                         int previous_result);
+  // Returns a list of element readers owned by |this|, if it has any.
+  virtual const std::vector<std::unique_ptr<UploadElementReader>>*
+  GetElementReaders() const;
 
-  // Finalizes the initialization process.
-  // This method is used to implement Init().
-  void FinalizeInitialization();
+  // Returns the upload progress. If the stream was not initialized
+  // successfully, or has been reset and not yet re-initialized, returns an
+  // empty UploadProgress.
+  virtual UploadProgress GetUploadProgress() const;
 
-  // Reads data from the element readers.
-  // This method is used to implement Read().
-  int ReadInternal(scoped_refptr<DrainableIOBuffer> buf,
-                   const CompletionCallback& callback);
+ protected:
+  // Must be called by subclasses when InitInternal and ReadInternal complete
+  // asynchronously.
+  void OnInitCompleted(int result);
+  void OnReadCompleted(int result);
 
-  // Resumes pending read and calls callback with the result when necessary.
-  void ResumePendingRead(scoped_refptr<DrainableIOBuffer> buf,
-                         const CompletionCallback& callback,
-                         int previous_result);
+  // Must be called before InitInternal completes, for non-chunked uploads.
+  // Must not be called for chunked uploads.
+  void SetSize(uint64_t size);
 
-  // These methods are provided only to be used by unit tests.
-  static void ResetMergeChunks();
-  static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
+  // Must be called for chunked uploads before the final ReadInternal call
+  // completes. Must not be called for non-chunked uploads.
+  void SetIsFinalChunk();
 
-  ScopedVector<UploadElementReader> element_readers_;
+ private:
+  // See Init(). If it returns ERR_IO_PENDING, OnInitCompleted must be called
+  // once it completes. If the upload is not chunked, SetSize must be called
+  // before it completes.
+  virtual int InitInternal(const NetLogWithSource& net_log) = 0;
 
-  // Index of the current upload element (i.e. the element currently being
-  // read). The index is used as a cursor to iterate over elements in
-  // |upload_data_|.
-  size_t element_index_;
+  // See Read(). For chunked uploads, must call SetIsFinalChunk if this is the
+  // final chunk. For non-chunked uploads, the UploadDataStream determins which
+  // read is the last based on size. Must read 1 or more bytes on every call,
+  // though the final chunk may be 0 bytes, for chunked requests. If it returns
+  // ERR_IO_PENDING, OnInitCompleted must be called once it completes. Must not
+  // return any error, other than ERR_IO_PENDING.
+  virtual int ReadInternal(IOBuffer* buf, int buf_len) = 0;
 
-  // Size and current read position within the upload data stream.
-  // |total_size_| is set to zero when the data is chunked.
-  uint64 total_size_;
-  uint64 current_position_;
+  // Resets state and cancels any pending callbacks. Guaranteed to be called
+  // at least once before every call to InitInternal.
+  virtual void ResetInternal() = 0;
 
-  const int64 identifier_;
+  uint64_t total_size_;
+  uint64_t current_position_;
+
+  const int64_t identifier_;
 
   const bool is_chunked_;
-  bool last_chunk_appended_;
 
   // True if the initialization was successful.
   bool initialized_successfully_;
 
-  // Callback to resume reading chunked data.
-  base::Closure pending_chunked_read_callback_;
+  bool is_eof_;
 
-  base::WeakPtrFactory<UploadDataStream> weak_ptr_factory_;
+  CompletionOnceCallback callback_;
 
-  // TODO(satish): Remove this once we have a better way to unit test POST
-  // requests with chunked uploads.
-  static bool merge_chunks_;
+  NetLogWithSource net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadDataStream);
 };

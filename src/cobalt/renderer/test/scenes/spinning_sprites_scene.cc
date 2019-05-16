@@ -17,11 +17,11 @@
 #include <cmath>
 #include <vector>
 
-#include "base/debug/trace_event.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -105,8 +105,8 @@ std::vector<SpriteInfo> CreateSpriteInfos() {
 
 scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
   // Load a test image from disk.
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return DecodePNGToRenderTreeImage(
       data_directory.Append(FILE_PATH_LITERAL("test"))
           .Append(FILE_PATH_LITERAL("scenes"))
@@ -150,7 +150,7 @@ scoped_refptr<render_tree::Node> CreateSpinningSpritesScene(
   }
 
   scoped_refptr<CompositionNode> spinning_sprites_composition(
-      new CompositionNode(spinning_sprites_scene_builder.Pass()));
+      new CompositionNode(std::move(spinning_sprites_scene_builder)));
 
   return new AnimateNode(animations, spinning_sprites_composition);
 }

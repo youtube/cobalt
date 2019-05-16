@@ -15,17 +15,16 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_
 
+#include <memory>
 #include <string>
 
 #include "SkMutex.h"
 #include "SkStream.h"
 #include "base/atomicops.h"
 #include "base/basictypes.h"
+#include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
-#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "cobalt/base/c_val.h"
 
 // The SkFileMemoryChunkStream classes provide a stream type that mixes features
@@ -48,8 +47,8 @@ class SkFileMemoryChunk;
 class SkFileMemoryChunkStream;
 class SkFileMemoryChunkStreamProvider;
 
-typedef base::SmallMap<
-    base::hash_map<size_t, scoped_refptr<const SkFileMemoryChunk> >, 8>
+typedef base::small_map<
+    std::unordered_map<size_t, scoped_refptr<const SkFileMemoryChunk>>, 8>
     SkFileMemoryChunks;
 typedef base::hash_map<std::string, SkFileMemoryChunkStreamProvider*>
     SkFileMemoryChunkStreamProviderMap;
@@ -88,7 +87,8 @@ class SkFileMemoryChunkStreamManager {
   void ReleaseReservedMemoryChunks(size_t count);
 
   SkMutex stream_provider_mutex_;
-  ScopedVector<SkFileMemoryChunkStreamProvider> stream_provider_array_;
+  std::vector<std::unique_ptr<SkFileMemoryChunkStreamProvider>>
+      stream_provider_array_;
   SkFileMemoryChunkStreamProviderMap stream_provider_map_;
 
   base::subtle::Atomic32 available_chunk_count_;
@@ -118,7 +118,7 @@ class SkFileMemoryChunkStreamProvider {
   // While the snapshot exists, it retains references to all of those memory
   // chunks, guaranteeing that they will be retained when
   // PurgeUnusedMemoryChunks() is called.
-  scoped_ptr<const SkFileMemoryChunks> CreateMemoryChunksSnapshot();
+  std::unique_ptr<const SkFileMemoryChunks> CreateMemoryChunksSnapshot();
 
   // Purges all of the provider's memory chunks that are only referenced by the
   // provider.

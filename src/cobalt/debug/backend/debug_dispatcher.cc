@@ -30,10 +30,12 @@ DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
                                  DebugScriptRunner* script_runner)
     : script_debugger_(script_debugger),
       script_runner_(script_runner),
-      message_loop_(MessageLoop::current()),
+      task_runner_(base::MessageLoop::current()->task_runner()),
       is_paused_(false),
       // No manual reset, not initially signaled.
-      command_added_while_paused_(false, false) {}
+      command_added_while_paused_(
+          base::WaitableEvent::ResetPolicy::AUTOMATIC,
+          base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
 DebugDispatcher::~DebugDispatcher() {
   DCHECK(domain_registry_.empty())
@@ -87,7 +89,7 @@ void DebugDispatcher::SendCommand(const Command& command) {
   if (is_paused_) {
     DispatchCommandWhilePaused(command_closure);
   } else {
-    message_loop_->PostTask(FROM_HERE, command_closure);
+    task_runner_->PostTask(FROM_HERE, command_closure);
   }
 }
 
@@ -156,13 +158,13 @@ void DebugDispatcher::HandlePause() {
 
 void DebugDispatcher::SendEvent(const std::string& method,
                                 const JSONObject& params) {
-  base::optional<std::string> json_params;
+  base::Optional<std::string> json_params;
   if (params) json_params = JSONStringify(params);
   SendEvent(method, json_params);
 }
 
 void DebugDispatcher::SendEvent(
-    const std::string& method, const base::optional<std::string>& json_params) {
+    const std::string& method, const base::Optional<std::string>& json_params) {
   for (auto* client : clients_) {
     client->OnEvent(method, json_params);
   }
@@ -170,12 +172,12 @@ void DebugDispatcher::SendEvent(
 
 void DebugDispatcher::AddDomain(const std::string& domain,
                                 const CommandHandler& handler) {
-  DCHECK_EQ(domain_registry_.count(domain), 0);
+  DCHECK_EQ(domain_registry_.count(domain), size_t(0));
   domain_registry_[domain] = handler;
 }
 
 void DebugDispatcher::RemoveDomain(const std::string& domain) {
-  DCHECK_EQ(domain_registry_.count(domain), 1);
+  DCHECK_EQ(domain_registry_.count(domain), size_t(1));
   domain_registry_.erase(domain);
 }
 
@@ -191,7 +193,7 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
   if (success) {
     JSONObject result = JSONParse(json_result);
     if (result) {
-      response->Set("result", result.release());
+      response->Set("result", std::unique_ptr<base::Value>(result.release()));
     }
   } else if (!json_result.empty()) {
     // On error, |json_result| is the error message.
@@ -200,7 +202,7 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
     // An empty error means the method isn't implemented so return no response.
     response.reset();
   }
-  return response.Pass();
+  return response;
 }
 
 bool DebugDispatcher::RunScriptFile(const std::string& filename) {

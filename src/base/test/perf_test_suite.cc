@@ -6,17 +6,17 @@
 
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/path_service.h"
-#include "base/perftimer.h"
-#include "base/process_util.h"
-#include "base/string_util.h"
+#include "base/process/launch.h"
+#include "base/strings/string_util.h"
+#include "base/test/perf_log.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
-PerfTestSuite::PerfTestSuite(int argc, char** argv) : TestSuite(argc, argv) {
-}
+PerfTestSuite::PerfTestSuite(int argc, char** argv) : TestSuite(argc, argv) {}
 
 void PerfTestSuite::Initialize() {
   TestSuite::Initialize();
@@ -25,19 +25,21 @@ void PerfTestSuite::Initialize() {
   FilePath log_path =
       CommandLine::ForCurrentProcess()->GetSwitchValuePath("log-file");
   if (log_path.empty()) {
-    FilePath exe;
-    PathService::Get(base::FILE_EXE, &exe);
-    log_path = exe.ReplaceExtension(FILE_PATH_LITERAL("log"));
+    PathService::Get(FILE_EXE, &log_path);
+#if defined(OS_ANDROID) || defined(OS_FUCHSIA)
+    base::FilePath tmp_dir;
+    PathService::Get(base::DIR_CACHE, &tmp_dir);
+    log_path = tmp_dir.Append(log_path.BaseName());
+#endif
+    log_path = log_path.ReplaceExtension(FILE_PATH_LITERAL("log"));
     log_path = log_path.InsertBeforeExtension(FILE_PATH_LITERAL("_perf"));
   }
   ASSERT_TRUE(InitPerfLog(log_path));
 
-#if !defined(OS_STARBOARD)
   // Raise to high priority to have more precise measurements. Since we don't
   // aim at 1% precision, it is not necessary to run at realtime level.
-  if (!base::debug::BeingDebugged())
-    base::RaiseProcessToHighPriority();
-#endif
+  if (!debug::BeingDebugged())
+    RaiseProcessToHighPriority();
 }
 
 void PerfTestSuite::Shutdown() {

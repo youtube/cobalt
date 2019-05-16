@@ -15,9 +15,10 @@
 #ifndef COBALT_RENDER_TREE_RECT_NODE_H_
 #define COBALT_RENDER_TREE_RECT_NODE_H_
 
+#include <memory>
+
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/border.h"
@@ -39,19 +40,19 @@ class RectNode : public Node {
     explicit Builder(Moved moved);
 
     explicit Builder(const math::RectF& rect);
-    Builder(const math::RectF& rect, scoped_ptr<Border> border);
-    Builder(const math::RectF& rect, scoped_ptr<Border> border,
-            scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush);
+    Builder(const math::RectF& rect, std::unique_ptr<Border> border);
+    Builder(const math::RectF& rect, std::unique_ptr<Border> border,
+            std::unique_ptr<RoundedCorners> rounded_corners);
+    Builder(const math::RectF& rect, std::unique_ptr<Brush> background_brush);
     Builder(const math::RectF& rect,
-            scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush,
-            scoped_ptr<Border> border);
-    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush,
-            scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush,
-            scoped_ptr<Border> border,
-            scoped_ptr<RoundedCorners> rounded_corners);
+            std::unique_ptr<RoundedCorners> rounded_corners);
+    Builder(const math::RectF& rect, std::unique_ptr<Brush> background_brush,
+            std::unique_ptr<Border> border);
+    Builder(const math::RectF& rect, std::unique_ptr<Brush> background_brush,
+            std::unique_ptr<RoundedCorners> rounded_corners);
+    Builder(const math::RectF& rect, std::unique_ptr<Brush> background_brush,
+            std::unique_ptr<Border> border,
+            std::unique_ptr<RoundedCorners> rounded_corners);
 
     bool operator==(const Builder& other) const;
 
@@ -60,14 +61,14 @@ class RectNode : public Node {
 
     // A solid or gradient brush to fill the rectangle with.
     // This can be null if a background brush is not specified.
-    scoped_ptr<Brush> background_brush;
+    std::unique_ptr<Brush> background_brush;
 
     // A border arounds a RectNode.
-    scoped_ptr<Border> border;
+    std::unique_ptr<Border> border;
 
     // Defines the radii of an ellipse that defines the shape of the corner of
     // the outer border edge.
-    scoped_ptr<RoundedCorners> rounded_corners;
+    std::unique_ptr<RoundedCorners> rounded_corners;
   };
 
   // Forwarding constructor to the set of Builder constructors.

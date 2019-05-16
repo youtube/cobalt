@@ -14,7 +14,7 @@
 
 #include "starboard/android/shared/cobalt/android_user_authorizer.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/log.h"
@@ -47,11 +47,11 @@ void AndroidUserAuthorizer::Shutdown() {
   env->CallVoidMethodOrAbort(j_user_authorizer_, "interrupt", "()V");
 }
 
-scoped_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
+std::unique_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
   SB_DCHECK(user == &::starboard::shared::nouser::g_user);
   if (shutdown_) {
     DLOG(WARNING) << "No-op AuthorizeUser after shutdown";
-    return scoped_ptr<AccessToken>(NULL);
+    return std::unique_ptr<AccessToken>();
   }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_token(
@@ -71,12 +71,12 @@ bool AndroidUserAuthorizer::DeauthorizeUser(SbUser user) {
                                        "()Z");
 }
 
-scoped_ptr<AccessToken>
+std::unique_ptr<AccessToken>
 AndroidUserAuthorizer::RefreshAuthorization(SbUser user) {
   SB_DCHECK(user == &::starboard::shared::nouser::g_user);
   if (shutdown_) {
     DLOG(WARNING) << "No-op RefreshAuthorization after shutdown";
-    return scoped_ptr<AccessToken>(NULL);
+    return std::unique_ptr<AccessToken>();
   }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_token(
@@ -85,14 +85,14 @@ AndroidUserAuthorizer::RefreshAuthorization(SbUser user) {
   return CreateAccessToken(j_token.Get());
 }
 
-scoped_ptr<AccessToken>
+std::unique_ptr<AccessToken>
 AndroidUserAuthorizer::CreateAccessToken(jobject j_token) {
   if (!j_token) {
-    return scoped_ptr<AccessToken>(NULL);
+    return std::unique_ptr<AccessToken>();
   }
 
   JniEnvExt* env = JniEnvExt::Get();
-  scoped_ptr<AccessToken> access_token(new AccessToken());
+  std::unique_ptr<AccessToken> access_token(new AccessToken());
 
   ScopedLocalJavaRef<jstring> j_token_string(env->CallObjectMethodOrAbort(
       j_token, "getTokenValue", "()Ljava/lang/String;"));
@@ -108,7 +108,7 @@ AndroidUserAuthorizer::CreateAccessToken(jobject j_token) {
         base::Time::UnixEpoch() + base::TimeDelta::FromSeconds(j_expiry);
   }
 
-  return access_token.Pass();
+  return access_token;
 }
 
 }  // namespace cobalt

@@ -15,10 +15,10 @@
 #ifndef COBALT_SCRIPT_EXECUTION_STATE_H_
 #define COBALT_SCRIPT_EXECUTION_STATE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace script {
@@ -28,7 +28,7 @@ class GlobalEnvironment;
 // Provides access to the state of JavaScript execution.
 class ExecutionState {
  public:
-  static scoped_ptr<ExecutionState> CreateExecutionState(
+  static std::unique_ptr<ExecutionState> CreateExecutionState(
       const scoped_refptr<GlobalEnvironment>& global_environment);
 
   virtual std::string GetStackTrace() const = 0;

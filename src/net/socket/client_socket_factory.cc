@@ -4,28 +4,16 @@
 
 #include "net/socket/client_socket_factory.h"
 
+#include <utility>
+
 #include "base/lazy_instance.h"
-#include "base/thread_task_runner_handle.h"
-#include "base/threading/sequenced_worker_pool.h"
-#include "base/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "net/base/cert_database.h"
+#include "net/cert/cert_database.h"
+#include "net/http/http_proxy_client_socket.h"
 #include "net/socket/client_socket_handle.h"
-#if defined(OS_WIN)
-#include "net/socket/ssl_client_socket_nss.h"
-#include "net/socket/ssl_client_socket_win.h"
-#elif defined(USE_OPENSSL)
-#include "net/socket/ssl_client_socket_openssl.h"
-#elif defined(USE_NSS) || defined(OS_IOS)
-#include "net/socket/ssl_client_socket_nss.h"
-#elif defined(OS_MACOSX)
-#include "net/socket/ssl_client_socket_mac.h"
-#include "net/socket/ssl_client_socket_nss.h"
-#endif
+#include "net/socket/ssl_client_socket_impl.h"
 #include "net/socket/tcp_client_socket.h"
-#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
-#include "net/udp/udp_client_socket.h"
-#endif
+#include "net/socket/udp_client_socket.h"
 
 namespace net {
 
@@ -33,124 +21,67 @@ class X509Certificate;
 
 namespace {
 
-bool g_use_system_ssl = false;
-
-// ChromeOS and Linux may require interaction with smart cards or TPMs, which
-// may cause NSS functions to block for upwards of several seconds. To avoid
-// blocking all activity on the current task runner, such as network or IPC
-// traffic, run NSS SSL functions on a dedicated thread.
-#if defined(OS_CHROMEOS) || defined(OS_LINUX)
-bool g_use_dedicated_nss_thread = true;
-#else
-bool g_use_dedicated_nss_thread = false;
-#endif
-
 class DefaultClientSocketFactory : public ClientSocketFactory,
                                    public CertDatabase::Observer {
  public:
   DefaultClientSocketFactory() {
-    if (g_use_dedicated_nss_thread) {
-      // Use a single thread for the worker pool.
-      worker_pool_ = new base::SequencedWorkerPool(1, "NSS SSL Thread");
-      nss_thread_task_runner_ =
-          worker_pool_->GetSequencedTaskRunnerWithShutdownBehavior(
-              worker_pool_->GetSequenceToken(),
-              base::SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
-    }
-
     CertDatabase::GetInstance()->AddObserver(this);
   }
 
-  virtual ~DefaultClientSocketFactory() {
+  ~DefaultClientSocketFactory() override {
     // Note: This code never runs, as the factory is defined as a Leaky
     // singleton.
     CertDatabase::GetInstance()->RemoveObserver(this);
   }
 
-  virtual void OnCertAdded(const X509Certificate* cert) override {
+  void OnCertDBChanged() override {
+    // Flush sockets whenever CA trust changes.
     ClearSSLSessionCache();
   }
 
-  virtual void OnCertTrustChanged(const X509Certificate* cert) override {
-    // Per wtc, we actually only need to flush when trust is reduced.
-    // Always flush now because OnCertTrustChanged does not tell us this.
-    // See comments in ClientSocketPoolManager::OnCertTrustChanged.
-    ClearSSLSessionCache();
-  }
-
-  virtual DatagramClientSocket* CreateDatagramClientSocket(
+  std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
-      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
-      const NetLog::Source& source) override {
-#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
-    return new UDPClientSocket(bind_type, rand_int_cb, net_log, source);
-#else
-    return NULL;
-#endif
+      const NetLogSource& source) override {
+    return std::unique_ptr<DatagramClientSocket>(
+        new UDPClientSocket(bind_type, net_log, source));
   }
 
-  virtual StreamSocket* CreateTransportClientSocket(
+  std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList& addresses,
+      std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
       NetLog* net_log,
-      const NetLog::Source& source) override {
-    return new TCPClientSocket(addresses, net_log, source);
+      const NetLogSource& source) override {
+    return std::make_unique<TCPClientSocket>(
+        addresses, std::move(socket_performance_watcher), net_log, source);
   }
 
-  virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocketHandle* transport_socket,
+  std::unique_ptr<SSLClientSocket> CreateSSLClientSocket(
+      std::unique_ptr<ClientSocketHandle> transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       const SSLClientSocketContext& context) override {
-    // nss_thread_task_runner_ may be NULL if g_use_dedicated_nss_thread is
-    // false or if the dedicated NSS thread failed to start. If so, cause NSS
-    // functions to execute on the current task runner.
-    //
-    // Note: The current task runner is obtained on each call due to unit
-    // tests, which may create and tear down the current thread's TaskRunner
-    // between each test. Because the DefaultClientSocketFactory is leaky, it
-    // may span multiple tests, and thus the current task runner may change
-    // from call to call.
-    scoped_refptr<base::SequencedTaskRunner> nss_task_runner(
-        nss_thread_task_runner_);
-    if (!nss_task_runner)
-      nss_task_runner = base::ThreadTaskRunnerHandle::Get();
-
-#if defined(USE_OPENSSL)
-    return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
-                                      ssl_config, context);
-#elif defined(USE_NSS) || defined(OS_IOS)
-    return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, context);
-#elif defined(OS_WIN)
-    if (g_use_system_ssl) {
-      return new SSLClientSocketWin(transport_socket, host_and_port,
-                                    ssl_config, context);
-    }
-    return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config,
-                                  context);
-#elif defined(OS_MACOSX)
-    if (g_use_system_ssl) {
-      return new SSLClientSocketMac(transport_socket, host_and_port,
-                                    ssl_config, context);
-    }
-    return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config,
-                                  context);
-#else
-    NOTIMPLEMENTED();
-    return NULL;
-#endif
+    return std::unique_ptr<SSLClientSocket>(new SSLClientSocketImpl(
+        std::move(transport_socket), host_and_port, ssl_config, context));
   }
 
-  virtual void ClearSSLSessionCache() override {
-    SSLClientSocket::ClearSessionCache();
+  std::unique_ptr<ProxyClientSocket> CreateProxyClientSocket(
+      std::unique_ptr<ClientSocketHandle> transport_socket,
+      const std::string& user_agent,
+      const HostPortPair& endpoint,
+      HttpAuthController* http_auth_controller,
+      bool tunnel,
+      bool using_spdy,
+      NextProto negotiated_protocol,
+      bool is_https_proxy,
+      const NetworkTrafficAnnotationTag& traffic_annotation) override {
+    return std::make_unique<HttpProxyClientSocket>(
+        std::move(transport_socket), user_agent, endpoint, http_auth_controller,
+        tunnel, using_spdy, negotiated_protocol, is_https_proxy,
+        traffic_annotation);
   }
 
- private:
-  scoped_refptr<base::SequencedWorkerPool> worker_pool_;
-  scoped_refptr<base::SequencedTaskRunner> nss_thread_task_runner_;
+  void ClearSSLSessionCache() override { SSLClientSocket::ClearSessionCache(); }
 };
 
 static base::LazyInstance<DefaultClientSocketFactory>::Leaky
@@ -158,34 +89,9 @@ static base::LazyInstance<DefaultClientSocketFactory>::Leaky
 
 }  // namespace
 
-// Deprecated function (http://crbug.com/37810) that takes a StreamSocket.
-SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
-    StreamSocket* transport_socket,
-    const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config,
-    const SSLClientSocketContext& context) {
-  ClientSocketHandle* socket_handle = new ClientSocketHandle();
-  socket_handle->set_socket(transport_socket);
-  return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
-                               context);
-}
-
 // static
 ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
   return g_default_client_socket_factory.Pointer();
-}
-
-// static
-void ClientSocketFactory::UseSystemSSL() {
-  g_use_system_ssl = true;
-
-#if defined(OS_WIN)
-  // Reflect the capability of SSLClientSocketWin.
-  SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1);
-#elif defined(OS_MACOSX) && !defined(OS_IOS)
-  // Reflect the capability of SSLClientSocketMac.
-  SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1);
-#endif
 }
 
 }  // namespace net

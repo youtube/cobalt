@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "base/base_paths.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/logging.h"
 #include "starboard/system.h"
 
@@ -24,7 +24,8 @@ namespace base {
 bool PathProviderStarboard(int key, FilePath *result) {
   char path[SB_FILE_MAX_PATH] = {0};
   switch (key) {
-    case base::FILE_EXE: {
+    case base::FILE_EXE:
+    case base::FILE_MODULE: {
       bool success = SbSystemGetPath(kSbSystemPathExecutableFile, path,
                       SB_ARRAY_SIZE_INT(path));
       DCHECK(success);
@@ -37,7 +38,8 @@ bool PathProviderStarboard(int key, FilePath *result) {
     }
 
     case base::DIR_EXE:
-    case base::DIR_MODULE: {
+    case base::DIR_MODULE:
+    case base::DIR_ASSETS: {
       bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
                                      SB_ARRAY_SIZE_INT(path));
       DCHECK(success);

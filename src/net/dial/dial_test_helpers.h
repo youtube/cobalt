@@ -5,7 +5,7 @@
 #ifndef NET_DIAL_DIAL_TEST_HELPERS_H
 #define NET_DIAL_DIAL_TEST_HELPERS_H
 
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "net/dial/dial_service_handler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,7 +27,6 @@ class MockServiceHandler : public DialServiceHandler {
   std::string service_name_;
 };
 
-} // namespace net
+}  // namespace net
 
-#endif // NET_DIAL_DIAL_TEST_HELPERS_H
-
+#endif  // NET_DIAL_DIAL_TEST_HELPERS_H

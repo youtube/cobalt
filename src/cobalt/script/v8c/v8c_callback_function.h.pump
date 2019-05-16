@@ -96,7 +96,7 @@ class V8cCallbackFunction<R($for ARG , [[A$(ARG)]])>
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run($for ARG , [[
-      typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
+      typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());

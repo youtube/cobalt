@@ -5,31 +5,34 @@
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
 
+#include <memory>
+
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
+#include "net/http/http_network_session.h"
 
 namespace net {
 
 class ClientSocketPoolManager;
-class HttpNetworkSession;
 class HttpStreamFactory;
-class ProxyService;
 
 class NET_EXPORT_PRIVATE HttpNetworkSessionPeer {
  public:
-  explicit HttpNetworkSessionPeer(
-      const scoped_refptr<HttpNetworkSession>& session);
+  // |session| should outlive the HttpNetworkSessionPeer.
+  explicit HttpNetworkSessionPeer(HttpNetworkSession* session);
   ~HttpNetworkSessionPeer();
 
   void SetClientSocketPoolManager(
-      ClientSocketPoolManager* socket_pool_manager);
+      std::unique_ptr<ClientSocketPoolManager> socket_pool_manager);
 
-  void SetProxyService(ProxyService* proxy_service);
+  void SetHttpStreamFactory(
+      std::unique_ptr<HttpStreamFactory> http_stream_factory);
 
-  void SetHttpStreamFactory(HttpStreamFactory* http_stream_factory);
+  HttpNetworkSession::Params* params();
 
  private:
-  const scoped_refptr<HttpNetworkSession> session_;
+  HttpNetworkSession* const session_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpNetworkSessionPeer);
 };

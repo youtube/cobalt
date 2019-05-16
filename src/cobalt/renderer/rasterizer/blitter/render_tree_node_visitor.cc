@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
@@ -134,7 +136,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   render_tree::Node* source = filter_node->data().source.get();
 
   // Will be made active if a viewport filter is set.
-  base::optional<BoundsStack::ScopedPush> scoped_push;
+  base::Optional<BoundsStack::ScopedPush> scoped_push;
 
   if (filter_node->data().viewport_filter) {
     const ViewportFilter& viewport_filter =
@@ -172,7 +174,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
     // Render our source subtree to an offscreen surface, and then we will
     // re-render it to our main render target with an alpha value applied to it.
-    scoped_ptr<OffscreenRender> offscreen_render =
+    std::unique_ptr<OffscreenRender> offscreen_render =
         RenderToOffscreenSurface(source);
     if (!offscreen_render) {
       // This can happen if the output area of the source node is 0, in which
@@ -313,9 +315,8 @@ void RenderTreeNodeVisitor::Visit(
       RectFToBlitterRect(render_state_.transform.TransformRect(
           punch_through_video_node->data().rect));
 
-  punch_through_video_node->data().set_bounds_cb.Run(
-      math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
-                 blitter_rect.height));
+  punch_through_video_node->data().set_bounds_cb.Run(math::Rect(
+      blitter_rect.x, blitter_rect.y, blitter_rect.width, blitter_rect.height));
 
   DrawClearRect(context_, blitter_rect, SbBlitterColorFromRGBA(0, 0, 0, 0));
 }
@@ -520,7 +521,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   }
 }
 
-scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>
+std::unique_ptr<RenderTreeNodeVisitor::OffscreenRender>
 RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
   TRACE_EVENT0_IF_ENABLED("RenderToOffscreenSurface()");
 
@@ -530,7 +531,7 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
           render_state_.bounds_stack.Top());
   if (coord_mapping.output_bounds.IsEmpty()) {
     // There's nothing to render if the bounds are 0.
-    return scoped_ptr<OffscreenRender>();
+    return std::unique_ptr<OffscreenRender>();
   }
   DCHECK_GE(0.001f, std::abs(1.0f -
                              render_state_.transform.scale().x() *
@@ -539,11 +540,12 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
                              render_state_.transform.scale().y() *
                                  coord_mapping.output_post_scale.y()));
 
-  scoped_ptr<CachedScratchSurface> scratch_surface(new CachedScratchSurface(
-      scratch_surface_cache_, coord_mapping.output_bounds.size()));
+  std::unique_ptr<CachedScratchSurface> scratch_surface(
+      new CachedScratchSurface(scratch_surface_cache_,
+                               coord_mapping.output_bounds.size()));
   SbBlitterSurface surface = scratch_surface->GetSurface();
   if (!SbBlitterIsSurfaceValid(surface)) {
-    return scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>();
+    return std::unique_ptr<RenderTreeNodeVisitor::OffscreenRender>();
   }
 
   SbBlitterRenderTarget render_target =
@@ -570,12 +572,12 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
                               coord_mapping.output_pre_translate +
                               render_state_.transform.translate();
 
-  scoped_ptr<OffscreenRender> ret(new OffscreenRender());
+  std::unique_ptr<OffscreenRender> ret(new OffscreenRender());
   ret->destination_rect =
       math::RectF(output_point, coord_mapping.output_bounds.size());
-  ret->scratch_surface = scratch_surface.Pass();
+  ret->scratch_surface = std::move(scratch_surface);
 
-  return ret.Pass();
+  return std::move(ret);
 }
 
 }  // namespace blitter

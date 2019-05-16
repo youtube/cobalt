@@ -66,7 +66,8 @@ class LinearGradientCache {
   typedef base::FixedSizeLRUCache<
       cobalt::render_tree::LinearGradientBrush::Data, SbBlitterSurface,
       kDefaultCacheSizeItems, SurfaceDeleter,
-      IsGradientBrushSameSizeAndDirection> CacheMap;
+      IsGradientBrushSameSizeAndDirection>
+      CacheMap;
 
   // Returns true if item was inserted into the cache.
   bool Put(const render_tree::LinearGradientBrush& brush,

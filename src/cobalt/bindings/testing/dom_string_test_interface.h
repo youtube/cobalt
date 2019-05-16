@@ -45,9 +45,9 @@ class DOMStringTestInterface : public script::Wrappable {
   MOCK_METHOD1(set_undefined_is_empty_property, void(const std::string&));
 
   MOCK_CONST_METHOD0(nullable_undefined_is_empty_property,
-                     base::optional<std::string>());
+                     base::Optional<std::string>());
   MOCK_METHOD1(set_nullable_undefined_is_empty_property,
-               void(const base::optional<std::string>&));
+               void(const base::Optional<std::string>&));
 
   DEFINE_WRAPPABLE_TYPE(DOMStringTestInterface);
 };

@@ -4,21 +4,26 @@
 
 #include "net/url_request/url_fetcher_impl.h"
 
+#include <utility>
+
 #include "base/bind.h"
-#include "base/message_loop_proxy.h"
+#include "base/sequenced_task_runner.h"
+#include "net/base/upload_data_stream.h"
 #include "net/url_request/url_fetcher_core.h"
 #include "net/url_request/url_fetcher_factory.h"
+#include "net/url_request/url_fetcher_response_writer.h"
 
 namespace net {
 
 static URLFetcherFactory* g_factory = NULL;
 
-URLFetcherImpl::URLFetcherImpl(const GURL& url,
-                               RequestType request_type,
-                               URLFetcherDelegate* d)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
-        core_(new URLFetcherCore(this, url, request_type, d))) {
-}
+URLFetcherImpl::URLFetcherImpl(
+    const GURL& url,
+    RequestType request_type,
+    URLFetcherDelegate* d,
+    net::NetworkTrafficAnnotationTag traffic_annotation)
+    : core_(
+          new URLFetcherCore(this, url, request_type, d, traffic_annotation)) {}
 
 URLFetcherImpl::~URLFetcherImpl() {
   core_->Stop();
@@ -27,6 +32,25 @@ URLFetcherImpl::~URLFetcherImpl() {
 void URLFetcherImpl::SetUploadData(const std::string& upload_content_type,
                                    const std::string& upload_content) {
   core_->SetUploadData(upload_content_type, upload_content);
+}
+
+void URLFetcherImpl::SetUploadFilePath(
+    const std::string& upload_content_type,
+    const base::FilePath& file_path,
+    uint64_t range_offset,
+    uint64_t range_length,
+    scoped_refptr<base::TaskRunner> file_task_runner) {
+  core_->SetUploadFilePath(upload_content_type,
+                           file_path,
+                           range_offset,
+                           range_length,
+                           file_task_runner);
+}
+
+void URLFetcherImpl::SetUploadStreamFactory(
+    const std::string& upload_content_type,
+    const CreateUploadStreamCallback& callback) {
+  core_->SetUploadStreamFactory(upload_content_type, callback);
 }
 
 void URLFetcherImpl::SetChunkedUpload(const std::string& content_type) {
@@ -43,8 +67,17 @@ void URLFetcherImpl::SetReferrer(const std::string& referrer) {
   core_->SetReferrer(referrer);
 }
 
+void URLFetcherImpl::SetReferrerPolicy(
+    URLRequest::ReferrerPolicy referrer_policy) {
+  core_->SetReferrerPolicy(referrer_policy);
+}
+
 void URLFetcherImpl::SetLoadFlags(int load_flags) {
   core_->SetLoadFlags(load_flags);
+}
+
+void URLFetcherImpl::SetAllowCredentials(bool allow_credentials) {
+  core_->SetAllowCredentials(allow_credentials);
 }
 
 int URLFetcherImpl::GetLoadFlags() const {
@@ -60,19 +93,14 @@ void URLFetcherImpl::AddExtraRequestHeader(const std::string& header_line) {
   core_->AddExtraRequestHeader(header_line);
 }
 
-void URLFetcherImpl::GetExtraRequestHeaders(
-    HttpRequestHeaders* headers) const {
-  core_->GetExtraRequestHeaders(headers);
-}
-
 void URLFetcherImpl::SetRequestContext(
     URLRequestContextGetter* request_context_getter) {
   core_->SetRequestContext(request_context_getter);
 }
 
-void URLFetcherImpl::SetFirstPartyForCookies(
-    const GURL& first_party_for_cookies) {
-  core_->SetFirstPartyForCookies(first_party_for_cookies);
+void URLFetcherImpl::SetInitiator(
+    const base::Optional<url::Origin>& initiator) {
+  core_->SetInitiator(initiator);
 }
 
 void URLFetcherImpl::SetURLRequestUserData(
@@ -107,19 +135,24 @@ void URLFetcherImpl::SetAutomaticallyRetryOnNetworkChanges(int max_retries) {
 }
 
 void URLFetcherImpl::SaveResponseToFileAtPath(
-    const FilePath& file_path,
-    scoped_refptr<base::TaskRunner> file_task_runner) {
+    const base::FilePath& file_path,
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner) {
   core_->SaveResponseToFileAtPath(file_path, file_task_runner);
 }
 
 void URLFetcherImpl::SaveResponseToTemporaryFile(
-    scoped_refptr<base::TaskRunner> file_task_runner) {
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner) {
   core_->SaveResponseToTemporaryFile(file_task_runner);
 }
 
-#if defined(COBALT)
-void URLFetcherImpl::DiscardResponse() {
-  core_->DiscardResponse();
+void URLFetcherImpl::SaveResponseWithWriter(
+    std::unique_ptr<URLFetcherResponseWriter> response_writer) {
+  core_->SaveResponseWithWriter(std::move(response_writer));
+}
+
+#if defined(STARBOARD)
+URLFetcherResponseWriter* URLFetcherImpl::GetResponseWriter() const {
+  return core_->GetResponseWriter();
 }
 #endif
 
@@ -131,8 +164,24 @@ HostPortPair URLFetcherImpl::GetSocketAddress() const {
   return core_->GetSocketAddress();
 }
 
+const ProxyServer& URLFetcherImpl::ProxyServerUsed() const {
+  return core_->ProxyServerUsed();
+}
+
 bool URLFetcherImpl::WasFetchedViaProxy() const {
   return core_->WasFetchedViaProxy();
+}
+
+bool URLFetcherImpl::WasCached() const {
+  return core_->WasCached();
+}
+
+int64_t URLFetcherImpl::GetReceivedResponseContentLength() const {
+  return core_->GetReceivedResponseContentLength();
+}
+
+int64_t URLFetcherImpl::GetTotalReceivedBytes() const {
+  return core_->GetTotalReceivedBytes();
 }
 
 void URLFetcherImpl::Start() {
@@ -155,15 +204,6 @@ int URLFetcherImpl::GetResponseCode() const {
   return core_->GetResponseCode();
 }
 
-const ResponseCookies& URLFetcherImpl::GetCookies() const {
-  return core_->GetCookies();
-}
-
-bool URLFetcherImpl::FileErrorOccurred(
-    base::PlatformFileError* out_error_code) const {
-  return core_->FileErrorOccurred(out_error_code);
-}
-
 void URLFetcherImpl::ReceivedContentWasMalformed() {
   core_->ReceivedContentWasMalformed();
 }
@@ -175,18 +215,13 @@ bool URLFetcherImpl::GetResponseAsString(
 
 bool URLFetcherImpl::GetResponseAsFilePath(
     bool take_ownership,
-    FilePath* out_response_path) const {
+    base::FilePath* out_response_path) const {
   return core_->GetResponseAsFilePath(take_ownership, out_response_path);
 }
 
 // static
 void URLFetcherImpl::CancelAll() {
   URLFetcherCore::CancelAll();
-}
-
-// static
-void URLFetcherImpl::SetEnableInterceptionForTests(bool enabled) {
-  URLFetcherCore::SetEnableInterceptionForTests(enabled);
 }
 
 // static

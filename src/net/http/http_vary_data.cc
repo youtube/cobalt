@@ -7,11 +7,13 @@
 #include <stdlib.h>
 
 #include "base/pickle.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -29,31 +31,21 @@ bool HttpVaryData::Init(const HttpRequestInfo& request_info,
   // Feed the MD5 context in the order of the Vary header enumeration.  If the
   // Vary header repeats a header name, then that's OK.
   //
-  // If the Vary header contains '*' then we should not construct any vary data
-  // since it is all usurped by a '*'.  See section 13.6 of RFC 2616.
+  // If the Vary header contains '*' then we can just notice it based on
+  // |cached_response_headers| in MatchesRequest(), and don't have to worry
+  // about the specific headers.  We still want an HttpVaryData around, to let
+  // us handle this case. See section 4.1 of RFC 7234.
   //
-  void* iter = NULL;
+  size_t iter = 0;
   std::string name = "vary", request_header;
   while (response_headers.EnumerateHeader(&iter, name, &request_header)) {
-    if (request_header == "*")
-      return false;
+    if (request_header == "*") {
+      // What's in request_digest_ will never be looked at, but make it
+      // deterministic so we don't serialize out uninitialized memory content.
+      SbMemorySet(&request_digest_, 0, sizeof(request_digest_));
+      return is_valid_ = true;
+    }
     AddField(request_info, request_header, &ctx);
-    processed_header = true;
-  }
-
-  // Add an implicit 'Vary: cookie' header to any redirect to avoid redirect
-  // loops which may result from redirects that are incorrectly marked as
-  // cachable by the server.  Unfortunately, other browsers do not cache
-  // redirects that result from requests containing a cookie header.  We are
-  // treading on untested waters here, so we want to be extra careful to make
-  // sure we do not end up with a redirect loop served from cache.
-  //
-  // If there is an explicit 'Vary: cookie' header, then we will just end up
-  // digesting the cookie header twice.  Not a problem.
-  //
-  std::string location;
-  if (response_headers.IsRedirect(&location)) {
-    AddField(request_info, "cookie", &ctx);
     processed_header = true;
   }
 
@@ -64,17 +56,17 @@ bool HttpVaryData::Init(const HttpRequestInfo& request_info,
   return is_valid_ = true;
 }
 
-bool HttpVaryData::InitFromPickle(const Pickle& pickle, PickleIterator* iter) {
+bool HttpVaryData::InitFromPickle(base::PickleIterator* iter) {
   is_valid_ = false;
   const char* data;
-  if (pickle.ReadBytes(iter, &data, sizeof(request_digest_))) {
-    memcpy(&request_digest_, data, sizeof(request_digest_));
+  if (iter->ReadBytes(&data, sizeof(request_digest_))) {
+    SbMemoryCopy(&request_digest_, data, sizeof(request_digest_));
     return is_valid_ = true;
   }
   return false;
 }
 
-void HttpVaryData::Persist(Pickle* pickle) const {
+void HttpVaryData::Persist(base::Pickle* pickle) const {
   DCHECK(is_valid());
   pickle->WriteBytes(&request_digest_, sizeof(request_digest_));
 }
@@ -82,15 +74,18 @@ void HttpVaryData::Persist(Pickle* pickle) const {
 bool HttpVaryData::MatchesRequest(
     const HttpRequestInfo& request_info,
     const HttpResponseHeaders& cached_response_headers) const {
+  // Vary: * never matches.
+  if (cached_response_headers.HasHeaderValue("vary", "*"))
+    return false;
+
   HttpVaryData new_vary_data;
   if (!new_vary_data.Init(request_info, cached_response_headers)) {
-    // This shouldn't happen provided the same response headers passed here
-    // were also used when initializing |this|.
-    NOTREACHED();
+    // This case can happen if |this| was loaded from a cache that was populated
+    // by a build before crbug.com/469675 was fixed.
     return false;
   }
-  return memcmp(&new_vary_data.request_digest_, &request_digest_,
-                sizeof(request_digest_)) == 0;
+  return SbMemoryCompare(&new_vary_data.request_digest_, &request_digest_,
+                         sizeof(request_digest_)) == 0;
 }
 
 // static
@@ -105,7 +100,7 @@ std::string HttpVaryData::GetRequestValue(
   if (request_info.extra_headers.GetHeader(request_header, &result))
     return result;
 
-  return "";
+  return std::string();
 }
 
 // static

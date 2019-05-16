@@ -24,6 +24,7 @@
 #include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "net/dial/dial_http_server.h"
 #include "net/dial/dial_service_handler.h"
@@ -51,9 +52,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
   const std::string& http_host_address() const;
 
   // Expose the DialHttpServer for unit tests.
-  scoped_refptr<net::DialHttpServer> http_server() const {
-    return http_server_;
-  }
+  net::DialHttpServer* http_server() const { return http_server_.get(); }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
@@ -63,7 +62,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
   void Terminate();
 
   scoped_refptr<net::DialHttpServer> http_server_;
-  scoped_ptr<net::DialUdpServer> udp_server_;
+  std::unique_ptr<net::DialUdpServer> udp_server_;
   typedef std::map<std::string, scoped_refptr<DialServiceHandler> >
       ServiceHandlerMap;
   ServiceHandlerMap handlers_;
@@ -95,11 +94,11 @@ class NET_EXPORT DialServiceProxy
   std::string host_address_;
 
   // Message loop to call DialService methods on.
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(DialServiceProxy);
 };
 
-} // namespace net
+}  // namespace net
 
-#endif // SRC_DIAL_SERVICE_H_
+#endif  // SRC_DIAL_SERVICE_H_

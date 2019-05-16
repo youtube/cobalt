@@ -4,77 +4,103 @@
 
 #include "base/template_util.h"
 
-#include "base/basictypes.h"
+#include <string>
+
+#include "base/containers/flat_tree.h"
+#include "base/test/move_only_int.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace {
 
-struct AStruct {};
-class AClass {};
-enum AnEnum {};
-
-class Parent {};
-class Child : public Parent {};
-
-// is_pointer<Type>
-COMPILE_ASSERT(!is_pointer<int>::value, IsPointer);
-COMPILE_ASSERT(!is_pointer<int&>::value, IsPointer);
-COMPILE_ASSERT(is_pointer<int*>::value, IsPointer);
-COMPILE_ASSERT(is_pointer<const int*>::value, IsPointer);
-
-// is_array<Type>
-COMPILE_ASSERT(!is_array<int>::value, IsArray);
-COMPILE_ASSERT(!is_array<int*>::value, IsArray);
-COMPILE_ASSERT(!is_array<int(*)[3]>::value, IsArray);
-COMPILE_ASSERT(is_array<int[]>::value, IsArray);
-COMPILE_ASSERT(is_array<const int[]>::value, IsArray);
-COMPILE_ASSERT(is_array<int[3]>::value, IsArray);
+enum SimpleEnum { SIMPLE_ENUM };
+enum EnumWithExplicitType : uint64_t { ENUM_WITH_EXPLICIT_TYPE };
+enum class ScopedEnum { SCOPED_ENUM };
+enum class ScopedEnumWithOperator { SCOPED_ENUM_WITH_OPERATOR };
+std::ostream& operator<<(std::ostream& os, ScopedEnumWithOperator v) {
+  return os;
+}
+struct SimpleStruct {};
+struct StructWithOperator {};
+std::ostream& operator<<(std::ostream& os, const StructWithOperator& v) {
+  return os;
+}
 
 // is_non_const_reference<Type>
-COMPILE_ASSERT(!is_non_const_reference<int>::value, IsNonConstReference);
-COMPILE_ASSERT(!is_non_const_reference<const int&>::value, IsNonConstReference);
-COMPILE_ASSERT(is_non_const_reference<int&>::value, IsNonConstReference);
+static_assert(!is_non_const_reference<int>::value, "IsNonConstReference");
+static_assert(!is_non_const_reference<const int&>::value,
+              "IsNonConstReference");
+static_assert(is_non_const_reference<int&>::value, "IsNonConstReference");
 
-// is_convertible<From, To>
+// A few standard types that definitely support printing.
+static_assert(internal::SupportsOstreamOperator<int>::value,
+              "ints should be printable");
+static_assert(internal::SupportsOstreamOperator<const char*>::value,
+              "C strings should be printable");
+static_assert(internal::SupportsOstreamOperator<std::string>::value,
+              "std::string should be printable");
 
-// Extra parens needed to make preprocessor macro parsing happy. Otherwise,
-// it sees the equivalent of:
-//
-//     (is_convertible < Child), (Parent > ::value)
-//
-// Silly C++.
-COMPILE_ASSERT( (is_convertible<Child, Parent>::value), IsConvertible);
-COMPILE_ASSERT(!(is_convertible<Parent, Child>::value), IsConvertible);
-COMPILE_ASSERT(!(is_convertible<Parent, AStruct>::value), IsConvertible);
-COMPILE_ASSERT( (is_convertible<int, double>::value), IsConvertible);
-COMPILE_ASSERT( (is_convertible<int*, void*>::value), IsConvertible);
-COMPILE_ASSERT(!(is_convertible<void*, int*>::value), IsConvertible);
+// Various kinds of enums operator<< support.
+static_assert(internal::SupportsOstreamOperator<SimpleEnum>::value,
+              "simple enum should be printable by value");
+static_assert(internal::SupportsOstreamOperator<const SimpleEnum&>::value,
+              "simple enum should be printable by const ref");
+static_assert(internal::SupportsOstreamOperator<EnumWithExplicitType>::value,
+              "enum with explicit type should be printable by value");
+static_assert(
+    internal::SupportsOstreamOperator<const EnumWithExplicitType&>::value,
+    "enum with explicit type should be printable by const ref");
+static_assert(!internal::SupportsOstreamOperator<ScopedEnum>::value,
+              "scoped enum should not be printable by value");
+static_assert(!internal::SupportsOstreamOperator<const ScopedEnum&>::value,
+              "simple enum should not be printable by const ref");
+static_assert(internal::SupportsOstreamOperator<ScopedEnumWithOperator>::value,
+              "scoped enum with operator<< should be printable by value");
+static_assert(
+    internal::SupportsOstreamOperator<const ScopedEnumWithOperator&>::value,
+    "scoped enum with operator<< should be printable by const ref");
 
-// Array types are an easy corner case.  Make sure to test that
-// it does indeed compile.
-COMPILE_ASSERT(!(is_convertible<int[10], double>::value), IsConvertible);
-COMPILE_ASSERT(!(is_convertible<double, int[10]>::value), IsConvertible);
-COMPILE_ASSERT( (is_convertible<int[10], int*>::value), IsConvertible);
+// operator<< support on structs.
+static_assert(!internal::SupportsOstreamOperator<SimpleStruct>::value,
+              "simple struct should not be printable by value");
+static_assert(!internal::SupportsOstreamOperator<const SimpleStruct&>::value,
+              "simple struct should not be printable by const ref");
+static_assert(internal::SupportsOstreamOperator<StructWithOperator>::value,
+              "struct with operator<< should be printable by value");
+static_assert(
+    internal::SupportsOstreamOperator<const StructWithOperator&>::value,
+    "struct with operator<< should be printable by const ref");
 
-// is_same<Type1, Type2>
-COMPILE_ASSERT(!(is_same<Child, Parent>::value), IsSame);
-COMPILE_ASSERT(!(is_same<Parent, Child>::value), IsSame);
-COMPILE_ASSERT( (is_same<Parent, Parent>::value), IsSame);
-COMPILE_ASSERT( (is_same<int*, int*>::value), IsSame);
-COMPILE_ASSERT( (is_same<int, int>::value), IsSame);
-COMPILE_ASSERT( (is_same<void, void>::value), IsSame);
-COMPILE_ASSERT(!(is_same<int, double>::value), IsSame);
+// base::is_trivially_copyable
+class TrivialCopy {
+ public:
+  TrivialCopy(int d) : data_(d) {}
 
+ protected:
+  int data_;
+};
 
-// is_class<Type>
-COMPILE_ASSERT(is_class<AStruct>::value, IsClass);
-COMPILE_ASSERT(is_class<AClass>::value, IsClass);
-COMPILE_ASSERT(!is_class<AnEnum>::value, IsClass);
-COMPILE_ASSERT(!is_class<int>::value, IsClass);
-COMPILE_ASSERT(!is_class<char*>::value, IsClass);
-COMPILE_ASSERT(!is_class<int&>::value, IsClass);
-COMPILE_ASSERT(!is_class<char[3]>::value, IsClass);
+class TrivialCopyButWithDestructor : public TrivialCopy {
+ public:
+  TrivialCopyButWithDestructor(int d) : TrivialCopy(d) {}
+  ~TrivialCopyButWithDestructor() { data_ = 0; }
+};
+
+static_assert(base::is_trivially_copyable<TrivialCopy>::value,
+              "TrivialCopy should be detected as trivially copyable");
+static_assert(!base::is_trivially_copyable<TrivialCopyButWithDestructor>::value,
+              "TrivialCopyButWithDestructor should not be detected as "
+              "trivially copyable");
+
+class NoCopy {
+ public:
+  NoCopy(const NoCopy&) = delete;
+};
+
+static_assert(
+    !base::is_trivially_copy_constructible<std::vector<NoCopy>>::value,
+    "is_trivially_copy_constructible<std::vector<T>> must be compiled.");
 
 }  // namespace
+
 }  // namespace base

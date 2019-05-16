@@ -15,11 +15,12 @@
 #ifndef COBALT_CSSOM_TIME_LIST_VALUE_H_
 #define COBALT_CSSOM_TIME_LIST_VALUE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -32,8 +33,9 @@ namespace cssom {
 // 'transition-delay'.
 class TimeListValue : public ListValue<base::TimeDelta> {
  public:
-  explicit TimeListValue(scoped_ptr<ListValue<base::TimeDelta>::Builder> value)
-      : ListValue<base::TimeDelta>(value.Pass()) {}
+  explicit TimeListValue(
+      std::unique_ptr<ListValue<base::TimeDelta>::Builder> value)
+      : ListValue<base::TimeDelta>(std::move(value)) {}
 
   void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTimeList(this);

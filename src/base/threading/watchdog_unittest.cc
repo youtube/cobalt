@@ -5,9 +5,10 @@
 #include "base/threading/watchdog.h"
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/synchronization/spin_wait.h"
 #include "base/threading/platform_thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -26,9 +27,9 @@ class WatchdogCounter : public Watchdog {
         alarm_counter_(0) {
   }
 
-  virtual ~WatchdogCounter() {}
+  ~WatchdogCounter() override = default;
 
-  virtual void Alarm() override {
+  void Alarm() override {
     alarm_counter_++;
     Watchdog::Alarm();
   }
@@ -43,9 +44,7 @@ class WatchdogCounter : public Watchdog {
 
 class WatchdogTest : public testing::Test {
  public:
-  virtual void SetUp() override {
-    Watchdog::ResetStaticData();
-  }
+  void SetUp() override { Watchdog::ResetStaticData(); }
 };
 
 }  // namespace

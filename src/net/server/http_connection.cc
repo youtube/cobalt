@@ -4,106 +4,164 @@
 
 #include "net/server/http_connection.h"
 
-#include "base/string_util.h"
-#include "base/stringprintf.h"
-#include "net/base/stream_listen_socket.h"
-#include "net/server/http_server.h"
+#include <utility>
+
+#include "base/logging.h"
 #include "net/server/web_socket.h"
+#include "net/socket/stream_socket.h"
+#include "starboard/memory.h"
 
 namespace net {
 
-int HttpConnection::last_id_ = 0;
-
-void HttpConnection::Send(const std::string& data) {
-  if (!socket_)
-    return;
-  socket_->Send(data);
+HttpConnection::ReadIOBuffer::ReadIOBuffer()
+    : base_(base::MakeRefCounted<GrowableIOBuffer>()),
+      max_buffer_size_(kDefaultMaxBufferSize) {
+  SetCapacity(kInitialBufSize);
 }
 
-void HttpConnection::Send(const char* bytes, int len) {
-  if (!socket_)
-    return;
-  socket_->Send(bytes, len);
+HttpConnection::ReadIOBuffer::~ReadIOBuffer() {
+  data_ = NULL;  // base_ owns data_.
 }
 
-void HttpConnection::Send(HttpStatusCode status_code,
-                          const std::string& data,
-                          const std::string& content_type) {
-  Send(status_code, data, content_type, std::vector<std::string>());
+int HttpConnection::ReadIOBuffer::GetCapacity() const {
+  return base_->capacity();
 }
 
-void HttpConnection::Send(HttpStatusCode status_code,
-                          const std::string& data,
-                          const std::string& content_type,
-                          const std::vector<std::string>& headers) {
-  if (!socket_)
-    return;
+void HttpConnection::ReadIOBuffer::SetCapacity(int capacity) {
+  DCHECK_LE(GetSize(), capacity);
+  base_->SetCapacity(capacity);
+  data_ = base_->data();
+}
 
-  std::string status_message;
-  switch (status_code) {
-    case HTTP_OK:
-      status_message = "OK";
-      break;
-    case HTTP_CREATED:
-      status_message = "CREATED";
-      break;
-    case HTTP_NOT_FOUND:
-      status_message = "Not Found";
-      break;
-    case HTTP_INTERNAL_SERVER_ERROR:
-      status_message = "Internal Error";
-      break;
-    default:
-      status_message = "";
-      break;
+bool HttpConnection::ReadIOBuffer::IncreaseCapacity() {
+  if (GetCapacity() >= max_buffer_size_) {
+    LOG(ERROR) << "Too large read data is pending: capacity=" << GetCapacity()
+               << ", max_buffer_size=" << max_buffer_size_
+               << ", read=" << GetSize();
+    return false;
   }
 
-  socket_->Send(base::StringPrintf(
-      "HTTP/1.1 %d %s\r\n"
-      "Content-Type:%s\r\n"
-      "Content-Length:%d\r\n",
-      status_code, status_message.c_str(),
-      content_type.c_str(),
-      static_cast<int>(data.length())));
+  int new_capacity = GetCapacity() * kCapacityIncreaseFactor;
+  if (new_capacity > max_buffer_size_)
+    new_capacity = max_buffer_size_;
+  SetCapacity(new_capacity);
+  return true;
+}
 
-  // Custom headers. Since JoinString does not add a trailing delimiter,
-  // add one manually.
-  if (!headers.empty()) {
-    socket_->Send(JoinString(headers, "\r\n"));
-    socket_->Send("\r\n", 2);
+char* HttpConnection::ReadIOBuffer::StartOfBuffer() const {
+  return base_->StartOfBuffer();
+}
+
+int HttpConnection::ReadIOBuffer::GetSize() const {
+  return base_->offset();
+}
+
+void HttpConnection::ReadIOBuffer::DidRead(int bytes) {
+  DCHECK_GE(RemainingCapacity(), bytes);
+  base_->set_offset(base_->offset() + bytes);
+  data_ = base_->data();
+}
+
+int HttpConnection::ReadIOBuffer::RemainingCapacity() const {
+  return base_->RemainingCapacity();
+}
+
+void HttpConnection::ReadIOBuffer::DidConsume(int bytes) {
+  int previous_size = GetSize();
+  int unconsumed_size = previous_size - bytes;
+  DCHECK_LE(0, unconsumed_size);
+  if (unconsumed_size > 0) {
+    // Move unconsumed data to the start of buffer.
+    SbMemoryMove(StartOfBuffer(), StartOfBuffer() + bytes, unconsumed_size);
+  }
+  base_->set_offset(unconsumed_size);
+  data_ = base_->data();
+
+  // If capacity is too big, reduce it.
+  if (GetCapacity() > kMinimumBufSize &&
+      GetCapacity() > previous_size * kCapacityIncreaseFactor) {
+    int new_capacity = GetCapacity() / kCapacityIncreaseFactor;
+    if (new_capacity < kMinimumBufSize)
+      new_capacity = kMinimumBufSize;
+    // realloc() within GrowableIOBuffer::SetCapacity() could move data even
+    // when size is reduced. If unconsumed_size == 0, i.e. no data exists in
+    // the buffer, free internal buffer first to guarantee no data move.
+    if (!unconsumed_size)
+      base_->SetCapacity(0);
+    SetCapacity(new_capacity);
+  }
+}
+
+HttpConnection::QueuedWriteIOBuffer::QueuedWriteIOBuffer()
+    : total_size_(0),
+      max_buffer_size_(kDefaultMaxBufferSize) {
+}
+
+HttpConnection::QueuedWriteIOBuffer::~QueuedWriteIOBuffer() {
+  data_ = NULL;  // pending_data_ owns data_.
+}
+
+bool HttpConnection::QueuedWriteIOBuffer::IsEmpty() const {
+  return pending_data_.empty();
+}
+
+bool HttpConnection::QueuedWriteIOBuffer::Append(const std::string& data) {
+  if (data.empty())
+    return true;
+
+  if (total_size_ + static_cast<int>(data.size()) > max_buffer_size_) {
+    LOG(ERROR) << "Too large write data is pending: size="
+               << total_size_ + data.size()
+               << ", max_buffer_size=" << max_buffer_size_;
+    return false;
   }
 
-  // End linefeed and body.
-  socket_->Send("\r\n", 2);
-  socket_->Send(data);
+  pending_data_.push(std::make_unique<std::string>(data));
+  total_size_ += data.size();
+
+  // If new data is the first pending data, updates data_.
+  if (pending_data_.size() == 1)
+    data_ = const_cast<char*>(pending_data_.front()->data());
+  return true;
 }
 
-void HttpConnection::SendRedirect(const std::string& location) {
-  socket_->Send(base::StringPrintf(
-      "HTTP/1.1 %d %s\r\n"
-      "Location: %s\r\n"
-      "Content-Length: 0\r\n"
-      "\r\n",
-      HTTP_FOUND, "Found", location.c_str()));
+void HttpConnection::QueuedWriteIOBuffer::DidConsume(int size) {
+  DCHECK_GE(total_size_, size);
+  DCHECK_GE(GetSizeToWrite(), size);
+  if (size == 0)
+    return;
+
+  if (size < GetSizeToWrite()) {
+    data_ += size;
+  } else {  // size == GetSizeToWrite(). Updates data_ to next pending data.
+    pending_data_.pop();
+    data_ = IsEmpty() ? NULL : const_cast<char*>(pending_data_.front()->data());
+  }
+  total_size_ -= size;
 }
 
-HttpConnection::HttpConnection(HttpServer* server, StreamListenSocket* sock)
-    : server_(server),
-      socket_(sock) {
-  id_ = last_id_++;
+int HttpConnection::QueuedWriteIOBuffer::GetSizeToWrite() const {
+  if (IsEmpty()) {
+    DCHECK_EQ(0, total_size_);
+    return 0;
+  }
+  DCHECK_GE(data_, pending_data_.front()->data());
+  int consumed = static_cast<int>(data_ - pending_data_.front()->data());
+  DCHECK_GT(static_cast<int>(pending_data_.front()->size()), consumed);
+  return pending_data_.front()->size() - consumed;
 }
 
-HttpConnection::~HttpConnection() {
-  DetachSocket();
-  server_->delegate_->OnClose(id_);
-}
+HttpConnection::HttpConnection(int id, std::unique_ptr<StreamSocket> socket)
+    : id_(id),
+      socket_(std::move(socket)),
+      read_buf_(base::MakeRefCounted<ReadIOBuffer>()),
+      write_buf_(base::MakeRefCounted<QueuedWriteIOBuffer>()) {}
 
-void HttpConnection::DetachSocket() {
-  socket_ = NULL;
-}
+HttpConnection::~HttpConnection() = default;
 
-void HttpConnection::Shift(int num_bytes) {
-  recv_data_ = recv_data_.substr(num_bytes);
+void HttpConnection::SetWebSocket(std::unique_ptr<WebSocket> web_socket) {
+  DCHECK(!web_socket_);
+  web_socket_ = std::move(web_socket);
 }
 
 }  // namespace net

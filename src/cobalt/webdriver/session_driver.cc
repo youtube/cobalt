@@ -35,7 +35,6 @@ protocol::LogEntry::LogLevel SeverityToLogLevel(int severity) {
       return protocol::LogEntry::kInfo;
     case logging::LOG_WARNING:
     case logging::LOG_ERROR:
-    case logging::LOG_ERROR_REPORT:
       return protocol::LogEntry::kWarning;
     case logging::LOG_FATAL:
       return protocol::LogEntry::kSevere;
@@ -86,7 +85,7 @@ util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
   int retries = 0;
   util::CommandResult<void> result;
   do {
-    result = window_driver_->Navigate(url);
+    result = window_driver_->Navigate(std::move(url));
   } while (result.can_retry() && (retries++ < kMaxRetries));
   if (result.is_success()) {
     // TODO: Use timeout as specified by the webdriver client.

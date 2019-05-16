@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_LIB_EXTERNAL_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_LIB_EXTERNAL_RASTERIZER_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -58,7 +60,7 @@ class ExternalRasterizer : public Rasterizer {
   class Impl;
 
  private:
-  scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace lib

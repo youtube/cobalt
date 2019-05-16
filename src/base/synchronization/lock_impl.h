@@ -5,20 +5,23 @@
 #ifndef BASE_SYNCHRONIZATION_LOCK_IMPL_H_
 #define BASE_SYNCHRONIZATION_LOCK_IMPL_H_
 
+#include "base/base_export.h"
+#include "base/logging.h"
+#include "base/macros.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#elif defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/mutex.h"
-#elif defined(__LB_SHELL__)
-#include "lb_mutex.h"
-#elif defined(OS_POSIX)
+#else
+#if defined(OS_WIN)
+#include "base/win/windows_types.h"
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#include <errno.h>
 #include <pthread.h>
-#endif
 
-#include "base/base_export.h"
-#include "base/basictypes.h"
+#include "starboard/types.h"
+#endif
+#endif
 
 namespace base {
 namespace internal {
@@ -28,14 +31,14 @@ namespace internal {
 // should instead use Lock.
 class BASE_EXPORT LockImpl {
  public:
+#if defined(STARBOARD)
+  using NativeHandle = SbMutex;
+#else
 #if defined(OS_WIN)
-  typedef CRITICAL_SECTION OSLockType;
-#elif defined(OS_STARBOARD)
-  typedef SbMutex OSLockType;
-#elif defined(__LB_SHELL__)
-  typedef lb_shell_mutex_t OSLockType;
-#elif defined(OS_POSIX)
-  typedef pthread_mutex_t OSLockType;
+  using NativeHandle = CHROME_SRWLOCK;
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+  using NativeHandle = pthread_mutex_t;
+#endif
 #endif
 
   LockImpl();
@@ -50,18 +53,41 @@ class BASE_EXPORT LockImpl {
 
   // Release the lock.  This must only be called by the lock's holder: after
   // a successful call to Try, or a call to Lock.
-  void Unlock();
+  inline void Unlock();
 
   // Return the native underlying lock.
   // TODO(awalker): refactor lock and condition variables so that this is
   // unnecessary.
-  OSLockType* os_lock() { return &os_lock_; }
+  NativeHandle* native_handle() { return &native_handle_; }
+
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+  // Whether this lock will attempt to use priority inheritance.
+  static bool PriorityInheritanceAvailable();
+#endif
 
  private:
-  OSLockType os_lock_;
+  NativeHandle native_handle_;
 
   DISALLOW_COPY_AND_ASSIGN(LockImpl);
 };
+
+#if defined(STARBOARD)
+void LockImpl::Unlock() {
+  bool result = SbMutexRelease(&native_handle_);
+  DCHECK(result);
+}
+#else
+#if defined(OS_WIN)
+void LockImpl::Unlock() {
+  ::ReleaseSRWLockExclusive(reinterpret_cast<PSRWLOCK>(&native_handle_));
+}
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+void LockImpl::Unlock() {
+  int rv = pthread_mutex_unlock(&native_handle_);
+  DCHECK_EQ(rv, 0) << ". " << strerror(rv);
+}
+#endif
+#endif
 
 }  // namespace internal
 }  // namespace base

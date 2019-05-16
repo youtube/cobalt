@@ -4,15 +4,19 @@
 
 #include "base/i18n/number_formatting.h"
 
+#include <memory>
+
 #include "base/format_macros.h"
-#include "base/logging.h"
+#include "base/i18n/message_formatter.h"
+#include "base/i18n/unicodestring.h"
 #include "base/lazy_instance.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/stringprintf.h"
-#include "base/string_util.h"
-#include "base/utf_string_conversions.h"
-#include "unicode/numfmt.h"
-#include "unicode/ustring.h"
+#include "base/logging.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
+#include "starboard/types.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/i18n/unicode/numfmt.h"
 
 namespace base {
 
@@ -35,28 +39,28 @@ struct NumberFormatWrapper {
     DCHECK(U_SUCCESS(status));
   }
 
-  scoped_ptr<icu::NumberFormat> number_format;
+  std::unique_ptr<icu::NumberFormat> number_format;
 };
 
-LazyInstance<NumberFormatWrapper> g_number_format_int =
+LazyInstance<NumberFormatWrapper>::DestructorAtExit g_number_format_int =
     LAZY_INSTANCE_INITIALIZER;
-LazyInstance<NumberFormatWrapper> g_number_format_float =
+LazyInstance<NumberFormatWrapper>::DestructorAtExit g_number_format_float =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
-string16 FormatNumber(int64 number) {
+string16 FormatNumber(int64_t number) {
   icu::NumberFormat* number_format =
       g_number_format_int.Get().number_format.get();
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
-    return UTF8ToUTF16(StringPrintf("%" PRId64, number));
+    return ASCIIToUTF16(StringPrintf("%" PRId64, number));
   }
   icu::UnicodeString ustr;
   number_format->format(number, ustr);
 
-  return string16(ustr.getBuffer(), static_cast<size_t>(ustr.length()));
+  return i18n::UnicodeStringToString16(ustr);
 }
 
 string16 FormatDouble(double number, int fractional_digits) {
@@ -65,15 +69,22 @@ string16 FormatDouble(double number, int fractional_digits) {
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
-    return UTF8ToUTF16(StringPrintf("%f", number));
+    return ASCIIToUTF16(StringPrintf("%f", number));
   }
   number_format->setMaximumFractionDigits(fractional_digits);
   number_format->setMinimumFractionDigits(fractional_digits);
   icu::UnicodeString ustr;
   number_format->format(number, ustr);
 
-  return string16(ustr.getBuffer(), static_cast<size_t>(ustr.length()));
+  return i18n::UnicodeStringToString16(ustr);
 }
+
+#if !defined(STARBOARD)
+string16 FormatPercent(int number) {
+  return i18n::MessageFormatter::FormatWithNumberedArgs(
+      ASCIIToUTF16("{0,number,percent}"), static_cast<double>(number) / 100.0);
+}
+#endif  // !defined(STARBOARD)
 
 namespace testing {
 

@@ -14,6 +14,7 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 #define COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>

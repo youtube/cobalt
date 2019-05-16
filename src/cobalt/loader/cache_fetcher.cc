@@ -14,14 +14,14 @@
 
 #include "cobalt/loader/cache_fetcher.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
-#include "base/stringprintf.h"
+#include "base/message_loop/message_loop.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 
 namespace cobalt {
 namespace loader {
@@ -42,7 +42,7 @@ const char kCacheScheme[] = "h5vcc-cache";
 CacheFetcher::CacheFetcher(
     const GURL& url, const csp::SecurityCallback& security_callback,
     Handler* handler,
-    const base::Callback<int(const std::string&, scoped_array<char>*)>&
+    const base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>&
         read_cache_callback)
     : Fetcher(handler),
       url_(url),
@@ -80,7 +80,7 @@ void CacheFetcher::GetCacheData(const std::string& key) {
   const char kFailedToReadCache[] = "Failed to read cache.";
 
   DCHECK(!read_cache_callback_.is_null());
-  scoped_array<char> buffer;
+  std::unique_ptr<char[]> buffer;
   int buffer_size = read_cache_callback_.Run(key, &buffer);
   if (!buffer.get()) {
     handler()->OnError(this, kFailedToReadCache);

@@ -4,11 +4,12 @@
 
 #include "cobalt/media/filters/source_buffer_state.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/memory/ptr_util.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/media/base/gmock_callback_support.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/mock_filters.h"
@@ -52,7 +53,7 @@ void InvokeCbAndSaveResult(const base::Callback<bool()>& cb, bool* result) {
   DCHECK(result);
   *result = cb.Run();
 }
-}
+}  // namespace
 
 class SourceBufferStateTest : public ::testing::Test {
  public:

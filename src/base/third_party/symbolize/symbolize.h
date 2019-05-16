@@ -51,6 +51,10 @@
 // malloc() and other unsafe operations.  It should be both
 // thread-safe and async-signal-safe.
 
+// Note for Cobalt: Cobalt Starboard depends on the old version of Symbolize so
+// this file is from m27 Chromium. There are no Cobalt-introduced changes in
+// this file.
+
 #ifndef BASE_SYMBOLIZE_H_
 #define BASE_SYMBOLIZE_H_
 
@@ -112,7 +116,10 @@ _START_GOOGLE_NAMESPACE_
 // counter "pc". The callback function should write output to "out"
 // and return the size of the output written. On error, the callback
 // function should return -1.
-typedef int (*SymbolizeCallback)(int fd, void *pc, char *out, size_t out_size,
+typedef int (*SymbolizeCallback)(int fd,
+                                 void* pc,
+                                 char* out,
+                                 size_t out_size,
                                  uint64 relocation);
 void InstallSymbolizeCallback(SymbolizeCallback callback);
 

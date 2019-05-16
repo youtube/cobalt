@@ -28,27 +28,42 @@
 #ifndef BASE_ATOMICOPS_H_
 #define BASE_ATOMICOPS_H_
 
-#include "base/basictypes.h"
-#include "build/build_config.h"
+#include <stdint.h>
 
-#if defined(OS_STARBOARD)
+// Small C++ header which defines implementation specific macros used to
+// identify the STL implementation.
+// - libc++: captures __config for _LIBCPP_VERSION
+// - libstdc++: captures bits/c++config.h for __GLIBCXX__
+#include <cstddef>
+
+#include "base/base_export.h"
+#include "build/build_config.h"
 #include "starboard/atomic.h"
-#endif  // defined(OS_STARBOARD)
+
+#if defined(OS_WIN) && defined(ARCH_CPU_64_BITS)
+// windows.h #defines this (only on x64). This causes problems because the
+// public API also uses MemoryBarrier at the public name for this fence. So, on
+// X64, undef it, and call its documented
+// (http://msdn.microsoft.com/en-us/library/windows/desktop/ms684208.aspx)
+// implementation directly.
+#undef MemoryBarrier
+#endif
 
 namespace base {
 namespace subtle {
 
-#if defined(OS_STARBOARD)
+#ifdef STARBOARD
 typedef SbAtomic32 Atomic32;
-#if defined(ARCH_CPU_64_BITS)
+#if SB_HAS(64_BIT_ATOMICS)
 typedef SbAtomic64 Atomic64;
-#endif  // defined(ARCH_CPU_64_BITS)
-#else
-typedef int32 Atomic32;
+#endif
+typedef SbAtomicPtr AtomicWord;
+#else  // STARBOARD
+typedef int32_t Atomic32;
 #ifdef ARCH_CPU_64_BITS
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
-#if defined(OS_NACL)
+#if defined(__ILP32__) || defined(OS_NACL)
 // NaCl's intptr_t is not actually 64-bits on 64-bit!
 // http://code.google.com/p/nativeclient/issues/detail?id=1162
 typedef int64_t Atomic64;
@@ -56,19 +71,11 @@ typedef int64_t Atomic64;
 typedef intptr_t Atomic64;
 #endif
 #endif
-#endif  // defined(OS_STARBOARD)
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
-#if defined(OS_STARBOARD)
-#if SB_HAS(64_BIT_POINTERS)
-typedef SbAtomic64 AtomicWord;
-#else
-typedef SbAtomic32 AtomicWord;
-#endif
-#else
 typedef intptr_t AtomicWord;
-#endif
+#endif  // STARBOARD
 
 // Atomically execute:
 //      result = *ptr;
@@ -143,31 +150,18 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // ARCH_CPU_64_BITS
 
-}  // namespace base::subtle
+}  // namespace subtle
 }  // namespace base
 
-// Include our platform specific implementation.
-#if defined(THREAD_SANITIZER)
-#include "base/atomicops_internals_tsan.h"
-#elif defined(OS_WIN) && defined(COMPILER_MSVC) && defined(ARCH_CPU_X86_FAMILY)
-#include "base/atomicops_internals_x86_msvc.h"
-#elif defined(OS_MACOSX)
-#include "base/atomicops_internals_mac.h"
-#elif defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "base/atomicops_internals_starboard.h"
-#elif defined(__LB_SHELL__)
-#define SHELL_BEGIN_ATOMICOPS_NAMESPACES namespace base { namespace subtle {
-#define SHELL_END_ATOMICOPS_NAMESPACES } }
-#include "atomicops_internals_shell.h"  // from the platform lib
-#elif (defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)) || \
-       defined(OS_NACL)
-#include "base/atomicops_internals_gcc.h"
-#elif defined(COMPILER_GCC) && defined(ARCH_CPU_X86_FAMILY)
-#include "base/atomicops_internals_x86_gcc.h"
-#elif defined(COMPILER_GCC) && defined(ARCH_CPU_MIPS_FAMILY)
-#include "base/atomicops_internals_mips_gcc.h"
 #else
-#error "Atomic operations are not supported on your platform"
+#if defined(OS_WIN)
+// TODO(jfb): Try to use base/atomicops_internals_portable.h everywhere.
+// https://crbug.com/559247.
+#include "base/atomicops_internals_x86_msvc.h"
+#else
+#include "base/atomicops_internals_portable.h"
 #endif
 
 // On some platforms we need additional declarations to make
@@ -175,5 +169,6 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #if defined(OS_MACOSX) || defined(OS_OPENBSD)
 #include "base/atomicops_internals_atomicword_compat.h"
 #endif
+#endif  // defined(STARBOARD)
 
 #endif  // BASE_ATOMICOPS_H_

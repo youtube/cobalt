@@ -37,10 +37,10 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
  public:
   CSSDeclaredStyleData();
 
-  // NOTE: The array size of base::SmallMap is based on extensive testing. Do
+  // NOTE: The array size of base::small_map is based on extensive testing. Do
   // not change it unless additional profiling data justifies it.
-  typedef base::SmallMap<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
-                         8, std::equal_to<PropertyKey> >
+  typedef base::small_map<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
+                          8, std::equal_to<PropertyKey> >
       PropertyValues;
 
   // The length attribute must return the number of CSS declarations in the

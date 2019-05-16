@@ -15,6 +15,7 @@
 #ifndef COBALT_SPEECH_MICROPHONE_MANAGER_H_
 #define COBALT_SPEECH_MICROPHONE_MANAGER_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/speech/speech_configuration.h"
@@ -22,14 +23,10 @@
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/speech/microphone.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/speech/microphone.h"
 
 namespace cobalt {
 namespace speech {
@@ -42,16 +39,13 @@ class MicrophoneManager {
     kAudioCapture,
     kAborted,
   };
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
+  typedef base::Callback<void(std::unique_ptr<ShellAudioBus>)>
+      DataReceivedCallback;
   typedef base::Closure CompletionCallback;
   typedef base::Closure SuccessfulOpenCallback;
   typedef base::Callback<void(MicrophoneError, std::string)> ErrorCallback;
-  typedef base::Callback<scoped_ptr<Microphone>(int)> MicrophoneCreator;
+  typedef base::Callback<std::unique_ptr<Microphone>(int)> MicrophoneCreator;
 
   MicrophoneManager(const DataReceivedCallback& data_received,
                     const SuccessfulOpenCallback& successful_open,
@@ -86,13 +80,12 @@ class MicrophoneManager {
   const SuccessfulOpenCallback successful_open_callback_;
   const MicrophoneCreator microphone_creator_;
 
-  scoped_ptr<Microphone> microphone_;
+  std::unique_ptr<Microphone> microphone_;
 
   // Microphone state.
   State state_;
   // Repeat timer to poll mic events.
-  base::optional<base::RepeatingTimer<MicrophoneManager> >
-      poll_mic_events_timer_;
+  base::Optional<base::RepeatingTimer> poll_mic_events_timer_;
   // Microphone thread.
   base::Thread thread_;
 };

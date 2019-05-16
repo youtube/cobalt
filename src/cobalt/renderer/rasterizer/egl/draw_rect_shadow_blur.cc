@@ -41,7 +41,8 @@ const float kBlurExtentInSigmas = 3.0f;
 const float kBlurDistance = kBlurExtentInSigmas / kSqrt2;
 
 void SetBlurRRectUniforms(const ShaderFragmentColorBlurRrects& shader,
-    math::RectF rect, render_tree::RoundedCorners corners, float sigma) {
+                          math::RectF rect, render_tree::RoundedCorners corners,
+                          float sigma) {
   const float kBlurExtentInPixels = kBlurExtentInSigmas * sigma;
   const float kOffsetScale = kBlurDistance / kBlurExtentInPixels;
 
@@ -55,15 +56,15 @@ void SetBlurRRectUniforms(const ShaderFragmentColorBlurRrects& shader,
   // A normalized rounded rect should have at least one Y value which the
   // corners do not cross.
   const float kCenterY =
-      0.5f * (rect.y() + std::max(corners.top_left.vertical,
-                                  corners.top_right.vertical)) +
+      0.5f * (rect.y() +
+              std::max(corners.top_left.vertical, corners.top_right.vertical)) +
       0.5f * (rect.bottom() - std::max(corners.bottom_left.vertical,
                                        corners.bottom_right.vertical));
 
   // The blur extent is (blur_size.y, rect_min.y, rect_max.y, rect_center.y).
   GL_CALL(glUniform4f(shader.u_blur_extent(),
-                      kBlurExtentInPixels * kOffsetScale,
-                      rect.y(), rect.bottom(), kCenterY));
+                      kBlurExtentInPixels * kOffsetScale, rect.y(),
+                      rect.bottom(), kCenterY));
 
   // The blur rounded rect is split into top and bottom halves.
   // The "start" values represent (left_start.xy, right_start.xy).
@@ -81,16 +82,14 @@ void SetBlurRRectUniforms(const ShaderFragmentColorBlurRrects& shader,
                       rect.bottom() - corners.bottom_left.vertical,
                       rect.right() - corners.bottom_right.horizontal,
                       rect.bottom() - corners.bottom_right.vertical));
-  GL_CALL(glUniform4f(shader.u_blur_scale_top(),
-                      -corners.top_left.horizontal,
+  GL_CALL(glUniform4f(shader.u_blur_scale_top(), -corners.top_left.horizontal,
                       -1.0f / corners.top_left.vertical,
                       corners.top_right.horizontal,
                       -1.0f / corners.top_right.vertical));
-  GL_CALL(glUniform4f(shader.u_blur_scale_bottom(),
-                      -corners.bottom_left.horizontal,
-                      1.0f / corners.bottom_left.vertical,
-                      corners.bottom_right.horizontal,
-                      1.0f / corners.bottom_right.vertical));
+  GL_CALL(glUniform4f(
+      shader.u_blur_scale_bottom(), -corners.bottom_left.horizontal,
+      1.0f / corners.bottom_left.vertical, corners.bottom_right.horizontal,
+      1.0f / corners.bottom_right.vertical));
 }
 }  // namespace
 
@@ -111,9 +110,10 @@ DrawRectShadowBlur::VertexAttributesRound::VertexAttributesRound(
   rcorner_scissor = RCorner(position, rcorner);
 }
 
-DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
-    const BaseState& base_state, const math::RectF& base_rect,
-    const OptionalRoundedCorners& base_corners, const math::RectF& spread_rect,
+DrawRectShadowBlur::DrawRectShadowBlur(
+    GraphicsState* graphics_state, const BaseState& base_state,
+    const math::RectF& base_rect, const OptionalRoundedCorners& base_corners,
+    const math::RectF& spread_rect,
     const OptionalRoundedCorners& spread_corners,
     const render_tree::ColorRGBA& color, float blur_sigma, bool inset)
     : DrawObject(base_state),
@@ -148,47 +148,45 @@ DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
 }
 
 void DrawRectShadowBlur::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (attributes_square_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_square_.size() * sizeof(attributes_square_[0]));
     SbMemoryCopy(vertex_buffer_, &attributes_square_[0],
-        attributes_square_.size() * sizeof(attributes_square_[0]));
+                 attributes_square_.size() * sizeof(attributes_square_[0]));
   } else if (attributes_round_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_round_.size() * sizeof(attributes_round_[0]));
     SbMemoryCopy(vertex_buffer_, &attributes_round_[0],
-        attributes_round_.size() * sizeof(attributes_round_[0]));
+                 attributes_round_.size() * sizeof(attributes_round_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
     SbMemoryCopy(index_buffer_, &indices_[0],
-        indices_.size() * sizeof(indices_[0]));
+                 indices_.size() * sizeof(indices_[0]));
   }
 }
 
 void DrawRectShadowBlur::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   if (vertex_buffer_ == nullptr) {
     return;
   }
 
   // Draw the blurred shadow.
   if (spread_corners_) {
-    ShaderProgram<ShaderVertexOffsetRcorner,
-                  ShaderFragmentColorBlurRrects>* program;
+    ShaderProgram<ShaderVertexOffsetRcorner, ShaderFragmentColorBlurRrects>*
+        program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupVertexShader(graphics_state, program->GetVertexShader());
     SetFragmentUniforms(program->GetFragmentShader().u_color(),
                         program->GetFragmentShader().u_scale_add());
-    SetBlurRRectUniforms(program->GetFragmentShader(),
-                         spread_rect_, *spread_corners_, blur_sigma_);
-    GL_CALL(glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
-        graphics_state->GetVertexIndexPointer(index_buffer_)));
+    SetBlurRRectUniforms(program->GetFragmentShader(), spread_rect_,
+                         *spread_corners_, blur_sigma_);
+    GL_CALL(
+        glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
+                       graphics_state->GetVertexIndexPointer(index_buffer_)));
   } else {
-    ShaderProgram<ShaderVertexOffset,
-                  ShaderFragmentColorBlur>* program;
+    ShaderProgram<ShaderVertexOffset, ShaderFragmentColorBlur>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupVertexShader(graphics_state, program->GetVertexShader());
@@ -212,49 +210,47 @@ base::TypeId DrawRectShadowBlur::GetTypeId() const {
 }
 
 void DrawRectShadowBlur::SetupVertexShader(GraphicsState* graphics_state,
-    const ShaderVertexOffset& shader) {
+                                           const ShaderVertexOffset& shader) {
   graphics_state->UpdateClipAdjustment(shader.u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(shader.u_view_matrix(),
-      base_state_.transform);
+                                        base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
       shader.a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesSquare), vertex_buffer_ +
-      offsetof(VertexAttributesSquare, position));
+      sizeof(VertexAttributesSquare),
+      vertex_buffer_ + offsetof(VertexAttributesSquare, position));
   graphics_state->VertexAttribPointer(
-      shader.a_offset(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesSquare), vertex_buffer_ +
-      offsetof(VertexAttributesSquare, offset));
+      shader.a_offset(), 2, GL_FLOAT, GL_FALSE, sizeof(VertexAttributesSquare),
+      vertex_buffer_ + offsetof(VertexAttributesSquare, offset));
   graphics_state->VertexAttribFinish();
 }
 
-void DrawRectShadowBlur::SetupVertexShader(GraphicsState* graphics_state,
-    const ShaderVertexOffsetRcorner& shader) {
+void DrawRectShadowBlur::SetupVertexShader(
+    GraphicsState* graphics_state, const ShaderVertexOffsetRcorner& shader) {
   graphics_state->UpdateClipAdjustment(shader.u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(shader.u_view_matrix(),
-      base_state_.transform);
+                                        base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-      base_state_.scissor.width(), base_state_.scissor.height());
+                          base_state_.scissor.width(),
+                          base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      shader.a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesRound), vertex_buffer_ +
-      offsetof(VertexAttributesRound, position));
+      shader.a_position(), 2, GL_FLOAT, GL_FALSE, sizeof(VertexAttributesRound),
+      vertex_buffer_ + offsetof(VertexAttributesRound, position));
   graphics_state->VertexAttribPointer(
-      shader.a_offset(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesRound), vertex_buffer_ +
-      offsetof(VertexAttributesRound, offset));
+      shader.a_offset(), 2, GL_FLOAT, GL_FALSE, sizeof(VertexAttributesRound),
+      vertex_buffer_ + offsetof(VertexAttributesRound, offset));
   graphics_state->VertexAttribPointer(
-      shader.a_rcorner(), 4, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributesRound), vertex_buffer_ +
-      offsetof(VertexAttributesRound, rcorner_scissor));
+      shader.a_rcorner(), 4, GL_FLOAT, GL_FALSE, sizeof(VertexAttributesRound),
+      vertex_buffer_ + offsetof(VertexAttributesRound, rcorner_scissor));
   graphics_state->VertexAttribFinish();
 }
 
-void DrawRectShadowBlur::SetFragmentUniforms(
-    GLint color_uniform, GLint scale_add_uniform) {
-  GL_CALL(glUniform4f(color_uniform,
-                      color_.r(), color_.g(), color_.b(), color_.a()));
+void DrawRectShadowBlur::SetFragmentUniforms(GLint color_uniform,
+                                             GLint scale_add_uniform) {
+  GL_CALL(glUniform4f(color_uniform, color_.r(), color_.g(), color_.b(),
+                      color_.a()));
   if (is_inset_) {
     // Invert the shadow.
     GL_CALL(glUniform2f(scale_add_uniform, -1.0f, 1.0f));
@@ -264,8 +260,9 @@ void DrawRectShadowBlur::SetFragmentUniforms(
   }
 }
 
-void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
-    const math::RectF& base_rect, const OptionalRoundedCorners& base_corners) {
+void DrawRectShadowBlur::SetGeometry(
+    GraphicsState* graphics_state, const math::RectF& base_rect,
+    const OptionalRoundedCorners& base_corners) {
   const float kBlurExtentInPixels = kBlurExtentInSigmas * blur_sigma_;
 
   if (base_corners || spread_corners_) {
@@ -286,9 +283,9 @@ void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
       inner_rect.Inset(kBlurExtentInPixels, kBlurExtentInPixels);
       if (!inner_rect.IsEmpty()) {
         // Get the inner bounds excluding the inscribed rect.
-        render_tree::RoundedCorners inner_corners = spread_corners_->Inset(
-            kBlurExtentInPixels, kBlurExtentInPixels, kBlurExtentInPixels,
-            kBlurExtentInPixels);
+        render_tree::RoundedCorners inner_corners =
+            spread_corners_->Inset(kBlurExtentInPixels, kBlurExtentInPixels,
+                                   kBlurExtentInPixels, kBlurExtentInPixels);
         inner_corners = inner_corners.Normalize(inner_rect);
         GetRRectAttributes(outer_rect, inner_rect, inner_corners, rrect_inner);
       } else {
@@ -320,7 +317,8 @@ void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
 }
 
 void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
-    const math::RectF& inner_rect, const math::RectF& outer_rect) {
+                                     const math::RectF& inner_rect,
+                                     const math::RectF& outer_rect) {
   // The spread rect and offsets should be expressed in terms of sigma for the
   // shader.
   float offset_scale = kBlurDistance / (kBlurExtentInSigmas * blur_sigma_);
@@ -330,46 +328,46 @@ void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
   // and inner rect.
   if (inner_rect.IsEmpty()) {
     attributes_square_.reserve(4);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.bottom(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.bottom(), offset_scale);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.bottom(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.bottom(),
+                                    offset_scale);
   } else {
     math::RectF inside_rect(inner_rect);
     inside_rect.Intersect(outer_rect);
     attributes_square_.reserve(10);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        inside_rect.x(), inside_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        inside_rect.right(), inside_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.right(), outer_rect.bottom(), offset_scale);
-    attributes_square_.emplace_back(
-        inside_rect.right(), inside_rect.bottom(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.bottom(), offset_scale);
-    attributes_square_.emplace_back(
-        inside_rect.x(), inside_rect.bottom(), offset_scale);
-    attributes_square_.emplace_back(
-        outer_rect.x(), outer_rect.y(), offset_scale);
-    attributes_square_.emplace_back(
-        inside_rect.x(), inside_rect.y(), offset_scale);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(inside_rect.x(), inside_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(inside_rect.right(), inside_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.right(), outer_rect.bottom(),
+                                    offset_scale);
+    attributes_square_.emplace_back(inside_rect.right(), inside_rect.bottom(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.bottom(),
+                                    offset_scale);
+    attributes_square_.emplace_back(inside_rect.x(), inside_rect.bottom(),
+                                    offset_scale);
+    attributes_square_.emplace_back(outer_rect.x(), outer_rect.y(),
+                                    offset_scale);
+    attributes_square_.emplace_back(inside_rect.x(), inside_rect.y(),
+                                    offset_scale);
   }
 
-  graphics_state->ReserveVertexData(
-      attributes_square_.size() * sizeof(attributes_square_[0]));
+  graphics_state->ReserveVertexData(attributes_square_.size() *
+                                    sizeof(attributes_square_[0]));
 }
 
 void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
-    const RRectAttributes (&rrect)[8]) {
+                                     const RRectAttributes (&rrect)[8]) {
   // The spread rect and offsets should be expressed in terms of sigma for the
   // shader.
   float offset_scale = kBlurDistance / (kBlurExtentInSigmas * blur_sigma_);
@@ -381,14 +379,14 @@ void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
     AddQuad(rrect[i].bounds, offset_scale, rrect[i].rcorner);
   }
 
-  graphics_state->ReserveVertexData(
-      attributes_round_.size() * sizeof(attributes_round_[0]));
+  graphics_state->ReserveVertexData(attributes_round_.size() *
+                                    sizeof(attributes_round_[0]));
   graphics_state->ReserveVertexIndices(indices_.size());
 }
 
 void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
-    const RRectAttributes (&rrect_outer)[4],
-    const RRectAttributes (&rrect_inner)[8]) {
+                                     const RRectAttributes (&rrect_outer)[4],
+                                     const RRectAttributes (&rrect_inner)[8]) {
   // The spread rect and offsets should be expressed in terms of sigma for the
   // shader.
   float offset_scale = kBlurDistance / (kBlurExtentInSigmas * blur_sigma_);
@@ -399,21 +397,21 @@ void DrawRectShadowBlur::SetGeometry(GraphicsState* graphics_state,
   // rounded corners. The inner quads already exclude the inscribed rectangle.
   for (int i = 0; i < arraysize(rrect_inner); ++i) {
     for (int o = 0; o < arraysize(rrect_outer); ++o) {
-      math::RectF rect = math::IntersectRects(
-          rrect_inner[i].bounds, rrect_outer[o].bounds);
+      math::RectF rect =
+          math::IntersectRects(rrect_inner[i].bounds, rrect_outer[o].bounds);
       if (!rect.IsEmpty()) {
         AddQuad(rect, offset_scale, rrect_outer[o].rcorner);
       }
     }
   }
 
-  graphics_state->ReserveVertexData(
-      attributes_round_.size() * sizeof(attributes_round_[0]));
+  graphics_state->ReserveVertexData(attributes_round_.size() *
+                                    sizeof(attributes_round_[0]));
   graphics_state->ReserveVertexIndices(indices_.size());
 }
 
 void DrawRectShadowBlur::AddQuad(const math::RectF& rect, float scale,
-    const RCorner& rcorner) {
+                                 const RCorner& rcorner) {
   uint16_t vert = static_cast<uint16_t>(attributes_round_.size());
   attributes_round_.emplace_back(rect.x(), rect.y(), scale, rcorner);
   attributes_round_.emplace_back(rect.right(), rect.y(), scale, rcorner);

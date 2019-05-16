@@ -6,21 +6,20 @@
 
 namespace net {
 
-#if defined(COBALT)
-void URLFetcherDelegate::OnURLFetchResponseStarted(
-    const URLFetcher* source) {}
-#endif  // defined(COBALT)
+#if defined(STARBOARD)
+void URLFetcherDelegate::OnURLFetchResponseStarted(const URLFetcher* source) {}
+#endif  // defined(STARBOARD)
 
-void URLFetcherDelegate::OnURLFetchDownloadData(
-    const URLFetcher* source, scoped_ptr<std::string> download_data) {}
+void URLFetcherDelegate::OnURLFetchDownloadProgress(
+    const URLFetcher* source,
+    int64_t current,
+    int64_t total,
+    int64_t current_network_bytes) {}
 
-void URLFetcherDelegate::OnURLFetchUploadProgress(
-    const URLFetcher* source, int64 current, int64 total) {}
+void URLFetcherDelegate::OnURLFetchUploadProgress(const URLFetcher* source,
+                                                  int64_t current,
+                                                  int64_t total) {}
 
-bool URLFetcherDelegate::ShouldSendDownloadData() {
-  return false;
-}
-
-URLFetcherDelegate::~URLFetcherDelegate() {}
+URLFetcherDelegate::~URLFetcherDelegate() = default;
 
 }  // namespace net

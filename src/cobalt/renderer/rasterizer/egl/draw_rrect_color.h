@@ -28,8 +28,7 @@ namespace egl {
 // Handles drawing a colored rounded rect.
 class DrawRRectColor : public DrawObject {
  public:
-  DrawRRectColor(GraphicsState* graphics_state,
-                 const BaseState& base_state,
+  DrawRRectColor(GraphicsState* graphics_state, const BaseState& base_state,
                  const math::RectF& rect,
                  const render_tree::RoundedCorners& corners,
                  const render_tree::ColorRGBA& color);

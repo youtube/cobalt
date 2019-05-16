@@ -7,28 +7,20 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
-#include "net/base/request_priority.h"
+#include "net/base/privacy_mode.h"
 #include "net/http/http_request_headers.h"
+#include "net/socket/socket_tag.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "url/gurl.h"
 
 namespace net {
 
 class UploadDataStream;
 
 struct NET_EXPORT HttpRequestInfo {
-  enum RequestMotivation{
-    // TODO(mbelshe): move these into Client Socket.
-    PRECONNECT_MOTIVATED,  // Request was motivated by a prefetch.
-    OMNIBOX_MOTIVATED,     // Request was motivated by the omnibox.
-    NORMAL_MOTIVATION,     // No special motivation associated with the request.
-    EARLY_LOAD_MOTIVATED,  // When browser asks a tab to open an URL, this short
-                           // circuits that path (of waiting for the renderer to
-                           // do the URL request), and starts loading ASAP.
-  };
-
   HttpRequestInfo();
+  HttpRequestInfo(const HttpRequestInfo& other);
   ~HttpRequestInfo();
 
   // The requested URL.
@@ -46,15 +38,15 @@ struct NET_EXPORT HttpRequestInfo {
   // Any load flags (see load_flags.h).
   int load_flags;
 
-  // The priority level for this request.
-  RequestPriority priority;
+  // If enabled, then request must be sent over connection that cannot be
+  // tracked by the server (e.g. without channel id).
+  PrivacyMode privacy_mode;
 
-  // The motivation behind this request.
-  RequestMotivation motivation;
+  // Tag applied to all sockets used to service request.
+  SocketTag socket_tag;
 
-  // An optional globally unique identifier for this request for use by the
-  // consumer. 0 is invalid.
-  uint64 request_id;
+  // Network traffic annotation received from URL request.
+  net::MutableNetworkTrafficAnnotationTag traffic_annotation;
 };
 
 }  // namespace net

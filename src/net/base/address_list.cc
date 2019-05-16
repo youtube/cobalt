@@ -4,45 +4,53 @@
 
 #include "net/base/address_list.h"
 
+#include <utility>
+
 #include "base/bind.h"
-#include "base/command_line.h"
-#include "base/lazy_instance.h"
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/values.h"
-#include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
+#include "net/log/net_log_capture_mode.h"
+
+#if defined(STARBOARD)
+#include "base/lazy_instance.h"
+#include "base/command_line.h"
+#endif
 
 namespace net {
 
 namespace {
 
-base::Value* NetLogAddressListCallback(const AddressList* address_list,
-                                       NetLog::LogLevel log_level) {
-  DictionaryValue* dict = new DictionaryValue();
-  ListValue* list = new ListValue();
+std::unique_ptr<base::Value> NetLogAddressListCallback(
+    const AddressList* address_list,
+    NetLogCaptureMode capture_mode) {
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  std::unique_ptr<base::ListValue> list(new base::ListValue());
 
-  for (AddressList::const_iterator it = address_list->begin();
-       it != address_list->end(); ++it) {
-    list->Append(Value::CreateStringValue(it->ToString()));
+  for (auto it = address_list->begin(); it != address_list->end(); ++it) {
+    list->AppendString(it->ToString());
   }
 
-  dict->Set("address_list", list);
-  return dict;
+  dict->Set("address_list", std::move(list));
+  return std::move(dict);
 }
 
 }  // namespace
 
-AddressList::AddressList() {}
+AddressList::AddressList() = default;
 
-AddressList::~AddressList() {}
+AddressList::AddressList(const AddressList&) = default;
+
+AddressList::~AddressList() = default;
 
 AddressList::AddressList(const IPEndPoint& endpoint) {
   push_back(endpoint);
 }
 
 // static
-AddressList AddressList::CreateFromIPAddress(const IPAddressNumber& address,
-                                             uint16 port) {
+AddressList AddressList::CreateFromIPAddress(const IPAddress& address,
+                                             uint16_t port) {
   return AddressList(IPEndPoint(address, port));
 }
 
@@ -52,14 +60,13 @@ AddressList AddressList::CreateFromIPAddressList(
     const std::string& canonical_name) {
   AddressList list;
   list.set_canonical_name(canonical_name);
-  for (IPAddressList::const_iterator iter = addresses.begin();
-       iter != addresses.end(); ++iter) {
+  for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
     list.push_back(IPEndPoint(*iter, 0));
   }
   return list;
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
 namespace {
@@ -78,9 +85,9 @@ base::LazyInstance<ResolveFilterFlags>::Leaky g_resolve_filter_flags =
 
 ResolveFilterFlags::ResolveFilterFlags() {
   resolve_only_ipv6 =
-      CommandLine::ForCurrentProcess()->HasSwitch(kResolveOnlyIpv6);
+      base::CommandLine::ForCurrentProcess()->HasSwitch(kResolveOnlyIpv6);
   resolve_only_ipv4 =
-      CommandLine::ForCurrentProcess()->HasSwitch(kResolveOnlyIpv4);
+      base::CommandLine::ForCurrentProcess()->HasSwitch(kResolveOnlyIpv4);
   DCHECK(!(resolve_only_ipv6 && resolve_only_ipv4));
 }
 
@@ -114,7 +121,7 @@ AddressList AddressList::CreateFromSbSocketResolution(
 
   return list;
 }
-#else   // defined(OS_STARBOARD)
+#else   // defined(STARBOARD)
 // static
 AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   DCHECK(head);
@@ -131,10 +138,10 @@ AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   }
   return list;
 }
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 // static
-AddressList AddressList::CopyWithPort(const AddressList& list, uint16 port) {
+AddressList AddressList::CopyWithPort(const AddressList& list, uint16_t port) {
   AddressList out;
   out.set_canonical_name(list.canonical_name());
   for (size_t i = 0; i < list.size(); ++i)
@@ -147,7 +154,7 @@ void AddressList::SetDefaultCanonicalName() {
   set_canonical_name(front().ToStringWithoutPort());
 }
 
-NetLog::ParametersCallback AddressList::CreateNetLogCallback() const {
+NetLogParametersCallback AddressList::CreateNetLogCallback() const {
   return base::Bind(&NetLogAddressListCallback, this);
 }
 

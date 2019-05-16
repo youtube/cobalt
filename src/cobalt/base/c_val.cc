@@ -18,8 +18,8 @@
 namespace base {
 
 CValManager* CValManager::GetInstance() {
-  return Singleton<CValManager,
-                   StaticMemorySingletonTraits<CValManager> >::get();
+  return base::Singleton<
+      CValManager, base::StaticMemorySingletonTraits<CValManager> >::get();
 }
 
 CValManager::CValManager() : value_lock_refptr_(new RefCountedThreadSafeLock) {
@@ -89,7 +89,7 @@ CValManager::OnChangedHook::OnChangedHook() {
   base::AutoLock auto_lock(cvm->hooks_lock_);
 
   // Register this hook with the CValManager
-  bool was_inserted ALLOW_UNUSED =
+  bool was_inserted ALLOW_UNUSED_TYPE =
       cvm->on_changed_hook_set_->insert(this).second;
   DCHECK(was_inserted);
 }
@@ -99,7 +99,8 @@ CValManager::OnChangedHook::~OnChangedHook() {
   base::AutoLock auto_lock(cvm->hooks_lock_);
 
   // Deregister this hook with the CValManager
-  size_t values_erased ALLOW_UNUSED = cvm->on_changed_hook_set_->erase(this);
+  size_t values_erased ALLOW_UNUSED_TYPE =
+      cvm->on_changed_hook_set_->erase(this);
   DCHECK_EQ(values_erased, 1);
 }
 #endif  // ENABLE_DEBUG_C_VAL
@@ -117,7 +118,7 @@ std::set<std::string> CValManager::GetOrderedCValNames() {
   return ret;
 }
 
-optional<std::string> CValManager::GetCValStringValue(const std::string& name,
+Optional<std::string> CValManager::GetCValStringValue(const std::string& name,
                                                       bool pretty) {
   base::AutoLock auto_lock(cvals_lock_);
 
@@ -132,11 +133,11 @@ optional<std::string> CValManager::GetCValStringValue(const std::string& name,
   }
 }
 
-optional<std::string> CValManager::GetValueAsString(const std::string& name) {
+Optional<std::string> CValManager::GetValueAsString(const std::string& name) {
   return GetCValStringValue(name, false);
 }
 
-optional<std::string> CValManager::GetValueAsPrettyString(
+Optional<std::string> CValManager::GetValueAsPrettyString(
     const std::string& name) {
   return GetCValStringValue(name, true);
 }

@@ -24,7 +24,6 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
@@ -68,8 +67,7 @@ TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
   IntSetting cpu_memory_setting("max_cpu_memory");
-  cpu_memory_setting.set_value(
-      MemorySetting::kBuildSetting, 256 * 1024 * 1024);
+  cpu_memory_setting.set_value(MemorySetting::kBuildSetting, 256 * 1024 * 1024);
   IntSetting gpu_memory_setting("max_gpu_memory");
 
   std::string actual_output =
@@ -94,18 +92,16 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
   IntSetting cpu_memory_setting("max_cpu_memory");
-  cpu_memory_setting.set_value(
-      MemorySetting::kBuildSetting, 256 * 1024 * 1024);
+  cpu_memory_setting.set_value(MemorySetting::kBuildSetting, 256 * 1024 * 1024);
   IntSetting gpu_memory_setting("max_gpu_memory");
-  gpu_memory_setting.set_value(
-      MemorySetting::kBuildSetting, 64 * 1024 * 1024);
+  gpu_memory_setting.set_value(MemorySetting::kBuildSetting, 64 * 1024 * 1024);
 
   std::string actual_output =
       GenerateMemoryTable(false,               // No color.
                           cpu_memory_setting,  // 256 MB CPU available.
-                          gpu_memory_setting,   // 64 MB GPU available.
-                          128 * 1024 * 1024,  // 128 MB CPU consumption.
-                          23592960);          // 22.5 MB GPU consumption.
+                          gpu_memory_setting,  // 64 MB GPU available.
+                          128 * 1024 * 1024,   // 128 MB CPU consumption.
+                          23592960);           // 22.5 MB GPU consumption.
 
   const char* expected_output =
       " MEMORY           SOURCE   TOTAL      SETTINGS CONSUME   \n"
@@ -124,9 +120,9 @@ TEST(MemorySettingsPrettyPrint, ToString) {
   TestSettingGroup test_setting_group;
   test_setting_group.LoadDefault();
 
-  std::string actual_string = GeneratePrettyPrintTable(
-      false,  // No color.
-      test_setting_group.AsConstVector());
+  std::string actual_string =
+      GeneratePrettyPrintTable(false,  // No color.
+                               test_setting_group.AsConstVector());
 
   const char* expected_string =
       " SETTING NAME                           VALUE                   TYPE   SOURCE    \n"
@@ -152,12 +148,10 @@ TEST(MemorySettingsPrettyPrint, ToString) {
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
   IntSetting cpu_memory_setting("max_cpu_memory");
-  cpu_memory_setting.set_value(
-      MemorySetting::kBuildSetting, 256 * 1024 * 1024);
+  cpu_memory_setting.set_value(MemorySetting::kBuildSetting, 256 * 1024 * 1024);
   IntSetting gpu_memory_setting("max_gpu_memory");
   gpu_memory_setting.set_value(MemorySetting::kStarboardAPI, 0);
 
-  const base::optional<int64_t> no_gpu_memory;
   std::string actual_output = GenerateMemoryTable(
       false,               // No color.
       cpu_memory_setting,  // 256 MB CPU available.

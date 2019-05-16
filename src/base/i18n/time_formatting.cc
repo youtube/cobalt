@@ -4,16 +4,22 @@
 
 #include "base/i18n/time_formatting.h"
 
+#include <memory>
+
+#include "base/i18n/unicodestring.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/utf_string_conversions.h"
-#include "base/time.h"
-#include "unicode/datefmt.h"
-#include "unicode/dtptngen.h"
-#include "unicode/smpdtfmt.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
+#include "starboard/types.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/i18n/unicode/datefmt.h"
+#include "third_party/icu/source/i18n/unicode/dtitvfmt.h"
+#include "third_party/icu/source/i18n/unicode/dtptngen.h"
+#include "third_party/icu/source/i18n/unicode/fmtable.h"
+#include "third_party/icu/source/i18n/unicode/measfmt.h"
+#include "third_party/icu/source/i18n/unicode/smpdtfmt.h"
 
-using base::Time;
-
+namespace base {
 namespace {
 
 string16 TimeFormat(const icu::DateFormat* formatter,
@@ -22,8 +28,7 @@ string16 TimeFormat(const icu::DateFormat* formatter,
   icu::UnicodeString date_string;
 
   formatter->format(static_cast<UDate>(time.ToDoubleT() * 1000), date_string);
-  return string16(date_string.getBuffer(),
-                  static_cast<size_t>(date_string.length()));
+  return i18n::UnicodeStringToString16(date_string);
 }
 
 string16 TimeFormatWithoutAmPm(const icu::DateFormat* formatter,
@@ -42,20 +47,64 @@ string16 TimeFormatWithoutAmPm(const icu::DateFormat* formatter,
       begin--;
     time_string.removeBetween(begin, ampm_field.getEndIndex());
   }
-  return string16(time_string.getBuffer(),
-                  static_cast<size_t>(time_string.length()));
+  return i18n::UnicodeStringToString16(time_string);
+}
+
+icu::SimpleDateFormat CreateSimpleDateFormatter(const char* pattern) {
+  // Generate a locale-dependent format pattern. The generator will take
+  // care of locale-dependent formatting issues like which separator to
+  // use (some locales use '.' instead of ':'), and where to put the am/pm
+  // marker.
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::DateTimePatternGenerator> generator(
+      icu::DateTimePatternGenerator::createInstance(status));
+  DCHECK(U_SUCCESS(status));
+  icu::UnicodeString generated_pattern =
+      generator->getBestPattern(icu::UnicodeString(pattern), status);
+  DCHECK(U_SUCCESS(status));
+
+  // Then, format the time using the generated pattern.
+  icu::SimpleDateFormat formatter(generated_pattern, status);
+  DCHECK(U_SUCCESS(status));
+
+  return formatter;
+}
+
+UMeasureFormatWidth DurationWidthToMeasureWidth(DurationFormatWidth width) {
+  switch (width) {
+    case DURATION_WIDTH_WIDE: return UMEASFMT_WIDTH_WIDE;
+    case DURATION_WIDTH_SHORT: return UMEASFMT_WIDTH_SHORT;
+    case DURATION_WIDTH_NARROW: return UMEASFMT_WIDTH_NARROW;
+    case DURATION_WIDTH_NUMERIC: return UMEASFMT_WIDTH_NUMERIC;
+  }
+  NOTREACHED();
+  return UMEASFMT_WIDTH_COUNT;
+}
+
+const char* DateFormatToString(DateFormat format) {
+  switch (format) {
+    case DATE_FORMAT_YEAR_MONTH:
+      return UDAT_YEAR_MONTH;
+    case DATE_FORMAT_MONTH_WEEKDAY_DAY:
+      return UDAT_MONTH_WEEKDAY_DAY;
+  }
+  NOTREACHED();
+  return UDAT_YEAR_MONTH_DAY;
 }
 
 }  // namespace
 
-namespace base {
-
 string16 TimeFormatTimeOfDay(const Time& time) {
   // We can omit the locale parameter because the default should match
   // Chrome's application locale.
-  scoped_ptr<icu::DateFormat> formatter(
+  std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createTimeInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
+}
+
+string16 TimeFormatTimeOfDayWithMilliseconds(const Time& time) {
+  icu::SimpleDateFormat formatter = CreateSimpleDateFormatter("HmsSSS");
+  return TimeFormatWithoutAmPm(&formatter, time);
 }
 
 string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
@@ -68,64 +117,150 @@ string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
     return TimeFormatTimeOfDay(time);
   }
 
-  // Generate a locale-dependent format pattern. The generator will take
-  // care of locale-dependent formatting issues like which separator to
-  // use (some locales use '.' instead of ':'), and where to put the am/pm
-  // marker.
-  UErrorCode status = U_ZERO_ERROR;
-  scoped_ptr<icu::DateTimePatternGenerator> generator(
-      icu::DateTimePatternGenerator::createInstance(status));
-  DCHECK(U_SUCCESS(status));
   const char* base_pattern = (type == k12HourClock ? "ahm" : "Hm");
-  icu::UnicodeString generated_pattern =
-      generator->getBestPattern(icu::UnicodeString(base_pattern), status);
-  DCHECK(U_SUCCESS(status));
+  icu::SimpleDateFormat formatter = CreateSimpleDateFormatter(base_pattern);
 
-  // Then, format the time using the generated pattern.
-  icu::SimpleDateFormat formatter(generated_pattern, status);
-  DCHECK(U_SUCCESS(status));
   if (ampm == kKeepAmPm) {
     return TimeFormat(&formatter, time);
-  } else {
-    return TimeFormatWithoutAmPm(&formatter, time);
   }
+  return TimeFormatWithoutAmPm(&formatter, time);
 }
 
 string16 TimeFormatShortDate(const Time& time) {
-  scoped_ptr<icu::DateFormat> formatter(
+  std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kMedium));
   return TimeFormat(formatter.get(), time);
 }
 
 string16 TimeFormatShortDateNumeric(const Time& time) {
-  scoped_ptr<icu::DateFormat> formatter(
+  std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
 }
 
 string16 TimeFormatShortDateAndTime(const Time& time) {
-  scoped_ptr<icu::DateFormat> formatter(
+  std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
 }
 
+string16 TimeFormatShortDateAndTimeWithTimeZone(const Time& time) {
+  std::unique_ptr<icu::DateFormat> formatter(
+      icu::DateFormat::createDateTimeInstance(icu::DateFormat::kShort,
+                                              icu::DateFormat::kLong));
+  return TimeFormat(formatter.get(), time);
+}
+
+string16 TimeFormatMonthAndYear(const Time& time) {
+  icu::SimpleDateFormat formatter =
+      CreateSimpleDateFormatter(DateFormatToString(DATE_FORMAT_YEAR_MONTH));
+  return TimeFormat(&formatter, time);
+}
+
 string16 TimeFormatFriendlyDateAndTime(const Time& time) {
-  scoped_ptr<icu::DateFormat> formatter(
+  std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kFull));
   return TimeFormat(formatter.get(), time);
 }
 
 string16 TimeFormatFriendlyDate(const Time& time) {
-  scoped_ptr<icu::DateFormat> formatter(icu::DateFormat::createDateInstance(
-      icu::DateFormat::kFull));
+  std::unique_ptr<icu::DateFormat> formatter(
+      icu::DateFormat::createDateInstance(icu::DateFormat::kFull));
   return TimeFormat(formatter.get(), time);
+}
+
+string16 TimeFormatWithPattern(const Time& time, const char* pattern) {
+  icu::SimpleDateFormat formatter = CreateSimpleDateFormatter(pattern);
+  return TimeFormat(&formatter, time);
+}
+
+bool TimeDurationFormat(const TimeDelta time,
+                        const DurationFormatWidth width,
+                        string16* out) {
+  DCHECK(out);
+  UErrorCode status = U_ZERO_ERROR;
+  const int total_minutes = static_cast<int>(time.InSecondsF() / 60 + 0.5);
+  const int hours = total_minutes / 60;
+  const int minutes = total_minutes % 60;
+  UMeasureFormatWidth u_width = DurationWidthToMeasureWidth(width);
+
+  // TODO(derat): Delete the |status| checks and LOG(ERROR) calls throughout
+  // this function once the cause of http://crbug.com/677043 is tracked down.
+  const icu::Measure measures[] = {
+      icu::Measure(hours, icu::MeasureUnit::createHour(status), status),
+      icu::Measure(minutes, icu::MeasureUnit::createMinute(status), status)};
+  if (U_FAILURE(status)) {
+    LOG(ERROR) << "Creating MeasureUnit or Measure for " << hours << "h"
+               << minutes << "m failed: " << u_errorName(status);
+    return false;
+  }
+
+  icu::MeasureFormat measure_format(icu::Locale::getDefault(), u_width, status);
+  if (U_FAILURE(status)) {
+    LOG(ERROR) << "Creating MeasureFormat for "
+               << icu::Locale::getDefault().getName()
+               << " failed: " << u_errorName(status);
+    return false;
+  }
+
+  icu::UnicodeString formatted;
+  icu::FieldPosition ignore(icu::FieldPosition::DONT_CARE);
+  measure_format.formatMeasures(measures, 2, formatted, ignore, status);
+  if (U_FAILURE(status)) {
+    LOG(ERROR) << "formatMeasures failed: " << u_errorName(status);
+    return false;
+  }
+
+  *out = i18n::UnicodeStringToString16(formatted);
+  return true;
+}
+
+bool TimeDurationFormatWithSeconds(const TimeDelta time,
+                                   const DurationFormatWidth width,
+                                   string16* out) {
+  DCHECK(out);
+  UErrorCode status = U_ZERO_ERROR;
+  const int64_t total_seconds = static_cast<int>(time.InSecondsF() + 0.5);
+  const int hours = total_seconds / 3600;
+  const int minutes = (total_seconds - hours * 3600) / 60;
+  const int seconds = total_seconds % 60;
+  UMeasureFormatWidth u_width = DurationWidthToMeasureWidth(width);
+
+  const icu::Measure measures[] = {
+      icu::Measure(hours, icu::MeasureUnit::createHour(status), status),
+      icu::Measure(minutes, icu::MeasureUnit::createMinute(status), status),
+      icu::Measure(seconds, icu::MeasureUnit::createSecond(status), status)};
+  icu::MeasureFormat measure_format(icu::Locale::getDefault(), u_width, status);
+  icu::UnicodeString formatted;
+  icu::FieldPosition ignore(icu::FieldPosition::DONT_CARE);
+  measure_format.formatMeasures(measures, 3, formatted, ignore, status);
+  *out = i18n::UnicodeStringToString16(formatted);
+  return U_SUCCESS(status) == TRUE;
+}
+
+string16 DateIntervalFormat(const Time& begin_time,
+                            const Time& end_time,
+                            DateFormat format) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  std::unique_ptr<icu::DateIntervalFormat> formatter(
+      icu::DateIntervalFormat::createInstance(DateFormatToString(format),
+                                              status));
+
+  icu::FieldPosition pos = 0;
+  UDate start_date = static_cast<UDate>(begin_time.ToDoubleT() * 1000);
+  UDate end_date = static_cast<UDate>(end_time.ToDoubleT() * 1000);
+  icu::DateInterval interval(start_date, end_date);
+  icu::UnicodeString formatted;
+  formatter->format(&interval, formatted, pos, status);
+  return i18n::UnicodeStringToString16(formatted);
 }
 
 HourClockType GetHourClockType() {
   // TODO(satorux,jshin): Rework this with ures_getByKeyWithFallback()
   // once it becomes public. The short time format can be found at
   // "calendar/gregorian/DateTimePatterns/3" in the resources.
-  scoped_ptr<icu::SimpleDateFormat> formatter(
+  std::unique_ptr<icu::SimpleDateFormat> formatter(
       static_cast<icu::SimpleDateFormat*>(
           icu::DateFormat::createTimeInstance(icu::DateFormat::kShort)));
   // Retrieve the short time format.
@@ -154,11 +289,7 @@ HourClockType GetHourClockType() {
   //
   // See http://userguide.icu-project.org/formatparse/datetime for details
   // about the date/time format syntax.
-  if (pattern_unicode.indexOf('a') == -1) {
-    return k24HourClock;
-  } else {
-    return k12HourClock;
-  }
+  return pattern_unicode.indexOf('a') == -1 ? k24HourClock : k12HourClock;
 }
 
 }  // namespace base

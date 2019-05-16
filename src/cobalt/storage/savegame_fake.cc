@@ -14,6 +14,8 @@
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
 
+#include <memory>
+
 #include "cobalt/storage/savegame_fake.h"
 
 namespace cobalt {
@@ -28,8 +30,7 @@ SavegameFake::SavegameFake(const Options& options) : Savegame(options) {
   }
 }
 
-bool SavegameFake::PlatformRead(ByteVector* bytes_ptr, size_t max_to_read) {
-  SB_UNREFERENCED_PARAMETER(max_to_read);
+bool SavegameFake::PlatformRead(ByteVector* bytes_ptr, size_t /*max_to_read*/) {
   if (s_persistent_data_) {
     *bytes_ptr = *s_persistent_data_;
     return true;
@@ -57,9 +58,9 @@ bool SavegameFake::PlatformDelete() {
 }
 
 // static
-scoped_ptr<Savegame> SavegameFake::Create(const Options& options) {
-  scoped_ptr<Savegame> savegame(new SavegameFake(options));
-  return savegame.Pass();
+std::unique_ptr<Savegame> SavegameFake::Create(const Options& options) {
+  std::unique_ptr<Savegame> savegame(new SavegameFake(options));
+  return savegame;
 }
 
 }  // namespace storage

@@ -6,32 +6,31 @@
 #define BASE_THREADING_THREAD_RESTRICTIONS_H_
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
+#include "base/logging.h"
+#include "base/macros.h"
 
-// See comment at top of thread_checker.h
-#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
-#define ENABLE_THREAD_RESTRICTIONS 1
-#else
-#define ENABLE_THREAD_RESTRICTIONS 0
-#endif
-
-class AcceleratedPresenter;
 class BrowserProcessImpl;
 class HistogramSynchronizer;
-class MetricsService;
 class NativeBackendKWallet;
-class ScopedAllowWaitForLegacyWebViewApi;
-class TestingAutomationProvider;
+class KeyStorageLinux;
 
-namespace browser_sync {
-class NonFrontendDataTypeController;
-class UIModelWorker;
+namespace android_webview {
+class AwFormDatabaseService;
+class CookieManager;
+class ScopedAllowInitGLBindings;
+}
+namespace audio {
+class OutputDevice;
+}
+namespace blink {
+class VideoFrameResourceProvider;
 }
 namespace cc {
 class CompletionEvent;
+class SingleThreadTaskGraphRunner;
 }
 namespace chromeos {
-class AudioMixerAlsa;
 class BlockingMethodCaller;
 namespace system {
 class StatisticsProviderImpl;
@@ -42,11 +41,27 @@ class Predictor;
 }
 namespace content {
 class BrowserGpuChannelHostFactory;
-class GLHelper;
-class GpuChannelHost;
-class RenderWidgetHelper;
+class BrowserMainLoop;
+class BrowserProcessSubThread;
+class BrowserShutdownProfileDumper;
+class BrowserTestBase;
+class CategorizedWorkerPool;
+class GpuProcessTransportFactory;
+class NestedMessagePumpAndroid;
+class ScopedAllowWaitForAndroidLayoutTests;
+class ScopedAllowWaitForDebugURL;
+class SessionStorageDatabase;
+class SoftwareOutputDeviceMus;
+class ServiceWorkerSubresourceLoader;
+class SynchronousCompositor;
+class SynchronousCompositorHost;
+class SynchronousCompositorSyncCallBridge;
 class TextInputClientMac;
-}
+}  // namespace content
+namespace cronet {
+class CronetPrefsManager;
+class CronetURLRequestContext;
+}  // namespace cronet
 namespace dbus {
 class Bus;
 }
@@ -54,12 +69,41 @@ namespace disk_cache {
 class BackendImpl;
 class InFlightIO;
 }
+namespace functions {
+class ExecScriptScopedAllowBaseSyncPrimitives;
+}
+namespace gpu {
+class GpuChannelHost;
+}
+namespace leveldb {
+class LevelDBMojoProxy;
+}
 namespace media {
-class AudioOutputController;
+class AudioInputDevice;
+class BlockingUrlProtocol;
+}
+namespace midi {
+class TaskService;  // https://crbug.com/796830
+}
+namespace mojo {
+class CoreLibraryInitializer;
+class SyncCallRestrictions;
+namespace core {
+class ScopedIPCSupport;
+}
+}
+namespace rlz_lib {
+class FinancialPing;
+}
+namespace ui {
+class CommandBufferClientImpl;
+class CommandBufferLocal;
+class GpuState;
+class MaterialDesignController;
 }
 namespace net {
-class FileStreamPosix;
-class FileStreamWin;
+class MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
+class NetworkChangeNotifierMac;
 namespace internal {
 class AddressTrackerLinux;
 }
@@ -69,82 +113,341 @@ namespace remoting {
 class AutoThread;
 }
 
+namespace resource_coordinator {
+class TabManagerDelegate;
+}
+
+namespace service_manager {
+class ServiceProcessLauncher;
+}
+
+namespace shell_integration_linux {
+class LaunchXdgUtilityScopedAllowBaseSyncPrimitives;
+}
+
+namespace ui {
+class WindowResizeHelperMac;
+}
+
+namespace viz {
+class HostGpuMemoryBufferManager;
+}
+
+namespace webrtc {
+class DesktopConfigurationMonitor;
+}
+
 namespace base {
 
-class SequencedWorkerPool;
+namespace android {
+class JavaHandlerThread;
+}
+
+namespace internal {
+class TaskTracker;
+}
+
+class AdjustOOMScoreHelper;
+class GetAppOutputScopedAllowBaseSyncPrimitives;
 class SimpleThread;
+class StackSamplingProfiler;
 class Thread;
 class ThreadTestHelper;
 
-// Certain behavior is disallowed on certain threads.  ThreadRestrictions helps
-// enforce these rules.  Examples of such rules:
+#if DCHECK_IS_ON()
+#define INLINE_IF_DCHECK_IS_OFF BASE_EXPORT
+#define EMPTY_BODY_IF_DCHECK_IS_OFF
+#else
+#define INLINE_IF_DCHECK_IS_OFF inline
+#define EMPTY_BODY_IF_DCHECK_IS_OFF \
+  {}
+#endif
+
+// A "blocking call" refers to any call that causes the calling thread to wait
+// off-CPU. It includes but is not limited to calls that wait on synchronous
+// file I/O operations: read or write a file from disk, interact with a pipe or
+// a socket, rename or delete a file, enumerate files in a directory, etc.
+// Acquiring a low contention lock is not considered a blocking call.
+
+// Asserts that blocking calls are allowed in the current scope. Prefer using
+// ScopedBlockingCall instead, which also serves as a precise annotation of the
+// scope that may/will block.
 //
-// * Do not do blocking IO (makes the thread janky)
-// * Do not access Singleton/LazyInstance (may lead to shutdown crashes)
+// Style tip: It's best if you put AssertBlockingAllowed() checks as close to
+// the blocking call as possible. For example:
 //
-// Here's more about how the protection works:
+// void ReadFile() {
+//   PreWork();
 //
-// 1) If a thread should not be allowed to make IO calls, mark it:
-//      base::ThreadRestrictions::SetIOAllowed(false);
-//    By default, threads *are* allowed to make IO calls.
-//    In Chrome browser code, IO calls should be proxied to the File thread.
+//   base::AssertBlockingAllowed();
+//   fopen(...);
 //
-// 2) If a function makes a call that will go out to disk, check whether the
-//    current thread is allowed:
-//      base::ThreadRestrictions::AssertIOAllowed();
+//   PostWork();
+// }
 //
+// void Bar() {
+//   ReadFile();
+// }
 //
-// Style tip: where should you put AssertIOAllowed checks?  It's best
-// if you put them as close to the disk access as possible, at the
-// lowest level.  This rule is simple to follow and helps catch all
-// callers.  For example, if your function GoDoSomeBlockingDiskCall()
-// only calls other functions in Chrome and not fopen(), you should go
-// add the AssertIOAllowed checks in the helper functions.
+// void Foo() {
+//   Bar();
+// }
+INLINE_IF_DCHECK_IS_OFF void AssertBlockingAllowed()
+    EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+// Disallows blocking on the current thread.
+INLINE_IF_DCHECK_IS_OFF void DisallowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+// Disallows blocking calls within its scope.
+class BASE_EXPORT ScopedDisallowBlocking {
+ public:
+  ScopedDisallowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
+  ~ScopedDisallowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+ private:
+#if DCHECK_IS_ON()
+  const bool was_disallowed_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedDisallowBlocking);
+};
+
+// ScopedAllowBlocking(ForTesting) allow blocking calls within a scope where
+// they are normally disallowed.
+//
+// Avoid using this. Prefer making blocking calls from tasks posted to
+// base::TaskScheduler with base::MayBlock().
+//
+// Where unavoidable, put ScopedAllow* instances in the narrowest scope possible
+// in the caller making the blocking call but no further down. That is: if a
+// Cleanup() method needs to do a blocking call, document Cleanup() as blocking
+// and add a ScopedAllowBlocking instance in callers that can't avoid making
+// this call from a context where blocking is banned, as such:
+//   void Client::MyMethod() {
+//     (...)
+//     {
+//       // Blocking is okay here because XYZ.
+//       ScopedAllowBlocking allow_blocking;
+//       my_foo_->Cleanup();
+//     }
+//     (...)
+//   }
+//
+//   // This method can block.
+//   void Foo::Cleanup() {
+//     // Do NOT add the ScopedAllowBlocking in Cleanup() directly as that hides
+//     // its blocking nature from unknowing callers and defeats the purpose of
+//     // these checks.
+//     FlushStateToDisk();
+//   }
+//
+// Note: In rare situations where the blocking call is an implementation detail
+// (i.e. the impl makes a call that invokes AssertBlockingAllowed() but it
+// somehow knows that in practice this will not block), it might be okay to hide
+// the ScopedAllowBlocking instance in the impl with a comment explaining why
+// that's okay.
+class BASE_EXPORT ScopedAllowBlocking {
+ private:
+  // This can only be instantiated by friends. Use ScopedAllowBlockingForTesting
+  // in unit tests to avoid the friend requirement.
+  FRIEND_TEST_ALL_PREFIXES(ThreadRestrictionsTest, ScopedAllowBlocking);
+  friend class AdjustOOMScoreHelper;
+  friend class android_webview::ScopedAllowInitGLBindings;
+  friend class audio::OutputDevice;
+  friend class content::BrowserProcessSubThread;
+  friend class content::GpuProcessTransportFactory;
+  friend class cronet::CronetPrefsManager;
+  friend class cronet::CronetURLRequestContext;
+  friend class media::AudioInputDevice;
+  friend class mojo::CoreLibraryInitializer;
+  friend class resource_coordinator::TabManagerDelegate;  // crbug.com/778703
+  friend class ui::MaterialDesignController;
+  friend class ScopedAllowBlockingForTesting;
+  friend class StackSamplingProfiler;
+
+  ScopedAllowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
+  ~ScopedAllowBlocking() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+#if DCHECK_IS_ON()
+  const bool was_disallowed_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedAllowBlocking);
+};
+
+class ScopedAllowBlockingForTesting {
+ public:
+  ScopedAllowBlockingForTesting() {}
+  ~ScopedAllowBlockingForTesting() {}
+
+ private:
+#if DCHECK_IS_ON()
+  ScopedAllowBlocking scoped_allow_blocking_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedAllowBlockingForTesting);
+};
+
+// "Waiting on a //base sync primitive" refers to calling one of these methods:
+// - base::WaitableEvent::*Wait*
+// - base::ConditionVariable::*Wait*
+// - base::Process::WaitForExit*
+
+// Disallows waiting on a //base sync primitive on the current thread.
+INLINE_IF_DCHECK_IS_OFF void DisallowBaseSyncPrimitives()
+    EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+// ScopedAllowBaseSyncPrimitives(ForTesting)(OutsideBlockingScope) allow waiting
+// on a //base sync primitive within a scope where this is normally disallowed.
+//
+// Avoid using this.
+//
+// Instead of waiting on a WaitableEvent or a ConditionVariable, put the work
+// that should happen after the wait in a callback and post that callback from
+// where the WaitableEvent or ConditionVariable would have been signaled. If
+// something needs to be scheduled after many tasks have executed, use
+// base::BarrierClosure.
+//
+// On Windows, join processes asynchronously using base::win::ObjectWatcher.
+
+// This can only be used in a scope where blocking is allowed.
+class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
+ private:
+  // This can only be instantiated by friends. Use
+  // ScopedAllowBaseSyncPrimitivesForTesting in unit tests to avoid the friend
+  // requirement.
+  FRIEND_TEST_ALL_PREFIXES(ThreadRestrictionsTest,
+                           ScopedAllowBaseSyncPrimitives);
+  FRIEND_TEST_ALL_PREFIXES(ThreadRestrictionsTest,
+                           ScopedAllowBaseSyncPrimitivesResetsState);
+  FRIEND_TEST_ALL_PREFIXES(ThreadRestrictionsTest,
+                           ScopedAllowBaseSyncPrimitivesWithBlockingDisallowed);
+  friend class base::GetAppOutputScopedAllowBaseSyncPrimitives;
+  friend class content::BrowserProcessSubThread;
+  friend class content::SessionStorageDatabase;
+  friend class functions::ExecScriptScopedAllowBaseSyncPrimitives;
+  friend class leveldb::LevelDBMojoProxy;
+  friend class media::BlockingUrlProtocol;
+  friend class mojo::core::ScopedIPCSupport;
+  friend class net::MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
+  friend class rlz_lib::FinancialPing;
+  friend class shell_integration_linux::
+      LaunchXdgUtilityScopedAllowBaseSyncPrimitives;
+  friend class webrtc::DesktopConfigurationMonitor;
+  friend class content::ServiceWorkerSubresourceLoader;
+  friend class blink::VideoFrameResourceProvider;
+
+  ScopedAllowBaseSyncPrimitives() EMPTY_BODY_IF_DCHECK_IS_OFF;
+  ~ScopedAllowBaseSyncPrimitives() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+#if DCHECK_IS_ON()
+  const bool was_disallowed_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedAllowBaseSyncPrimitives);
+};
+
+// This can be used in a scope where blocking is disallowed.
+class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
+ private:
+  // This can only be instantiated by friends. Use
+  // ScopedAllowBaseSyncPrimitivesForTesting in unit tests to avoid the friend
+  // requirement.
+  FRIEND_TEST_ALL_PREFIXES(ThreadRestrictionsTest,
+                           ScopedAllowBaseSyncPrimitivesOutsideBlockingScope);
+  FRIEND_TEST_ALL_PREFIXES(
+      ThreadRestrictionsTest,
+      ScopedAllowBaseSyncPrimitivesOutsideBlockingScopeResetsState);
+  friend class ::KeyStorageLinux;
+  friend class content::SynchronousCompositor;
+  friend class content::SynchronousCompositorHost;
+  friend class content::SynchronousCompositorSyncCallBridge;
+  friend class midi::TaskService;  // https://crbug.com/796830
+  // Not used in production yet, https://crbug.com/844078.
+  friend class service_manager::ServiceProcessLauncher;
+  friend class viz::HostGpuMemoryBufferManager;
+
+  ScopedAllowBaseSyncPrimitivesOutsideBlockingScope()
+      EMPTY_BODY_IF_DCHECK_IS_OFF;
+  ~ScopedAllowBaseSyncPrimitivesOutsideBlockingScope()
+      EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+#if DCHECK_IS_ON()
+  const bool was_disallowed_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedAllowBaseSyncPrimitivesOutsideBlockingScope);
+};
+
+// This can be used in tests without being a friend of
+// ScopedAllowBaseSyncPrimitives(OutsideBlockingScope).
+class BASE_EXPORT ScopedAllowBaseSyncPrimitivesForTesting {
+ public:
+  ScopedAllowBaseSyncPrimitivesForTesting() EMPTY_BODY_IF_DCHECK_IS_OFF;
+  ~ScopedAllowBaseSyncPrimitivesForTesting() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+ private:
+#if DCHECK_IS_ON()
+  const bool was_disallowed_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedAllowBaseSyncPrimitivesForTesting);
+};
+
+namespace internal {
+
+// Asserts that waiting on a //base sync primitive is allowed in the current
+// scope.
+INLINE_IF_DCHECK_IS_OFF void AssertBaseSyncPrimitivesAllowed()
+    EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+// Resets all thread restrictions on the current thread.
+INLINE_IF_DCHECK_IS_OFF void ResetThreadRestrictionsForTesting()
+    EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+}  // namespace internal
+
+// "Long CPU" work refers to any code that takes more than 100 ms to
+// run when there is no CPU contention and no hard page faults and therefore,
+// is not suitable to run on a thread required to keep the browser responsive
+// (where jank could be visible to the user).
+
+// Asserts that running long CPU work is allowed in the current scope.
+INLINE_IF_DCHECK_IS_OFF void AssertLongCPUWorkAllowed()
+    EMPTY_BODY_IF_DCHECK_IS_OFF;
+
+// Disallows all tasks that may be unresponsive on the current thread. This
+// disallows blocking calls, waiting on a //base sync primitive and long CPU
+// work.
+INLINE_IF_DCHECK_IS_OFF void DisallowUnresponsiveTasks()
+    EMPTY_BODY_IF_DCHECK_IS_OFF;
 
 class BASE_EXPORT ThreadRestrictions {
  public:
   // Constructing a ScopedAllowIO temporarily allows IO for the current
   // thread.  Doing this is almost certainly always incorrect.
+  //
+  // DEPRECATED. Use ScopedAllowBlocking(ForTesting).
   class BASE_EXPORT ScopedAllowIO {
    public:
-    ScopedAllowIO() { previous_value_ = SetIOAllowed(true); }
-    ~ScopedAllowIO() { SetIOAllowed(previous_value_); }
+    ScopedAllowIO() EMPTY_BODY_IF_DCHECK_IS_OFF;
+    ~ScopedAllowIO() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
    private:
-    // Whether IO is allowed when the ScopedAllowIO was constructed.
-    bool previous_value_;
+#if DCHECK_IS_ON()
+    const bool was_allowed_;
+#endif
 
     DISALLOW_COPY_AND_ASSIGN(ScopedAllowIO);
   };
 
-  // Constructing a ScopedAllowSingleton temporarily allows accessing for the
-  // current thread.  Doing this is almost always incorrect.
-  class BASE_EXPORT ScopedAllowSingleton {
-   public:
-    ScopedAllowSingleton() { previous_value_ = SetSingletonAllowed(true); }
-    ~ScopedAllowSingleton() { SetSingletonAllowed(previous_value_); }
-   private:
-    // Whether singleton use is allowed when the ScopedAllowSingleton was
-    // constructed.
-    bool previous_value_;
-
-    DISALLOW_COPY_AND_ASSIGN(ScopedAllowSingleton);
-  };
-
-#if ENABLE_THREAD_RESTRICTIONS
+#if DCHECK_IS_ON()
   // Set whether the current thread to make IO calls.
   // Threads start out in the *allowed* state.
   // Returns the previous value.
+  //
+  // DEPRECATED. Use ScopedAllowBlocking(ForTesting) or ScopedDisallowBlocking.
   static bool SetIOAllowed(bool allowed);
-
-  // Check whether the current thread is allowed to make IO calls,
-  // and DCHECK if not.  See the block comment above the class for
-  // a discussion of where to add these checks.
-  static void AssertIOAllowed();
-
-#if defined(COBALT)
-  // Get whether the current thread can use singletons.
-  static bool GetSingletonAllowed();
-#endif  // COBALT
 
   // Set whether the current thread can use singletons.  Returns the previous
   // value.
@@ -156,66 +459,79 @@ class BASE_EXPORT ThreadRestrictions {
 
   // Disable waiting on the current thread. Threads start out in the *allowed*
   // state. Returns the previous value.
+  //
+  // DEPRECATED. Use DisallowBaseSyncPrimitives.
   static void DisallowWaiting();
-
-  // Check whether the current thread is allowed to wait, and DCHECK if not.
-  static void AssertWaitAllowed();
+#if defined(STARBOARD)
+  // Get whether the current thread can use singletons.
+  static bool GetSingletonAllowed();
+#endif  // defined(STARBOARD)
 #else
   // Inline the empty definitions of these functions so that they can be
   // compiled out.
   static bool SetIOAllowed(bool /*allowed*/) { return true; }
-  static void AssertIOAllowed() {}
-#if defined(COBALT)
-  static bool GetSingletonAllowed() { return true; }
-#endif  // COBALT
   static bool SetSingletonAllowed(bool /*allowed*/) { return true; }
   static void AssertSingletonAllowed() {}
   static void DisallowWaiting() {}
-  static void AssertWaitAllowed() {}
+#if defined(STARBOARD)
+  // Get whether the current thread can use singletons.
+  static bool GetSingletonAllowed() {return true;}
+#endif  // defined(STARBOARD)
 #endif
 
  private:
-  // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
+  // DO NOT ADD ANY OTHER FRIEND STATEMENTS.
   // BEGIN ALLOWED USAGE.
-  friend class content::RenderWidgetHelper;
+  friend class android_webview::AwFormDatabaseService;
+  friend class android_webview::CookieManager;
+  friend class base::StackSamplingProfiler;
+  friend class content::BrowserMainLoop;
+  friend class content::BrowserShutdownProfileDumper;
+  friend class content::BrowserTestBase;
+  friend class content::NestedMessagePumpAndroid;
+  friend class content::ScopedAllowWaitForAndroidLayoutTests;
+  friend class content::ScopedAllowWaitForDebugURL;
   friend class ::HistogramSynchronizer;
-  friend class ::ScopedAllowWaitForLegacyWebViewApi;
-  friend class ::TestingAutomationProvider;
+  friend class internal::TaskTracker;
   friend class cc::CompletionEvent;
+  friend class cc::SingleThreadTaskGraphRunner;
+  friend class content::CategorizedWorkerPool;
   friend class remoting::AutoThread;
+  friend class ui::WindowResizeHelperMac;
   friend class MessagePumpDefault;
-  friend class SequencedWorkerPool;
   friend class SimpleThread;
   friend class Thread;
   friend class ThreadTestHelper;
+  friend class PlatformThread;
+  friend class android::JavaHandlerThread;
+  friend class mojo::SyncCallRestrictions;
+  friend class ui::CommandBufferClientImpl;
+  friend class ui::CommandBufferLocal;
+  friend class ui::GpuState;
 
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
-  friend class ::chromeos::AudioMixerAlsa;        // http://crbug.com/125206
   friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
   friend class ::chromeos::system::StatisticsProviderImpl;  // http://crbug.com/125385
-  friend class browser_sync::NonFrontendDataTypeController;  // http://crbug.com/19757
-  friend class browser_sync::UIModelWorker;       // http://crbug.com/19757
   friend class chrome_browser_net::Predictor;     // http://crbug.com/78451
   friend class
       content::BrowserGpuChannelHostFactory;      // http://crbug.com/125248
-  friend class content::GLHelper;                 // http://crbug.com/125415
-  friend class content::GpuChannelHost;           // http://crbug.com/125264
   friend class content::TextInputClientMac;       // http://crbug.com/121917
   friend class dbus::Bus;                         // http://crbug.com/125222
   friend class disk_cache::BackendImpl;           // http://crbug.com/74623
   friend class disk_cache::InFlightIO;            // http://crbug.com/74623
-  friend class media::AudioOutputController;      // http://crbug.com/120973
-  friend class net::FileStreamPosix;              // http://crbug.com/115067
-  friend class net::FileStreamWin;                // http://crbug.com/115067
+  friend class gpu::GpuChannelHost;               // http://crbug.com/125264
   friend class net::internal::AddressTrackerLinux;  // http://crbug.com/125097
-  friend class ::AcceleratedPresenter;            // http://crbug.com/125391
+  friend class net::NetworkChangeNotifierMac;     // http://crbug.com/125097
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
-  friend class ::MetricsService;                  // http://crbug.com/124954
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
-  // END USAGE THAT NEEDS TO BE FIXED.
+#if !defined(OFFICIAL_BUILD)
+  friend class content::SoftwareOutputDeviceMus;  // Interim non-production code
+#endif
+// END USAGE THAT NEEDS TO BE FIXED.
 
-#if ENABLE_THREAD_RESTRICTIONS
+#if DCHECK_IS_ON()
+  // DEPRECATED. Use ScopedAllowBaseSyncPrimitives.
   static bool SetWaitAllowed(bool allowed);
 #else
   static bool SetWaitAllowed(bool /*allowed*/) { return true; }
@@ -223,16 +539,18 @@ class BASE_EXPORT ThreadRestrictions {
 
   // Constructing a ScopedAllowWait temporarily allows waiting on the current
   // thread.  Doing this is almost always incorrect, which is why we limit who
-  // can use this through friend. If you find yourself needing to use this, find
-  // another way. Talk to jam or brettw.
+  // can use this through friend.
+  //
+  // DEPRECATED. Use ScopedAllowBaseSyncPrimitives.
   class BASE_EXPORT ScopedAllowWait {
    public:
-    ScopedAllowWait() { previous_value_ = SetWaitAllowed(true); }
-    ~ScopedAllowWait() { SetWaitAllowed(previous_value_); }
+    ScopedAllowWait() EMPTY_BODY_IF_DCHECK_IS_OFF;
+    ~ScopedAllowWait() EMPTY_BODY_IF_DCHECK_IS_OFF;
+
    private:
-    // Whether singleton use is allowed when the ScopedAllowWait was
-    // constructed.
-    bool previous_value_;
+#if DCHECK_IS_ON()
+    const bool was_allowed_;
+#endif
 
     DISALLOW_COPY_AND_ASSIGN(ScopedAllowWait);
   };

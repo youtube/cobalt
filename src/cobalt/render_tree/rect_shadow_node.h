@@ -50,7 +50,7 @@ class RectShadowNode : public Node {
 
     // If specified, the source shadow rectangle shape will have rounded
     // corners.
-    base::optional<RoundedCorners> rounded_corners;
+    base::Optional<RoundedCorners> rounded_corners;
 
     // The shadow parameters that will be cast from the specified rectangle.
     // None of the area within the rectangle will be shaded.

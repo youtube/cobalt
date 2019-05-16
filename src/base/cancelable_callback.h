@@ -9,8 +9,8 @@
 //
 // NOTE:
 //
-// Calling CancellableCallback::Cancel() brings the object back to its natural,
-// default-constructed state, i.e., CancellableCallback::callback() will return
+// Calling CancelableCallback::Cancel() brings the object back to its natural,
+// default-constructed state, i.e., CancelableCallback::callback() will return
 // a null callback.
 //
 // THREAD-SAFETY:
@@ -26,21 +26,25 @@
 // to the message loop, the intensive test runs, the message loop is run,
 // then the callback is cancelled.
 //
+// RunLoop run_loop;
+//
 // void TimeoutCallback(const std::string& timeout_message) {
 //   FAIL() << timeout_message;
-//   MessageLoop::current()->Quit();
+//   run_loop.QuitWhenIdle();
 // }
 //
 // CancelableClosure timeout(base::Bind(&TimeoutCallback, "Test timed out."));
-// MessageLoop::current()->PostDelayedTask(FROM_HERE, timeout.callback(),
-//                                         4000)  // 4 seconds to run.
+// ThreadTaskRunnerHandle::Get()->PostDelayedTask(FROM_HERE, timeout.callback(),
+//                                                TimeDelta::FromSeconds(4));
 // RunIntensiveTest();
-// MessageLoop::current()->Run();
+// run_loop.Run();
 // timeout.Cancel();  // Hopefully this is hit before the timeout callback runs.
 //
 
 #ifndef BASE_CANCELABLE_CALLBACK_H_
 #define BASE_CANCELABLE_CALLBACK_H_
+
+#include <utility>
 
 #include "base/base_export.h"
 #include "base/bind.h"
@@ -48,32 +52,28 @@
 #include "base/callback_internal.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 
 namespace base {
+namespace internal {
 
-template <typename Sig>
-class CancelableCallback;
-
-template <>
-class CancelableCallback<void(void)> {
+template <typename CallbackType>
+class CancelableCallbackImpl {
  public:
-  CancelableCallback() : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
+  CancelableCallbackImpl() : weak_ptr_factory_(this) {}
 
   // |callback| must not be null.
-  explicit CancelableCallback(const base::Callback<void(void)>& callback)
-      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-        callback_(callback) {
-    DCHECK(!callback.is_null());
-    InitializeForwarder();
+  explicit CancelableCallbackImpl(CallbackType callback)
+      : callback_(std::move(callback)), weak_ptr_factory_(this) {
+    DCHECK(callback_);
   }
 
-  ~CancelableCallback() {}
+  ~CancelableCallbackImpl() = default;
 
   // Cancels and drops the reference to the wrapped callback.
   void Cancel() {
-    weak_factory_.InvalidateWeakPtrs();
-    forwarder_.Reset();
+    weak_ptr_factory_.InvalidateWeakPtrs();
     callback_.Reset();
   }
 
@@ -84,118 +84,72 @@ class CancelableCallback<void(void)> {
 
   // Sets |callback| as the closure that may be cancelled. |callback| may not
   // be null. Outstanding and any previously wrapped callbacks are cancelled.
-  void Reset(const base::Callback<void(void)>& callback) {
-    DCHECK(!callback.is_null());
-
+  void Reset(CallbackType callback) {
+    DCHECK(callback);
     // Outstanding tasks (e.g., posted to a message loop) must not be called.
     Cancel();
-
-    // |forwarder_| is no longer valid after Cancel(), so re-bind.
-    InitializeForwarder();
-
-    callback_ = callback;
+    callback_ = std::move(callback);
   }
 
   // Returns a callback that can be disabled by calling Cancel().
-  const base::Callback<void(void)>& callback() const {
-    return forwarder_;
+  CallbackType callback() const {
+    if (!callback_)
+      return CallbackType();
+    CallbackType forwarder;
+    MakeForwarder(&forwarder);
+    return forwarder;
   }
 
  private:
-  void Forward() {
-    callback_.Run();
+  template <typename... Args>
+  void MakeForwarder(RepeatingCallback<void(Args...)>* out) const {
+    using ForwarderType = void (CancelableCallbackImpl::*)(Args...);
+    ForwarderType forwarder = &CancelableCallbackImpl::ForwardRepeating;
+    *out = BindRepeating(forwarder, weak_ptr_factory_.GetWeakPtr());
   }
 
-  // Helper method to bind |forwarder_| using a weak pointer from
-  // |weak_factory_|.
-  void InitializeForwarder() {
-    forwarder_ = base::Bind(&CancelableCallback<void(void)>::Forward,
-                            weak_factory_.GetWeakPtr());
+  template <typename... Args>
+  void MakeForwarder(OnceCallback<void(Args...)>* out) const {
+    using ForwarderType = void (CancelableCallbackImpl::*)(Args...);
+    ForwarderType forwarder = &CancelableCallbackImpl::ForwardOnce;
+    *out = BindOnce(forwarder, weak_ptr_factory_.GetWeakPtr());
   }
 
-  // Used to ensure Forward() is not run when this object is destroyed.
-  base::WeakPtrFactory<CancelableCallback<void(void)> > weak_factory_;
+  template <typename... Args>
+  void ForwardRepeating(Args... args) {
+    callback_.Run(std::forward<Args>(args)...);
+  }
 
-  // The wrapper closure.
-  base::Callback<void(void)> forwarder_;
+  template <typename... Args>
+  void ForwardOnce(Args... args) {
+    weak_ptr_factory_.InvalidateWeakPtrs();
+    std::move(callback_).Run(std::forward<Args>(args)...);
+  }
 
   // The stored closure that may be cancelled.
-  base::Callback<void(void)> callback_;
+  CallbackType callback_;
+  mutable base::WeakPtrFactory<CancelableCallbackImpl> weak_ptr_factory_;
 
-  DISALLOW_COPY_AND_ASSIGN(CancelableCallback);
+  DISALLOW_COPY_AND_ASSIGN(CancelableCallbackImpl);
 };
 
-template <typename A1>
-class CancelableCallback<void(A1)> {
- public:
-  CancelableCallback() : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
+}  // namespace internal
 
-  // |callback| must not be null.
-  explicit CancelableCallback(const base::Callback<void(A1)>& callback)
-      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-        callback_(callback) {
-    DCHECK(!callback.is_null());
-    InitializeForwarder();
-  }
+// Consider using base::WeakPtr directly instead of base::CancelableCallback for
+// the task cancellation.
+template <typename Signature>
+using CancelableOnceCallback =
+    internal::CancelableCallbackImpl<OnceCallback<Signature>>;
+using CancelableOnceClosure = CancelableOnceCallback<void()>;
 
-  ~CancelableCallback() {}
+template <typename Signature>
+using CancelableRepeatingCallback =
+    internal::CancelableCallbackImpl<RepeatingCallback<Signature>>;
+using CancelableRepeatingClosure = CancelableOnceCallback<void()>;
 
-  // Cancels and drops the reference to the wrapped callback.
-  void Cancel() {
-    weak_factory_.InvalidateWeakPtrs();
-    forwarder_.Reset();
-    callback_.Reset();
-  }
-
-  // Returns true if the wrapped callback has been cancelled.
-  bool IsCancelled() const {
-    return callback_.is_null();
-  }
-
-  // Sets |callback| as the closure that may be cancelled. |callback| may not
-  // be null. Outstanding and any previously wrapped callbacks are cancelled.
-  void Reset(const base::Callback<void(A1)>& callback) {
-    DCHECK(!callback.is_null());
-
-    // Outstanding tasks (e.g., posted to a message loop) must not be called.
-    Cancel();
-
-    // |forwarder_| is no longer valid after Cancel(), so re-bind.
-    InitializeForwarder();
-
-    callback_ = callback;
-  }
-
-  // Returns a callback that can be disabled by calling Cancel().
-  const base::Callback<void(A1)>& callback() const {
-    return forwarder_;
-  }
-
- private:
-  void Forward(A1 a1) const {
-    callback_.Run(a1);
-  }
-
-  // Helper method to bind |forwarder_| using a weak pointer from
-  // |weak_factory_|.
-  void InitializeForwarder() {
-    forwarder_ = base::Bind(&CancelableCallback<void(A1)>::Forward,
-                            weak_factory_.GetWeakPtr());
-  }
-
-  // Used to ensure Forward() is not run when this object is destroyed.
-  base::WeakPtrFactory<CancelableCallback<void(A1)> > weak_factory_;
-
-  // The wrapper closure.
-  base::Callback<void(A1)> forwarder_;
-
-  // The stored closure that may be cancelled.
-  base::Callback<void(A1)> callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(CancelableCallback);
-};
-
-typedef CancelableCallback<void(void)> CancelableClosure;
+template <typename Signature>
+using CancelableCallback = CancelableRepeatingCallback<Signature>;
+using CancelableClosure = CancelableCallback<void()>;
 
 }  // namespace base
 

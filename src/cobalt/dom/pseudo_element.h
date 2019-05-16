@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_PSEUDO_ELEMENT_H_
 #define COBALT_DOM_PSEUDO_ELEMENT_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/cssom/animation_set.h"
@@ -74,8 +76,8 @@ class PseudoElement {
 
   HTMLElement* parent_element() { return parent_element_; }
 
-  void set_layout_boxes(scoped_ptr<LayoutBoxes> layout_boxes) {
-    layout_boxes_ = layout_boxes.Pass();
+  void set_layout_boxes(std::unique_ptr<LayoutBoxes> layout_boxes) {
+    layout_boxes_ = std::move(layout_boxes);
   }
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
   void reset_layout_boxes() { layout_boxes_.reset(); }
@@ -87,17 +89,17 @@ class PseudoElement {
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
 
-  base::optional<CSSTransitionsAdapter> transitions_adapter_;
-  base::optional<cssom::TransitionSet> css_transitions_;
+  base::Optional<CSSTransitionsAdapter> transitions_adapter_;
+  base::Optional<cssom::TransitionSet> css_transitions_;
 
-  base::optional<CSSAnimationsAdapter> animations_adapter_;
-  base::optional<cssom::AnimationSet> css_animations_;
+  base::Optional<CSSAnimationsAdapter> animations_adapter_;
+  base::Optional<cssom::AnimationSet> css_animations_;
 
   cssom::RulesWithCascadePrecedence matching_rules_;
   bool computed_style_invalid_;
 
   // This contains information about the boxes generated from the element.
-  scoped_ptr<LayoutBoxes> layout_boxes_;
+  std::unique_ptr<LayoutBoxes> layout_boxes_;
 
   // PseudoElement is a friend of Animatable so that animatable can insert and
   // remove animations into PseudoElement's set of animations.

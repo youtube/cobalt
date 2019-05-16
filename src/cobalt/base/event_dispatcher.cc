@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/base/event_dispatcher.h"
 
 #include "base/logging.h"
@@ -38,7 +40,7 @@ void EventDispatcher::RemoveEventCallback(TypeId type,
   }
 }
 
-void EventDispatcher::DispatchEvent(scoped_ptr<Event> event) const {
+void EventDispatcher::DispatchEvent(std::unique_ptr<Event> event) const {
   base::AutoLock lock(lock_);
   const TypeId type = event->GetTypeId();
   CallbackMap::const_iterator hash_it = event_callbacks_.find(type);

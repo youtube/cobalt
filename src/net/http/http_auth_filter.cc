@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/string_util.h"
 #include "net/http/http_auth_filter.h"
-#include "base/string_util.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace net {
 
 // Using a std::set<> has the benefit of removing duplicates automatically.
-typedef std::set<string16> RegistryWhitelist;
+typedef std::set<base::string16> RegistryWhitelist;
 
 // TODO(ahendrickson) -- Determine if we want separate whitelists for HTTP and
 // HTTPS, one for both, or only an HTTP one.  My understanding is that the HTTPS
@@ -21,8 +21,7 @@ HttpAuthFilterWhitelist::HttpAuthFilterWhitelist(
   SetWhitelist(server_whitelist);
 }
 
-HttpAuthFilterWhitelist::~HttpAuthFilterWhitelist() {
-}
+HttpAuthFilterWhitelist::~HttpAuthFilterWhitelist() = default;
 
 // Add a new domain |filter| to the whitelist, if it's not already there
 bool HttpAuthFilterWhitelist::AddFilter(const std::string& filter,

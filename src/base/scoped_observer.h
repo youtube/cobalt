@@ -8,7 +8,10 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/basictypes.h"
+#include "base/logging.h"
+#include "base/macros.h"
+#include "base/stl_util.h"
+#include "starboard/types.h"
 
 // ScopedObserver is used to keep track of the set of sources an object has
 // attached itself to as an observer. When ScopedObserver is destroyed it
@@ -19,8 +22,7 @@ class ScopedObserver {
   explicit ScopedObserver(Observer* observer) : observer_(observer) {}
 
   ~ScopedObserver() {
-    for (size_t i = 0; i < sources_.size(); ++i)
-      sources_[i]->RemoveObserver(observer_);
+    RemoveAll();
   }
 
   // Adds the object passed to the constructor as an observer on |source|.
@@ -31,17 +33,23 @@ class ScopedObserver {
 
   // Remove the object passed to the constructor as an observer from |source|.
   void Remove(Source* source) {
-    sources_.erase(std::find(sources_.begin(), sources_.end(), source));
+    auto it = std::find(sources_.begin(), sources_.end(), source);
+    DCHECK(it != sources_.end());
+    sources_.erase(it);
     source->RemoveObserver(observer_);
   }
 
-  bool IsObserving(Source* source) const {
-    for (size_t i = 0; i < sources_.size(); ++i) {
-      if (sources_[i] == source)
-        return true;
-    }
-    return false;
+  void RemoveAll() {
+    for (size_t i = 0; i < sources_.size(); ++i)
+      sources_[i]->RemoveObserver(observer_);
+    sources_.clear();
   }
+
+  bool IsObserving(Source* source) const {
+    return base::ContainsValue(sources_, source);
+  }
+
+  bool IsObservingSources() const { return !sources_.empty(); }
 
  private:
   Observer* observer_;

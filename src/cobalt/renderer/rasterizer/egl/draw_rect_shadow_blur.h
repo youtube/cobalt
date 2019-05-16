@@ -50,14 +50,13 @@ class DrawRectShadowBlur : public DrawObject {
   // Draw a blurred box shadow.
   // The box shadow exists in the area between |base_rect| and |spread_rect|
   // extended (inset or outset accordingly) to cover the blur kernel.
-  DrawRectShadowBlur(GraphicsState* graphics_state,
-                     const BaseState& base_state,
+  DrawRectShadowBlur(GraphicsState* graphics_state, const BaseState& base_state,
                      const math::RectF& base_rect,
                      const OptionalRoundedCorners& base_corners,
                      const math::RectF& spread_rect,
                      const OptionalRoundedCorners& spread_corners,
-                     const render_tree::ColorRGBA& color,
-                     float blur_sigma, bool inset);
+                     const render_tree::ColorRGBA& color, float blur_sigma,
+                     bool inset);
 
   void ExecuteUpdateVertexBuffer(
       GraphicsState* graphics_state,
@@ -87,11 +86,9 @@ class DrawRectShadowBlur : public DrawObject {
                          const ShaderVertexOffsetRcorner& shader);
   void SetFragmentUniforms(GLint color_uniform, GLint scale_add_uniform);
 
-  void SetGeometry(GraphicsState* graphics_state,
-                   const math::RectF& base_rect,
+  void SetGeometry(GraphicsState* graphics_state, const math::RectF& base_rect,
                    const OptionalRoundedCorners& base_corners);
-  void SetGeometry(GraphicsState* graphics_state,
-                   const math::RectF& inner_rect,
+  void SetGeometry(GraphicsState* graphics_state, const math::RectF& inner_rect,
                    const math::RectF& outer_rect);
   void SetGeometry(GraphicsState* graphics_state,
                    const RRectAttributes (&rrect)[8]);

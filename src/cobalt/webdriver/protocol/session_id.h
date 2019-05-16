@@ -15,6 +15,7 @@
 #ifndef COBALT_WEBDRIVER_PROTOCOL_SESSION_ID_H_
 #define COBALT_WEBDRIVER_PROTOCOL_SESSION_ID_H_
 
+#include <memory>
 #include <string>
 
 #include "base/values.h"
@@ -28,8 +29,8 @@ namespace protocol {
 //
 class SessionId {
  public:
-  static scoped_ptr<base::Value> ToValue(const SessionId& session_id) {
-    return make_scoped_ptr<base::Value>(new base::StringValue(session_id.id_));
+  static std::unique_ptr<base::Value> ToValue(const SessionId& session_id) {
+    return std::make_unique<base::Value>(session_id.id_);
   }
 
   explicit SessionId(const std::string& id) : id_(id) {}

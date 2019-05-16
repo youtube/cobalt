@@ -8,13 +8,14 @@
 #include <list>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/threading/non_thread_safe.h"
-#include "net/base/net_export.h"
+#include "base/macros.h"
+#include "base/threading/thread_checker.h"
 
 #if !defined(NDEBUG)
-#include "base/hash_tables.h"
+#include <unordered_set>
+
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -28,8 +29,8 @@ namespace net {
 // In debug-mode, the internal queues store (id, value) pairs where id is used
 // to validate Pointers.
 //
-template<typename T>
-class PriorityQueue : public base::NonThreadSafe {
+template <typename T>
+class PriorityQueue {
  private:
   // This section is up-front for Pointer only.
 #if !defined(NDEBUG)
@@ -39,7 +40,7 @@ class PriorityQueue : public base::NonThreadSafe {
 #endif
 
  public:
-  typedef uint32 Priority;
+  typedef uint32_t Priority;
 
   // A pointer to a value stored in the queue. The pointer becomes invalid
   // when the queue is destroyed or cleared, or the value is erased.
@@ -50,9 +51,16 @@ class PriorityQueue : public base::NonThreadSafe {
 #if !defined(NDEBUG)
       id_ = static_cast<unsigned>(-1);
 #endif
+      // TODO(syzm)
+      // An uninitialized iterator behaves like an uninitialized pointer as per
+      // the STL docs. The fix below is ugly and should possibly be replaced
+      // with a better approach.
+      iterator_ = dummy_empty_list_.end();
     }
 
-    Pointer(const Pointer& p) : priority_(p.priority_), iterator_(p.iterator_) {
+    Pointer(const Pointer& p)
+        : priority_(p.priority_),
+          iterator_(p.iterator_) {
 #if !defined(NDEBUG)
       id_ = p.id_;
 #endif
@@ -90,13 +98,16 @@ class PriorityQueue : public base::NonThreadSafe {
    private:
     friend class PriorityQueue;
 
-    // Note that we need iterator not const_iterator to pass to List::erase.
-    // When C++0x comes, this could be changed to const_iterator and const could
-    // be added to First, Last, and OldestLowest.
+    // Note that we need iterator and not const_iterator to pass to
+    // List::erase.  When C++11 is turned on for Chromium, this could
+    // be changed to const_iterator and the const_casts in the rest of
+    // the file can be removed.
     typedef typename PriorityQueue::List::iterator ListIterator;
 
     static const Priority kNullPriority = static_cast<Priority>(-1);
 
+    // It is guaranteed that Pointer will treat |iterator| as a
+    // const_iterator.
     Pointer(Priority priority, const ListIterator& iterator)
         : priority_(priority), iterator_(iterator) {
 #if !defined(NDEBUG)
@@ -106,6 +117,10 @@ class PriorityQueue : public base::NonThreadSafe {
 
     Priority priority_;
     ListIterator iterator_;
+    // The STL iterators when uninitialized are like uninitialized pointers
+    // which cause crashes when assigned to other iterators. We need to
+    // initialize a NULL iterator to the end of a valid list.
+    List dummy_empty_list_;
 
 #if !defined(NDEBUG)
     // Used by the queue to check if a Pointer is valid.
@@ -121,10 +136,12 @@ class PriorityQueue : public base::NonThreadSafe {
 #endif
   }
 
+  ~PriorityQueue() { DCHECK_CALLED_ON_VALID_THREAD(thread_checker_); }
+
   // Adds |value| with |priority| to the queue. Returns a pointer to the
   // created element.
   Pointer Insert(const T& value, Priority priority) {
-    DCHECK(CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK_LT(priority, lists_.size());
     ++size_;
     List& list = lists_[priority];
@@ -139,10 +156,28 @@ class PriorityQueue : public base::NonThreadSafe {
 #endif
   }
 
+  // Adds |value| with |priority| to the queue. Returns a pointer to the
+  // created element.
+  Pointer InsertAtFront(const T& value, Priority priority) {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    DCHECK_LT(priority, lists_.size());
+    ++size_;
+    List& list = lists_[priority];
+#if !defined(NDEBUG)
+    unsigned id = next_id_;
+    valid_ids_.insert(id);
+    ++next_id_;
+    return Pointer(priority, list.insert(list.begin(),
+                                         std::make_pair(id, value)));
+#else
+    return Pointer(priority, list.insert(list.begin(), value));
+#endif
+  }
+
   // Removes the value pointed by |pointer| from the queue. All pointers to this
   // value including |pointer| become invalid.
   void Erase(const Pointer& pointer) {
-    DCHECK(CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK_LT(pointer.priority_, lists_.size());
     DCHECK_GT(size_, 0u);
 
@@ -157,53 +192,83 @@ class PriorityQueue : public base::NonThreadSafe {
 
   // Returns a pointer to the first value of minimum priority or a null-pointer
   // if empty.
-  Pointer FirstMin() {
-    DCHECK(CalledOnValidThread());
+  Pointer FirstMin() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     for (size_t i = 0; i < lists_.size(); ++i) {
-      if (!lists_[i].empty())
-        return Pointer(i, lists_[i].begin());
+      List* list = const_cast<List*>(&lists_[i]);
+      if (!list->empty())
+        return Pointer(i, list->begin());
     }
     return Pointer();
   }
 
   // Returns a pointer to the last value of minimum priority or a null-pointer
   // if empty.
-  Pointer LastMin() {
-    DCHECK(CalledOnValidThread());
+  Pointer LastMin() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     for (size_t i = 0; i < lists_.size(); ++i) {
-      if (!lists_[i].empty())
-        return Pointer(i, --lists_[i].end());
+      List* list = const_cast<List*>(&lists_[i]);
+      if (!list->empty())
+        return Pointer(i, --list->end());
     }
     return Pointer();
   }
 
   // Returns a pointer to the first value of maximum priority or a null-pointer
   // if empty.
-  Pointer FirstMax() {
-    DCHECK(CalledOnValidThread());
+  Pointer FirstMax() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     for (size_t i = lists_.size(); i > 0; --i) {
       size_t index = i - 1;
-      if (!lists_[index].empty())
-        return Pointer(index, lists_[index].begin());
+      List* list = const_cast<List*>(&lists_[index]);
+      if (!list->empty())
+        return Pointer(index, list->begin());
     }
     return Pointer();
   }
 
   // Returns a pointer to the last value of maximum priority or a null-pointer
   // if empty.
-  Pointer LastMax() {
-    DCHECK(CalledOnValidThread());
+  Pointer LastMax() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     for (size_t i = lists_.size(); i > 0; --i) {
       size_t index = i - 1;
-      if (!lists_[index].empty())
-        return Pointer(index, --lists_[index].end());
+      List* list = const_cast<List*>(&lists_[index]);
+      if (!list->empty())
+        return Pointer(index, --list->end());
     }
     return Pointer();
   }
 
+  // Given an ordering of the values in this queue by decreasing
+  // priority and then FIFO, returns a pointer to the value following
+  // the value of the given pointer (which must be non-NULL).
+  //
+  // (One could also implement GetNextTowardsFirstMin() [decreasing
+  // priority, then reverse FIFO] as well as
+  // GetNextTowards{First,Last}Max() [increasing priority, then
+  // {,reverse} FIFO].)
+  Pointer GetNextTowardsLastMin(const Pointer& pointer) const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    DCHECK(!pointer.is_null());
+    DCHECK_LT(pointer.priority_, lists_.size());
+
+    typename Pointer::ListIterator it = pointer.iterator_;
+    Priority priority = pointer.priority_;
+    DCHECK(it != lists_[priority].end());
+    ++it;
+    while (it == lists_[priority].end()) {
+      if (priority == 0u)
+        return Pointer();
+      --priority;
+      it = const_cast<List*>(&lists_[priority])->begin();
+    }
+    return Pointer(priority, it);
+  }
+
   // Empties the queue. All pointers become invalid.
   void Clear() {
-    DCHECK(CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     for (size_t i = 0; i < lists_.size(); ++i) {
       lists_[i].clear();
     }
@@ -213,9 +278,20 @@ class PriorityQueue : public base::NonThreadSafe {
     size_ = 0u;
   }
 
+  // Returns the number of priorities the queue supports.
+  size_t num_priorities() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    return lists_.size();
+  }
+
+  bool empty() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    return size_ == 0;
+  }
+
   // Returns number of queued values.
   size_t size() const {
-    DCHECK(CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return size_;
   }
 
@@ -224,11 +300,13 @@ class PriorityQueue : public base::NonThreadSafe {
 
 #if !defined(NDEBUG)
   unsigned next_id_;
-  base::hash_set<unsigned> valid_ids_;
+  std::unordered_set<unsigned> valid_ids_;
 #endif
 
   ListVector lists_;
   size_t size_;
+
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(PriorityQueue);
 };

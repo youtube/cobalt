@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "crypto/p224.h"
 
+#include "base/macros.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace crypto {
@@ -14,22 +17,20 @@ namespace crypto {
 using p224::Point;
 
 // kBasePointExternal is the P224 base point in external representation.
-static const uint8 kBasePointExternal[56] = {
-  0xb7, 0x0e, 0x0c, 0xbd, 0x6b, 0xb4, 0xbf, 0x7f,
-  0x32, 0x13, 0x90, 0xb9, 0x4a, 0x03, 0xc1, 0xd3,
-  0x56, 0xc2, 0x11, 0x22, 0x34, 0x32, 0x80, 0xd6,
-  0x11, 0x5c, 0x1d, 0x21, 0xbd, 0x37, 0x63, 0x88,
-  0xb5, 0xf7, 0x23, 0xfb, 0x4c, 0x22, 0xdf, 0xe6,
-  0xcd, 0x43, 0x75, 0xa0, 0x5a, 0x07, 0x47, 0x64,
-  0x44, 0xd5, 0x81, 0x99, 0x85, 0x00, 0x7e, 0x34,
+static const uint8_t kBasePointExternal[56] = {
+    0xb7, 0x0e, 0x0c, 0xbd, 0x6b, 0xb4, 0xbf, 0x7f, 0x32, 0x13, 0x90, 0xb9,
+    0x4a, 0x03, 0xc1, 0xd3, 0x56, 0xc2, 0x11, 0x22, 0x34, 0x32, 0x80, 0xd6,
+    0x11, 0x5c, 0x1d, 0x21, 0xbd, 0x37, 0x63, 0x88, 0xb5, 0xf7, 0x23, 0xfb,
+    0x4c, 0x22, 0xdf, 0xe6, 0xcd, 0x43, 0x75, 0xa0, 0x5a, 0x07, 0x47, 0x64,
+    0x44, 0xd5, 0x81, 0x99, 0x85, 0x00, 0x7e, 0x34,
 };
 
 // TestVector represents a test of scalar multiplication of the base point.
 // |scalar| is a big-endian scalar and |affine| is the external representation
 // of g*scalar.
 struct TestVector {
-  uint8 scalar[28];
-  uint8 affine[28*2];
+  uint8_t scalar[28];
+  uint8_t affine[28 * 2];
 };
 
 static const int kNumNISTTestVectors = 52;
@@ -777,8 +778,8 @@ TEST(P224, ExternalToInternalAndBack) {
   const std::string external = point.ToString();
 
   ASSERT_EQ(external.size(), 56u);
-  EXPECT_TRUE(memcmp(external.data(), kBasePointExternal,
-                     sizeof(kBasePointExternal)) == 0);
+  EXPECT_EQ(0, SbMemoryCompare(external.data(), kBasePointExternal,
+                               sizeof(kBasePointExternal)));
 }
 
 TEST(P224, ScalarBaseMult) {
@@ -788,8 +789,8 @@ TEST(P224, ScalarBaseMult) {
     p224::ScalarBaseMult(kNISTTestVectors[i].scalar, &point);
     const std::string external = point.ToString();
     ASSERT_EQ(external.size(), 56u);
-    EXPECT_TRUE(memcmp(external.data(), kNISTTestVectors[i].affine,
-                       external.size()) == 0);
+    EXPECT_EQ(0, SbMemoryCompare(external.data(), kNISTTestVectors[i].affine,
+                                 external.size()));
   }
 }
 
@@ -803,19 +804,19 @@ TEST(P224, Addition) {
 
   p224::Negate(b, &minus_b);
   p224::Add(a, b, &sum);
-  EXPECT_TRUE(memcmp(&sum, &a, sizeof(sum)) != 0);
+  EXPECT_NE(0, SbMemoryCompare(&sum, &a, sizeof(sum)));
   p224::Add(minus_b, sum, &a_again);
-  EXPECT_TRUE(a_again.ToString() == a.ToString());
+  EXPECT_EQ(a_again.ToString(), a.ToString());
 }
 
 TEST(P224, Infinity) {
   char zeros[56];
-  memset(zeros, 0, sizeof(zeros));
+  SbMemorySet(zeros, 0, sizeof(zeros));
 
   // Test that x^0 = ∞.
   Point a;
-  p224::ScalarBaseMult(reinterpret_cast<const uint8*>(zeros), &a);
-  EXPECT_TRUE(memcmp(zeros, a.ToString().data(), sizeof(zeros)) == 0);
+  p224::ScalarBaseMult(reinterpret_cast<const uint8_t*>(zeros), &a);
+  EXPECT_EQ(0, SbMemoryCompare(zeros, a.ToString().data(), sizeof(zeros)));
 
   // We shouldn't allow ∞ to be imported.
   EXPECT_FALSE(a.SetFromString(std::string(zeros, sizeof(zeros))));

@@ -40,8 +40,8 @@ class PutForwardsInterface : public script::Wrappable {
 
   DEFINE_WRAPPABLE_TYPE(PutForwardsInterface);
 
-  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >
-      static_methods_mock;
+  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >::
+      DestructorAtExit static_methods_mock;
 };
 
 }  // namespace testing

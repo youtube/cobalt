@@ -764,7 +764,9 @@ RUNTIME_FUNCTION(Runtime_Abort) {
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   const char* message = GetAbortReason(static_cast<AbortReason>(message_id));
   base::OS::PrintError("abort: %s\n", message);
+#ifndef V8_OS_STARBOARD
   isolate->PrintStack(stderr);
+#endif
   base::OS::Abort();
   UNREACHABLE();
 }
@@ -775,7 +777,9 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
   base::OS::PrintError("abort: %s\n", message->ToCString().get());
+#ifndef V8_OS_STARBOARD
   isolate->PrintStack(stderr);
+#endif
   base::OS::Abort();
   UNREACHABLE();
 }

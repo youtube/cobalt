@@ -15,20 +15,21 @@
 #ifndef COBALT_LOADER_NET_FETCHER_H_
 #define COBALT_LOADER_NET_FETCHER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/cancelable_callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/network/network_module.h"
-#include "googleurl/src/gurl.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -51,9 +52,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // net::URLFetcherDelegate interface
   void OnURLFetchResponseStarted(const net::URLFetcher* source) override;
   void OnURLFetchComplete(const net::URLFetcher* source) override;
-  bool ShouldSendDownloadData() override;
-  void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) override;
+  void OnURLFetchDownloadProgress(const net::URLFetcher* source,
+                                  int64_t current, int64_t total,
+                                  int64_t current_network_bytes) override;
 
   net::URLFetcher* url_fetcher() const {
     DCHECK(thread_checker_.CalledOnValidThread());
@@ -81,7 +82,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // Thread checker ensures all calls to the NetFetcher are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
-  scoped_ptr<net::URLFetcher> url_fetcher_;
+  std::unique_ptr<net::URLFetcher> url_fetcher_;
   csp::SecurityCallback security_callback_;
   // Ensure we can cancel any in-flight Start() task if we are destroyed
   // after being constructed, but before Start() runs.

@@ -14,7 +14,7 @@
 
 #include "cobalt/script/mozjs-45/wrapper_private.h"
 
-#include "base/hash_tables.h"
+#include "base/containers/hash_tables.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/proxy_handler.h"
 #include "cobalt/script/mozjs-45/referenced_object_map.h"
@@ -139,9 +139,7 @@ WrapperPrivate::WrapperPrivate(JSContext* context,
   DCHECK(js::IsProxy(wrapper_proxy));
 }
 
-WrapperPrivate::~WrapperPrivate() {
-  wrapper_proxy_ = NULL;
-}
+WrapperPrivate::~WrapperPrivate() { wrapper_proxy_ = NULL; }
 
 }  // namespace mozjs
 }  // namespace script

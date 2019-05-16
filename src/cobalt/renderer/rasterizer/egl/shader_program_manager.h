@@ -15,7 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_SHADER_PROGRAM_MANAGER_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_SHADER_PROGRAM_MANAGER_H_
 
-#include "base/containers/linked_hash_map.h"
+#include <unordered_map>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program.h"
@@ -37,7 +38,7 @@ class ShaderProgramManager {
   // it wasn't cached.
   // NOTE: If a new program needed to be compiled, then the current
   // glUseProgram state may be altered as part of the program initialization.
-  template<typename ShaderProgramType>
+  template <typename ShaderProgramType>
   void GetProgram(ShaderProgramType** out_program);
 
  protected:
@@ -47,11 +48,13 @@ class ShaderProgramManager {
   template <typename VertextShaderT, typename FragmentShaderT>
   void Preload();
 
-  typedef base::linked_hash_map<base::TypeId, ShaderProgramBase*> ProgramMap;
+  typedef std::unordered_map<base::TypeId, ShaderProgramBase*,
+                             BASE_HASH_NAMESPACE::hash<base::TypeId>>
+      ProgramMap;
   ProgramMap program_map_;
 };
 
-template<typename ShaderProgramType>
+template <typename ShaderProgramType>
 inline void ShaderProgramManager::GetProgram(ShaderProgramType** out_program) {
   base::TypeId program_type_id = base::GetTypeId<ShaderProgramType>();
   ShaderProgramBase* program = FindProgram(program_type_id);

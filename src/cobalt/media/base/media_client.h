@@ -5,13 +5,14 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_CLIENT_H_
 #define COBALT_MEDIA_BASE_MEDIA_CLIENT_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "cobalt/media/base/key_system_properties.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_codecs.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace media {

@@ -5,10 +5,10 @@
 #include "net/base/upload_file_element_reader.h"
 
 #include "base/bind.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include "base/location.h"
+#include "base/task_runner.h"
 #include "base/task_runner_util.h"
-#include "base/threading/worker_pool.h"
 #include "net/base/file_stream.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -19,230 +19,303 @@ namespace {
 
 // In tests, this value is used to override the return value of
 // UploadFileElementReader::GetContentLength() when set to non-zero.
-uint64 overriding_content_length = 0;
-
-// This function is used to implement Init().
-int InitInternal(const FilePath& path,
-                 uint64 range_offset,
-                 uint64 range_length,
-                 const base::Time& expected_modification_time,
-                 UploadFileElementReader::ScopedFileStreamPtr* out_file_stream,
-                 uint64* out_content_length) {
-  scoped_ptr<FileStream> file_stream(new FileStream(NULL));
-  int64 rv = file_stream->OpenSync(
-      path, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
-  if (rv != OK) {
-    // If the file can't be opened, we'll just upload an empty file.
-    DLOG(WARNING) << "Failed to open \"" << path.value()
-                  << "\" for reading: " << rv;
-    file_stream.reset();
-  } else if (range_offset) {
-    rv = file_stream->SeekSync(FROM_BEGIN, range_offset);
-    if (rv < 0) {
-      DLOG(WARNING) << "Failed to seek \"" << path.value()
-                    << "\" to offset: " << range_offset << " (" << rv << ")";
-      file_stream.reset();
-    }
-  }
-
-  int64 length = 0;
-  if (file_stream.get() &&
-      file_util::GetFileSize(path, &length) &&
-      range_offset < static_cast<uint64>(length)) {
-    // Compensate for the offset.
-    length = std::min(length - range_offset, range_length);
-  }
-  *out_content_length = length;
-  out_file_stream->reset(file_stream.release());
-
-  // If the underlying file has been changed and the expected file modification
-  // time is set, treat it as error. Note that the expected modification time
-  // from WebKit is based on time_t precision. So we have to convert both to
-  // time_t to compare. This check is used for sliced files.
-  if (!expected_modification_time.is_null()) {
-    base::PlatformFileInfo info;
-    if (file_util::GetFileInfo(path, &info) &&
-        expected_modification_time.ToTimeT() != info.last_modified.ToTimeT()) {
-      return ERR_UPLOAD_FILE_CHANGED;
-    }
-  }
-
-  return OK;
-}
-
-// This function is used to implement Read().
-int ReadInternal(scoped_refptr<IOBuffer> buf,
-                 int buf_length,
-                 uint64 bytes_remaining,
-                 FileStream* file_stream) {
-  DCHECK_LT(0, buf_length);
-
-  const uint64 num_bytes_to_read =
-      std::min(bytes_remaining, static_cast<uint64>(buf_length));
-
-  if (num_bytes_to_read > 0) {
-    int num_bytes_consumed = 0;
-    // file_stream is NULL if the target file is missing or not readable.
-    if (file_stream) {
-      num_bytes_consumed = file_stream->ReadSync(buf->data(),
-                                                 num_bytes_to_read);
-    }
-    if (num_bytes_consumed <= 0) {
-      // If there's less data to read than we initially observed, then
-      // pad with zero.  Otherwise the server will hang waiting for the
-      // rest of the data.
-      memset(buf->data(), 0, num_bytes_to_read);
-    }
-  }
-  return num_bytes_to_read;
-}
+uint64_t overriding_content_length = 0;
 
 }  // namespace
 
-void UploadFileElementReader::FileStreamDeleter::operator() (
-    FileStream* file_stream) const {
-  if (file_stream) {
-    base::WorkerPool::PostTask(FROM_HERE,
-                               base::Bind(&base::DeletePointer<FileStream>,
-                                          file_stream),
-                               true /* task_is_slow */);
-  }
-}
-
 UploadFileElementReader::UploadFileElementReader(
-    const FilePath& path,
-    uint64 range_offset,
-    uint64 range_length,
+    base::TaskRunner* task_runner,
+    base::File file,
+    const base::FilePath& path,
+    uint64_t range_offset,
+    uint64_t range_length,
     const base::Time& expected_modification_time)
-    : path_(path),
+    : task_runner_(task_runner),
+      path_(path),
       range_offset_(range_offset),
       range_length_(range_length),
       expected_modification_time_(expected_modification_time),
       content_length_(0),
       bytes_remaining_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
+      next_state_(State::IDLE),
+      init_called_while_operation_pending_(false),
+      weak_ptr_factory_(this) {
+  DCHECK(file.IsValid());
+  DCHECK(task_runner_.get());
+  file_stream_ = std::make_unique<FileStream>(std::move(file), task_runner);
 }
 
-UploadFileElementReader::~UploadFileElementReader() {
+UploadFileElementReader::UploadFileElementReader(
+    base::TaskRunner* task_runner,
+    const base::FilePath& path,
+    uint64_t range_offset,
+    uint64_t range_length,
+    const base::Time& expected_modification_time)
+    : task_runner_(task_runner),
+      path_(path),
+      range_offset_(range_offset),
+      range_length_(range_length),
+      expected_modification_time_(expected_modification_time),
+      content_length_(0),
+      bytes_remaining_(0),
+      next_state_(State::IDLE),
+      init_called_while_operation_pending_(false),
+      weak_ptr_factory_(this) {
+  DCHECK(task_runner_.get());
 }
+
+UploadFileElementReader::~UploadFileElementReader() = default;
 
 const UploadFileElementReader* UploadFileElementReader::AsFileReader() const {
   return this;
 }
 
-int UploadFileElementReader::Init(const CompletionCallback& callback) {
-  Reset();
+int UploadFileElementReader::Init(CompletionOnceCallback callback) {
+  DCHECK(!callback.is_null());
 
-  ScopedFileStreamPtr* file_stream = new ScopedFileStreamPtr;
-  uint64* content_length = new uint64;
-  const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task_is_slow */),
-      FROM_HERE,
-      base::Bind(&InitInternal,
-                 path_,
-                 range_offset_,
-                 range_length_,
-                 expected_modification_time_,
-                 file_stream,
-                 content_length),
-      base::Bind(&UploadFileElementReader::OnInitCompleted,
-                 weak_ptr_factory_.GetWeakPtr(),
-                 base::Owned(file_stream),
-                 base::Owned(content_length),
-                 callback));
-  DCHECK(posted);
-  return ERR_IO_PENDING;
-}
+  bytes_remaining_ = 0;
+  content_length_ = 0;
+  pending_callback_.Reset();
 
-int UploadFileElementReader::InitSync() {
-  Reset();
+  // If the file is being opened, just update the callback, and continue
+  // waiting.
+  if (next_state_ == State::OPEN_COMPLETE) {
+    DCHECK(file_stream_);
+    pending_callback_ = std::move(callback);
+    return ERR_IO_PENDING;
+  }
 
-  ScopedFileStreamPtr file_stream;
-  uint64 content_length = 0;
-  const int result = InitInternal(path_, range_offset_, range_length_,
-                                  expected_modification_time_,
-                                  &file_stream, &content_length);
-  OnInitCompleted(&file_stream, &content_length, CompletionCallback(), result);
+  // If there's already a pending operation, wait for it to complete before
+  // restarting the request.
+  if (next_state_ != State::IDLE) {
+    init_called_while_operation_pending_ = true;
+    pending_callback_ = std::move(callback);
+    return ERR_IO_PENDING;
+  }
+
+  DCHECK(!init_called_while_operation_pending_);
+
+  if (file_stream_) {
+    // If the file is already open, just re-use it.
+    // TODO(mmenke): Consider reusing file info, too.
+    next_state_ = State::SEEK;
+  } else {
+    next_state_ = State::OPEN;
+  }
+  int result = DoLoop(OK);
+  if (result == ERR_IO_PENDING)
+    pending_callback_ = std::move(callback);
   return result;
 }
 
-uint64 UploadFileElementReader::GetContentLength() const {
+uint64_t UploadFileElementReader::GetContentLength() const {
   if (overriding_content_length)
     return overriding_content_length;
   return content_length_;
 }
 
-uint64 UploadFileElementReader::BytesRemaining() const {
+uint64_t UploadFileElementReader::BytesRemaining() const {
   return bytes_remaining_;
 }
 
 int UploadFileElementReader::Read(IOBuffer* buf,
                                   int buf_length,
-                                  const CompletionCallback& callback) {
+                                  CompletionOnceCallback callback) {
   DCHECK(!callback.is_null());
+  DCHECK_EQ(next_state_, State::IDLE);
+  DCHECK(file_stream_);
 
-  if (BytesRemaining() == 0)
+  int num_bytes_to_read = static_cast<int>(
+      std::min(BytesRemaining(), static_cast<uint64_t>(buf_length)));
+  if (num_bytes_to_read == 0)
     return 0;
 
-  // Save the value of file_stream_.get() before base::Passed() invalidates it.
-  FileStream* file_stream_ptr = file_stream_.get();
-  // Pass the ownership of file_stream_ to the worker pool to safely perform
-  // operation even when |this| is destructed before the read completes.
-  const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task_is_slow */),
-      FROM_HERE,
-      base::Bind(&ReadInternal,
-                 scoped_refptr<IOBuffer>(buf),
-                 buf_length,
-                 BytesRemaining(),
-                 file_stream_ptr),
-      base::Bind(&UploadFileElementReader::OnReadCompleted,
-                 weak_ptr_factory_.GetWeakPtr(),
-                 base::Passed(&file_stream_),
-                 callback));
-  DCHECK(posted);
-  return ERR_IO_PENDING;
-}
+  next_state_ = State::READ_COMPLETE;
+  int result = file_stream_->Read(
+      buf, num_bytes_to_read,
+      base::BindOnce(base::IgnoreResult(&UploadFileElementReader::OnIOComplete),
+                     weak_ptr_factory_.GetWeakPtr()));
 
-int UploadFileElementReader::ReadSync(IOBuffer* buf, int buf_length) {
-  const int result = ReadInternal(buf, buf_length, BytesRemaining(),
-                                  file_stream_.get());
-  OnReadCompleted(file_stream_.Pass(), CompletionCallback(), result);
+  if (result != ERR_IO_PENDING)
+    result = DoLoop(result);
+
+  if (result == ERR_IO_PENDING)
+    pending_callback_ = std::move(callback);
+
   return result;
 }
 
-void UploadFileElementReader::Reset() {
-  weak_ptr_factory_.InvalidateWeakPtrs();
-  bytes_remaining_ = 0;
-  content_length_ = 0;
-  file_stream_.reset();
+int UploadFileElementReader::DoLoop(int result) {
+  DCHECK_NE(result, ERR_IO_PENDING);
+
+  if (init_called_while_operation_pending_) {
+    // File should already have been opened successfully.
+    DCHECK_NE(next_state_, State::OPEN_COMPLETE);
+
+    next_state_ = State::SEEK;
+    init_called_while_operation_pending_ = false;
+    result = net::OK;
+  }
+
+  while (next_state_ != State::IDLE && result != ERR_IO_PENDING) {
+    State state = next_state_;
+    next_state_ = State::IDLE;
+    switch (state) {
+      case State::IDLE:
+        NOTREACHED();
+        break;
+      case State::OPEN:
+        // Ignore previous result here. It's typically OK, but if Init()
+        // interrupted the previous operation, it may be an error.
+        result = DoOpen();
+        break;
+      case State::OPEN_COMPLETE:
+        result = DoOpenComplete(result);
+        break;
+      case State::SEEK:
+        DCHECK_EQ(OK, result);
+        result = DoSeek();
+        break;
+      case State::GET_FILE_INFO:
+        result = DoGetFileInfo(result);
+        break;
+      case State::GET_FILE_INFO_COMPLETE:
+        result = DoGetFileInfoComplete(result);
+        break;
+
+      case State::READ_COMPLETE:
+        result = DoReadComplete(result);
+        break;
+    }
+  }
+
+  return result;
 }
 
-void UploadFileElementReader::OnInitCompleted(
-    ScopedFileStreamPtr* file_stream,
-    uint64* content_length,
-    const CompletionCallback& callback,
-    int result) {
-  file_stream_.swap(*file_stream);
-  content_length_ = *content_length;
+int UploadFileElementReader::DoOpen() {
+  DCHECK(!file_stream_);
+
+  next_state_ = State::OPEN_COMPLETE;
+
+  file_stream_.reset(new FileStream(task_runner_.get()));
+  int result = file_stream_->Open(
+      path_,
+      base::File::FLAG_OPEN | base::File::FLAG_READ | base::File::FLAG_ASYNC,
+      base::BindOnce(&UploadFileElementReader::OnIOComplete,
+                     weak_ptr_factory_.GetWeakPtr()));
+  DCHECK_GT(0, result);
+  return result;
+}
+
+int UploadFileElementReader::DoOpenComplete(int result) {
+  if (result < 0) {
+    DLOG(WARNING) << "Failed to open \"" << path_.value()
+                  << "\" for reading: " << result;
+    file_stream_.reset();
+    return result;
+  }
+
+  if (range_offset_) {
+    next_state_ = State::SEEK;
+  } else {
+    next_state_ = State::GET_FILE_INFO;
+  }
+  return net::OK;
+}
+
+int UploadFileElementReader::DoSeek() {
+  next_state_ = State::GET_FILE_INFO;
+  return file_stream_->Seek(
+      range_offset_,
+      base::BindOnce(
+          [](base::WeakPtr<UploadFileElementReader> weak_this, int64_t result) {
+            if (!weak_this)
+              return;
+            weak_this->OnIOComplete(result >= 0 ? OK
+                                                : static_cast<int>(result));
+          },
+          weak_ptr_factory_.GetWeakPtr()));
+}
+
+int UploadFileElementReader::DoGetFileInfo(int result) {
+  if (result < 0) {
+    DLOG(WARNING) << "Failed to seek \"" << path_.value()
+                  << "\" to offset: " << range_offset_ << " (" << result << ")";
+    return result;
+  }
+
+  next_state_ = State::GET_FILE_INFO_COMPLETE;
+
+  base::File::Info* owned_file_info = new base::File::Info;
+  result = file_stream_->GetFileInfo(
+      owned_file_info,
+      base::BindOnce(
+          [](base::WeakPtr<UploadFileElementReader> weak_this,
+             base::File::Info* file_info, int result) {
+            if (!weak_this)
+              return;
+            weak_this->file_info_ = *file_info;
+            weak_this->OnIOComplete(result);
+          },
+          weak_ptr_factory_.GetWeakPtr(), base::Owned(owned_file_info)));
+  // GetFileInfo() can't succeed synchronously.
+  DCHECK_NE(result, OK);
+  return result;
+}
+
+int UploadFileElementReader::DoGetFileInfoComplete(int result) {
+  if (result != OK) {
+    DLOG(WARNING) << "Failed to get file info of \"" << path_.value() << "\"";
+    return result;
+  }
+
+  int64_t length = file_info_.size;
+  if (range_offset_ < static_cast<uint64_t>(length)) {
+    // Compensate for the offset.
+    length = std::min(length - range_offset_, range_length_);
+  }
+
+  // If the underlying file has been changed and the expected file modification
+  // time is set, treat it as error. Note that |expected_modification_time_| may
+  // have gone through multiple conversion steps involving loss of precision
+  // (including conversion to time_t). Therefore the check below only verifies
+  // that the timestamps are within one second of each other. This check is used
+  // for sliced files.
+  if (!expected_modification_time_.is_null() &&
+      (expected_modification_time_ - file_info_.last_modified)
+              .magnitude()
+              .InSeconds() != 0) {
+    return ERR_UPLOAD_FILE_CHANGED;
+  }
+
+  content_length_ = length;
   bytes_remaining_ = GetContentLength();
-  if (!callback.is_null())
-    callback.Run(result);
+  return result;
 }
 
-void UploadFileElementReader::OnReadCompleted(
-    ScopedFileStreamPtr file_stream,
-    const CompletionCallback& callback,
-    int result) {
-  file_stream_.swap(file_stream);
-  DCHECK_GE(static_cast<int>(bytes_remaining_), result);
-  bytes_remaining_ -= result;
-  if (!callback.is_null())
-    callback.Run(result);
+int UploadFileElementReader::DoReadComplete(int result) {
+  if (result == 0)  // Reached end-of-file earlier than expected.
+    return ERR_UPLOAD_FILE_CHANGED;
+
+  if (result > 0) {
+    DCHECK_GE(bytes_remaining_, static_cast<uint64_t>(result));
+    bytes_remaining_ -= result;
+  }
+
+  return result;
+}
+
+void UploadFileElementReader::OnIOComplete(int result) {
+  DCHECK(pending_callback_);
+
+  result = DoLoop(result);
+
+  if (result != ERR_IO_PENDING)
+    std::move(pending_callback_).Run(result);
 }
 
 UploadFileElementReader::ScopedOverridingContentLengthForTests::
-ScopedOverridingContentLengthForTests(uint64 value) {
+    ScopedOverridingContentLengthForTests(uint64_t value) {
   overriding_content_length = value;
 }
 

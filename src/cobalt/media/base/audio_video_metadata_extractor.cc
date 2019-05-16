@@ -5,9 +5,9 @@
 #include "cobalt/media/base/audio_video_metadata_extractor.h"
 
 #include "base/bind.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 #include "cobalt/media/filters/blocking_url_protocol.h"
 #include "cobalt/media/filters/ffmpeg_glue.h"

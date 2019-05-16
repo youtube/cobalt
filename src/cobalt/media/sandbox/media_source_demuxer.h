@@ -18,14 +18,9 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/time.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "base/time/time.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/video_decoder_config.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/decoder_buffer.h"
-#include "media/base/video_decoder_config.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {

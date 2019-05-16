@@ -17,7 +17,8 @@
 namespace cobalt {
 namespace dom {
 
-PerformanceTiming::PerformanceTiming(const scoped_refptr<base::Clock>& clock)
+PerformanceTiming::PerformanceTiming(
+    const scoped_refptr<base::BasicClock>& clock)
     : navigation_start_clock_(new base::OffsetClock(clock, clock->Now())) {}
 
 PerformanceTiming::~PerformanceTiming() {}

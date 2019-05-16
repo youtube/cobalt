@@ -29,10 +29,11 @@ BakedAnimation::BakedAnimation(const Animation& animation)
                          animation.effect().get())
                          ->data()) {}
 
-void BakedAnimation::Apply(const base::TimeDelta& timeline_time,
-                           cssom::CSSComputedStyleData* in_out_style) const {
+void BakedAnimation::Apply(
+    const base::TimeDelta& timeline_time,
+    cssom::MutableCSSComputedStyleData* in_out_style) const {
   // Get the animation's local time from the Animation::Data object.
-  base::optional<base::TimeDelta> local_time =
+  base::Optional<base::TimeDelta> local_time =
       animation_data_.ComputeLocalTimeFromTimelineTime(timeline_time);
 
   // Obtain the iteration progress from the AnimationEffectTimingReadOnly::Data
@@ -62,19 +63,20 @@ BakedAnimationSet::BakedAnimationSet(const AnimationSet& animation_set) {
   for (AnimationSet::InternalSet::const_iterator iter =
            animation_set.animations().begin();
        iter != animation_set.animations().end(); ++iter) {
-    animations_.push_back(new BakedAnimation(**iter));
+    animations_.emplace_back(new BakedAnimation(**iter));
   }
 }
 
 BakedAnimationSet::BakedAnimationSet(const BakedAnimationSet& rhs) {
   for (AnimationList::const_iterator iter = rhs.animations_.begin();
        iter != rhs.animations_.end(); ++iter) {
-    animations_.push_back(new BakedAnimation(**iter));
+    animations_.emplace_back(new BakedAnimation(**iter));
   }
 }
 
-void BakedAnimationSet::Apply(const base::TimeDelta& timeline_time,
-                              cssom::CSSComputedStyleData* in_out_style) const {
+void BakedAnimationSet::Apply(
+    const base::TimeDelta& timeline_time,
+    cssom::MutableCSSComputedStyleData* in_out_style) const {
   // TODO: Follow the proceedure for combining effects.
   //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#combining-effects
   for (AnimationList::const_iterator iter = animations_.begin();

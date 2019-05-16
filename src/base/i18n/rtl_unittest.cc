@@ -6,35 +6,21 @@
 
 #include <algorithm>
 
-#include "base/file_path.h"
-#include "base/string_util.h"
-#include "base/utf_string_conversions.h"
-#include "base/sys_string_conversions.h"
+#include "base/files/file_path.h"
+#include "base/macros.h"
+#include "base/strings/string_util.h"
+#include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/test/icu_test_util.h"
+#include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-#include "unicode/usearch.h"
-
-#if defined(TOOLKIT_GTK)
-#include <gtk/gtk.h>
-#endif
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/i18n/unicode/usearch.h"
 
 namespace base {
 namespace i18n {
-
-namespace {
-
-// A test utility function to set the application default text direction.
-void SetRTL(bool rtl) {
-  // Override the current locale/direction.
-  SetICUDefaultLocale(rtl ? "he" : "en");
-#if defined(TOOLKIT_GTK)
-  // Do the same for GTK, which does not rely on the ICU default locale.
-  gtk_widget_set_default_direction(rtl ? GTK_TEXT_DIR_RTL : GTK_TEXT_DIR_LTR);
-#endif
-  EXPECT_EQ(rtl, IsRTL());
-}
-
-}  // namespace
 
 class RTLTest : public PlatformTest {
 };
@@ -46,6 +32,8 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
   } cases[] = {
     // Test pure LTR string.
     { L"foo bar", LEFT_TO_RIGHT },
+    // Test pure RTL string.
+    { L"\x05d0\x05d1\x05d2 \x05d3\x0d4\x05d5", RIGHT_TO_LEFT},
     // Test bidi string in which the first character with strong directionality
     // is a character with type L.
     { L"foo \x05d0 bar", LEFT_TO_RIGHT },
@@ -102,9 +90,149 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
       LEFT_TO_RIGHT },
    };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i)
+  for (size_t i = 0; i < arraysize(cases); ++i)
     EXPECT_EQ(cases[i].direction,
               GetFirstStrongCharacterDirection(WideToUTF16(cases[i].text)));
+}
+
+
+// Note that the cases with LRE, LRO, RLE and RLO are invalid for
+// GetLastStrongCharacterDirection because they should be followed by PDF
+// character.
+TEST_F(RTLTest, GetLastStrongCharacterDirection) {
+  struct {
+    const wchar_t* text;
+    TextDirection direction;
+  } cases[] = {
+    // Test pure LTR string.
+    { L"foo bar", LEFT_TO_RIGHT },
+    // Test pure RTL string.
+    { L"\x05d0\x05d1\x05d2 \x05d3\x0d4\x05d5", RIGHT_TO_LEFT},
+    // Test bidi string in which the last character with strong directionality
+    // is a character with type L.
+    { L"foo \x05d0 bar", LEFT_TO_RIGHT },
+    // Test bidi string in which the last character with strong directionality
+    // is a character with type R.
+    { L"\x05d0 foo bar \x05d3", RIGHT_TO_LEFT },
+    // Test bidi string which ends with a character with weak directionality
+    // and in which the last character with strong directionality is a
+    // character with type L.
+    { L"!foo \x05d0 bar!", LEFT_TO_RIGHT },
+    // Test bidi string which ends with a character with weak directionality
+    // and in which the last character with strong directionality is a
+    // character with type R.
+    { L",\x05d0 foo bar \x05d1,", RIGHT_TO_LEFT },
+    // Test bidi string in which the last character with strong directionality
+    // is a character with type AL.
+    { L"\x0622 foo \x05d0 bar \x0622", RIGHT_TO_LEFT },
+    // Test a string without strong directionality characters.
+    { L",!.{}", LEFT_TO_RIGHT },
+    // Test empty string.
+    { L"", LEFT_TO_RIGHT },
+    // Test characters in non-BMP (e.g. Phoenician letters. Please refer to
+    // http://demo.icu-project.org/icu-bin/ubrowse?scr=151&b=10910 for more
+    // information).
+    {
+#if defined(WCHAR_T_IS_UTF32)
+       L"abc 123" L" ! \x10910 !",
+#elif defined(WCHAR_T_IS_UTF16)
+       L"abc 123" L" ! \xd802\xdd10 !",
+#else
+#error wchar_t should be either UTF-16 or UTF-32
+#endif
+      RIGHT_TO_LEFT },
+    {
+#if defined(WCHAR_T_IS_UTF32)
+       L"abc 123" L" ! \x10401 !",
+#elif defined(WCHAR_T_IS_UTF16)
+       L"abc 123" L" ! \xd801\xdc01 !",
+#else
+#error wchar_t should be either UTF-16 or UTF-32
+#endif
+      LEFT_TO_RIGHT },
+   };
+
+  for (size_t i = 0; i < arraysize(cases); ++i)
+    EXPECT_EQ(cases[i].direction,
+              GetLastStrongCharacterDirection(WideToUTF16(cases[i].text)));
+}
+
+TEST_F(RTLTest, GetStringDirection) {
+  struct {
+    const wchar_t* text;
+    TextDirection direction;
+  } cases[] = {
+    // Test pure LTR string.
+    { L"foobar", LEFT_TO_RIGHT },
+    { L".foobar", LEFT_TO_RIGHT },
+    { L"foo, bar", LEFT_TO_RIGHT },
+    // Test pure LTR with strong directionality characters of type LRE.
+    { L"\x202a\x202a", LEFT_TO_RIGHT },
+    { L".\x202a\x202a", LEFT_TO_RIGHT },
+    { L"\x202a, \x202a", LEFT_TO_RIGHT },
+    // Test pure LTR with strong directionality characters of type LRO.
+    { L"\x202d\x202d", LEFT_TO_RIGHT },
+    { L".\x202d\x202d", LEFT_TO_RIGHT },
+    { L"\x202d, \x202d", LEFT_TO_RIGHT },
+    // Test pure LTR with various types of strong directionality characters.
+    { L"foo \x202a\x202d", LEFT_TO_RIGHT },
+    { L".\x202d foo \x202a", LEFT_TO_RIGHT },
+    { L"\x202a, \x202d foo", LEFT_TO_RIGHT },
+    // Test pure RTL with strong directionality characters of type R.
+    { L"\x05d0\x05d0", RIGHT_TO_LEFT },
+    { L".\x05d0\x05d0", RIGHT_TO_LEFT },
+    { L"\x05d0, \x05d0", RIGHT_TO_LEFT },
+    // Test pure RTL with strong directionality characters of type RLE.
+    { L"\x202b\x202b", RIGHT_TO_LEFT },
+    { L".\x202b\x202b", RIGHT_TO_LEFT },
+    { L"\x202b, \x202b", RIGHT_TO_LEFT },
+    // Test pure RTL with strong directionality characters of type RLO.
+    { L"\x202e\x202e", RIGHT_TO_LEFT },
+    { L".\x202e\x202e", RIGHT_TO_LEFT },
+    { L"\x202e, \x202e", RIGHT_TO_LEFT },
+    // Test pure RTL with strong directionality characters of type AL.
+    { L"\x0622\x0622", RIGHT_TO_LEFT },
+    { L".\x0622\x0622", RIGHT_TO_LEFT },
+    { L"\x0622, \x0622", RIGHT_TO_LEFT },
+    // Test pure RTL with various types of strong directionality characters.
+    { L"\x05d0\x202b\x202e\x0622", RIGHT_TO_LEFT },
+    { L".\x202b\x202e\x0622\x05d0", RIGHT_TO_LEFT },
+    { L"\x0622\x202e, \x202b\x05d0", RIGHT_TO_LEFT },
+    // Test bidi strings.
+    { L"foo \x05d0 bar", UNKNOWN_DIRECTION },
+    { L"\x202b foo bar", UNKNOWN_DIRECTION },
+    { L"!foo \x0622 bar", UNKNOWN_DIRECTION },
+    { L"\x202a\x202b", UNKNOWN_DIRECTION },
+    { L"\x202e\x202d", UNKNOWN_DIRECTION },
+    { L"\x0622\x202a", UNKNOWN_DIRECTION },
+    { L"\x202d\x05d0", UNKNOWN_DIRECTION },
+    // Test a string without strong directionality characters.
+    { L",!.{}", LEFT_TO_RIGHT },
+    // Test empty string.
+    { L"", LEFT_TO_RIGHT },
+    {
+#if defined(WCHAR_T_IS_UTF32)
+      L" ! \x10910" L"abc 123",
+#elif defined(WCHAR_T_IS_UTF16)
+      L" ! \xd802\xdd10" L"abc 123",
+#else
+#error wchar_t should be either UTF-16 or UTF-32
+#endif
+      UNKNOWN_DIRECTION },
+    {
+#if defined(WCHAR_T_IS_UTF32)
+      L" ! \x10401" L"abc 123",
+#elif defined(WCHAR_T_IS_UTF16)
+      L" ! \xd801\xdc01" L"abc 123",
+#else
+#error wchar_t should be either UTF-16 or UTF-32
+#endif
+      LEFT_TO_RIGHT },
+   };
+
+  for (size_t i = 0; i < arraysize(cases); ++i)
+    EXPECT_EQ(cases[i].direction,
+              GetStringDirection(WideToUTF16(cases[i].text)));
 }
 
 TEST_F(RTLTest, WrapPathWithLTRFormatting) {
@@ -171,9 +299,10 @@ TEST_F(RTLTest, WrapString) {
 
   const bool was_rtl = IsRTL();
 
+  test::ScopedRestoreICUDefaultLocale restore_locale;
   for (size_t i = 0; i < 2; ++i) {
     // Toggle the application default text direction (to try each direction).
-    SetRTL(!IsRTL());
+    SetRTLForTesting(!IsRTL());
 
     string16 empty;
     WrapStringWithLTRFormatting(&empty);
@@ -210,18 +339,19 @@ TEST_F(RTLTest, GetDisplayStringInLTRDirectionality) {
     { L"test.html",              false, true },
     { L"\x05d0\x05d1\x05d2",     true,  true },
     { L"\x05d0\x05d1\x05d2.txt", true,  true },
-    { L"\x05d0" L"abc",           true,  true },
-    { L"\x05d0" L"abc.txt",       true,  true },
+    { L"\x05d0" L"abc",          true,  true },
+    { L"\x05d0" L"abc.txt",      true,  true },
     { L"abc\x05d0\x05d1",        false, true },
     { L"abc\x05d0\x05d1.jpg",    false, true },
   };
 
   const bool was_rtl = IsRTL();
 
+  test::ScopedRestoreICUDefaultLocale restore_locale;
   for (size_t i = 0; i < 2; ++i) {
     // Toggle the application default text direction (to try each direction).
-    SetRTL(!IsRTL());
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    SetRTLForTesting(!IsRTL());
+    for (size_t i = 0; i < arraysize(cases); ++i) {
       string16 input = WideToUTF16(cases[i].path);
       string16 output = GetDisplayStringInLTRDirectionality(input);
       // Test the expected wrapping behavior for the current UI directionality.
@@ -265,6 +395,28 @@ TEST_F(RTLTest, GetTextDirection) {
   EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocale("ja"));
 }
 
+TEST_F(RTLTest, GetTextDirectionForLocaleInStartUp) {
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("ar"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("ar_EG"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("he"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("he_IL"));
+  // iw is an obsolete code for Hebrew.
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("iw"));
+  // Although we're not yet localized to Farsi and Urdu, we
+  // do have the text layout direction information for them.
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("fa"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocaleInStartUp("ur"));
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocaleInStartUp("en"));
+  // Chinese in China with '-'.
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocaleInStartUp("zh-CN"));
+  // Filipino : 3-letter code
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocaleInStartUp("fil"));
+  // Russian
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocaleInStartUp("ru"));
+  // Japanese that uses multiple scripts
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocaleInStartUp("ja"));
+}
+
 TEST_F(RTLTest, UnadjustStringForLocaleDirection) {
   // These test strings are borrowed from WrapPathWithLTRFormatting
   const wchar_t* cases[] = {
@@ -282,9 +434,10 @@ TEST_F(RTLTest, UnadjustStringForLocaleDirection) {
 
   const bool was_rtl = IsRTL();
 
+  test::ScopedRestoreICUDefaultLocale restore_locale;
   for (size_t i = 0; i < 2; ++i) {
     // Toggle the application default text direction (to try each direction).
-    SetRTL(!IsRTL());
+    SetRTLForTesting(!IsRTL());
 
     for (size_t i = 0; i < arraysize(cases); ++i) {
       string16 test_case = WideToUTF16(cases[i]);
@@ -302,6 +455,108 @@ TEST_F(RTLTest, UnadjustStringForLocaleDirection) {
 
   EXPECT_EQ(was_rtl, IsRTL());
 }
+
+TEST_F(RTLTest, EnsureTerminatedDirectionalFormatting) {
+  struct {
+    const wchar_t* unformated_text;
+    const wchar_t* formatted_text;
+  } cases[] = {
+      // Tests string without any dir-formatting characters.
+      {L"google.com", L"google.com"},
+      // Tests string with properly terminated dir-formatting character.
+      {L"\x202egoogle.com\x202c", L"\x202egoogle.com\x202c"},
+      // Tests string with over-terminated dir-formatting characters.
+      {L"\x202egoogle\x202c.com\x202c", L"\x202egoogle\x202c.com\x202c"},
+      // Tests string beginning with a dir-formatting character.
+      {L"\x202emoc.elgoog", L"\x202emoc.elgoog\x202c"},
+      // Tests string that over-terminates then re-opens.
+      {L"\x202egoogle\x202c\x202c.\x202eom",
+       L"\x202egoogle\x202c\x202c.\x202eom\x202c"},
+      // Tests string containing a dir-formatting character in the middle.
+      {L"google\x202e.com", L"google\x202e.com\x202c"},
+      // Tests string with multiple dir-formatting characters.
+      {L"\x202egoogle\x202e.com/\x202eguest",
+       L"\x202egoogle\x202e.com/\x202eguest\x202c\x202c\x202c"},
+      // Test the other dir-formatting characters (U+202A, U+202B, and U+202D).
+      {L"\x202agoogle.com", L"\x202agoogle.com\x202c"},
+      {L"\x202bgoogle.com", L"\x202bgoogle.com\x202c"},
+      {L"\x202dgoogle.com", L"\x202dgoogle.com\x202c"},
+  };
+
+  const bool was_rtl = IsRTL();
+
+  test::ScopedRestoreICUDefaultLocale restore_locale;
+  for (size_t i = 0; i < 2; ++i) {
+    // Toggle the application default text direction (to try each direction).
+    SetRTLForTesting(!IsRTL());
+    for (size_t i = 0; i < arraysize(cases); ++i) {
+      string16 unsanitized_text = WideToUTF16(cases[i].unformated_text);
+      string16 sanitized_text = WideToUTF16(cases[i].formatted_text);
+      EnsureTerminatedDirectionalFormatting(&unsanitized_text);
+      EXPECT_EQ(sanitized_text, unsanitized_text);
+    }
+  }
+  EXPECT_EQ(was_rtl, IsRTL());
+}
+
+TEST_F(RTLTest, SanitizeUserSuppliedString) {
+  struct {
+    const wchar_t* unformatted_text;
+    const wchar_t* formatted_text;
+  } cases[] = {
+      // Tests RTL string with properly terminated dir-formatting character.
+      {L"\x202eكبير Google التطبيق\x202c", L"\x202eكبير Google التطبيق\x202c"},
+      // Tests RTL string with over-terminated dir-formatting characters.
+      {L"\x202eكبير Google\x202cالتطبيق\x202c",
+       L"\x202eكبير Google\x202cالتطبيق\x202c"},
+      // Tests RTL string that over-terminates then re-opens.
+      {L"\x202eكبير Google\x202c\x202cالتطبيق\x202e",
+       L"\x202eكبير Google\x202c\x202cالتطبيق\x202e\x202c"},
+      // Tests RTL string with multiple dir-formatting characters.
+      {L"\x202eك\x202eبير Google الت\x202eطبيق",
+       L"\x202eك\x202eبير Google الت\x202eطبيق\x202c\x202c\x202c"},
+      // Test the other dir-formatting characters (U+202A, U+202B, and U+202D).
+      {L"\x202aكبير Google التطبيق", L"\x202aكبير Google التطبيق\x202c"},
+      {L"\x202bكبير Google التطبيق", L"\x202bكبير Google التطبيق\x202c"},
+      {L"\x202dكبير Google التطبيق", L"\x202dكبير Google التطبيق\x202c"},
+
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    // On Windows for an LTR locale, no changes to the string are made.
+    string16 prefix, suffix = WideToUTF16(L"");
+#if !defined(OS_WIN)
+#if !SB_IS(COMPILER_MSVC)
+    // Windows is different from all other platforms, see the comment in
+    // AdjustStringForLocaleDirection() implementation for details.
+    prefix = WideToUTF16(L"\x200e\x202b");
+    suffix = WideToUTF16(L"\x202c\x200e");
+#endif
+#endif  // !OS_WIN
+    string16 unsanitized_text = WideToUTF16(cases[i].unformatted_text);
+    string16 sanitized_text =
+        prefix + WideToUTF16(cases[i].formatted_text) + suffix;
+    SanitizeUserSuppliedString(&unsanitized_text);
+    EXPECT_EQ(sanitized_text, unsanitized_text);
+  }
+}
+
+// TODO[Starboard]: Try to re-enable this test after icu library upgrade.
+#ifndef STARBOARD_OLD_ICU
+class SetICULocaleTest : public PlatformTest {};
+
+TEST_F(SetICULocaleTest, OverlongLocaleId) {
+  test::ScopedRestoreICUDefaultLocale restore_locale;
+  std::string id("fr-ca-x-foo");
+  while (id.length() < 152)
+    id.append("-x-foo");
+  SetICUDefaultLocale(id);
+  EXPECT_STRNE("en_US", icu::Locale::getDefault().getName());
+  id.append("zzz");
+  SetICUDefaultLocale(id);
+  EXPECT_STREQ("en_US", icu::Locale::getDefault().getName());
+}
+#endif
 
 }  // namespace i18n
 }  // namespace base

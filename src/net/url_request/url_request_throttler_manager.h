@@ -9,19 +9,19 @@
 #include <set>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/threading/non_thread_safe.h"
 #include "base/threading/platform_thread.h"
-#include "googleurl/src/gurl.h"
+#include "base/threading/thread_checker.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 #include "net/url_request/url_request_throttler_entry.h"
+#include "url/gurl.h"
 
 namespace net {
 
-class BoundNetLog;
 class NetLog;
+class NetLogWithSource;
 
 // Class that registers URL request throttler entries for URLs being accessed
 // in order to supervise traffic. URL requests for HTTP contents should
@@ -32,13 +32,12 @@ class NetLog;
 // are registered, and does garbage collection from time to time in order to
 // clean out outdated entries. URL ID consists of lowercased scheme, host, port
 // and path. All URLs converted to the same ID will share the same entry.
-class NET_EXPORT URLRequestThrottlerManager
-    : NON_EXPORTED_BASE(public base::NonThreadSafe),
-      public NetworkChangeNotifier::IPAddressObserver,
+class NET_EXPORT_PRIVATE URLRequestThrottlerManager
+    : public NetworkChangeNotifier::IPAddressObserver,
       public NetworkChangeNotifier::ConnectionTypeObserver {
  public:
   URLRequestThrottlerManager();
-  virtual ~URLRequestThrottlerManager();
+  ~URLRequestThrottlerManager() override;
 
   // Must be called for every request, returns the URL request throttler entry
   // associated with the URL. The caller must inform this entry of some events.
@@ -46,11 +45,6 @@ class NET_EXPORT URLRequestThrottlerManager
   // informations.
   scoped_refptr<URLRequestThrottlerEntryInterface> RegisterRequestUrl(
       const GURL& url);
-
-  // Adds the given host to a list of sites for which exponential back-off
-  // throttling will be disabled.  Subdomains are not included, so they
-  // must be added separately.
-  void AddToOptOutList(const std::string& host);
 
   // Registers a new entry in this service and overrides the existing entry (if
   // any) for the URL. The service will hold a reference to the entry.
@@ -63,12 +57,6 @@ class NET_EXPORT URLRequestThrottlerManager
   // It is only used by unit tests.
   void EraseEntryForTests(const GURL& url);
 
-  // Turns threading model verification on or off.  Any code that correctly
-  // uses the network stack should preferably call this function to enable
-  // verification of correct adherence to the network stack threading model.
-  void set_enable_thread_checks(bool enable);
-  bool enable_thread_checks() const;
-
   // Whether throttling is enabled or not.
   void set_enforce_throttling(bool enforce);
   bool enforce_throttling();
@@ -78,10 +66,10 @@ class NET_EXPORT URLRequestThrottlerManager
   NetLog* net_log() const;
 
   // IPAddressObserver interface.
-  virtual void OnIPAddressChanged() override;
+  void OnIPAddressChanged() override;
 
   // ConnectionTypeObserver interface.
-  virtual void OnConnectionTypeChanged(
+  void OnConnectionTypeChanged(
       NetworkChangeNotifier::ConnectionType type) override;
 
   // Method that allows us to transform a URL into an ID that can be used in our
@@ -117,10 +105,6 @@ class NET_EXPORT URLRequestThrottlerManager
   typedef std::map<std::string, scoped_refptr<URLRequestThrottlerEntry> >
       UrlEntryMap;
 
-  // We maintain a set of hosts that have opted out of exponential
-  // back-off throttling.
-  typedef std::set<std::string> OptOutHosts;
-
   // Maximum number of entries that we are willing to collect in our map.
   static const unsigned int kMaximumNumberOfEntries;
   // Number of requests that will be made between garbage collection.
@@ -129,9 +113,6 @@ class NET_EXPORT URLRequestThrottlerManager
   // Map that contains a list of URL ID and their matching
   // URLRequestThrottlerEntry.
   UrlEntryMap url_entries_;
-
-  // Set of hosts that have opted out.
-  OptOutHosts opt_out_hosts_;
 
   // This keeps track of how many requests have been made. Used with
   // GarbageCollectEntries.
@@ -153,10 +134,12 @@ class NET_EXPORT URLRequestThrottlerManager
   bool logged_for_localhost_disabled_;
 
   // NetLog to use, if configured.
-  BoundNetLog net_log_;
+  NetLogWithSource net_log_;
 
   // Valid once we've registered for network notifications.
   base::PlatformThreadId registered_from_thread_;
+
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };

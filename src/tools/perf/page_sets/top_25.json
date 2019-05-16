@@ -1,0 +1,467 @@
+{
+    "description": "Pages hand-picked for 2012 CrOS scrolling tuning efforts.",
+    "archive_path": "../data/top_25.wpr",
+    "credentials_path": "../data/credentials.json",
+    "pages": [
+        {
+            "url": "https://www.google.com/#hl=en&q=barack+obama",
+            "why": "top google property; a google tab is often open",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Next",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Next",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Next",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Previous",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Previous",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Previous",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Images",
+                        "wait_for_href_change": true
+                    }
+                ]
+            }
+        },
+        {
+            "url": "https://mail.google.com/mail/",
+            "why": "productivity, top google properties",
+            "credentials": "google",
+            "wait_for_javascript_expression": "window.gmonkey !== undefined && document.getElementById('gb') !== null",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"https://mail.google.com/mail/u/0/?shva=1#starred\"]",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"https://mail.google.com/mail/u/0/?shva=1#inbox\"]",
+                        "wait_for_href_change": true
+                    }
+                ]
+            }
+        },
+        {
+            "url": "https://www.google.com/calendar/",
+            "why": "productivity, top google properties",
+            "credentials": "google",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    }
+                ]
+            }
+        },
+        {
+            "url": "https://drive.google.com",
+            "why": "productivity, top google properties",
+            "credentials": "google",
+            "wait_for_javascript_expression": "document.getElementsByClassName('doclistview-list').length",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('doclistview-list')[0]); }"
+            }
+        },
+        {
+            "name": "Docs  (1 open document tab)",
+            "url": "https://docs.google.com/document/d/1X-IKNjtEnx-WW5JIKRLsyhz5sbsat3mfTpAPUSX3_s4/view",
+            "why": "productivity, top google properties; Sample doc in the link",
+            "credentials": "google",
+            "wait_for_javascript_expression": "document.getElementsByClassName('kix-appview-editor').length",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('kix-appview-editor')[0]); }"
+            }
+        },
+        {
+            "url": "https://plus.google.com/110031535020051778989/posts",
+            "why": "social; top google property; Public profile; infinite scrolls",
+            "credentials": "google",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Home",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Profile",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Explore",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Events",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Photos",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Circles",
+                        "wait_for_navigate": true
+                    }
+                ]
+            }
+        },
+        {
+            "url": "http://www.youtube.com",
+            "why": "#3 (Alexa global)",
+            "credentials": "google",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "name": "Blogger",
+            "url": "http://googlewebmastercentral.blogspot.com/",
+            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "text": "accessibility",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "advanced",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "beginner",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Home",
+                        "wait_for_navigate": true
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Wordpress",
+            "url": "http://en.blog.wordpress.com/2012/09/04/freshly-pressed-editors-picks-for-august-2012/",
+            "why": "#18 (Alexa global), Picked an interesting post",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"http://en.blog.wordpress.com/2012/08/30/new-themes-able-and-sight/\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Features",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "News",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Facebook",
+            "url": "http://www.facebook.com/barackobama",
+            "why": "top social,Public profile",
+            "credentials": "facebook",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "text": "About",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "The Audacity of Hope",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Back to Barack Obama's Timeline",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "About",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Elected to U.S. Senate",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Home",
+                        "wait_for_navigate": true
+                    }
+                ]
+            }
+        },
+        {
+            "name": "LinkedIn",
+            "url": "http://www.linkedin.com/in/linustorvalds",
+            "why": "#12 (Alexa global),Public profile",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "name": "Wikipedia (1 tab)",
+            "url": "http://en.wikipedia.org/wiki/Wikipedia",
+            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "name": "Twitter",
+            "url": "http://twitter.com/katyperry",
+            "why": "#8 (Alexa global),Picked an interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
+        },
+        {
+            "name": "Pinterest",
+            "url": "http://pinterest.com",
+            "why": "#37 (Alexa global)",
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
+        },
+        {
+            "name": "ESPN",
+            "url": "http://espn.go.com",
+            "why": "#1 sports",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://news.yahoo.com",
+            "why": "#1 news worldwide (Alexa global)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://www.cnn.com",
+            "why": "#2 news worldwide",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "name": "Weather.com",
+            "url": "http://www.weather.com/weather/right-now/Mountain+View+CA+94043",
+            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://www.amazon.com",
+            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://www.ebay.com",
+            "why": "#1 commerce website by time spent by users in US",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://games.yahoo.com",
+            "why": "#1 games according to Alexa (with actual games in it)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://booking.com",
+            "why": "#1 Alexa recreation",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://answers.yahoo.com",
+            "why": "#1 Alexa reference",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://sports.yahoo.com/",
+            "why": "#1 Alexa sports",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        },
+        {
+            "url": "http://techcrunch.com",
+            "why": "top tech blog",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
+        }
+    ]
+}

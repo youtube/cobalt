@@ -1,431 +1,337 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/allocator/allocator_shim.h"
 
-#include <config.h>
-#include "base/allocator/allocator_extension_thunks.h"
-#include "base/profiler/alternate_timer.h"
-#include "base/sysinfo.h"
-#include "jemalloc.h"
+#include <errno.h>
 
-// When defined, different heap allocators can be used via an environment
-// variable set before running the program.  This may reduce the amount
-// of inlining that we get with malloc/free/etc.  Disabling makes it
-// so that only tcmalloc can be used.
-#define ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
+#include <new>
 
-// TODO(mbelshe): Ensure that all calls to tcmalloc have the proper call depth
-// from the "user code" so that debugging tools (HeapChecker) can work.
+#include "base/atomicops.h"
+#include "base/logging.h"
+#include "base/macros.h"
+#include "base/process/process_metrics.h"
+#include "base/threading/platform_thread.h"
+#include "build/build_config.h"
 
-// __THROW is defined in glibc systems.  It means, counter-intuitively,
-// "This function will never throw an exception."  It's an optional
-// optimization tool, but we may need to use it to match glibc prototypes.
-#ifndef __THROW    // I guess we're not on a glibc system
-# define __THROW   // __THROW is just an optimization, so ok to make it ""
+#if !defined(OS_WIN)
+#include <unistd.h>
+#else
+#include "base/allocator/winheap_stubs_win.h"
 #endif
 
-// new_mode behaves similarly to MSVC's _set_new_mode.
-// If flag is 0 (default), calls to malloc will behave normally.
-// If flag is 1, calls to malloc will behave like calls to new,
-// and the std_new_handler will be invoked on failure.
-// Can be set by calling _set_new_mode().
-static int new_mode = 0;
+#if defined(OS_MACOSX)
+#include <malloc/malloc.h>
 
-typedef enum {
-  TCMALLOC,    // TCMalloc is the default allocator.
-  JEMALLOC,    // JEMalloc.
-  WINHEAP,  // Windows Heap (standard Windows allocator).
-  WINLFH,      // Windows LFH Heap.
-} Allocator;
+#include "base/allocator/allocator_interception_mac.h"
+#endif
 
-// This is the default allocator. This value can be changed at startup by
-// specifying environment variables shown below it.
-// See SetupSubprocessAllocator() to specify a default secondary (subprocess)
-// allocator.
-// TODO(jar): Switch to using TCMALLOC for the renderer as well.
-static Allocator allocator = TCMALLOC;
+// No calls to malloc / new in this file. They would would cause re-entrancy of
+// the shim, which is hard to deal with. Keep this code as simple as possible
+// and don't use any external C++ object here, not even //base ones. Even if
+// they are safe to use today, in future they might be refactored.
 
-// The names of the environment variables that can optionally control the
-// selection of the allocator.  The primary may be used to control overall
-// allocator selection, and the secondary can be used to specify an allocator
-// to use in sub-processes.
-static const char primary_name[] = "CHROME_ALLOCATOR";
-static const char secondary_name[] = "CHROME_ALLOCATOR_2";
+namespace {
 
-// We include tcmalloc and the win_allocator to get as much inlining as
-// possible.
-#include "debugallocation_shim.cc"
-#include "win_allocator.cc"
+using namespace base;
 
-// Forward declarations from jemalloc.
-extern "C" {
-void* je_malloc(size_t s);
-void* je_realloc(void* p, size_t s);
-void je_free(void* s);
-size_t je_msize(void* p);
-bool je_malloc_init_hard();
-void* je_memalign(size_t a, size_t s);
+subtle::AtomicWord g_chain_head = reinterpret_cast<subtle::AtomicWord>(
+    &allocator::AllocatorDispatch::default_dispatch);
+
+bool g_call_new_handler_on_malloc_failure = false;
+
+inline size_t GetCachedPageSize() {
+  static size_t pagesize = 0;
+  if (!pagesize)
+    pagesize = base::GetPageSize();
+  return pagesize;
 }
 
-extern "C" {
-
-// Call the new handler, if one has been set.
-// Returns true on successfully calling the handler, false otherwise.
-inline bool call_new_handler(bool nothrow) {
-  // Get the current new handler.  NB: this function is not
-  // thread-safe.  We make a feeble stab at making it so here, but
-  // this lock only protects against tcmalloc interfering with
-  // itself, not with other libraries calling set_new_handler.
-  std::new_handler nh;
-  {
-    SpinLockHolder h(&set_new_handler_lock);
-    nh = std::set_new_handler(0);
-    (void) std::set_new_handler(nh);
-  }
-#if (defined(__GNUC__) && !defined(__EXCEPTIONS)) || (defined(_HAS_EXCEPTIONS) && !_HAS_EXCEPTIONS)
+// Calls the std::new handler thread-safely. Returns true if a new_handler was
+// set and called, false if no new_handler was set.
+bool CallNewHandler(size_t size) {
+#if defined(OS_WIN)
+  return base::allocator::WinCallNewHandler(size);
+#else
+  std::new_handler nh = std::get_new_handler();
   if (!nh)
     return false;
-  // Since exceptions are disabled, we don't really know if new_handler
-  // failed.  Assume it will abort if it fails.
   (*nh)();
-  return false;  // break out of the retry loop.
+  // Assume the new_handler will abort if it fails. Exception are disabled and
+  // we don't support the case of a new_handler throwing std::bad_balloc.
+  return true;
+#endif
+}
+
+inline const allocator::AllocatorDispatch* GetChainHead() {
+  // TODO(primiano): Just use NoBarrier_Load once crbug.com/593344 is fixed.
+  // Unfortunately due to that bug NoBarrier_Load() is mistakenly fully
+  // barriered on Linux+Clang, and that causes visible perf regressons.
+  return reinterpret_cast<const allocator::AllocatorDispatch*>(
+#if defined(OS_LINUX) && defined(__clang__)
+      *static_cast<const volatile subtle::AtomicWord*>(&g_chain_head)
 #else
-  // If no new_handler is established, the allocation failed.
-  if (!nh) {
-    if (nothrow)
-      return 0;
-    throw std::bad_alloc();
-  }
-  // Otherwise, try the new_handler.  If it returns, retry the
-  // allocation.  If it throws std::bad_alloc, fail the allocation.
-  // if it throws something else, don't interfere.
-  try {
-    (*nh)();
-  } catch (const std::bad_alloc&) {
-    if (!nothrow)
-      throw;
-    return true;
-  }
-#endif  // (defined(__GNUC__) && !defined(__EXCEPTIONS)) || (defined(_HAS_EXCEPTIONS) && !_HAS_EXCEPTIONS)
-}
-
-void* malloc(size_t size) __THROW {
-  void* ptr;
-  for (;;) {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-    switch (allocator) {
-      case JEMALLOC:
-        ptr = je_malloc(size);
-        break;
-      case WINHEAP:
-      case WINLFH:
-        ptr = win_heap_malloc(size);
-        break;
-      case TCMALLOC:
-      default:
-        ptr = do_malloc(size);
-        break;
-    }
-#else
-    // TCMalloc case.
-    ptr = do_malloc(size);
+      subtle::NoBarrier_Load(&g_chain_head)
 #endif
-    if (ptr)
-      return ptr;
-
-    if (!new_mode || !call_new_handler(true))
-      break;
-  }
-  return ptr;
+  );
 }
 
-void free(void* p) __THROW {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  switch (allocator) {
-    case JEMALLOC:
-      je_free(p);
-      return;
-    case WINHEAP:
-    case WINLFH:
-      win_heap_free(p);
-      return;
-  }
-#endif
-  // TCMalloc case.
-  do_free(p);
-}
-
-void* realloc(void* ptr, size_t size) __THROW {
-  // Webkit is brittle for allocators that return NULL for malloc(0).  The
-  // realloc(0, 0) code path does not guarantee a non-NULL return, so be sure
-  // to call malloc for this case.
-  if (!ptr)
-    return malloc(size);
-
-  void* new_ptr;
-  for (;;) {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-    switch (allocator) {
-      case JEMALLOC:
-        new_ptr = je_realloc(ptr, size);
-        break;
-      case WINHEAP:
-      case WINLFH:
-        new_ptr = win_heap_realloc(ptr, size);
-        break;
-      case TCMALLOC:
-      default:
-        new_ptr = do_realloc(ptr, size);
-        break;
-    }
-#else
-    // TCMalloc case.
-    new_ptr = do_realloc(ptr, size);
-#endif
-
-    // Subtle warning:  NULL return does not alwas indicate out-of-memory.  If
-    // the requested new size is zero, realloc should free the ptr and return
-    // NULL.
-    if (new_ptr || !size)
-      return new_ptr;
-    if (!new_mode || !call_new_handler(true))
-      break;
-  }
-  return new_ptr;
-}
-
-// TODO(mbelshe): Implement this for other allocators.
-void malloc_stats(void) __THROW {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  switch (allocator) {
-    case JEMALLOC:
-      // No stats.
-      return;
-    case WINHEAP:
-    case WINLFH:
-      // No stats.
-      return;
-  }
-#endif
-  tc_malloc_stats();
-}
-
-#ifdef WIN32
-
-extern "C" size_t _msize(void* p) {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  switch (allocator) {
-    case JEMALLOC:
-      return je_msize(p);
-    case WINHEAP:
-    case WINLFH:
-      return win_heap_msize(p);
-  }
-#endif
-  return MallocExtension::instance()->GetAllocatedSize(p);
-}
-
-// This is included to resolve references from libcmt.
-extern "C" intptr_t _get_heap_handle() {
-  return 0;
-}
-
-static bool get_allocator_waste_size_thunk(size_t* size) {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  switch (allocator) {
-    case JEMALLOC:
-    case WINHEAP:
-    case WINLFH:
-      // TODO(alexeif): Implement for allocators other than tcmalloc.
-      return false;
-  }
-#endif
-  size_t heap_size, allocated_bytes, unmapped_bytes;
-  MallocExtension* ext = MallocExtension::instance();
-  if (ext->GetNumericProperty("generic.heap_size", &heap_size) &&
-      ext->GetNumericProperty("generic.current_allocated_bytes",
-                              &allocated_bytes) &&
-      ext->GetNumericProperty("tcmalloc.pageheap_unmapped_bytes",
-                              &unmapped_bytes)) {
-    *size = heap_size - allocated_bytes - unmapped_bytes;
-    return true;
-  }
-  return false;
-}
-
-static void get_stats_thunk(char* buffer, int buffer_length) {
-  MallocExtension::instance()->GetStats(buffer, buffer_length);
-}
-
-static void release_free_memory_thunk() {
-  MallocExtension::instance()->ReleaseFreeMemory();
-}
-
-// The CRT heap initialization stub.
-extern "C" int _heap_init() {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  const char* environment_value = GetenvBeforeMain(primary_name);
-  if (environment_value) {
-    if (!stricmp(environment_value, "jemalloc"))
-      allocator = JEMALLOC;
-    else if (!stricmp(environment_value, "winheap"))
-      allocator = WINHEAP;
-    else if (!stricmp(environment_value, "winlfh"))
-      allocator = WINLFH;
-    else if (!stricmp(environment_value, "tcmalloc"))
-      allocator = TCMALLOC;
-  }
-
-  switch (allocator) {
-    case JEMALLOC:
-      return je_malloc_init_hard() ? 0 : 1;
-    case WINHEAP:
-      return win_heap_init(false) ? 1 : 0;
-    case WINLFH:
-      return win_heap_init(true) ? 1 : 0;
-    case TCMALLOC:
-    default:
-      // fall through
-      break;
-  }
-#endif
-  // Initializing tcmalloc.
-  // We intentionally leak this object.  It lasts for the process
-  // lifetime.  Trying to teardown at _heap_term() is so late that
-  // you can't do anything useful anyway.
-  new TCMallocGuard();
-
-  // Provide optional hook for monitoring allocation quantities on a per-thread
-  // basis.  Only set the hook if the environment indicates this needs to be
-  // enabled.
-  const char* profiling =
-      GetenvBeforeMain(tracked_objects::kAlternateProfilerTime);
-  if (profiling && *profiling == '1') {
-    tracked_objects::SetAlternateTimeSource(
-        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread,
-        tracked_objects::TIME_SOURCE_TYPE_TCMALLOC);
-  }
-
-  base::allocator::thunks::SetGetAllocatorWasteSizeFunction(
-      get_allocator_waste_size_thunk);
-  base::allocator::thunks::SetGetStatsFunction(get_stats_thunk);
-  base::allocator::thunks::SetReleaseFreeMemoryFunction(
-      release_free_memory_thunk);
-
-  return 1;
-}
-
-// The CRT heap cleanup stub.
-extern "C" void _heap_term() {}
-
-// We set this to 1 because part of the CRT uses a check of _crtheap != 0
-// to test whether the CRT has been initialized.  Once we've ripped out
-// the allocators from libcmt, we need to provide this definition so that
-// the rest of the CRT is still usable.
-extern "C" void* _crtheap = reinterpret_cast<void*>(1);
-
-// Provide support for aligned memory through Windows only _aligned_malloc().
-void* _aligned_malloc(size_t size, size_t alignment) {
-  // _aligned_malloc guarantees parameter validation, so do so here.  These
-  // checks are somewhat stricter than _aligned_malloc() since we're effectively
-  // using memalign() under the hood.
-  DCHECK_GT(size, 0U);
-  DCHECK_EQ(alignment & (alignment - 1), 0U);
-  DCHECK_EQ(alignment % sizeof(void*), 0U);
-
-  void* ptr;
-  for (;;) {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-    switch (allocator) {
-      case JEMALLOC:
-        ptr = je_memalign(alignment, size);
-        break;
-      case WINHEAP:
-      case WINLFH:
-        ptr = win_heap_memalign(alignment, size);
-        break;
-      case TCMALLOC:
-      default:
-        ptr = tc_memalign(alignment, size);
-        break;
-    }
-#else
-    // TCMalloc case.
-    ptr = tc_memalign(alignment, size);
-#endif
-    if (ptr) {
-      // Sanity check alignment.
-      DCHECK_EQ(reinterpret_cast<uintptr_t>(ptr) & (alignment - 1), 0U);
-      return ptr;
-    }
-
-    if (!new_mode || !call_new_handler(true))
-      break;
-  }
-  return ptr;
-}
-
-void _aligned_free(void* p) {
-  // Both JEMalloc and TCMalloc return pointers from memalign() that are safe to
-  // use with free().  Pointers allocated with win_heap_memalign() MUST be freed
-  // via win_heap_memalign_free() since the aligned pointer is not the real one.
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  switch (allocator) {
-    case JEMALLOC:
-      je_free(p);
-      return;
-    case WINHEAP:
-    case WINLFH:
-      win_heap_memalign_free(p);
-      return;
-  }
-#endif
-  // TCMalloc case.
-  do_free(p);
-}
-
-#endif  // WIN32
-
-#include "generic_allocators.cc"
-
-}  // extern C
+}  // namespace
 
 namespace base {
 namespace allocator {
 
-void SetupSubprocessAllocator() {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  size_t primary_length = 0;
-  getenv_s(&primary_length, NULL, 0, primary_name);
+void SetCallNewHandlerOnMallocFailure(bool value) {
+  g_call_new_handler_on_malloc_failure = value;
+}
 
-  size_t secondary_length = 0;
-  char buffer[20];
-  getenv_s(&secondary_length, buffer, sizeof(buffer), secondary_name);
-  DCHECK_GT(sizeof(buffer), secondary_length);
-  buffer[sizeof(buffer) - 1] = '\0';
+void* UncheckedAlloc(size_t size) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->alloc_function(chain_head, size, nullptr);
+}
 
-  if (secondary_length || !primary_length) {
-    const char* secondary_value = secondary_length ? buffer : "TCMALLOC";
-    // Force renderer (or other subprocesses) to use secondary_value.
-    int ret_val = _putenv_s(primary_name, secondary_value);
-    DCHECK_EQ(0, ret_val);
+void InsertAllocatorDispatch(AllocatorDispatch* dispatch) {
+  // Loop in case of (an unlikely) race on setting the list head.
+  size_t kMaxRetries = 7;
+  for (size_t i = 0; i < kMaxRetries; ++i) {
+    const AllocatorDispatch* chain_head = GetChainHead();
+    dispatch->next = chain_head;
+
+    // This function guarantees to be thread-safe w.r.t. concurrent
+    // insertions. It also has to guarantee that all the threads always
+    // see a consistent chain, hence the MemoryBarrier() below.
+    // InsertAllocatorDispatch() is NOT a fastpath, as opposite to malloc(), so
+    // we don't really want this to be a release-store with a corresponding
+    // acquire-load during malloc().
+    subtle::MemoryBarrier();
+    subtle::AtomicWord old_value =
+        reinterpret_cast<subtle::AtomicWord>(chain_head);
+    // Set the chain head to the new dispatch atomically. If we lose the race,
+    // the comparison will fail, and the new head of chain will be returned.
+    if (subtle::NoBarrier_CompareAndSwap(
+            &g_chain_head, old_value,
+            reinterpret_cast<subtle::AtomicWord>(dispatch)) == old_value) {
+      // Success.
+      return;
+    }
   }
-#endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
+
+  CHECK(false);  // Too many retries, this shouldn't happen.
 }
 
-void* TCMallocDoMallocForTest(size_t size) {
-  return do_malloc(size);
+void RemoveAllocatorDispatchForTesting(AllocatorDispatch* dispatch) {
+  DCHECK_EQ(GetChainHead(), dispatch);
+  subtle::NoBarrier_Store(&g_chain_head,
+                          reinterpret_cast<subtle::AtomicWord>(dispatch->next));
 }
 
-void TCMallocDoFreeForTest(void* ptr) {
-  do_free(ptr);
+}  // namespace allocator
+}  // namespace base
+
+// The Shim* functions below are the entry-points into the shim-layer and
+// are supposed to be invoked by the allocator_shim_override_*
+// headers to route the malloc / new symbols through the shim layer.
+// They are defined as ALWAYS_INLINE in order to remove a level of indirection
+// between the system-defined entry points and the shim implementations.
+extern "C" {
+
+// The general pattern for allocations is:
+// - Try to allocate, if succeded return the pointer.
+// - If the allocation failed:
+//   - Call the std::new_handler if it was a C++ allocation.
+//   - Call the std::new_handler if it was a malloc() (or calloc() or similar)
+//     AND SetCallNewHandlerOnMallocFailure(true).
+//   - If the std::new_handler is NOT set just return nullptr.
+//   - If the std::new_handler is set:
+//     - Assume it will abort() if it fails (very likely the new_handler will
+//       just suicide priting a message).
+//     - Assume it did succeed if it returns, in which case reattempt the alloc.
+
+ALWAYS_INLINE void* ShimCppNew(size_t size) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  void* ptr;
+  do {
+    void* context = nullptr;
+#if defined(OS_MACOSX)
+    context = malloc_default_zone();
+#endif
+    ptr = chain_head->alloc_function(chain_head, size, context);
+  } while (!ptr && CallNewHandler(size));
+  return ptr;
 }
 
-size_t ExcludeSpaceForMarkForTest(size_t size) {
-  return ExcludeSpaceForMark(size);
+ALWAYS_INLINE void ShimCppDelete(void* address) {
+  void* context = nullptr;
+#if defined(OS_MACOSX)
+  context = malloc_default_zone();
+#endif
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->free_function(chain_head, address, context);
 }
 
-}  // namespace allocator.
-}  // namespace base.
+ALWAYS_INLINE void* ShimMalloc(size_t size, void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  void* ptr;
+  do {
+    ptr = chain_head->alloc_function(chain_head, size, context);
+  } while (!ptr && g_call_new_handler_on_malloc_failure &&
+           CallNewHandler(size));
+  return ptr;
+}
+
+ALWAYS_INLINE void* ShimCalloc(size_t n, size_t size, void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  void* ptr;
+  do {
+    ptr = chain_head->alloc_zero_initialized_function(chain_head, n, size,
+                                                      context);
+  } while (!ptr && g_call_new_handler_on_malloc_failure &&
+           CallNewHandler(size));
+  return ptr;
+}
+
+ALWAYS_INLINE void* ShimRealloc(void* address, size_t size, void* context) {
+  // realloc(size == 0) means free() and might return a nullptr. We should
+  // not call the std::new_handler in that case, though.
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  void* ptr;
+  do {
+    ptr = chain_head->realloc_function(chain_head, address, size, context);
+  } while (!ptr && size && g_call_new_handler_on_malloc_failure &&
+           CallNewHandler(size));
+  return ptr;
+}
+
+ALWAYS_INLINE void* ShimMemalign(size_t alignment, size_t size, void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  void* ptr;
+  do {
+    ptr = chain_head->alloc_aligned_function(chain_head, alignment, size,
+                                             context);
+  } while (!ptr && g_call_new_handler_on_malloc_failure &&
+           CallNewHandler(size));
+  return ptr;
+}
+
+ALWAYS_INLINE int ShimPosixMemalign(void** res, size_t alignment, size_t size) {
+  // posix_memalign is supposed to check the arguments. See tc_posix_memalign()
+  // in tc_malloc.cc.
+  if (((alignment % sizeof(void*)) != 0) ||
+      ((alignment & (alignment - 1)) != 0) || (alignment == 0)) {
+    return EINVAL;
+  }
+  void* ptr = ShimMemalign(alignment, size, nullptr);
+  *res = ptr;
+  return ptr ? 0 : ENOMEM;
+}
+
+ALWAYS_INLINE void* ShimValloc(size_t size, void* context) {
+  return ShimMemalign(GetCachedPageSize(), size, context);
+}
+
+ALWAYS_INLINE void* ShimPvalloc(size_t size) {
+  // pvalloc(0) should allocate one page, according to its man page.
+  if (size == 0) {
+    size = GetCachedPageSize();
+  } else {
+    size = (size + GetCachedPageSize() - 1) & ~(GetCachedPageSize() - 1);
+  }
+  // The third argument is nullptr because pvalloc is glibc only and does not
+  // exist on OSX/BSD systems.
+  return ShimMemalign(GetCachedPageSize(), size, nullptr);
+}
+
+ALWAYS_INLINE void ShimFree(void* address, void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->free_function(chain_head, address, context);
+}
+
+ALWAYS_INLINE size_t ShimGetSizeEstimate(const void* address, void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->get_size_estimate_function(
+      chain_head, const_cast<void*>(address), context);
+}
+
+ALWAYS_INLINE unsigned ShimBatchMalloc(size_t size,
+                                       void** results,
+                                       unsigned num_requested,
+                                       void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->batch_malloc_function(chain_head, size, results,
+                                           num_requested, context);
+}
+
+ALWAYS_INLINE void ShimBatchFree(void** to_be_freed,
+                                 unsigned num_to_be_freed,
+                                 void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->batch_free_function(chain_head, to_be_freed,
+                                         num_to_be_freed, context);
+}
+
+ALWAYS_INLINE void ShimFreeDefiniteSize(void* ptr, size_t size, void* context) {
+  const allocator::AllocatorDispatch* const chain_head = GetChainHead();
+  return chain_head->free_definite_size_function(chain_head, ptr, size,
+                                                 context);
+}
+
+}  // extern "C"
+
+#if !defined(OS_WIN) && !defined(OS_MACOSX)
+// Cpp symbols (new / delete) should always be routed through the shim layer
+// except on Windows and macOS where the malloc intercept is deep enough that it
+// also catches the cpp calls.
+#include "base/allocator/allocator_shim_override_cpp_symbols.h"
+#endif
+
+#if defined(OS_ANDROID)
+// Android does not support symbol interposition. The way malloc symbols are
+// intercepted on Android is by using link-time -wrap flags.
+#include "base/allocator/allocator_shim_override_linker_wrapped_symbols.h"
+#elif defined(OS_WIN)
+// On Windows we use plain link-time overriding of the CRT symbols.
+#include "base/allocator/allocator_shim_override_ucrt_symbols_win.h"
+#elif defined(OS_MACOSX)
+#include "base/allocator/allocator_shim_default_dispatch_to_mac_zoned_malloc.h"
+#include "base/allocator/allocator_shim_override_mac_symbols.h"
+#else
+#include "base/allocator/allocator_shim_override_libc_symbols.h"
+#endif
+
+// In the case of tcmalloc we also want to plumb into the glibc hooks
+// to avoid that allocations made in glibc itself (e.g., strdup()) get
+// accidentally performed on the glibc heap instead of the tcmalloc one.
+#if defined(USE_TCMALLOC)
+#include "base/allocator/allocator_shim_override_glibc_weak_symbols.h"
+#include "starboard/types.h"
+#endif
+
+#if defined(OS_MACOSX)
+namespace base {
+namespace allocator {
+void InitializeAllocatorShim() {
+  // Prepares the default dispatch. After the intercepted malloc calls have
+  // traversed the shim this will route them to the default malloc zone.
+  InitializeDefaultDispatchToMacAllocator();
+
+  MallocZoneFunctions functions = MallocZoneFunctionsToReplaceDefault();
+
+  // This replaces the default malloc zone, causing calls to malloc & friends
+  // from the codebase to be routed to ShimMalloc() above.
+  base::allocator::ReplaceFunctionsForStoredZones(&functions);
+}
+}  // namespace allocator
+}  // namespace base
+#endif
+
+// Cross-checks.
+
+#if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
+#error The allocator shim should not be compiled when building for memory tools.
+#endif
+
+#if (defined(__GNUC__) && defined(__EXCEPTIONS)) || \
+    (defined(_MSC_VER) && defined(_CPPUNWIND))
+#error This code cannot be used when exceptions are turned on.
+#endif

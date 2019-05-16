@@ -5,12 +5,13 @@
 #ifndef COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_
 #define COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/shared_memory.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"

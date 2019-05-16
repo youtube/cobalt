@@ -18,7 +18,6 @@
 #include <set>
 #include <vector>
 
-#include "base/memory/scoped_vector.h"
 #include "cobalt/layout/box.h"
 
 namespace cobalt {

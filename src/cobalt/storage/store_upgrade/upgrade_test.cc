@@ -15,17 +15,17 @@
 #include "cobalt/storage/store_upgrade/upgrade.h"
 
 #include "base/base_paths.h"
-#include "base/file_util.h"
+#include "base/files/file_util.h"
+#include "base/files/platform_file.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/platform_file.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/storage.pb.h"
-#include "googleurl/src/gurl.h"
 #include "net/cookies/canonical_cookie.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace storage {
@@ -33,11 +33,11 @@ namespace store_upgrade {
 namespace {
 
 std::vector<uint8> ReadFile(const char* pathname) {
-  FilePath file_path;
-  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &file_path));
+  base::FilePath file_path;
+  EXPECT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &file_path));
   file_path = file_path.Append(pathname);
   std::string string_out;
-  EXPECT_TRUE(file_util::ReadFileToString(file_path, &string_out));
+  EXPECT_TRUE(base::ReadFileToString(file_path, &string_out));
   std::vector<uint8> buffer(string_out.begin(), string_out.end());
   return buffer;
 }

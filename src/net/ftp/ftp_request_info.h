@@ -5,7 +5,7 @@
 #ifndef NET_FTP_FTP_REQUEST_INFO_H_
 #define NET_FTP_FTP_REQUEST_INFO_H_
 
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace net {
 

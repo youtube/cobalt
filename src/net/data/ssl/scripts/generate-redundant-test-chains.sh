@@ -21,27 +21,17 @@
 
 try () {
   echo "$@"
-  $@ || exit 1
-}
-
-generate_key_command () {
-  case "$1" in
-    rsa)
-      echo genrsa
-      ;;
-    *)
-      exit 1
-  esac
+  "$@" || exit 1
 }
 
 try rm -rf out
 try mkdir out
 
 echo Create the serial number files.
-serial=100
+serial=1000
 for i in B C C2 D
 do
-  try echo $serial > out/$i-serial
+  try /bin/sh -c "echo $serial > out/$i-serial"
   serial=$(expr $serial + 1)
 done
 
@@ -53,12 +43,7 @@ try openssl genrsa -out out/D.key 2048
 
 echo Generate the D CSR.
 CA_COMMON_NAME="D Root CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
-  KEY_SIZE=2048 \
-  ALGO=rsa \
-  CERT_TYPE=root \
-  TYPE=D CERTIFICATE=D \
+  CERTIFICATE=D \
   try openssl req \
     -new \
     -key out/D.key \
@@ -67,23 +52,18 @@ CA_COMMON_NAME="D Root CA" \
 
 echo D signs itself.
 CA_COMMON_NAME="D Root CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
   try openssl x509 \
     -req -days 3650 \
     -in out/D.csr \
     -extensions ca_cert \
+    -extfile redundant-ca.cnf \
     -signkey out/D.key \
-    -out out/D.pem
+    -out out/D.pem \
+    -text
 
 echo Generate the C2 root CSR.
 CA_COMMON_NAME="C CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
-  KEY_SIZE=2048 \
-  ALGO=rsa \
-  CERT_TYPE=root \
-  TYPE=C2 CERTIFICATE=C2 \
+  CERTIFICATE=C2 \
   try openssl req \
     -new \
     -key out/C.key \
@@ -92,26 +72,21 @@ CA_COMMON_NAME="C CA" \
 
 echo C2 signs itself.
 CA_COMMON_NAME="C CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
   try openssl x509 \
     -req -days 3650 \
     -in out/C2.csr \
     -extensions ca_cert \
+    -extfile redundant-ca.cnf \
     -signkey out/C.key \
-    -out out/C2.pem
+    -out out/C2.pem \
+    -text
 
 echo Generate the B and C intermediaries\' CSRs.
 for i in B C
 do
   name="$i Intermediate CA"
   CA_COMMON_NAME="$i CA" \
-    CA_DIR=out \
-    CA_NAME=req_env_dn \
-    KEY_SIZE=2048 \
-    ALGO=rsa \
-    CERT_TYPE=root \
-    TYPE=$i CERTIFICATE=$i \
+    CERTIFICATE=$i \
     try openssl req \
       -new \
       -key out/$i.key \
@@ -123,12 +98,7 @@ echo D signs the C intermediate.
 # Make sure the signer's DB file exists.
 touch out/D-index.txt
 CA_COMMON_NAME="D Root CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
-  KEY_SIZE=2048 \
-  ALGO=rsa \
-  CERT_TYPE=root \
-  TYPE=D CERTIFICATE=D \
+  CERTIFICATE=D \
   try openssl ca \
     -batch \
     -extensions ca_cert \
@@ -139,12 +109,7 @@ CA_COMMON_NAME="D Root CA" \
 echo C signs the B intermediate.
 touch out/C-index.txt
 CA_COMMON_NAME="C CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
-  KEY_SIZE=2048 \
-  ALGO=rsa \
-  CERT_TYPE=root \
-  TYPE=C CERTIFICATE=C \
+  CERTIFICATE=C \
   try openssl ca \
     -batch \
     -extensions ca_cert \
@@ -162,12 +127,7 @@ try openssl req \
 echo B signs A.
 touch out/B-index.txt
 CA_COMMON_NAME="B CA" \
-  CA_DIR=out \
-  CA_NAME=req_env_dn \
-  KEY_SIZE=$signer_key_size \
-  ALGO=$signer_algo \
-  CERT_TYPE=intermediate \
-  TYPE=B CERTIFICATE=B \
+  CERTIFICATE=B \
   try openssl ca \
     -batch \
     -extensions user_cert \
@@ -176,12 +136,13 @@ CA_COMMON_NAME="B CA" \
     -config redundant-ca.cnf
 
 echo Create redundant-server-chain.pem
-cat out/A.key out/A.pem out/B.pem out/C.pem out/D.pem \
-    > redundant-server-chain.pem
+try /bin/sh -c "cat out/A.key out/A.pem out/B.pem out/C.pem out/D.pem \
+    > ../certificates/redundant-server-chain.pem"
 
 echo Create redundant-validated-chain.pem
-cat out/A.key out/A.pem out/B.pem out/C2.pem > redundant-validated-chain.pem
+try /bin/sh -c "cat out/A.key out/A.pem out/B.pem out/C2.pem \
+  > ../certificates/redundant-validated-chain.pem"
 
 echo Create redundant-validated-chain-root.pem
-cp out/C2.pem redundant-validated-chain-root.pem
+try cp out/C2.pem ../certificates/redundant-validated-chain-root.pem
 

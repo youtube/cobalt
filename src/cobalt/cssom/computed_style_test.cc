@@ -14,6 +14,7 @@
 
 #include "cobalt/cssom/computed_style.h"
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -52,8 +53,8 @@ scoped_refptr<CSSComputedStyleDeclaration> CreateComputedStyleDeclaration(
 }
 
 TEST(PromoteToComputedStyle, UnknownPropertyValueShouldBeEmpty) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   scoped_refptr<CSSComputedStyleDeclaration> computed_style_declaration(
       CreateComputedStyleDeclaration(computed_style));
 
@@ -73,8 +74,8 @@ TEST(PromoteToComputedStyle, FlexBasisPercentage) {
   // The computed value for flex-basis is the specified keyword or a computed
   // <length-percentage> value.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_flex_basis(new PercentageValue(0.50f));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -96,8 +97,8 @@ TEST(PromoteToComputedStyle, FlexBasisKeyword) {
   // The computed value for flex-basis is the specified keyword or a computed
   // <length-percentage> value.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_flex_basis(KeywordValue::GetContent());
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -115,8 +116,8 @@ TEST(PromoteToComputedStyle, FlexBasisLength) {
   // The computed value for flex-basis is the specified keyword or a computed
   // <length-percentage> value.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_flex_basis(new LengthValue(100, kPixelsUnit));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -139,8 +140,8 @@ TEST(PromoteToComputedStyle, FlexBasisLength) {
 TEST(PromoteToComputedStyle, FlexGrowNumber) {
   // The computed value for flex-grow is the specified number.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-grow-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_flex_grow(new NumberValue(10.0f));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -161,8 +162,8 @@ TEST(PromoteToComputedStyle, FlexGrowNumber) {
 TEST(PromoteToComputedStyle, FlexShrinkNumber) {
   // The computed value for flex-grow is the specified number.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-shrink-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_flex_shrink(new NumberValue(5.0f));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -181,8 +182,8 @@ TEST(PromoteToComputedStyle, FlexShrinkNumber) {
 }
 
 TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_weight(FontWeightValue::GetBoldAka700());
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -198,12 +199,12 @@ TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
 }
 
 TEST(PromoteToComputedStyle, LengthValueInEmShouldBeRelativeToParentFontSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(new LengthValue(1.5f, kFontSizesAkaEmUnit));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -218,19 +219,19 @@ TEST(PromoteToComputedStyle, LengthValueInEmShouldBeRelativeToParentFontSize) {
 }
 
 TEST(PromoteToComputedStyle, LengthValueInRemShouldBeRelativeToRootFontSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(
       new LengthValue(1.5f, kRootElementFontSizesAkaRemUnit));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
 
-  scoped_refptr<CSSComputedStyleData> root_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> root_computed_style(
+      new MutableCSSComputedStyleData());
   root_computed_style->set_font_size(new LengthValue(200, kPixelsUnit));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
@@ -243,8 +244,8 @@ TEST(PromoteToComputedStyle, LengthValueInRemShouldBeRelativeToRootFontSize) {
 }
 
 TEST(PromoteToComputedStyle, LengthValueInVwVhShouldBeRelativeToViewportSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(
       new LengthValue(2.0f, kViewportWidthPercentsAkaVwUnit));
   computed_style->set_line_height(
@@ -270,8 +271,8 @@ TEST(PromoteToComputedStyle, LengthValueInVwVhShouldBeRelativeToViewportSize) {
 }
 
 TEST(PromoteToComputedStyle, LengthValueInPixelsShouldBeLeftAsSpecified) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(new LengthValue(50, kPixelsUnit));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -289,8 +290,8 @@ TEST(PromoteToComputedStyle, LengthValueInPixelsShouldBeLeftAsSpecified) {
 }
 
 TEST(PromoteToComputedStyle, NormalLineHeightShouldBeLeftAsSpecified) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_line_height(KeywordValue::GetNormal());
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -305,13 +306,13 @@ TEST(PromoteToComputedStyle, NormalLineHeightShouldBeLeftAsSpecified) {
 }
 
 TEST(PromoteToComputedStyle, LineHeightInEmShouldBeComputedAfterFontSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(new LengthValue(2, kFontSizesAkaEmUnit));
   computed_style->set_line_height(new LengthValue(1.5f, kFontSizesAkaEmUnit));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -326,13 +327,13 @@ TEST(PromoteToComputedStyle, LineHeightInEmShouldBeComputedAfterFontSize) {
 }
 
 TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(new LengthValue(2, kFontSizesAkaEmUnit));
   computed_style->set_text_indent(new LengthValue(1.5f, kFontSizesAkaEmUnit));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -347,14 +348,14 @@ TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> background_image_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_image_builder(
       new PropertyListValue::Builder());
   background_image_builder->push_back(new URLValue("../test/sample.png"));
   scoped_refptr<PropertyListValue> background_image(
-      new PropertyListValue(background_image_builder.Pass()));
+      new PropertyListValue(std::move(background_image_builder)));
   computed_style->set_background_image(background_image);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -384,14 +385,14 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundImageNone) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> background_image_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_image_builder(
       new PropertyListValue::Builder());
   background_image_builder->push_back(KeywordValue::GetNone());
   scoped_refptr<PropertyListValue> background_image(
-      new PropertyListValue(background_image_builder.Pass()));
+      new PropertyListValue(std::move(background_image_builder)));
   computed_style->set_background_image(background_image);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -417,8 +418,8 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionWithInitialValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   scoped_refptr<PropertyValue> background_position(
       GetPropertyInitialValue(kBackgroundPositionProperty));
@@ -454,16 +455,16 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithInitialValue) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: 3em;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(
       new LengthValue(3, kFontSizesAkaEmUnit));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -496,15 +497,15 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: bottom;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetBottom());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -537,17 +538,17 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: 3em 40px;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(
       new LengthValue(3, kFontSizesAkaEmUnit));
   background_position_builder->push_back(new LengthValue(40, kPixelsUnit));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -580,16 +581,16 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithOneKeyword) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: 67% center;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(new PercentageValue(0.67f));
   background_position_builder->push_back(KeywordValue::GetCenter());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -622,16 +623,16 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithOneKeyword) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoKeywords) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: right bottom;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetRight());
   background_position_builder->push_back(KeywordValue::GetBottom());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -664,16 +665,16 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoKeywords) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoCenterKeywords) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: center center;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetCenter());
   background_position_builder->push_back(KeywordValue::GetCenter());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -706,17 +707,17 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoCenterKeywords) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValues) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: top 80% left;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetTop());
   background_position_builder->push_back(new PercentageValue(0.8f));
   background_position_builder->push_back(KeywordValue::GetLeft());
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -749,17 +750,17 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValues) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValuesHaveCenter) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: center left 80%;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetCenter());
   background_position_builder->push_back(KeywordValue::GetLeft());
   background_position_builder->push_back(new PercentageValue(0.8f));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -792,18 +793,18 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValuesHaveCenter) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionWithFourValues) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // background-position: bottom 80% right 50px;
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->push_back(KeywordValue::GetBottom());
   background_position_builder->push_back(new PercentageValue(0.8f));
   background_position_builder->push_back(KeywordValue::GetRight());
   background_position_builder->push_back(new LengthValue(50, kPixelsUnit));
   scoped_refptr<PropertyListValue> background_position(
-      new PropertyListValue(background_position_builder.Pass()));
+      new PropertyListValue(std::move(background_position_builder)));
   computed_style->set_background_position(background_position);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -836,15 +837,15 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithFourValues) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundSizeEmToPixel) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> background_size_builder(
+  std::unique_ptr<PropertyListValue::Builder> background_size_builder(
       new PropertyListValue::Builder());
   background_size_builder->push_back(new LengthValue(3, kFontSizesAkaEmUnit));
   background_size_builder->push_back(new LengthValue(40, kPixelsUnit));
   scoped_refptr<PropertyListValue> background_size(
-      new PropertyListValue(background_size_builder.Pass()));
+      new PropertyListValue(std::move(background_size_builder)));
   computed_style->set_background_size(background_size);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -872,8 +873,8 @@ TEST(PromoteToComputedStyle, BackgroundSizeEmToPixel) {
 }
 
 TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_background_size(KeywordValue::GetContain());
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -888,8 +889,8 @@ TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
 }
 
 TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_border_top_left_radius(
       new LengthValue(3, kFontSizesAkaEmUnit));
 
@@ -910,8 +911,8 @@ TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
 }
 
 TEST(PromoteToComputedStyle, BorderColorWithInitialValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_border_bottom_color(KeywordValue::GetInitial());
   computed_style->set_color(RGBAColorValue::GetAqua());
 
@@ -931,8 +932,8 @@ TEST(PromoteToComputedStyle, BorderColorWithInitialValue) {
 }
 
 TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_border_left_color(KeywordValue::GetCurrentColor());
   computed_style->set_color(RGBAColorValue::GetAqua());
 
@@ -951,8 +952,8 @@ TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
 }
 
 TEST(PromoteToComputedStyle, BorderWidthWithBorderStyleNone) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_border_top_style(KeywordValue::GetNone());
   computed_style->set_border_top_width(new LengthValue(2, kFontSizesAkaEmUnit));
 
@@ -972,15 +973,15 @@ TEST(PromoteToComputedStyle, BorderWidthWithBorderStyleNone) {
 }
 
 TEST(PromoteToComputedStyle, BorderWidthInEmShouldBeComputedAfterFontSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_border_left_style(KeywordValue::GetSolid());
   computed_style->set_font_size(new LengthValue(2, kFontSizesAkaEmUnit));
   computed_style->set_border_left_width(
       new LengthValue(2, kFontSizesAkaEmUnit));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -995,10 +996,10 @@ TEST(PromoteToComputedStyle, BorderWidthInEmShouldBeComputedAfterFontSize) {
 }
 
 TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1009,10 +1010,10 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
       new ShadowValue(lengths, RGBAColorValue::GetAqua(), false));
   builder->push_back(shadow);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(50, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1042,10 +1043,10 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
 }
 
 TEST(PromoteToComputedStyle, BoxShadowWithInset) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1056,7 +1057,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
       new ShadowValue(lengths, RGBAColorValue::GetAqua(), true /*has_inset*/));
   builder->push_back(shadow);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -1088,10 +1089,10 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
 }
 
 TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1101,10 +1102,10 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   scoped_refptr<ShadowValue> shadow(new ShadowValue(lengths, NULL, false));
   builder->push_back(shadow);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_color(new RGBAColorValue(0x0047abff));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1132,10 +1133,10 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
 }
 
 TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths_1;
@@ -1154,10 +1155,10 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
 
   builder->push_back(shadow_2);
 
-  computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_box_shadow(new PropertyListValue(std::move(builder)));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(50, kPixelsUnit));
   parent_computed_style->set_color(new RGBAColorValue(0x0047ABFF));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
@@ -1208,8 +1209,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
 }
 
 TEST(PromoteToComputedStyle, BoxShadowWithNone) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   computed_style->set_box_shadow(KeywordValue::GetNone());
 
@@ -1224,11 +1225,382 @@ TEST(PromoteToComputedStyle, BoxShadowWithNone) {
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->box_shadow());
 }
 
+TEST(PromoteToComputedStyle,
+     DisplayIsNotBlockifiedForInitialPositionInFlowInlineElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetInline(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsNotBlockifiedForRelativePositionInFlowBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+  computed_style->set_position(KeywordValue::GetRelative());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetInline(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsNotInlinifiedForRelativePositionInFlowBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetBlock());
+  computed_style->set_position(KeywordValue::GetRelative());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_FALSE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsNotBlockifiedForStaticPositionInFlowBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+  computed_style->set_position(KeywordValue::GetStatic());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetInline(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsNotInlinifiedForStaticPositionInFlowBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetBlock());
+  computed_style->set_position(KeywordValue::GetStatic());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_FALSE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayIsNotInlinifiedForInFlowBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetBlock());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_FALSE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsBlockifiedForAbsolutelyPositionedInlineElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsNotInlinifiedForAbsolutelyPositionedBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetBlock());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_FALSE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsBlockifiedForFixedPositionedInlineElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+  computed_style->set_position(KeywordValue::GetFixed());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsNotInlinifiedForFixedPositionedBlockElement) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetBlock());
+  computed_style->set_position(KeywordValue::GetFixed());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_FALSE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayNotSetIsBlockified) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayInitialIsBlockified) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_position(KeywordValue::GetInitial());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayInheritIsBlockified) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_position(KeywordValue::GetInherit());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayInlineBlockIsBlockified) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInlineBlock());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayInlineFlexIsBlockified) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInlineFlex());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetFlex(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayIsBlockifiedForFlexItemInline) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
+  parent_computed_style->set_display(KeywordValue::GetInlineFlex());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle, DisplayNotInlinifiedForFlexItemBlock) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetBlock());
+
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
+  parent_computed_style->set_display(KeywordValue::GetFlex());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_FALSE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsBlockifiedForAbsolutelyPositionedFlexContainerChild) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+  computed_style->set_position(KeywordValue::GetAbsolute());
+
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
+  parent_computed_style->set_display(KeywordValue::GetFlex());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
+TEST(PromoteToComputedStyle,
+     DisplayIsBlockifiedForFixedPositionedFlexContainerChild) {
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
+
+  computed_style->set_display(KeywordValue::GetInline());
+  computed_style->set_position(KeywordValue::GetFixed());
+
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
+  parent_computed_style->set_display(KeywordValue::GetFlex());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, kNullSize, NULL);
+
+  EXPECT_TRUE(computed_style->is_inline_before_blockification());
+  EXPECT_EQ(KeywordValue::GetBlock(), computed_style->display());
+}
+
 TEST(PromoteToComputedStyle, OrderInteger) {
   // The computed value for order is the specified integer.
   //   https://www.w3.org/TR/css-flexbox-1/#order-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_order(new IntegerValue(-5));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1246,8 +1618,8 @@ TEST(PromoteToComputedStyle, OrderInteger) {
 }
 
 TEST(PromoteToComputedStyle, OutlineColorWithCurrentColorValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_outline_color(KeywordValue::GetCurrentColor());
   computed_style->set_color(RGBAColorValue::GetAqua());
 
@@ -1266,8 +1638,8 @@ TEST(PromoteToComputedStyle, OutlineColorWithCurrentColorValue) {
 }
 
 TEST(PromoteToComputedStyle, OutlineWidthWithOutlineStyleNone) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_outline_style(KeywordValue::GetNone());
   computed_style->set_outline_width(new LengthValue(2, kFontSizesAkaEmUnit));
 
@@ -1287,14 +1659,14 @@ TEST(PromoteToComputedStyle, OutlineWidthWithOutlineStyleNone) {
 }
 
 TEST(PromoteToComputedStyle, OutlineWidthInEmShouldBeComputedAfterFontSize) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_outline_style(KeywordValue::GetSolid());
   computed_style->set_font_size(new LengthValue(2, kFontSizesAkaEmUnit));
   computed_style->set_outline_width(new LengthValue(2, kFontSizesAkaEmUnit));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1309,8 +1681,8 @@ TEST(PromoteToComputedStyle, OutlineWidthInEmShouldBeComputedAfterFontSize) {
 }
 
 TEST(PromoteToComputedStyle, TextDecorationWithCurrentColor) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_text_decoration_color(KeywordValue::GetCurrentColor());
   computed_style->set_color(RGBAColorValue::GetAqua());
 
@@ -1330,10 +1702,10 @@ TEST(PromoteToComputedStyle, TextDecorationWithCurrentColor) {
 }
 
 TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1344,10 +1716,10 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
       new ShadowValue(lengths, RGBAColorValue::GetAqua(), false));
   builder->push_back(shadow);
 
-  computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_text_shadow(new PropertyListValue(std::move(builder)));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(50, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1375,10 +1747,10 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
 }
 
 TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths;
@@ -1388,10 +1760,10 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   scoped_refptr<ShadowValue> shadow(new ShadowValue(lengths, NULL, false));
   builder->push_back(shadow);
 
-  computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_text_shadow(new PropertyListValue(std::move(builder)));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_color(new RGBAColorValue(0x0047abff));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1419,10 +1791,10 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
 }
 
 TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_ptr<PropertyListValue::Builder> builder(
+  std::unique_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
 
   std::vector<scoped_refptr<LengthValue> > lengths_1;
@@ -1440,10 +1812,10 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
 
   builder->push_back(shadow_2);
 
-  computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
+  computed_style->set_text_shadow(new PropertyListValue(std::move(builder)));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(50, kPixelsUnit));
   parent_computed_style->set_color(new RGBAColorValue(0x0047ABFF));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
@@ -1493,8 +1865,8 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
 }
 
 TEST(PromoteToComputedStyle, TextShadowWithNone) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   computed_style->set_text_shadow(KeywordValue::GetNone());
 
@@ -1514,8 +1886,8 @@ TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
   // block is not specified explicitly, and this element is not absolutely
   // positioned, the value computes to 'auto'.
   //   https://www.w3.org/TR/CSS2/visudet.html#the-height-property
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_height(new PercentageValue(0.50f));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1536,8 +1908,8 @@ TEST(PromoteToComputedStyle,
   // containing block is not specified explicitly, and this element is not
   // absolutely positioned, the percentage value is treated as '0'.
   //   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_max_height(new PercentageValue(0.50f));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1558,8 +1930,8 @@ TEST(PromoteToComputedStyle,
   // containing block is not specified explicitly, and this element is not
   // absolutely positioned, the percentage value is treated as 'none'.
   //   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_min_height(new PercentageValue(0.50f));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1581,8 +1953,8 @@ TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
   // If the max-width is specified as a percentage and the containing block's
   // width is negative, the used value is zero.
   //  https://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_max_width(new PercentageValue(0.50f));
 
   scoped_refptr<CSSComputedStyleData> grandparent_computed_style(
@@ -1591,8 +1963,8 @@ TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
       grandparent_computed_style_declaration(
           CreateComputedStyleDeclaration(grandparent_computed_style));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_width(new LengthValue(-16, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1613,8 +1985,8 @@ TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
   // If the min-width is specified as a percentage and the containing block's
   // width is negative, the used value is zero.
   //  https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_min_width(new PercentageValue(0.50f));
 
   scoped_refptr<CSSComputedStyleData> grandparent_computed_style(
@@ -1623,8 +1995,8 @@ TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
       grandparent_computed_style_declaration(
           CreateComputedStyleDeclaration(grandparent_computed_style));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_width(new LengthValue(-16, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -1645,8 +2017,8 @@ TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
   // The computed value of the property is this percentage multiplied by the
   // element's computed font size. Negative values are illegal.
   //   https://www.w3.org/TR/CSS21/visudet.html#line-height
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
   computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   computed_style->set_line_height(new PercentageValue(0.75f));
 
@@ -1665,15 +2037,15 @@ TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: bottom;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(KeywordValue::GetBottom());
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1711,15 +2083,15 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: 3em;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new LengthValue(3, kFontSizesAkaEmUnit));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1757,16 +2129,16 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: 3em 40px;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new LengthValue(3, kFontSizesAkaEmUnit));
   transform_origin_builder->push_back(new LengthValue(40, kPixelsUnit));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1804,16 +2176,16 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: right 20%;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(KeywordValue::GetRight());
   transform_origin_builder->push_back(new PercentageValue(0.2f));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1851,16 +2223,16 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: 60% 80%;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new PercentageValue(0.6f));
   transform_origin_builder->push_back(new PercentageValue(0.8f));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1898,16 +2270,16 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: top center;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(KeywordValue::GetTop());
   transform_origin_builder->push_back(KeywordValue::GetCenter());
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1945,17 +2317,17 @@ TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
 }
 
 TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform-origin: 30px top 50px;
-  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+  std::unique_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
   transform_origin_builder->push_back(new LengthValue(30.0f, kPixelsUnit));
   transform_origin_builder->push_back(KeywordValue::GetTop());
   transform_origin_builder->push_back(new LengthValue(50.0f, kPixelsUnit));
   scoped_refptr<PropertyListValue> transform_origin(
-      new PropertyListValue(transform_origin_builder.Pass()));
+      new PropertyListValue(std::move(transform_origin_builder)));
   computed_style->set_transform_origin(transform_origin);
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
@@ -1993,19 +2365,19 @@ TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
 }
 
 TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   // transform: translateX(2em);
   TransformFunctionListValue::Builder transform_builder;
-  transform_builder.push_back(new TranslateFunction(
+  transform_builder.emplace_back(new TranslateFunction(
       TranslateFunction::kXAxis, new LengthValue(2.0f, kFontSizesAkaEmUnit)));
   scoped_refptr<TransformFunctionListValue> transform(
-      new TransformFunctionListValue(transform_builder.Pass()));
+      new TransformFunctionListValue(std::move(transform_builder)));
   computed_style->set_transform(transform);
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -2021,7 +2393,7 @@ TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
 
   const TranslateFunction* computed_function =
       base::polymorphic_downcast<const TranslateFunction*>(
-          computed_transform->value()[0]);
+          computed_transform->value()[0].get());
   ASSERT_TRUE(computed_function);
   EXPECT_FLOAT_EQ(200.0f, computed_function->offset_as_length()->value());
   EXPECT_EQ(kPixelsUnit, computed_function->offset_as_length()->unit());
@@ -2029,11 +2401,11 @@ TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
 
 TEST(PromoteToComputedStyle,
      InheritedAnimatablePropertyShouldAlwaysBeDeclared) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_color(RGBAColorValue::GetAqua());
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -2058,11 +2430,11 @@ TEST(PromoteToComputedStyle,
 
 TEST(PromoteToComputedStyle,
      DeclaredPropertiesInheritedFromParentShouldRemainValidWhenSetToSameValue) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_color(
       new RGBAColorValue(uint8(10), uint8(10), uint8(10), uint8(10)));
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
@@ -2078,7 +2450,7 @@ TEST(PromoteToComputedStyle,
   // Verify that the declared properties inherited from the parent are valid.
   ASSERT_TRUE(computed_style->AreDeclaredPropertiesInheritedFromParentValid());
 
-  parent_computed_style = new CSSComputedStyleData();
+  parent_computed_style = new MutableCSSComputedStyleData();
   parent_computed_style->set_color(
       new RGBAColorValue(uint8(10), uint8(10), uint8(10), uint8(10)));
   parent_computed_style_declaration->SetData(parent_computed_style);
@@ -2090,11 +2462,11 @@ TEST(PromoteToComputedStyle,
 
 TEST(PromoteToComputedStyle,
      InheritedAnimatablePropertyShouldRetainValueAfterParentValueChanges) {
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   parent_computed_style->set_color(RGBAColorValue::GetAqua());
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
@@ -2113,7 +2485,7 @@ TEST(PromoteToComputedStyle,
   // Verify that the declared properties inherited from the parent are valid.
   ASSERT_TRUE(computed_style->AreDeclaredPropertiesInheritedFromParentValid());
 
-  parent_computed_style = new CSSComputedStyleData();
+  parent_computed_style = new MutableCSSComputedStyleData();
   parent_computed_style->set_color(RGBAColorValue::GetNavy());
   parent_computed_style_declaration->SetData(parent_computed_style);
 
@@ -2129,14 +2501,14 @@ TEST(PromoteToComputedStyle,
 
 TEST(UpdateInheritedData,
      UpdateInheritedDataShouldFixInheritedDataAfterItIsAdded) {
-  scoped_refptr<CSSComputedStyleData> grandparent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> grandparent_computed_style(
+      new MutableCSSComputedStyleData());
   scoped_refptr<CSSComputedStyleDeclaration>
       grandparent_computed_style_declaration(
           CreateComputedStyleDeclaration(grandparent_computed_style));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   // The parent should initially have the default value of normal.
   EXPECT_EQ(FontStyleValue::GetNormal(), parent_computed_style->font_style());
 
@@ -2148,8 +2520,8 @@ TEST(UpdateInheritedData,
 
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
                          grandparent_computed_style, kNullSize, NULL);
@@ -2157,7 +2529,7 @@ TEST(UpdateInheritedData,
   // The child should have the default value of normal.
   EXPECT_EQ(FontStyleValue::GetNormal(), computed_style->font_style());
 
-  grandparent_computed_style = new CSSComputedStyleData();
+  grandparent_computed_style = new MutableCSSComputedStyleData();
   grandparent_computed_style->set_font_style(FontStyleValue::GetOblique());
   grandparent_computed_style_declaration->SetData(grandparent_computed_style);
 
@@ -2173,15 +2545,15 @@ TEST(UpdateInheritedData,
 
 TEST(UpdateInheritedData,
      UpdateInheritedDataShouldFixInheritedDataAfterItIsRemoved) {
-  scoped_refptr<CSSComputedStyleData> grandparent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> grandparent_computed_style(
+      new MutableCSSComputedStyleData());
   grandparent_computed_style->set_font_style(FontStyleValue::GetItalic());
   scoped_refptr<CSSComputedStyleDeclaration>
       grandparent_computed_style_declaration(
           CreateComputedStyleDeclaration(grandparent_computed_style));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   // The parent should initially have the default value of normal.
   EXPECT_EQ(FontStyleValue::GetNormal(), parent_computed_style->font_style());
 
@@ -2193,8 +2565,8 @@ TEST(UpdateInheritedData,
 
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
                          grandparent_computed_style, kNullSize, NULL);
@@ -2202,7 +2574,7 @@ TEST(UpdateInheritedData,
   // The child should have the inherited value of italic.
   EXPECT_EQ(FontStyleValue::GetItalic(), computed_style->font_style());
 
-  grandparent_computed_style = new CSSComputedStyleData();
+  grandparent_computed_style = new MutableCSSComputedStyleData();
   grandparent_computed_style_declaration->SetData(grandparent_computed_style);
 
   // Even though the grandparent has changed, the child should have the original
@@ -2217,15 +2589,15 @@ TEST(UpdateInheritedData,
 
 TEST(UpdateInheritedData,
      UpdateInheritedDataShouldFixInheritedDataAfterItChanges) {
-  scoped_refptr<CSSComputedStyleData> grandparent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> grandparent_computed_style(
+      new MutableCSSComputedStyleData());
   grandparent_computed_style->set_font_style(FontStyleValue::GetItalic());
   scoped_refptr<CSSComputedStyleDeclaration>
       grandparent_computed_style_declaration(
           CreateComputedStyleDeclaration(grandparent_computed_style));
 
-  scoped_refptr<CSSComputedStyleData> parent_computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> parent_computed_style(
+      new MutableCSSComputedStyleData());
   // The parent should initially have the default value of normal.
   EXPECT_EQ(FontStyleValue::GetNormal(), parent_computed_style->font_style());
 
@@ -2237,8 +2609,8 @@ TEST(UpdateInheritedData,
 
   scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
       CreateComputedStyleDeclaration(parent_computed_style));
-  scoped_refptr<CSSComputedStyleData> computed_style(
-      new CSSComputedStyleData());
+  scoped_refptr<MutableCSSComputedStyleData> computed_style(
+      new MutableCSSComputedStyleData());
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
                          grandparent_computed_style, kNullSize, NULL);
@@ -2246,7 +2618,7 @@ TEST(UpdateInheritedData,
   // The child should have the inherited value of italic.
   EXPECT_EQ(FontStyleValue::GetItalic(), computed_style->font_style());
 
-  grandparent_computed_style = new CSSComputedStyleData();
+  grandparent_computed_style = new MutableCSSComputedStyleData();
   grandparent_computed_style->set_font_style(FontStyleValue::GetOblique());
   grandparent_computed_style_declaration->SetData(grandparent_computed_style);
 

@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/input/input_device_manager_desktop.h"
 
 namespace cobalt {
 namespace input {
 
 // static
-scoped_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
+std::unique_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
     const KeyboardEventCallback& keyboard_event_callback,
     const PointerEventCallback& pointer_event_callback,
     const WheelEventCallback& wheel_event_callback,
@@ -26,7 +28,7 @@ scoped_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
     const InputEventCallback& input_event_callback,
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     system_window::SystemWindow* system_window) {
-  return scoped_ptr<InputDeviceManager>(new InputDeviceManagerDesktop(
+  return std::unique_ptr<InputDeviceManager>(new InputDeviceManagerDesktop(
       keyboard_event_callback, pointer_event_callback, wheel_event_callback,
 #if SB_HAS(ON_SCREEN_KEYBOARD)
       input_event_callback,

@@ -4,12 +4,14 @@
 
 #include "net/http/http_auth_gssapi_posix.h"
 
-#include "base/basictypes.h"
+#include <memory>
+
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/native_library.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/mock_gssapi_library_posix.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -34,7 +36,7 @@ void SetBuffer(gss_buffer_t dest, const void* src, size_t length) {
   dest->length = length;
   if (length) {
     dest->value = new char[length];
-    memcpy(dest->value, src, length);
+    SbMemoryCopy(dest->value, src, length);
   }
 }
 
@@ -70,27 +72,34 @@ void EstablishInitialContext(test::MockGSSAPILibrary* library) {
       out_buffer);
 }
 
+void UnexpectedCallback(int result) {
+  // At present getting tokens from gssapi is fully synchronous, so the callback
+  // should never be called.
+  ADD_FAILURE();
+}
+
 }  // namespace
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup) {
   // TODO(ahendrickson): Manipulate the libraries and paths to test each of the
   // libraries we expect, and also whether or not they have the interface
   // functions we want.
-  scoped_ptr<GSSAPILibrary> gssapi(new GSSAPISharedLibrary(""));
+  std::unique_ptr<GSSAPILibrary> gssapi(new GSSAPISharedLibrary(std::string()));
   DCHECK(gssapi.get());
   EXPECT_TRUE(gssapi.get()->Init());
 }
 
 #if defined(DLOPEN_KERBEROS)
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPILoadCustomLibrary) {
-  scoped_ptr<GSSAPILibrary> gssapi(
+  std::unique_ptr<GSSAPILibrary> gssapi(
       new GSSAPISharedLibrary("/this/library/does/not/exist"));
   EXPECT_FALSE(gssapi.get()->Init());
 }
 #endif  // defined(DLOPEN_KERBEROS)
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
-  scoped_ptr<test::MockGSSAPILibrary> mock_library(new test::MockGSSAPILibrary);
+  std::unique_ptr<test::MockGSSAPILibrary> mock_library(
+      new test::MockGSSAPILibrary);
   DCHECK(mock_library.get());
   mock_library->Init();
   const char kAuthResponse[] = "Mary had a little lamb";
@@ -181,8 +190,8 @@ TEST(HttpAuthGSSAPITest, ParseChallenge_FirstRound) {
   HttpAuthGSSAPI auth_gssapi(&mock_library, "Negotiate",
                              CHROME_GSS_SPNEGO_MECH_OID_DESC);
   std::string challenge_text = "Negotiate";
-  HttpAuth::ChallengeTokenizer challenge(challenge_text.begin(),
-                                         challenge_text.end());
+  HttpAuthChallengeTokenizer challenge(challenge_text.begin(),
+                                       challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
             auth_gssapi.ParseChallenge(&challenge));
 }
@@ -194,20 +203,21 @@ TEST(HttpAuthGSSAPITest, ParseChallenge_TwoRounds) {
   HttpAuthGSSAPI auth_gssapi(&mock_library, "Negotiate",
                              CHROME_GSS_SPNEGO_MECH_OID_DESC);
   std::string first_challenge_text = "Negotiate";
-  HttpAuth::ChallengeTokenizer first_challenge(first_challenge_text.begin(),
-                                               first_challenge_text.end());
+  HttpAuthChallengeTokenizer first_challenge(first_challenge_text.begin(),
+                                             first_challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
             auth_gssapi.ParseChallenge(&first_challenge));
 
   // Generate an auth token and create another thing.
   EstablishInitialContext(&mock_library);
   std::string auth_token;
-  EXPECT_EQ(OK, auth_gssapi.GenerateAuthToken(NULL, L"HTTP/intranet.google.com",
-                                              &auth_token));
+  EXPECT_EQ(OK, auth_gssapi.GenerateAuthToken(
+                    NULL, "HTTP/intranet.google.com", std::string(),
+                    &auth_token, base::BindOnce(&UnexpectedCallback)));
 
   std::string second_challenge_text = "Negotiate Zm9vYmFy";
-  HttpAuth::ChallengeTokenizer second_challenge(second_challenge_text.begin(),
-                                                second_challenge_text.end());
+  HttpAuthChallengeTokenizer second_challenge(second_challenge_text.begin(),
+                                              second_challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
             auth_gssapi.ParseChallenge(&second_challenge));
 }
@@ -219,8 +229,8 @@ TEST(HttpAuthGSSAPITest, ParseChallenge_UnexpectedTokenFirstRound) {
   HttpAuthGSSAPI auth_gssapi(&mock_library, "Negotiate",
                              CHROME_GSS_SPNEGO_MECH_OID_DESC);
   std::string challenge_text = "Negotiate Zm9vYmFy";
-  HttpAuth::ChallengeTokenizer challenge(challenge_text.begin(),
-                                         challenge_text.end());
+  HttpAuthChallengeTokenizer challenge(challenge_text.begin(),
+                                       challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_INVALID,
             auth_gssapi.ParseChallenge(&challenge));
 }
@@ -232,18 +242,19 @@ TEST(HttpAuthGSSAPITest, ParseChallenge_MissingTokenSecondRound) {
   HttpAuthGSSAPI auth_gssapi(&mock_library, "Negotiate",
                              CHROME_GSS_SPNEGO_MECH_OID_DESC);
   std::string first_challenge_text = "Negotiate";
-  HttpAuth::ChallengeTokenizer first_challenge(first_challenge_text.begin(),
-                                               first_challenge_text.end());
+  HttpAuthChallengeTokenizer first_challenge(first_challenge_text.begin(),
+                                             first_challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
             auth_gssapi.ParseChallenge(&first_challenge));
 
   EstablishInitialContext(&mock_library);
   std::string auth_token;
-  EXPECT_EQ(OK, auth_gssapi.GenerateAuthToken(NULL, L"HTTP/intranet.google.com",
-                                              &auth_token));
+  EXPECT_EQ(OK, auth_gssapi.GenerateAuthToken(
+                    NULL, "HTTP/intranet.google.com", std::string(),
+                    &auth_token, base::BindOnce(&UnexpectedCallback)));
   std::string second_challenge_text = "Negotiate";
-  HttpAuth::ChallengeTokenizer second_challenge(second_challenge_text.begin(),
-                                                second_challenge_text.end());
+  HttpAuthChallengeTokenizer second_challenge(second_challenge_text.begin(),
+                                              second_challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
             auth_gssapi.ParseChallenge(&second_challenge));
 }
@@ -255,18 +266,19 @@ TEST(HttpAuthGSSAPITest, ParseChallenge_NonBase64EncodedToken) {
   HttpAuthGSSAPI auth_gssapi(&mock_library, "Negotiate",
                              CHROME_GSS_SPNEGO_MECH_OID_DESC);
   std::string first_challenge_text = "Negotiate";
-  HttpAuth::ChallengeTokenizer first_challenge(first_challenge_text.begin(),
-                                               first_challenge_text.end());
+  HttpAuthChallengeTokenizer first_challenge(first_challenge_text.begin(),
+                                             first_challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
             auth_gssapi.ParseChallenge(&first_challenge));
 
   EstablishInitialContext(&mock_library);
   std::string auth_token;
-  EXPECT_EQ(OK, auth_gssapi.GenerateAuthToken(NULL, L"HTTP/intranet.google.com",
-                                              &auth_token));
+  EXPECT_EQ(OK, auth_gssapi.GenerateAuthToken(
+                    NULL, "HTTP/intranet.google.com", std::string(),
+                    &auth_token, base::BindOnce(&UnexpectedCallback)));
   std::string second_challenge_text = "Negotiate =happyjoy=";
-  HttpAuth::ChallengeTokenizer second_challenge(second_challenge_text.begin(),
-                                                second_challenge_text.end());
+  HttpAuthChallengeTokenizer second_challenge(second_challenge_text.begin(),
+                                              second_challenge_text.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_INVALID,
             auth_gssapi.ParseChallenge(&second_challenge));
 }

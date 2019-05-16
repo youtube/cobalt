@@ -34,7 +34,7 @@ namespace browser {
 // to be injected into to the JavaScript window object.  If base::nullopt is
 // returned, then CreateWebExtensionObject() will not be subsequently called
 // and nothing will be injected.
-base::optional<std::string> GetWebAPIExtensionObjectPropertyName();
+base::Optional<std::string> GetWebAPIExtensionObjectPropertyName();
 
 // The actual object that will be assigned to the window property with name
 // given by *GetWebExtensionObjectPropertyName().  The returned object should

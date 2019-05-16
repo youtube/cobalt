@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
 #include "base/debug/leak_annotations.h"
 #if defined(ENABLE_GLIMP_TRACING)
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #endif
-#include "base/optional.h"
+#include "starboard/common/optional.h"
 #if defined(GLES3_SUPPORTED)
 #include "cobalt/renderer/backend/egl/texture_data_pbo.h"
 #else
@@ -65,7 +67,7 @@ struct ChooseConfigResult {
 // |system_window| can also be provided in which case the config returned will
 // also be guaranteed to match with it, and a EGLSurface will be returned
 // for that window.
-base::optional<ChooseConfigResult> ChooseConfig(
+base::Optional<ChooseConfigResult> ChooseConfig(
     EGLDisplay display, EGLint* attribute_list,
     system_window::SystemWindow* system_window) {
   if (!system_window) {
@@ -95,7 +97,7 @@ base::optional<ChooseConfigResult> ChooseConfig(
   CHECK_EQ(EGL_SUCCESS, eglGetError());
   CHECK_LT(0, num_configs);
 
-  scoped_array<EGLConfig> configs(new EGLConfig[num_configs]);
+  std::unique_ptr<EGLConfig[]> configs(new EGLConfig[num_configs]);
   eglChooseConfig(display, attribute_list, configs.get(), num_configs,
                   &num_configs);
 
@@ -168,7 +170,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
     EGL_NONE
   };
 
-  base::optional<ChooseConfigResult> choose_config_results =
+  base::Optional<ChooseConfigResult> choose_config_results =
       ChooseConfig(display_, attribute_list, system_window);
 
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
@@ -199,7 +201,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
 }
 
 GraphicsSystemEGL::~GraphicsSystemEGL() {
-  resource_context_ = base::nullopt;
+  resource_context_.reset();
 
   if (window_surface_ != EGL_NO_SURFACE) {
     eglDestroySurface(display_, window_surface_);
@@ -208,7 +210,7 @@ GraphicsSystemEGL::~GraphicsSystemEGL() {
   eglTerminate(display_);
 }
 
-scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
+std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(
     system_window::SystemWindow* system_window) {
   EGLSurface surface;
   if (system_window == system_window_ && window_surface_ != EGL_NO_SURFACE) {
@@ -222,10 +224,10 @@ scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
     CHECK_EQ(EGL_SUCCESS, eglGetError());
   }
 
-  return scoped_ptr<Display>(new DisplayEGL(display_, surface));
+  return std::unique_ptr<Display>(new DisplayEGL(display_, surface));
 }
 
-scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
+std::unique_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
 // If GLES3 is supported, we will make use of PBOs to allocate buffers for
 // texture data and populate them on separate threads.  In order to access
 // that data from graphics contexts created through this method, we must
@@ -236,32 +238,34 @@ scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
 #else
   ResourceContext* resource_context = NULL;
 #endif
-  return scoped_ptr<GraphicsContext>(
+  return std::unique_ptr<GraphicsContext>(
       new GraphicsContextEGL(this, display_, config_, resource_context));
 }
 
-scoped_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
+std::unique_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
     const math::Size& size, GLenum format) {
 #if defined(GLES3_SUPPORTED)
-  scoped_ptr<TextureDataEGL> texture_data(
+  std::unique_ptr<TextureDataEGL> texture_data(
       new TextureDataPBO(&(resource_context_.value()), size, format));
 #else
-  scoped_ptr<TextureDataEGL> texture_data(new TextureDataCPU(size, format));
+  std::unique_ptr<TextureDataEGL> texture_data(
+      new TextureDataCPU(size, format));
 #endif
   if (texture_data->CreationError()) {
-    return scoped_ptr<TextureDataEGL>();
+    return std::unique_ptr<TextureDataEGL>();
   } else {
-    return texture_data.Pass();
+    return std::move(texture_data);
   }
 }
 
-scoped_ptr<RawTextureMemoryEGL> GraphicsSystemEGL::AllocateRawTextureMemory(
-    size_t size_in_bytes, size_t alignment) {
+std::unique_ptr<RawTextureMemoryEGL>
+GraphicsSystemEGL::AllocateRawTextureMemory(size_t size_in_bytes,
+                                            size_t alignment) {
 #if defined(GLES3_SUPPORTED)
-  return scoped_ptr<RawTextureMemoryEGL>(new RawTextureMemoryPBO(
+  return std::unique_ptr<RawTextureMemoryEGL>(new RawTextureMemoryPBO(
       &(resource_context_.value()), size_in_bytes, alignment));
 #else
-  return scoped_ptr<RawTextureMemoryEGL>(
+  return std::unique_ptr<RawTextureMemoryEGL>(
       new RawTextureMemoryCPU(size_in_bytes, alignment));
 #endif
 }

@@ -15,8 +15,10 @@
 #ifndef COBALT_SPEECH_COBALT_SPEECH_RECOGNIZER_H_
 #define COBALT_SPEECH_COBALT_SPEECH_RECOGNIZER_H_
 
+#include <memory>
 #include <string>
 
+#include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/endpointer_delegate.h"
 #include "cobalt/speech/google_speech_service.h"
@@ -27,11 +29,6 @@
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "cobalt/speech/speech_recognizer.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace speech {
@@ -42,11 +39,7 @@ namespace speech {
 // from there.
 class CobaltSpeechRecognizer : public SpeechRecognizer {
  public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   CobaltSpeechRecognizer(network::NetworkModule* network_module,
                          const Microphone::Options& microphone_options,
@@ -58,7 +51,7 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
 
  private:
   // Callbacks from mic.
-  void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
+  void OnDataReceived(std::unique_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
   void OnMicrophoneError(MicrophoneManager::MicrophoneError error,
                          std::string error_message);
@@ -67,8 +60,8 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
 
   EventCallback event_callback_;
-  scoped_ptr<GoogleSpeechService> service_;
-  scoped_ptr<MicrophoneManager> microphone_manager_;
+  std::unique_ptr<GoogleSpeechService> service_;
+  std::unique_ptr<MicrophoneManager> microphone_manager_;
   // Delegate of endpointer which is used for detecting sound energy.
   EndPointerDelegate endpointer_delegate_;
 };

@@ -5,15 +5,15 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_EXTENSION_PARSER_H_
 #define NET_WEBSOCKETS_WEBSOCKET_EXTENSION_PARSER_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/string_piece.h"
+#include "base/macros.h"
+#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/websockets/websocket_extension.h"
+#include "starboard/types.h"
 
 namespace net {
 

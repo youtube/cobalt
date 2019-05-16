@@ -16,7 +16,7 @@
 #define BASE_SYNCHRONIZATION_SPIN_WAIT_H_
 
 #include "base/threading/platform_thread.h"
-#include "base/time.h"
+#include "base/time/time.h"
 
 // Provide a macro that will wait no longer than 1 second for an asynchronous
 // change is the value of an expression.

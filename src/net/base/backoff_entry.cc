@@ -9,20 +9,26 @@
 #include <limits>
 
 #include "base/logging.h"
+#include "base/numerics/safe_math.h"
 #include "base/rand_util.h"
+#include "base/time/tick_clock.h"
 
 namespace net {
 
-BackoffEntry::BackoffEntry(const BackoffEntry::Policy* const policy)
-    : policy_(policy) {
+BackoffEntry::BackoffEntry(const BackoffEntry::Policy* policy)
+    : BackoffEntry(policy, nullptr) {}
+
+BackoffEntry::BackoffEntry(const BackoffEntry::Policy* policy,
+                           const base::TickClock* clock)
+    : policy_(policy), clock_(clock) {
   DCHECK(policy_);
   Reset();
 }
 
 BackoffEntry::~BackoffEntry() {
-  // TODO(joi): Remove this once our clients (e.g. URLRequestThrottlerManager)
+  // TODO(joi): Enable this once our clients (e.g. URLRequestThrottlerManager)
   // always destroy from the I/O thread.
-  DetachFromThread();
+  // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 void BackoffEntry::InformOfRequest(bool succeeded) {
@@ -39,7 +45,7 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
       --failure_count_;
 
     // The reason why we are not just cutting the release time to
-    // ImplGetTimeNow() is on the one hand, it would unset a release
+    // GetTimeTicksNow() is on the one hand, it would unset a release
     // time set by SetCustomReleaseTime and on the other we would like
     // to push every request up to our "horizon" when dealing with
     // multiple in-flight requests. Ex: If we send three requests and
@@ -51,16 +57,16 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     if (policy_->always_use_initial_delay)
       delay = base::TimeDelta::FromMilliseconds(policy_->initial_delay_ms);
     exponential_backoff_release_time_ = std::max(
-        ImplGetTimeNow() + delay, exponential_backoff_release_time_);
+        GetTimeTicksNow() + delay, exponential_backoff_release_time_);
   }
 }
 
 bool BackoffEntry::ShouldRejectRequest() const {
-  return exponential_backoff_release_time_ > ImplGetTimeNow();
+  return exponential_backoff_release_time_ > GetTimeTicksNow();
 }
 
 base::TimeDelta BackoffEntry::GetTimeUntilRelease() const {
-  base::TimeTicks now = ImplGetTimeNow();
+  base::TimeTicks now = GetTimeTicksNow();
   if (exponential_backoff_release_time_ <= now)
     return base::TimeDelta();
   return exponential_backoff_release_time_ - now;
@@ -78,9 +84,9 @@ bool BackoffEntry::CanDiscard() const {
   if (policy_->entry_lifetime_ms == -1)
     return false;
 
-  base::TimeTicks now = ImplGetTimeNow();
+  base::TimeTicks now = GetTimeTicksNow();
 
-  int64 unused_since_ms =
+  int64_t unused_since_ms =
       (now - exponential_backoff_release_time_).InMilliseconds();
 
   // Release time is further than now, we are managing it.
@@ -101,17 +107,15 @@ bool BackoffEntry::CanDiscard() const {
 
 void BackoffEntry::Reset() {
   failure_count_ = 0;
-
-  // We leave exponential_backoff_release_time_ unset, meaning 0. We could
-  // initialize to ImplGetTimeNow() but because it's a virtual method it's
-  // not safe to call in the constructor (and the constructor calls Reset()).
-  // The effects are the same, i.e. ShouldRejectRequest() will return false
-  // right after Reset().
+  // For legacy reasons, we reset exponential_backoff_release_time_ to the
+  // uninitialized state. It would also be reasonable to reset it to
+  // GetTimeTicksNow(). The effects are the same, i.e. ShouldRejectRequest()
+  // will return false right after Reset().
   exponential_backoff_release_time_ = base::TimeTicks();
 }
 
-base::TimeTicks BackoffEntry::ImplGetTimeNow() const {
-  return base::TimeTicks::Now();
+base::TimeTicks BackoffEntry::GetTimeTicksNow() const {
+  return clock_ ? clock_->NowTicks() : base::TimeTicks::Now();
 }
 
 base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
@@ -126,29 +130,57 @@ base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   if (effective_failure_count == 0) {
     // Never reduce previously set release horizon, e.g. due to Retry-After
     // header.
-    return std::max(ImplGetTimeNow(), exponential_backoff_release_time_);
+    return std::max(GetTimeTicksNow(), exponential_backoff_release_time_);
   }
 
   // The delay is calculated with this formula:
   // delay = initial_backoff * multiply_factor^(
   //     effective_failure_count - 1) * Uniform(1 - jitter_factor, 1]
-  double delay = policy_->initial_delay_ms;
-  delay *= pow(policy_->multiply_factor, effective_failure_count - 1);
-  delay -= base::RandDouble() * policy_->jitter_factor * delay;
+  // Note: if the failure count is too high, |delay_ms| will become infinity
+  // after the exponential calculation, and then NaN after the jitter is
+  // accounted for. Both cases are handled by using CheckedNumeric<int64_t> to
+  // perform the conversion to integers.
+  double delay_ms = policy_->initial_delay_ms;
+  delay_ms *= pow(policy_->multiply_factor, effective_failure_count - 1);
+  delay_ms -= base::RandDouble() * policy_->jitter_factor * delay_ms;
 
-  const int64 kMaxInt64 = std::numeric_limits<int64>::max();
-  int64 delay_int = (delay > kMaxInt64) ?
-      kMaxInt64 : static_cast<int64>(delay + 0.5);
-
-  // Ensure that we do not exceed maximum delay.
-  if (policy_->maximum_backoff_ms >= 0)
-    delay_int = std::min(delay_int, policy_->maximum_backoff_ms);
+  // Do overflow checking in microseconds, the internal unit of TimeTicks.
+  base::internal::CheckedNumeric<int64_t> backoff_duration_us = delay_ms + 0.5;
+  backoff_duration_us *= base::Time::kMicrosecondsPerMillisecond;
+  base::TimeDelta backoff_duration = base::TimeDelta::FromMicroseconds(
+      backoff_duration_us.ValueOrDefault(std::numeric_limits<int64_t>::max()));
+  base::TimeTicks release_time = BackoffDurationToReleaseTime(backoff_duration);
 
   // Never reduce previously set release horizon, e.g. due to Retry-After
   // header.
-  return std::max(
-      ImplGetTimeNow() + base::TimeDelta::FromMilliseconds(delay_int),
-      exponential_backoff_release_time_);
+  return std::max(release_time, exponential_backoff_release_time_);
+}
+
+base::TimeTicks BackoffEntry::BackoffDurationToReleaseTime(
+    base::TimeDelta backoff_duration) const {
+  const int64_t kTimeTicksNowUs =
+      (GetTimeTicksNow() - base::TimeTicks()).InMicroseconds();
+  // Do overflow checking in microseconds, the internal unit of TimeTicks.
+  base::internal::CheckedNumeric<int64_t> calculated_release_time_us =
+      backoff_duration.InMicroseconds();
+  calculated_release_time_us += kTimeTicksNowUs;
+
+  base::internal::CheckedNumeric<int64_t> maximum_release_time_us =
+      std::numeric_limits<int64_t>::max();
+  if (policy_->maximum_backoff_ms >= 0) {
+    maximum_release_time_us = policy_->maximum_backoff_ms;
+    maximum_release_time_us *= base::Time::kMicrosecondsPerMillisecond;
+    maximum_release_time_us += kTimeTicksNowUs;
+  }
+
+  // Decide between maximum release time and calculated release time, accounting
+  // for overflow with both.
+  int64_t release_time_us = std::min(calculated_release_time_us.ValueOrDefault(
+                                         std::numeric_limits<int64_t>::max()),
+                                     maximum_release_time_us.ValueOrDefault(
+                                         std::numeric_limits<int64_t>::max()));
+
+  return base::TimeTicks() + base::TimeDelta::FromMicroseconds(release_time_us);
 }
 
 }  // namespace net

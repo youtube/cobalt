@@ -15,7 +15,7 @@
 #include "cobalt/dom/html_meta_element.h"
 
 #include "base/memory/ref_counted.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
@@ -35,7 +35,8 @@ const char HTMLMetaElement::kTagName[] = "meta";
 void HTMLMetaElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   std::string http_equiv_attribute = GetAttribute("http-equiv").value_or("");
-  if (LowerCaseEqualsASCII(http_equiv_attribute, kContentSecurityPolicy)) {
+  if (base::LowerCaseEqualsASCII(http_equiv_attribute,
+                                 kContentSecurityPolicy)) {
     std::string csp_text = GetAttribute("content").value_or("");
     csp::HeaderSource header_source = IsDescendantOfHeadElement()
                                           ? csp::kHeaderSourceMeta
@@ -46,9 +47,9 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
   }
 
   std::string cobalt_jit_attribute = GetAttribute("cobalt-jit").value_or("");
-  if (LowerCaseEqualsASCII(cobalt_jit_attribute, "disable")) {
+  if (base::LowerCaseEqualsASCII(cobalt_jit_attribute, "disable")) {
     node_document()->DisableJit();
-  } else if (!LowerCaseEqualsASCII(cobalt_jit_attribute, "")) {
+  } else if (!base::LowerCaseEqualsASCII(cobalt_jit_attribute, "")) {
     LOG(WARNING) << "Invalid value for \"cobalt-jit\" element: "
                  << cobalt_jit_attribute;
   }

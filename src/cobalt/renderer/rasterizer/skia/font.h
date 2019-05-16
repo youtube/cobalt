@@ -16,9 +16,9 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_FONT_H_
 
 #include <bitset>
+#include <memory>
 
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/containers/hash_tables.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
@@ -91,7 +91,7 @@ class Font : public render_tree::Font {
   // Thread checking is used to used to ensure that they are only accessed and
   // modified on a single thread.
   std::bitset<kPrimaryPageSize> primary_page_glyph_bounds_bits_;
-  scoped_array<math::RectF> primary_page_glyph_bounds_;
+  std::unique_ptr<math::RectF[]> primary_page_glyph_bounds_;
   GlyphToBoundsMap glyph_to_bounds_map_;
   base::ThreadChecker glyph_bounds_thread_checker_;
 };

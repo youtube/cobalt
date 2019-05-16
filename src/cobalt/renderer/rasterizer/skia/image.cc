@@ -14,7 +14,7 @@
 
 #include "cobalt/renderer/rasterizer/skia/image.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
 namespace cobalt {

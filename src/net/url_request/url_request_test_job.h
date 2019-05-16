@@ -8,8 +8,11 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
+#include "net/base/load_timing_info.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
+#include "net/url_request/url_request_job_factory.h"
 
 namespace net {
 
@@ -17,10 +20,10 @@ namespace net {
 // probably want to inherit from it to set up the state you want. Then install
 // it as the protocol handler for the "test" scheme.
 //
-// It will respond to three URLs, which you can retrieve using the test_url*
+// It will respond to several URLs, which you can retrieve using the test_url*
 // getters, which will in turn respond with the corresponding responses returned
 // by test_data*. Any other URLs that begin with "test:" will return an error,
-// which might also be useful, you can use test_url_error() to retreive a
+// which might also be useful, you can use test_url_error() to retrieve a
 // standard one.
 //
 // You can override the known URLs or the response data by overriding Start().
@@ -48,32 +51,59 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
                     bool auto_advance);
 
   // Constructs a job to return the given response regardless of the request
-  // url. The headers should include the HTTP status line and be formatted as
-  // expected by HttpResponseHeaders.
+  // url. The headers should include the HTTP status line and use CRLF/LF as the
+  // line separator.
   URLRequestTestJob(URLRequest* request,
-                    net::NetworkDelegate* network_delegate,
+                    NetworkDelegate* network_delegate,
                     const std::string& response_headers,
                     const std::string& response_data,
                     bool auto_advance);
 
-  // The three canned URLs this handler will respond to without having been
+  ~URLRequestTestJob() override;
+
+  // The canned URLs this handler will respond to without having been
   // explicitly initialized with response headers and data.
-  // FIXME(brettw): we should probably also have a redirect one
+
+  // URL that, by default, automatically advances through each state.  Reads
+  // complete synchronously.
   static GURL test_url_1();
+
+  // URLs that, by default, must be manually advanced through each state.
   static GURL test_url_2();
   static GURL test_url_3();
+  static GURL test_url_4();
+
+  // URL that, by default, automatically advances through each state.  Reads
+  // complete asynchronously. Has same response body as test_url_1(), which is
+  // (test_data_1()).
+  static GURL test_url_auto_advance_async_reads_1();
+
+  // URL that fails with ERR_INVALID_URL.
   static GURL test_url_error();
+
+  // Redirects to test_url_1().
+  static GURL test_url_redirect_to_url_1();
+
+  // Redirects to test_url_2().
+  static GURL test_url_redirect_to_url_2();
 
   // The data that corresponds to each of the URLs above
   static std::string test_data_1();
   static std::string test_data_2();
   static std::string test_data_3();
+  static std::string test_data_4();
 
   // The headers that correspond to each of the URLs above
   static std::string test_headers();
 
   // The headers for a redirect response
   static std::string test_redirect_headers();
+
+  // The headers for a redirect response to the first test url.
+  static std::string test_redirect_to_url_1_headers();
+
+  // The headers for a redirect response to the second test url.
+  static std::string test_redirect_to_url_2_headers();
 
   // The headers for a server error response
   static std::string test_error_headers();
@@ -90,20 +120,28 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
   bool auto_advance() { return auto_advance_; }
   void set_auto_advance(bool auto_advance) { auto_advance_ = auto_advance; }
 
-  // Factory method for protocol factory registration if callers don't subclass
-  static URLRequest::ProtocolFactory Factory;
+  void set_load_timing_info(const LoadTimingInfo& load_timing_info) {
+    load_timing_info_ = load_timing_info;
+  }
+
+  RequestPriority priority() const { return priority_; }
+
+  // Create a protocol handler for callers that don't subclass.
+  static std::unique_ptr<URLRequestJobFactory::ProtocolHandler>
+  CreateProtocolHandler();
 
   // Job functions
-  virtual void Start() override;
-  virtual bool ReadRawData(IOBuffer* buf,
-                           int buf_size,
-                           int *bytes_read) override;
-  virtual void Kill() override;
-  virtual bool GetMimeType(std::string* mime_type) const override;
-  virtual void GetResponseInfo(HttpResponseInfo* info) override;
-  virtual int GetResponseCode() const override;
-  virtual bool IsRedirectResponse(GURL* location,
-                                  int* http_status_code) override;
+  void SetPriority(RequestPriority priority) override;
+  void Start() override;
+  int ReadRawData(IOBuffer* buf, int buf_size) override;
+  void Kill() override;
+  bool GetMimeType(std::string* mime_type) const override;
+  void GetResponseInfo(HttpResponseInfo* info) override;
+  void GetLoadTimingInfo(LoadTimingInfo* load_timing_info) const override;
+  int64_t GetTotalReceivedBytes() const override;
+  bool IsRedirectResponse(GURL* location,
+                          int* http_status_code,
+                          bool* insecure_scheme_was_upgraded) override;
 
  protected:
   // Override to specify whether the next read done from this job will
@@ -116,8 +154,6 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
   // When the stage is DONE, this job will not be put on the queue.
   enum Stage { WAITING, DATA_AVAILABLE, ALL_DATA, DONE };
 
-  virtual ~URLRequestTestJob();
-
   // Call to process the next opeation, usually sending a notification, and
   // advancing the stage if necessary. THIS MAY DELETE THE OBJECT.
   void ProcessNextOperation();
@@ -128,13 +164,18 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
   // Called via InvokeLater to cause callbacks to occur after Start() returns.
   virtual void StartAsync();
 
+  // Assigns |response_headers_| and |response_headers_length_|.
+  void SetResponseHeaders(const std::string& response_headers);
+
+  // Copies as much of the response body as will into |buf|, and returns number
+  // of bytes written.
+  int CopyDataForRead(IOBuffer* buf, int buf_size);
+
   bool auto_advance_;
 
   Stage stage_;
 
-  // The headers the job should return, will be set in Start() if not provided
-  // in the explicit ctor.
-  scoped_refptr<HttpResponseHeaders> response_headers_;
+  RequestPriority priority_;
 
   // The data to send, will be set in Start() if not provided in the explicit
   // ctor.
@@ -146,6 +187,18 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
   // Holds the buffer for an asynchronous ReadRawData call
   IOBuffer* async_buf_;
   int async_buf_size_;
+
+  LoadTimingInfo load_timing_info_;
+
+ private:
+  // The headers the job should return, will be set in Start() if not provided
+  // in the explicit ctor.
+  scoped_refptr<HttpResponseHeaders> response_headers_;
+
+  // Original size in bytes of the response headers before decoding.
+  int response_headers_length_;
+
+  bool async_reads_;
 
   base::WeakPtrFactory<URLRequestTestJob> weak_factory_;
 };

@@ -20,8 +20,8 @@ MainHook::MainHook(MainType main_func, int argc, char* argv[]) {
   // TODO: MainHooks should no longer be used and in fact this
   // class was removed in the recent version of Chromium. Any required
   // initialization logic in tests should be done in TestSuite::Initialize().
-  CommandLine::Init(argc, argv);
-  platform_at_exit_manager_ = new base::AtExitManager();
+  base::CommandLine::Init(argc, argv);
+  // platform_at_exit_manager_ = new base::AtExitManager();
 }
 MainHook::~MainHook() {
   delete platform_at_exit_manager_;

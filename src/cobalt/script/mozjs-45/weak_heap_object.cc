@@ -53,9 +53,7 @@ void WeakHeapObject::Trace(JSTracer* js_tracer) {
   }
 }
 
-bool WeakHeapObject::IsObject() const {
-  return value_.isObject();
-}
+bool WeakHeapObject::IsObject() const { return value_.isObject(); }
 
 bool WeakHeapObject::IsGcThing() const { return value_.isGCThing(); }
 

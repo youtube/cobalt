@@ -15,11 +15,7 @@
 #ifndef COBALT_AUDIO_AUDIO_HELPERS_H_
 #define COBALT_AUDIO_AUDIO_HELPERS_H_
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 #if defined(OS_STARBOARD)
 #include "starboard/audio_sink.h"
@@ -29,7 +25,6 @@
 namespace cobalt {
 namespace audio {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::ShellAudioBus ShellAudioBus;
 typedef media::ShellAudioBus::SampleType SampleType;
 typedef media::ShellAudioBus::StorageType StorageType;
@@ -37,16 +32,6 @@ const SampleType kSampleTypeInt16 = media::ShellAudioBus::kInt16;
 const SampleType kSampleTypeFloat32 = media::ShellAudioBus::kFloat32;
 const StorageType kStorageTypeInterleaved = media::ShellAudioBus::kInterleaved;
 const StorageType kStorageTypePlanar = media::ShellAudioBus::kPlanar;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellAudioBus ShellAudioBus;
-typedef ::media::ShellAudioBus::SampleType SampleType;
-typedef ::media::ShellAudioBus::StorageType StorageType;
-const SampleType kSampleTypeInt16 = ::media::ShellAudioBus::kInt16;
-const SampleType kSampleTypeFloat32 = ::media::ShellAudioBus::kFloat32;
-const StorageType kStorageTypeInterleaved =
-    ::media::ShellAudioBus::kInterleaved;
-const StorageType kStorageTypePlanar = ::media::ShellAudioBus::kPlanar;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 const float kMaxInt16AsFloat32 = 32767.0f;
 
@@ -84,7 +69,6 @@ inline size_t GetSampleTypeSize(SampleType sample_type) {
 // starboard media pipeline, then the preferred sample type is always float32.
 inline SampleType GetPreferredOutputSampleType() {
 #if defined(OS_STARBOARD)
-#if SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSampleTypeFloat32;
   }
@@ -93,9 +77,6 @@ inline SampleType GetPreferredOutputSampleType() {
       << "At least one starboard audio sample type must be supported if using "
          "starboard media pipeline.";
   return kSampleTypeInt16;
-#else   // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
-  return kSampleTypeFloat32;
-#endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
 #else   // defined(OS_STARBOARD)
   return kSampleTypeFloat32;
 #endif  // defined(OS_STARBOARD)

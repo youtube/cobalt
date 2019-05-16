@@ -5,12 +5,12 @@
 #include "cobalt/media/formats/webm/webm_cluster_parser.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/sys_byteorder.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/timestamp_constants.h"
@@ -350,8 +350,8 @@ bool WebMClusterParser::ParseBlock(bool is_simple_block, const uint8_t* buf,
   int lacing = (flags >> 1) & 0x3;
 
   if (lacing) {
-    MEDIA_LOG(ERROR, media_log_) << "Lacing " << lacing
-                                 << " is not supported yet.";
+    MEDIA_LOG(ERROR, media_log_)
+        << "Lacing " << lacing << " is not supported yet.";
     return false;
   }
 
@@ -447,8 +447,8 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
   // TODO(acolwell): Should relative negative timecode offsets be rejected?  Or
   // only when the absolute timecode is negative?  See http://crbug.com/271794
   if (timecode < 0) {
-    MEDIA_LOG(ERROR, media_log_) << "Got a block with negative timecode offset "
-                                 << timecode;
+    MEDIA_LOG(ERROR, media_log_)
+        << "Got a block with negative timecode offset " << timecode;
     return false;
   }
 
@@ -496,7 +496,7 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
     // Every encrypted Block has a signal byte and IV prepended to it. Current
     // encrypted WebM request for comments specification is here
     // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-    scoped_ptr<DecryptConfig> decrypt_config;
+    std::unique_ptr<DecryptConfig> decrypt_config;
     int data_offset = 0;
     if (!encryption_key_id.empty() &&
         !WebMCreateDecryptConfig(
@@ -517,7 +517,7 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
       MEDIA_LOG(ERROR, media_log_) << "Failed to allocate StreamParserBuffer";
       return false;
     }
-    if (decrypt_config) buffer->set_decrypt_config(decrypt_config.Pass());
+    if (decrypt_config) buffer->set_decrypt_config(std::move(decrypt_config));
   } else {
     std::string id, settings, content;
     WebMWebVTTParser::Parse(data, size, &id, &settings, &content);
@@ -747,8 +747,8 @@ bool WebMClusterParser::Track::QueueBuffer(
 
   base::TimeDelta duration = buffer->duration();
   if (duration < base::TimeDelta() || duration == kNoTimestamp) {
-    MEDIA_LOG(ERROR, media_log_) << "Invalid buffer duration: "
-                                 << duration.InSecondsF();
+    MEDIA_LOG(ERROR, media_log_)
+        << "Invalid buffer duration: " << duration.InSecondsF();
     return false;
   }
 

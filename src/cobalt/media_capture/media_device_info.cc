@@ -19,14 +19,8 @@
 namespace cobalt {
 namespace media_capture {
 
-MediaDeviceInfo::MediaDeviceInfo(
-    script::ScriptValueFactory* script_value_factory,
-    MediaDeviceKind kind,
-    const std::string& label)
-        : script_value_factory_(script_value_factory),
-          kind_(kind),
-          label_(label) {
-}
+MediaDeviceInfo::MediaDeviceInfo(MediaDeviceKind kind, const std::string& label)
+    : kind_(kind), label_(label) {}
 
 }  // namespace media_capture
 }  // namespace cobalt

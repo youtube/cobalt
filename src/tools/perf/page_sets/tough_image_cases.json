@@ -1,0 +1,8 @@
+{
+  "description": "A collection of image decoding performance tests",
+  "pages": [
+    {"url": "file:///../../../chrome/test/data/image_decoding/image_decoding.html?gif"},
+    {"url": "file:///../../../chrome/test/data/image_decoding/image_decoding.html?jpg"},
+    {"url": "file:///../../../chrome/test/data/image_decoding/image_decoding.html?png"}
+  ]
+}

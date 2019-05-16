@@ -15,16 +15,17 @@
 #ifndef COBALT_MEDIA_CAPTURE_MEDIA_RECORDER_H_
 #define COBALT_MEDIA_CAPTURE_MEDIA_RECORDER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/dom/blob_property_bag.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/encoders/audio_encoder.h"
@@ -135,15 +136,15 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   void DoOnDataCallback(base::TimeTicks timecode);
   void OnEncodedDataAvailable(const uint8* data, size_t data_size,
                               base::TimeTicks timecode) override;
-  void WriteData(scoped_ptr<std::vector<uint8>> data, bool last_in_slice,
+  void WriteData(std::unique_ptr<std::vector<uint8>> data, bool last_in_slice,
                  base::TimeTicks timecode);
-  void CalculateLastInSliceAndWriteData(scoped_ptr<std::vector<uint8>> data,
-                                        base::TimeTicks timecode);
+  void CalculateLastInSliceAndWriteData(
+      std::unique_ptr<std::vector<uint8>> data, base::TimeTicks timecode);
 
   base::ThreadChecker thread_checker_;
 
   // |audio_encoder_| lives on the microphone thread.
-  scoped_ptr<encoders::AudioEncoder> audio_encoder_;
+  std::unique_ptr<encoders::AudioEncoder> audio_encoder_;
   std::vector<uint8> buffer_;
 
   RecordingState recording_state_ = kRecordingStateInactive;
@@ -153,7 +154,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   dom::BlobPropertyBag blob_options_;
   scoped_refptr<media_stream::MediaStream> stream_;
 
-  scoped_refptr<base::MessageLoopProxy> javascript_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> javascript_message_loop_;
   base::TimeDelta timeslice_;
   // Only used to determine if |timeslice_| amount of time has
   // been passed since the slice was started.

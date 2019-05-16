@@ -14,10 +14,14 @@
 #ifndef NET_URL_REQUEST_URL_FETCHER_IMPL_H_
 #define NET_URL_REQUEST_URL_FETCHER_IMPL_H_
 
-#include "base/basictypes.h"
-#include "base/compiler_specific.h"
+#include <string>
+
+#include "base/macros.h"
+#include "base/sequenced_task_runner.h"
 #include "net/base/net_export.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_fetcher.h"
+#include "starboard/types.h"
 
 namespace net {
 class URLFetcherCore;
@@ -31,66 +35,74 @@ class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
   // |d| the object that will receive the callback on fetch completion.
   URLFetcherImpl(const GURL& url,
                  RequestType request_type,
-                 URLFetcherDelegate* d);
-  virtual ~URLFetcherImpl();
+                 URLFetcherDelegate* d,
+                 net::NetworkTrafficAnnotationTag traffic_annotation);
+  ~URLFetcherImpl() override;
 
   // URLFetcher implementation:
-  virtual void SetUploadData(const std::string& upload_content_type,
-                             const std::string& upload_content) override;
-  virtual void SetChunkedUpload(
-      const std::string& upload_content_type) override;
-  virtual void AppendChunkToUpload(const std::string& data,
-                                   bool is_last_chunk) override;
-  virtual void SetLoadFlags(int load_flags) override;
-  virtual int GetLoadFlags() const override;
-  virtual void SetReferrer(const std::string& referrer) override;
-  virtual void SetExtraRequestHeaders(
+  void SetUploadData(const std::string& upload_content_type,
+                     const std::string& upload_content) override;
+  void SetUploadFilePath(
+      const std::string& upload_content_type,
+      const base::FilePath& file_path,
+      uint64_t range_offset,
+      uint64_t range_length,
+      scoped_refptr<base::TaskRunner> file_task_runner) override;
+  void SetUploadStreamFactory(
+      const std::string& upload_content_type,
+      const CreateUploadStreamCallback& callback) override;
+  void SetChunkedUpload(const std::string& upload_content_type) override;
+  void AppendChunkToUpload(const std::string& data,
+                           bool is_last_chunk) override;
+  void SetLoadFlags(int load_flags) override;
+  void SetAllowCredentials(bool allow_credentials) override;
+  int GetLoadFlags() const override;
+  void SetReferrer(const std::string& referrer) override;
+  void SetReferrerPolicy(URLRequest::ReferrerPolicy referrer_policy) override;
+  void SetExtraRequestHeaders(
       const std::string& extra_request_headers) override;
-  virtual void AddExtraRequestHeader(const std::string& header_line) override;
-  virtual void GetExtraRequestHeaders(
-      HttpRequestHeaders* headers) const override;
-  virtual void SetRequestContext(
+  void AddExtraRequestHeader(const std::string& header_line) override;
+  void SetRequestContext(
       URLRequestContextGetter* request_context_getter) override;
-  virtual void SetFirstPartyForCookies(
-      const GURL& first_party_for_cookies) override;
-  virtual void SetURLRequestUserData(
+  void SetInitiator(const base::Optional<url::Origin>& initiator) override;
+  void SetURLRequestUserData(
       const void* key,
       const CreateDataCallback& create_data_callback) override;
-  virtual void SetStopOnRedirect(bool stop_on_redirect) override;
-  virtual void SetAutomaticallyRetryOn5xx(bool retry) override;
-  virtual void SetMaxRetriesOn5xx(int max_retries) override;
-  virtual int GetMaxRetriesOn5xx() const override;
-  virtual base::TimeDelta GetBackoffDelay() const override;
-  virtual void SetAutomaticallyRetryOnNetworkChanges(int max_retries) override;
-  virtual void SaveResponseToFileAtPath(
-      const FilePath& file_path,
-      scoped_refptr<base::TaskRunner> file_task_runner) override;
-  virtual void SaveResponseToTemporaryFile(
-      scoped_refptr<base::TaskRunner> file_task_runner) override;
-#if defined(COBALT)
-  virtual void DiscardResponse() override;
+  void SetStopOnRedirect(bool stop_on_redirect) override;
+  void SetAutomaticallyRetryOn5xx(bool retry) override;
+  void SetMaxRetriesOn5xx(int max_retries) override;
+  int GetMaxRetriesOn5xx() const override;
+  base::TimeDelta GetBackoffDelay() const override;
+  void SetAutomaticallyRetryOnNetworkChanges(int max_retries) override;
+  void SaveResponseToFileAtPath(
+      const base::FilePath& file_path,
+      scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
+  void SaveResponseToTemporaryFile(
+      scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
+  void SaveResponseWithWriter(
+      std::unique_ptr<URLFetcherResponseWriter> response_writer) override;
+#if defined(STARBOARD)
+  URLFetcherResponseWriter* GetResponseWriter() const override;
 #endif
-  virtual HttpResponseHeaders* GetResponseHeaders() const override;
-  virtual HostPortPair GetSocketAddress() const override;
-  virtual bool WasFetchedViaProxy() const override;
-  virtual void Start() override;
-  virtual const GURL& GetOriginalURL() const override;
-  virtual const GURL& GetURL() const override;
-  virtual const URLRequestStatus& GetStatus() const override;
-  virtual int GetResponseCode() const override;
-  virtual const ResponseCookies& GetCookies() const override;
-  virtual bool FileErrorOccurred(
-      base::PlatformFileError* out_error_code) const override;
-  virtual void ReceivedContentWasMalformed() override;
-  virtual bool GetResponseAsString(
-      std::string* out_response_string) const override;
-  virtual bool GetResponseAsFilePath(
-      bool take_ownership,
-      FilePath* out_response_path) const override;
+  HttpResponseHeaders* GetResponseHeaders() const override;
+  HostPortPair GetSocketAddress() const override;
+  const ProxyServer& ProxyServerUsed() const override;
+  bool WasFetchedViaProxy() const override;
+  bool WasCached() const override;
+  int64_t GetReceivedResponseContentLength() const override;
+  int64_t GetTotalReceivedBytes() const override;
+  void Start() override;
+  const GURL& GetOriginalURL() const override;
+  const GURL& GetURL() const override;
+  const URLRequestStatus& GetStatus() const override;
+  int GetResponseCode() const override;
+  void ReceivedContentWasMalformed() override;
+  bool GetResponseAsString(std::string* out_response_string) const override;
+  bool GetResponseAsFilePath(bool take_ownership,
+                             base::FilePath* out_response_path) const override;
 
   static void CancelAll();
 
-  static void SetEnableInterceptionForTests(bool enabled);
   static void SetIgnoreCertificateRequests(bool ignored);
 
   // TODO(akalin): Make these private again once URLFetcher::Create()

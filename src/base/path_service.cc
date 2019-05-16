@@ -4,41 +4,44 @@
 
 #include "base/path_service.h"
 
-#ifdef OS_WIN
+#include <unordered_map>
+
+#if defined(OS_WIN)
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #endif
 
-#include "base/file_path.h"
-#include "base/file_util.h"
-#include "base/hash_tables.h"
-#include "base/lazy_instance.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
-  bool PathProvider(int key, FilePath* result);
+
+bool PathProvider(int key, FilePath* result);
+
 #if defined(OS_WIN)
-  bool PathProviderWin(int key, FilePath* result);
-#elif defined(OS_STARBOARD)
-  bool PathProviderStarboard(int key, FilePath* result);
-#elif defined(__LB_SHELL__)
-  bool PathProviderShell(int key, FilePath* result);
+bool PathProviderWin(int key, FilePath* result);
+#elif defined(STARBOARD)
+bool PathProviderStarboard(int key, FilePath* result);
 #elif defined(OS_MACOSX)
-  bool PathProviderMac(int key, FilePath* result);
+bool PathProviderMac(int key, FilePath* result);
 #elif defined(OS_ANDROID)
-  bool PathProviderAndroid(int key, FilePath* result);
+bool PathProviderAndroid(int key, FilePath* result);
+#elif defined(OS_FUCHSIA)
+bool PathProviderFuchsia(int key, FilePath* result);
 #elif defined(OS_POSIX)
-  // PathProviderPosix is the default path provider on POSIX OSes other than
-  // Mac and Android.
-  bool PathProviderPosix(int key, FilePath* result);
+// PathProviderPosix is the default path provider on POSIX OSes other than
+// Mac and Android.
+bool PathProviderPosix(int key, FilePath* result);
 #endif
-}
 
 namespace {
 
-typedef base::hash_map<int, FilePath> PathMap;
+typedef std::unordered_map<int, FilePath> PathMap;
 
 // We keep a linked list of providers.  In a debug build we ensure that no two
 // providers claim overlapping keys.
@@ -52,23 +55,19 @@ struct Provider {
   bool is_static;
 };
 
-Provider base_provider = {
-  base::PathProvider,
-  NULL,
+Provider base_provider = {PathProvider, nullptr,
 #ifndef NDEBUG
-  base::PATH_START,
-  base::PATH_END,
+                          PATH_START, PATH_END,
 #endif
-  true
-};
+                          true};
 
 #if defined(OS_WIN)
 Provider base_provider_win = {
-  base::PathProviderWin,
+  PathProviderWin,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_WIN_START,
-  base::PATH_WIN_END,
+  PATH_WIN_START,
+  PATH_WIN_END,
 #endif
   true
 };
@@ -76,11 +75,11 @@ Provider base_provider_win = {
 
 #if defined(OS_MACOSX)
 Provider base_provider_mac = {
-  base::PathProviderMac,
+  PathProviderMac,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_MAC_START,
-  base::PATH_MAC_END,
+  PATH_MAC_START,
+  PATH_MAC_END,
 #endif
   true
 };
@@ -88,17 +87,17 @@ Provider base_provider_mac = {
 
 #if defined(OS_ANDROID)
 Provider base_provider_android = {
-  base::PathProviderAndroid,
+  PathProviderAndroid,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_ANDROID_START,
-  base::PATH_ANDROID_END,
+  PATH_ANDROID_START,
+  PATH_ANDROID_END,
 #endif
   true
 };
 #endif
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 Provider base_provider_starboard = {
   base::PathProviderStarboard,
   &base_provider,
@@ -110,17 +109,22 @@ Provider base_provider_starboard = {
 };
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
-Provider base_provider_posix = {
-#if defined(__LB_SHELL__)
-  base::PathProviderShell,
-#else
-  base::PathProviderPosix,
+#if defined(OS_FUCHSIA)
+Provider base_provider_fuchsia = {PathProviderFuchsia, &base_provider,
+#ifndef NDEBUG
+                                  0, 0,
 #endif
+                                  true};
+#endif
+
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && \
+    !defined(OS_FUCHSIA)
+Provider base_provider_posix = {
+  PathProviderPosix,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_POSIX_START,
-  base::PATH_POSIX_END,
+  PATH_POSIX_START,
+  PATH_POSIX_END,
 #endif
   true
 };
@@ -128,46 +132,40 @@ Provider base_provider_posix = {
 
 
 struct PathData {
-  base::Lock lock;
+  Lock lock;
   PathMap cache;        // Cache mappings from path key to path value.
   PathMap overrides;    // Track path overrides.
   Provider* providers;  // Linked list of path service providers.
+  bool cache_disabled;  // Don't use cache if true;
 
-  PathData() {
+  PathData() : cache_disabled(false) {
 #if defined(OS_WIN)
     providers = &base_provider_win;
 #elif defined(OS_MACOSX)
     providers = &base_provider_mac;
 #elif defined(OS_ANDROID)
     providers = &base_provider_android;
+#elif defined(OS_FUCHSIA)
+    providers = &base_provider_fuchsia;
 #elif defined(OS_POSIX)
     providers = &base_provider_posix;
 #elif defined(OS_STARBOARD)
     providers = &base_provider_starboard;
 #endif
   }
-
-  ~PathData() {
-    Provider* p = providers;
-    while (p) {
-      Provider* next = p->next;
-      if (!p->is_static)
-        delete p;
-      p = next;
-    }
-  }
 };
 
-static base::LazyInstance<PathData> g_path_data = LAZY_INSTANCE_INITIALIZER;
-
 static PathData* GetPathData() {
-  return g_path_data.Pointer();
+  static auto* path_data = new PathData();
+  return path_data;
 }
 
 // Tries to find |key| in the cache. |path_data| should be locked by the caller!
 bool LockedGetFromCache(int key, const PathData* path_data, FilePath* result) {
+  if (path_data->cache_disabled)
+    return false;
   // check for a cached version
-  PathMap::const_iterator it = path_data->cache.find(key);
+  auto it = path_data->cache.find(key);
   if (it != path_data->cache.end()) {
     *result = it->second;
     return true;
@@ -181,7 +179,8 @@ bool LockedGetFromOverrides(int key, PathData* path_data, FilePath* result) {
   // check for an overridden version.
   PathMap::const_iterator it = path_data->overrides.find(key);
   if (it != path_data->overrides.end()) {
-    path_data->cache[key] = it->second;
+    if (!path_data->cache_disabled)
+      path_data->cache[key] = it->second;
     *result = it->second;
     return true;
   }
@@ -198,21 +197,21 @@ bool PathService::Get(int key, FilePath* result) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
   DCHECK(result);
-  DCHECK_GE(key, base::DIR_CURRENT);
+  DCHECK_GE(key, DIR_CURRENT);
 
   // special case the current directory because it can never be cached
-  if (key == base::DIR_CURRENT) {
-#if defined(OS_STARBOARD)
+  if (key == DIR_CURRENT) {
+#if defined(STARBOARD)
     NOTREACHED() << "DIR_CURRENT not supported in Starboard.";
     return false;
 #else
-    return file_util::GetCurrentDirectory(result);
+    return GetCurrentDirectory(result);
 #endif
   }
 
-  Provider* provider = NULL;
+  Provider* provider = nullptr;
   {
-    base::AutoLock scoped_lock(path_data->lock);
+    AutoLock scoped_lock(path_data->lock);
     if (LockedGetFromCache(key, path_data, result))
       return true;
 
@@ -237,27 +236,36 @@ bool PathService::Get(int key, FilePath* result) {
   if (path.empty())
     return false;
 
+  if (path.ReferencesParent()) {
+    // Make sure path service never returns a path with ".." in it.
+    path = MakeAbsoluteFilePath(path);
+    if (path.empty())
+      return false;
+  }
   *result = path;
 
-  base::AutoLock scoped_lock(path_data->lock);
-  path_data->cache[key] = path;
+  AutoLock scoped_lock(path_data->lock);
+  if (!path_data->cache_disabled)
+    path_data->cache[key] = path;
 
   return true;
 }
 
 // static
 bool PathService::Override(int key, const FilePath& path) {
-  // Just call the full function with true for the value of |create|.
-  return OverrideAndCreateIfNeeded(key, path, true);
+  // Just call the full function with true for the value of |create|, and
+  // assume that |path| may not be absolute yet.
+  return OverrideAndCreateIfNeeded(key, path, false, true);
 }
 
 // static
 bool PathService::OverrideAndCreateIfNeeded(int key,
                                             const FilePath& path,
+                                            bool is_absolute,
                                             bool create) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
-  DCHECK_GT(key, base::DIR_CURRENT) << "invalid path key";
+  DCHECK_GT(key, DIR_CURRENT) << "invalid path key";
 
   FilePath file_path = path;
 
@@ -265,25 +273,23 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   // fore we protect this call with a flag.
   if (create) {
     // Make sure the directory exists. We need to do this before we translate
-    // this to the absolute path because on POSIX, AbsolutePath fails if called
-    // on a non-existent path.
-    if (!file_util::PathExists(file_path) &&
-        !file_util::CreateDirectory(file_path))
+    // this to the absolute path because on POSIX, MakeAbsoluteFilePath fails
+    // if called on a non-existent path.
+    if (!PathExists(file_path) && !CreateDirectory(file_path))
       return false;
   }
 
-  // We need to have an absolute path, as extensions and plugins don't like
-  // relative paths, and will gladly crash the browser in CHECK()s if they get a
-  // relative path.
-#if defined(OS_STARBOARD)
-  if (!file_path.IsAbsolute())
-    return false;
-#else
-  if (!file_util::AbsolutePath(&file_path))
-    return false;
+  // We need to have an absolute path.
+#if !defined(OS_STARBOARD)
+  if (!is_absolute) {
+    file_path = MakeAbsoluteFilePath(file_path);
+    if (file_path.empty())
+      return false;
+  }
 #endif
+  DCHECK(file_path.IsAbsolute());
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
 
   // Clear the cache now. Some of its entries could have depended
   // on the value we are overriding, and are now out of sync with reality.
@@ -299,7 +305,7 @@ bool PathService::RemoveOverride(int key) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
 
   if (path_data->overrides.find(key) == path_data->overrides.end())
     return false;
@@ -330,7 +336,7 @@ void PathService::RegisterProvider(ProviderFunc func, int key_start,
   p->key_end = key_end;
 #endif
 
-  base::AutoLock scoped_lock(path_data->lock);
+  AutoLock scoped_lock(path_data->lock);
 
 #ifndef NDEBUG
   Provider *iter = path_data->providers;
@@ -344,3 +350,15 @@ void PathService::RegisterProvider(ProviderFunc func, int key_start,
   p->next = path_data->providers;
   path_data->providers = p;
 }
+
+// static
+void PathService::DisableCache() {
+  PathData* path_data = GetPathData();
+  DCHECK(path_data);
+
+  AutoLock scoped_lock(path_data->lock);
+  path_data->cache.clear();
+  path_data->cache_disabled = true;
+}
+
+}  // namespace base

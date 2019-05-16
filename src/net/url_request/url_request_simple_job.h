@@ -7,30 +7,38 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_piece.h"
 #include "net/base/completion_callback.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
-#include "net/url_request/url_request_job.h"
+#include "net/url_request/url_range_request_job.h"
+#include "starboard/types.h"
+
+namespace base {
+class RefCountedMemory;
+}
 
 namespace net {
 
 class URLRequest;
 
-class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
+class NET_EXPORT URLRequestSimpleJob : public URLRangeRequestJob {
  public:
   URLRequestSimpleJob(URLRequest* request, NetworkDelegate* network_delegate);
 
-  virtual void Start() override;
-  virtual bool ReadRawData(IOBuffer* buf,
-                           int buf_size,
-                           int *bytes_read) override;
-  virtual bool GetMimeType(std::string* mime_type) const override;
-  virtual bool GetCharset(std::string* charset) override;
+  void Start() override;
+  void Kill() override;
+  int ReadRawData(IOBuffer* buf, int buf_size) override;
+  bool GetMimeType(std::string* mime_type) const override;
+  bool GetCharset(std::string* charset) override;
 
  protected:
-  virtual ~URLRequestSimpleJob();
+  ~URLRequestSimpleJob() override;
 
-  // Subclasses must override the way response data is determined.
+  // Subclasses must override either GetData or GetRefCountedData to define the
+  // way response data is determined.
   // The return value should be:
   //  - OK if data is obtained;
   //  - ERR_IO_PENDING if async processing is needed to finish obtaining data.
@@ -43,18 +51,25 @@ class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
   virtual int GetData(std::string* mime_type,
                       std::string* charset,
                       std::string* data,
-                      const CompletionCallback& callback) const = 0;
+                      CompletionOnceCallback callback) const;
 
- protected:
+  // Similar to GetData(), except |*data| can share ownership of the bytes
+  // instead of copying them into a std::string.
+  virtual int GetRefCountedData(std::string* mime_type,
+                                std::string* charset,
+                                scoped_refptr<base::RefCountedMemory>* data,
+                                CompletionOnceCallback callback) const;
+
   void StartAsync();
 
  private:
   void OnGetDataCompleted(int result);
 
+  HttpByteRange byte_range_;
   std::string mime_type_;
   std::string charset_;
-  std::string data_;
-  int data_offset_;
+  scoped_refptr<base::RefCountedMemory> data_;
+  int64_t next_data_offset_;
   base::WeakPtrFactory<URLRequestSimpleJob> weak_factory_;
 };
 

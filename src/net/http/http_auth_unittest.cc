@@ -2,62 +2,68 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/http/http_auth.h"
+
+#include <memory>
 #include <set>
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_util.h"
-#include "net/base/mock_host_resolver.h"
+#include "base/strings/string_util.h"
+#include "build/build_config.h"
 #include "net/base/net_errors.h"
-#include "net/http/http_auth.h"
+#include "net/dns/mock_host_resolver.h"
+#include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_auth_handler_mock.h"
+#include "net/http/http_auth_scheme.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
-#include "net/http/mock_allow_url_security_manager.h"
+#include "net/http/mock_allow_http_auth_preferences.h"
+#include "net/log/net_log_with_source.h"
+#include "net/net_buildflags.h"
+#include "net/ssl/ssl_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 namespace {
 
-HttpAuthHandlerMock* CreateMockHandler(bool connection_based) {
-  HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
+std::unique_ptr<HttpAuthHandlerMock> CreateMockHandler(bool connection_based) {
+  std::unique_ptr<HttpAuthHandlerMock> auth_handler =
+      std::make_unique<HttpAuthHandlerMock>();
   auth_handler->set_connection_based(connection_based);
   std::string challenge_text = "Basic";
-  HttpAuth::ChallengeTokenizer challenge(challenge_text.begin(),
+  HttpAuthChallengeTokenizer challenge(challenge_text.begin(),
                                          challenge_text.end());
   GURL origin("www.example.com");
-  EXPECT_TRUE(auth_handler->InitFromChallenge(&challenge,
-                                              HttpAuth::AUTH_SERVER,
-                                              origin,
-                                              BoundNetLog()));
+  SSLInfo null_ssl_info;
+  EXPECT_TRUE(auth_handler->InitFromChallenge(&challenge, HttpAuth::AUTH_SERVER,
+                                              null_ssl_info, origin,
+                                              NetLogWithSource()));
   return auth_handler;
 }
 
-HttpResponseHeaders* HeadersFromResponseText(const std::string& response) {
-  return new HttpResponseHeaders(
-      HttpUtil::AssembleRawHeaders(response.c_str(), response.length()));
+scoped_refptr<HttpResponseHeaders> HeadersFromResponseText(
+    const std::string& response) {
+  return scoped_refptr<HttpResponseHeaders>(new HttpResponseHeaders(
+      HttpUtil::AssembleRawHeaders(response.c_str(), response.length())));
 }
 
 HttpAuth::AuthorizationResult HandleChallengeResponse(
     bool connection_based,
     const std::string& headers_text,
     std::string* challenge_used) {
-  scoped_ptr<HttpAuthHandlerMock> mock_handler(
-      CreateMockHandler(connection_based));
+  std::unique_ptr<HttpAuthHandlerMock> mock_handler =
+      CreateMockHandler(connection_based);
   std::set<HttpAuth::Scheme> disabled_schemes;
-  scoped_refptr<HttpResponseHeaders> headers(
-      HeadersFromResponseText(headers_text));
-  return HttpAuth::HandleChallengeResponse(
-      mock_handler.get(),
-      headers.get(),
-      HttpAuth::AUTH_SERVER,
-      disabled_schemes,
-      challenge_used);
+  scoped_refptr<HttpResponseHeaders> headers =
+      HeadersFromResponseText(headers_text);
+  return HttpAuth::HandleChallengeResponse(mock_handler.get(), *headers,
+                                           HttpAuth::AUTH_SERVER,
+                                           disabled_schemes, challenge_used);
 }
 
 }  // namespace
@@ -68,80 +74,74 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
     HttpAuth::Scheme challenge_scheme;
     const char* challenge_realm;
   } tests[] = {
-    {
-      // Basic is the only challenge type, pick it.
-      "Y: Digest realm=\"X\", nonce=\"aaaaaaaaaa\"\n"
-      "www-authenticate: Basic realm=\"BasicRealm\"\n",
+      {
+          // Basic is the only challenge type, pick it.
+          "Y: Digest realm=\"X\", nonce=\"aaaaaaaaaa\"\n"
+          "www-authenticate: Basic realm=\"BasicRealm\"\n",
 
-      HttpAuth::AUTH_SCHEME_BASIC,
-      "BasicRealm",
-    },
-    {
-      // Fake is the only challenge type, but it is unsupported.
-      "Y: Digest realm=\"FooBar\", nonce=\"aaaaaaaaaa\"\n"
-      "www-authenticate: Fake realm=\"FooBar\"\n",
+          HttpAuth::AUTH_SCHEME_BASIC, "BasicRealm",
+      },
+      {
+          // Fake is the only challenge type, but it is unsupported.
+          "Y: Digest realm=\"FooBar\", nonce=\"aaaaaaaaaa\"\n"
+          "www-authenticate: Fake realm=\"FooBar\"\n",
 
-      HttpAuth::AUTH_SCHEME_MAX,
-      "",
-    },
-    {
-      // Pick Digest over Basic.
-      "www-authenticate: Basic realm=\"FooBar\"\n"
-      "www-authenticate: Fake realm=\"FooBar\"\n"
-      "www-authenticate: nonce=\"aaaaaaaaaa\"\n"
-      "www-authenticate: Digest realm=\"DigestRealm\", nonce=\"aaaaaaaaaa\"\n",
+          HttpAuth::AUTH_SCHEME_MAX, "",
+      },
+      {
+          // Pick Digest over Basic.
+          "www-authenticate: Basic realm=\"FooBar\"\n"
+          "www-authenticate: Fake realm=\"FooBar\"\n"
+          "www-authenticate: nonce=\"aaaaaaaaaa\"\n"
+          "www-authenticate: Digest realm=\"DigestRealm\", "
+          "nonce=\"aaaaaaaaaa\"\n",
 
-      HttpAuth::AUTH_SCHEME_DIGEST,
-      "DigestRealm",
-    },
-    {
-      // Handle an empty header correctly.
-      "Y: Digest realm=\"X\", nonce=\"aaaaaaaaaa\"\n"
-      "www-authenticate:\n",
+          HttpAuth::AUTH_SCHEME_DIGEST, "DigestRealm",
+      },
+      {
+          // Handle an empty header correctly.
+          "Y: Digest realm=\"X\", nonce=\"aaaaaaaaaa\"\n"
+          "www-authenticate:\n",
 
-      HttpAuth::AUTH_SCHEME_MAX,
-      "",
-    },
-    {
-      "WWW-Authenticate: Negotiate\n"
-      "WWW-Authenticate: NTLM\n",
+          HttpAuth::AUTH_SCHEME_MAX, "",
+      },
+      {
+          "WWW-Authenticate: Negotiate\n"
+          "WWW-Authenticate: NTLM\n",
 
-#if defined(USE_KERBEROS)
-      // Choose Negotiate over NTLM on all platforms.
-      // TODO(ahendrickson): This may be flaky on Linux and OSX as it
-      // relies on being able to load one of the known .so files
-      // for gssapi.
-      HttpAuth::AUTH_SCHEME_NEGOTIATE,
+#if BUILDFLAG(USE_KERBEROS) && !defined(OS_ANDROID)
+          // Choose Negotiate over NTLM on all platforms.
+          // TODO(ahendrickson): This may be flaky on Linux and OSX as it
+          // relies on being able to load one of the known .so files
+          // for gssapi.
+          HttpAuth::AUTH_SCHEME_NEGOTIATE,
 #else
-      // On systems that don't use Kerberos fall back to NTLM.
-      HttpAuth::AUTH_SCHEME_NTLM,
-#endif  // defined(USE_KERBEROS)
-      "",
-    }
-  };
+          // On systems that don't use Kerberos fall back to NTLM.
+          HttpAuth::AUTH_SCHEME_NTLM,
+#endif  // BUILDFLAG(USE_KERBEROS)
+          "",
+      }};
   GURL origin("http://www.example.com");
   std::set<HttpAuth::Scheme> disabled_schemes;
-  MockAllowURLSecurityManager url_security_manager;
-  scoped_ptr<HostResolver> host_resolver(new MockHostResolver());
-  scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
+  MockAllowHttpAuthPreferences http_auth_preferences;
+  std::unique_ptr<HostResolver> host_resolver(new MockHostResolver());
+  std::unique_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault(host_resolver.get()));
-  http_auth_handler_factory->SetURLSecurityManager(
-      "negotiate", &url_security_manager);
+  http_auth_handler_factory->SetHttpAuthPreferences(kNegotiateAuthScheme,
+                                                    &http_auth_preferences);
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+  for (size_t i = 0; i < arraysize(tests); ++i) {
     // Make a HttpResponseHeaders object.
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
     headers_with_status_line += tests[i].headers;
-    scoped_refptr<HttpResponseHeaders> headers(
-        HeadersFromResponseText(headers_with_status_line));
+    scoped_refptr<HttpResponseHeaders> headers =
+        HeadersFromResponseText(headers_with_status_line);
 
-    scoped_ptr<HttpAuthHandler> handler;
-    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
-                                  headers.get(),
-                                  HttpAuth::AUTH_SERVER,
-                                  origin,
-                                  disabled_schemes,
-                                  BoundNetLog(),
+    SSLInfo null_ssl_info;
+    std::unique_ptr<HttpAuthHandler> handler;
+    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(), *headers,
+                                  null_ssl_info, HttpAuth::AUTH_SERVER, origin,
+                                  disabled_schemes, NetLogWithSource(),
                                   &handler);
 
     if (handler.get()) {
@@ -243,173 +243,6 @@ TEST(HttpAuthTest, HandleChallengeResponse) {
       HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
       HandleChallengeResponse(true, kTwoMockChallenges, &challenge_used));
   EXPECT_EQ("Mock token_a", challenge_used);
-}
-
-TEST(HttpAuthTest, ChallengeTokenizer) {
-  std::string challenge_str = "Basic realm=\"foobar\"";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Basic"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("foobar"), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use a name=value property with no quote marks.
-TEST(HttpAuthTest, ChallengeTokenizerNoQuotes) {
-  std::string challenge_str = "Basic realm=foobar@baz.com";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Basic"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("foobar@baz.com"), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use a name=value property with mismatching quote marks.
-TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotes) {
-  std::string challenge_str = "Basic realm=\"foobar@baz.com";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Basic"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("foobar@baz.com"), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use a name= property without a value and with mismatching quote marks.
-TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesNoValue) {
-  std::string challenge_str = "Basic realm=\"";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Basic"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string(""), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use a name=value property with mismatching quote marks and spaces in the
-// value.
-TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesSpaces) {
-  std::string challenge_str = "Basic realm=\"foo bar";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Basic"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("foo bar"), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use multiple name=value properties with mismatching quote marks in the last
-// value.
-TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesMultiple) {
-  std::string challenge_str = "Digest qop=auth-int, algorithm=md5, realm=\"foo";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Digest"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("qop"), parameters.name());
-  EXPECT_EQ(std::string("auth-int"), parameters.value());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("algorithm"), parameters.name());
-  EXPECT_EQ(std::string("md5"), parameters.value());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("foo"), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use a name= property which has no value.
-TEST(HttpAuthTest, ChallengeTokenizerNoValue) {
-  std::string challenge_str = "Digest qop=";
-  HttpAuth::ChallengeTokenizer challenge(
-      challenge_str.begin(), challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Digest"), challenge.scheme());
-  EXPECT_FALSE(parameters.GetNext());
-  EXPECT_FALSE(parameters.valid());
-}
-
-// Specify multiple properties, comma separated.
-TEST(HttpAuthTest, ChallengeTokenizerMultiple) {
-  std::string challenge_str =
-      "Digest algorithm=md5, realm=\"Oblivion\", qop=auth-int";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("Digest"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("algorithm"), parameters.name());
-  EXPECT_EQ(std::string("md5"), parameters.value());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("Oblivion"), parameters.value());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("qop"), parameters.name());
-  EXPECT_EQ(std::string("auth-int"), parameters.value());
-  EXPECT_FALSE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-}
-
-// Use a challenge which has no property.
-TEST(HttpAuthTest, ChallengeTokenizerNoProperty) {
-  std::string challenge_str = "NTLM";
-  HttpAuth::ChallengeTokenizer challenge(
-      challenge_str.begin(), challenge_str.end());
-  HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
-
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("NTLM"), challenge.scheme());
-  EXPECT_FALSE(parameters.GetNext());
-}
-
-// Use a challenge with Base64 encoded token.
-TEST(HttpAuthTest, ChallengeTokenizerBase64) {
-  std::string challenge_str = "NTLM  SGVsbG8sIFdvcmxkCg===";
-  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                         challenge_str.end());
-
-  EXPECT_EQ(std::string("NTLM"), challenge.scheme());
-  // Notice the two equal statements below due to padding removal.
-  EXPECT_EQ(std::string("SGVsbG8sIFdvcmxkCg=="), challenge.base64_param());
 }
 
 TEST(HttpAuthTest, GetChallengeHeaderName) {

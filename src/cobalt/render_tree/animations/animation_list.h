@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/render_tree/movable.h"
 
 namespace cobalt {
@@ -76,7 +76,7 @@ class Animation {
   static void CallTimeIndependentFunction(
       const TimeIndependentFunction& time_independent_function,
       typename T::Builder* builder, base::TimeDelta time) {
-    UNREFERENCED_PARAMETER(time);
+    SB_UNREFERENCED_PARAMETER(time);
     time_independent_function.Run(builder);
   }
 };
@@ -112,8 +112,9 @@ class AnimationList : public AnimationListBase {
   struct Builder {
     DECLARE_AS_MOVABLE(Builder);
 
-    Builder() : expiry(base::TimeDelta::Max()),
-                depends_on_time_expiry(base::TimeDelta::Max()) {}
+    Builder()
+        : expiry(base::TimeDelta::Max()),
+          depends_on_time_expiry(base::TimeDelta::Max()) {}
     explicit Builder(Moved moved) { animations.swap(moved->animations); }
     explicit Builder(const typename Animation<T>::Function& single_animation,
                      base::TimeDelta expiry)

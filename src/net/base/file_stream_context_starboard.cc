@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,138 +14,112 @@
 
 #include "net/base/file_stream_context.h"
 
-#include "base/basictypes.h"
+#include <errno.h>
+#include <utility>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/metrics/histogram.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/task_runner.h"
 #include "base/task_runner_util.h"
-#include "base/threading/worker_pool.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "starboard/types.h"
+
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define net_err SbSystemGetLastError()
+#else
+#define net_err errno
+#endif
 
 namespace net {
 
-FileStream::Context::Context(const BoundNetLog& bound_net_log)
-    : file_(base::kInvalidPlatformFileValue),
-      record_uma_(false),
-      async_in_progress_(false),
+FileStream::Context::Context(const scoped_refptr<base::TaskRunner>& task_runner)
+    : async_in_progress_(false),
       orphaned_(false),
-      bound_net_log_(bound_net_log) {}
-
-FileStream::Context::Context(base::PlatformFile file,
-                             const BoundNetLog& bound_net_log,
-                             int /* open_flags */)
-    : file_(file),
-      record_uma_(false),
-      async_in_progress_(false),
-      orphaned_(false),
-      bound_net_log_(bound_net_log) {}
-
-FileStream::Context::~Context() {}
-
-int64 FileStream::Context::GetFileSize() const {
-  base::PlatformFileInfo info;
-  if (!base::GetPlatformFileInfo(file_, &info)) {
-    return RecordAndMapError(GetLastErrno(), FILE_ERROR_SOURCE_GET_SIZE);
-  }
-
-  return info.size;
+      task_runner_(task_runner) {
 }
 
-int FileStream::Context::ReadAsync(IOBuffer* in_buf,
-                                   int buf_len,
-                                   const CompletionCallback& callback) {
+FileStream::Context::Context(base::File file,
+                             const scoped_refptr<base::TaskRunner>& task_runner)
+    : file_(std::move(file)),
+      async_in_progress_(false),
+      orphaned_(false),
+      task_runner_(task_runner) {}
+
+FileStream::Context::~Context() = default;
+
+int FileStream::Context::Read(IOBuffer* in_buf,
+                              int buf_len,
+                              CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
   scoped_refptr<IOBuffer> buf = in_buf;
   const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task is slow */), FROM_HERE,
-      base::Bind(&Context::ReadFileImpl, base::Unretained(this), buf, buf_len),
-      base::Bind(&Context::ProcessAsyncResult, base::Unretained(this),
-                 IntToInt64(callback), FILE_ERROR_SOURCE_READ));
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::ReadFileImpl, base::Unretained(this), buf,
+                     buf_len),
+      base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
+                     IntToInt64(std::move(callback))));
   DCHECK(posted);
 
   async_in_progress_ = true;
   return ERR_IO_PENDING;
 }
 
-int FileStream::Context::ReadSync(char* in_buf, int buf_len) {
-  scoped_refptr<IOBuffer> buf = new WrappedIOBuffer(in_buf);
-  int64 result = ReadFileImpl(buf, buf_len);
-  CheckForIOError(&result, FILE_ERROR_SOURCE_READ);
-  return result;
-}
-
-int FileStream::Context::WriteAsync(IOBuffer* in_buf,
-                                    int buf_len,
-                                    const CompletionCallback& callback) {
+int FileStream::Context::Write(IOBuffer* in_buf,
+                               int buf_len,
+                               CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
   scoped_refptr<IOBuffer> buf = in_buf;
   const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task is slow */), FROM_HERE,
-      base::Bind(&Context::WriteFileImpl, base::Unretained(this), buf, buf_len),
-      base::Bind(&Context::ProcessAsyncResult, base::Unretained(this),
-                 IntToInt64(callback), FILE_ERROR_SOURCE_WRITE));
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::WriteFileImpl, base::Unretained(this), buf,
+                     buf_len),
+      base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
+                     IntToInt64(std::move(callback))));
   DCHECK(posted);
 
   async_in_progress_ = true;
   return ERR_IO_PENDING;
 }
 
-int FileStream::Context::WriteSync(const char* in_buf, int buf_len) {
-  scoped_refptr<IOBuffer> buf = new WrappedIOBuffer(in_buf);
-  int64 result = WriteFileImpl(buf, buf_len);
-  CheckForIOError(&result, FILE_ERROR_SOURCE_WRITE);
-  return result;
-}
-
-int FileStream::Context::Truncate(int64 bytes) {
-  if (base::TruncatePlatformFile(file_, bytes))
-    return bytes;
-
-  return RecordAndMapError(GetLastErrno(), FILE_ERROR_SOURCE_SET_EOF);
-}
-
-int64 FileStream::Context::SeekFileImpl(Whence whence, int64 offset) {
-  int64 res = base::SeekPlatformFile(
-      file_, static_cast<base::PlatformFileWhence>(whence), offset);
+FileStream::Context::IOResult FileStream::Context::SeekFileImpl(
+    int64_t offset) {
+  int64_t res = file_.Seek(base::File::FROM_BEGIN, offset);
   if (res == -1)
-    return GetLastErrno();
+    return IOResult::FromOSError(net_err);
 
-  return res;
+  return IOResult(res, 0);
 }
 
-int64 FileStream::Context::FlushFileImpl() {
-  if (base::FlushPlatformFile(file_)) {
-    return 0;
-  }
-
-  return GetLastErrno();
+void FileStream::Context::OnFileOpened() {
 }
 
-int64 FileStream::Context::ReadFileImpl(scoped_refptr<IOBuffer> buf,
-                                        int buf_len) {
-  // Loop in the case of getting interrupted by a signal.
-  int64 res = base::ReadPlatformFileAtCurrentPos(file_, buf->data(), buf_len);
+FileStream::Context::IOResult FileStream::Context::ReadFileImpl(
+    scoped_refptr<IOBuffer> buf,
+    int buf_len) {
+  int res = file_.ReadAtCurrentPosNoBestEffort(buf->data(), buf_len);
   if (res == -1)
-    return GetLastErrno();
+    return IOResult::FromOSError(net_err);
 
-  return res;
+  return IOResult(res, 0);
 }
 
-int64 FileStream::Context::WriteFileImpl(scoped_refptr<IOBuffer> buf,
-                                         int buf_len) {
-  int64 res = base::WritePlatformFileAtCurrentPos(file_, buf->data(), buf_len);
+FileStream::Context::IOResult FileStream::Context::WriteFileImpl(
+    scoped_refptr<IOBuffer> buf,
+    int buf_len) {
+  int res = file_.WriteAtCurrentPosNoBestEffort(buf->data(), buf_len);
   if (res == -1)
-    return GetLastErrno();
+    return IOResult::FromOSError(net_err);
 
-  return res;
+  return IOResult(res, 0);
 }
 
 }  // namespace net

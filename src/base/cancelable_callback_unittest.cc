@@ -4,10 +4,17 @@
 
 #include "base/cancelable_callback.h"
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/location.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
+#include "base/run_loop.h"
+#include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -16,12 +23,17 @@ namespace {
 class TestRefCounted : public RefCountedThreadSafe<TestRefCounted> {
  private:
   friend class RefCountedThreadSafe<TestRefCounted>;
-  ~TestRefCounted() {};
+  ~TestRefCounted() = default;
+  ;
 };
 
 void Increment(int* count) { (*count)++; }
 void IncrementBy(int* count, int n) { (*count) += n; }
 void RefCountedParam(const scoped_refptr<TestRefCounted>& ref_counted) {}
+
+void OnMoveOnlyReceived(int* value, std::unique_ptr<int> result) {
+  *value = *result;
+}
 
 // Cancel().
 //  - Callback can be run multiple times.
@@ -158,27 +170,37 @@ TEST(CancelableCallbackTest, IsNull) {
 // CancelableCallback posted to a MessageLoop with PostTask.
 //  - Callbacks posted to a MessageLoop can be cancelled.
 TEST(CancelableCallbackTest, PostTask) {
-  MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+  MessageLoop loop;
 
   int count = 0;
   CancelableClosure cancelable(base::Bind(&Increment,
                                            base::Unretained(&count)));
 
-  MessageLoop::current()->PostTask(FROM_HERE, cancelable.callback());
-  MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
-  MessageLoop::current()->Run();
+  ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE, cancelable.callback());
+  RunLoop().RunUntilIdle();
 
   EXPECT_EQ(1, count);
 
-  MessageLoop::current()->PostTask(FROM_HERE, cancelable.callback());
-  MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+  ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE, cancelable.callback());
 
   // Cancel before running the message loop.
   cancelable.Cancel();
-  MessageLoop::current()->Run();
+  RunLoop().RunUntilIdle();
 
   // Callback never ran due to cancellation; count is the same.
   EXPECT_EQ(1, count);
+}
+
+// CancelableCallback can be used with move-only types.
+TEST(CancelableCallbackTest, MoveOnlyType) {
+  const int kExpectedResult = 42;
+
+  int result = 0;
+  CancelableCallback<void(std::unique_ptr<int>)> cb(
+      base::Bind(&OnMoveOnlyReceived, base::Unretained(&result)));
+  cb.callback().Run(base::WrapUnique(new int(kExpectedResult)));
+
+  EXPECT_EQ(kExpectedResult, result);
 }
 
 }  // namespace

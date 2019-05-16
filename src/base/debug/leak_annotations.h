@@ -5,43 +5,34 @@
 #ifndef BASE_DEBUG_LEAK_ANNOTATIONS_H_
 #define BASE_DEBUG_LEAK_ANNOTATIONS_H_
 
+#include "base/macros.h"
 #include "build/build_config.h"
 
-// By default, Leak Sanitizer and Address Sanitizer is expected
-// to exist together. However, this is not true for all
-// platforms (e.g. PS4).
-// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
-#ifdef ADDRESS_SANITIZER
-#ifndef HAS_LEAK_SANITIZER
-// Default is that Leak Sanitizer exists whenever Address Sanitizer does.
-#define HAS_LEAK_SANITIZER 1
-#endif
-#endif
-
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_NACL) && \
-    defined(USE_HEAPCHECKER)
-
-#include "third_party/tcmalloc/chromium/src/gperftools/heap-checker.h"
-
-// Annotate a program scope as having memory leaks. Tcmalloc's heap leak
-// checker will ignore them. Note that these annotations may mask real bugs
-// and should not be used in the production code.
-#define ANNOTATE_SCOPED_MEMORY_LEAK \
-    HeapLeakChecker::Disabler heap_leak_checker_disabler
-
-// Annotate an object pointer as referencing a leaky object. This object and all
-// the heap objects referenced by it will be ignored by the heap checker.
+// This file defines macros which can be used to annotate intentional memory
+// leaks. Support for annotations is implemented in LeakSanitizer. Annotated
+// objects will be treated as a source of live pointers, i.e. any heap objects
+// reachable by following pointers from an annotated object will not be
+// reported as leaks.
 //
-// X should be referencing an active allocated object. If it is not, the
-// annotation will be ignored.
-// No object should be annotated with ANNOTATE_SCOPED_MEMORY_LEAK twice.
-// Once an object is annotated with ANNOTATE_SCOPED_MEMORY_LEAK, it cannot be
-// deleted.
-#define ANNOTATE_LEAKING_OBJECT_PTR(X) \
-    HeapLeakChecker::IgnoreObject(X)
+// ANNOTATE_SCOPED_MEMORY_LEAK: all allocations made in the current scope
+// will be annotated as leaks.
+// ANNOTATE_LEAKING_OBJECT_PTR(X): the heap object referenced by pointer X will
+// be annotated as a leak.
 
-#elif defined(ADDRESS_SANITIZER) && HAS_LEAK_SANITIZER
+#if defined(STARBOARD)
+#ifdef ADDRESS_SANITIZER
+#ifndef LEAK_SANITIZER
+// Default is that Leak Sanitizer exists whenever Address Sanitizer does.
+#define LEAK_SANITIZER 1
+#endif
+#endif
+#endif  // defined(STARBOARD)
+
+#if defined(LEAK_SANITIZER) && !defined(OS_NACL)
+
 #include <sanitizer/lsan_interface.h>
+
+#include "starboard/types.h"
 
 class ScopedLeakSanitizerDisabler {
  public:
@@ -58,7 +49,6 @@ class ScopedLeakSanitizerDisabler {
 
 #else
 
-// If tcmalloc is not used, the annotations should be no-ops.
 #define ANNOTATE_SCOPED_MEMORY_LEAK ((void)0)
 #define ANNOTATE_LEAKING_OBJECT_PTR(X) ((void)0)
 

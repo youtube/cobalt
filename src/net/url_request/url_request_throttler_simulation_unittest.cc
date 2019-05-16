@@ -14,12 +14,18 @@
 
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "base/environment.h"
-#include "base/memory/scoped_vector.h"
+#include "base/macros.h"
 #include "base/rand_util.h"
-#include "base/time.h"
+#include "base/test/scoped_task_environment.h"
+#include "base/time/time.h"
+#include "net/base/request_priority.h"
+#include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_test_util.h"
 #include "net/url_request/url_request_throttler_manager.h"
 #include "net/url_request/url_request_throttler_test_support.h"
@@ -43,7 +49,7 @@ void VerboseOut(const char* format, ...) {
   static bool should_print = false;
   if (!have_checked_environment) {
     have_checked_environment = true;
-    scoped_ptr<base::Environment> env(base::Environment::Create());
+    std::unique_ptr<base::Environment> env(base::Environment::Create());
     if (env->HasVar(kShowSimulationVariableName))
       should_print = true;
   }
@@ -65,12 +71,12 @@ class DiscreteTimeSimulation {
  public:
   class Actor {
    public:
-    virtual ~Actor() {}
+    virtual ~Actor() = default;
     virtual void AdvanceTime(const TimeTicks& absolute_time) = 0;
     virtual void PerformAction() = 0;
   };
 
-  DiscreteTimeSimulation() {}
+  DiscreteTimeSimulation() = default;
 
   // Adds an |actor| to the simulation. The client of the simulation maintains
   // ownership of |actor| and must ensure its lifetime exceeds that of the
@@ -89,15 +95,11 @@ class DiscreteTimeSimulation {
     TimeTicks start_time = TimeTicks();
     TimeTicks now = start_time;
     while ((now - start_time) <= maximum_simulated_duration) {
-      for (std::vector<Actor*>::iterator it = actors_.begin();
-           it != actors_.end();
-           ++it) {
+      for (auto it = actors_.begin(); it != actors_.end(); ++it) {
         (*it)->AdvanceTime(now);
       }
 
-      for (std::vector<Actor*>::iterator it = actors_.begin();
-           it != actors_.end();
-           ++it) {
+      for (auto it = actors_.begin(); it != actors_.end(); ++it) {
         (*it)->PerformAction();
       }
 
@@ -116,27 +118,28 @@ class DiscreteTimeSimulation {
 // after all |Requester| objects.
 class Server : public DiscreteTimeSimulation::Actor {
  public:
-  Server(int max_queries_per_tick,
-         double request_drop_ratio)
+  Server(int max_queries_per_tick, double request_drop_ratio)
       : max_queries_per_tick_(max_queries_per_tick),
         request_drop_ratio_(request_drop_ratio),
         num_overloaded_ticks_remaining_(0),
         num_current_tick_queries_(0),
         num_overloaded_ticks_(0),
         max_experienced_queries_per_tick_(0),
-        mock_request_(GURL(), NULL, &context_) {
-  }
+        mock_request_(context_.CreateRequest(GURL(),
+                                             DEFAULT_PRIORITY,
+                                             NULL,
+                                             TRAFFIC_ANNOTATION_FOR_TESTS)) {}
 
   void SetDowntime(const TimeTicks& start_time, const TimeDelta& duration) {
     start_downtime_ = start_time;
     end_downtime_ = start_time + duration;
   }
 
-  virtual void AdvanceTime(const TimeTicks& absolute_time) override {
+  void AdvanceTime(const TimeTicks& absolute_time) override {
     now_ = absolute_time;
   }
 
-  virtual void PerformAction() override {
+  void PerformAction() override {
     // We are inserted at the end of the actor's list, so all Requester
     // instances have already done their bit.
     if (num_current_tick_queries_ > max_experienced_queries_per_tick_)
@@ -189,7 +192,7 @@ class Server : public DiscreteTimeSimulation::Actor {
   }
 
   const URLRequest& mock_request() const {
-    return mock_request_;
+    return *mock_request_.get();
   }
 
   std::string VisualizeASCII(int terminal_width) {
@@ -220,7 +223,7 @@ class Server : public DiscreteTimeSimulation::Actor {
     if (num_ticks % ticks_per_column)
       ++num_columns;
     DCHECK_LE(num_columns, terminal_width);
-    scoped_array<int> columns(new int[num_columns]);
+    std::unique_ptr<int[]> columns(new int[num_columns]);
     for (int tx = 0; tx < num_ticks; ++tx) {
       int cx = tx / ticks_per_column;
       if (tx % ticks_per_column == 0)
@@ -276,6 +279,8 @@ class Server : public DiscreteTimeSimulation::Actor {
     return output;
   }
 
+  const URLRequestContext& context() const { return context_; }
+
  private:
   TimeTicks now_;
   TimeTicks start_downtime_;  // Can be 0 to say "no downtime".
@@ -289,7 +294,7 @@ class Server : public DiscreteTimeSimulation::Actor {
   std::vector<int> requests_per_tick_;
 
   TestURLRequestContext context_;
-  TestURLRequest mock_request_;
+  std::unique_ptr<URLRequest> mock_request_;
 
   DISALLOW_COPY_AND_ASSIGN(Server);
 };
@@ -297,45 +302,34 @@ class Server : public DiscreteTimeSimulation::Actor {
 // Mock throttler entry used by Requester class.
 class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
  public:
-  explicit MockURLRequestThrottlerEntry(
-      URLRequestThrottlerManager* manager)
-      : URLRequestThrottlerEntry(manager, ""),
-        mock_backoff_entry_(&backoff_policy_) {
+  explicit MockURLRequestThrottlerEntry(URLRequestThrottlerManager* manager)
+      : URLRequestThrottlerEntry(manager, std::string()),
+        backoff_entry_(&backoff_policy_, &fake_clock_) {}
+
+  const BackoffEntry* GetBackoffEntry() const override {
+    return &backoff_entry_;
   }
 
-  virtual const BackoffEntry* GetBackoffEntry() const override {
-    return &mock_backoff_entry_;
-  }
+  BackoffEntry* GetBackoffEntry() override { return &backoff_entry_; }
 
-  virtual BackoffEntry* GetBackoffEntry() override {
-    return &mock_backoff_entry_;
-  }
-
-  virtual TimeTicks ImplGetTimeNow() const override {
-    return fake_now_;
-  }
+  TimeTicks ImplGetTimeNow() const override { return fake_clock_.NowTicks(); }
 
   void SetFakeNow(const TimeTicks& fake_time) {
-    fake_now_ = fake_time;
-    mock_backoff_entry_.set_fake_now(fake_time);
-  }
-
-  TimeTicks fake_now() const {
-    return fake_now_;
+    fake_clock_.set_now(fake_time);
   }
 
  protected:
-  virtual ~MockURLRequestThrottlerEntry() {}
+  ~MockURLRequestThrottlerEntry() override = default;
 
  private:
-  TimeTicks fake_now_;
-  MockBackoffEntry mock_backoff_entry_;
+  mutable TestTickClock fake_clock_;
+  BackoffEntry backoff_entry_;
 };
 
 // Registry of results for a class of |Requester| objects (e.g. attackers vs.
 // regular clients).
 class RequesterResults {
-public:
+ public:
   RequesterResults()
       : num_attempts_(0), num_successful_(0), num_failed_(0), num_blocked_(0) {
   }
@@ -428,12 +422,11 @@ class Requester : public DiscreteTimeSimulation::Actor {
       effective_delay += current_jitter;
     }
 
-    if (throttler_entry_->fake_now() - time_of_last_attempt_ >
+    if (throttler_entry_->ImplGetTimeNow() - time_of_last_attempt_ >
         effective_delay) {
       if (!throttler_entry_->ShouldRejectRequest(server_->mock_request())) {
         int status_code = server_->HandleRequest();
-        MockURLRequestThrottlerHeaderAdapter response_headers(status_code);
-        throttler_entry_->UpdateWithResponse("", &response_headers);
+        throttler_entry_->UpdateWithResponse(status_code);
 
         if (status_code == 200) {
           if (results_)
@@ -441,10 +434,10 @@ class Requester : public DiscreteTimeSimulation::Actor {
 
           if (last_attempt_was_failure_) {
             last_downtime_duration_ =
-                throttler_entry_->fake_now() - time_of_last_success_;
+                throttler_entry_->ImplGetTimeNow() - time_of_last_success_;
           }
 
-          time_of_last_success_ = throttler_entry_->fake_now();
+          time_of_last_success_ = throttler_entry_->ImplGetTimeNow();
           last_attempt_was_failure_ = false;
         } else {
           if (results_)
@@ -457,7 +450,7 @@ class Requester : public DiscreteTimeSimulation::Actor {
         last_attempt_was_failure_ = true;
       }
 
-      time_of_last_attempt_ = throttler_entry_->fake_now();
+      time_of_last_attempt_ = throttler_entry_->ImplGetTimeNow();
     }
   }
 
@@ -497,7 +490,7 @@ void SimulateAttack(Server* server,
   const size_t kNumClients = 50;
   DiscreteTimeSimulation simulation;
   URLRequestThrottlerManager manager;
-  ScopedVector<Requester> requesters;
+  std::vector<std::unique_ptr<Requester>> requesters;
   for (size_t i = 0; i < kNumAttackers; ++i) {
     // Use a tiny time_between_requests so the attackers will ping the
     // server at every tick of the simulation.
@@ -506,13 +499,12 @@ void SimulateAttack(Server* server,
     if (!enable_throttling)
       throttler_entry->DisableBackoffThrottling();
 
-      Requester* attacker = new Requester(throttler_entry.get(),
-                                        TimeDelta::FromMilliseconds(1),
-                                        server,
-                                        attacker_results);
+    std::unique_ptr<Requester> attacker(
+        new Requester(throttler_entry.get(), TimeDelta::FromMilliseconds(1),
+                      server, attacker_results));
     attacker->SetStartupJitter(TimeDelta::FromSeconds(120));
-    requesters.push_back(attacker);
-    simulation.AddActor(attacker);
+    simulation.AddActor(attacker.get());
+    requesters.push_back(std::move(attacker));
   }
   for (size_t i = 0; i < kNumClients; ++i) {
     // Normal clients only make requests every 2 minutes, plus/minus 1 minute.
@@ -521,14 +513,13 @@ void SimulateAttack(Server* server,
     if (!enable_throttling)
       throttler_entry->DisableBackoffThrottling();
 
-    Requester* client = new Requester(throttler_entry.get(),
-                                      TimeDelta::FromMinutes(2),
-                                      server,
-                                      client_results);
+    std::unique_ptr<Requester> client(new Requester(throttler_entry.get(),
+                                                    TimeDelta::FromMinutes(2),
+                                                    server, client_results));
     client->SetStartupJitter(TimeDelta::FromSeconds(120));
     client->SetRequestJitter(TimeDelta::FromMinutes(1));
-    requesters.push_back(client);
-    simulation.AddActor(client);
+    simulation.AddActor(client.get());
+    requesters.push_back(std::move(client));
   }
   simulation.AddActor(server);
 
@@ -537,6 +528,8 @@ void SimulateAttack(Server* server,
 }
 
 TEST(URLRequestThrottlerSimulation, HelpsInAttack) {
+  base::test::ScopedTaskEnvironment scoped_task_environment;
+
   Server unprotected_server(30, 1.0);
   RequesterResults unprotected_attacker_results;
   RequesterResults unprotected_client_results;
@@ -622,6 +615,8 @@ double SimulateDowntime(const TimeDelta& duration,
 }
 
 TEST(URLRequestThrottlerSimulation, PerceivedDowntimeRatio) {
+  base::test::ScopedTaskEnvironment scoped_task_environment;
+
   struct Stats {
     // Expected interval that we expect the ratio of downtime when anti-DDoS
     // is enabled and downtime when anti-DDoS is not enabled to fall within.
@@ -713,7 +708,7 @@ TEST(URLRequestThrottlerSimulation, PerceivedDowntimeRatio) {
   // If things don't converge by the time we've done 100K trials, then
   // clearly one or more of the expected intervals are wrong.
   while (global_stats.num_runs < 100000) {
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(trials); ++i) {
+    for (size_t i = 0; i < arraysize(trials); ++i) {
       ++global_stats.num_runs;
       ++trials[i].stats.num_runs;
       double ratio_unprotected = SimulateDowntime(
@@ -741,7 +736,7 @@ TEST(URLRequestThrottlerSimulation, PerceivedDowntimeRatio) {
 
   // Print individual trial results for optional manual evaluation.
   double max_increase_ratio = 0.0;
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(trials); ++i) {
+  for (size_t i = 0; i < arraysize(trials); ++i) {
     double increase_ratio;
     trials[i].stats.DidConverge(&increase_ratio);
     max_increase_ratio = std::max(max_increase_ratio, increase_ratio);

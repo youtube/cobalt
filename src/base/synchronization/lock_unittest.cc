@@ -7,7 +7,10 @@
 #include <stdlib.h>
 
 #include "base/compiler_specific.h"
+#include "base/debug/activity_tracker.h"
+#include "base/macros.h"
 #include "base/threading/platform_thread.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -16,9 +19,9 @@ namespace base {
 
 class BasicLockTestThread : public PlatformThread::Delegate {
  public:
-  BasicLockTestThread(Lock* lock) : lock_(lock), acquired_(0) {}
+  explicit BasicLockTestThread(Lock* lock) : lock_(lock), acquired_(0) {}
 
-  virtual void ThreadMain() override {
+  void ThreadMain() override {
     for (int i = 0; i < 10; i++) {
       lock_->Acquire();
       acquired_++;
@@ -51,7 +54,7 @@ class BasicLockTestThread : public PlatformThread::Delegate {
 TEST(LockTest, Basic) {
   Lock lock;
   BasicLockTestThread thread(&lock);
-  PlatformThreadHandle handle = kNullThreadHandle;
+  PlatformThreadHandle handle;
 
   ASSERT_TRUE(PlatformThread::Create(0, &thread, &handle));
 
@@ -91,9 +94,9 @@ TEST(LockTest, Basic) {
 
 class TryLockTestThread : public PlatformThread::Delegate {
  public:
-  TryLockTestThread(Lock* lock) : lock_(lock), got_lock_(false) {}
+  explicit TryLockTestThread(Lock* lock) : lock_(lock), got_lock_(false) {}
 
-  virtual void ThreadMain() override {
+  void ThreadMain() override {
     got_lock_ = lock_->Try();
     if (got_lock_)
       lock_->Release();
@@ -117,7 +120,7 @@ TEST(LockTest, TryLock) {
   // This thread will not be able to get the lock.
   {
     TryLockTestThread thread(&lock);
-    PlatformThreadHandle handle = kNullThreadHandle;
+    PlatformThreadHandle handle;
 
     ASSERT_TRUE(PlatformThread::Create(0, &thread, &handle));
 
@@ -131,7 +134,7 @@ TEST(LockTest, TryLock) {
   // This thread will....
   {
     TryLockTestThread thread(&lock);
-    PlatformThreadHandle handle = kNullThreadHandle;
+    PlatformThreadHandle handle;
 
     ASSERT_TRUE(PlatformThread::Create(0, &thread, &handle));
 
@@ -144,6 +147,49 @@ TEST(LockTest, TryLock) {
 
   lock.Release();
 }
+
+#if !defined(STARBOARD)
+TEST(LockTest, TryTrackedLock) {
+  // Enable the activity tracker.
+  debug::GlobalActivityTracker::CreateWithLocalMemory(64 << 10, 0, "", 3, 0);
+
+  Lock lock;
+
+  ASSERT_TRUE(lock.Try());
+  // We now have the lock....
+
+  // This thread will not be able to get the lock.
+  {
+    TryLockTestThread thread(&lock);
+    PlatformThreadHandle handle;
+
+    ASSERT_TRUE(PlatformThread::Create(0, &thread, &handle));
+
+    PlatformThread::Join(handle);
+
+    ASSERT_FALSE(thread.got_lock());
+  }
+
+  lock.Release();
+
+  // This thread will....
+  {
+    TryLockTestThread thread(&lock);
+    PlatformThreadHandle handle;
+
+    ASSERT_TRUE(PlatformThread::Create(0, &thread, &handle));
+
+    PlatformThread::Join(handle);
+
+    ASSERT_TRUE(thread.got_lock());
+    // But it released it....
+    ASSERT_TRUE(lock.Try());
+  }
+
+  lock.Release();
+  debug::GlobalActivityTracker::ReleaseForTesting();
+}
+#endif  // !defined(STARBOARD)
 
 // Tests that locks actually exclude -------------------------------------------
 
@@ -162,9 +208,7 @@ class MutexLockTestThread : public PlatformThread::Delegate {
     }
   }
 
-  virtual void ThreadMain() override {
-    DoStuff(lock_, value_);
-  }
+  void ThreadMain() override { DoStuff(lock_, value_); }
 
  private:
   Lock* lock_;
@@ -178,7 +222,7 @@ TEST(LockTest, MutexTwoThreads) {
   int value = 0;
 
   MutexLockTestThread thread(&lock, &value);
-  PlatformThreadHandle handle = kNullThreadHandle;
+  PlatformThreadHandle handle;
 
   ASSERT_TRUE(PlatformThread::Create(0, &thread, &handle));
 
@@ -196,9 +240,9 @@ TEST(LockTest, MutexFourThreads) {
   MutexLockTestThread thread1(&lock, &value);
   MutexLockTestThread thread2(&lock, &value);
   MutexLockTestThread thread3(&lock, &value);
-  PlatformThreadHandle handle1 = kNullThreadHandle;
-  PlatformThreadHandle handle2 = kNullThreadHandle;
-  PlatformThreadHandle handle3 = kNullThreadHandle;
+  PlatformThreadHandle handle1;
+  PlatformThreadHandle handle2;
+  PlatformThreadHandle handle3;
 
   ASSERT_TRUE(PlatformThread::Create(0, &thread1, &handle1));
   ASSERT_TRUE(PlatformThread::Create(0, &thread2, &handle2));

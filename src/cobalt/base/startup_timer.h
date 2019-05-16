@@ -15,7 +15,7 @@
 #ifndef COBALT_BASE_STARTUP_TIMER_H_
 #define COBALT_BASE_STARTUP_TIMER_H_
 
-#include "base/time.h"
+#include "base/time/time.h"
 
 namespace base {
 namespace StartupTimer {

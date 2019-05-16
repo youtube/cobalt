@@ -41,14 +41,15 @@ ResourceContext::ResourceContext(EGLDisplay display, EGLConfig config)
   // current on that thread, so that subsequent calls to
   // RunSynchronouslyWithinResourceContext() can assume it is current already.
   thread_.Start();
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ResourceContext::MakeCurrent, base::Unretained(this)));
 }
 
 ResourceContext::~ResourceContext() {
-  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
-      &ResourceContext::ShutdownOnResourceThread, base::Unretained(this)));
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&ResourceContext::ShutdownOnResourceThread,
+                            base::Unretained(this)));
 }
 
 namespace {
@@ -60,21 +61,22 @@ void RunAndSignal(const base::Closure& function, base::WaitableEvent* event) {
 
 void ResourceContext::RunSynchronouslyWithinResourceContext(
     const base::Closure& function) {
-  DCHECK_NE(thread_.message_loop(), MessageLoop::current()) <<
-      "This method should not be called within the resource context thread.";
+  DCHECK_NE(thread_.message_loop(), base::MessageLoop::current())
+      << "This method should not be called within the resource context thread.";
 
-  base::WaitableEvent event(true, false);
-  thread_.message_loop()->PostTask(FROM_HERE,
-                                   base::Bind(&RunAndSignal, function, &event));
+  base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
+                            base::WaitableEvent::InitialState::NOT_SIGNALED);
+  thread_.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&RunAndSignal, function, &event));
   event.Wait();
 }
 
 void ResourceContext::AssertWithinResourceContext() {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
 }
 
 void ResourceContext::MakeCurrent() {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
   EGL_CALL(eglMakeCurrent(display_, null_surface_, null_surface_, context_));
 }
 

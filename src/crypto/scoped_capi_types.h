@@ -6,11 +6,13 @@
 #define CRYPTO_SCOPED_CAPI_TYPES_H_
 
 #include <windows.h>
-#include <wincrypt.h>
 
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/macros.h"
+#include "crypto/wincrypt_shim.h"
+#include "starboard/types.h"
 
 namespace crypto {
 
@@ -42,8 +44,8 @@ struct CAPIDestroyerWithFlags {
 
 // scoped_ptr-like class for the CryptoAPI cryptography and certificate
 // handles. Because these handles are defined as integer types, and not
-// pointers, the existing scoped classes, such as scoped_ptr_malloc, are
-// insufficient. The semantics are the same as scoped_ptr.
+// pointers, the existing scoped classes, such as scoped_ptr, are insufficient.
+// The semantics are the same as scoped_ptr.
 template <class CAPIHandle, typename FreeProc>
 class ScopedCAPIHandle {
  public:

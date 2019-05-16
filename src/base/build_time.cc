@@ -4,22 +4,28 @@
 
 #include "base/build_time.h"
 
+#ifndef STARBOARD
+// Imports the generated build date, i.e. BUILD_DATE.
+#include "base/generated_build_date.h"
+#endif
 #include "base/logging.h"
-#include "base/time.h"
+#include "base/time/time.h"
 
 namespace base {
 
 Time GetBuildTime() {
+#ifdef STARBOARD
+  NOTIMPLEMENTED();
+  return base::Time();
+#else
   Time integral_build_time;
-  // The format of __DATE__ and __TIME__ is specified by the ANSI C Standard,
-  // section 6.8.8.
-  //
-  // __DATE__ is exactly "Mmm DD YYYY".
-  // __TIME__ is exactly "hh:mm:ss".
-  const char kDateTime[] = __DATE__ " " __TIME__ " PST";
-  bool result = Time::FromString(kDateTime, &integral_build_time);
+  // BUILD_DATE is exactly "Mmm DD YYYY HH:MM:SS".
+  // See //build/write_build_date_header.py. "HH:MM:SS" is normally expected to
+  // be "05:00:00" but is not enforced here.
+  bool result = Time::FromUTCString(BUILD_DATE, &integral_build_time);
   DCHECK(result);
   return integral_build_time;
+#endif
 }
 
 }  // namespace base

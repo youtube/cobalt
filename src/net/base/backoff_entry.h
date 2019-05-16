@@ -5,9 +5,15 @@
 #ifndef NET_BASE_BACKOFF_ENTRY_H_
 #define NET_BASE_BACKOFF_ENTRY_H_
 
-#include "base/threading/non_thread_safe.h"
-#include "base/time.h"
+#include "base/macros.h"
+#include "base/threading/thread_checker.h"
+#include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
+
+namespace base {
+class TickClock;
+}
 
 namespace net {
 
@@ -16,9 +22,10 @@ namespace net {
 //
 // This utility class knows nothing about network specifics; it is
 // intended for reuse in various networking scenarios.
-class NET_EXPORT BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT BackoffEntry {
  public:
-  // The set of parameters that define a back-off policy.
+  // The set of parameters that define a back-off policy. When modifying this,
+  // increment SERIALIZATION_VERSION_NUMBER in backoff_entry_serializer.cc.
   struct Policy {
     // Number of initial errors (in sequence) to ignore before applying
     // exponential back-off rules.
@@ -39,11 +46,11 @@ class NET_EXPORT BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
     // Maximum amount of time we are willing to delay our request, -1
     // for no maximum.
-    int64 maximum_backoff_ms;
+    int64_t maximum_backoff_ms;
 
     // Time to keep an entry from being discarded even when it
     // has no significant state, -1 to never discard.
-    int64 entry_lifetime_ms;
+    int64_t entry_lifetime_ms;
 
     // If true, we always use a delay of initial_delay_ms, even before
     // we've seen num_errors_to_ignore errors.  Otherwise, initial_delay_ms
@@ -57,7 +64,11 @@ class NET_EXPORT BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Lifetime of policy must enclose lifetime of BackoffEntry. The
   // pointer must be valid but is not dereferenced during construction.
-  explicit BackoffEntry(const Policy* const policy);
+  explicit BackoffEntry(const Policy* policy);
+  // Lifetime of policy and clock must enclose lifetime of BackoffEntry.
+  // |policy| pointer must be valid but isn't dereferenced during construction.
+  // |clock| pointer may be null.
+  BackoffEntry(const Policy* policy, const base::TickClock* clock);
   virtual ~BackoffEntry();
 
   // Inform this item that a request for the network resource it is
@@ -72,8 +83,14 @@ class NET_EXPORT BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // state) will no longer reject requests.
   base::TimeTicks GetReleaseTime() const;
 
-  // Returns the time until a request can be sent.
+  // Returns the time until a request can be sent (will be zero if the release
+  // time is in the past).
   base::TimeDelta GetTimeUntilRelease() const;
+
+  // Converts |backoff_duration| to a release time, by adding it to
+  // GetTimeTicksNow(), limited by maximum_backoff_ms.
+  base::TimeTicks BackoffDurationToReleaseTime(
+      base::TimeDelta backoff_duration) const;
 
   // Causes this object reject requests until the specified absolute time.
   // This can be used to e.g. implement support for a Retry-After header.
@@ -90,9 +107,8 @@ class NET_EXPORT BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Returns the failure count for this entry.
   int failure_count() const { return failure_count_; }
 
- protected:
-  // Equivalent to TimeTicks::Now(), virtual so unit tests can override.
-  virtual base::TimeTicks ImplGetTimeNow() const;
+  // Equivalent to TimeTicks::Now(), using clock_ if provided.
+  base::TimeTicks GetTimeTicksNow() const;
 
  private:
   // Calculates when requests should again be allowed through.
@@ -105,7 +121,11 @@ class NET_EXPORT BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Counts request errors; decremented on success.
   int failure_count_;
 
-  const Policy* const policy_;
+  const Policy* const policy_;  // Not owned.
+
+  const base::TickClock* const clock_;  // Not owned.
+
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(BackoffEntry);
 };

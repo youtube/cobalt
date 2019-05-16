@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/network/net_log_constants.h"
 
-#include "base/string_number_conversions.h"
-#include "base/stringprintf.h"
+#include "base/basictypes.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 #include "net/base/address_family.h"
 #include "net/base/load_states.h"
-#include "net/base/net_log.h"
+#include "net/log/net_log.h"
+#include "net/log/net_log_event_type.h"
 
 namespace cobalt {
 namespace network {
@@ -29,10 +33,11 @@ namespace {
 const int kLogFormatVersion = 1;
 }
 
-scoped_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
+std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   // This function is based on the implementation of
   // NetInternalsUI::GetConstants() in Chromium 25.
-  scoped_ptr<DictionaryValue> constants_dict(new DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> constants_dict(
+      new base::DictionaryValue());
 
   // Version of the file format.
   constants_dict->SetInteger("logFormatVersion", kLogFormatVersion);
@@ -44,7 +49,7 @@ scoped_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   // Add a dictionary with the version of the client and its command line
   // arguments.
   {
-    DictionaryValue* dict = new DictionaryValue();
+    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
     dict->SetString("name", "Cobalt");
     dict->SetString("version", base::StringPrintf("%s.%s", COBALT_VERSION,
@@ -63,57 +68,60 @@ scoped_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
     // The tool in Chrome handles the absence of these with no problem. See
     // NetInternalsUI::GetConstants() for how these are set for Chrome.
 
-    constants_dict->Set("clientInfo", dict);
+    constants_dict->Set("clientInfo", std::move(dict));
   }
 
   // Add a dictionary with information about the relationship between load flag
   // enums and their symbolic names.
   {
-    DictionaryValue* dict = new DictionaryValue();
+    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
 #define LOAD_FLAG(label, value) \
   dict->SetInteger(#label, static_cast<int>(value));
 #include "net/base/load_flags_list.h"
 #undef LOAD_FLAG
 
-    constants_dict->Set("loadFlag", dict);
+    constants_dict->Set("loadFlag", std::move(dict));
   }
 
   // Add a dictionary with information about the relationship between load state
   // enums and their symbolic names.
   {
-    DictionaryValue* dict = new DictionaryValue();
+    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
-#define LOAD_STATE(label) dict->SetInteger(#label, net::LOAD_STATE_##label);
+#define LOAD_STATE(label, value) \
+  dict->SetInteger(#label, static_cast<int>(value));
 #include "net/base/load_states_list.h"
 #undef LOAD_STATE
 
-    constants_dict->Set("loadState", dict);
+    constants_dict->Set("loadState", std::move(dict));
   }
 
   // Add information on the relationship between net error codes and their
   // symbolic names.
   {
-    DictionaryValue* dict = new DictionaryValue();
+    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
 #define NET_ERROR(label, value) \
   dict->SetInteger(#label, static_cast<int>(value));
 #include "net/base/net_error_list.h"
 #undef NET_ERROR
 
-    constants_dict->Set("netError", dict);
+    constants_dict->Set("netError", std::move(dict));
   }
 
   // Information about the relationship between event phase enums and their
   // symbolic names.
   {
-    DictionaryValue* dict = new DictionaryValue();
+    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
-    dict->SetInteger("PHASE_BEGIN", net::NetLog::PHASE_BEGIN);
-    dict->SetInteger("PHASE_END", net::NetLog::PHASE_END);
-    dict->SetInteger("PHASE_NONE", net::NetLog::PHASE_NONE);
+    // TODO[johnx]: find out where the corresponding integer number for each
+    // event phase lives and replace the following hard-coded number with them.
+    dict->SetInteger("PHASE_BEGIN", 0);
+    dict->SetInteger("PHASE_END", 1);
+    dict->SetInteger("PHASE_NONE", 2);
 
-    constants_dict->Set("logEventPhase", dict);
+    constants_dict->Set("logEventPhase", std::move(dict));
   }
 
   // Information about the relationship between source type enums and
@@ -122,27 +130,29 @@ scoped_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
 
   // Information about the relationship between LogLevel enums and their
   // symbolic names.
-  {
-    DictionaryValue* dict = new DictionaryValue();
+  // {
+  //   std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
-    dict->SetInteger("LOG_ALL", net::NetLog::LOG_ALL);
-    dict->SetInteger("LOG_ALL_BUT_BYTES", net::NetLog::LOG_ALL_BUT_BYTES);
-    dict->SetInteger("LOG_BASIC", net::NetLog::LOG_BASIC);
+  //   dict->SetInteger("DEFAULT", "net::NetLog::NetLogCaptureMode::Default()");
+  //   dict->SetInteger("INCLUDE_COOKIES_AND_CREDENTIALS",
+  //                   "net::NetLogCaptureMode::IncludeCookiesAndCredentials()");
+  //   dict->SetInteger("INCLUDE_SOCKET_BYTES",
+  //                   "net::NetLogCaptureMode::IncludeSocketBytes()");
 
-    constants_dict->Set("logLevelType", dict);
-  }
+  //   constants_dict->Set("logCaptureMode", std::move(dict));
+  // }
 
   // Information about the relationship between address family enums and
   // their symbolic names.
   {
-    DictionaryValue* dict = new DictionaryValue();
+    std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
     dict->SetInteger("ADDRESS_FAMILY_UNSPECIFIED",
                      net::ADDRESS_FAMILY_UNSPECIFIED);
     dict->SetInteger("ADDRESS_FAMILY_IPV4", net::ADDRESS_FAMILY_IPV4);
     dict->SetInteger("ADDRESS_FAMILY_IPV6", net::ADDRESS_FAMILY_IPV6);
 
-    constants_dict->Set("addressFamily", dict);
+    constants_dict->Set("addressFamily", std::move(dict));
   }
 
   // Information about how the "time ticks" values we have given it relate to
@@ -168,7 +178,7 @@ scoped_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
     constants_dict->SetString("timeTickOffset",
                               base::Int64ToString(tick_to_unix_time_ms));
   }
-  return constants_dict.Pass();
+  return constants_dict;
 }
 
 }  // namespace network

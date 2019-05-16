@@ -9,39 +9,55 @@
 
 namespace net {
 
-URLFetcher::~URLFetcher() {}
+URLFetcher::~URLFetcher() = default;
 
 // static
-URLFetcher* net::URLFetcher::Create(
+std::unique_ptr<URLFetcher> URLFetcher::Create(
     const GURL& url,
     URLFetcher::RequestType request_type,
     URLFetcherDelegate* d) {
-  return new URLFetcherImpl(url, request_type, d);
+  return URLFetcher::Create(0, url, request_type, d);
 }
 
 // static
-URLFetcher* net::URLFetcher::Create(
+std::unique_ptr<URLFetcher> URLFetcher::Create(
     int id,
     const GURL& url,
     URLFetcher::RequestType request_type,
     URLFetcherDelegate* d) {
-  URLFetcherFactory* factory = URLFetcherImpl::factory();
-  return factory ? factory->CreateURLFetcher(id, url, request_type, d) :
-                   new URLFetcherImpl(url, request_type, d);
+  return Create(id, url, request_type, d, MISSING_TRAFFIC_ANNOTATION);
 }
 
 // static
-void net::URLFetcher::CancelAll() {
+std::unique_ptr<URLFetcher> URLFetcher::Create(
+    const GURL& url,
+    URLFetcher::RequestType request_type,
+    URLFetcherDelegate* d,
+    NetworkTrafficAnnotationTag traffic_annotation) {
+  return URLFetcher::Create(0, url, request_type, d, traffic_annotation);
+}
+
+// static
+std::unique_ptr<URLFetcher> URLFetcher::Create(
+    int id,
+    const GURL& url,
+    URLFetcher::RequestType request_type,
+    URLFetcherDelegate* d,
+    NetworkTrafficAnnotationTag traffic_annotation) {
+  URLFetcherFactory* factory = URLFetcherImpl::factory();
+  return factory ? factory->CreateURLFetcher(id, url, request_type, d,
+                                             traffic_annotation)
+                 : std::unique_ptr<URLFetcher>(new URLFetcherImpl(
+                       url, request_type, d, traffic_annotation));
+}
+
+// static
+void URLFetcher::CancelAll() {
   URLFetcherImpl::CancelAll();
 }
 
 // static
-void net::URLFetcher::SetEnableInterceptionForTests(bool enabled) {
-  URLFetcherImpl::SetEnableInterceptionForTests(enabled);
-}
-
-// static
-void net::URLFetcher::SetIgnoreCertificateRequests(bool ignored) {
+void URLFetcher::SetIgnoreCertificateRequests(bool ignored) {
   URLFetcherImpl::SetIgnoreCertificateRequests(ignored);
 }
 

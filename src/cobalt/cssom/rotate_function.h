@@ -19,7 +19,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/transform_function.h"
 
@@ -45,6 +45,10 @@ class RotateFunction : public TransformFunction {
   std::string ToString() const override {
     return base::StringPrintf("rotate(%.7grad)", clockwise_angle_in_radians_);
   }
+
+  math::Matrix3F ToMatrix(const math::SizeF& used_size,
+      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
+      const override;
 
   bool operator==(const RotateFunction& other) const {
     return clockwise_angle_in_radians_ == other.clockwise_angle_in_radians_;

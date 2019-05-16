@@ -7,8 +7,10 @@
 
 #include <vector>
 
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/base/priority_queue.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -37,6 +39,7 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // for priority 3 or above.
   struct NET_EXPORT_PRIVATE Limits {
     Limits(Priority num_priorities, size_t total_jobs);
+    Limits(const Limits& other);
     ~Limits();
 
     // Total allowed running jobs.
@@ -78,6 +81,10 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // it is queued in the dispatcher.
   Handle Add(Job* job, Priority priority);
 
+  // Just like Add, except that it adds Job at the font of queue of jobs with
+  // priorities of |priority|.
+  Handle AddAtHead(Job* job, Priority priority);
+
   // Removes the job with |handle| from the queue. Invalidates |handle|.
   // Note: a Handle is valid iff the job is in the queue, i.e. has not Started.
   void Cancel(const Handle& handle);
@@ -94,11 +101,28 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // Notifies the dispatcher that a running job has finished. Could start a job.
   void OnJobFinished();
 
+  // Retrieves the Limits that |this| is currently using.  This may not exactly
+  // match the Limits this was created with.  In particular, the number of slots
+  // reserved for the lowest priority will always be 0, even if it was non-zero
+  // in the Limits passed to the constructor or to SetLimits.
+  Limits GetLimits() const;
+
+  // Updates |max_running_jobs_| to match |limits|.  Starts jobs if new limit
+  // allows.  Does not stop jobs if the new limits are lower than the old ones.
+  void SetLimits(const Limits& limits);
+
+  // Set the limits to zero for all priorities, allowing no new jobs to start.
+  void SetLimitsToZero();
+
  private:
   // Attempts to dispatch the job with |handle| at priority |priority| (might be
   // different than |handle.priority()|. Returns true if successful. If so
   // the |handle| becomes invalid.
   bool MaybeDispatchJob(const Handle& handle, Priority priority);
+
+  // Attempts to dispatch the next highest priority job in the queue. Returns
+  // true if successful, and all handles to that job become invalid.
+  bool MaybeDispatchNextJob();
 
   // Queue for jobs that need to wait for a spare slot.
   PriorityQueue<Job*> queue_;

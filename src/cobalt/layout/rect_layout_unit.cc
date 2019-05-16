@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/layout/insets_layout_unit.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/point_layout_unit.h"

@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -19,33 +20,34 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerBasic : public HttpAuthHandler {
   class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
-    virtual ~Factory();
+    ~Factory() override;
 
-    virtual int CreateAuthHandler(
-        HttpAuth::ChallengeTokenizer* challenge,
-        HttpAuth::Target target,
-        const GURL& origin,
-        CreateReason reason,
-        int digest_nonce_count,
-        const BoundNetLog& net_log,
-        scoped_ptr<HttpAuthHandler>* handler) override;
+    int CreateAuthHandler(HttpAuthChallengeTokenizer* challenge,
+                          HttpAuth::Target target,
+                          const SSLInfo& ssl_info,
+                          const GURL& origin,
+                          CreateReason reason,
+                          int digest_nonce_count,
+                          const NetLogWithSource& net_log,
+                          std::unique_ptr<HttpAuthHandler>* handler) override;
   };
 
-  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge) override;
+  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuthChallengeTokenizer* challenge) override;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) override;
+  bool Init(HttpAuthChallengeTokenizer* challenge,
+            const SSLInfo& ssl_info) override;
 
-  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
-                                    const HttpRequestInfo* request,
-                                    const CompletionCallback& callback,
-                                    std::string* auth_token) override;
+  int GenerateAuthTokenImpl(const AuthCredentials* credentials,
+                            const HttpRequestInfo* request,
+                            CompletionOnceCallback callback,
+                            std::string* auth_token) override;
 
  private:
-  virtual ~HttpAuthHandlerBasic() {}
+  ~HttpAuthHandlerBasic() override {}
 
-  bool ParseChallenge(HttpAuth::ChallengeTokenizer* challenge);
+  bool ParseChallenge(HttpAuthChallengeTokenizer* challenge);
 };
 
 }  // namespace net

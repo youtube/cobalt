@@ -15,8 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_TYPEFACE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_TYPEFACE_H_
 
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
+#include "base/containers/hash_tables.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/typeface.h"
@@ -71,7 +72,7 @@ class SkiaTypeface : public render_tree::Typeface {
   // lookups. The page containing indices 0-255 is optimized within an array.
   // Thread checking is used to used to ensure that they are only accessed and
   // modified on a single thread.
-  scoped_array<render_tree::GlyphIndex> primary_page_character_glyphs_;
+  std::unique_ptr<render_tree::GlyphIndex[]> primary_page_character_glyphs_;
   CharacterToGlyphMap character_to_glyph_map_;
   base::ThreadChecker character_glyph_thread_checker_;
 };

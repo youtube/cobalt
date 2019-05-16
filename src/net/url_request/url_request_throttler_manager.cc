@@ -5,11 +5,11 @@
 #include "net/url_request/url_request_throttler_manager.h"
 
 #include "base/logging.h"
-#include "base/metrics/field_trial.h"
-#include "base/metrics/histogram.h"
-#include "base/string_util.h"
-#include "net/base/net_log.h"
-#include "net/base/net_util.h"
+#include "base/strings/string_util.h"
+#include "net/base/url_util.h"
+#include "net/log/net_log.h"
+#include "net/log/net_log_event_type.h"
+#include "net/log/net_log_source_type.h"
 
 namespace net {
 
@@ -18,7 +18,6 @@ const unsigned int URLRequestThrottlerManager::kRequestsBetweenCollecting = 200;
 
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
-      enable_thread_checks_(false),
       logged_for_localhost_disabled_(false),
       registered_from_thread_(base::kInvalidThreadId) {
   url_id_replacements_.ClearPassword();
@@ -31,14 +30,15 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
   NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
 
   // Since the manager object might conceivably go away before the
   // entries, detach the entries' back-pointer to the manager.
-  UrlEntryMap::iterator i = url_entries_.begin();
+  auto i = url_entries_.begin();
   while (i != url_entries_.end()) {
-    if (i->second != NULL) {
+    if (i->second.get() != NULL) {
       i->second->DetachManager();
     }
     ++i;
@@ -50,7 +50,7 @@ URLRequestThrottlerManager::~URLRequestThrottlerManager() {
 
 scoped_refptr<URLRequestThrottlerEntryInterface>
     URLRequestThrottlerManager::RegisterRequestUrl(const GURL &url) {
-  DCHECK(!enable_thread_checks_ || CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Normalize the url.
   std::string url_id = GetIdFromUrl(url);
@@ -75,42 +75,23 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
 
     // We only disable back-off throttling on an entry that we have
     // just constructed.  This is to allow unit tests to explicitly override
-    // the entry for localhost URLs.  Given that we do not attempt to
-    // disable throttling for entries already handed out (see comment
-    // in AddToOptOutList), this is not a problem.
-    std::string host = url.host();
-    if (opt_out_hosts_.find(host) != opt_out_hosts_.end() ||
-        IsLocalhost(host)) {
-      if (!logged_for_localhost_disabled_ && IsLocalhost(host)) {
+    // the entry for localhost URLs.
+    if (IsLocalhost(url)) {
+      if (!logged_for_localhost_disabled_ && IsLocalhost(url)) {
+        std::string host = url.host();
         logged_for_localhost_disabled_ = true;
-        net_log_.AddEvent(NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
+        net_log_.AddEvent(NetLogEventType::THROTTLING_DISABLED_FOR_HOST,
                           NetLog::StringCallback("host", &host));
       }
 
       // TODO(joi): Once sliding window is separate from back-off throttling,
       // we can simply return a dummy implementation of
-      // URLRequestThrottlerEntryInterface here that never blocks anything (and
-      // not keep entries in url_entries_ for opted-out sites).
+      // URLRequestThrottlerEntryInterface here that never blocks anything.
       entry->DisableBackoffThrottling();
     }
   }
 
   return entry;
-}
-
-void URLRequestThrottlerManager::AddToOptOutList(const std::string& host) {
-  // There is an edge case here that we are not handling, to keep things
-  // simple.  If a host starts adding the opt-out header to its responses
-  // after there are already one or more entries in url_entries_ for that
-  // host, the pre-existing entries may still perform back-off throttling.
-  // In practice, this would almost never occur.
-  if (opt_out_hosts_.find(host) == opt_out_hosts_.end()) {
-    UMA_HISTOGRAM_COUNTS("Throttling.SiteOptedOut", 1);
-
-    net_log_.EndEvent(NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
-                      NetLog::StringCallback("host", &host));
-    opt_out_hosts_.insert(host);
-  }
 }
 
 void URLRequestThrottlerManager::OverrideEntryForTests(
@@ -131,18 +112,10 @@ void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {
   url_entries_.erase(url_id);
 }
 
-void URLRequestThrottlerManager::set_enable_thread_checks(bool enable) {
-  enable_thread_checks_ = enable;
-}
-
-bool URLRequestThrottlerManager::enable_thread_checks() const {
-  return enable_thread_checks_;
-}
-
 void URLRequestThrottlerManager::set_net_log(NetLog* net_log) {
   DCHECK(net_log);
-  net_log_ = BoundNetLog::Make(net_log,
-                               NetLog::SOURCE_EXPONENTIAL_BACKOFF_THROTTLING);
+  net_log_ = NetLogWithSource::Make(
+      net_log, NetLogSourceType::EXPONENTIAL_BACKOFF_THROTTLING);
 }
 
 NetLog* URLRequestThrottlerManager::net_log() const {
@@ -163,7 +136,7 @@ std::string URLRequestThrottlerManager::GetIdFromUrl(const GURL& url) const {
     return url.possibly_invalid_spec();
 
   GURL id = url.ReplaceComponents(url_id_replacements_);
-  return StringToLowerASCII(id.spec()).c_str();
+  return base::ToLowerASCII(id.spec());
 }
 
 void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
@@ -176,7 +149,7 @@ void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
 }
 
 void URLRequestThrottlerManager::GarbageCollectEntries() {
-  UrlEntryMap::iterator i = url_entries_.begin();
+  auto i = url_entries_.begin();
   while (i != url_entries_.end()) {
     if ((i->second)->IsEntryOutdated()) {
       url_entries_.erase(i++);

@@ -24,7 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(_MSC_VER) && !defined(COBALT_WIN)
+#ifdef _MSC_VER
 # include <windows.h>
 #endif
 
@@ -61,10 +61,10 @@
    folding them. */
 #ifdef __COUNTER__
 #define DYNAMIC_ANNOTATIONS_IMPL \
-  volatile short lineno = (__LINE__ << 8) + __COUNTER__; (void)lineno;
+  volatile unsigned short lineno = (__LINE__ << 8) + __COUNTER__; (void)lineno;
 #else
 #define DYNAMIC_ANNOTATIONS_IMPL \
-  volatile short lineno = (__LINE__ << 8); (void)lineno;
+  volatile unsigned short lineno = (__LINE__ << 8); (void)lineno;
 #endif
 
 /* WARNING: always add new annotations to the end of the list.
@@ -232,10 +232,10 @@ static int GetRunningOnValgrind(void) {
 #ifdef RUNNING_ON_VALGRIND
   if (RUNNING_ON_VALGRIND) return 1;
 #endif
-#if defined(__LB_SHELL__) || defined(STARBOARD)
+
+#ifdef STARBOARD
   return 0;
 #else
-
 #ifndef _MSC_VER
   char *running_on_valgrind_str = getenv("RUNNING_ON_VALGRIND");
   if (running_on_valgrind_str) {
@@ -254,8 +254,8 @@ static int GetRunningOnValgrind(void) {
   if (res > 0 && strcmp(value, "0") != 0)
     return 1;
 #endif
+#endif  // STARBOARD
   return 0;
-#endif
 }
 
 /* See the comments in dynamic_annotations.h */

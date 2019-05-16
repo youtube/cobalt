@@ -61,24 +61,24 @@ TEST_F(NullableTypesBindingsTest, GetNonNullProperty) {
   std::string result;
 
   EXPECT_CALL(test_mock(), nullable_boolean_property())
-      .WillOnce(Return(base::optional<bool>(true)));
+      .WillOnce(Return(base::Optional<bool>(true)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableBooleanProperty === true;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_numeric_property())
-      .WillOnce(Return(base::optional<int32_t>(5)));
+      .WillOnce(Return(base::Optional<int32_t>(5)));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericProperty === 5;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_string_property())
-      .WillOnce(Return(base::optional<std::string>("foo")));
+      .WillOnce(Return(base::Optional<std::string>("foo")));
   EXPECT_TRUE(
       EvaluateScript("test.nullableStringProperty === \"foo\";", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_object_property())
-      .WillOnce(Return(make_scoped_refptr(new ArbitraryInterface())));
+      .WillOnce(Return(base::WrapRefCounted(new ArbitraryInterface())));
   EXPECT_TRUE(
       EvaluateScript("test.nullableObjectProperty.__proto__;", &result));
   EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
@@ -119,25 +119,25 @@ TEST_F(NullableTypesBindingsTest, ReturnNonNullFromOperation) {
   std::string result;
 
   EXPECT_CALL(test_mock(), NullableBooleanOperation())
-      .WillOnce(Return(base::optional<bool>(true)));
+      .WillOnce(Return(base::Optional<bool>(true)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableBooleanOperation() === true;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableNumericOperation())
-      .WillOnce(Return(base::optional<int32_t>(5)));
+      .WillOnce(Return(base::Optional<int32_t>(5)));
   EXPECT_TRUE(
       EvaluateScript("test.nullableNumericOperation() === 5;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableStringOperation())
-      .WillOnce(Return(base::optional<std::string>("foo")));
+      .WillOnce(Return(base::Optional<std::string>("foo")));
   EXPECT_TRUE(
       EvaluateScript("test.nullableStringOperation() === \"foo\";", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), NullableObjectOperation())
-      .WillOnce(Return(make_scoped_refptr(new ArbitraryInterface())));
+      .WillOnce(Return(base::WrapRefCounted(new ArbitraryInterface())));
   EXPECT_TRUE(
       EvaluateScript("test.nullableObjectOperation().__proto__;", &result));
   EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
@@ -148,15 +148,15 @@ TEST_F(NullableTypesBindingsTest, SetNullProperty) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(test_mock(),
-              set_nullable_boolean_property(base::optional<bool>()));
+              set_nullable_boolean_property(base::Optional<bool>()));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_numeric_property(base::optional<int32_t>()));
+              set_nullable_numeric_property(base::Optional<int32_t>()));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_string_property(base::optional<std::string>()));
+              set_nullable_string_property(base::Optional<std::string>()));
   EXPECT_TRUE(EvaluateScript("test.nullableStringProperty = null;", NULL));
 
   EXPECT_CALL(test_mock(), set_nullable_object_property(
@@ -168,15 +168,15 @@ TEST_F(NullableTypesBindingsTest, SetNonNullProperty) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(test_mock(),
-              set_nullable_boolean_property(base::optional<bool>(true)));
+              set_nullable_boolean_property(base::Optional<bool>(true)));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanProperty = true;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_numeric_property(base::optional<int32_t>(5)));
+              set_nullable_numeric_property(base::Optional<int32_t>(5)));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericProperty = 5;", NULL));
 
   EXPECT_CALL(test_mock(),
-              set_nullable_string_property(base::optional<std::string>("foo")));
+              set_nullable_string_property(base::Optional<std::string>("foo")));
   EXPECT_TRUE(EvaluateScript("test.nullableStringProperty = \"foo\";", NULL));
 
   scoped_refptr<ArbitraryInterface> mock_interface = new ArbitraryInterface();
@@ -190,14 +190,14 @@ TEST_F(NullableTypesBindingsTest, SetNonNullProperty) {
 TEST_F(NullableTypesBindingsTest, PassNullArgument) {
   InSequence in_sequence_dummy;
 
-  EXPECT_CALL(test_mock(), NullableBooleanArgument(base::optional<bool>()));
+  EXPECT_CALL(test_mock(), NullableBooleanArgument(base::Optional<bool>()));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanArgument(null);", NULL));
 
-  EXPECT_CALL(test_mock(), NullableNumericArgument(base::optional<int32_t>()));
+  EXPECT_CALL(test_mock(), NullableNumericArgument(base::Optional<int32_t>()));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericArgument(null);", NULL));
 
   EXPECT_CALL(test_mock(),
-              NullableStringArgument(base::optional<std::string>()));
+              NullableStringArgument(base::Optional<std::string>()));
   EXPECT_TRUE(EvaluateScript("test.nullableStringArgument(null);", NULL));
 
   EXPECT_CALL(test_mock(),
@@ -208,14 +208,14 @@ TEST_F(NullableTypesBindingsTest, PassNullArgument) {
 TEST_F(NullableTypesBindingsTest, PassNonNullArgument) {
   InSequence in_sequence_dummy;
 
-  EXPECT_CALL(test_mock(), NullableBooleanArgument(base::optional<bool>(true)));
+  EXPECT_CALL(test_mock(), NullableBooleanArgument(base::Optional<bool>(true)));
   EXPECT_TRUE(EvaluateScript("test.nullableBooleanArgument(true);", NULL));
 
-  EXPECT_CALL(test_mock(), NullableNumericArgument(base::optional<int32_t>(5)));
+  EXPECT_CALL(test_mock(), NullableNumericArgument(base::Optional<int32_t>(5)));
   EXPECT_TRUE(EvaluateScript("test.nullableNumericArgument(5);", NULL));
 
   EXPECT_CALL(test_mock(),
-              NullableStringArgument(base::optional<std::string>("foo")));
+              NullableStringArgument(base::Optional<std::string>("foo")));
   EXPECT_TRUE(EvaluateScript("test.nullableStringArgument(\"foo\");", NULL));
 
   scoped_refptr<ArbitraryInterface> mock_interface = new ArbitraryInterface();

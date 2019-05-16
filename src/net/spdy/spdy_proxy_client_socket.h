@@ -5,31 +5,35 @@
 #ifndef NET_SPDY_SPDY_PROXY_CLIENT_SOCKET_H_
 #define NET_SPDY_SPDY_PROXY_CLIENT_SOCKET_H_
 
-#include <string>
 #include <list>
+#include <memory>
+#include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/net_log.h"
+#include "net/base/load_timing_info.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_controller.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/http/proxy_client_socket.h"
+#include "net/log/net_log_source.h"
+#include "net/log/net_log_with_source.h"
 #include "net/spdy/spdy_http_stream.h"
-#include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_read_queue.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
-
-
-class GURL;
+#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 
-class AddressList;
 class HttpStream;
 class IOBuffer;
 class SpdyStream;
@@ -37,70 +41,70 @@ class SpdyStream;
 class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
                                                  public SpdyStream::Delegate {
  public:
-  // Create a socket on top of the |spdy_stream| by sending a SYN_STREAM
-  // CONNECT frame for |endpoint|.  After the SYN_REPLY is received,
-  // any data read/written to the socket will be transferred in data
-  // frames.
-  SpdyProxyClientSocket(SpdyStream* spdy_stream,
+  // Create a socket on top of the |spdy_stream| by sending a HEADERS CONNECT
+  // frame for |endpoint|.  After the response HEADERS frame is received, any
+  // data read/written to the socket will be transferred in data frames. This
+  // object will set itself as |spdy_stream|'s delegate.
+  SpdyProxyClientSocket(const base::WeakPtr<SpdyStream>& spdy_stream,
                         const std::string& user_agent,
                         const HostPortPair& endpoint,
-                        const GURL& url,
-                        const HostPortPair& proxy_server,
-                        HttpAuthCache* auth_cache,
-                        HttpAuthHandlerFactory* auth_handler_factory);
-
+                        const NetLogWithSource& source_net_log,
+                        HttpAuthController* auth_controller);
 
   // On destruction Disconnect() is called.
-  virtual ~SpdyProxyClientSocket();
+  ~SpdyProxyClientSocket() override;
 
   // ProxyClientSocket methods:
-  virtual const HttpResponseInfo* GetConnectResponseInfo() const override;
-  virtual HttpStream* CreateConnectResponseStream() override;
-  virtual const scoped_refptr<HttpAuthController>& GetAuthController() const
-      override;
-  virtual int RestartWithAuth(const CompletionCallback& callback) override;
-  virtual bool IsUsingSpdy() const override;
-  virtual NextProto GetProtocolNegotiated() const override;
+  const HttpResponseInfo* GetConnectResponseInfo() const override;
+  std::unique_ptr<HttpStream> CreateConnectResponseStream() override;
+  const scoped_refptr<HttpAuthController>& GetAuthController() const override;
+  int RestartWithAuth(CompletionOnceCallback callback) override;
+  bool IsUsingSpdy() const override;
+  NextProto GetProxyNegotiatedProtocol() const override;
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) override;
-  virtual void Disconnect() override;
-  virtual bool IsConnected() const override;
-  virtual bool IsConnectedAndIdle() const override;
-  virtual const BoundNetLog& NetLog() const override;
-  virtual void SetSubresourceSpeculation() override;
-  virtual void SetOmniboxSpeculation() override;
-  virtual bool WasEverUsed() const override;
-  virtual bool UsingTCPFastOpen() const override;
-  virtual int64 NumBytesRead() const override;
-  virtual base::TimeDelta GetConnectTimeMicros() const override;
-  virtual bool WasNpnNegotiated() const override;
-  virtual NextProto GetNegotiatedProtocol() const override;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) override;
+  int Connect(CompletionOnceCallback callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  const NetLogWithSource& NetLog() const override;
+  bool WasEverUsed() const override;
+  bool WasAlpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override {}
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
+  int64_t GetTotalReceivedBytes() const override;
+  void ApplySocketTag(const SocketTag& tag) override;
 
   // Socket implementation.
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
-                   const CompletionCallback& callback) override;
-  virtual int Write(IOBuffer* buf,
-                    int buf_len,
-                    const CompletionCallback& callback) override;
-  virtual bool SetReceiveBufferSize(int32 size) override;
-  virtual bool SetSendBufferSize(int32 size) override;
-  virtual int GetPeerAddress(IPEndPoint* address) const override;
-  virtual int GetLocalAddress(IPEndPoint* address) const override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadIfReady(IOBuffer* buf,
+                  int buf_len,
+                  CompletionOnceCallback callback) override;
+  int CancelReadIfReady() override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
 
   // SpdyStream::Delegate implementation.
-  virtual bool OnSendHeadersComplete(int status) override;
-  virtual int OnSendBody() override;
-  virtual int OnSendBodyComplete(int status, bool* eof) override;
-  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
-                                 base::Time response_time,
-                                 int status) override;
-  virtual void OnHeadersSent() override;
-  virtual int OnDataReceived(const char* data, int length) override;
-  virtual void OnDataSent(int length) override;
-  virtual void OnClose(int status) override;
+  void OnHeadersSent() override;
+  void OnHeadersReceived(
+      const spdy::SpdyHeaderBlock& response_headers,
+      const spdy::SpdyHeaderBlock* pushed_request_headers) override;
+  void OnDataReceived(std::unique_ptr<SpdyBuffer> buffer) override;
+  void OnDataSent() override;
+  void OnTrailers(const spdy::SpdyHeaderBlock& trailers) override;
+  void OnClose(int status) override;
+  NetLogSource source_dependency() const override;
 
  private:
   enum State {
@@ -114,7 +118,9 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
     STATE_CLOSED
   };
 
-  void LogBlockedTunnelResponse() const;
+  // Calls |callback.Run(result)|. Used to run a callback posted to the
+  // message loop.
+  void RunCallback(CompletionOnceCallback callback, int result) const;
 
   void OnIOComplete(int result);
 
@@ -127,18 +133,18 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
 
   // Populates |user_buffer_| with as much read data as possible
   // and returns the number of bytes read.
-  int PopulateUserReadBuffer();
+  size_t PopulateUserReadBuffer(char* out, size_t len);
 
   State next_state_;
 
   // Pointer to the SPDY Stream that this sits on top of.
-  scoped_refptr<SpdyStream> spdy_stream_;
+  base::WeakPtr<SpdyStream> spdy_stream_;
 
   // Stores the callback to the layer above, called on completing Read() or
   // Connect().
-  CompletionCallback read_callback_;
+  CompletionOnceCallback read_callback_;
   // Stores the callback to the layer above, called on completing Write().
-  CompletionCallback write_callback_;
+  CompletionOnceCallback write_callback_;
 
   // CONNECT request and response.
   HttpRequestInfo request_;
@@ -149,25 +155,34 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   const HostPortPair endpoint_;
   scoped_refptr<HttpAuthController> auth_;
 
+  std::string user_agent_;
+
   // We buffer the response body as it arrives asynchronously from the stream.
-  std::list<scoped_refptr<DrainableIOBuffer> > read_buffer_;
+  SpdyReadQueue read_buffer_queue_;
 
   // User provided buffer for the Read() response.
-  scoped_refptr<DrainableIOBuffer> user_buffer_;
+  scoped_refptr<IOBuffer> user_buffer_;
+  size_t user_buffer_len_;
 
   // User specified number of bytes to be written.
   int write_buffer_len_;
-  // Number of bytes written which have not been confirmed
-  int write_bytes_outstanding_;
 
   // True if the transport socket has ever sent data.
   bool was_ever_used_;
 
-  scoped_ptr<SpdyHttpStream> response_stream_;
+  // Used only for redirects.
+  bool redirect_has_load_timing_info_;
+  LoadTimingInfo redirect_load_timing_info_;
 
+  const NetLogWithSource net_log_;
+  const NetLogSource source_dependency_;
+
+  // The default weak pointer factory.
   base::WeakPtrFactory<SpdyProxyClientSocket> weak_factory_;
 
-  const BoundNetLog net_log_;
+  // Only used for posting write callbacks. Weak pointers created by this
+  // factory are invalidated in Disconnect().
+  base::WeakPtrFactory<SpdyProxyClientSocket> write_callback_weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyProxyClientSocket);
 };

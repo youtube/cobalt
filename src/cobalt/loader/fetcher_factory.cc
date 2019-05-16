@@ -14,13 +14,13 @@
 
 #include "cobalt/loader/fetcher_factory.h"
 
+#include <memory>
 #include <sstream>
 #include <string>
 
 #include "base/bind.h"
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "cobalt/loader/about_fetcher.h"
 #include "cobalt/loader/blob_fetcher.h"
@@ -39,12 +39,12 @@ namespace {
 const char kAboutScheme[] = "about";
 #endif
 
-bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
+bool FileURLToFilePath(const GURL& url, base::FilePath* file_path) {
   DCHECK(url.is_valid() && url.SchemeIsFile());
   std::string path = url.path();
   DCHECK_EQ('/', path[0]);
   path.erase(0, 1);
-  *file_path = FilePath(path);
+  *file_path = base::FilePath(path);
   return !file_path->empty();
 }
 
@@ -71,7 +71,7 @@ FetcherFactory::FetcherFactory(network::NetworkModule* network_module)
 }
 
 FetcherFactory::FetcherFactory(network::NetworkModule* network_module,
-                               const FilePath& extra_search_dir)
+                               const base::FilePath& extra_search_dir)
     : file_thread_("File"),
       network_module_(network_module),
       extra_search_dir_(extra_search_dir),
@@ -80,9 +80,10 @@ FetcherFactory::FetcherFactory(network::NetworkModule* network_module,
 }
 
 FetcherFactory::FetcherFactory(
-    network::NetworkModule* network_module, const FilePath& extra_search_dir,
+    network::NetworkModule* network_module,
+    const base::FilePath& extra_search_dir,
     const BlobFetcher::ResolverCallback& blob_resolver,
-    const base::Callback<int(const std::string&, scoped_array<char>*)>&
+    const base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>&
         read_cache_callback)
     : file_thread_("File"),
       network_module_(network_module),
@@ -92,14 +93,13 @@ FetcherFactory::FetcherFactory(
   file_thread_.Start();
 }
 
-scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
-                                                  Fetcher::Handler* handler) {
+std::unique_ptr<Fetcher> FetcherFactory::CreateFetcher(
+    const GURL& url, Fetcher::Handler* handler) {
   return CreateSecureFetcher(url, csp::SecurityCallback(), kNoCORSMode,
-                             Origin(), handler)
-      .Pass();
+                             Origin(), handler);
 }
 
-scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
+std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin, Fetcher::Handler* handler) {
   DLOG(INFO) << "Fetching: " << ClipUrl(url, 80);
@@ -107,60 +107,62 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
   if (!url.is_valid()) {
     std::stringstream error_message;
     error_message << "URL is invalid: " << url;
-    return scoped_ptr<Fetcher>(new ErrorFetcher(handler, error_message.str()));
+    return std::unique_ptr<Fetcher>(
+        new ErrorFetcher(handler, error_message.str()));
   }
 
-  if ((url.SchemeIs("https") || url.SchemeIs("http") ||
-       url.SchemeIs("data")) &&
+  if ((url.SchemeIs("https") || url.SchemeIs("http") || url.SchemeIs("data")) &&
       network_module_) {
     NetFetcher::Options options;
-    return scoped_ptr<Fetcher>(new NetFetcher(url, url_security_callback,
-                                              handler, network_module_, options,
-                                              request_mode, origin));
+    return std::unique_ptr<Fetcher>(
+        new NetFetcher(url, url_security_callback, handler, network_module_,
+                       options, request_mode, origin));
   }
 
   if (url.SchemeIs("blob") && !blob_resolver_.is_null()) {
-    return scoped_ptr<Fetcher>(new BlobFetcher(url, handler, blob_resolver_));
+    return std::unique_ptr<Fetcher>(
+        new BlobFetcher(url, handler, blob_resolver_));
   }
 
   if (url.SchemeIs(kEmbeddedScheme)) {
     EmbeddedFetcher::Options options;
-    return scoped_ptr<Fetcher>(new EmbeddedFetcher(url, url_security_callback,
-                                                   handler, options));
+    return std::unique_ptr<Fetcher>(
+        new EmbeddedFetcher(url, url_security_callback, handler, options));
   }
 
   // h5vcc-cache: scheme requires read_cache_callback_ which is not available
   // in the main WebModule.
   if (url.SchemeIs(kCacheScheme) && !read_cache_callback_.is_null()) {
-    return scoped_ptr<Fetcher>(new CacheFetcher(url, url_security_callback,
-                                                handler,
-                                                read_cache_callback_));
+    return std::unique_ptr<Fetcher>(new CacheFetcher(
+        url, url_security_callback, handler, read_cache_callback_));
   }
 
   if (url.SchemeIsFile()) {
-    FilePath file_path;
+    base::FilePath file_path;
     if (!FileURLToFilePath(url, &file_path)) {
       std::stringstream error_message;
       error_message << "File URL cannot be converted to file path: " << url;
-      return scoped_ptr<Fetcher>(new ErrorFetcher(handler,
-                                                  error_message.str()));
+      return std::unique_ptr<Fetcher>(
+          new ErrorFetcher(handler, error_message.str()));
     }
 
     FileFetcher::Options options;
-    options.message_loop_proxy = file_thread_.message_loop_proxy();
+    options.message_loop_proxy = file_thread_.task_runner();
     options.extra_search_dir = extra_search_dir_;
-    return scoped_ptr<Fetcher>(new FileFetcher(file_path, handler, options));
+    return std::unique_ptr<Fetcher>(
+        new FileFetcher(file_path, handler, options));
   }
 
 #if defined(ENABLE_ABOUT_SCHEME)
   if (url.SchemeIs(kAboutScheme)) {
-    return scoped_ptr<Fetcher>(new AboutFetcher(handler));
+    return std::unique_ptr<Fetcher>(new AboutFetcher(handler));
   }
 #endif
 
   std::stringstream error_message;
   error_message << "Scheme " << url.scheme() << ": is not supported";
-  return scoped_ptr<Fetcher>(new ErrorFetcher(handler, error_message.str()));
+  return std::unique_ptr<Fetcher>(
+      new ErrorFetcher(handler, error_message.str()));
 }
 
 }  // namespace loader

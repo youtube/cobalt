@@ -16,15 +16,14 @@
 #define COBALT_MEDIA_MEDIA_MODULE_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/user_log.h"
@@ -35,21 +34,10 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/player/web_media_player_delegate.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/filters/shell_video_decoder_impl.h"
-#include "media/player/web_media_player_delegate.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellRawVideoDecoderFactory ShellRawVideoDecoderFactory;
-typedef ::media::WebMediaPlayer WebMediaPlayer;
-typedef ::media::WebMediaPlayerDelegate WebMediaPlayerDelegate;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 // TODO: Collapse MediaModule into ShellMediaPlatform.
 class MediaModule : public WebMediaPlayerFactory,
@@ -69,7 +57,7 @@ class MediaModule : public WebMediaPlayerFactory,
 
   // MediaModule implementation should implement this function to allow creation
   // of CanPlayTypeHandler.
-  static scoped_ptr<CanPlayTypeHandler> CreateCanPlayTypeHandler();
+  static std::unique_ptr<CanPlayTypeHandler> CreateCanPlayTypeHandler();
 
   virtual ~MediaModule() {}
 
@@ -77,8 +65,8 @@ class MediaModule : public WebMediaPlayerFactory,
   // already been set to the expected value.  Returns false when the setting is
   // invalid or not set to the expected value.
   virtual bool SetConfiguration(const std::string& name, int32 value) {
-    UNREFERENCED_PARAMETER(name);
-    UNREFERENCED_PARAMETER(value);
+    SB_UNREFERENCED_PARAMETER(name);
+    SB_UNREFERENCED_PARAMETER(value);
     return false;
   }
 
@@ -87,21 +75,13 @@ class MediaModule : public WebMediaPlayerFactory,
   // platform specific tasks.
   virtual void OnSuspend() {}
   virtual void OnResume(render_tree::ResourceProvider* resource_provider) {
-    UNREFERENCED_PARAMETER(resource_provider);
+    SB_UNREFERENCED_PARAMETER(resource_provider);
   }
 
   virtual system_window::SystemWindow* system_window() const { return NULL; }
 
   void Suspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  virtual ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
-    return NULL;
-  }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
@@ -111,7 +91,7 @@ class MediaModule : public WebMediaPlayerFactory,
 
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
-  static scoped_ptr<MediaModule> Create(
+  static std::unique_ptr<MediaModule> Create(
       system_window::SystemWindow* system_window,
       render_tree::ResourceProvider* resource_provider,
       const Options& options = Options());
@@ -119,7 +99,7 @@ class MediaModule : public WebMediaPlayerFactory,
  protected:
   MediaModule() : thread_("media_module"), suspended_(false) {
     thread_.Start();
-    message_loop_ = thread_.message_loop_proxy();
+    message_loop_ = thread_.task_runner();
   }
 
  private:
@@ -136,7 +116,7 @@ class MediaModule : public WebMediaPlayerFactory,
 
   // The thread that |players_| is accessed from,
   base::Thread thread_;
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
   Players players_;
   bool suspended_;
 };

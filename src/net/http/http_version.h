@@ -1,11 +1,10 @@
+#include "starboard/types.h"
 // Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_VERSION_H_
 #define NET_HTTP_HTTP_VERSION_H_
-
-#include "base/basictypes.h"
 
 namespace net {
 
@@ -16,18 +15,13 @@ class HttpVersion {
   HttpVersion() : value_(0) { }
 
   // Build from unsigned major/minor pair.
-  HttpVersion(uint16 major, uint16 minor)
-      : value_(static_cast<uint32>(major) << 16 | minor) { }
+  HttpVersion(uint16_t major, uint16_t minor) : value_(major << 16 | minor) {}
 
   // Major version number.
-  uint16 major_value() const {
-    return value_ >> 16;
-  }
+  uint16_t major_value() const { return value_ >> 16; }
 
   // Minor version number.
-  uint16 minor_value() const {
-    return value_ & 0xffff;
-  }
+  uint16_t minor_value() const { return value_ & 0xffff; }
 
   // Overloaded operators:
 
@@ -51,7 +45,7 @@ class HttpVersion {
   }
 
  private:
-  uint32 value_; // Packed as <major>:<minor>
+  uint32_t value_;  // Packed as <major>:<minor>
 };
 
 }  // namespace net

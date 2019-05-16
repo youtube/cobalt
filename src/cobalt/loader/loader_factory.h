@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_LOADER_FACTORY_H_
 #define COBALT_LOADER_LOADER_FACTORY_H_
 
+#include <memory>
 #include <set>
 
 #include "base/threading/thread.h"
@@ -27,7 +28,7 @@
 #include "cobalt/loader/mesh/mesh_decoder.h"
 #include "cobalt/loader/text_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -42,7 +43,7 @@ class LoaderFactory {
                 base::ThreadPriority loader_thread_priority);
 
   // Creates a loader that fetches and decodes an image.
-  scoped_ptr<Loader> CreateImageLoader(
+  std::unique_ptr<Loader> CreateImageLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::ImageAvailableCallback&
@@ -50,7 +51,7 @@ class LoaderFactory {
       const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a render_tree::Typeface.
-  scoped_ptr<Loader> CreateTypefaceLoader(
+  std::unique_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const Origin& orgin,
       const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::TypefaceAvailableCallback&
@@ -58,21 +59,21 @@ class LoaderFactory {
       const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a Mesh.
-  scoped_ptr<Loader> CreateMeshLoader(
+  std::unique_ptr<Loader> CreateMeshLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const mesh::MeshDecoder::MeshAvailableCallback& mesh_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a Javascript resource.
-  scoped_ptr<Loader> CreateScriptLoader(
+  std::unique_ptr<Loader> CreateScriptLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const TextDecoder::TextAvailableCallback& script_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a link resources.
-  scoped_ptr<Loader> CreateLinkLoader(
+  std::unique_ptr<Loader> CreateLinkLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const loader::RequestMode cors_mode,

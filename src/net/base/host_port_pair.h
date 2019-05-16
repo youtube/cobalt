@@ -6,8 +6,10 @@
 #define NET_BASE_HOST_PORT_PAIR_H_
 
 #include <string>
-#include "base/basictypes.h"
+#include <tuple>
+
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 
@@ -19,7 +21,7 @@ class NET_EXPORT HostPortPair {
  public:
   HostPortPair();
   // If |in_host| represents an IPv6 address, it should not bracket the address.
-  HostPortPair(const std::string& in_host, uint16 in_port);
+  HostPortPair(const std::string& in_host, uint16_t in_port);
 
   // Creates a HostPortPair for the origin of |url|.
   static HostPortPair FromURL(const GURL& url);
@@ -34,9 +36,7 @@ class NET_EXPORT HostPortPair {
   // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.
   bool operator<(const HostPortPair& other) const {
-    if (port_ != other.port_)
-      return port_ < other.port_;
-    return host_ < other.host_;
+    return std::tie(port_, host_) < std::tie(other.port_, other.host_);
   }
 
   // Equality test of contents. (Probably another violation of style guide).
@@ -52,17 +52,13 @@ class NET_EXPORT HostPortPair {
     return host_;
   }
 
-  uint16 port() const {
-    return port_;
-  }
+  uint16_t port() const { return port_; }
 
   void set_host(const std::string& in_host) {
     host_ = in_host;
   }
 
-  void set_port(uint16 in_port) {
-    port_ = in_port;
-  }
+  void set_port(uint16_t in_port) { port_ = in_port; }
 
   // ToString() will convert the HostPortPair to "host:port".  If |host_| is an
   // IPv6 literal, it will add brackets around |host_|.
@@ -71,11 +67,14 @@ class NET_EXPORT HostPortPair {
   // Returns |host_|, adding IPv6 brackets if needed.
   std::string HostForURL() const;
 
+  // Returns the estimate of dynamically allocated memory in bytes.
+  size_t EstimateMemoryUsage() const;
+
  private:
   // If |host_| represents an IPv6 address, this string will not contain
   // brackets around the address.
   std::string host_;
-  uint16 port_;
+  uint16_t port_;
 };
 
 }  // namespace net

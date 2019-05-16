@@ -5,8 +5,8 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 #else
-#include <mmintrin.h>
 #include <emmintrin.h>
+#include <mmintrin.h>
 #endif
 
 #include "media/base/simd/filter_yuv.h"

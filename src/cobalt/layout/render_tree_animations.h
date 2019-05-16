@@ -18,7 +18,7 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -37,7 +37,8 @@ class PopulateBaseStyleForRenderTreeNode {
  public:
   typedef base::Callback<void(
       const scoped_refptr<const cssom::CSSComputedStyleData>&,
-      const scoped_refptr<cssom::CSSComputedStyleData>&)> Function;
+      const scoped_refptr<cssom::MutableCSSComputedStyleData>&)>
+      Function;
 };
 
 // This callback function defines a function that is expected to apply a given
@@ -64,10 +65,10 @@ void ApplyAnimation(
     const web_animations::BakedAnimationSet& animations,
     const scoped_refptr<cssom::CSSComputedStyleData>& base_style,
     typename T::Builder* node_builder, base::TimeDelta time_elapsed) {
-  scoped_refptr<cssom::CSSComputedStyleData> animated_style =
-      new cssom::CSSComputedStyleData();
+  scoped_refptr<cssom::MutableCSSComputedStyleData> animated_style =
+      new cssom::MutableCSSComputedStyleData();
   animated_style->AssignFrom(*base_style);
-  animations.Apply(time_elapsed, animated_style);
+  animations.Apply(time_elapsed, animated_style.get());
   apply_style_function.Run(animated_style, node_builder);
 }
 
@@ -86,8 +87,8 @@ void AddAnimations(
   DCHECK(!css_computed_style_declaration.animations()->IsEmpty());
 
   // Populate the base style.
-  scoped_refptr<cssom::CSSComputedStyleData> base_style =
-      new cssom::CSSComputedStyleData();
+  scoped_refptr<cssom::MutableCSSComputedStyleData> base_style =
+      new cssom::MutableCSSComputedStyleData();
   populate_base_style_function.Run(css_computed_style_declaration.data(),
                                    base_style);
 
@@ -95,8 +96,9 @@ void AddAnimations(
       *css_computed_style_declaration.animations());
 
   node_animation_map_builder->Add(
-      target_node, base::Bind(&ApplyAnimation<T>, apply_style_function,
-                              baked_animation_set, base_style),
+      target_node,
+      base::Bind(&ApplyAnimation<T>, apply_style_function, baked_animation_set,
+                 base_style),
       baked_animation_set.end_time());
 }
 

@@ -18,10 +18,10 @@
 #include <unicode/uloc.h>
 #include <unicode/ustring.h>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
-#include "base/time.h"
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
+#include "starboard/types.h"
 
 // Negative statuses are considered warnings, so this only fails if the status
 // value is greater than zero.

@@ -5,13 +5,16 @@
 #include "net/spdy/spdy_http_utils.h"
 
 #include <string>
+#include <vector>
 
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "net/base/escape.h"
 #include "net/base/load_flags.h"
-#include "net/base/net_util.h"
+#include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
@@ -20,30 +23,32 @@
 
 namespace net {
 
-bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
-                               int protocol_version,
+namespace {
+
+void AddSpdyHeader(const std::string& name,
+                   const std::string& value,
+                   spdy::SpdyHeaderBlock* headers) {
+  if (headers->find(name) == headers->end()) {
+    (*headers)[name] = value;
+  } else {
+    std::string joint_value = (*headers)[name].as_string();
+    joint_value.append(1, '\0');
+    joint_value.append(value);
+    (*headers)[name] = joint_value;
+  }
+}
+
+}  // namespace
+
+bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
                                HttpResponseInfo* response) {
-  std::string status_key = (protocol_version >= 3) ? ":status" : "status";
-  std::string version_key = (protocol_version >= 3) ? ":version" : "version";
-  std::string version;
-  std::string status;
-
-  // The "status" and "version" headers are required.
-  SpdyHeaderBlock::const_iterator it;
-  it = headers.find(status_key);
+  // The ":status" header is required.
+  spdy::SpdyHeaderBlock::const_iterator it =
+      headers.find(spdy::kHttp2StatusHeader);
   if (it == headers.end())
     return false;
-  status = it->second;
-
-  it = headers.find(version_key);
-  if (it == headers.end())
-    return false;
-  version = it->second;
-
-  response->response_time = base::Time::Now();
-
-  std::string raw_headers(version);
-  raw_headers.push_back(' ');
+  std::string status = it->second.as_string();
+  std::string raw_headers("HTTP/1.1 ");
   raw_headers.append(status);
   raw_headers.push_back('\0');
   for (it = headers.begin(); it != headers.end(); ++it) {
@@ -55,7 +60,7 @@ bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
     // becomes
     //    Set-Cookie: foo\0
     //    Set-Cookie: bar\0
-    std::string value = it->second;
+    std::string value = it->second.as_string();
     size_t start = 0;
     size_t end = 0;
     do {
@@ -65,10 +70,10 @@ bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
         tval = value.substr(start, (end - start));
       else
         tval = value.substr(start);
-      if (protocol_version >= 3 && it->first[0] == ':')
-        raw_headers.append(it->first.substr(1));
+      if (it->first[0] == ':')
+        raw_headers.append(it->first.as_string().substr(1));
       else
-        raw_headers.append(it->first);
+        raw_headers.append(it->first.as_string());
       raw_headers.push_back(':');
       raw_headers.append(tval);
       raw_headers.push_back('\0');
@@ -83,104 +88,85 @@ bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
 
 void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
                                       const HttpRequestHeaders& request_headers,
-                                      SpdyHeaderBlock* headers,
-                                      int protocol_version,
-                                      bool direct) {
+                                      spdy::SpdyHeaderBlock* headers) {
+  (*headers)[spdy::kHttp2MethodHeader] = info.method;
+  if (info.method == "CONNECT") {
+    (*headers)[spdy::kHttp2AuthorityHeader] = GetHostAndPort(info.url);
+  } else {
+    (*headers)[spdy::kHttp2AuthorityHeader] = GetHostAndOptionalPort(info.url);
+    (*headers)[spdy::kHttp2SchemeHeader] = info.url.scheme();
+    (*headers)[spdy::kHttp2PathHeader] = info.url.PathForRequest();
+  }
 
   HttpRequestHeaders::Iterator it(request_headers);
   while (it.GetNext()) {
-    std::string name = StringToLowerASCII(it.name());
-    if (name == "connection" || name == "proxy-connection" ||
-        name == "transfer-encoding") {
+    std::string name = base::ToLowerASCII(it.name());
+    if (name.empty() || name[0] == ':' || name == "connection" ||
+        name == "proxy-connection" || name == "transfer-encoding" ||
+        name == "host") {
       continue;
     }
-    if (headers->find(name) == headers->end()) {
-      (*headers)[name] = it.value();
-    } else {
-      std::string new_value = (*headers)[name];
-      new_value.append(1, '\0');  // +=() doesn't append 0's
-      new_value += it.value();
-      (*headers)[name] = new_value;
-    }
+    AddSpdyHeader(name, it.value(), headers);
   }
-  static const char kHttpProtocolVersion[] = "HTTP/1.1";
-
-  if (protocol_version < 3) {
-    (*headers)["version"] = kHttpProtocolVersion;
-    (*headers)["method"] = info.method;
-    (*headers)["host"] = GetHostAndOptionalPort(info.url);
-    (*headers)["scheme"] = info.url.scheme();
-    if (direct)
-      (*headers)["url"] = HttpUtil::PathForRequest(info.url);
-    else
-      (*headers)["url"] = HttpUtil::SpecForRequest(info.url);
-  } else {
-    (*headers)[":version"] = kHttpProtocolVersion;
-    (*headers)[":method"] = info.method;
-    (*headers)[":host"] = GetHostAndOptionalPort(info.url);
-    (*headers)[":scheme"] = info.url.scheme();
-    (*headers)[":path"] = HttpUtil::PathForRequest(info.url);
-    headers->erase("host"); // this is kinda insane, spdy 3 spec.
-  }
-
 }
 
-COMPILE_ASSERT(HIGHEST - LOWEST < 4 &&
-               HIGHEST - MINIMUM_PRIORITY < 5,
-               request_priority_incompatible_with_spdy);
+void CreateSpdyHeadersFromHttpRequestForWebSocket(
+    const GURL& url,
+    const HttpRequestHeaders& request_headers,
+    spdy::SpdyHeaderBlock* headers) {
+  (*headers)[spdy::kHttp2MethodHeader] = "CONNECT";
+  (*headers)[spdy::kHttp2AuthorityHeader] = GetHostAndOptionalPort(url);
+  (*headers)[spdy::kHttp2SchemeHeader] = "https";
+  (*headers)[spdy::kHttp2PathHeader] = url.PathForRequest();
+  (*headers)[spdy::kHttp2ProtocolHeader] = "websocket";
 
-SpdyPriority ConvertRequestPriorityToSpdyPriority(
-    const RequestPriority priority,
-    int protocol_version) {
+  HttpRequestHeaders::Iterator it(request_headers);
+  while (it.GetNext()) {
+    std::string name = base::ToLowerASCII(it.name());
+    if (name.empty() || name[0] == ':' || name == "upgrade" ||
+        name == "connection" || name == "proxy-connection" ||
+        name == "transfer-encoding" || name == "host") {
+      continue;
+    }
+    AddSpdyHeader(name, it.value(), headers);
+  }
+}
+
+static_assert(HIGHEST - LOWEST < 4 && HIGHEST - MINIMUM_PRIORITY < 6,
+              "request priority incompatible with spdy");
+
+spdy::SpdyPriority ConvertRequestPriorityToSpdyPriority(
+    const RequestPriority priority) {
   DCHECK_GE(priority, MINIMUM_PRIORITY);
-  DCHECK_LT(priority, NUM_PRIORITIES);
-  if (protocol_version == 2) {
-    // SPDY 2 only has 2 bits of priority, but we have 5 RequestPriorities.
-    // Map IDLE => 3, LOWEST => 2, LOW => 2, MEDIUM => 1, HIGHEST => 0.
-    if (priority > LOWEST) {
-      return static_cast<SpdyPriority>(HIGHEST - priority);
-    } else {
-      return static_cast<SpdyPriority>(HIGHEST - priority - 1);
-    }
-  } else {
-    return static_cast<SpdyPriority>(HIGHEST - priority);
-  }
+  DCHECK_LE(priority, MAXIMUM_PRIORITY);
+  return static_cast<spdy::SpdyPriority>(MAXIMUM_PRIORITY - priority +
+                                         spdy::kV3HighestPriority);
 }
 
-GURL GetUrlFromHeaderBlock(const SpdyHeaderBlock& headers,
-                           int protocol_version,
-                           bool pushed) {
-  // SPDY 2 server push urls are specified in a single "url" header.
-  if (pushed && protocol_version == 2) {
-      std::string url;
-      SpdyHeaderBlock::const_iterator it;
-      it = headers.find("url");
-      if (it != headers.end())
-        url = it->second;
-      return GURL(url);
+NET_EXPORT_PRIVATE RequestPriority
+ConvertSpdyPriorityToRequestPriority(spdy::SpdyPriority priority) {
+  // Handle invalid values gracefully.
+  return ((priority - spdy::kV3HighestPriority) >
+          (MAXIMUM_PRIORITY - MINIMUM_PRIORITY))
+             ? IDLE
+             : static_cast<RequestPriority>(
+                   MAXIMUM_PRIORITY - (priority - spdy::kV3HighestPriority));
+}
+
+NET_EXPORT_PRIVATE void ConvertHeaderBlockToHttpRequestHeaders(
+    const spdy::SpdyHeaderBlock& spdy_headers,
+    HttpRequestHeaders* http_headers) {
+  for (const auto& it : spdy_headers) {
+    base::StringPiece key = it.first;
+    if (key[0] == ':') {
+      key.remove_prefix(1);
+    }
+    std::vector<base::StringPiece> values = base::SplitStringPiece(
+        it.second, "\0", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+    for (const auto& value : values) {
+      http_headers->SetHeader(key, value);
+    }
   }
-
-  const char* scheme_header = protocol_version >= 3 ? ":scheme" : "scheme";
-  const char* host_header = protocol_version >= 3 ? ":host" : "host";
-  const char* path_header = protocol_version >= 3 ? ":path" : "url";
-
-  std::string scheme;
-  std::string host_port;
-  std::string path;
-  SpdyHeaderBlock::const_iterator it;
-  it = headers.find(scheme_header);
-  if (it != headers.end())
-    scheme = it->second;
-  it = headers.find(host_header);
-  if (it != headers.end())
-    host_port = it->second;
-  it = headers.find(path_header);
-  if (it != headers.end())
-    path = it->second;
-
-  std::string url =  (scheme.empty() || host_port.empty() || path.empty())
-      ? "" : scheme + "://" + host_port + path;
-  return GURL(url);
 }
 
 }  // namespace net

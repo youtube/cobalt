@@ -5,8 +5,11 @@
 #include "net/websockets/websocket_errors.h"
 
 #include "net/base/net_errors.h"
+#include "net/test/gtest_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using net::test::IsOk;
 
 namespace net {
 namespace {
@@ -15,7 +18,7 @@ namespace {
 // don't exhaustively test every error code, as it would be long, repetitive,
 // and add little value.
 TEST(WebSocketErrorToNetErrorTest, ResultsAreCorrect) {
-  EXPECT_THAT(WebSocketErrorToNetError(kWebSocketNormalClosure), net::OK);
+  EXPECT_THAT(WebSocketErrorToNetError(kWebSocketNormalClosure), IsOk());
   EXPECT_EQ(ERR_WS_PROTOCOL_ERROR,
             WebSocketErrorToNetError(kWebSocketErrorProtocolError));
   EXPECT_EQ(ERR_MSG_TOO_BIG,

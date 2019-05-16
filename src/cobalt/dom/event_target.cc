@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom/event_target.h"
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/debug/trace_event.h"
-#include "base/message_loop.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/xhr/xml_http_request_event_target.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -33,10 +37,10 @@ void EventTarget::AddEventListener(const std::string& type,
     return;
   }
 
-  scoped_ptr<GenericEventHandlerReference> listener_reference(
+  std::unique_ptr<GenericEventHandlerReference> listener_reference(
       new GenericEventHandlerReference(this, listener));
 
-  AddEventListenerInternal(base::Token(type), listener_reference.Pass(),
+  AddEventListenerInternal(base::Token(type), std::move(listener_reference),
                            use_capture, kNotAttribute);
 }
 
@@ -108,41 +112,41 @@ void EventTarget::DispatchEventAndRunCallback(
 
 void EventTarget::DispatchEventNameAndRunCallback(
     base::Token event_name, const base::Closure& dispatched_callback) {
-  DispatchEvent(make_scoped_refptr(new Event(event_name)));
+  DispatchEvent(base::WrapRefCounted(new Event(event_name)));
   if (!dispatched_callback.is_null()) {
     dispatched_callback.Run();
   }
 }
 
-void EventTarget::PostToDispatchEventName(
-    const tracked_objects::Location& location, base::Token event_name) {
+void EventTarget::PostToDispatchEventName(const base::Location& location,
+                                          base::Token event_name) {
   PostToDispatchEventNameAndRunCallback(location, event_name, base::Closure());
 }
 
-void EventTarget::PostToDispatchEvent(const tracked_objects::Location& location,
+void EventTarget::PostToDispatchEvent(const base::Location& location,
                                       const scoped_refptr<Event>& event) {
   PostToDispatchEventAndRunCallback(location, event, base::Closure());
 }
 
 void EventTarget::PostToDispatchEventAndRunCallback(
-    const tracked_objects::Location& location,
-    const scoped_refptr<Event>& event, const base::Closure& callback) {
-  if (!MessageLoop::current()) {
+    const base::Location& location, const scoped_refptr<Event>& event,
+    const base::Closure& callback) {
+  if (!base::MessageLoop::current()) {
     return;
   }
-  MessageLoop::current()->PostTask(
+  base::MessageLoop::current()->task_runner()->PostTask(
       location,
       base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
                  base::AsWeakPtr<EventTarget>(this), event, callback));
 }
 
 void EventTarget::PostToDispatchEventNameAndRunCallback(
-    const tracked_objects::Location& location, base::Token event_name,
+    const base::Location& location, base::Token event_name,
     const base::Closure& callback) {
-  if (!MessageLoop::current()) {
+  if (!base::MessageLoop::current()) {
     return;
   }
-  MessageLoop::current()->PostTask(
+  base::MessageLoop::current()->task_runner()->PostTask(
       location,
       base::Bind(
           base::IgnoreResult(&EventTarget::DispatchEventNameAndRunCallback),
@@ -153,9 +157,9 @@ void EventTarget::SetAttributeEventListener(
     base::Token type, const EventListenerScriptValue& listener) {
   DCHECK(!unpack_onerror_events_ || type != base::Tokens::error());
 
-  scoped_ptr<GenericEventHandlerReference> listener_reference(
+  std::unique_ptr<GenericEventHandlerReference> listener_reference(
       new GenericEventHandlerReference(this, listener));
-  SetAttributeEventListenerInternal(type, listener_reference.Pass());
+  SetAttributeEventListenerInternal(type, std::move(listener_reference));
 }
 
 const EventTarget::EventListenerScriptValue*
@@ -171,9 +175,9 @@ void EventTarget::SetAttributeOnErrorEventListener(
     base::Token type, const OnErrorEventListenerScriptValue& listener) {
   DCHECK_EQ(base::Tokens::error(), type);
 
-  scoped_ptr<GenericEventHandlerReference> listener_reference(
+  std::unique_ptr<GenericEventHandlerReference> listener_reference(
       new GenericEventHandlerReference(this, listener));
-  SetAttributeEventListenerInternal(type, listener_reference.Pass());
+  SetAttributeEventListenerInternal(type, std::move(listener_reference));
 }
 
 const EventTarget::OnErrorEventListenerScriptValue*
@@ -196,7 +200,8 @@ bool EventTarget::HasOneOrMoreAttributeEventListener() const {
 }
 
 void EventTarget::SetAttributeEventListenerInternal(
-    base::Token type, scoped_ptr<GenericEventHandlerReference> event_handler) {
+    base::Token type,
+    std::unique_ptr<GenericEventHandlerReference> event_handler) {
   // Remove existing attribute listener of the same type.
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
@@ -206,7 +211,7 @@ void EventTarget::SetAttributeEventListenerInternal(
     }
   }
 
-  AddEventListenerInternal(type, event_handler.Pass(), false, kAttribute);
+  AddEventListenerInternal(type, std::move(event_handler), false, kAttribute);
 }
 
 GenericEventHandlerReference* EventTarget::GetAttributeEventListenerInternal(
@@ -231,9 +236,9 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->type == event->type()) {
-      event_listener_infos.push_back(new EventListenerInfo(
+      event_listener_infos.emplace_back(new EventListenerInfo(
           (*iter)->type,
-          make_scoped_ptr(
+          base::WrapUnique(
               new GenericEventHandlerReference(this, *(*iter)->listener)),
           (*iter)->use_capture, (*iter)->listener_type));
     }
@@ -262,13 +267,13 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
 }
 
 void EventTarget::TraceMembers(script::Tracer* tracer) {
-  UNREFERENCED_PARAMETER(tracer);
+  SB_UNREFERENCED_PARAMETER(tracer);
   // TODO: EventListenerInfo references can be removed and logically live here
   // instead.
 }
 
 void EventTarget::AddEventListenerInternal(
-    base::Token type, scoped_ptr<GenericEventHandlerReference> listener,
+    base::Token type, std::unique_ptr<GenericEventHandlerReference> listener,
     bool use_capture, Type listener_type) {
   TRACK_MEMORY_SCOPE("DOM");
 
@@ -287,8 +292,8 @@ void EventTarget::AddEventListenerInternal(
     }
   }
 
-  event_listener_infos_.push_back(
-      new EventListenerInfo(type, listener.Pass(), use_capture, listener_type));
+  event_listener_infos_.emplace_back(new EventListenerInfo(
+      type, std::move(listener), use_capture, listener_type));
 }
 
 bool EventTarget::HasEventListener(base::Token type) {
@@ -304,10 +309,10 @@ bool EventTarget::HasEventListener(base::Token type) {
 }
 
 EventTarget::EventListenerInfo::EventListenerInfo(
-    base::Token type, scoped_ptr<GenericEventHandlerReference> listener,
+    base::Token type, std::unique_ptr<GenericEventHandlerReference> listener,
     bool use_capture, Type listener_type)
     : type(type),
-      listener(listener.Pass()),
+      listener(std::move(listener)),
       use_capture(use_capture),
       listener_type(listener_type) {
   GlobalStats::GetInstance()->AddEventListener();

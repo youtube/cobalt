@@ -11,7 +11,7 @@ key_types="768-rsa 1024-rsa 2048-rsa prime256v1-ecdsa"
 
 try () {
   echo "$@"
-  $@ || exit 1
+  "$@" || exit 1
 }
 
 generate_key_command () {
@@ -34,10 +34,10 @@ try rm -rf out
 try mkdir out
 
 # Create the serial number files.
-try echo 1 > out/2048-rsa-root-serial
+try /bin/sh -c "echo 01 > out/2048-rsa-root-serial"
 for key_type in $key_types
 do
-  try echo 1 > out/$key_type-intermediate-serial
+  try /bin/sh -c "echo 01 > out/$key_type-intermediate-serial"
 done
 
 # Generate one root CA certificate.
@@ -52,7 +52,7 @@ CA_COMMON_NAME="2048 RSA Test Root CA" \
   try openssl req \
     -new \
     -key out/2048-rsa-root.key \
--extensions ca_cert \
+    -extensions ca_cert \
     -out out/2048-rsa-root.csr \
     -config ca.cnf
 
@@ -62,9 +62,11 @@ CA_COMMON_NAME="2048 RSA Test Root CA" \
   try openssl x509 \
     -req -days 3650 \
     -in out/2048-rsa-root.csr \
--extensions ca_cert \
+    -extensions ca_cert \
+    -extfile ca.cnf \
     -signkey out/2048-rsa-root.key \
-    -out out/2048-rsa-root.pem
+    -out out/2048-rsa-root.pem \
+    -text
 
 # Generate private keys of all types and strengths for intermediate CAs and
 # end-entities.
@@ -160,9 +162,12 @@ do
       CERT_TYPE=intermediate \
       try openssl ca \
         -batch \
+        -extensions user_cert \
         -in out/$key_type-ee-by-$signer_key_type-intermediate.csr \
         -out out/$key_type-ee-by-$signer_key_type-intermediate.pem \
         -config ca.cnf
   done
 done
 
+# Copy final outputs.
+try cp out/*root*pem out/*intermediate*pem ../certificates

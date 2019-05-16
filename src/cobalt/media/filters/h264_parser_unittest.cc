@@ -10,7 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/optional.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/media/base/test_data_util.h"
 #include "cobalt/media/filters/h264_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -104,8 +104,8 @@ TEST(H264ParserTest, StreamFileParsing) {
   int num_nalus = 759;
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
-                                            << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path))
+      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   H264Parser parser;
   parser.SetStream(stream.data(), stream.length());

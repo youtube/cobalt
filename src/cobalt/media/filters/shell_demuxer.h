@@ -16,11 +16,12 @@
 #define COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_
 
 #include <deque>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
@@ -101,7 +102,7 @@ class ShellDemuxerStream : public DemuxerStream {
 
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
-  ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
+  ShellDemuxer(const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
                DecoderBuffer::Allocator* buffer_allocator,
                DataSource* data_source,
                const scoped_refptr<MediaLog>& media_log);
@@ -161,7 +162,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void IssueNextRequest();
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 
-  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
   DecoderBuffer::Allocator* buffer_allocator_;
   DemuxerHost* host_;
 
@@ -175,8 +176,8 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   bool stopped_;
   bool flushing_;
 
-  scoped_ptr<ShellDemuxerStream> audio_demuxer_stream_;
-  scoped_ptr<ShellDemuxerStream> video_demuxer_stream_;
+  std::unique_ptr<ShellDemuxerStream> audio_demuxer_stream_;
+  std::unique_ptr<ShellDemuxerStream> video_demuxer_stream_;
   scoped_refptr<ShellParser> parser_;
 
   scoped_refptr<ShellAU> requested_au_;

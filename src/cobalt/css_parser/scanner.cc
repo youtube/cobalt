@@ -20,7 +20,7 @@
 
 #include <limits>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/string_pool.h"
@@ -217,8 +217,8 @@ inline bool IsCssEscape(char character) {
 }
 
 inline bool IsIdentifierStartAfterDash(const char* character_iterator) {
-  return IsAsciiAlpha(character_iterator[0]) || character_iterator[0] == '_' ||
-         character_iterator[0] < 0 ||
+  return base::IsAsciiAlpha(character_iterator[0]) ||
+         character_iterator[0] == '_' || character_iterator[0] < 0 ||
          (character_iterator[0] == '\\' && IsCssEscape(character_iterator[1]));
 }
 
@@ -241,12 +241,12 @@ bool CheckAndSkipEscape(const char* input_iterator,
     return false;
   }
 
-  if (IsHexDigit(*input_iterator)) {
+  if (base::IsHexDigit(*input_iterator)) {
     int length(6);
 
     do {
       ++input_iterator;
-    } while (IsHexDigit(*input_iterator) && --length > 0);
+    } while (base::IsHexDigit(*input_iterator) && --length > 0);
 
     // Optional space after the escape sequence.
     if (cssom::IsWhiteSpace(*input_iterator)) {
@@ -658,7 +658,7 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
 }
 
 Token Scanner::ScanFromDot(TokenValue* token_value) {
-  if (!IsAsciiDigit(input_iterator_[1])) {
+  if (!base::IsAsciiDigit(input_iterator_[1])) {
     ++input_iterator_;
     return '.';
   }
@@ -675,7 +675,7 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   double fractional_part(0);
   int fractional_digits(0);
   while (true) {
-    if (IsAsciiDigit(input_iterator_[0])) {
+    if (base::IsAsciiDigit(input_iterator_[0])) {
       if (dot_seen) {
         ++fractional_digits;
         fractional_part = (fractional_part * 10) + (input_iterator_[0] - '0');
@@ -686,7 +686,7 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
       // Only one dot is allowed for a number,
       // and it must be followed by a digit.
       if (input_iterator_[0] != '.' || dot_seen ||
-          !IsAsciiDigit(input_iterator_[1])) {
+          !base::IsAsciiDigit(input_iterator_[1])) {
         break;
       }
       dot_seen = true;
@@ -717,11 +717,11 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
     if (input_iterator_[1] == '-' || input_iterator_[1] == '+') {
       ++exponent_prefix;
     }
-    if (IsAsciiDigit(input_iterator_[exponent_prefix])) {
+    if (base::IsAsciiDigit(input_iterator_[exponent_prefix])) {
       is_scientific = true;
       input_iterator_ = input_iterator_ + exponent_prefix;
     }
-    while (IsAsciiDigit(input_iterator_[0])) {
+    while (base::IsAsciiDigit(input_iterator_[0])) {
       exponent_part = (exponent_part * 10) + (input_iterator_[0] - '0');
       ++input_iterator_;
     }
@@ -950,12 +950,12 @@ Token Scanner::ScanFromExclamationMark(TokenValue* /*token_value*/) {
 Token Scanner::ScanFromHashmark(TokenValue* token_value) {
   ++input_iterator_;
 
-  if (IsAsciiDigit(*input_iterator_)) {
+  if (base::IsAsciiDigit(*input_iterator_)) {
     // This must be a valid hex number token.
     token_value->string.begin = input_iterator_;
     do {
       ++input_iterator_;
-    } while (IsHexDigit(*input_iterator_));
+    } while (base::IsHexDigit(*input_iterator_));
     token_value->string.end = input_iterator_;
     return kHexToken;
   } else if (IsInputIteratorAtIdentifierStart()) {
@@ -969,7 +969,7 @@ Token Scanner::ScanFromHashmark(TokenValue* token_value) {
     // Check whether the identifier is also a valid hex number.
     for (const char* hex_iterator = token_value->string.begin;
          hex_iterator != token_value->string.end; ++hex_iterator) {
-      if (!IsHexDigit(*hex_iterator)) {
+      if (!base::IsHexDigit(*hex_iterator)) {
         return kIdSelectorToken;
       }
     }
@@ -1166,8 +1166,8 @@ bool Scanner::TryScanUnicodeRange(TrivialIntPair* value) {
   int start_value = 0;
   bool range_set = false;
 
-  while (IsHexDigit(*input_iterator_) && length > 0) {
-    start_value = start_value * 16 + HexDigitToInt(*input_iterator_);
+  while (base::IsHexDigit(*input_iterator_) && length > 0) {
+    start_value = start_value * 16 + base::HexDigitToInt(*input_iterator_);
     ++input_iterator_;
     --length;
   }
@@ -1185,15 +1185,15 @@ bool Scanner::TryScanUnicodeRange(TrivialIntPair* value) {
     range_set = true;
   } else if (length < 6) {
     // At least one hex digit.
-    if (input_iterator_[0] == '-' && IsHexDigit(input_iterator_[1])) {
+    if (input_iterator_[0] == '-' && base::IsHexDigit(input_iterator_[1])) {
       // Followed by a dash and a hex digit.
       ++input_iterator_;
       length = 6;
       end_value = 0;
       do {
-        end_value = end_value * 16 + HexDigitToInt(*input_iterator_);
+        end_value = end_value * 16 + base::HexDigitToInt(*input_iterator_);
         ++input_iterator_;
-      } while (--length > 0 && IsHexDigit(*input_iterator_));
+      } while (--length > 0 && base::IsHexDigit(*input_iterator_));
     }
     range_set = true;
   }
@@ -1270,12 +1270,12 @@ UChar32 Scanner::ScanEscape() {
   UChar32 character(0);
 
   ++input_iterator_;
-  if (IsHexDigit(*input_iterator_)) {
+  if (base::IsHexDigit(*input_iterator_)) {
     int length(6);
 
     do {
-      character = (character << 4) + HexDigitToInt(*input_iterator_++);
-    } while (--length > 0 && IsHexDigit(*input_iterator_));
+      character = (character << 4) + base::HexDigitToInt(*input_iterator_++);
+    } while (--length > 0 && base::IsHexDigit(*input_iterator_));
 
     // Characters above 0x10ffff are not handled.
     if (character > 0x10ffff) {
@@ -2752,6 +2752,14 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       }
       return false;
 
+    case 30:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 "-cobalt-ui-nav-focus-transform")) {
+        *known_function_token = kCobaltUiNavFocusTransformFunctionToken;
+        return true;
+      }
+      return false;
+
     case 34:
       if (IsEqualToCssIdentifier(name.begin,
                                  "-cobalt-ui-nav-spotlight-transform")) {
@@ -3103,7 +3111,7 @@ bool Scanner::TryScanNthChild(TrivialStringPiece* nth) {
   nth->begin = SkipWhiteSpace(input_iterator_);
   nth->end = nth->begin;
 
-  while (IsAsciiDigit(*nth->end)) {
+  while (base::IsAsciiDigit(*nth->end)) {
     ++nth->end;
   }
   if (IsAsciiAlphaCaselessEqual(*nth->end, 'n')) {
@@ -3123,13 +3131,13 @@ bool Scanner::TryScanNthChildExtra(TrivialStringPiece* nth) {
   }
 
   nth->end = SkipWhiteSpace(nth->end + 1);
-  if (!IsAsciiDigit(*nth->end)) {
+  if (!base::IsAsciiDigit(*nth->end)) {
     return false;
   }
 
   do {
     ++nth->end;
-  } while (IsAsciiDigit(*nth->end));
+  } while (base::IsAsciiDigit(*nth->end));
 
   input_iterator_ = nth->end;
   return true;
@@ -3153,8 +3161,7 @@ bool Scanner::DetectUnitToken(const TrivialStringPiece& unit,
       return false;
 
     case 'd':
-      if (length == 3 &&
-          IsAsciiAlphaCaselessEqual(unit.begin[1], 'e') &&
+      if (length == 3 && IsAsciiAlphaCaselessEqual(unit.begin[1], 'e') &&
           IsAsciiAlphaCaselessEqual(unit.begin[2], 'g')) {
         *token = kDegreesToken;
         return true;
@@ -3202,8 +3209,7 @@ bool Scanner::DetectUnitToken(const TrivialStringPiece& unit,
       }
       return false;
     case 'g':
-      if (length == 4 &&
-          IsAsciiAlphaCaselessEqual(unit.begin[1], 'r') &&
+      if (length == 4 && IsAsciiAlphaCaselessEqual(unit.begin[1], 'r') &&
           IsAsciiAlphaCaselessEqual(unit.begin[2], 'a') &&
           IsAsciiAlphaCaselessEqual(unit.begin[3], 'd')) {
         *token = kGradiansToken;
@@ -3226,8 +3232,7 @@ bool Scanner::DetectUnitToken(const TrivialStringPiece& unit,
       return false;
 
     case 'k':
-      if (length == 3 &&
-          IsAsciiAlphaCaselessEqual(unit.begin[1], 'h') &&
+      if (length == 3 && IsAsciiAlphaCaselessEqual(unit.begin[1], 'h') &&
           IsAsciiAlphaCaselessEqual(unit.begin[2], 'z')) {
         *token = kKilohertzToken;
         return true;
@@ -3287,8 +3292,7 @@ bool Scanner::DetectUnitToken(const TrivialStringPiece& unit,
       return false;
 
     case 't':
-      if (length == 4 &&
-          IsAsciiAlphaCaselessEqual(unit.begin[1], 'u') &&
+      if (length == 4 && IsAsciiAlphaCaselessEqual(unit.begin[1], 'u') &&
           IsAsciiAlphaCaselessEqual(unit.begin[2], 'r') &&
           IsAsciiAlphaCaselessEqual(unit.begin[3], 'n')) {
         *token = kTurnsToken;

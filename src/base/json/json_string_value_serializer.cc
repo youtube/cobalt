@@ -8,7 +8,14 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 
-JSONStringValueSerializer::~JSONStringValueSerializer() {}
+using base::Value;
+
+JSONStringValueSerializer::JSONStringValueSerializer(std::string* json_string)
+    : json_string_(json_string),
+      pretty_print_(false) {
+}
+
+JSONStringValueSerializer::~JSONStringValueSerializer() = default;
 
 bool JSONStringValueSerializer::Serialize(const Value& root) {
   return SerializeInternal(root, false);
@@ -21,7 +28,7 @@ bool JSONStringValueSerializer::SerializeAndOmitBinaryValues(
 
 bool JSONStringValueSerializer::SerializeInternal(const Value& root,
                                                   bool omit_binary_values) {
-  if (!json_string_ || initialized_with_const_string_)
+  if (!json_string_)
     return false;
 
   int options = 0;
@@ -30,17 +37,19 @@ bool JSONStringValueSerializer::SerializeInternal(const Value& root,
   if (pretty_print_)
     options |= base::JSONWriter::OPTIONS_PRETTY_PRINT;
 
-  base::JSONWriter::WriteWithOptions(&root, options, json_string_);
-  return true;
+  return base::JSONWriter::WriteWithOptions(root, options, json_string_);
 }
 
-Value* JSONStringValueSerializer::Deserialize(int* error_code,
-                                              std::string* error_str) {
-  if (!json_string_)
-    return NULL;
+JSONStringValueDeserializer::JSONStringValueDeserializer(
+    const base::StringPiece& json_string,
+    int options)
+    : json_string_(json_string), options_(options) {}
 
-  return base::JSONReader::ReadAndReturnError(*json_string_,
-      allow_trailing_comma_ ? base::JSON_ALLOW_TRAILING_COMMAS :
-          base::JSON_PARSE_RFC,
-      error_code, error_str);
+JSONStringValueDeserializer::~JSONStringValueDeserializer() = default;
+
+std::unique_ptr<Value> JSONStringValueDeserializer::Deserialize(
+    int* error_code,
+    std::string* error_str) {
+  return base::JSONReader::ReadAndReturnError(json_string_, options_,
+                                              error_code, error_str);
 }

@@ -22,7 +22,8 @@
 namespace cobalt {
 namespace speech {
 
-SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator, bool log_output)
+SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator,
+                                 bool log_output)
     : log_output_(log_output), paused_(false), navigator_(navigator) {
 #if SB_HAS(SPEECH_SYNTHESIS)
   const char* kVoiceName = "Cobalt";
@@ -101,8 +102,7 @@ void SpeechSynthesis::Speak(
 #if SB_HAS(SPEECH_SYNTHESIS)
   if (!utterance->lang().empty() &&
       utterance->lang() != navigator_->language()) {
-    DispatchErrorEvent(utterance,
-                       kSpeechSynthesisErrorCodeLanguageUnavailable);
+    DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeLanguageUnavailable);
     return;
   }
   if ((utterance->volume() != 1.0f) || (utterance->rate() != 1.0f) ||

@@ -10,9 +10,13 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "googleurl/src/gurl.h"
+#include "base/time/default_clock.h"
+#include "base/time/default_tick_clock.h"
+#include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
+#include "starboard/types.h"
+#include "url/gurl.h"
 
 namespace net {
 
@@ -24,9 +28,82 @@ namespace net {
 //   - the last auth handler used (contains realm and authentication scheme)
 //   - the list of paths which used this realm
 // Entries can be looked up by either (origin, realm, scheme) or (origin, path).
-class NET_EXPORT_PRIVATE HttpAuthCache {
+class NET_EXPORT HttpAuthCache {
  public:
-  class Entry;
+  class NET_EXPORT Entry {
+   public:
+    Entry(const Entry& other);
+    ~Entry();
+
+    const GURL& origin() const {
+      return origin_;
+    }
+
+    // The case-sensitive realm string of the challenge.
+    const std::string& realm() const { return realm_; }
+
+    // The authentication scheme of the challenge.
+    HttpAuth::Scheme scheme() const {
+      return scheme_;
+    }
+
+    // The authentication challenge.
+    const std::string& auth_challenge() const { return auth_challenge_; }
+
+    // The login credentials.
+    const AuthCredentials& credentials() const {
+      return credentials_;
+    }
+
+    int IncrementNonceCount() {
+      return ++nonce_count_;
+    }
+
+    void UpdateStaleChallenge(const std::string& auth_challenge);
+
+   private:
+    friend class HttpAuthCache;
+    FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddPath);
+    FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddToExistingEntry);
+
+    typedef std::list<std::string> PathList;
+
+    Entry();
+
+    // Adds a path defining the realm's protection space. If the path is
+    // already contained in the protection space, is a no-op.
+    void AddPath(const std::string& path);
+
+    // Returns true if |dir| is contained within the realm's protection
+    // space.  |*path_len| is set to the length of the enclosing path if
+    // such a path exists and |path_len| is non-NULL.  If no enclosing
+    // path is found, |*path_len| is left unmodified.
+    //
+    // Note that proxy auth cache entries are associated with empty
+    // paths.  Therefore it is possible for HasEnclosingPath() to return
+    // true and set |*path_len| to 0.
+    bool HasEnclosingPath(const std::string& dir, size_t* path_len);
+
+    // |origin_| contains the {protocol, host, port} of the server.
+    GURL origin_;
+    std::string realm_;
+    HttpAuth::Scheme scheme_;
+
+    // Identity.
+    std::string auth_challenge_;
+    AuthCredentials credentials_;
+
+    int nonce_count_;
+
+    // List of paths that define the realm's protection space.
+    PathList paths_;
+
+    // Times the entry was created and last used (by looking up, adding a path,
+    // or updating the challenge.)
+    base::TimeTicks creation_time_ticks_;
+    base::TimeTicks last_use_time_ticks_;
+    base::Time creation_time_;
+  };
 
   // Prevent unbounded memory growth. These are safeguards for abuse; it is
   // not expected that the limits will be reached in ordinary usage.
@@ -87,6 +164,13 @@ class NET_EXPORT_PRIVATE HttpAuthCache {
               HttpAuth::Scheme scheme,
               const AuthCredentials& credentials);
 
+  // Clears cache entries added since |begin_time| or all entries if
+  // |begin_time| is null.
+  void ClearEntriesAddedSince(base::Time begin_time);
+
+  // Clears all added entries.
+  void ClearAllEntries();
+
   // Updates a stale digest entry on server |origin| for realm |realm| and
   // scheme |scheme|. The cached auth challenge is replaced with
   // |auth_challenge| and the nonce count is reset.
@@ -100,84 +184,21 @@ class NET_EXPORT_PRIVATE HttpAuthCache {
   // Copies all entries from |other| cache.
   void UpdateAllFrom(const HttpAuthCache& other);
 
+  size_t GetEntriesSizeForTesting();
+  void set_tick_clock_for_testing(const base::TickClock* tick_clock) {
+    tick_clock_ = tick_clock;
+  }
+  void set_clock_for_testing(const base::Clock* clock) { clock_ = clock; }
+
  private:
   typedef std::list<Entry> EntryList;
   EntryList entries_;
+
+  const base::TickClock* tick_clock_ = base::DefaultTickClock::GetInstance();
+  const base::Clock* clock_ = base::DefaultClock::GetInstance();
 };
 
 // An authentication realm entry.
-class NET_EXPORT_PRIVATE HttpAuthCache::Entry {
- public:
-  ~Entry();
-
-  const GURL& origin() const {
-    return origin_;
-  }
-
-  // The case-sensitive realm string of the challenge.
-  const std::string realm() const {
-    return realm_;
-  }
-
-  // The authentication scheme of the challenge.
-  HttpAuth::Scheme scheme() const {
-    return scheme_;
-  }
-
-  // The authentication challenge.
-  const std::string auth_challenge() const {
-    return auth_challenge_;
-  }
-
-  // The login credentials.
-  const AuthCredentials& credentials() const {
-    return credentials_;
-  }
-
-  int IncrementNonceCount() {
-    return ++nonce_count_;
-  }
-
-  void UpdateStaleChallenge(const std::string& auth_challenge);
-
- private:
-  friend class HttpAuthCache;
-  FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddPath);
-  FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddToExistingEntry);
-
-  typedef std::list<std::string> PathList;
-
-  Entry();
-
-  // Adds a path defining the realm's protection space. If the path is
-  // already contained in the protection space, is a no-op.
-  void AddPath(const std::string& path);
-
-  // Returns true if |dir| is contained within the realm's protection
-  // space.  |*path_len| is set to the length of the enclosing path if
-  // such a path exists and |path_len| is non-NULL.  If no enclosing
-  // path is found, |*path_len| is left unmodified.
-  //
-  // Note that proxy auth cache entries are associated with empty
-  // paths.  Therefore it is possible for HasEnclosingPath() to return
-  // true and set |*path_len| to 0.
-  bool HasEnclosingPath(const std::string& dir, size_t* path_len);
-
-  // |origin_| contains the {protocol, host, port} of the server.
-  GURL origin_;
-  std::string realm_;
-  HttpAuth::Scheme scheme_;
-
-  // Identity.
-  std::string auth_challenge_;
-  AuthCredentials credentials_;
-
-  int nonce_count_;
-
-  // List of paths that define the realm's protection space.
-  PathList paths_;
-};
-
 }  // namespace net
 
 #endif  // NET_HTTP_HTTP_AUTH_CACHE_H_

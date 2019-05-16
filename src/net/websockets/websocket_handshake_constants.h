@@ -12,9 +12,8 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_HANDSHAKE_CONSTANTS_H_
 #define NET_WEBSOCKETS_WEBSOCKET_HANDSHAKE_CONSTANTS_H_
 
-#include <stddef.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 // This file plases constants inside the ::net::websockets namespace to avoid
 // risk of collisions with other symbols in libnet.
@@ -55,31 +54,6 @@ extern const char kUpgrade[];
 // "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" as defined in section 4.1 of
 // RFC6455.
 extern const char NET_EXPORT kWebSocketGuid[];
-
-// Colon-prefixed lowercase headers for SPDY3.
-
-// ":sec-websocket-protocol"
-extern const char kSecWebSocketProtocolSpdy3[];
-
-// ":sec-websocket-extensions"
-extern const char kSecWebSocketExtensionsSpdy3[];
-
-// Some parts of the code require lowercase versions of the header names in
-// order to do case-insensitive comparisons, or because of SPDY.
-// "sec-websocket-protocol"
-extern const char* const kSecWebSocketProtocolLowercase;
-
-// "sec-websocket-extensions"
-extern const char* const kSecWebSocketExtensionsLowercase;
-
-// "sec-webSocket-key"
-extern const char kSecWebSocketKeyLowercase[];
-
-// "sec-websocket-version"
-extern const char kSecWebSocketVersionLowercase[];
-
-// "upgrade"
-extern const char kUpgradeLowercase[];
 
 // "websocket", as used in the "Upgrade:" header. This is always lowercase
 // (except in obsolete versions of the protocol).

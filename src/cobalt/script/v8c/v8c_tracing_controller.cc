@@ -16,7 +16,6 @@
 
 #include <sstream>
 
-#include "base/memory/scoped_ptr.h"
 #include "v8/include/libplatform/v8-tracing.h"
 
 namespace cobalt {

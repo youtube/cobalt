@@ -14,7 +14,7 @@
 
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "nb/analytics/memory_tracker.h"

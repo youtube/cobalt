@@ -5,16 +5,21 @@
 #ifndef NET_SERVER_WEB_SOCKET_H_
 #define NET_SERVER_WEB_SOCKET_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
+#include "base/strings/string_piece.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 
 namespace net {
 
 class HttpConnection;
+class HttpServer;
 class HttpServerRequestInfo;
+class WebSocketEncoder;
 
-class WebSocket {
+class WebSocket final {
  public:
   enum ParseResult {
     FRAME_OK,
@@ -23,20 +28,25 @@ class WebSocket {
     FRAME_ERROR
   };
 
-  static WebSocket* CreateWebSocket(HttpConnection* connection,
-                                    const HttpServerRequestInfo& request,
-                                    size_t* pos);
+  WebSocket(HttpServer* server, HttpConnection* connection);
 
-  virtual void Accept(const HttpServerRequestInfo& request) = 0;
-  virtual ParseResult Read(std::string* message) = 0;
-  virtual void Send(const std::string& message) = 0;
-  virtual ~WebSocket() {}
-
- protected:
-  explicit WebSocket(HttpConnection* connection);
-  HttpConnection* connection_;
+  void Accept(const HttpServerRequestInfo& request,
+              const NetworkTrafficAnnotationTag traffic_annotation);
+  ParseResult Read(std::string* message);
+  void Send(const std::string& message,
+            const NetworkTrafficAnnotationTag traffic_annotation);
+  ~WebSocket();
 
  private:
+  void Fail();
+  void SendErrorResponse(const std::string& message,
+                         const NetworkTrafficAnnotationTag traffic_annotation);
+
+  HttpServer* const server_;
+  HttpConnection* const connection_;
+  std::unique_ptr<WebSocketEncoder> encoder_;
+  bool closed_;
+
   DISALLOW_COPY_AND_ASSIGN(WebSocket);
 };
 

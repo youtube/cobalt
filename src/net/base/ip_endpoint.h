@@ -7,12 +7,16 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/callback_helpers.h"
 #include "base/compiler_specific.h"
 #include "net/base/address_family.h"
+#include "net/base/ip_address.h"
 #include "net/base/net_export.h"
-#include "net/base/net_util.h"
+#include "net/base/sys_addrinfo.h"
+
+#if defined(STARBOARD)
+#include "starboard/socket.h"
+#include "starboard/types.h"
+#endif
 
 struct sockaddr;
 
@@ -24,18 +28,18 @@ namespace net {
 class NET_EXPORT IPEndPoint {
  public:
   IPEndPoint();
-  virtual ~IPEndPoint();
-  IPEndPoint(const IPAddressNumber& address, int port);
+  ~IPEndPoint();
+  IPEndPoint(const IPAddress& address, uint16_t port);
   IPEndPoint(const IPEndPoint& endpoint);
 
-  const IPAddressNumber& address() const { return address_; }
-  int port() const { return port_; }
+  const IPAddress& address() const { return address_; }
+  uint16_t port() const { return port_; }
 
   // Returns AddressFamily of the address.
   AddressFamily GetFamily() const;
 
+#if !defined(STARBOARD)
   // Returns the sockaddr family of the address, AF_INET or AF_INET6.
-#if !defined(OS_STARBOARD)
   int GetSockAddrFamily() const;
 #endif
 
@@ -62,22 +66,22 @@ class NET_EXPORT IPEndPoint {
   // Returns true on success, false on failure.
   bool FromSockAddr(const struct sockaddr* address, socklen_t address_length)
       WARN_UNUSED_RESULT;
-#endif  // defined(OS_STARBOARD)
+#endif
 
-  // Returns value as a string (e.g. "127.0.0.1:80"). Returns empty
-  // string if the address is invalid, and cannot not be converted to a
-  // string.
+  // Returns value as a string (e.g. "127.0.0.1:80"). Returns the empty string
+  // when |address_| is invalid (the port will be ignored).
   std::string ToString() const;
 
-  // As above, but without port.
+  // As above, but without port. Returns the empty string when address_ is
+  // invalid.
   std::string ToStringWithoutPort() const;
 
   bool operator<(const IPEndPoint& that) const;
   bool operator==(const IPEndPoint& that) const;
 
  private:
-  IPAddressNumber address_;
-  int port_;
+  IPAddress address_;
+  uint16_t port_;
 };
 
 }  // namespace net

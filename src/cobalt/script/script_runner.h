@@ -15,10 +15,10 @@
 #ifndef COBALT_SCRIPT_SCRIPT_RUNNER_H_
 #define COBALT_SCRIPT_SCRIPT_RUNNER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/source_location.h"
 
 namespace cobalt {
@@ -30,7 +30,7 @@ class GlobalEnvironment;
 // to execute JavaScript code.
 class ScriptRunner {
  public:
-  static scoped_ptr<ScriptRunner> CreateScriptRunner(
+  static std::unique_ptr<ScriptRunner> CreateScriptRunner(
       const scoped_refptr<GlobalEnvironment>& global_environment);
 
   // |out_succeeded| is an optional parameter which reports whether the

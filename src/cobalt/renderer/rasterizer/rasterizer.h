@@ -58,7 +58,7 @@ class Rasterizer {
     // dirty and needs to be updated.  If animations are playing for example,
     // then |dirty| can be setup to bound the animations.  A rasterizer is free
     // to ignore this value if they wish.
-    base::optional<math::Rect> dirty;
+    base::Optional<math::Rect> dirty;
   };
 
   virtual ~Rasterizer() {}

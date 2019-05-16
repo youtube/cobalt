@@ -24,12 +24,13 @@ bool SbImageIsDecodeSupported(const char* mime_type,
 
   auto command_line = Application::Get()->GetCommandLine();
   auto value = command_line->GetSwitchValue("enable_sb_image_decoder");
-  if (value == "false") {
+  if (value == "true") {
+    if (format != kSbDecodeTargetFormat1PlaneRGBA &&
+        format != kSbDecodeTargetFormat1PlaneBGRA) {
+      return false;
+    }
+    return SbStringCompareAll(mime_type, "image/jpeg") == 0;
+  } else {
     return false;
   }
-  if (format != kSbDecodeTargetFormat1PlaneRGBA &&
-      format != kSbDecodeTargetFormat1PlaneBGRA) {
-    return false;
-  }
-  return SbStringCompareAll(mime_type, "image/jpeg") == 0;
 }

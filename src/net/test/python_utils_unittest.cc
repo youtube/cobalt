@@ -2,29 +2,39 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/test/python_utils.h"
+
+#include <memory>
 #include <string>
 
 #include "base/command_line.h"
 #include "base/environment.h"
-#include "base/file_path.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/process_util.h"
-#include "base/stringprintf.h"
-#include "base/string_util.h"
-#include "net/test/python_utils.h"
+#include "base/files/file_path.h"
+#include "base/process/launch.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+TEST(PythonUtils, Clear) {
+  std::unique_ptr<base::Environment> env(base::Environment::Create());
+  env->SetVar(kPythonPathEnv, "foo");
+  EXPECT_TRUE(env->HasVar(kPythonPathEnv));
+
+  ClearPythonPath();
+  EXPECT_FALSE(env->HasVar(kPythonPathEnv));
+}
+
 TEST(PythonUtils, Append) {
-  const FilePath::CharType kAppendDir1[] =
+  const base::FilePath::CharType kAppendDir1[] =
       FILE_PATH_LITERAL("test/path_append1");
-  const FilePath::CharType kAppendDir2[] =
+  const base::FilePath::CharType kAppendDir2[] =
       FILE_PATH_LITERAL("test/path_append2");
 
-  scoped_ptr<base::Environment> env(base::Environment::Create());
+  std::unique_ptr<base::Environment> env(base::Environment::Create());
 
   std::string python_path;
-  FilePath append_path1(kAppendDir1);
-  FilePath append_path2(kAppendDir2);
+  base::FilePath append_path1(kAppendDir1);
+  base::FilePath append_path2(kAppendDir2);
 
   // Get a clean start
   env->UnSetVar(kPythonPathEnv);
@@ -44,20 +54,18 @@ TEST(PythonUtils, Append) {
 #endif
 }
 
-#if !defined(OS_STARBOARD)
 TEST(PythonUtils, PythonRunTime) {
-  CommandLine cmd_line(CommandLine::NO_PROGRAM);
+  base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
   EXPECT_TRUE(GetPythonCommand(&cmd_line));
 
   // Run a python command to print a string and make sure the output is what
   // we want.
   cmd_line.AppendArg("-c");
   std::string input("PythonUtilsTest");
-  std::string python_cmd = StringPrintf("print '%s';", input.c_str());
+  std::string python_cmd = base::StringPrintf("print '%s';", input.c_str());
   cmd_line.AppendArg(python_cmd);
   std::string output;
   EXPECT_TRUE(base::GetAppOutput(cmd_line, &output));
-  TrimWhitespace(output, TRIM_TRAILING, &output);
+  base::TrimWhitespaceASCII(output, base::TRIM_TRAILING, &output);
   EXPECT_EQ(input, output);
 }
-#endif  // !defined(OS_STARBOARD)

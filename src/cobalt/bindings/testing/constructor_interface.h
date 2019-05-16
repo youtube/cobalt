@@ -39,8 +39,9 @@ class ConstructorInterface : public script::Wrappable {
 
   DEFINE_WRAPPABLE_TYPE(ConstructorInterface);
 
-  static base::LazyInstance< ::testing::StrictMock<
-      ConstructorImplementationMock> > constructor_implementation_mock;
+  static base::LazyInstance<
+      ::testing::StrictMock<ConstructorImplementationMock> >::DestructorAtExit
+      constructor_implementation_mock;
 };
 
 }  // namespace testing

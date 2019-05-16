@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/server_status.h"
 
 #include "cobalt/version.h"
@@ -46,12 +48,13 @@ ServerStatus::ServerStatus() {
   build_version_ = COBALT_VERSION;
 }
 
-scoped_ptr<base::Value> ServerStatus::ToValue(const ServerStatus& status) {
-  scoped_ptr<base::DictionaryValue> build_value(new base::DictionaryValue());
+std::unique_ptr<base::Value> ServerStatus::ToValue(const ServerStatus& status) {
+  std::unique_ptr<base::DictionaryValue> build_value(
+      new base::DictionaryValue());
   build_value->SetString("time", status.build_time_);
   build_value->SetString("version", status.build_version_);
 
-  scoped_ptr<base::DictionaryValue> os_value(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> os_value(new base::DictionaryValue());
 
   if (status.os_arch_) {
     os_value->SetString("arch", *status.os_arch_);
@@ -63,11 +66,12 @@ scoped_ptr<base::Value> ServerStatus::ToValue(const ServerStatus& status) {
     os_value->SetString("version", *status.os_version_);
   }
 
-  scoped_ptr<base::DictionaryValue> status_value(new base::DictionaryValue());
-  status_value->Set("os", os_value.release());
-  status_value->Set("build", build_value.release());
+  std::unique_ptr<base::DictionaryValue> status_value(
+      new base::DictionaryValue());
+  status_value->Set("os", std::move(os_value));
+  status_value->Set("build", std::move(build_value));
 
-  return status_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(status_value.release());
 }
 
 }  // namespace protocol

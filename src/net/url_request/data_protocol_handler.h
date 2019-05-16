@@ -5,8 +5,9 @@
 #ifndef NET_URL_REQUEST_DATA_PROTOCOL_HANDLER_H_
 #define NET_URL_REQUEST_DATA_PROTOCOL_HANDLER_H_
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request_job_factory.h"
 
 namespace net {
@@ -18,8 +19,10 @@ class NET_EXPORT DataProtocolHandler
     : public URLRequestJobFactory::ProtocolHandler {
  public:
   DataProtocolHandler();
-  virtual URLRequestJob* MaybeCreateJob(
-      URLRequest* request, NetworkDelegate* network_delegate) const override;
+  URLRequestJob* MaybeCreateJob(
+      URLRequest* request,
+      NetworkDelegate* network_delegate) const override;
+  bool IsSafeRedirectTarget(const GURL& location) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DataProtocolHandler);

@@ -9,94 +9,92 @@
 #ifndef NET_HTTP_HTTP_BASIC_STREAM_H_
 #define NET_HTTP_HTTP_BASIC_STREAM_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
+#include "net/base/completion_once_callback.h"
+#include "net/base/net_export.h"
+#include "net/http/http_basic_state.h"
 #include "net/http/http_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 
-class BoundNetLog;
 class ClientSocketHandle;
-class GrowableIOBuffer;
 class HttpResponseInfo;
 struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpStreamParser;
 class IOBuffer;
+class NetLogWithSource;
 
-class HttpBasicStream : public HttpStream {
+class NET_EXPORT_PRIVATE HttpBasicStream : public HttpStream {
  public:
-  // Constructs a new HttpBasicStream.  If |parser| is NULL, then
-  // InitializeStream should be called to initialize it correctly.  If
-  // |parser| is non-null, then InitializeStream should not be called,
-  // as the stream is already initialized.
-  HttpBasicStream(ClientSocketHandle* connection,
-                  HttpStreamParser* parser,
-                  bool using_proxy);
-  virtual ~HttpBasicStream();
+  // Constructs a new HttpBasicStream. InitializeStream must be called to
+  // initialize it correctly.
+  HttpBasicStream(std::unique_ptr<ClientSocketHandle> connection,
+                  bool using_proxy,
+                  bool http_09_on_non_default_ports_enabled);
+  ~HttpBasicStream() override;
 
   // HttpStream methods:
-  virtual int InitializeStream(const HttpRequestInfo* request_info,
-                               const BoundNetLog& net_log,
-                               const CompletionCallback& callback) override;
+  int InitializeStream(const HttpRequestInfo* request_info,
+                       bool can_send_early,
+                       RequestPriority priority,
+                       const NetLogWithSource& net_log,
+                       CompletionOnceCallback callback) override;
 
-  virtual int SendRequest(const HttpRequestHeaders& headers,
-                          HttpResponseInfo* response,
-                          const CompletionCallback& callback) override;
+  int SendRequest(const HttpRequestHeaders& headers,
+                  HttpResponseInfo* response,
+                  CompletionOnceCallback callback) override;
 
-  virtual UploadProgress GetUploadProgress() const override;
+  int ReadResponseHeaders(CompletionOnceCallback callback) override;
 
-  virtual int ReadResponseHeaders(const CompletionCallback& callback) override;
+  int ReadResponseBody(IOBuffer* buf,
+                       int buf_len,
+                       CompletionOnceCallback callback) override;
 
-  virtual const HttpResponseInfo* GetResponseInfo() const override;
+  void Close(bool not_reusable) override;
 
-  virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               const CompletionCallback& callback) override;
+  HttpStream* RenewStreamForAuth() override;
 
-  virtual void Close(bool not_reusable) override;
+  bool IsResponseBodyComplete() const override;
 
-  virtual HttpStream* RenewStreamForAuth() override;
+  bool IsConnectionReused() const override;
 
-  virtual bool IsResponseBodyComplete() const override;
+  void SetConnectionReused() override;
 
-  virtual bool CanFindEndOfResponse() const override;
+  bool CanReuseConnection() const override;
 
-  virtual bool IsMoreDataBuffered() const override;
+  int64_t GetTotalReceivedBytes() const override;
 
-  virtual bool IsConnectionReused() const override;
+  int64_t GetTotalSentBytes() const override;
 
-  virtual void SetConnectionReused() override;
+  bool GetLoadTimingInfo(LoadTimingInfo* load_timing_info) const override;
 
-  virtual bool IsConnectionReusable() const override;
+  bool GetAlternativeService(
+      AlternativeService* alternative_service) const override;
 
-  virtual void GetSSLInfo(SSLInfo* ssl_info) override;
+  void GetSSLInfo(SSLInfo* ssl_info) override;
 
-  virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) override;
+  void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) override;
 
-  virtual bool IsSpdyHttpStream() const override;
+  bool GetRemoteEndpoint(IPEndPoint* endpoint) override;
 
-  virtual void LogNumRttVsBytesMetrics() const override;
+  void Drain(HttpNetworkSession* session) override;
 
-  virtual void Drain(HttpNetworkSession* session) override;
+  void PopulateNetErrorDetails(NetErrorDetails* details) override;
+
+  void SetPriority(RequestPriority priority) override;
+
+  void SetRequestHeadersCallback(RequestHeadersCallback callback) override;
 
  private:
-  scoped_refptr<GrowableIOBuffer> read_buf_;
+  HttpStreamParser* parser() const { return state_.parser(); }
 
-  scoped_ptr<HttpStreamParser> parser_;
-
-  scoped_ptr<ClientSocketHandle> connection_;
-
-  bool using_proxy_;
-
-  std::string request_line_;
-
-  const HttpRequestInfo* request_info_;
-
-  const HttpResponseInfo* response_;
-
-  int64 bytes_read_offset_;
+  HttpBasicState state_;
+  RequestHeadersCallback request_headers_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
 };

@@ -21,16 +21,8 @@
 namespace base {
 
 // clang-format off
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY_EME(MacroOpWithNameOnly)      \
     MacroOpWithNameOnly(encrypted)
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#define TOKENS_FOR_EACH_WITH_NAME_ONLY_EME(MacroOpWithNameOnly)      \
-    MacroOpWithNameOnly(keyadded)                                    \
-    MacroOpWithNameOnly(keyerror)                                    \
-    MacroOpWithNameOnly(keymessage)                                  \
-    MacroOpWithNameOnly(needkey)
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY(MacroOpWithNameOnly)          \
     TOKENS_FOR_EACH_WITH_NAME_ONLY_EME(MacroOpWithNameOnly)          \
@@ -169,7 +161,7 @@ namespace base {
 
 // clang-format on
 
-// Singleton containing commonly used Tokens.
+// base::Singleton containing commonly used Tokens.
 // This prevents runtime Token allocations when dispatching events, and avoids
 // typos.
 class Tokens {
@@ -187,9 +179,9 @@ class Tokens {
 #undef DEFINE_TOKEN_ACCESSOR_WITH_NAME_AND_VALUE
 
  private:
-  // To make Singleton<Tokens, LeakySingletonTraits<Tokens> > work with
+  // To make base::Singleton<Tokens, DefaultSingletonTraits<Tokens> > work with
   // our private constructor.
-  friend struct DefaultSingletonTraits<Tokens>;
+  friend struct base::DefaultSingletonTraits<Tokens>;
 
 #define INITIALIZE_TOKEN_WITH_NAME_ONLY(name) name##_(#name),
 #define INITIALIZE_TOKEN_WITH_NAME_AND_VALUE(name, value) name##_(value),

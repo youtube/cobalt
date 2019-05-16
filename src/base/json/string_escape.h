@@ -1,8 +1,8 @@
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// This file defines utility functions for escaping strings.
+
+// This file defines utility functions for escaping strings suitable for JSON.
 
 #ifndef BASE_JSON_STRING_ESCAPE_H_
 #define BASE_JSON_STRING_ESCAPE_H_
@@ -10,28 +10,51 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/string16.h"
+#include "base/strings/string_piece.h"
 
 namespace base {
 
-// Escape |str| appropriately for a JSON string literal, _appending_ the
-// result to |dst|. This will create unicode escape sequences (\uXXXX).
-// If |put_in_quotes| is true, the result will be surrounded in double quotes.
-// The outputted literal, when interpreted by the browser, should result in a
-// javascript string that is identical and the same length as the input |str|.
-BASE_EXPORT void JsonDoubleQuote(const std::string& str,
-                                 bool put_in_quotes,
-                                 std::string* dst);
+// Appends to |dest| an escaped version of |str|. Valid UTF-8 code units and
+// characters will pass through from the input to the output. Invalid code
+// units and characters will be replaced with the U+FFFD replacement character.
+// This function returns true if no replacement was necessary and false if
+// there was a lossy replacement. On return, |dest| will contain a valid UTF-8
+// JSON string.
+//
+// Non-printing control characters will be escaped as \uXXXX sequences for
+// readability.
+//
+// If |put_in_quotes| is true, then a leading and trailing double-quote mark
+// will be appended to |dest| as well.
+BASE_EXPORT bool EscapeJSONString(StringPiece str,
+                                  bool put_in_quotes,
+                                  std::string* dest);
 
-// Same as above, but always returns the result double quoted.
-BASE_EXPORT std::string GetDoubleQuotedJson(const std::string& str);
+// Performs a similar function to the UTF-8 StringPiece version above,
+// converting UTF-16 code units to UTF-8 code units and escaping non-printing
+// control characters. On return, |dest| will contain a valid UTF-8 JSON string.
+BASE_EXPORT bool EscapeJSONString(StringPiece16 str,
+                                  bool put_in_quotes,
+                                  std::string* dest);
 
-BASE_EXPORT void JsonDoubleQuote(const string16& str,
-                                 bool put_in_quotes,
-                                 std::string* dst);
+// Helper functions that wrap the above two functions but return the value
+// instead of appending. |put_in_quotes| is always true.
+BASE_EXPORT std::string GetQuotedJSONString(StringPiece str);
+BASE_EXPORT std::string GetQuotedJSONString(StringPiece16 str);
 
-// Same as above, but always returns the result double quoted.
-BASE_EXPORT std::string GetDoubleQuotedJson(const string16& str);
+// Given an arbitrary byte string |str|, this will escape all non-ASCII bytes
+// as \uXXXX escape sequences. This function is *NOT* meant to be used with
+// Unicode strings and does not validate |str| as one.
+//
+// CAVEAT CALLER: The output of this function may not be valid JSON, since
+// JSON requires escape sequences to be valid UTF-16 code units. This output
+// will be mangled if passed to to the base::JSONReader, since the reader will
+// interpret it as UTF-16 and convert it to UTF-8.
+//
+// The output of this function takes the *appearance* of JSON but is not in
+// fact valid according to RFC 4627.
+BASE_EXPORT std::string EscapeBytesAsInvalidJSONString(StringPiece str,
+                                                       bool put_in_quotes);
 
 }  // namespace base
 

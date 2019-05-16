@@ -4,27 +4,38 @@
 
 #include "base/base64.h"
 
+#include "starboard/types.h"
 #include "third_party/modp_b64/modp_b64.h"
 
 namespace base {
 
 bool Base64Encode(const StringPiece& input, std::string* output) {
   std::string temp;
-  temp.resize(modp_b64_encode_len(input.size()));  // makes room for null byte
+  temp.resize(modp_b64_encode_len(
+      input.size()));  // makes room for null byte
 
-  // null terminates result since result is base64 text!
+#if defined(STARBOARD)
+                       // null terminates result since result is base64 text!
   int input_size = static_cast<int>(input.size());
 
   // modp_b64_encode_len() returns at least 1, so temp[0] is safe to use.
   int output_size = modp_b64_encode(&(temp[0]), input.data(), input_size);
   if (output_size < 0)
     return false;
+#else
+  // modp_b64_encode_len() returns at least 1, so temp[0] is safe to use.
+  size_t output_size = modp_b64_encode(&(temp[0]), input.data(), input.size());
+#endif
 
   temp.resize(output_size);  // strips off null byte
   output->swap(temp);
   return true;
 }
 
+#if defined(STARBOARD)
+// Cobalt uses different C++ types for different corresponding JavaScript types
+// and we want to have the flexibility to base64 decode string into types like
+// std::vector<uint8_t>.
 template <class Container>
 bool Base64DecodeInternal(const StringPiece& input, Container* output) {
   Container temp;
@@ -52,5 +63,21 @@ bool Base64Decode(const StringPiece& input, std::string* output) {
 bool Base64Decode(const StringPiece& input, std::vector<uint8_t>* output) {
   return Base64DecodeInternal(input, output);
 }
+#else
+bool Base64Decode(const StringPiece& input, std::string* output) {
+  std::string temp;
+  temp.resize(modp_b64_decode_len(input.size()));
+
+  // does not null terminate result since result is binary data!
+  size_t input_size = input.size();
+  int output_size = modp_b64_decode(&(temp[0]), input.data(), input_size);
+  if (output_size == MODP_B64_ERROR)
+    return false;
+
+  temp.resize(output_size);
+  output->swap(temp);
+  return true;
+}
+#endif  // STARBOARD
 
 }  // namespace base

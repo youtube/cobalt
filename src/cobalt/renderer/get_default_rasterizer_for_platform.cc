@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -29,27 +31,28 @@ namespace renderer {
 namespace {
 
 #if COBALT_FORCE_STUB_RASTERIZER
-scoped_ptr<rasterizer::Rasterizer> CreateStubRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateStubRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  UNREFERENCED_PARAMETER(graphics_context);
-  return scoped_ptr<rasterizer::Rasterizer>(new rasterizer::stub::Rasterizer());
+  SB_UNREFERENCED_PARAMETER(graphics_context);
+  return std::unique_ptr<rasterizer::Rasterizer>(
+      new rasterizer::stub::Rasterizer());
 }
 #endif  // COBALT_FORCE_STUB_RASTERIZER
 
 #if SB_HAS(GLES2)
-scoped_ptr<rasterizer::Rasterizer> CreateGLESSoftwareRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateGLESSoftwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  return scoped_ptr<rasterizer::Rasterizer>(
+  return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
           graphics_context, options.purge_skia_font_caches_on_destruction));
 }
 
-scoped_ptr<rasterizer::Rasterizer> CreateGLESHardwareRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateGLESHardwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  return scoped_ptr<rasterizer::Rasterizer>(
+  return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),
@@ -60,10 +63,10 @@ scoped_ptr<rasterizer::Rasterizer> CreateGLESHardwareRasterizer(
           options.force_deterministic_rendering));
 }
 
-scoped_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  return scoped_ptr<rasterizer::Rasterizer>(
+  return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),
@@ -75,18 +78,18 @@ scoped_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
 #endif  // #if SB_HAS(GLES2)
 
 #if SB_HAS(BLITTER)
-scoped_ptr<rasterizer::Rasterizer> CreateBlitterSoftwareRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateBlitterSoftwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  return scoped_ptr<rasterizer::Rasterizer>(
+  return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::SoftwareRasterizer(
           graphics_context, options.purge_skia_font_caches_on_destruction));
 }
 
-scoped_ptr<rasterizer::Rasterizer> CreateBlitterHardwareRasterizer(
+std::unique_ptr<rasterizer::Rasterizer> CreateBlitterHardwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  return scoped_ptr<rasterizer::Rasterizer>(
+  return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),

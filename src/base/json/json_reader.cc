@@ -4,68 +4,80 @@
 
 #include "base/json/json_reader.h"
 
+#include <utility>
+#include <vector>
+
 #include "base/json/json_parser.h"
 #include "base/logging.h"
+#include "base/optional.h"
+#include "base/values.h"
 
 namespace base {
 
-const char* JSONReader::kInvalidEscape =
+// Chosen to support 99.9% of documents found in the wild late 2016.
+// http://crbug.com/673263
+const int JSONReader::kStackMaxDepth = 200;
+
+// Values 1000 and above are used by JSONFileValueSerializer::JsonFileError.
+static_assert(JSONReader::JSON_PARSE_ERROR_COUNT < 1000,
+              "JSONReader error out of bounds");
+
+const char JSONReader::kInvalidEscape[] =
     "Invalid escape sequence.";
-const char* JSONReader::kSyntaxError =
+const char JSONReader::kSyntaxError[] =
     "Syntax error.";
-const char* JSONReader::kUnexpectedToken =
+const char JSONReader::kUnexpectedToken[] =
     "Unexpected token.";
-const char* JSONReader::kTrailingComma =
+const char JSONReader::kTrailingComma[] =
     "Trailing comma not allowed.";
-const char* JSONReader::kTooMuchNesting =
+const char JSONReader::kTooMuchNesting[] =
     "Too much nesting.";
-const char* JSONReader::kUnexpectedDataAfterRoot =
+const char JSONReader::kUnexpectedDataAfterRoot[] =
     "Unexpected data after root element.";
-const char* JSONReader::kUnsupportedEncoding =
+const char JSONReader::kUnsupportedEncoding[] =
     "Unsupported encoding. JSON must be UTF-8.";
-const char* JSONReader::kUnquotedDictionaryKey =
+const char JSONReader::kUnquotedDictionaryKey[] =
     "Dictionary keys must be quoted.";
+const char JSONReader::kInputTooLarge[] =
+    "Input string is too large (>2GB).";
 
-JSONReader::JSONReader()
-    : parser_(new internal::JSONParser(JSON_PARSE_RFC)) {
-}
+JSONReader::JSONReader(int options, int max_depth)
+    : parser_(new internal::JSONParser(options, max_depth)) {}
 
-JSONReader::JSONReader(int options)
-    : parser_(new internal::JSONParser(options)) {
-}
-
-JSONReader::~JSONReader() {
-}
+JSONReader::~JSONReader() = default;
 
 // static
-Value* JSONReader::Read(const StringPiece& json) {
-  internal::JSONParser parser(JSON_PARSE_RFC);
-  return parser.Parse(json);
+std::unique_ptr<Value> JSONReader::Read(StringPiece json,
+                                        int options,
+                                        int max_depth) {
+  internal::JSONParser parser(options, max_depth);
+  Optional<Value> root = parser.Parse(json);
+  return root ? std::make_unique<Value>(std::move(*root)) : nullptr;
 }
 
+
 // static
-Value* JSONReader::Read(const StringPiece& json,
-                        int options) {
+std::unique_ptr<Value> JSONReader::ReadAndReturnError(
+    StringPiece json,
+    int options,
+    int* error_code_out,
+    std::string* error_msg_out,
+    int* error_line_out,
+    int* error_column_out) {
   internal::JSONParser parser(options);
-  return parser.Parse(json);
-}
+  Optional<Value> root = parser.Parse(json);
+  if (!root) {
+    if (error_code_out)
+      *error_code_out = parser.error_code();
+    if (error_msg_out)
+      *error_msg_out = parser.GetErrorMessage();
+    if (error_line_out)
+      *error_line_out = parser.error_line();
+    if (error_column_out)
+      *error_column_out = parser.error_column();
+  }
 
-// static
-Value* JSONReader::ReadAndReturnError(const StringPiece& json,
-                                      int options,
-                                      int* error_code_out,
-                                      std::string* error_msg_out) {
-  internal::JSONParser parser(options);
-  Value* root = parser.Parse(json);
-  if (root)
-    return root;
-
-  if (error_code_out)
-    *error_code_out = parser.error_code();
-  if (error_msg_out)
-    *error_msg_out = parser.GetErrorMessage();
-
-  return NULL;
+  return root ? std::make_unique<Value>(std::move(*root)) : nullptr;
 }
 
 // static
@@ -89,14 +101,18 @@ std::string JSONReader::ErrorCodeToString(JsonParseError error_code) {
       return kUnsupportedEncoding;
     case JSON_UNQUOTED_DICTIONARY_KEY:
       return kUnquotedDictionaryKey;
-    default:
-      NOTREACHED();
-      return std::string();
+    case JSON_TOO_LARGE:
+      return kInputTooLarge;
+    case JSON_PARSE_ERROR_COUNT:
+      break;
   }
+  NOTREACHED();
+  return std::string();
 }
 
-Value* JSONReader::ReadToValue(const std::string& json) {
-  return parser_->Parse(json);
+std::unique_ptr<Value> JSONReader::ReadToValue(StringPiece json) {
+  Optional<Value> value = parser_->Parse(json);
+  return value ? std::make_unique<Value>(std::move(*value)) : nullptr;
 }
 
 JSONReader::JsonParseError JSONReader::error_code() const {

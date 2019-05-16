@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/cssom/not_pseudo_class.h"
 
 #include "cobalt/cssom/compound_selector.h"
@@ -35,8 +37,8 @@ CompoundSelector* NotPseudoClass::selector() const {
 }
 
 void NotPseudoClass::set_selector(
-    scoped_ptr<CompoundSelector> compound_selector) {
-  compound_selector_ = compound_selector.Pass();
+    std::unique_ptr<CompoundSelector> compound_selector) {
+  compound_selector_ = std::move(compound_selector);
 }
 
 }  // namespace cssom

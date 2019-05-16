@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_DEBUG_PROFILER_H
-#define BASE_DEBUG_PROFILER_H
+#ifndef BASE_DEBUG_PROFILER_H_
+#define BASE_DEBUG_PROFILER_H_
 
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "starboard/types.h"
 
 // The Profiler functions allow usage of the underlying sampling based
 // profiler. If the application has not been built with the necessary
@@ -34,8 +34,8 @@ BASE_EXPORT bool BeingProfiled();
 // Reset profiling after a fork, which disables timers.
 BASE_EXPORT void RestartProfilingAfterFork();
 
-// Returns true iff this executable is instrumented with the Syzygy profiler.
-BASE_EXPORT bool IsBinaryInstrumented();
+// Returns true iff this executable supports profiling.
+BASE_EXPORT bool IsProfilingSupported();
 
 // There's a class of profilers that use "return address swizzling" to get a
 // hook on function exits. This class of profilers uses some form of entry hook,
@@ -55,13 +55,36 @@ BASE_EXPORT bool IsBinaryInstrumented();
 typedef uintptr_t (*ReturnAddressLocationResolver)(
     uintptr_t return_addr_location);
 
-// If this binary is instrumented and the instrumentation supplies a return
-// address resolution function, finds and returns the address resolution
-// function. Otherwise returns NULL.
-BASE_EXPORT ReturnAddressLocationResolver
-    GetProfilerReturnAddrResolutionFunc();
+// This type declaration must match V8's FunctionEntryHook.
+typedef void (*DynamicFunctionEntryHook)(uintptr_t function,
+                                         uintptr_t return_addr_location);
+
+// The functions below here are to support profiling V8-generated code.
+// V8 has provisions for generating a call to an entry hook for newly generated
+// JIT code, and it can push symbol information on code generation and advise
+// when the garbage collector moves code. The functions declarations below here
+// make glue between V8's facilities and a profiler.
+
+// This type declaration must match V8's FunctionEntryHook.
+typedef void (*DynamicFunctionEntryHook)(uintptr_t function,
+                                         uintptr_t return_addr_location);
+
+typedef void (*AddDynamicSymbol)(const void* address,
+                                 size_t length,
+                                 const char* name,
+                                 size_t name_len);
+typedef void (*MoveDynamicSymbol)(const void* address, const void* new_address);
+
+
+// If this binary is instrumented and the instrumentation supplies a function
+// for each of those purposes, find and return the function in question.
+// Otherwise returns NULL.
+BASE_EXPORT ReturnAddressLocationResolver GetProfilerReturnAddrResolutionFunc();
+BASE_EXPORT DynamicFunctionEntryHook GetProfilerDynamicFunctionEntryHookFunc();
+BASE_EXPORT AddDynamicSymbol GetProfilerAddDynamicSymbolFunc();
+BASE_EXPORT MoveDynamicSymbol GetProfilerMoveDynamicSymbolFunc();
 
 }  // namespace debug
 }  // namespace base
 
-#endif  // BASE_DEBUG_DEBUGGER_H
+#endif  // BASE_DEBUG_PROFILER_H_

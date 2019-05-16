@@ -4,21 +4,35 @@
 
 #include "net/url_request/url_request_context_getter.h"
 
+#include "base/debug/leak_annotations.h"
 #include "base/location.h"
 #include "base/single_thread_task_runner.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_context_getter_observer.h"
 
 namespace net {
 
-URLRequestContextGetter::URLRequestContextGetter() {}
+void URLRequestContextGetter::AddObserver(
+    URLRequestContextGetterObserver* observer) {
+  DCHECK(GetNetworkTaskRunner()->BelongsToCurrentThread());
+  observer_list_.AddObserver(observer);
+}
 
-URLRequestContextGetter::~URLRequestContextGetter() {}
+void URLRequestContextGetter::RemoveObserver(
+    URLRequestContextGetterObserver* observer) {
+  DCHECK(GetNetworkTaskRunner()->BelongsToCurrentThread());
+  observer_list_.RemoveObserver(observer);
+}
+
+URLRequestContextGetter::URLRequestContextGetter() = default;
+
+URLRequestContextGetter::~URLRequestContextGetter() = default;
 
 void URLRequestContextGetter::OnDestruct() const {
   scoped_refptr<base::SingleThreadTaskRunner> network_task_runner =
       GetNetworkTaskRunner();
-  DCHECK(network_task_runner);
-  if (network_task_runner) {
+  DCHECK(network_task_runner.get());
+  if (network_task_runner.get()) {
     if (network_task_runner->BelongsToCurrentThread()) {
       delete this;
     } else {
@@ -28,11 +42,41 @@ void URLRequestContextGetter::OnDestruct() const {
         // aid in debugging.
         DLOG(WARNING) << "URLRequestContextGetter leaking due to no owning"
                       << " thread.";
+        // Let LSan know we know this is a leak. https://crbug.com/594130
+        ANNOTATE_LEAKING_OBJECT_PTR(this);
       }
     }
   }
-  // If no IO message loop proxy was available, we will just leak memory.
+  // If no IO task runner was available, we will just leak memory.
   // This is also true if the IO thread is gone.
 }
+
+void URLRequestContextGetter::NotifyContextShuttingDown() {
+  DCHECK(GetNetworkTaskRunner()->BelongsToCurrentThread());
+
+  // Once shutdown starts, this must always return NULL.
+  DCHECK(!GetURLRequestContext());
+
+  for (auto& observer : observer_list_)
+    observer.OnContextShuttingDown();
+}
+
+TrivialURLRequestContextGetter::TrivialURLRequestContextGetter(
+    URLRequestContext* context,
+    const scoped_refptr<base::SingleThreadTaskRunner>& main_task_runner)
+    : context_(context), main_task_runner_(main_task_runner) {
+}
+
+TrivialURLRequestContextGetter::~TrivialURLRequestContextGetter() = default;
+
+URLRequestContext* TrivialURLRequestContextGetter::GetURLRequestContext() {
+  return context_;
+}
+
+scoped_refptr<base::SingleThreadTaskRunner>
+TrivialURLRequestContextGetter::GetNetworkTaskRunner() const {
+  return main_task_runner_;
+}
+
 
 }  // namespace net

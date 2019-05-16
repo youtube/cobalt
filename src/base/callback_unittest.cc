@@ -2,79 +2,69 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/bind.h"
 #include "base/callback.h"
+
+#include <memory>
+
+#include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/callback_internal.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/test/test_timeouts.h"
+#include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
-namespace {
-
-struct FakeInvoker {
-  typedef void(RunType)(internal::BindStateBase*);
-  static void Run(internal::BindStateBase*) {
-  }
-};
-
-}  // namespace
-
-namespace internal {
-template <typename Runnable, typename RunType, typename BoundArgsType>
-struct BindState;
+void NopInvokeFunc() {}
 
 // White-box testpoints to inject into a Callback<> object for checking
 // comparators and emptiness APIs.  Use a BindState that is specialized
 // based on a type we declared in the anonymous namespace above to remove any
 // chance of colliding with another instantiation and breaking the
 // one-definition-rule.
-template <>
-struct BindState<void(void), void(void), void(FakeInvoker)>
-    : public BindStateBase {
- public:
-  typedef FakeInvoker InvokerType;
-};
+struct FakeBindState : internal::BindStateBase {
+  FakeBindState() : BindStateBase(&NopInvokeFunc, &Destroy, &IsCancelled) {}
 
-template <>
-struct BindState<void(void), void(void),
-                           void(FakeInvoker, FakeInvoker)>
-    : public BindStateBase {
- public:
-  typedef FakeInvoker InvokerType;
+ private:
+  ~FakeBindState() = default;
+  static void Destroy(const internal::BindStateBase* self) {
+    delete static_cast<const FakeBindState*>(self);
+  }
+  static bool IsCancelled(const internal::BindStateBase*,
+                          internal::BindStateBase::CancellationQueryMode mode) {
+    switch (mode) {
+      case internal::BindStateBase::IS_CANCELLED:
+        return false;
+      case internal::BindStateBase::MAYBE_VALID:
+        return true;
+    }
+    NOTREACHED();
+#if defined(STARBOARD)
+    return false;
+#endif
+  }
 };
-}  // namespace internal
 
 namespace {
-
-typedef internal::BindState<void(void), void(void), void(FakeInvoker)>
-    FakeBindState1;
-typedef internal::BindState<void(void), void(void),
-                            void(FakeInvoker, FakeInvoker)>
-   FakeBindState2;
 
 class CallbackTest : public ::testing::Test {
  public:
   CallbackTest()
-      : callback_a_(new FakeBindState1()),
-        callback_b_(new FakeBindState2()) {
-  }
+      : callback_a_(new FakeBindState()), callback_b_(new FakeBindState()) {}
 
-  virtual ~CallbackTest() {
-  }
+  ~CallbackTest() override = default;
 
  protected:
-  Callback<void(void)> callback_a_;
-  const Callback<void(void)> callback_b_;  // Ensure APIs work with const.
-  Callback<void(void)> null_callback_;
+  Callback<void()> callback_a_;
+  const Callback<void()> callback_b_;  // Ensure APIs work with const.
+  Callback<void()> null_callback_;
 };
 
 // Ensure we can create unbound callbacks. We need this to be able to store
 // them in class members that can be initialized later.
 TEST_F(CallbackTest, DefaultConstruction) {
-  Callback<void(void)> c0;
+  Callback<void()> c0;
   Callback<void(int)> c1;
   Callback<void(int,int)> c2;
   Callback<void(int,int,int)> c3;
@@ -103,13 +93,13 @@ TEST_F(CallbackTest, Equals) {
   EXPECT_FALSE(callback_b_.Equals(callback_a_));
 
   // We should compare based on instance, not type.
-  Callback<void(void)> callback_c(new FakeBindState1());
-  Callback<void(void)> callback_a2 = callback_a_;
+  Callback<void()> callback_c(new FakeBindState());
+  Callback<void()> callback_a2 = callback_a_;
   EXPECT_TRUE(callback_a_.Equals(callback_a2));
   EXPECT_FALSE(callback_a_.Equals(callback_c));
 
   // Empty, however, is always equal to empty.
-  Callback<void(void)> empty2;
+  Callback<void()> empty2;
   EXPECT_TRUE(null_callback_.Equals(empty2));
 }
 
@@ -119,6 +109,17 @@ TEST_F(CallbackTest, Reset) {
   ASSERT_FALSE(callback_a_.Equals(null_callback_));
 
   callback_a_.Reset();
+
+  EXPECT_TRUE(callback_a_.is_null());
+  EXPECT_TRUE(callback_a_.Equals(null_callback_));
+}
+
+TEST_F(CallbackTest, Move) {
+  // Moving should reset the callback.
+  ASSERT_FALSE(callback_a_.is_null());
+  ASSERT_FALSE(callback_a_.Equals(null_callback_));
+
+  auto tmp = std::move(callback_a_);
 
   EXPECT_TRUE(callback_a_.is_null());
   EXPECT_TRUE(callback_a_.Equals(null_callback_));
@@ -146,10 +147,86 @@ TEST_F(CallbackTest, ResetAndReturn) {
   ASSERT_TRUE(tfr.cb_already_run);
 }
 
+TEST_F(CallbackTest, NullAfterMoveRun) {
+  Closure cb = Bind([] {});
+  ASSERT_TRUE(cb);
+  std::move(cb).Run();
+  ASSERT_FALSE(cb);
+
+  const Closure cb2 = Bind([] {});
+  ASSERT_TRUE(cb2);
+  std::move(cb2).Run();
+  ASSERT_TRUE(cb2);
+
+  OnceClosure cb3 = BindOnce([] {});
+  ASSERT_TRUE(cb3);
+  std::move(cb3).Run();
+  ASSERT_FALSE(cb3);
+}
+
+TEST_F(CallbackTest, MaybeValidReturnsTrue) {
+  Callback<void()> cb(BindRepeating([]() {}));
+  // By default, MaybeValid() just returns true all the time.
+  EXPECT_TRUE(cb.MaybeValid());
+  cb.Run();
+  EXPECT_TRUE(cb.MaybeValid());
+}
+
+// WeakPtr detection in BindRepeating() requires a method, not just any
+// function.
+class ClassWithAMethod {
+ public:
+  void TheMethod() {}
+};
+
+TEST_F(CallbackTest, MaybeValidInvalidateWeakPtrsOnSameSequence) {
+  ClassWithAMethod obj;
+  WeakPtrFactory<ClassWithAMethod> factory(&obj);
+  WeakPtr<ClassWithAMethod> ptr = factory.GetWeakPtr();
+
+  Callback<void()> cb(BindRepeating(&ClassWithAMethod::TheMethod, ptr));
+  EXPECT_TRUE(cb.MaybeValid());
+
+  factory.InvalidateWeakPtrs();
+  // MaybeValid() should be false because InvalidateWeakPtrs() was called on
+  // the same thread.
+  EXPECT_FALSE(cb.MaybeValid());
+}
+
+TEST_F(CallbackTest, MaybeValidInvalidateWeakPtrsOnOtherSequence) {
+  ClassWithAMethod obj;
+  WeakPtrFactory<ClassWithAMethod> factory(&obj);
+  WeakPtr<ClassWithAMethod> ptr = factory.GetWeakPtr();
+
+  Callback<void()> cb(BindRepeating(&ClassWithAMethod::TheMethod, ptr));
+  EXPECT_TRUE(cb.MaybeValid());
+
+  Thread other_thread("other_thread");
+  other_thread.StartAndWaitForTesting();
+  other_thread.task_runner()->PostTask(
+      FROM_HERE,
+      BindOnce(
+          [](Callback<void()> cb) {
+            // Check that MaybeValid() _eventually_ returns false.
+            const TimeDelta timeout = TestTimeouts::tiny_timeout();
+            const TimeTicks begin = TimeTicks::Now();
+            while (cb.MaybeValid() && (TimeTicks::Now() - begin) < timeout)
+              PlatformThread::YieldCurrentThread();
+            EXPECT_FALSE(cb.MaybeValid());
+          },
+          cb));
+  factory.InvalidateWeakPtrs();
+  // |other_thread|'s destructor will join, ensuring we wait for the task to be
+  // run.
+}
+
 class CallbackOwner : public base::RefCounted<CallbackOwner> {
  public:
-  CallbackOwner(bool* deleted) {
-    callback_ = Bind(&CallbackOwner::Unused, this);
+  explicit CallbackOwner(bool* deleted) {
+    // WrapRefCounted() here is needed to avoid the check failure in the Bind
+    // implementation, that refuses to create the first reference to ref-counted
+    // objects.
+    callback_ = Bind(&CallbackOwner::Unused, WrapRefCounted(this));
     deleted_ = deleted;
   }
   void Reset() {

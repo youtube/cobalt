@@ -19,7 +19,8 @@
 
 #include <GLES3/gl3.h>
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+#include "base/basictypes.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"

@@ -512,7 +512,7 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   virtual unsigned int length() const = 0;
 
-  virtual base::optional<std::string> Item(unsigned int index) const = 0;
+  virtual base::Optional<std::string> Item(unsigned int index) const = 0;
 
   std::string GetPropertyValue(const std::string& property_name);
   virtual void SetPropertyValue(const std::string& property_name,

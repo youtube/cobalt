@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "crypto/secure_util.h"
+#include "starboard/types.h"
 
 namespace crypto {
 

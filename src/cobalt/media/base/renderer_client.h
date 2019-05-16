@@ -5,7 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_RENDERER_CLIENT_H_
 #define COBALT_MEDIA_BASE_RENDERER_CLIENT_H_
 
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "ui/gfx/size.h"
 

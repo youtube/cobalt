@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/audio/audio_node_output.h"
 
 #include "base/logging.h"
@@ -22,11 +24,7 @@
 namespace cobalt {
 namespace audio {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
 typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 AudioNodeOutput::~AudioNodeOutput() {
   owner_node_->audio_lock()->AssertLocked();
@@ -59,15 +57,14 @@ void AudioNodeOutput::DisconnectAll() {
   }
 }
 
-scoped_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
+std::unique_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
     int32 number_of_frames, SampleType sample_type, bool* finished) {
   // This is called by Audio thread.
   owner_node_->audio_lock()->AssertLocked();
 
   // Pull audio buffer from its owner node.
-  return owner_node_
-      ->PassAudioBusFromSource(number_of_frames, sample_type, finished)
-      .Pass();
+  return owner_node_->PassAudioBusFromSource(number_of_frames, sample_type,
+                                             finished);
 }
 
 }  // namespace audio

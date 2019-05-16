@@ -7,7 +7,6 @@
   # Variables which only need to be renamed
   "renames": {
     "cobalt_fastbuild": "cobalt_use_fastbuild",
-    "cobalt_media_source_2016": "cobalt_use_media_source_2016",
     "custom_media_session_client": "enable_custom_media_session_client",
     "cobalt_version": "cobalt_build_id",
     "in_app_dial": "enable_in_app_dial",
@@ -23,7 +22,6 @@
     "cobalt_copy_test_data",
     "cobalt_enable_jit",
     "cobalt_fastbuild",
-    "cobalt_media_source_2016",
     "custom_media_session_client",
     "enable_about_scheme",
     "enable_account_manager",

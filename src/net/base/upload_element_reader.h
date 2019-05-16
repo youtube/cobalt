@@ -5,15 +5,15 @@
 #ifndef NET_BASE_UPLOAD_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_ELEMENT_READER_H_
 
-#include "base/basictypes.h"
-#include "net/base/completion_callback.h"
+#include "base/macros.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 
 class IOBuffer;
 class UploadBytesElementReader;
-class UploadElement;
 class UploadFileElementReader;
 
 // An interface to read an upload data element.
@@ -30,39 +30,35 @@ class NET_EXPORT UploadElementReader {
   // otherwise returns NULL.
   virtual const UploadFileElementReader* AsFileReader() const;
 
+  // This function must be called before calling any other method. It is not
+  // valid to call any method (other than the destructor) if Init() fails.
+  // This method can be called multiple times. Calling this results in resetting
+  // the state (i.e. the stream is rewound), and any previously pending Init()
+  // or Read() calls are aborted.
+  //
   // Initializes the instance synchronously when possible, otherwise does
   // initialization aynschronously, returns ERR_IO_PENDING and runs callback.
   // Calling this method again after a Init() success results in resetting the
   // state.
-  virtual int Init(const CompletionCallback& callback) = 0;
+  virtual int Init(CompletionOnceCallback callback) = 0;
 
-  // Initializes the instance always synchronously.
-  // Use this method only if the thread is IO allowed or the data is in-memory.
-  virtual int InitSync();
-
-  // Returns the byte-length of the element.  For files that do not exist, 0
-  // is returned.  This is done for consistency with Mozilla.
-  virtual uint64 GetContentLength() const = 0;
+  // Returns the byte-length of the element. For files that do not exist, 0
+  // is returned. This is done for consistency with Mozilla.
+  virtual uint64_t GetContentLength() const = 0;
 
   // Returns the number of bytes remaining to read.
-  virtual uint64 BytesRemaining() const = 0;
+  virtual uint64_t BytesRemaining() const = 0;
 
   // Returns true if the upload element is entirely in memory.
   // The default implementation returns false.
   virtual bool IsInMemory() const;
 
   // Reads up to |buf_length| bytes synchronously and returns the number of
-  // bytes read when possible, otherwise, returns ERR_IO_PENDING and runs
-  // |callback| with the result. This function never fails. If there's less data
-  // to read than we initially observed, then pad with zero (this can happen
-  // with files). |buf_length| must be greater than 0.
+  // bytes read or error code when possible, otherwise, returns ERR_IO_PENDING
+  // and runs |callback| with the result. |buf_length| must be greater than 0.
   virtual int Read(IOBuffer* buf,
                    int buf_length,
-                   const CompletionCallback& callback) = 0;
-
-  // Reads the data always synchronously.
-  // Use this method only if the thread is IO allowed or the data is in-memory.
-  virtual int ReadSync(IOBuffer* buf, int buf_length);
+                   CompletionOnceCallback callback) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(UploadElementReader);

@@ -20,15 +20,15 @@
 namespace cobalt {
 namespace browser {
 
-base::optional<std::string> GetWebAPIExtensionObjectPropertyName() {
+base::Optional<std::string> GetWebAPIExtensionObjectPropertyName() {
   return base::nullopt;
 }
 
 scoped_refptr<script::Wrappable> CreateWebAPIExtensionObject(
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
-  UNREFERENCED_PARAMETER(window);
-  UNREFERENCED_PARAMETER(global_environment);
+  SB_UNREFERENCED_PARAMETER(window);
+  SB_UNREFERENCED_PARAMETER(global_environment);
 
   // We should never get called if GetWindowExtensionObjectName() above returns
   // base::nullopt.

@@ -5,8 +5,8 @@
 #include "base/threading/watchdog.h"
 
 #include "base/compiler_specific.h"
-#include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/threading/platform_thread.h"
 
 namespace base {
@@ -20,14 +20,21 @@ namespace {
 // Without this safety net, any alarm will typically trigger a host of follow
 // on alarms from callers that specify old times.
 
-// Lock for access of static data...
-LazyInstance<Lock>::Leaky g_static_lock = LAZY_INSTANCE_INITIALIZER;
+struct StaticData {
+  // Lock for access of static data...
+  Lock lock;
 
-// When did we last alarm and get stuck (for a while) in a debugger?
-TimeTicks g_last_debugged_alarm_time;
+  // When did we last alarm and get stuck (for a while) in a debugger?
+  TimeTicks last_debugged_alarm_time;
 
-// How long did we sit on a break in the debugger?
-TimeDelta g_last_debugged_alarm_delay;
+  // How long did we sit on a break in the debugger?
+  TimeDelta last_debugged_alarm_delay;
+};
+
+StaticData* GetStaticData() {
+  static base::NoDestructor<StaticData> static_data;
+  return static_data.get();
+}
 
 }  // namespace
 
@@ -41,7 +48,7 @@ Watchdog::Watchdog(const TimeDelta& duration,
     state_(DISARMED),
     duration_(duration),
     thread_watched_name_(thread_watched_name),
-    ALLOW_THIS_IN_INITIALIZER_LIST(delegate_(this)) {
+    delegate_(this) {
   if (!enabled_)
     return;  // Don't start thread, or doing anything really.
   enabled_ = PlatformThread::Create(0,  // Default stack size.
@@ -56,17 +63,14 @@ Watchdog::~Watchdog() {
     return;
   if (!IsJoinable())
     Cleanup();
-  condition_variable_.Signal();
   PlatformThread::Join(handle_);
 }
 
 void Watchdog::Cleanup() {
   if (!enabled_)
     return;
-  {
-    AutoLock lock(lock_);
-    state_ = SHUTDOWN;
-  }
+  AutoLock lock(lock_);
+  state_ = SHUTDOWN;
   condition_variable_.Signal();
 }
 
@@ -87,11 +91,9 @@ void Watchdog::ArmSomeTimeDeltaAgo(const TimeDelta& time_delta) {
 
 // Start clock for watchdog.
 void Watchdog::ArmAtStartTime(const TimeTicks start_time) {
-  {
-    AutoLock lock(lock_);
-    start_time_ = start_time;
-    state_ = ARMED;
-  }
+  AutoLock lock(lock_);
+  start_time_ = start_time;
+  state_ = ARMED;
   // Force watchdog to wake up, and go to sleep with the timer ticking with the
   // proper duration.
   condition_variable_.Signal();
@@ -115,6 +117,7 @@ void Watchdog::Alarm() {
 void Watchdog::ThreadDelegate::ThreadMain() {
   SetThreadName();
   TimeDelta remaining_duration;
+  StaticData* static_data = GetStaticData();
   while (1) {
     AutoLock lock(watchdog_->lock_);
     while (DISARMED == watchdog_->state_)
@@ -134,12 +137,12 @@ void Watchdog::ThreadDelegate::ThreadMain() {
     // We overslept, so this seems like a real alarm.
     // Watch out for a user that stopped the debugger on a different alarm!
     {
-      AutoLock static_lock(*g_static_lock.Pointer());
-      if (g_last_debugged_alarm_time > watchdog_->start_time_) {
+      AutoLock static_lock(static_data->lock);
+      if (static_data->last_debugged_alarm_time > watchdog_->start_time_) {
         // False alarm: we started our clock before the debugger break (last
         // alarm time).
-        watchdog_->start_time_ += g_last_debugged_alarm_delay;
-        if (g_last_debugged_alarm_time > watchdog_->start_time_)
+        watchdog_->start_time_ += static_data->last_debugged_alarm_delay;
+        if (static_data->last_debugged_alarm_time > watchdog_->start_time_)
           // Too many alarms must have taken place.
           watchdog_->state_ = DISARMED;
         continue;
@@ -148,31 +151,33 @@ void Watchdog::ThreadDelegate::ThreadMain() {
     watchdog_->state_ = DISARMED;  // Only alarm at most once.
     TimeTicks last_alarm_time = TimeTicks::Now();
     {
-      AutoUnlock lock(watchdog_->lock_);
+      AutoUnlock unlock(watchdog_->lock_);
       watchdog_->Alarm();  // Set a break point here to debug on alarms.
     }
     TimeDelta last_alarm_delay = TimeTicks::Now() - last_alarm_time;
     if (last_alarm_delay <= TimeDelta::FromMilliseconds(2))
       continue;
     // Ignore race of two alarms/breaks going off at roughly the same time.
-    AutoLock static_lock(*g_static_lock.Pointer());
+    AutoLock static_lock(static_data->lock);
     // This was a real debugger break.
-    g_last_debugged_alarm_time = last_alarm_time;
-    g_last_debugged_alarm_delay = last_alarm_delay;
+    static_data->last_debugged_alarm_time = last_alarm_time;
+    static_data->last_debugged_alarm_delay = last_alarm_delay;
   }
 }
 
 void Watchdog::ThreadDelegate::SetThreadName() const {
   std::string name = watchdog_->thread_watched_name_ + " Watchdog";
-  PlatformThread::SetName(name.c_str());
+  PlatformThread::SetName(name);
   DVLOG(1) << "Watchdog active: " << name;
 }
 
 // static
 void Watchdog::ResetStaticData() {
-  AutoLock lock(*g_static_lock.Pointer());
-  g_last_debugged_alarm_time = TimeTicks();
-  g_last_debugged_alarm_delay = TimeDelta();
+  StaticData* static_data = GetStaticData();
+  AutoLock lock(static_data->lock);
+  // See https://crbug.com/734232 for why this cannot be zero-initialized.
+  static_data->last_debugged_alarm_time = TimeTicks::Min();
+  static_data->last_debugged_alarm_delay = TimeDelta();
 }
 
 }  // namespace base

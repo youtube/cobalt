@@ -6,43 +6,62 @@
 #define NET_URL_REQUEST_URL_REQUEST_JOB_FACTORY_IMPL_H_
 
 #include <map>
-#include <vector>
-#include "base/basictypes.h"
+#include <memory>
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/url_request/url_request_job_factory.h"
 
 namespace net {
 
+class URLRequestInterceptor;
+
 class NET_EXPORT URLRequestJobFactoryImpl : public URLRequestJobFactory {
  public:
   URLRequestJobFactoryImpl();
-  virtual ~URLRequestJobFactoryImpl();
+  ~URLRequestJobFactoryImpl() override;
+
+  // Sets the ProtocolHandler for a scheme. Returns true on success, false on
+  // failure (a ProtocolHandler already exists for |scheme|).
+  bool SetProtocolHandler(const std::string& scheme,
+                          std::unique_ptr<ProtocolHandler> protocol_handler);
 
   // URLRequestJobFactory implementation
-  virtual bool SetProtocolHandler(const std::string& scheme,
-                          ProtocolHandler* protocol_handler) override;
-  virtual void AddInterceptor(Interceptor* interceptor) override;
-  virtual URLRequestJob* MaybeCreateJobWithInterceptor(
-      URLRequest* request, NetworkDelegate* network_delegate) const override;
-  virtual URLRequestJob* MaybeCreateJobWithProtocolHandler(
+  URLRequestJob* MaybeCreateJobWithProtocolHandler(
       const std::string& scheme,
       URLRequest* request,
       NetworkDelegate* network_delegate) const override;
-  virtual URLRequestJob* MaybeInterceptRedirect(
-      const GURL& location,
+
+  URLRequestJob* MaybeInterceptRedirect(
+      URLRequest* request,
+      NetworkDelegate* network_delegate,
+      const GURL& location) const override;
+
+  URLRequestJob* MaybeInterceptResponse(
       URLRequest* request,
       NetworkDelegate* network_delegate) const override;
-  virtual URLRequestJob* MaybeInterceptResponse(
-      URLRequest* request, NetworkDelegate* network_delegate) const override;
-  virtual bool IsHandledProtocol(const std::string& scheme) const override;
-  virtual bool IsHandledURL(const GURL& url) const override;
+
+  bool IsHandledProtocol(const std::string& scheme) const override;
+  bool IsSafeRedirectTarget(const GURL& location) const override;
 
  private:
-  typedef std::map<std::string, ProtocolHandler*> ProtocolHandlerMap;
-  typedef std::vector<Interceptor*> InterceptorList;
+  // For testing only.
+  friend class URLRequestFilter;
+
+  typedef std::map<std::string, std::unique_ptr<ProtocolHandler>>
+      ProtocolHandlerMap;
+
+  // Sets a global URLRequestInterceptor for testing purposes.  The interceptor
+  // is given the chance to intercept any request before the corresponding
+  // ProtocolHandler, but after any other URLRequestJobFactories layered on top
+  // of the URLRequestJobFactoryImpl.
+  // If an interceptor is set, the old interceptor must be cleared before
+  // setting a new one.
+  static void SetInterceptorForTesting(URLRequestInterceptor* interceptor);
 
   ProtocolHandlerMap protocol_handler_map_;
-  InterceptorList interceptors_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJobFactoryImpl);
 };

@@ -15,8 +15,8 @@ List of changes made to original code:
     gcc_warnings.patch.
   - made some minor changes to build on 64-bit, see gcc_64_bit.patch.
   - made minor changes for -Wextra for Mac build, see mac_wextra.patch
-  - crash fix for running with reduced CPU float precision, see
-    float_precision_crash.patch and crbug.com/123157
-  - Fix for 'warning C4703: potentially uninitialized local pointer variable'
-    in VS2012.
-
+  - fixed warnings under msvc, see msvc_warnings.patch
+  - fixed parsing of long exponents, see exp_length.patch and crbug.com/542881
+  - made hexdig array const
+  - removed deprecated `register` keyword
+  - #undef Long so that it won't change Long in other files in jumbo builds

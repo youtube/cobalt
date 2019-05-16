@@ -17,16 +17,23 @@
 namespace cobalt {
 namespace cssom {
 
-TransformMatrix TransformFunctionListValue::ToMatrix() const {
-  // Iterate through all transforms in the transform list appending them
-  // to our transform_matrix.
-  TransformMatrix matrix;
-  for (Builder::const_iterator iter = value().begin(); iter != value().end();
-       ++iter) {
-    matrix.PostMultiplyByTransform(*iter);
-  }
+TransformFunctionListValue::Builder::Builder()
+    : traits_(0) {}
 
-  return matrix;
+TransformFunctionListValue::Builder::Builder(Builder&& other)
+    : functions_(std::move(other.functions_)),
+      traits_(other.traits_) {}
+
+void TransformFunctionListValue::Builder::emplace_back(
+    TransformFunction* function) {
+  traits_ |= function->Traits();
+  functions_.emplace_back(function);
+}
+
+void TransformFunctionListValue::Builder::push_back(
+    std::unique_ptr<TransformFunction>&& function) {
+  traits_ |= function->Traits();
+  functions_.push_back(std::move(function));
 }
 
 std::string TransformFunctionListValue::ToString() const {
@@ -36,6 +43,31 @@ std::string TransformFunctionListValue::ToString() const {
     result.append(value()[i]->ToString());
   }
   return result;
+}
+
+math::Matrix3F TransformFunctionListValue::ToMatrix(
+    const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
+  math::Matrix3F matrix(math::Matrix3F::Identity());
+  for (const auto& function : value()) {
+    matrix = matrix * function->ToMatrix(used_size, used_ui_nav_focus);
+  }
+  return matrix;
+}
+
+bool TransformFunctionListValue::operator==(
+    const TransformFunctionListValue& other) const {
+  if (value().size() != other.value().size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < value().size(); ++i) {
+    if (!value()[i]->Equals(*(other.value()[i]))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace cssom

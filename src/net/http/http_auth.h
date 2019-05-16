@@ -5,10 +5,10 @@
 #ifndef NET_HTTP_HTTP_AUTH_H_
 #define NET_HTTP_HTTP_AUTH_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "net/base/auth.h"
 #include "net/base/net_export.h"
 #include "net/http/http_util.h"
@@ -17,10 +17,11 @@ template <class T> class scoped_refptr;
 
 namespace net {
 
-class BoundNetLog;
 class HttpAuthHandler;
 class HttpAuthHandlerFactory;
 class HttpResponseHeaders;
+class NetLogWithSource;
+class SSLInfo;
 
 // Utility class for http authentication.
 class NET_EXPORT_PRIVATE HttpAuth {
@@ -87,12 +88,16 @@ class NET_EXPORT_PRIVATE HttpAuth {
     IDENT_SRC_DEFAULT_CREDENTIALS,
   };
 
+  // Identifier for auth scheme.
+  //
+  // The values are used for calculating UMA buckets. Add but don't remove or
+  // reuse.
   enum Scheme {
     AUTH_SCHEME_BASIC = 0,
     AUTH_SCHEME_DIGEST,
     AUTH_SCHEME_NTLM,
     AUTH_SCHEME_NEGOTIATE,
-    AUTH_SCHEME_SPDYPROXY,
+    AUTH_SCHEME_SPDYPROXY,  // No longer used.
     AUTH_SCHEME_MOCK,
     AUTH_SCHEME_MAX,
   };
@@ -122,23 +127,27 @@ class NET_EXPORT_PRIVATE HttpAuth {
   // Returns a string representation of an authentication Scheme.
   static const char* SchemeToString(Scheme scheme);
 
-  // Iterate through the challenge headers, and pick the best one that
-  // we support. Obtains the implementation class for handling the challenge,
-  // and passes it back in |*handler|. If no supported challenge was found,
-  // |*handler| is set to NULL.
+  // Iterate through |response_headers|, and pick the best one that we support.
+  // Obtains the implementation class for handling the challenge, and passes it
+  // back in |*handler|. If no supported challenge was found, |*handler| is set
+  // to NULL.
   //
   // |disabled_schemes| is the set of schemes that we should not use.
   //
   // |origin| is used by the NTLM and Negotiation authentication scheme to
-  // construct the service principal name.  It is ignored by other schemes.
+  // construct the service principal name. It is ignored by other schemes.
+  //
+  // |ssl_info| is passed through to the scheme specific authentication handlers
+  // to use as appropriate.
   static void ChooseBestChallenge(
       HttpAuthHandlerFactory* http_auth_handler_factory,
-      const HttpResponseHeaders* headers,
+      const HttpResponseHeaders& response_headers,
+      const SSLInfo& ssl_info,
       Target target,
       const GURL& origin,
       const std::set<Scheme>& disabled_schemes,
-      const BoundNetLog& net_log,
-      scoped_ptr<HttpAuthHandler>* handler);
+      const NetLogWithSource& net_log,
+      std::unique_ptr<HttpAuthHandler>* handler);
 
   // Handle a 401/407 response from a server/proxy after a previous
   // authentication attempt. For connection-based authentication schemes, the
@@ -150,7 +159,7 @@ class NET_EXPORT_PRIVATE HttpAuth {
   // |handler| must be non-NULL, and is the HttpAuthHandler from the previous
   // authentication round.
   //
-  // |headers| must be non-NULL and contain the new HTTP response.
+  // |response_headers| must contain the new HTTP response.
   //
   // |target| specifies whether the authentication challenge response came
   // from a server or a proxy.
@@ -163,52 +172,10 @@ class NET_EXPORT_PRIVATE HttpAuth {
   // the value is cleared.
   static AuthorizationResult HandleChallengeResponse(
       HttpAuthHandler* handler,
-      const HttpResponseHeaders* headers,
+      const HttpResponseHeaders& response_headers,
       Target target,
       const std::set<Scheme>& disabled_schemes,
       std::string* challenge_used);
-
-  // Breaks up a challenge string into the the auth scheme and parameter list,
-  // according to RFC 2617 Sec 1.2:
-  //    challenge = auth-scheme 1*SP 1#auth-param
-  //
-  // Depending on the challenge scheme, it may be appropriate to interpret the
-  // parameters as either a base-64 encoded string or a comma-delimited list
-  // of name-value pairs. param_pairs() and base64_param() methods are provided
-  // to support either usage.
-  class NET_EXPORT_PRIVATE ChallengeTokenizer {
-   public:
-    ChallengeTokenizer(std::string::const_iterator begin,
-                       std::string::const_iterator end);
-
-    // Get the original text.
-    std::string challenge_text() const {
-      return std::string(begin_, end_);
-    }
-
-    // Get the auth scheme of the challenge.
-    std::string::const_iterator scheme_begin() const { return scheme_begin_; }
-    std::string::const_iterator scheme_end() const { return scheme_end_; }
-    std::string scheme() const {
-      return std::string(scheme_begin_, scheme_end_);
-    }
-
-    HttpUtil::NameValuePairsIterator param_pairs() const;
-    std::string base64_param() const;
-
-   private:
-    void Init(std::string::const_iterator begin,
-              std::string::const_iterator end);
-
-    std::string::const_iterator begin_;
-    std::string::const_iterator end_;
-
-    std::string::const_iterator scheme_begin_;
-    std::string::const_iterator scheme_end_;
-
-    std::string::const_iterator params_begin_;
-    std::string::const_iterator params_end_;
-  };
 };
 
 }  // namespace net

@@ -6,16 +6,11 @@
 #define BASE_TASK_RUNNER_H_
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
-#include "base/bind.h"
-#include "base/callback_forward.h"
+#include "base/callback.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
-#include "base/time.h"
-
-namespace tracked_objects {
-class Location;
-} // namespace tracked_objects
+#include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -65,39 +60,32 @@ class BASE_EXPORT TaskRunner
   // will not be run.
   //
   // Equivalent to PostDelayedTask(from_here, task, 0).
-  bool PostTask(const tracked_objects::Location& from_here,
-                const Closure& task);
+  bool PostTask(const Location& from_here, OnceClosure task);
 
-  // Like PostTask, but tries to run the posted task only after
-  // |delay_ms| has passed.
-  //
-  // It is valid for an implementation to ignore |delay_ms|; that is,
-  // to have PostDelayedTask behave the same as PostTask.
-  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               const Closure& task,
+  // Like PostTask, but tries to run the posted task only after |delay_ms|
+  // has passed. Implementations should use a tick clock, rather than wall-
+  // clock time, to implement |delay|.
+  virtual bool PostDelayedTask(const Location& from_here,
+                               OnceClosure task,
                                base::TimeDelta delay) = 0;
 
-#if defined(COBALT)
-  // Like PostTask, but blocks until the posted task completes. Returns false
-  // and does not block if task was not posted.
-  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
-                                const Closure& task) = 0;
-
-  // Places a fence in the SequencedTaskRunner's queue and blocks until it is
-  // hit. Returns false if the fence was not set and no blocking was done.
-  bool WaitForFence() {
-    struct Fence { static void Task() {} };
-    return PostBlockingTask(FROM_HERE, base::Bind(&Fence::Task));
-  }
-#endif
-
-  // Returns true if the current thread is a thread on which a task
-  // may be run, and false if no task will be run on the current
-  // thread.
+  // Returns true iff tasks posted to this TaskRunner are sequenced
+  // with this call.
   //
-  // It is valid for an implementation to always return true, or in
-  // general to use 'true' as a default value.
-  virtual bool RunsTasksOnCurrentThread() const = 0;
+  // In particular:
+  // - Returns true if this is a SequencedTaskRunner to which the
+  //   current task was posted.
+  // - Returns true if this is a SequencedTaskRunner bound to the
+  //   same sequence as the SequencedTaskRunner to which the current
+  //   task was posted.
+  // - Returns true if this is a SingleThreadTaskRunner bound to
+  //   the current thread.
+  // TODO(http://crbug.com/665062):
+  //   This API doesn't make sense for parallel TaskRunners.
+  //   Introduce alternate static APIs for documentation purposes of "this runs
+  //   in pool X", have RunsTasksInCurrentSequence() return false for parallel
+  //   TaskRunners, and ultimately move this method down to SequencedTaskRunner.
+  virtual bool RunsTasksInCurrentSequence() const = 0;
 
   // Posts |task| on the current TaskRunner.  On completion, |reply|
   // is posted to the thread that called PostTaskAndReply().  Both
@@ -120,7 +108,7 @@ class BASE_EXPORT TaskRunner
   //  public:
   //    void GetData() {
   //      scoped_refptr<DataBuffer> buffer = new DataBuffer();
-  //      target_thread_.message_loop_proxy()->PostTaskAndReply(
+  //      target_thread_.task_runner()->PostTaskAndReply(
   //          FROM_HERE,
   //          base::Bind(&DataBuffer::AddData, buffer),
   //          base::Bind(&DataLoader::OnDataReceived, AsWeakPtr(), buffer));
@@ -140,16 +128,12 @@ class BASE_EXPORT TaskRunner
   //   * The DataLoader object can be deleted while |task| is still running,
   //     and the reply will cancel itself safely because it is bound to a
   //     WeakPtr<>.
-  bool PostTaskAndReply(const tracked_objects::Location& from_here,
-                        const Closure& task,
-                        const Closure& reply);
+  bool PostTaskAndReply(const Location& from_here,
+                        OnceClosure task,
+                        OnceClosure reply);
 
  protected:
   friend struct TaskRunnerTraits;
-
-  // Only the Windows debug build seems to need this: see
-  // http://crbug.com/112250.
-  friend class RefCountedThreadSafe<TaskRunner, TaskRunnerTraits>;
 
   TaskRunner();
   virtual ~TaskRunner();

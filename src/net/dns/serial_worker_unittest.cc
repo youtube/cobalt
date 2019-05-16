@@ -5,32 +5,37 @@
 #include "net/dns/serial_worker.h"
 
 #include "base/bind.h"
-#include "base/message_loop.h"
+#include "base/location.h"
+#include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_loop_current.h"
+#include "base/run_loop.h"
+#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_restrictions.h"
+#include "net/test/test_with_scoped_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 namespace {
 
-class SerialWorkerTest : public testing::Test {
+class SerialWorkerTest : public TestWithScopedTaskEnvironment {
  public:
   // The class under test
   class TestSerialWorker : public SerialWorker {
    public:
-    explicit TestSerialWorker(SerialWorkerTest* t)
-      : test_(t) {}
-    virtual void DoWork() override {
+    explicit TestSerialWorker(SerialWorkerTest* t) : test_(t) {}
+    void DoWork() override {
       ASSERT_TRUE(test_);
       test_->OnWork();
     }
-    virtual void OnWorkFinished() override {
+    void OnWorkFinished() override {
       ASSERT_TRUE(test_);
       test_->OnWorkFinished();
     }
    private:
-    virtual ~TestSerialWorker() {}
+    ~TestSerialWorker() override = default;
     SerialWorkerTest* test_;
   };
 
@@ -43,8 +48,12 @@ class SerialWorkerTest : public testing::Test {
       work_running_ = true;
     }
     BreakNow("OnWork");
-    work_allowed_.Wait();
-    // Calling from WorkerPool, but protected by work_allowed_/work_called_.
+    {
+      base::ScopedAllowBaseSyncPrimitivesForTesting
+          scoped_allow_base_sync_primitives;
+      work_allowed_.Wait();
+    }
+    // Calling from TaskScheduler, but protected by work_allowed_/work_called_.
     output_value_ = input_value_;
 
     { // This lock might be destroyed after work_called_ is signalled.
@@ -55,35 +64,40 @@ class SerialWorkerTest : public testing::Test {
   }
 
   void OnWorkFinished() {
-    EXPECT_TRUE(message_loop_ == MessageLoop::current());
+    EXPECT_TRUE(message_loop_->task_runner()->BelongsToCurrentThread());
     EXPECT_EQ(output_value_, input_value_);
     BreakNow("OnWorkFinished");
   }
 
  protected:
-  void BreakCallback(std::string breakpoint) {
+  void BreakCallback(const std::string& breakpoint) {
     breakpoint_ = breakpoint;
-    MessageLoop::current()->QuitNow();
+    run_loop_->Quit();
   }
 
-  void BreakNow(std::string b) {
-    message_loop_->PostTask(FROM_HERE,
-        base::Bind(&SerialWorkerTest::BreakCallback,
-                   base::Unretained(this), b));
+  void BreakNow(const std::string& b) {
+    message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&SerialWorkerTest::BreakCallback,
+                              base::Unretained(this), b));
   }
 
-  void RunUntilBreak(std::string b) {
-    message_loop_->Run();
+  void RunUntilBreak(const std::string& b) {
+    base::RunLoop run_loop;
+    ASSERT_FALSE(run_loop_);
+    run_loop_ = &run_loop;
+    run_loop_->Run();
+    run_loop_ = nullptr;
     ASSERT_EQ(breakpoint_, b);
   }
 
   SerialWorkerTest()
       : input_value_(0),
         output_value_(-1),
-        work_allowed_(false, false),
-        work_called_(false, false),
-        work_running_(false) {
-  }
+        work_allowed_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
+                      base::WaitableEvent::InitialState::NOT_SIGNALED),
+        work_called_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
+                     base::WaitableEvent::InitialState::NOT_SIGNALED),
+        work_running_(false) {}
 
   // Helpers for tests.
 
@@ -96,12 +110,12 @@ class SerialWorkerTest : public testing::Test {
   }
 
   // test::Test methods
-  virtual void SetUp() override {
-    message_loop_ = MessageLoop::current();
+  void SetUp() override {
+    message_loop_ = base::MessageLoopCurrent::Get();
     worker_ = new TestSerialWorker(this);
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     // Cancel the worker to catch if it makes a late DoWork call.
     worker_->Cancel();
     // Check if OnWork is stalled.
@@ -126,12 +140,15 @@ class SerialWorkerTest : public testing::Test {
   base::Lock work_lock_;
 
   // Loop for this thread.
-  MessageLoop* message_loop_;
+  base::MessageLoop* message_loop_;
 
   // WatcherDelegate under test.
   scoped_refptr<TestSerialWorker> worker_;
 
   std::string breakpoint_;
+  base::RunLoop* run_loop_ = nullptr;
+
+  DISALLOW_COPY_AND_ASSIGN(SerialWorkerTest);
 };
 
 TEST_F(SerialWorkerTest, ExecuteAndSerializeReads) {
@@ -141,7 +158,7 @@ TEST_F(SerialWorkerTest, ExecuteAndSerializeReads) {
     WaitForWork();
     RunUntilBreak("OnWorkFinished");
 
-    message_loop_->AssertIdle();
+    EXPECT_TRUE(message_loop_->IsIdleForTesting());
   }
 
   // Schedule two calls. OnWork checks if it is called serially.
@@ -154,10 +171,9 @@ TEST_F(SerialWorkerTest, ExecuteAndSerializeReads) {
   RunUntilBreak("OnWorkFinished");
 
   // No more tasks should remain.
-  message_loop_->AssertIdle();
+  EXPECT_TRUE(message_loop_->IsIdleForTesting());
 }
 
 }  // namespace
 
 }  // namespace net
-

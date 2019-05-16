@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <iomanip>
 #include <limits>
+#include <memory>
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mp4/sample_to_group_iterator.h"
 
@@ -279,7 +279,7 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
 
     const std::vector<uint8_t>& sample_encryption_data =
         traf.sample_encryption.sample_encryption_data;
-    scoped_ptr<BufferReader> sample_encryption_reader;
+    std::unique_ptr<BufferReader> sample_encryption_reader;
     uint32_t sample_encryption_entries_count = 0;
     if (!sample_encryption_data.empty()) {
       sample_encryption_reader.reset(new BufferReader(
@@ -579,13 +579,13 @@ const TrackEncryption& TrackRunIterator::track_encryption() const {
   return video_description().sinf.info.track_encryption;
 }
 
-scoped_ptr<DecryptConfig> TrackRunIterator::GetDecryptConfig() {
+std::unique_ptr<DecryptConfig> TrackRunIterator::GetDecryptConfig() {
   DCHECK(is_encrypted());
 
   if (run_itr_->sample_encryption_entries.empty()) {
     DCHECK_EQ(0, aux_info_size());
     MEDIA_LOG(ERROR, media_log_) << "Sample encryption info is not available.";
-    return scoped_ptr<DecryptConfig>();
+    return std::unique_ptr<DecryptConfig>();
   }
 
   size_t sample_idx = sample_itr_ - run_itr_->samples.begin();
@@ -598,11 +598,11 @@ scoped_ptr<DecryptConfig> TrackRunIterator::GetDecryptConfig() {
       (!sample_encryption_entry.GetTotalSizeOfSubsamples(&total_size) ||
        total_size != static_cast<size_t>(sample_size()))) {
     MEDIA_LOG(ERROR, media_log_) << "Incorrect CENC subsample size.";
-    return scoped_ptr<DecryptConfig>();
+    return std::unique_ptr<DecryptConfig>();
   }
 
   const std::vector<uint8_t>& kid = GetKeyId(sample_idx);
-  return scoped_ptr<DecryptConfig>(new DecryptConfig(
+  return std::unique_ptr<DecryptConfig>(new DecryptConfig(
       std::string(reinterpret_cast<const char*>(&kid[0]), kid.size()),
       std::string(reinterpret_cast<const char*>(
                       sample_encryption_entry.initialization_vector),

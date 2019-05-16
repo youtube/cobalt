@@ -14,7 +14,7 @@
 
 #include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -61,7 +61,7 @@ scoped_refptr<render_tree::Node> CreateAllScenesCombinedScene(
   all_scenes_combined_scene_builder.AddChild(marquee_scene);
 
   return new AnimateNode(
-      new CompositionNode(all_scenes_combined_scene_builder.Pass()));
+      new CompositionNode(std::move(all_scenes_combined_scene_builder)));
 }
 
 }  // namespace scenes

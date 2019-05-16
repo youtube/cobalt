@@ -15,6 +15,8 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_USER_OBJECT_HOLDER_H_
 #define COBALT_SCRIPT_V8C_V8C_USER_OBJECT_HOLDER_H_
 
+#include <memory>
+
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
@@ -117,9 +119,9 @@ class V8cUserObjectHolder
     return handle_.IsEmpty() ? nullptr : &handle_;
   }
 
-  scoped_ptr<BaseClass> MakeCopy() const override {
+  std::unique_ptr<BaseClass> MakeCopy() const override {
     v8::HandleScope handle_scope(isolate_);
-    return make_scoped_ptr<BaseClass>(
+    return std::unique_ptr<BaseClass>(
         new V8cUserObjectHolder(isolate_, v8_value()));
   }
 

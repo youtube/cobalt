@@ -57,7 +57,7 @@ KeyframeEffectReadOnly::Data::Data(
 }
 
 void KeyframeEffectReadOnly::Data::CheckKeyframesSorted() const {
-  base::optional<double> last_offset;
+  base::Optional<double> last_offset;
   for (KeyframeSequence::const_iterator iter = keyframes_.begin();
        iter != keyframes_.end(); ++iter) {
     DCHECK(iter->offset())
@@ -99,7 +99,7 @@ bool KeyframeEffectReadOnly::Data::IsOnlyPropertyAnimated(
 }
 
 void KeyframeEffectReadOnly::Data::ApplyAnimation(
-    const scoped_refptr<cssom::CSSComputedStyleData>& in_out_style,
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>& in_out_style,
     double iteration_progress, double current_iteration) const {
   for (std::set<cssom::PropertyKey>::const_iterator iter =
            properties_affected_.begin();
@@ -209,16 +209,17 @@ T FirstWithProperty(const T& start, const T& end,
 
 // Described within step 10 from:
 //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
-std::pair<base::optional<PropertySpecificKeyframe>,
-          base::optional<PropertySpecificKeyframe> >
+std::pair<base::Optional<PropertySpecificKeyframe>,
+          base::Optional<PropertySpecificKeyframe> >
 ComputeIntervalEndpoints(
     const KeyframeEffectReadOnly::Data::KeyframeSequence& keyframes,
     cssom::PropertyKey target_property,
     const scoped_refptr<cssom::PropertyValue>& underlying_value,
     double iteration_progress) {
   // We create a default being/end frame only if we find that we need them.
-  std::pair<base::optional<PropertySpecificKeyframe>,
-            base::optional<PropertySpecificKeyframe> > interval_endpoints;
+  std::pair<base::Optional<PropertySpecificKeyframe>,
+            base::Optional<PropertySpecificKeyframe> >
+      interval_endpoints;
 
   if (iteration_progress < 0.0 &&
       NumberOfKeyframesWithOffsetOfZero(keyframes, target_property) > 1) {
@@ -279,7 +280,7 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
     double iteration_progress, double current_iteration) const {
   // Since not all steps are implemented here, this parameter is not yet
   // referenced in our implementation.
-  UNREFERENCED_PARAMETER(current_iteration);
+  SB_UNREFERENCED_PARAMETER(current_iteration);
 
   // 6. If property-specific keyframes is empty, return underlying value.
   if (!IsPropertyAnimated(target_property)) {
@@ -287,10 +288,10 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
   }
 
   // 10. (see URL above for description).
-  std::pair<base::optional<PropertySpecificKeyframe>,
-            base::optional<PropertySpecificKeyframe> > interval_endpoints =
-      ComputeIntervalEndpoints(keyframes_, target_property, underlying_value,
-                               iteration_progress);
+  std::pair<base::Optional<PropertySpecificKeyframe>,
+            base::Optional<PropertySpecificKeyframe> >
+      interval_endpoints = ComputeIntervalEndpoints(
+          keyframes_, target_property, underlying_value, iteration_progress);
 
   // 12. If there is only one keyframe in interval endpoints return the property
   //     value of target property on that keyframe.
@@ -332,7 +333,7 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
 void KeyframeEffectReadOnly::TraceMembers(script::Tracer* tracer) {
   AnimationEffectReadOnly::TraceMembers(tracer);
 
-  tracer->Trace(target_);
+  tracer->Trace(target_.get());
 }
 
 }  // namespace web_animations

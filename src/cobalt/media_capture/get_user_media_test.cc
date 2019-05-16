@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media_capture/media_devices.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/media_stream/microphone_audio_source.h"
@@ -26,13 +27,13 @@ namespace {
 
 const int kMaxDomElementDepth = 8;
 
-scoped_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
+std::unique_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
   cobalt::dom::DOMSettings::Options options;
 #if defined(ENABLE_FAKE_MICROPHONE)
   options.microphone_options.enable_fake_microphone = true;
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
-  return make_scoped_ptr<cobalt::script::EnvironmentSettings>(
+  return std::unique_ptr<cobalt::script::EnvironmentSettings>(
       new cobalt::dom::DOMSettings(kMaxDomElementDepth, nullptr, nullptr,
                                    nullptr, nullptr, nullptr, nullptr, nullptr,
                                    nullptr, nullptr, options));

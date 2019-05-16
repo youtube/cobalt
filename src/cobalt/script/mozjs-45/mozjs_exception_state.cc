@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "third_party/mozjs-45/js/src/jsexn.h"
 

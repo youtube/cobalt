@@ -5,8 +5,9 @@
 #ifndef NET_HTTP_URL_SECURITY_MANAGER_H_
 #define NET_HTTP_URL_SECURITY_MANAGER_H_
 
-#include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
+#include "base/macros.h"
 #include "net/base/net_export.h"
 
 class GURL;
@@ -17,32 +18,30 @@ class HttpAuthFilter;
 
 // The URL security manager controls the policies (allow, deny, prompt user)
 // regarding URL actions (e.g., sending the default credentials to a server).
-class NET_EXPORT URLSecurityManager {
+class NET_EXPORT_PRIVATE URLSecurityManager {
  public:
   URLSecurityManager() {}
   virtual ~URLSecurityManager() {}
 
   // Creates a platform-dependent instance of URLSecurityManager.
   //
-  // |whitelist_default| is the whitelist of servers that default credentials
-  // can be used with during NTLM or Negotiate authentication. If
-  // |whitelist_default| is NULL and the platform is Windows, it indicates
+  // A security manager has two whitelists, a "default whitelist" that is a
+  // whitelist of servers with which default credentials can be used, and a
+  // "delegate whitelist" that is the whitelist of servers that are allowed to
+  // have delegated Kerberos tickets.
+  //
+  // On creation both whitelists are NULL.
+  //
+  // If the default whitelist is NULL and the platform is Windows, it indicates
   // that security zone mapping should be used to determine whether default
-  // credentials sxhould be used. If |whitelist_default| is NULL and the
+  // credentials should be used. If the default whitelist is NULL and the
   // platform is non-Windows, it indicates that no servers should be
   // whitelisted.
   //
-  // |whitelist_delegate| is the whitelist of servers that are allowed
-  // to have Delegated Kerberos tickets. If |whitelist_delegate| is NULL,
-  // no servers can have delegated Kerberos tickets.
+  // If the delegate whitelist is NULL no servers can have delegated Kerberos
+  // tickets.
   //
-  // Both |whitelist_default| and |whitelist_delegate| will be owned by
-  // the created URLSecurityManager.
-  //
-  // TODO(cbentzel): Perhaps it's better to make a non-abstract HttpAuthFilter
-  //                 and just copy into the URLSecurityManager?
-  static URLSecurityManager* Create(const HttpAuthFilter* whitelist_default,
-                                    const HttpAuthFilter* whitelist_delegate);
+  static std::unique_ptr<URLSecurityManager> Create();
 
   // Returns true if we can send the default credentials to the server at
   // |auth_origin| for HTTP NTLM or Negotiate authentication.
@@ -52,24 +51,34 @@ class NET_EXPORT URLSecurityManager {
   // |auth_origin| for HTTP Negotiate authentication.
   virtual bool CanDelegate(const GURL& auth_origin) const = 0;
 
+  virtual void SetDefaultWhitelist(
+      std::unique_ptr<HttpAuthFilter> whitelist_default) = 0;
+  virtual void SetDelegateWhitelist(
+      std::unique_ptr<HttpAuthFilter> whitelist_delegate) = 0;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManager);
 };
 
 class URLSecurityManagerWhitelist : public URLSecurityManager {
  public:
-  // The URLSecurityManagerWhitelist takes ownership of the whitelists.
-  URLSecurityManagerWhitelist(const HttpAuthFilter* whitelist_default,
-                              const HttpAuthFilter* whitelist_delegation);
-  virtual ~URLSecurityManagerWhitelist();
+  URLSecurityManagerWhitelist();
+  ~URLSecurityManagerWhitelist() override;
 
   // URLSecurityManager methods.
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const override;
-  virtual bool CanDelegate(const GURL& auth_origin) const override;
+  bool CanUseDefaultCredentials(const GURL& auth_origin) const override;
+  bool CanDelegate(const GURL& auth_origin) const override;
+  void SetDefaultWhitelist(
+      std::unique_ptr<HttpAuthFilter> whitelist_default) override;
+  void SetDelegateWhitelist(
+      std::unique_ptr<HttpAuthFilter> whitelist_delegate) override;
+
+ protected:
+  bool HasDefaultWhitelist() const;
 
  private:
-  scoped_ptr<const HttpAuthFilter> whitelist_default_;
-  scoped_ptr<const HttpAuthFilter> whitelist_delegate_;
+  std::unique_ptr<const HttpAuthFilter> whitelist_default_;
+  std::unique_ptr<const HttpAuthFilter> whitelist_delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWhitelist);
 };

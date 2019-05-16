@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/csp/crypto.h"
 
 // Utilities for parsing CSP directive headers. These emulate similar
@@ -131,10 +131,10 @@ inline void ReverseSkipWhile(const char** position_ptr, const char* start) {
   }
 }
 
-inline bool IsNotAsciiWhitespace(char c) { return !IsAsciiWhitespace(c); }
+inline bool IsNotAsciiWhitespace(char c) { return !base::IsAsciiWhitespace(c); }
 
 inline bool IsAsciiAlphanumeric(char c) {
-  return IsAsciiAlpha(c) || IsAsciiDigit(c);
+  return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
 }
 
 inline bool IsCSPDirectiveNameCharacter(char c) {
@@ -142,7 +142,7 @@ inline bool IsCSPDirectiveNameCharacter(char c) {
 }
 
 inline bool IsCSPDirectiveValueCharacter(char c) {
-  return IsAsciiWhitespace(c) ||
+  return base::IsAsciiWhitespace(c) ||
          (c >= 0x21 && c <= 0x7e);  // Whitespace + VCHAR
 }
 

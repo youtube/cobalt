@@ -260,7 +260,7 @@ bool TextBox::TrySplitAtSecondBidiLevelRun() {
   }
 }
 
-base::optional<int> TextBox::GetBidiLevel() const {
+base::Optional<int> TextBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_start_position_);
 }
 
@@ -312,14 +312,14 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
 }
 
 LayoutUnit TextBox::GetBaselineOffsetFromTopMarginEdge() const {
-  DCHECK(baseline_offset_from_top_);
-  return *baseline_offset_from_top_;
+  return baseline_offset_from_top_.value_or(LayoutUnit());
 }
 
 namespace {
 void PopulateBaseStyleForTextNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
-    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+    const scoped_refptr<cssom::MutableCSSComputedStyleData>&
+        destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForTextNode() should match the
   // properties used by SetupTextNodeFromStyle().
   destination_style->set_color(source_style->color());

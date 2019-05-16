@@ -5,10 +5,12 @@
 #ifndef NET_HTTP_PARTIAL_DATA_H_
 #define NET_HTTP_PARTIAL_DATA_H_
 
-#include "base/basictypes.h"
-#include "net/base/completion_callback.h"
+#include "base/macros.h"
+#include "base/memory/weak_ptr.h"
+#include "net/base/completion_once_callback.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_headers.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 class Entry;
@@ -54,7 +56,7 @@ class PartialData {
   // error code. If this method returns ERR_IO_PENDING, the |callback| will be
   // notified when the result is ready.
   int ShouldValidateCache(disk_cache::Entry* entry,
-                          const CompletionCallback& callback);
+                          CompletionOnceCallback callback);
 
   // Builds the required |headers| to perform the proper cache validation for
   // the next range to be fetched.
@@ -70,9 +72,13 @@ class PartialData {
 
   // Extracts info from headers already stored in the cache. Returns false if
   // there is any problem with the headers. |truncated| should be true if we
-  // have an incomplete 200 entry.
+  // have an incomplete 200 entry due to a transfer having been interrupted.
+  // |writing_in_progress| should be set to true if a transfer for this entry's
+  // payload is still in progress.
   bool UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
-                               disk_cache::Entry* entry, bool truncated);
+                               disk_cache::Entry* entry,
+                               bool truncated,
+                               bool writing_in_progress);
 
   // Sets the byte current range to start again at zero (for a truncated entry).
   void SetRangeToStartDownload();
@@ -96,13 +102,17 @@ class PartialData {
   // cache that provides the right arguments for the current range. When the IO
   // operation completes, OnCacheReadCompleted() must be called with the result
   // of the operation.
-  int CacheRead(disk_cache::Entry* entry, IOBuffer* data, int data_len,
-                const net::CompletionCallback& callback);
+  int CacheRead(disk_cache::Entry* entry,
+                IOBuffer* data,
+                int data_len,
+                CompletionOnceCallback callback);
 
   // Writes |data_len| bytes to cache. This is basically a wrapper around the
   // API of the cache that provides the right arguments for the current range.
-  int CacheWrite(disk_cache::Entry* entry, IOBuffer* data, int data_len,
-                 const net::CompletionCallback& callback);
+  int CacheWrite(disk_cache::Entry* entry,
+                 IOBuffer* data,
+                 int data_len,
+                 CompletionOnceCallback callback);
 
   // This method should be called when CacheRead() finishes the read, to update
   // the internal state about the current range.
@@ -115,17 +125,27 @@ class PartialData {
   bool initial_validation() const { return initial_validation_; }
 
  private:
-  class Core;
   // Returns the length to use when scanning the cache.
   int GetNextRangeLen();
 
-  // Completion routine for our callback.
-  void GetAvailableRangeCompleted(int result, int64 start);
+  // Completion routine for our callback.  Deletes |start|.
+  void GetAvailableRangeCompleted(int64_t* start, int result);
 
-  int64 current_range_start_;
-  int64 cached_start_;
-  int64 resource_size_;
+  // The portion we're trying to get, either from cache or network.
+  int64_t current_range_start_;
+  int64_t current_range_end_;
+
+  // Next portion available in the cache --- this may be what's currently being
+  // read, or the next thing that will be read if the current network portion
+  // succeeds.
+  //
+  // |cached_start_| represents the beginning of the range, while
+  // |cached_min_len_| the data not yet read (possibly overestimated).
+  int64_t cached_start_;
   int cached_min_len_;
+
+  // The size of the whole file.
+  int64_t resource_size_;
   HttpByteRange byte_range_;  // The range requested by the user.
   // The clean set of extra headers (no ranges).
   HttpRequestHeaders extra_headers_;
@@ -134,8 +154,8 @@ class PartialData {
   bool sparse_entry_;
   bool truncated_;  // We have an incomplete 200 stored.
   bool initial_validation_;  // Only used for truncated entries.
-  Core* core_;
-  CompletionCallback callback_;
+  CompletionOnceCallback callback_;
+  base::WeakPtrFactory<PartialData> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(PartialData);
 };

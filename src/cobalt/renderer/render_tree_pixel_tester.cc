@@ -15,10 +15,11 @@
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
@@ -53,8 +54,8 @@ RenderTreePixelTester::Options::Options()
 
 RenderTreePixelTester::RenderTreePixelTester(
     const math::Size& test_surface_dimensions,
-    const FilePath& expected_results_directory,
-    const FilePath& output_directory, const Options& options)
+    const base::FilePath& expected_results_directory,
+    const base::FilePath& output_directory, const Options& options)
     : expected_results_directory_(expected_results_directory),
       output_directory_(output_directory),
       options_(options) {
@@ -63,9 +64,8 @@ RenderTreePixelTester::RenderTreePixelTester(
 
   // Create our offscreen surface that will be the target of our test
   // rasterizations.
-  test_surface_ =
-      graphics_context_->CreateDownloadableOffscreenRenderTarget(
-          test_surface_dimensions);
+  test_surface_ = graphics_context_->CreateDownloadableOffscreenRenderTarget(
+      test_surface_dimensions);
 
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
@@ -90,9 +90,9 @@ namespace {
 // extension) to include a postfix and an extension.
 // e.g. ModifyBaseFileName("output/tests/my_test", "-expected", "png")
 //      will return "output/tests/my_test-expected.png".
-FilePath ModifyBaseFileName(const FilePath& base_file_name,
-                            const std::string& postfix,
-                            const std::string& extension) {
+base::FilePath ModifyBaseFileName(const base::FilePath& base_file_name,
+                                  const std::string& postfix,
+                                  const std::string& extension) {
   return base_file_name.InsertBeforeExtension(postfix).AddExtension(extension);
 }
 
@@ -213,7 +213,8 @@ SkBitmap DiffBitmaps(const SkBitmap& bitmap_a, const SkBitmap& bitmap_b,
 
 // Helper function to simplify the process of encoding a Skia RGBA8 SkBitmap
 // object to a PNG file.
-void EncodeSkBitmapToPNG(const FilePath& output_file, const SkBitmap& bitmap) {
+void EncodeSkBitmapToPNG(const base::FilePath& output_file,
+                         const SkBitmap& bitmap) {
   DLOG(INFO) << "Writing " << output_file.value();
   if (bitmap.info().alphaType() == kUnpremul_SkAlphaType &&
       bitmap.info().colorType() == kRGBA_8888_SkColorType) {
@@ -226,7 +227,7 @@ void EncodeSkBitmapToPNG(const FilePath& output_file, const SkBitmap& bitmap) {
     SkImageInfo output_image_info =
         SkImageInfo::Make(bitmap.width(), bitmap.height(),
                           kRGBA_8888_SkColorType, kUnpremul_SkAlphaType);
-    scoped_array<uint8_t> pixels(
+    std::unique_ptr<uint8_t[]> pixels(
         new uint8_t[output_image_info.minRowBytes() * bitmap.height()]);
 
     // Reformat and copy the pixel data into our fresh pixel buffer.
@@ -257,7 +258,7 @@ bool TestActualAgainstExpectedBitmap(float gaussian_blur_sigma,
                                      float acceptable_channel_range,
                                      const SkBitmap& expected_bitmap,
                                      const SkBitmap& actual_bitmap,
-                                     const FilePath& output_base_filename,
+                                     const base::FilePath& output_base_filename,
                                      bool output_failed_test_details,
                                      bool output_all_test_details) {
   DCHECK_EQ(kRGBA_8888_SkColorType, expected_bitmap.colorType());
@@ -292,7 +293,7 @@ bool TestActualAgainstExpectedBitmap(float gaussian_blur_sigma,
   // the images that were used by this test to help debug any problems.
   if (output_all_test_details ||
       (number_of_diff_pixels > 0 && output_failed_test_details)) {
-    file_util::CreateDirectory(output_base_filename.DirName());
+    base::CreateDirectory(output_base_filename.DirName());
 
     EncodeSkBitmapToPNG(
         ModifyBaseFileName(output_base_filename, "-actual", "png"),
@@ -317,7 +318,7 @@ bool TestActualAgainstExpectedBitmap(float gaussian_blur_sigma,
 }
 }  // namespace
 
-scoped_array<uint8_t> RenderTreePixelTester::RasterizeRenderTree(
+std::unique_ptr<uint8_t[]> RenderTreePixelTester::RasterizeRenderTree(
     const scoped_refptr<cobalt::render_tree::Node>& tree) const {
   // Rasterize the test render tree to the rasterizer's offscreen render target.
   rasterizer::Rasterizer::Options rasterizer_options;
@@ -330,19 +331,19 @@ scoped_array<uint8_t> RenderTreePixelTester::RasterizeRenderTree(
 
 void RenderTreePixelTester::Rebaseline(
     const scoped_refptr<cobalt::render_tree::Node>& test_tree,
-    const FilePath& expected_base_filename) const {
-  scoped_array<uint8_t> test_image_pixels = RasterizeRenderTree(test_tree);
+    const base::FilePath& expected_base_filename) const {
+  std::unique_ptr<uint8_t[]> test_image_pixels = RasterizeRenderTree(test_tree);
 
   // Wrap the generated image's raw RGBA8 pixel data in a SkBitmap so that
   // we can manipulate it using Skia.
   const SkBitmap actual_bitmap = CreateBitmapFromRGBAPixels(
       test_surface_->GetSize(), test_image_pixels.get());
 
-  FilePath output_base_filename(
+  base::FilePath output_base_filename(
       output_directory_.Append(expected_base_filename));
 
   // Create the output directory if it doesn't already exist.
-  file_util::CreateDirectory(output_base_filename.DirName());
+  base::CreateDirectory(output_base_filename.DirName());
 
   // If the 'rebase' flag is set, we should not run any actual tests but
   // instead output the results of our tests so that they can be used as
@@ -354,8 +355,8 @@ void RenderTreePixelTester::Rebaseline(
 
 bool RenderTreePixelTester::TestTree(
     const scoped_refptr<cobalt::render_tree::Node>& test_tree,
-    const FilePath& expected_base_filename) const {
-  scoped_array<uint8_t> test_image_pixels = RasterizeRenderTree(test_tree);
+    const base::FilePath& expected_base_filename) const {
+  std::unique_ptr<uint8_t[]> test_image_pixels = RasterizeRenderTree(test_tree);
 
   // Wrap the generated image's raw RGBA8 pixel data in a SkBitmap so that
   // we can manipulate it using Skia.
@@ -367,16 +368,16 @@ bool RenderTreePixelTester::TestTree(
   // the synthesized image.
   int expected_width;
   int expected_height;
-  FilePath expected_output_file = expected_results_directory_.Append(
+  base::FilePath expected_output_file = expected_results_directory_.Append(
       ModifyBaseFileName(expected_base_filename, "-expected", "png"));
-  if (!file_util::PathExists(expected_output_file)) {
+  if (!base::PathExists(expected_output_file)) {
     DLOG(WARNING) << "Expected pixel test output file \""
                   << expected_output_file.value() << "\" cannot be found.";
     // If the expected output file does not exist, we cannot continue, so
     // return in failure.
     return false;
   }
-  scoped_array<uint8_t> expected_image_pixels =
+  std::unique_ptr<uint8_t[]> expected_image_pixels =
       DecodePNGToRGBA(expected_output_file, &expected_width, &expected_height);
 
   DCHECK_EQ(test_surface_->GetSize().width(), expected_width);

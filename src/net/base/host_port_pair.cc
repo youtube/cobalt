@@ -4,22 +4,28 @@
 
 #include "net/base/host_port_pair.h"
 
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
-#include "googleurl/src/gurl.h"
+#include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/memory_usage_estimator.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/parse_number.h"
+#include "net/base/port_util.h"
+#include "url/gurl.h"
 
 namespace net {
 
 HostPortPair::HostPortPair() : port_(0) {}
-HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
-    : host_(in_host), port_(in_port) {}
+HostPortPair::HostPortPair(const std::string& in_host, uint16_t in_port)
+    : host_(in_host), port_(in_port) {
+}
 
 // static
 HostPortPair HostPortPair::FromURL(const GURL& url) {
-  return HostPortPair(url.HostNoBrackets(), url.EffectiveIntPort());
+  return HostPortPair(url.HostNoBrackets(),
+                      static_cast<uint16_t>(url.EffectiveIntPort()));
 }
 
 // static
@@ -27,26 +33,40 @@ HostPortPair HostPortPair::FromIPEndPoint(const IPEndPoint& ipe) {
   return HostPortPair(ipe.ToStringWithoutPort(), ipe.port());
 }
 
+// static
 HostPortPair HostPortPair::FromString(const std::string& str) {
-  std::vector<std::string> key_port;
-  base::SplitString(str, ':', &key_port);
+  std::vector<base::StringPiece> key_port = base::SplitStringPiece(
+      str, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (key_port.size() != 2)
     return HostPortPair();
   int port;
-  if (!base::StringToInt(key_port[1], &port))
+  if (!ParseInt32(key_port[1], ParseIntFormat::NON_NEGATIVE, &port))
     return HostPortPair();
-  DCHECK_LT(port, 1 << 16);
+  if (!IsPortValid(port))
+    return HostPortPair();
   HostPortPair host_port_pair;
-  host_port_pair.set_host(key_port[0]);
-  host_port_pair.set_port(port);
+  host_port_pair.set_host(key_port[0].as_string());
+  host_port_pair.set_port(static_cast<uint16_t>(port));
   return host_port_pair;
 }
 
 std::string HostPortPair::ToString() const {
-  return base::StringPrintf("%s:%u", HostForURL().c_str(), port_);
+  std::string ret(HostForURL());
+  ret += ':';
+  ret += base::UintToString(port_);
+  return ret;
 }
 
 std::string HostPortPair::HostForURL() const {
+  // TODO(rtenneti): Add support for |host| to have '\0'.
+  if (host_.find('\0') != std::string::npos) {
+    std::string host_for_log(host_);
+    size_t nullpos;
+    while ((nullpos = host_for_log.find('\0')) != std::string::npos) {
+      host_for_log.replace(nullpos, 1, "%00");
+    }
+    LOG(DFATAL) << "Host has a null char: " << host_for_log;
+  }
   // Check to see if the host is an IPv6 address.  If so, added brackets.
   if (host_.find(':') != std::string::npos) {
     DCHECK_NE(host_[0], '[');
@@ -54,6 +74,10 @@ std::string HostPortPair::HostForURL() const {
   }
 
   return host_;
+}
+
+size_t HostPortPair::EstimateMemoryUsage() const {
+  return base::trace_event::EstimateMemoryUsage(host_);
 }
 
 }  // namespace net

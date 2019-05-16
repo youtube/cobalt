@@ -12,7 +12,11 @@
 
 #include "base/logging.h"
 #include "net/base/ip_endpoint.h"
-#include "net/base/net_util.h"
+#include "net/base/net_string_util.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#endif
 
 namespace net {
 
@@ -22,7 +26,7 @@ char s_dial_uuid[23] = {};
 }  // namespace
 
 DialSystemConfig* DialSystemConfig::GetInstance() {
-  return Singleton<DialSystemConfig>::get();
+  return base::Singleton<DialSystemConfig>::get();
 }
 
 DialSystemConfig::DialSystemConfig()
@@ -64,9 +68,9 @@ void DialSystemConfig::CreateDialUuid() {
   }
 
   snprintf(s_dial_uuid, sizeof(s_dial_uuid),
-           "%02x%02x%02x%02x-%02x%02x-%02x%02x%02x%02x",
-           md_value[0], md_value[1], md_value[2], md_value[3], md_value[4],
-           md_value[5], md_value[6], md_value[7], md_value[8], md_value[9]);
+           "%02x%02x%02x%02x-%02x%02x-%02x%02x%02x%02x", md_value[0],
+           md_value[1], md_value[2], md_value[3], md_value[4], md_value[5],
+           md_value[6], md_value[7], md_value[8], md_value[9]);
 
   DCHECK_EQ(22, strlen(s_dial_uuid));
 }

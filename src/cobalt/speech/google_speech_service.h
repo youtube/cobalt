@@ -15,20 +15,18 @@
 #ifndef COBALT_SPEECH_GOOGLE_SPEECH_SERVICE_H_
 #define COBALT_SPEECH_GOOGLE_SPEECH_SERVICE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/threading/thread.h"
+#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
+#include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/audio_encoder_flac.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "content/browser/speech/chunked_byte_buffer.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media/base/shell_audio_bus.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/shell_audio_bus.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 
@@ -44,15 +42,11 @@ namespace speech {
 // manager.
 class GoogleSpeechService : public net::URLFetcherDelegate {
  public:
-#if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
   typedef SpeechRecognitionResultList::SpeechRecognitionResults
       SpeechRecognitionResults;
-  typedef base::Callback<scoped_ptr<net::URLFetcher>(
+  typedef base::Callback<std::unique_ptr<net::URLFetcher>(
       const GURL&, net::URLFetcher::RequestType, net::URLFetcherDelegate*)>
       URLFetcherCreator;
 
@@ -68,22 +62,23 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   // Stop speech recognizer.
   void Stop();
   // An encoded audio data is available and ready to be recognized.
-  void RecognizeAudio(scoped_ptr<ShellAudioBus> audio_bus, bool is_last_chunk);
+  void RecognizeAudio(std::unique_ptr<ShellAudioBus> audio_bus,
+                      bool is_last_chunk);
 
   // net::URLFetcherDelegate interface
-  void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) override;
+  void OnURLFetchDownloadProgress(const net::URLFetcher* source,
+                                  int64_t current, int64_t total,
+                                  int64_t /*current_network_bytes*/) override;
   void OnURLFetchComplete(const net::URLFetcher* source) override;
-  bool ShouldSendDownloadData() override { return true; }
   void OnURLFetchUploadProgress(const net::URLFetcher* /*source*/,
                                 int64 /*current*/, int64 /*total*/) override {}
 
-  static base::optional<std::string> GetSpeechAPIKey();
+  static base::Optional<std::string> GetSpeechAPIKey();
 
  private:
   void StartInternal(const SpeechRecognitionConfig& config, int sample_rate);
   void StopInternal();
-  void UploadAudioDataInternal(scoped_ptr<ShellAudioBus> audio_bus,
+  void UploadAudioDataInternal(std::unique_ptr<ShellAudioBus> audio_bus,
                                bool is_last_chunk);
   void ProcessAndFireSuccessEvent(const SpeechRecognitionResults& new_results);
 
@@ -93,11 +88,11 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   bool started_;
 
   // Encoder for encoding raw audio data to flac codec.
-  scoped_ptr<AudioEncoderFlac> encoder_;
+  std::unique_ptr<AudioEncoderFlac> encoder_;
   // Fetcher for posting the audio data.
-  scoped_ptr<net::URLFetcher> upstream_fetcher_;
+  std::unique_ptr<net::URLFetcher> upstream_fetcher_;
   // Fetcher for receiving the streaming results.
-  scoped_ptr<net::URLFetcher> downstream_fetcher_;
+  std::unique_ptr<net::URLFetcher> downstream_fetcher_;
   // Used to send speech recognition event.
   const EventCallback event_callback_;
   // Used to create url fetcher.
@@ -108,6 +103,8 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   SpeechRecognitionResults final_results_;
   // Speech recognizer is operating in its own thread.
   base::Thread thread_;
+  // Stores fetched response.
+  CobaltURLFetcherStringWriter* download_data_writer_ = nullptr;
 };
 
 }  // namespace speech

@@ -17,22 +17,22 @@
 #ifndef COBALT_LOADER_CORS_PREFLIGHT_H_
 #define COBALT_LOADER_CORS_PREFLIGHT_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/network/network_module.h"
-#include "googleurl/src/gurl.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace loader {
@@ -91,7 +91,7 @@ class CORSPreflight : public net::URLFetcherDelegate {
   GURL url_;
   net::URLFetcher::RequestType method_;
   const network::NetworkModule* network_module_;
-  scoped_ptr<net::URLFetcher> url_fetcher_;
+  std::unique_ptr<net::URLFetcher> url_fetcher_;
   base::ThreadChecker thread_checker_;
   net::HttpRequestHeaders headers_;
   std::string origin_;

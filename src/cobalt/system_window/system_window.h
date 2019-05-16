@@ -32,7 +32,7 @@ namespace system_window {
 class SystemWindow {
  public:
   SystemWindow(base::EventDispatcher* event_dispatcher,
-               const base::optional<math::Size>& window_size);
+               const base::Optional<math::Size>& window_size);
   ~SystemWindow();
 
   // Returns the dimensions of the window.

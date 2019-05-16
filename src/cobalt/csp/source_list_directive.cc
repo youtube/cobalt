@@ -50,7 +50,7 @@ bool SourceListDirective::AllowEval() const { return source_list_.AllowEval(); }
 
 bool SourceListDirective::AllowNonce(const std::string& nonce) const {
   std::string trimmed_nonce;
-  TrimWhitespaceASCII(nonce, TRIM_ALL, &trimmed_nonce);
+  TrimWhitespaceASCII(nonce, base::TRIM_ALL, &trimmed_nonce);
   return source_list_.AllowNonce(trimmed_nonce);
 }
 

@@ -17,7 +17,7 @@ namespace media {
 static const int kMaxOutstandingRepaints = 50;
 
 WebMediaPlayerProxy::WebMediaPlayerProxy(
-    const scoped_refptr<base::MessageLoopProxy>& render_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& render_loop,
     WebMediaPlayerImpl* webmediaplayer)
     : render_loop_(render_loop), webmediaplayer_(webmediaplayer) {
   DCHECK(render_loop_);

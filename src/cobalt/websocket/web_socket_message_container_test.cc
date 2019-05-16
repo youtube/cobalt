@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/websocket/web_socket_message_container.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,12 +38,12 @@ class WebSocketMessageContainerTest : public ::testing::Test {
  protected:
   void PopulateBinaryFrame(int payload_size) {
     net::WebSocketFrameChunk* chunk = new net::WebSocketFrameChunk();
-    chunk->header = make_scoped_ptr<net::WebSocketFrameHeader>(
+    chunk->header = std::unique_ptr<net::WebSocketFrameHeader>(
         new net::WebSocketFrameHeader());
     chunk->header->final = true;
     chunk->header->payload_length = payload_size;
     chunk->header->opcode = net::WebSocketFrameHeader::kOpCodeBinary;
-    chunk->data = make_scoped_refptr<net::IOBufferWithSize>(
+    chunk->data = base::WrapRefCounted<net::IOBufferWithSize>(
         new net::IOBufferWithSize(payload_size));
     chunk->final_chunk = true;
     WebSocketFrameContainer::ErrorCode error_code =
@@ -51,7 +53,7 @@ class WebSocketMessageContainerTest : public ::testing::Test {
 
   void PopulateTextFrame() {
     net::WebSocketFrameChunk* chunk = new net::WebSocketFrameChunk();
-    chunk->header = make_scoped_ptr<net::WebSocketFrameHeader>(
+    chunk->header = std::unique_ptr<net::WebSocketFrameHeader>(
         new net::WebSocketFrameHeader());
     chunk->header->final = false;
     chunk->header->payload_length = 0;
@@ -64,12 +66,12 @@ class WebSocketMessageContainerTest : public ::testing::Test {
 
   void PopulateContinuationFrame(int payload_size) {
     net::WebSocketFrameChunk* chunk = new net::WebSocketFrameChunk();
-    chunk->header = make_scoped_ptr<net::WebSocketFrameHeader>(
+    chunk->header = std::unique_ptr<net::WebSocketFrameHeader>(
         new net::WebSocketFrameHeader());
     chunk->header->final = true;
     chunk->header->payload_length = payload_size;
     chunk->header->opcode = net::WebSocketFrameHeader::kOpCodeContinuation;
-    chunk->data = make_scoped_refptr<net::IOBufferWithSize>(
+    chunk->data = base::WrapRefCounted<net::IOBufferWithSize>(
         new net::IOBufferWithSize(payload_size));
 
     net::IOBufferWithSize& data_array(*chunk->data.get());

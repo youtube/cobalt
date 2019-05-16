@@ -5,21 +5,26 @@
 #ifndef BASE_I18N_NUMBER_FORMATTING_H_
 #define BASE_I18N_NUMBER_FORMATTING_H_
 
-#include "base/basictypes.h"
 #include "base/i18n/base_i18n_export.h"
-#include "base/string16.h"
+#include "base/strings/string16.h"
+#include "starboard/types.h"
 
 namespace base {
 
 // Return a number formatted with separators in the user's locale.
-// Ex: FormatNumber(1234567)
-//         => "1,234,567" in English, "1.234.567" in German
-BASE_I18N_EXPORT string16 FormatNumber(int64 number);
+// Ex: FormatNumber(1234567) => "1,234,567" in English, "1.234.567" in German
+BASE_I18N_EXPORT string16 FormatNumber(int64_t number);
 
 // Return a number formatted with separators in the user's locale.
 // Ex: FormatDouble(1234567.8, 1)
 //         => "1,234,567.8" in English, "1.234.567,8" in German
 BASE_I18N_EXPORT string16 FormatDouble(double number, int fractional_digits);
+
+#if !defined(STARBOARD)
+// Return a percentage formatted with space and symbol in the user's locale.
+// Ex: FormatPercent(12) => "12%" in English, "12 %" in Romanian
+BASE_I18N_EXPORT string16 FormatPercent(int number);
+#endif  // !defined(STARBOARD)
 
 namespace testing {
 

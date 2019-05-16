@@ -161,9 +161,9 @@
 // and into //starboard/common/. In order to more explicitly identify the core
 // Starboard API, mulitple files, or parts of them, were moved into the static
 // library //starboard/common/. Each of the changes was potentially breaking,
-// and SB_CPP_API_REFACTORING allowed us to conditionally #include the
+// and SB_EXT_API_REFACTORING_VERSION allowed us to conditionally #include the
 // destination files in the source files and thus prevent breaks.
-#define SB_CPP_API_REFACTORING SB_EXPERIMENTAL_API_VERSION
+#define SB_EXT_API_REFACTORING_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -794,10 +794,5 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_GRAPHICS 0
 #endif
 #endif
-
-// Specifies whether the starboard media pipeline components (SbPlayerPipeline
-// and StarboardDecryptor) are used.  Set to 0 means they are not used.
-#define SB_CAN_MEDIA_USE_STARBOARD_PIPELINE \
-  SB_GYP_CAN_MEDIA_USE_STARBOARD_PIPELINE
 
 #endif  // STARBOARD_CONFIGURATION_H_

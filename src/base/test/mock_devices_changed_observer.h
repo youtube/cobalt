@@ -7,7 +7,8 @@
 
 #include <string>
 
-#include "base/system_monitor/system_monitor.h"
+#include "base/macros.h"
+#include "base/system/system_monitor.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {
@@ -16,16 +17,12 @@ class MockDevicesChangedObserver
     : public base::SystemMonitor::DevicesChangedObserver {
  public:
   MockDevicesChangedObserver();
-  ~MockDevicesChangedObserver();
+  ~MockDevicesChangedObserver() override;
 
   MOCK_METHOD1(OnDevicesChanged,
                void(base::SystemMonitor::DeviceType device_type));
-  MOCK_METHOD3(OnRemovableStorageAttached,
-               void(const std::string& id,
-                    const string16& name,
-                    const FilePath::StringType& location));
-  MOCK_METHOD1(OnRemovableStorageDetached, void(const std::string& id));
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(MockDevicesChangedObserver);
 };
 

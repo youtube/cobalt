@@ -53,12 +53,35 @@
 #define BASE_PRTIME_H__
 
 #include "base/base_export.h"
-#include "base/third_party/nspr/prtypes.h"
+#include "starboard/types.h"
+
+typedef int8_t PRInt8;
+typedef int16_t PRInt16;
+typedef int32_t PRInt32;
+typedef int64_t PRInt64;
+typedef int PRIntn;
+
+typedef PRIntn PRBool;
+#define PR_TRUE 1
+#define PR_FALSE 0
+
+typedef enum { PR_FAILURE = -1, PR_SUCCESS = 0 } PRStatus;
 
 #define PR_ASSERT DCHECK
+#define PR_CALLBACK
+#define PR_INT16_MAX 32767
+#define NSPR_API(__type) extern __type
 
-#define LL_I2L(l, i)    ((l) = (PRInt64)(i))
+/*
+ * Long-long (64-bit signed integer type) support macros used by
+ * PR_ImplodeTime().
+ * See http://lxr.mozilla.org/nspr/source/pr/include/prlong.h
+ */
+
+#define LL_I2L(l, i) ((l) = (PRInt64)(i))
 #define LL_MUL(r, a, b) ((r) = (a) * (b))
+#define LL_ADD(r, a, b) ((r) = (a) + (b))
+#define LL_SUB(r, a, b) ((r) = (a) - (b))
 
 /**********************************************************************/
 /************************* TYPES AND CONSTANTS ************************/
@@ -217,6 +240,7 @@ NSPR_API(PRTimeParameters) PR_GMTParameters(const PRExplodedTime *gmt);
  *   06/21/95 04:24:34 PM
  *   20/06/95 21:07
  *   95-06-08 19:32:48 EDT
+ *   1995-06-17T23:11:25.342156Z
  *
  * If the input string doesn't contain a description of the timezone,
  * we consult the `default_to_gmt' to decide whether the string should

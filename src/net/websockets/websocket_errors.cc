@@ -39,29 +39,4 @@ Error WebSocketErrorToNetError(WebSocketError error) {
   }
 }
 
-// That this function was adapted from Chromium's IsStrictlyValidCloseStatusCode
-// They differ in that codes 1004, 1005, and 1006 are reserved codes and must
-// not be set in a Close message.  Chromium's check is different since they
-// check for reserved codes separately.
-bool IsValidCloseStatusCode(int code) {
-  static const int kInvalidRanges[] = {
-      // [BAD, OK)
-      0,    1000,   // 1000 is the first valid code
-      1004, 1007,   // 1004-1006 are reserved.
-      1014, 3000,   // 1014 unassigned; 1015 up to 2999 are reserved.
-      5000, 65536,  // Codes above 5000 are invalid.
-  };
-  const int* const kInvalidRangesEnd =
-      kInvalidRanges + arraysize(kInvalidRanges);
-
-  DCHECK_GE(code, 0);
-  DCHECK_LT(code, 65536);
-  const int* upper = std::upper_bound(kInvalidRanges, kInvalidRangesEnd, code);
-  DCHECK_NE(kInvalidRangesEnd, upper);
-  DCHECK_GT(upper, kInvalidRanges);
-  DCHECK_GT(*upper, code);
-  DCHECK_LE(*(upper - 1), code);
-  return ((upper - kInvalidRanges) % 2) == 0;
-}
-
 }  // namespace net

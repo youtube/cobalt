@@ -17,3 +17,5 @@ def web_socket_do_extra_handshake(request):
 
 def web_socket_transfer_data(request):
   msgutil.send_message(request, request.ws_protocol)
+  # Wait for a close message.
+  unused = request.ws_stream.receive_message()

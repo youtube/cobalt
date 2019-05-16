@@ -4,9 +4,9 @@
 
 #include "cobalt/media/formats/webm/webm_crypto_helpers.h"
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,7 +27,7 @@ inline bool operator==(const SubsampleEntry& lhs, const SubsampleEntry& rhs) {
 }
 
 TEST(WebMCryptoHelpersTest, EmptyData) {
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(NULL, 0, kKeyId, sizeof(kKeyId),
                                        &decrypt_config, &data_offset));
@@ -35,7 +35,7 @@ TEST(WebMCryptoHelpersTest, EmptyData) {
 
 TEST(WebMCryptoHelpersTest, ClearData) {
   const uint8_t kData[] = {0x00, 0x0d, 0x0a, 0x0d, 0x0a};
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_TRUE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                       sizeof(kKeyId), &decrypt_config,
@@ -46,7 +46,7 @@ TEST(WebMCryptoHelpersTest, ClearData) {
 
 TEST(WebMCryptoHelpersTest, EncryptedButNotEnoughBytes) {
   const uint8_t kData[] = {0x01, 0x0d, 0x0a, 0x0d, 0x0a};
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                        sizeof(kKeyId), &decrypt_config,
@@ -67,7 +67,7 @@ TEST(WebMCryptoHelpersTest, EncryptedNotPartitioned) {
       0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_TRUE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                       sizeof(kKeyId), &decrypt_config,
@@ -87,7 +87,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedMissingNumPartitionField) {
       // IV
       0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                        sizeof(kKeyId), &decrypt_config,
@@ -105,7 +105,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedNotEnoughBytesForOffsets) {
       // Partition 0 @ offset 3
       0x00, 0x00, 0x00, 0x03,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                        sizeof(kKeyId), &decrypt_config,
@@ -125,7 +125,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedNotEnoughBytesForData) {
       // Should have more than 5 bytes of data
       0x00, 0x01, 0x02, 0x03,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                        sizeof(kKeyId), &decrypt_config,
@@ -145,7 +145,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedNotEnoughBytesForData2) {
       // Should have more than 5 bytes of data
       0x00, 0x01, 0x02, 0x03, 0x04,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                        sizeof(kKeyId), &decrypt_config,
@@ -165,7 +165,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedDecreasingOffsets) {
       // Should have more than 5 bytes of data
       0x00, 0x01, 0x02, 0x03, 0x04,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_FALSE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                        sizeof(kKeyId), &decrypt_config,
@@ -190,7 +190,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedEvenNumberOfPartitions) {
       0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_TRUE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                       sizeof(kKeyId), &decrypt_config,
@@ -223,7 +223,7 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedOddNumberOfPartitions) {
       0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
-  scoped_ptr<DecryptConfig> decrypt_config;
+  std::unique_ptr<DecryptConfig> decrypt_config;
   int data_offset;
   ASSERT_TRUE(WebMCreateDecryptConfig(kData, sizeof(kData), kKeyId,
                                       sizeof(kKeyId), &decrypt_config,

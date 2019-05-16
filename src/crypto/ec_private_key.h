@@ -5,22 +5,15 @@
 #ifndef CRYPTO_EC_PRIVATE_KEY_H_
 #define CRYPTO_EC_PRIVATE_KEY_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-
-#if defined(USE_OPENSSL)
-// Forward declaration for openssl/*.h
-typedef struct evp_pkey_st EVP_PKEY;
-#else
-// Forward declaration.
-typedef struct CERTSubjectPublicKeyInfoStr CERTSubjectPublicKeyInfo;
-typedef struct SECKEYPrivateKeyStr SECKEYPrivateKey;
-typedef struct SECKEYPublicKeyStr SECKEYPublicKey;
-#endif
+#include "starboard/types.h"
+#include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {
 
@@ -33,106 +26,54 @@ class CRYPTO_EXPORT ECPrivateKey {
  public:
   ~ECPrivateKey();
 
-  // Returns whether the system supports elliptic curve cryptography.
-  static bool IsSupported();
-
-  // Creates a new random instance. Can return NULL if initialization fails.
+  // Creates a new random instance. Can return nullptr if initialization fails.
   // The created key will use the NIST P-256 curve.
   // TODO(mattm): Add a curve parameter.
-  static ECPrivateKey* Create();
+  static std::unique_ptr<ECPrivateKey> Create();
 
-  // Creates a new random instance. Can return NULL if initialization fails.
-  // The created key is permanent and is not exportable in plaintext form.
-  //
-  // NOTE: Currently only available if USE_NSS is defined.
-  static ECPrivateKey* CreateSensitive();
-
-  // Creates a new instance by importing an existing key pair.
-  // The key pair is given as an ASN.1-encoded PKCS #8 EncryptedPrivateKeyInfo
-  // block and an X.509 SubjectPublicKeyInfo block.
-  // Returns NULL if initialization fails.
-  static ECPrivateKey* CreateFromEncryptedPrivateKeyInfo(
-      const std::string& password,
-      const std::vector<uint8>& encrypted_private_key_info,
-      const std::vector<uint8>& subject_public_key_info);
+  // Create a new instance by importing an existing private key. The format is
+  // an ASN.1-encoded PrivateKeyInfo block from PKCS #8. This can return
+  // nullptr if initialization fails.
+  static std::unique_ptr<ECPrivateKey> CreateFromPrivateKeyInfo(
+      const std::vector<uint8_t>& input);
 
   // Creates a new instance by importing an existing key pair.
   // The key pair is given as an ASN.1-encoded PKCS #8 EncryptedPrivateKeyInfo
-  // block and an X.509 SubjectPublicKeyInfo block.
-  // This can return NULL if initialization fails.  The created key is permanent
-  // and is not exportable in plaintext form.
+  // block with empty password and an X.509 SubjectPublicKeyInfo block.
+  // Returns nullptr if initialization fails.
   //
-  // NOTE: Currently only available if USE_NSS is defined.
-  static ECPrivateKey* CreateSensitiveFromEncryptedPrivateKeyInfo(
-      const std::string& password,
-      const std::vector<uint8>& encrypted_private_key_info,
-      const std::vector<uint8>& subject_public_key_info);
+  // This function is deprecated. Use CreateFromPrivateKeyInfo for new code.
+  // See https://crbug.com/603319.
+  static std::unique_ptr<ECPrivateKey> CreateFromEncryptedPrivateKeyInfo(
+      const std::vector<uint8_t>& encrypted_private_key_info);
 
-#if !defined(USE_OPENSSL)
-  // Imports the key pair and returns in |public_key| and |key|.
-  // Shortcut for code that needs to keep a reference directly to NSS types
-  // without having to create a ECPrivateKey object and make a copy of them.
-  // TODO(mattm): move this function to some NSS util file.
-  static bool ImportFromEncryptedPrivateKeyInfo(
-      const std::string& password,
-      const uint8* encrypted_private_key_info,
-      size_t encrypted_private_key_info_len,
-      CERTSubjectPublicKeyInfo* decoded_spki,
-      bool permanent,
-      bool sensitive,
-      SECKEYPrivateKey** key,
-      SECKEYPublicKey** public_key);
-#endif
+  // Returns a copy of the object.
+  std::unique_ptr<ECPrivateKey> Copy() const;
 
-#if defined(USE_OPENSSL)
-  EVP_PKEY* key() { return key_; }
-#else
-  SECKEYPrivateKey* key() { return key_; }
-  SECKEYPublicKey* public_key() { return public_key_; }
-#endif
+  EVP_PKEY* key() { return key_.get(); }
+
+  // Exports the private key to a PKCS #8 PrivateKeyInfo block.
+  bool ExportPrivateKey(std::vector<uint8_t>* output) const;
 
   // Exports the private key as an ASN.1-encoded PKCS #8 EncryptedPrivateKeyInfo
-  // block and the public key as an X.509 SubjectPublicKeyInfo block.
-  // The |password| and |iterations| are used as inputs to the key derivation
-  // function for generating the encryption key.  PKCS #5 recommends a minimum
-  // of 1000 iterations, on modern systems a larger value may be preferrable.
-  bool ExportEncryptedPrivateKey(const std::string& password,
-                                 int iterations,
-                                 std::vector<uint8>* output);
+  // block wth empty password. This was historically used as a workaround for
+  // NSS API deficiencies and does not provide security.
+  //
+  // This function is deprecated. Use ExportPrivateKey for new code. See
+  // https://crbug.com/603319.
+  bool ExportEncryptedPrivateKey(std::vector<uint8_t>* output) const;
 
   // Exports the public key to an X.509 SubjectPublicKeyInfo block.
-  bool ExportPublicKey(std::vector<uint8>* output);
+  bool ExportPublicKey(std::vector<uint8_t>* output) const;
 
-  // Exports private key data for testing. The format of data stored into output
-  // doesn't matter other than that it is consistent for the same key.
-  bool ExportValue(std::vector<uint8>* output);
-  bool ExportECParams(std::vector<uint8>* output);
+  // Exports the public key as an EC point in the uncompressed point format.
+  bool ExportRawPublicKey(std::string* output) const;
 
  private:
   // Constructor is private. Use one of the Create*() methods above instead.
   ECPrivateKey();
 
-  // Shared helper for Create() and CreateSensitive().
-  // TODO(cmasone): consider replacing |permanent| and |sensitive| with a
-  //                flags arg created by ORing together some enumerated values.
-  static ECPrivateKey* CreateWithParams(bool permanent,
-                                        bool sensitive);
-
-  // Shared helper for CreateFromEncryptedPrivateKeyInfo() and
-  // CreateSensitiveFromEncryptedPrivateKeyInfo().
-  static ECPrivateKey* CreateFromEncryptedPrivateKeyInfoWithParams(
-      const std::string& password,
-      const std::vector<uint8>& encrypted_private_key_info,
-      const std::vector<uint8>& subject_public_key_info,
-      bool permanent,
-      bool sensitive);
-
-#if defined(USE_OPENSSL)
-  EVP_PKEY* key_;
-#else
-  SECKEYPrivateKey* key_;
-  SECKEYPublicKey* public_key_;
-#endif
+  bssl::UniquePtr<EVP_PKEY> key_;
 
   DISALLOW_COPY_AND_ASSIGN(ECPrivateKey);
 };

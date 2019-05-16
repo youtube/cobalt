@@ -1,6 +1,6 @@
 
 
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include "cobalt/bindings/testing/v8c_union_types_interface.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
@@ -253,7 +253,7 @@ void unionWithNullableMemberPropertyAttributeSetter(
   }
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::Optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -329,7 +329,7 @@ void nullableUnionPropertyAttributeSetter(
   }
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::Optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {

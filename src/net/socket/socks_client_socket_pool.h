@@ -5,22 +5,25 @@
 #ifndef NET_SOCKET_SOCKS_CLIENT_SOCKET_POOL_H_
 #define NET_SOCKET_SOCKS_CLIENT_SOCKET_POOL_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/host_resolver.h"
-#include "net/socket/client_socket_pool_base.h"
-#include "net/socket/client_socket_pool_histograms.h"
+#include "net/base/net_export.h"
+#include "net/dns/host_resolver.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/client_socket_pool_base.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 
 namespace net {
 
 class ConnectJobFactory;
+class SocketPerformanceWatcherFactory;
 class TransportClientSocketPool;
 class TransportSocketParams;
 
@@ -28,15 +31,19 @@ class NET_EXPORT_PRIVATE SOCKSSocketParams
     : public base::RefCounted<SOCKSSocketParams> {
  public:
   SOCKSSocketParams(const scoped_refptr<TransportSocketParams>& proxy_server,
-                    bool socks_v5, const HostPortPair& host_port_pair,
-                    RequestPriority priority);
+                    bool socks_v5,
+                    const HostPortPair& host_port_pair,
+                    const NetworkTrafficAnnotationTag& traffic_annotation);
 
   const scoped_refptr<TransportSocketParams>& transport_params() const {
     return transport_params_;
   }
   const HostResolver::RequestInfo& destination() const { return destination_; }
   bool is_socks_v5() const { return socks_v5_; }
-  bool ignore_limits() const { return ignore_limits_; }
+
+  const NetworkTrafficAnnotationTag traffic_annotation() {
+    return traffic_annotation_;
+  }
 
  private:
   friend class base::RefCounted<SOCKSSocketParams>;
@@ -47,7 +54,8 @@ class NET_EXPORT_PRIVATE SOCKSSocketParams
   // This is the HTTP destination.
   HostResolver::RequestInfo destination_;
   const bool socks_v5_;
-  bool ignore_limits_;
+
+  NetworkTrafficAnnotationTag traffic_annotation_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSSocketParams);
 };
@@ -57,16 +65,19 @@ class NET_EXPORT_PRIVATE SOCKSSocketParams
 class SOCKSConnectJob : public ConnectJob {
  public:
   SOCKSConnectJob(const std::string& group_name,
+                  RequestPriority priority,
+                  const SocketTag& socket_tag,
+                  ClientSocketPool::RespectLimits respect_limits,
                   const scoped_refptr<SOCKSSocketParams>& params,
                   const base::TimeDelta& timeout_duration,
                   TransportClientSocketPool* transport_pool,
                   HostResolver* host_resolver,
                   Delegate* delegate,
                   NetLog* net_log);
-  virtual ~SOCKSConnectJob();
+  ~SOCKSConnectJob() override;
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const override;
+  LoadState GetLoadState() const override;
 
  private:
   enum State {
@@ -90,83 +101,88 @@ class SOCKSConnectJob : public ConnectJob {
   // Begins the transport connection and the SOCKS handshake.  Returns OK on
   // success and ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
-  virtual int ConnectInternal() override;
+  int ConnectInternal() override;
 
   scoped_refptr<SOCKSSocketParams> socks_params_;
   TransportClientSocketPool* const transport_pool_;
   HostResolver* const resolver_;
 
   State next_state_;
-  CompletionCallback callback_;
-  scoped_ptr<ClientSocketHandle> transport_socket_handle_;
-  scoped_ptr<StreamSocket> socket_;
+  std::unique_ptr<ClientSocketHandle> transport_socket_handle_;
+  std::unique_ptr<StreamSocket> socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJob);
 };
 
 class NET_EXPORT_PRIVATE SOCKSClientSocketPool
-    : public ClientSocketPool, public LayeredPool {
+    : public ClientSocketPool, public HigherLayeredPool {
  public:
-  SOCKSClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
-      ClientSocketPoolHistograms* histograms,
-      HostResolver* host_resolver,
-      TransportClientSocketPool* transport_pool,
-      NetLog* net_log);
+  typedef SOCKSSocketParams SocketParams;
 
-  virtual ~SOCKSClientSocketPool();
+  SOCKSClientSocketPool(int max_sockets,
+                        int max_sockets_per_group,
+                        HostResolver* host_resolver,
+                        TransportClientSocketPool* transport_pool,
+                        SocketPerformanceWatcherFactory*,
+                        NetLog* net_log);
+
+  ~SOCKSClientSocketPool() override;
 
   // ClientSocketPool implementation.
-  virtual int RequestSocket(const std::string& group_name,
-                            const void* connect_params,
-                            RequestPriority priority,
-                            ClientSocketHandle* handle,
-                            const CompletionCallback& callback,
-                            const BoundNetLog& net_log) override;
+  int RequestSocket(const std::string& group_name,
+                    const void* connect_params,
+                    RequestPriority priority,
+                    const SocketTag& socket_tag,
+                    RespectLimits respect_limits,
+                    ClientSocketHandle* handle,
+                    CompletionOnceCallback callback,
+                    const NetLogWithSource& net_log) override;
 
-  virtual void RequestSockets(const std::string& group_name,
-                              const void* params,
-                              int num_sockets,
-                              const BoundNetLog& net_log) override;
+  void RequestSockets(const std::string& group_name,
+                      const void* params,
+                      int num_sockets,
+                      const NetLogWithSource& net_log) override;
 
-  virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle) override;
+  void SetPriority(const std::string& group_name,
+                   ClientSocketHandle* handle,
+                   RequestPriority priority) override;
 
-  virtual void ReleaseSocket(const std::string& group_name,
-                             StreamSocket* socket,
-                             int id) override;
+  void CancelRequest(const std::string& group_name,
+                     ClientSocketHandle* handle) override;
 
-  virtual void FlushWithError(int error) override;
+  void ReleaseSocket(const std::string& group_name,
+                     std::unique_ptr<StreamSocket> socket,
+                     int id) override;
 
-  virtual bool IsStalled() const override;
+  void FlushWithError(int error) override;
 
-  virtual void CloseIdleSockets() override;
+  void CloseIdleSockets() override;
 
-  virtual int IdleSocketCount() const override;
+  void CloseIdleSocketsInGroup(const std::string& group_name) override;
 
-  virtual int IdleSocketCountInGroup(
-      const std::string& group_name) const override;
+  int IdleSocketCount() const override;
 
-  virtual LoadState GetLoadState(
-      const std::string& group_name,
-      const ClientSocketHandle* handle) const override;
+  int IdleSocketCountInGroup(const std::string& group_name) const override;
 
-  virtual void AddLayeredPool(LayeredPool* layered_pool) override;
+  LoadState GetLoadState(const std::string& group_name,
+                         const ClientSocketHandle* handle) const override;
 
-  virtual void RemoveLayeredPool(LayeredPool* layered_pool) override;
-
-  virtual base::DictionaryValue* GetInfoAsValue(
+  std::unique_ptr<base::DictionaryValue> GetInfoAsValue(
       const std::string& name,
       const std::string& type,
       bool include_nested_pools) const override;
 
-  virtual base::TimeDelta ConnectionTimeout() const override;
+  base::TimeDelta ConnectionTimeout() const override;
 
-  virtual ClientSocketPoolHistograms* histograms() const override;
+  // LowerLayeredPool implementation.
+  bool IsStalled() const override;
 
-  // LayeredPool implementation.
-  virtual bool CloseOneIdleConnection() override;
+  void AddHigherLayeredPool(HigherLayeredPool* higher_pool) override;
+
+  void RemoveHigherLayeredPool(HigherLayeredPool* higher_pool) override;
+
+  // HigherLayeredPool implementation.
+  bool CloseOneIdleConnection() override;
 
  private:
   typedef ClientSocketPoolBase<SOCKSSocketParams> PoolBase;
@@ -180,15 +196,15 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
           host_resolver_(host_resolver),
           net_log_(net_log) {}
 
-    virtual ~SOCKSConnectJobFactory() {}
+    ~SOCKSConnectJobFactory() override {}
 
     // ClientSocketPoolBase::ConnectJobFactory methods.
-    virtual ConnectJob* NewConnectJob(
+    std::unique_ptr<ConnectJob> NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
         ConnectJob::Delegate* delegate) const override;
 
-    virtual base::TimeDelta ConnectionTimeout() const override;
+    base::TimeDelta ConnectionTimeout() const override;
 
    private:
     TransportClientSocketPool* const transport_pool_;
@@ -203,8 +219,6 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSClientSocketPool);
 };
-
-REGISTER_SOCKET_PARAMS_FOR_POOL(SOCKSClientSocketPool, SOCKSSocketParams);
 
 }  // namespace net
 

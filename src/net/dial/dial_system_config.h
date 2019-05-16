@@ -34,7 +34,7 @@ class DialSystemConfig {
  private:
   DialSystemConfig();
 
-  friend struct DefaultSingletonTraits<DialSystemConfig>;
+  friend struct base::DefaultSingletonTraits<DialSystemConfig>;
 
   static void CreateDialUuid();
 
@@ -54,6 +54,6 @@ class DialSystemConfig {
   mutable base::Lock lock_;
 };
 
-}
+}  // namespace net
 
-#endif // NET_DIAL_DIAL_SYSTEM_CONFIG_H
+#endif  // NET_DIAL_DIAL_SYSTEM_CONFIG_H

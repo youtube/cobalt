@@ -4,10 +4,20 @@
 
 #include "net/http/http_chunked_decoder.h"
 
-#include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "base/format_macros.h"
+#include "base/strings/stringprintf.h"
 #include "net/base/net_errors.h"
+#include "net/test/gtest_util.h"
+#include "starboard/memory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using net::test::IsError;
+using net::test::IsOk;
 
 namespace net {
 
@@ -15,7 +25,8 @@ namespace {
 
 typedef testing::Test HttpChunkedDecoderTest;
 
-void RunTest(const char* inputs[], size_t num_inputs,
+void RunTest(const char* const inputs[],
+             size_t num_inputs,
              const char* expected_output,
              bool expected_eof,
              int bytes_after_eof) {
@@ -38,7 +49,7 @@ void RunTest(const char* inputs[], size_t num_inputs,
 }
 
 // Feed the inputs to the decoder, until it returns an error.
-void RunTestUntilFailure(const char* inputs[],
+void RunTestUntilFailure(const char* const inputs[],
                          size_t num_inputs,
                          size_t fail_index) {
   HttpChunkedDecoder decoder;
@@ -48,7 +59,7 @@ void RunTestUntilFailure(const char* inputs[],
     std::string input = inputs[i];
     int n = decoder.FilterBuf(&input[0], static_cast<int>(input.size()));
     if (n < 0) {
-      EXPECT_EQ(ERR_INVALID_CHUNKED_ENCODING, n);
+      EXPECT_THAT(n, IsError(ERR_INVALID_CHUNKED_ENCODING));
       EXPECT_EQ(fail_index, i);
       return;
     }
@@ -57,21 +68,21 @@ void RunTestUntilFailure(const char* inputs[],
 }
 
 TEST(HttpChunkedDecoderTest, Basic) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "B\r\nhello hello\r\n0\r\n\r\n"
   };
   RunTest(inputs, arraysize(inputs), "hello hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, OneChunk) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n"
   };
   RunTest(inputs, arraysize(inputs), "hello", false, 0);
 }
 
 TEST(HttpChunkedDecoderTest, Typical) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n",
     "1\r\n \r\n",
     "5\r\nworld\r\n",
@@ -81,7 +92,7 @@ TEST(HttpChunkedDecoderTest, Typical) {
 }
 
 TEST(HttpChunkedDecoderTest, Incremental) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5",
     "\r",
     "\n",
@@ -99,7 +110,7 @@ TEST(HttpChunkedDecoderTest, Incremental) {
 
 // Same as above, but group carriage returns with previous input.
 TEST(HttpChunkedDecoderTest, Incremental2) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r",
     "\n",
     "hello\r",
@@ -112,10 +123,10 @@ TEST(HttpChunkedDecoderTest, Incremental2) {
 }
 
 TEST(HttpChunkedDecoderTest, LF_InsteadOf_CRLF) {
-  // Compatibility: [RFC 2616 - Invalid]
+  // Compatibility: [RFC 7230 - Invalid]
   // {Firefox3} - Valid
   // {IE7, Safari3.1, Opera9.51} - Invalid
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\nhello\n",
     "1\n \n",
     "5\nworld\n",
@@ -125,7 +136,7 @@ TEST(HttpChunkedDecoderTest, LF_InsteadOf_CRLF) {
 }
 
 TEST(HttpChunkedDecoderTest, Extensions) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5;x=0\r\nhello\r\n",
     "0;y=\"2 \"\r\n\r\n"
   };
@@ -133,7 +144,7 @@ TEST(HttpChunkedDecoderTest, Extensions) {
 }
 
 TEST(HttpChunkedDecoderTest, Trailers) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n",
     "0\r\n",
     "Foo: 1\r\n",
@@ -144,7 +155,7 @@ TEST(HttpChunkedDecoderTest, Trailers) {
 }
 
 TEST(HttpChunkedDecoderTest, TrailersUnfinished) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n",
     "0\r\n",
     "Foo: 1\r\n"
@@ -153,7 +164,7 @@ TEST(HttpChunkedDecoderTest, TrailersUnfinished) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TooBig) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     // This chunked body is not terminated.
     // However we will fail decoding because the chunk-size
     // number is larger than we can handle.
@@ -164,8 +175,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_TooBig) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_0X) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {Safari3.1, IE7} - Invalid
     // {Firefox3, Opera 9.51} - Valid
     "0x5\r\nhello\r\n",
@@ -175,8 +186,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_0X) {
 }
 
 TEST(HttpChunkedDecoderTest, ChunkSize_TrailingSpace) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {IE7, Safari3.1, Firefox3, Opera 9.51} - Valid
     //
     // At least yahoo.com depends on this being valid.
@@ -187,8 +198,8 @@ TEST(HttpChunkedDecoderTest, ChunkSize_TrailingSpace) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingTab) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {IE7, Safari3.1, Firefox3, Opera 9.51} - Valid
     "5\t\r\nhello\r\n",
     "0\r\n\r\n"
@@ -197,8 +208,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingTab) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingFormFeed) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616- Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230- Invalid]:
     // {Safari3.1} - Invalid
     // {IE7, Firefox3, Opera 9.51} - Valid
     "5\f\r\nhello\r\n",
@@ -208,8 +219,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingFormFeed) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingVerticalTab) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {Safari 3.1} - Invalid
     // {IE7, Firefox3, Opera 9.51} - Valid
     "5\v\r\nhello\r\n",
@@ -219,8 +230,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingVerticalTab) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingNonHexDigit) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {Safari 3.1} - Invalid
     // {IE7, Firefox3, Opera 9.51} - Valid
     "5H\r\nhello\r\n",
@@ -230,8 +241,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingNonHexDigit) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_LeadingSpace) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {IE7} - Invalid
     // {Safari 3.1, Firefox3, Opera 9.51} - Valid
     " 5\r\nhello\r\n",
@@ -241,7 +252,7 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_LeadingSpace) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidLeadingSeparator) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "\r\n5\r\nhello\r\n",
     "0\r\n\r\n"
   };
@@ -249,7 +260,7 @@ TEST(HttpChunkedDecoderTest, InvalidLeadingSeparator) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_NoSeparator) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello",
     "1\r\n \r\n",
     "0\r\n\r\n"
@@ -258,7 +269,7 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_NoSeparator) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_Negative) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "8\r\n12345678\r\n-5\r\nhello\r\n",
     "0\r\n\r\n"
   };
@@ -266,8 +277,8 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_Negative) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_Plus) {
-  const char* inputs[] = {
-    // Compatibility [RFC 2616 - Invalid]:
+  const char* const inputs[] = {
+    // Compatibility [RFC 7230 - Invalid]:
     // {IE7, Safari 3.1} - Invalid
     // {Firefox3, Opera 9.51} - Valid
     "+5\r\nhello\r\n",
@@ -277,7 +288,7 @@ TEST(HttpChunkedDecoderTest, InvalidChunkSize_Plus) {
 }
 
 TEST(HttpChunkedDecoderTest, InvalidConsecutiveCRLFs) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n",
     "\r\n\r\n\r\n\r\n",
     "0\r\n\r\n"
@@ -285,22 +296,82 @@ TEST(HttpChunkedDecoderTest, InvalidConsecutiveCRLFs) {
   RunTestUntilFailure(inputs, arraysize(inputs), 1);
 }
 
-TEST(HttpChunkedDecoderTest, ExcessiveChunkLen) {
-  const char* inputs[] = {
-    "c0000000\r\nhello\r\n"
+TEST(HttpChunkedDecoderTest, ReallyBigChunks) {
+  // Number of bytes sent through the chunked decoder per loop iteration. To
+  // minimize runtime, should be the square root of the chunk lengths, below.
+  const int64_t kWrittenBytesPerIteration = 0x10000;
+
+  // Length of chunks to test. Must be multiples of kWrittenBytesPerIteration.
+  int64_t kChunkLengths[] = {
+      // Overflows when cast to a signed int32.
+      0x0c0000000,
+      // Overflows when cast to an unsigned int32.
+      0x100000000,
   };
+
+  for (int64_t chunk_length : kChunkLengths) {
+    HttpChunkedDecoder decoder;
+    EXPECT_FALSE(decoder.reached_eof());
+
+    // Feed just the header to the decode.
+    std::string chunk_header =
+        base::StringPrintf("%" PRIx64 "\r\n", chunk_length);
+    std::vector<char> data(chunk_header.begin(), chunk_header.end());
+    EXPECT_EQ(OK, decoder.FilterBuf(data.data(), data.size()));
+    EXPECT_FALSE(decoder.reached_eof());
+
+    // Set |data| to be kWrittenBytesPerIteration long, and have a repeating
+    // pattern.
+    data.clear();
+    data.reserve(kWrittenBytesPerIteration);
+    for (size_t i = 0; i < kWrittenBytesPerIteration; i++) {
+      data.push_back(static_cast<char>(i));
+    }
+
+    // Repeatedly feed the data to the chunked decoder. Since the data doesn't
+    // include any chunk lengths, the decode will never have to move the data,
+    // and should run fairly quickly.
+    for (int64_t total_written = 0; total_written < chunk_length;
+         total_written += kWrittenBytesPerIteration) {
+      EXPECT_EQ(kWrittenBytesPerIteration,
+                decoder.FilterBuf(data.data(), kWrittenBytesPerIteration));
+      EXPECT_FALSE(decoder.reached_eof());
+    }
+
+    // Chunk terminator and the final chunk.
+    char final_chunk[] = "\r\n0\r\n\r\n";
+    EXPECT_EQ(OK, decoder.FilterBuf(final_chunk, arraysize(final_chunk)));
+    EXPECT_TRUE(decoder.reached_eof());
+
+    // Since |data| never included any chunk headers, it should not have been
+    // modified.
+    for (size_t i = 0; i < kWrittenBytesPerIteration; i++) {
+      EXPECT_EQ(static_cast<char>(i), data[i]);
+    }
+  }
+}
+
+TEST(HttpChunkedDecoderTest, ExcessiveChunkLen) {
+  // Smallest number that can't be represented as a signed int64.
+  const char* const inputs[] = {"8000000000000000\r\nhello\r\n"};
+  RunTestUntilFailure(inputs, arraysize(inputs), 0);
+}
+
+TEST(HttpChunkedDecoderTest, ExcessiveChunkLen2) {
+  // Smallest number that can't be represented as an unsigned int64.
+  const char* const inputs[] = {"10000000000000000\r\nhello\r\n"};
   RunTestUntilFailure(inputs, arraysize(inputs), 0);
 }
 
 TEST(HttpChunkedDecoderTest, BasicExtraData) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n0\r\n\r\nextra bytes"
   };
   RunTest(inputs, arraysize(inputs), "hello", true, 11);
 }
 
 TEST(HttpChunkedDecoderTest, IncrementalExtraData) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5",
     "\r",
     "\n",
@@ -317,7 +388,7 @@ TEST(HttpChunkedDecoderTest, IncrementalExtraData) {
 }
 
 TEST(HttpChunkedDecoderTest, MultipleExtraDataBlocks) {
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5\r\nhello\r\n0\r\n\r\nextra",
     " bytes"
   };
@@ -327,10 +398,10 @@ TEST(HttpChunkedDecoderTest, MultipleExtraDataBlocks) {
 // Test when the line with the chunk length is too long.
 TEST(HttpChunkedDecoderTest, LongChunkLengthLine) {
   int big_chunk_length = HttpChunkedDecoder::kMaxLineBufLen;
-  scoped_array<char> big_chunk(new char[big_chunk_length + 1]);
-  memset(big_chunk.get(), '0', big_chunk_length);
+  std::unique_ptr<char[]> big_chunk(new char[big_chunk_length + 1]);
+  SbMemorySet(big_chunk.get(), '0', big_chunk_length);
   big_chunk[big_chunk_length] = 0;
-  const char* inputs[] = {
+  const char* const inputs[] = {
     big_chunk.get(),
     "5"
   };
@@ -341,10 +412,10 @@ TEST(HttpChunkedDecoderTest, LongChunkLengthLine) {
 // long.
 TEST(HttpChunkedDecoderTest, LongLengthLengthLine) {
   int big_chunk_length = HttpChunkedDecoder::kMaxLineBufLen;
-  scoped_array<char> big_chunk(new char[big_chunk_length + 1]);
-  memset(big_chunk.get(), '0', big_chunk_length);
+  std::unique_ptr<char[]> big_chunk(new char[big_chunk_length + 1]);
+  SbMemorySet(big_chunk.get(), '0', big_chunk_length);
   big_chunk[big_chunk_length] = 0;
-  const char* inputs[] = {
+  const char* const inputs[] = {
     "5;",
     big_chunk.get()
   };

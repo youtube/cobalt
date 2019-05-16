@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
 #include "cobalt/script/stack_frame.h"
 #include "nb/thread_local_object.h"

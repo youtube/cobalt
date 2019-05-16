@@ -5,9 +5,9 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_AVC_H_
 #define COBALT_MEDIA_FORMATS_MP4_AVC_H_
 
+#include <memory>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/mp4/bitstream_converter.h"
 #include "starboard/types.h"
@@ -66,7 +66,7 @@ class MEDIA_EXPORT AVC {
 class AVCBitstreamConverter : public BitstreamConverter {
  public:
   explicit AVCBitstreamConverter(
-      scoped_ptr<AVCDecoderConfigurationRecord> avc_config);
+      std::unique_ptr<AVCDecoderConfigurationRecord> avc_config);
 
   // BitstreamConverter interface
   bool ConvertFrame(std::vector<uint8_t>* frame_buf, bool is_keyframe,
@@ -74,7 +74,7 @@ class AVCBitstreamConverter : public BitstreamConverter {
 
  private:
   ~AVCBitstreamConverter() override;
-  scoped_ptr<AVCDecoderConfigurationRecord> avc_config_;
+  std::unique_ptr<AVCDecoderConfigurationRecord> avc_config_;
 };
 
 }  // namespace mp4

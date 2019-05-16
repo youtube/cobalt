@@ -42,7 +42,7 @@ TEST_F(UnionTypesBindingsTest, ConvertToJS) {
 
   EXPECT_CALL(test_mock(), union_property())
       .WillOnce(Return(UnionTypesInterface::UnionPropertyType(
-          make_scoped_refptr(new ArbitraryInterface()))));
+          base::WrapRefCounted(new ArbitraryInterface()))));
   EXPECT_TRUE(EvaluateScript(
       "Object.getPrototypeOf(test.unionProperty) === "
       "ArbitraryInterface.prototype;",

@@ -5,15 +5,14 @@
 #ifndef BASE_TEST_VALUES_TEST_UTIL_H_
 #define BASE_TEST_VALUES_TEST_UTIL_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 
 namespace base {
 class DictionaryValue;
 class ListValue;
-class StringValue;
 class Value;
 
 // All the functions below expect that the value for the given key in
@@ -39,16 +38,14 @@ void ExpectDictStringValue(const std::string& expected_value,
                            const DictionaryValue& value,
                            const std::string& key);
 
-// Takes ownership of |actual|.
-void ExpectStringValue(const std::string& expected_str,
-                       StringValue* actual);
+void ExpectStringValue(const std::string& expected_str, const Value& actual);
 
 namespace test {
 
 // Parses |json| as JSON, allowing trailing commas, and returns the
 // resulting value.  If the json fails to parse, causes an EXPECT
 // failure and returns the Null Value (but never a NULL pointer).
-scoped_ptr<Value> ParseJson(base::StringPiece json);
+std::unique_ptr<Value> ParseJson(base::StringPiece json);
 
 }  // namespace test
 }  // namespace base

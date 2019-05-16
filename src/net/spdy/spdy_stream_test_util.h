@@ -5,59 +5,145 @@
 #ifndef NET_SPDY_SPDY_STREAM_TEST_UTIL_H_
 #define NET_SPDY_SPDY_STREAM_TEST_UTIL_H_
 
-#include "base/memory/linked_ptr.h"
+#include <memory>
+#include <string>
+
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "net/base/completion_callback.h"
+#include "base/strings/string_piece.h"
+#include "net/base/io_buffer.h"
+#include "net/base/test_completion_callback.h"
+#include "net/log/net_log_source.h"
+#include "net/spdy/spdy_read_queue.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
 
 namespace test {
 
-class TestSpdyStreamDelegate : public SpdyStream::Delegate {
+// Delegate that calls Close() on |stream_| on OnClose. Used by tests
+// to make sure that such an action is harmless.
+class ClosingDelegate : public SpdyStream::Delegate {
  public:
-  TestSpdyStreamDelegate(SpdyStream* stream,
-                         SpdyHeaderBlock* headers,
-                         IOBufferWithSize* buf,
-                         const CompletionCallback& callback);
-  virtual ~TestSpdyStreamDelegate();
+  explicit ClosingDelegate(const base::WeakPtr<SpdyStream>& stream);
+  ~ClosingDelegate() override;
 
-  virtual bool OnSendHeadersComplete(int status) override;
-  virtual int OnSendBody() override;
-  virtual int OnSendBodyComplete(int status, bool* eof) override;
-  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
-                                 base::Time response_time,
-                                 int status) override;
-  virtual void OnHeadersSent() override;
-  virtual int OnDataReceived(const char* buffer, int bytes) override;
-  virtual void OnDataSent(int length) override;
-  virtual void OnClose(int status) override;
+  // SpdyStream::Delegate implementation.
+  void OnHeadersSent() override;
+  void OnHeadersReceived(
+      const spdy::SpdyHeaderBlock& response_headers,
+      const spdy::SpdyHeaderBlock* pushed_request_headers) override;
+  void OnDataReceived(std::unique_ptr<SpdyBuffer> buffer) override;
+  void OnDataSent() override;
+  void OnTrailers(const spdy::SpdyHeaderBlock& trailers) override;
+  void OnClose(int status) override;
+  NetLogSource source_dependency() const override;
 
-  bool send_headers_completed() const { return send_headers_completed_; }
-  const linked_ptr<SpdyHeaderBlock>& response() const {
-    return response_;
-  }
-  const std::string& received_data() const { return received_data_; }
-  int headers_sent() const { return headers_sent_; }
-  int data_sent() const { return data_sent_; }
-  bool closed() const {  return closed_; }
+  // Returns whether or not the stream is closed.
+  bool StreamIsClosed() const { return !stream_.get(); }
 
  private:
-  SpdyStream* stream_;
-  scoped_ptr<SpdyHeaderBlock> headers_;
-  scoped_refptr<IOBufferWithSize> buf_;
-  CompletionCallback callback_;
-  bool send_headers_completed_;
-  linked_ptr<SpdyHeaderBlock> response_;
-  std::string received_data_;
-  int headers_sent_;
-  int data_sent_;
-  bool closed_;
-
+  base::WeakPtr<SpdyStream> stream_;
 };
 
-} // namespace test
+// Base class with shared functionality for test delegate
+// implementations below.
+class StreamDelegateBase : public SpdyStream::Delegate {
+ public:
+  explicit StreamDelegateBase(const base::WeakPtr<SpdyStream>& stream);
+  ~StreamDelegateBase() override;
 
-} // namespace net
+  void OnHeadersSent() override;
+  void OnHeadersReceived(
+      const spdy::SpdyHeaderBlock& response_headers,
+      const spdy::SpdyHeaderBlock* pushed_request_headers) override;
+  void OnDataReceived(std::unique_ptr<SpdyBuffer> buffer) override;
+  void OnDataSent() override;
+  void OnTrailers(const spdy::SpdyHeaderBlock& trailers) override;
+  void OnClose(int status) override;
+  NetLogSource source_dependency() const override;
 
-#endif // NET_SPDY_SPDY_STREAM_TEST_UTIL_H_
+  // Waits for the stream to be closed and returns the status passed
+  // to OnClose().
+  int WaitForClose();
+
+  // Drains all data from the underlying read queue and returns it as
+  // a string.
+  std::string TakeReceivedData();
+
+  // Returns whether or not the stream is closed.
+  bool StreamIsClosed() const { return !stream_.get(); }
+
+  // Returns the stream's ID. If called when the stream is closed,
+  // returns the stream's ID when it was open.
+  spdy::SpdyStreamId stream_id() const { return stream_id_; }
+
+  std::string GetResponseHeaderValue(const std::string& name) const;
+  bool send_headers_completed() const { return send_headers_completed_; }
+
+ protected:
+  const base::WeakPtr<SpdyStream>& stream() { return stream_; }
+
+ private:
+  base::WeakPtr<SpdyStream> stream_;
+  spdy::SpdyStreamId stream_id_;
+  TestCompletionCallback callback_;
+  bool send_headers_completed_;
+  spdy::SpdyHeaderBlock response_headers_;
+  SpdyReadQueue received_data_queue_;
+};
+
+// Test delegate that does nothing. Used to capture data about the
+// stream, e.g. its id when it was open.
+class StreamDelegateDoNothing : public StreamDelegateBase {
+ public:
+  explicit StreamDelegateDoNothing(const base::WeakPtr<SpdyStream>& stream);
+  ~StreamDelegateDoNothing() override;
+};
+
+// Test delegate that sends data immediately in OnHeadersReceived().
+class StreamDelegateSendImmediate : public StreamDelegateBase {
+ public:
+  // |data| can be NULL.
+  StreamDelegateSendImmediate(const base::WeakPtr<SpdyStream>& stream,
+                              base::StringPiece data);
+  ~StreamDelegateSendImmediate() override;
+
+  void OnHeadersReceived(
+      const spdy::SpdyHeaderBlock& response_headers,
+      const spdy::SpdyHeaderBlock* pushed_request_headers) override;
+
+ private:
+  base::StringPiece data_;
+};
+
+// Test delegate that sends body data.
+class StreamDelegateWithBody : public StreamDelegateBase {
+ public:
+  StreamDelegateWithBody(const base::WeakPtr<SpdyStream>& stream,
+                         base::StringPiece data);
+  ~StreamDelegateWithBody() override;
+
+  void OnHeadersSent() override;
+
+ private:
+  scoped_refptr<StringIOBuffer> buf_;
+};
+
+// Test delegate that closes stream in OnHeadersReceived().
+class StreamDelegateCloseOnHeaders : public StreamDelegateBase {
+ public:
+  explicit StreamDelegateCloseOnHeaders(
+      const base::WeakPtr<SpdyStream>& stream);
+  ~StreamDelegateCloseOnHeaders() override;
+
+  void OnHeadersReceived(
+      const spdy::SpdyHeaderBlock& response_headers,
+      const spdy::SpdyHeaderBlock* pushed_request_headers) override;
+};
+
+}  // namespace test
+
+}  // namespace net
+
+#endif  // NET_SPDY_SPDY_STREAM_TEST_UTIL_H_

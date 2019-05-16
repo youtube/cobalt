@@ -13,7 +13,7 @@
 using testing::AnyOf;
 using testing::Eq;
 using testing::Return;
-using testing::SetArgumentPointee;
+using testing::SetArgPointee;
 using testing::WithArg;
 using testing::_;
 
@@ -23,8 +23,8 @@ namespace {
 // for easy mocking.
 class SampleClass {
  public:
-  SampleClass() {}
-  virtual ~SampleClass() {}
+  SampleClass() = default;
+  virtual ~SampleClass() = default;
 
   virtual int ReturnSomething() {
     return -1;
@@ -84,8 +84,7 @@ TEST(GmockTest, AssignArgument) {
   // Capture an argument for examination.
   MockSampleClass mock;
 
-  EXPECT_CALL(mock, OutputParam(_))
-      .WillRepeatedly(SetArgumentPointee<0>(5));
+  EXPECT_CALL(mock, OutputParam(_)).WillRepeatedly(SetArgPointee<0>(5));
 
   int arg = 0;
   mock.OutputParam(&arg);
@@ -96,8 +95,7 @@ TEST(GmockTest, SideEffects) {
   // Capture an argument for examination.
   MockSampleClass mock;
 
-  EXPECT_CALL(mock, OutputParam(_))
-      .WillRepeatedly(SetArgumentPointee<0>(5));
+  EXPECT_CALL(mock, OutputParam(_)).WillRepeatedly(SetArgPointee<0>(5));
 
   int arg = 0;
   mock.OutputParam(&arg);

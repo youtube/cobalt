@@ -115,9 +115,6 @@
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
 
-    # Used to pick a proper media platform.
-    'sb_media_platform%': 'starboard',
-
     # Used to indicate that the player is filter based.
     'sb_filter_based_player%': 1,
 
@@ -188,8 +185,7 @@
               '--std=gnu++11',
             ],
             'linker_flags_host%': [
-              '-pthread',
-              '-fuse-ld=lld',
+            '-pthread',
             ],
           }],
         ],

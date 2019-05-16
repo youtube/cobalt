@@ -1,4 +1,34 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+/*
+ * Copyright (C) 2013 Google Inc. All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +48,7 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 
@@ -31,7 +61,7 @@ const int kSizeOfSourceBufferToReserveInitially = 2;
 }  // namespace
 
 SourceBufferList::SourceBufferList(EventQueue* event_queue)
-    : last_source_buffer_id_(0), event_queue_(event_queue) {
+    : event_queue_(event_queue) {
   DCHECK(event_queue_);
   source_buffers_.reserve(kSizeOfSourceBufferToReserveInitially);
 }
@@ -50,50 +80,63 @@ scoped_refptr<SourceBuffer> SourceBufferList::Item(uint32 index) const {
   return NULL;
 }
 
-std::string SourceBufferList::GenerateUniqueId() {
-  std::string result = base::StringPrintf("%d", last_source_buffer_id_);
-  ++last_source_buffer_id_;
-  return result;
-}
-
 void SourceBufferList::Add(const scoped_refptr<SourceBuffer>& source_buffer) {
-  SourceBuffers::iterator iter =
-      std::find(source_buffers_.begin(), source_buffers_.end(), source_buffer);
-  DLOG_IF(WARNING, iter != source_buffers_.end())
-      << "SourceBuffer " << source_buffer->id() << " has been added";
-  if (iter == source_buffers_.end()) {
-    source_buffers_.push_back(source_buffer);
-    event_queue_->Enqueue(new Event(base::Tokens::addsourcebuffer()));
-  }
+  source_buffers_.push_back(source_buffer);
+  ScheduleEvent(base::Tokens::addsourcebuffer());
 }
 
-bool SourceBufferList::Remove(
+void SourceBufferList::Insert(
+    size_t position, const scoped_refptr<SourceBuffer>& source_buffer) {
+  source_buffers_.insert(source_buffers_.begin() + position, source_buffer);
+  ScheduleEvent(base::Tokens::addsourcebuffer());
+}
+
+void SourceBufferList::Remove(
     const scoped_refptr<SourceBuffer>& source_buffer) {
   SourceBuffers::iterator iter =
       std::find(source_buffers_.begin(), source_buffers_.end(), source_buffer);
-  DLOG_IF(WARNING, iter == source_buffers_.end())
-      << "SourceBuffer " << source_buffer->id() << " hasn't been added";
   if (iter == source_buffers_.end()) {
-    return false;
+    return;
   }
 
-  source_buffer->Close();
   source_buffers_.erase(iter);
-  event_queue_->Enqueue(new Event(base::Tokens::removesourcebuffer()));
-  return true;
+  ScheduleEvent(base::Tokens::removesourcebuffer());
+}
+
+size_t SourceBufferList::Find(
+    const scoped_refptr<SourceBuffer>& source_buffer) const {
+  DCHECK(Contains(source_buffer));
+  return std::distance(
+      source_buffers_.begin(),
+      std::find(source_buffers_.begin(), source_buffers_.end(), source_buffer));
+}
+
+bool SourceBufferList::Contains(
+    const scoped_refptr<SourceBuffer>& source_buffer) const {
+  return std::find(source_buffers_.begin(), source_buffers_.end(),
+                   source_buffer) != source_buffers_.end();
 }
 
 void SourceBufferList::Clear() {
-  while (!source_buffers_.empty()) {
-    Remove(source_buffers_[0]);
-  }
+  source_buffers_.clear();
+  ScheduleEvent(base::Tokens::removesourcebuffer());
 }
 
 void SourceBufferList::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 
-  tracer->Trace(event_queue_);
-  tracer->TraceItems(source_buffers_);
+  if (event_queue_) {
+    event_queue_->TraceMembers(tracer);
+  }
+  for (const auto& source_buffer : source_buffers_) {
+    tracer->Trace(source_buffer);
+  }
+}
+
+void SourceBufferList::ScheduleEvent(base::Token event_name) {
+  scoped_refptr<Event> event = new Event(event_name);
+  event->set_target(this);
+  event_queue_->Enqueue(event);
 }
 
 }  // namespace dom

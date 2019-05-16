@@ -8,6 +8,8 @@
 #include <map>
 #include <string>
 
+#include "net/base/ip_endpoint.h"
+
 namespace net {
 
 // Meta information about an HTTP request.
@@ -17,10 +19,21 @@ namespace net {
 class HttpServerRequestInfo {
  public:
   HttpServerRequestInfo();
+  HttpServerRequestInfo(const HttpServerRequestInfo& other);
   ~HttpServerRequestInfo();
 
-  // Returns header value for given header name.
+  // Returns header value for given header name. |header_name| should be
+  // lower case.
   std::string GetHeaderValue(const std::string& header_name) const;
+
+  // Checks for item in comma-separated header value for given header name.
+  // Both |header_name| and |header_value| should be lower case.
+  bool HasHeaderValue(
+      const std::string& header_name,
+      const std::string& header_value) const;
+
+  // Request peer address.
+  IPEndPoint peer;
 
   // Request method.
   std::string method;
@@ -31,7 +44,8 @@ class HttpServerRequestInfo {
   // Request data.
   std::string data;
 
-  // A map of the names -> values for HTTP headers.
+  // A map of the names -> values for HTTP headers. These should always
+  // contain lower case field names.
   typedef std::map<std::string, std::string> HeadersMap;
   mutable HeadersMap headers;
 };

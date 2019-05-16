@@ -10,80 +10,135 @@
 #define BASE_THREADING_PLATFORM_THREAD_H_
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
-#include "base/time.h"
+#include "base/macros.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#else
 #if defined(OS_WIN)
-#include <windows.h>
+#include "base/win/windows_types.h"
+#elif defined(OS_FUCHSIA)
+#include <zircon/types.h>
+#elif defined(OS_MACOSX)
+#include <mach/mach_types.h>
 #elif defined(OS_POSIX)
 #include <pthread.h>
 #include <unistd.h>
-#elif defined(OS_STARBOARD)
-#include "starboard/thread.h"
+
+#include "starboard/types.h"
+#endif
 #endif
 
 namespace base {
 
-// PlatformThreadHandle should not be assumed to be a numeric type, since the
-// standard intends to allow pthread_t to be a structure.  This means you
-// should not initialize it to a value, like 0.  If it's a member variable, the
-// constructor can safely "value initialize" using () in the initializer list.
-//
-// ... Note that PlatformThreadHandle is assumed to be a scalar type below.
+// Used for logging. Always an integer value.
+#if defined(STARBOARD)
+typedef SbThreadId PlatformThreadId;
+#else
 #if defined(OS_WIN)
 typedef DWORD PlatformThreadId;
-typedef void* PlatformThreadHandle;  // HANDLE
-const PlatformThreadHandle kNullThreadHandle = NULL;
-const PlatformThreadId kInvalidThreadId = 0;
+#elif defined(OS_FUCHSIA)
+typedef zx_handle_t PlatformThreadId;
+#elif defined(OS_MACOSX)
+typedef mach_port_t PlatformThreadId;
 #elif defined(OS_POSIX)
-typedef pthread_t PlatformThreadHandle;
-const PlatformThreadHandle kNullThreadHandle = 0;
 typedef pid_t PlatformThreadId;
-const PlatformThreadId kInvalidThreadId = 0;
-#if defined(COBALT)
-typedef int ThreadAffinity;
-const ThreadAffinity kNoThreadAffinity = -1;
 #endif
-#elif defined(OS_STARBOARD)
-typedef SbThread PlatformThreadHandle;
-const PlatformThreadHandle kNullThreadHandle = kSbThreadInvalid;
-typedef SbThreadId PlatformThreadId;
-const PlatformThreadId kInvalidThreadId = kSbThreadInvalidId;
-typedef SbThreadAffinity ThreadAffinity;
-const ThreadAffinity kNoThreadAffinity = kSbThreadNoAffinity;
 #endif
 
-// Valid values for SetThreadPriority()
-enum ThreadPriority {
-#if defined(OS_STARBOARD)
-  // See the priorities defined in "starboard/thread.h"
-
-  kThreadPriority_Default = kSbThreadNoPriority,
-  kThreadPriority_Lowest = kSbThreadPriorityLowest,
-  kThreadPriority_Low = kSbThreadPriorityLow,
-  kThreadPriority_Normal = kSbThreadPriorityNormal,
-  kThreadPriority_High = kSbThreadPriorityHigh,
-  kThreadPriority_Highest = kSbThreadPriorityHighest,
-  kThreadPriority_RealTime = kSbThreadPriorityRealTime,
-  kThreadPriority_RealtimeAudio = kThreadPriority_RealTime,
-#elif defined(COBALT)
-  // Cobalt on non-Starboard platforms.
-
-  kThreadPriority_Default = -1,
-  kThreadPriority_Lowest = 0,
-  kThreadPriority_Low,
-  kThreadPriority_Normal,
-  kThreadPriority_High,
-  kThreadPriority_Highest,
-  kThreadPriority_RealTime,
-  kThreadPriority_RealtimeAudio = kThreadPriority_RealTime,
+// Used for thread checking and debugging.
+// Meant to be as fast as possible.
+// These are produced by PlatformThread::CurrentRef(), and used to later
+// check if we are on the same thread or not by using ==. These are safe
+// to copy between threads, but can't be copied to another process as they
+// have no meaning there. Also, the internal identifier can be re-used
+// after a thread dies, so a PlatformThreadRef cannot be reliably used
+// to distinguish a new thread from an old, dead thread.
+class PlatformThreadRef {
+ public:
+#if defined(STARBOARD)
+  typedef SbThread RefType;
 #else
-  // The original Chromium priorities.
+#if defined(OS_WIN)
+  typedef DWORD RefType;
+#else  //  OS_POSIX
+  typedef pthread_t RefType;
+#endif
+#endif
+  constexpr PlatformThreadRef() : id_(0) {}
 
-  kThreadPriority_Normal,
+  explicit constexpr PlatformThreadRef(RefType id) : id_(id) {}
+
+  bool operator==(PlatformThreadRef other) const {
+    return id_ == other.id_;
+  }
+
+  bool operator!=(PlatformThreadRef other) const { return id_ != other.id_; }
+
+  bool is_null() const {
+    return id_ == 0;
+  }
+ private:
+  RefType id_;
+};
+
+// Used to operate on threads.
+class PlatformThreadHandle {
+ public:
+#if defined(STARBOARD)
+  typedef SbThread Handle;
+#else
+#if defined(OS_WIN)
+  typedef void* Handle;
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+  typedef pthread_t Handle;
+#endif
+#endif
+
+  constexpr PlatformThreadHandle() : handle_(0) {}
+
+  explicit constexpr PlatformThreadHandle(Handle handle) : handle_(handle) {}
+
+  bool is_equal(const PlatformThreadHandle& other) const {
+    return handle_ == other.handle_;
+  }
+
+  bool is_null() const {
+    return !handle_;
+  }
+
+  Handle platform_handle() const {
+    return handle_;
+  }
+
+ private:
+  Handle handle_;
+};
+
+const PlatformThreadId kInvalidThreadId(0);
+
+// Valid values for priority of Thread::Options and SimpleThread::Options, and
+// SetCurrentThreadPriority(), listed in increasing order of importance.
+enum class ThreadPriority : int {
+#if defined(STARBOARD)
+  DEFAULT = kSbThreadNoPriority,
+  LOWEST = kSbThreadPriorityLowest,
+  BACKGROUND = kSbThreadPriorityLow,
+  NORMAL = kSbThreadPriorityNormal,
+  DISPLAY = kSbThreadPriorityHigh,
+  HIGHEST = kSbThreadPriorityHighest,
+  REALTIME_AUDIO = kSbThreadPriorityRealTime,  // Could be equal to HIGHEST.
+#else
+  // Suitable for threads that shouldn't disrupt high priority work.
+  BACKGROUND,
+  // Default priority level.
+  NORMAL,
+  // Suitable for threads which generate data for the display (at ~60Hz).
+  DISPLAY,
   // Suitable for low-latency, glitch-resistant audio.
-  kThreadPriority_RealtimeAudio,
+  REALTIME_AUDIO,
 #endif
 };
 
@@ -97,25 +152,21 @@ class BASE_EXPORT PlatformThread {
     virtual void ThreadMain() = 0;
 
    protected:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
   };
-
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
-  struct PlatformThreadOptions {
-    // <= 0 indicates default stack size
-    int64_t stack_size;
-
-    // The priority to start the thread at, or kThreadPriority_Default for the
-    // default priority assignment policy.
-    ThreadPriority priority;
-
-    // The CPU index to pin the thread to, or kNoThreadAffinity for no affinity.
-    ThreadAffinity affinity;
-  };
-#endif
 
   // Gets the current thread id, which may be useful for logging purposes.
   static PlatformThreadId CurrentId();
+
+  // Gets the current thread reference, which can be used to check if
+  // we're on the right thread quickly.
+  static PlatformThreadRef CurrentRef();
+
+  // Get the handle representing the current thread. On Windows, this is a
+  // pseudo handle constant which will always represent the thread using it and
+  // hence should not be shared with other threads nor be used to differentiate
+  // the current thread from another.
+  static PlatformThreadHandle CurrentHandle();
 
   // Yield the current thread so another thread can be scheduled.
   static void YieldCurrentThread();
@@ -123,10 +174,9 @@ class BASE_EXPORT PlatformThread {
   // Sleeps for the specified duration.
   static void Sleep(base::TimeDelta duration);
 
-  // Sets the thread name visible to debuggers/tools. This has no effect
-  // otherwise. This name pointer is not copied internally. Thus, it must stay
-  // valid until the thread ends.
-  static void SetName(const char* name);
+  // Sets the thread name visible to debuggers/tools. This will try to
+  // initialize the context for current thread unless it's a WorkerThread.
+  static void SetName(const std::string& name);
 
   // Gets the thread name, if previously set by SetName.
   static const char* GetName();
@@ -139,14 +189,15 @@ class BASE_EXPORT PlatformThread {
   // NOTE: When you are done with the thread handle, you must call Join to
   // release system resources associated with the thread.  You must ensure that
   // the Delegate object outlives the thread.
-  static bool Create(size_t stack_size, Delegate* delegate,
-                     PlatformThreadHandle* thread_handle);
+  static bool Create(size_t stack_size,
+                     Delegate* delegate,
+                     PlatformThreadHandle* thread_handle) {
+    return CreateWithPriority(stack_size, delegate, thread_handle,
+                              ThreadPriority::NORMAL);
+  }
 
   // CreateWithPriority() does the same thing as Create() except the priority of
-  // the thread is set based on |priority|.  Can be used in place of Create()
-  // followed by SetThreadPriority().  SetThreadPriority() has not been
-  // implemented on the Linux platform yet, this is the only way to get a high
-  // priority thread on Linux.
+  // the thread is set based on |priority|.
   static bool CreateWithPriority(size_t stack_size, Delegate* delegate,
                                  PlatformThreadHandle* thread_handle,
                                  ThreadPriority priority);
@@ -156,21 +207,55 @@ class BASE_EXPORT PlatformThread {
   // PlatformThreadHandle.
   static bool CreateNonJoinable(size_t stack_size, Delegate* delegate);
 
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
-  static bool CreateWithOptions(const PlatformThreadOptions& options,
-                                Delegate* delegate,
-                                PlatformThreadHandle* thread_handle);
-#endif
+  // CreateNonJoinableWithPriority() does the same thing as CreateNonJoinable()
+  // except the priority of the thread is set based on |priority|.
+  static bool CreateNonJoinableWithPriority(size_t stack_size,
+                                            Delegate* delegate,
+                                            ThreadPriority priority);
 
   // Joins with a thread created via the Create function.  This function blocks
   // the caller until the designated thread exits.  This will invalidate
   // |thread_handle|.
   static void Join(PlatformThreadHandle thread_handle);
 
-  // Sets the priority of the thread specified in |handle| to |priority|.
-  // This does not work on Linux, use CreateWithPriority() instead.
-  static void SetThreadPriority(PlatformThreadHandle handle,
+  // Detaches and releases the thread handle. The thread is no longer joinable
+  // and |thread_handle| is invalidated after this call.
+  static void Detach(PlatformThreadHandle thread_handle);
+
+  // Returns true if SetCurrentThreadPriority() should be able to increase the
+  // priority of a thread to |priority|.
+  static bool CanIncreaseThreadPriority(ThreadPriority priority);
+
+  // Toggles the current thread's priority at runtime.
+  //
+  // A thread may not be able to raise its priority back up after lowering it if
+  // the process does not have a proper permission, e.g. CAP_SYS_NICE on Linux.
+  // A thread may not be able to lower its priority back down after raising it
+  // to REALTIME_AUDIO.
+  //
+  // This function must not be called from the main thread on Mac. This is to
+  // avoid performance regressions (https://crbug.com/601270).
+  //
+  // Since changing other threads' priority is not permitted in favor of
+  // security, this interface is restricted to change only the current thread
+  // priority (https://crbug.com/399473).
+  static void SetCurrentThreadPriority(ThreadPriority priority);
+
+  static ThreadPriority GetCurrentThreadPriority();
+
+#if defined(OS_LINUX)
+  // Toggles a specific thread's priority at runtime. This can be used to
+  // change the priority of a thread in a different process and will fail
+  // if the calling process does not have proper permissions. The
+  // SetCurrentThreadPriority() function above is preferred in favor of
+  // security but on platforms where sandboxed processes are not allowed to
+  // change priority this function exists to allow a non-sandboxed process
+  // to change the priority of sandboxed threads for improved performance.
+  // Warning: Don't use this for a main thread because that will change the
+  // whole thread group's (i.e. process) priority.
+  static void SetThreadPriority(PlatformThreadId thread_id,
                                 ThreadPriority priority);
+#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PlatformThread);

@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/wheel_event.h"
@@ -143,7 +143,7 @@ scoped_refptr<HTMLElement> PointerState::GetPointerCaptureOverrideElement(
   if (pending_override != pending_target_override_.end() &&
       pending_override->second) {
     target_override_[pending_override->first] = pending_override->second;
-    target_override_element = pending_override->second;
+    target_override_element = pending_override->second.get();
   } else if (override != target_override_.end()) {
     target_override_.erase(override);
   }
@@ -156,7 +156,7 @@ scoped_refptr<HTMLElement> PointerState::GetPointerCaptureOverrideElement(
 
 void PointerState::SetPointerCapture(int32_t pointer_id, Element* element,
                                      script::ExceptionState* exception_state) {
-  UNREFERENCED_PARAMETER(element);
+  SB_UNREFERENCED_PARAMETER(element);
   // Algorithm for Setting Pointer Capture
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#setting-pointer-capture
 
@@ -192,7 +192,7 @@ void PointerState::SetPointerCapture(int32_t pointer_id, Element* element,
 void PointerState::ReleasePointerCapture(
     int32_t pointer_id, Element* element,
     script::ExceptionState* exception_state) {
-  UNREFERENCED_PARAMETER(element);
+  SB_UNREFERENCED_PARAMETER(element);
   // Algorithm for Releasing Pointer Capture
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#releasing-pointer-capture
 

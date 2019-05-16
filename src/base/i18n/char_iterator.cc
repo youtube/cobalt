@@ -4,8 +4,8 @@
 
 #include "base/i18n/char_iterator.h"
 
-#include "unicode/utf8.h"
-#include "unicode/utf16.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
 
 namespace base {
 namespace i18n {
@@ -21,8 +21,7 @@ UTF8CharIterator::UTF8CharIterator(const std::string* str)
     U8_NEXT(str_, next_pos_, len_, char_);
 }
 
-UTF8CharIterator::~UTF8CharIterator() {
-}
+UTF8CharIterator::~UTF8CharIterator() = default;
 
 bool UTF8CharIterator::Advance() {
   if (array_pos_ >= len_)
@@ -58,8 +57,7 @@ UTF16CharIterator::UTF16CharIterator(const char16* str, size_t str_len)
     ReadChar();
 }
 
-UTF16CharIterator::~UTF16CharIterator() {
-}
+UTF16CharIterator::~UTF16CharIterator() = default;
 
 bool UTF16CharIterator::Advance() {
   if (array_pos_ >= len_)

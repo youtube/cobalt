@@ -4,8 +4,8 @@
 
 #include "base/base_paths.h"
 
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 
 namespace base {
@@ -13,26 +13,42 @@ namespace base {
 bool PathProvider(int key, FilePath* result) {
   // NOTE: DIR_CURRENT is a special case in PathService::Get
 
-  FilePath cur;
   switch (key) {
-    case base::DIR_EXE:
-      PathService::Get(base::FILE_EXE, &cur);
-      cur = cur.DirName();
-      break;
-    case base::DIR_MODULE:
-      PathService::Get(base::FILE_MODULE, &cur);
-      cur = cur.DirName();
-      break;
-    case base::DIR_TEMP:
-      if (!file_util::GetTempDir(&cur))
+    case DIR_EXE:
+      if (!PathService::Get(FILE_EXE, result))
         return false;
-      break;
+      *result = result->DirName();
+      return true;
+    case DIR_MODULE:
+      if (!PathService::Get(FILE_MODULE, result))
+        return false;
+      *result = result->DirName();
+      return true;
+    case DIR_ASSETS:
+      return PathService::Get(DIR_MODULE, result);
+    case DIR_TEMP:
+      return GetTempDir(result);
+    case base::DIR_HOME:
+      *result = GetHomeDir();
+      return true;
+// For Cobalt, let's disable test data dir for release builds.
+#if defined(STARBOARD) && defined(ENABLE_TEST_DATA)
+    case DIR_TEST_DATA: {
+      FilePath test_data_path;
+      if (!PathService::Get(DIR_MODULE, &test_data_path))
+        return false;
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("base"));
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("test"));
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("data"));
+      if (!PathExists(test_data_path))  // We don't want to create this.
+        return false;
+      *result = test_data_path;
+      return true;
+    }
+#endif
     default:
       return false;
   }
-
-  *result = cur;
-  return true;
 }
 
 }  // namespace base

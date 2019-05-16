@@ -15,7 +15,8 @@
 #ifndef COBALT_CSSOM_SELECTOR_H_
 #define COBALT_CSSOM_SELECTOR_H_
 
-#include "base/memory/scoped_vector.h"
+#include <memory>
+
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -49,7 +50,7 @@ class Selector {
   virtual Specificity GetSpecificity() const = 0;
 };
 
-typedef ScopedVector<Selector> Selectors;
+typedef std::vector<std::unique_ptr<Selector>> Selectors;
 
 }  // namespace cssom
 }  // namespace cobalt

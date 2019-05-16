@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/wrapper_private.h"

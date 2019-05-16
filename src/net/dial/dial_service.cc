@@ -17,9 +17,9 @@
 #include "net/dial/dial_service.h"
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/string_piece.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/net_errors.h"
 #include "net/server/http_server_request_info.h"
 #include "net/url_request/url_request.h"
@@ -32,8 +32,8 @@ const char* kUdpServerAgent = "Cobalt/2.0 UPnP/1.1";
 
 DialService::DialService() {
   http_server_ = new DialHttpServer(this);
-  udp_server_.reset(new DialUdpServer(http_server_->location_url(),
-                                      kUdpServerAgent));
+  udp_server_.reset(
+      new DialUdpServer(http_server_->location_url(), kUdpServerAgent));
 
   // Compute HTTP local address and cache it.
   IPEndPoint addr;
@@ -61,7 +61,7 @@ void DialService::Terminate() {
   if (http_server_) {
     http_server_->Stop();
   }
-  http_server_ = NULL;
+  http_server_.reset();
   udp_server_.reset();
 }
 
@@ -80,7 +80,7 @@ void DialService::Deregister(const scoped_refptr<DialServiceHandler>& handler) {
   TRACE_EVENT0("net::dial", __FUNCTION__);
   DCHECK(handler);
   for (ServiceHandlerMap::iterator it = handlers_.begin();
-      it != handlers_.end(); ++it) {
+       it != handlers_.end(); ++it) {
     if (it->second == handler) {
       handlers_.erase(it);
       break;
@@ -141,20 +141,20 @@ DialServiceProxy::DialServiceProxy(
   host_address_ = dial_service_->http_host_address();
   // Remember the message loop we were constructed on. We'll post all our tasks
   // there, to ensure thread safety when accessing dial_service_.
-  message_loop_proxy_ = base::MessageLoopProxy::current();
+  task_runner_ = base::MessageLoop::current()->task_runner();
 }
 
 DialServiceProxy::~DialServiceProxy() {}
 
 void DialServiceProxy::Register(
     const scoped_refptr<DialServiceHandler>& handler) {
-  message_loop_proxy_->PostTask(
+  task_runner_->PostTask(
       FROM_HERE, base::Bind(&DialServiceProxy::OnRegister, this, handler));
 }
 
 void DialServiceProxy::Deregister(
     const scoped_refptr<DialServiceHandler>& handler) {
-  message_loop_proxy_->PostTask(
+  task_runner_->PostTask(
       FROM_HERE, base::Bind(&DialServiceProxy::OnDeregister, this, handler));
 }
 

@@ -25,17 +25,15 @@ namespace {
 // Sort by descending area then width and height. This will place smaller
 // blocks at the end of the free list. Allocations will use the block with
 // the smallest area of sufficient dimensions in order to minimize waste.
-  bool FirstRectIsBigger(const math::Rect& a, const math::Rect& b) {
-    const int area_a = a.width() * a.height();
-    const int area_b = b.width() * b.height();
-    return (area_a > area_b) || (area_a == area_b && (a.width() > b.width() ||
-                                                      a.height() > b.height()));
+bool FirstRectIsBigger(const math::Rect& a, const math::Rect& b) {
+  const int area_a = a.width() * a.height();
+  const int area_b = b.width() * b.height();
+  return (area_a > area_b) || (area_a == area_b && (a.width() > b.width() ||
+                                                    a.height() > b.height()));
 }
 }  // namespace
 
-RectAllocator::RectAllocator() {
-  Reset(math::Size(0, 0));
-}
+RectAllocator::RectAllocator() { Reset(math::Size(0, 0)); }
 
 RectAllocator::RectAllocator(const math::Size& total_size) {
   Reset(total_size);
@@ -57,8 +55,8 @@ math::Rect RectAllocator::Allocate(const math::Size& alloc_size) {
   math::Rect allocation(0, 0, alloc_size.width(), alloc_size.height());
 
   // Find the first block that is too small for the requested allocation.
-  MemoryList::iterator pos = std::upper_bound(
-      unused_.begin(), unused_.end(), allocation, FirstRectIsBigger);
+  MemoryList::iterator pos = std::upper_bound(unused_.begin(), unused_.end(),
+                                              allocation, FirstRectIsBigger);
 
   // All blocks before "pos" will have sufficient area, but a sequential search
   // must be used to find a block of sufficient width and height.
@@ -129,8 +127,8 @@ math::Rect RectAllocator::Allocate(const math::Size& alloc_size) {
 void RectAllocator::AddUnused(const math::Rect& memory) {
   DCHECK_LE(memory.right(), total_size_.width());
   DCHECK_LE(memory.bottom(), total_size_.height());
-  MemoryList::iterator pos = std::lower_bound(
-      unused_.begin(), unused_.end(), memory, FirstRectIsBigger);
+  MemoryList::iterator pos = std::lower_bound(unused_.begin(), unused_.end(),
+                                              memory, FirstRectIsBigger);
   unused_.insert(pos, memory);
 }
 

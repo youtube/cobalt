@@ -123,7 +123,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
                                     int32 end_position) const;
   std::string RetrieveUtf8SubString(int32 start_position, int32 end_position,
                                     TextOrder text_order) const;
-  const char16* GetTextBuffer() const;
+  const base::char16* GetTextBuffer() const;
 
   const icu::Locale& GetLocale() const;
   BaseDirection GetBaseDirection() const;

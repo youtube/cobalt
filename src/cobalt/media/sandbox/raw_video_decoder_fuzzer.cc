@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #include <map>
+#include <memory>
 #include <vector>
 
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/fuzzer_app.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
@@ -55,7 +55,7 @@ class VideoDecoderFuzzer {
     decoder_->Decode(current_au_buffer_, BindToCurrentLoop(base::Bind(
                                              &VideoDecoderFuzzer::FrameDecoded,
                                              base::Unretained(this))));
-    MessageLoop::current()->RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
     DCHECK(IsEnded());
   }
 
@@ -153,9 +153,9 @@ void DumpFuzzedData(const std::string& filename, std::vector<uint8> container,
               fuzzing_content.begin() + desc.offset + desc.size, offset);
     last_found = offset + desc.size + 1;
   }
-  file_util::WriteFile(FilePath(filename),
-                       reinterpret_cast<const char*>(&container[0]),
-                       container.size());
+  base::WriteFile(base::FilePath(filename),
+                  reinterpret_cast<const char*>(&container[0]),
+                  container.size());
 }
 
 class RawVideoDecoderFuzzerApp : public FuzzerApp {
@@ -172,13 +172,13 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
   std::vector<uint8> ParseFileContent(
       const std::string& file_name,
       const std::vector<uint8>& file_content) override {
-    std::string ext = FilePath(file_name).Extension();
+    std::string ext = base::FilePath(file_name).Extension();
     if (ext != ".webm" && ext != ".mp4" && ext != ".ivf") {
       LOG(ERROR) << "Skip unsupported file " << file_name;
       return std::vector<uint8>();
     }
 
-    scoped_ptr<MediaSourceDemuxer> demuxer(new MediaSourceDemuxer(
+    std::unique_ptr<MediaSourceDemuxer> demuxer(new MediaSourceDemuxer(
         std::vector<uint8>(file_content.begin(), file_content.end())));
     if (demuxer->valid() && demuxer->GetFrameCount() > 0) {
       demuxers_[file_name] = demuxer.release();
@@ -192,7 +192,7 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
             const std::vector<uint8>& fuzzing_content) override {
     DCHECK(demuxers_.find(file_name) != demuxers_.end());
     MediaSourceDemuxer* demuxer = demuxers_[file_name];
-    scoped_ptr<ShellRawVideoDecoder> decoder =
+    std::unique_ptr<ShellRawVideoDecoder> decoder =
         media_sandbox_->GetMediaModule()->GetRawVideoDecoderFactory()->Create(
             demuxer->config(), NULL, false);
     if (decoder) {
@@ -209,7 +209,8 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
 
 int SandboxMain(int argc, char** argv) {
   MediaSandbox media_sandbox(
-      argc, argv, FilePath(FILE_PATH_LITERAL("raw_video_decoder_fuzzer.json")));
+      argc, argv,
+      base::FilePath(FILE_PATH_LITERAL("raw_video_decoder_fuzzer.json")));
   RawVideoDecoderFuzzerApp fuzzer_app(&media_sandbox);
 
   if (fuzzer_app.Init(argc, argv)) {

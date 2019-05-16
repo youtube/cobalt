@@ -4,13 +4,21 @@
 
 #include "base/i18n/break_iterator.h"
 
-#include "base/string_piece.h"
-#include "base/stringprintf.h"
-#include "base/utf_string_conversions.h"
+#include "base/macros.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace i18n {
+
+// BreakIterator module fails the initialization of BreakIterator due to
+// ICU version dependency on Raspi.
+#ifndef STARBOARD_OLD_ICU
 
 TEST(BreakIteratorTest, BreakWordEmpty) {
   string16 empty;
@@ -63,7 +71,7 @@ TEST(BreakIteratorTest, BreakWord) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, BreakWide16) {
+TEST(BreakIteratorTest, BreakWordWide16) {
   // Two greek words separated by space.
   const string16 str(WideToUTF16(
       L"\x03a0\x03b1\x03b3\x03ba\x03cc\x03c3\x03bc\x03b9"
@@ -87,9 +95,9 @@ TEST(BreakIteratorTest, BreakWide16) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, BreakWide32) {
+TEST(BreakIteratorTest, BreakWordWide32) {
   // U+1D49C MATHEMATICAL SCRIPT CAPITAL A
-  const char* very_wide_char = "\xF0\x9D\x92\x9C";
+  const char very_wide_char[] = "\xF0\x9D\x92\x9C";
   const string16 str(
       UTF8ToUTF16(base::StringPrintf("%s a", very_wide_char)));
   const string16 very_wide_word(str.substr(0, 2));
@@ -110,6 +118,129 @@ TEST(BreakIteratorTest, BreakWide32) {
   EXPECT_FALSE(iter.Advance());  // Test unexpected advance after end.
   EXPECT_FALSE(iter.IsWord());
 }
+
+TEST(BreakIteratorTest, BreakWordThai) {
+  // Terms in Thai, without spaces in between.
+  const char term1[] = "พิมพ์";
+  const char term2[] = "น้อย";
+  const char term3[] = "ลง";
+  const string16 str(UTF8ToUTF16(base::JoinString({term1, term2, term3}, "")));
+
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term1), iter.GetString());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term2), iter.GetString());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term3), iter.GetString());
+  EXPECT_FALSE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+}
+
+// In some languages, the words are not broken by spaces. ICU provides a huge
+// dictionary to detect word boundaries in Thai, Chinese, Japanese, Burmese,
+// and Khmer. Due to the size of such a table, the part for Chinese and
+// Japanese is not shipped on mobile.
+// Cobalt does not support Chinese/Japanese word breaking yet. This feature
+// requires a big dictionary(cjdict.txt) to support.
+#if !(defined(OS_IOS) || defined(OS_ANDROID) || defined(OS_STARBOARD))
+
+TEST(BreakIteratorTest, BreakWordChinese) {
+  // Terms in Traditional Chinese, without spaces in between.
+  const char term1[] = "瀏覽";
+  const char term2[] = "速度";
+  const char term3[] = "飛快";
+  const string16 str(UTF8ToUTF16(base::JoinString({term1, term2, term3}, "")));
+
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term1), iter.GetString());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term2), iter.GetString());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term3), iter.GetString());
+  EXPECT_FALSE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+}
+
+TEST(BreakIteratorTest, BreakWordJapanese) {
+  // Terms in Japanese, without spaces in between.
+  const char term1[] = "モバイル";
+  const char term2[] = "でも";
+  const string16 str(UTF8ToUTF16(base::JoinString({term1, term2}, "")));
+
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term1), iter.GetString());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(term2), iter.GetString());
+  EXPECT_FALSE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+}
+
+TEST(BreakIteratorTest, BreakWordChineseEnglish) {
+  // Terms in Simplified Chinese mixed with English and wide punctuations.
+  string16 space(UTF8ToUTF16(" "));
+  const char token1[] = "下载";
+  const char token2[] = "Chrome";
+  const char token3[] = "（";
+  const char token4[] = "Mac";
+  const char token5[] = "版";
+  const char token6[] = "）";
+  const string16 str(UTF8ToUTF16(base::JoinString(
+      {token1, " ", token2, token3, token4, " ", token5, token6}, "")));
+
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(token1), iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+  EXPECT_EQ(space, iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(token2), iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(token3), iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(token4), iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+  EXPECT_EQ(space, iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(token5), iter.GetString());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+  EXPECT_EQ(UTF8ToUTF16(token6), iter.GetString());
+
+  EXPECT_FALSE(iter.Advance());
+  EXPECT_FALSE(iter.IsWord());
+}
+
+#endif  // !(defined(OS_IOS) || defined(OS_ANDROID))
 
 TEST(BreakIteratorTest, BreakSpaceEmpty) {
   string16 empty;
@@ -194,7 +325,7 @@ TEST(BreakIteratorTest, BreakSpacekWide16) {
 
 TEST(BreakIteratorTest, BreakSpaceWide32) {
   // U+1D49C MATHEMATICAL SCRIPT CAPITAL A
-  const char* very_wide_char = "\xF0\x9D\x92\x9C";
+  const char very_wide_char[] = "\xF0\x9D\x92\x9C";
   const string16 str(
       UTF8ToUTF16(base::StringPrintf("%s a", very_wide_char)));
   const string16 very_wide_word(str.substr(0, 3));
@@ -292,7 +423,7 @@ TEST(BreakIteratorTest, BreakLineWide16) {
 
 TEST(BreakIteratorTest, BreakLineWide32) {
   // U+1D49C MATHEMATICAL SCRIPT CAPITAL A
-  const char* very_wide_char = "\xF0\x9D\x92\x9C";
+  const char very_wide_char[] = "\xF0\x9D\x92\x9C";
   const string16 str(
       UTF8ToUTF16(base::StringPrintf("%s\na", very_wide_char)));
   const string16 very_wide_line(str.substr(0, 3));
@@ -333,6 +464,127 @@ TEST(BreakIteratorTest, BreakCharacter) {
     EXPECT_EQ(characters[i], iter.GetString());
   }
 }
+
+// Test for https://code.google.com/p/chromium/issues/detail?id=411213
+// We should be able to get valid substrings with GetString() function
+// after setting new content by calling SetText().
+TEST(BreakIteratorTest, GetStringAfterSetText) {
+  const string16 initial_string(ASCIIToUTF16("str"));
+  BreakIterator iter(initial_string, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+
+  const string16 long_string(ASCIIToUTF16("another,string"));
+  EXPECT_TRUE(iter.SetText(long_string.c_str(), long_string.size()));
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.Advance());  // Advance to ',' in |long_string|
+
+  // Check that the current position is out of bounds of the |initial_string|.
+  EXPECT_LT(initial_string.size(), iter.pos());
+
+  // Check that we can get a valid substring of |long_string|.
+  EXPECT_EQ(ASCIIToUTF16(","), iter.GetString());
+}
+
+TEST(BreakIteratorTest, GetStringPiece) {
+  const string16 initial_string(ASCIIToUTF16("some string"));
+  BreakIterator iter(initial_string, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(iter.GetString(), iter.GetStringPiece().as_string());
+  EXPECT_EQ(StringPiece16(ASCIIToUTF16("some")), iter.GetStringPiece());
+
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(iter.GetString(), iter.GetStringPiece().as_string());
+  EXPECT_EQ(StringPiece16(ASCIIToUTF16("string")), iter.GetStringPiece());
+}
+
+// Make sure that when not in RULE_BASED or BREAK_WORD mode we're getting
+// IS_LINE_OR_CHAR_BREAK.
+TEST(BreakIteratorTest, GetWordBreakStatusBreakLine) {
+  // A string containing the English word "foo", followed by two Khmer
+  // characters, the English word "Can", and then two Russian characters and
+  // punctuation.
+  base::string16 text(
+      base::WideToUTF16(L"foo \x1791\x17C1 \nCan \x041C\x0438..."));
+  BreakIterator iter(text, BreakIterator::BREAK_LINE);
+  ASSERT_TRUE(iter.Init());
+
+  EXPECT_TRUE(iter.Advance());
+  // Finds "foo" and the space.
+  EXPECT_EQ(base::UTF8ToUTF16("foo "), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_LINE_OR_CHAR_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds the Khmer characters, the next space, and the newline.
+  EXPECT_EQ(base::WideToUTF16(L"\x1791\x17C1 \n"), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_LINE_OR_CHAR_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds "Can" and the space.
+  EXPECT_EQ(base::UTF8ToUTF16("Can "), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_LINE_OR_CHAR_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds the Russian characters and periods.
+  EXPECT_EQ(base::WideToUTF16(L"\x041C\x0438..."), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_LINE_OR_CHAR_BREAK);
+  EXPECT_FALSE(iter.Advance());
+}
+
+// Make sure that in BREAK_WORD mode we're getting IS_WORD_BREAK and
+// IS_SKIPPABLE_WORD when we should be. IS_WORD_BREAK should be returned when we
+// finish going over non-punctuation characters while IS_SKIPPABLE_WORD should
+// be returned on punctuation and spaces.
+TEST(BreakIteratorTest, GetWordBreakStatusBreakWord) {
+  // A string containing the English word "foo", followed by two Khmer
+  // characters, the English word "Can", and then two Russian characters and
+  // punctuation.
+  base::string16 text(
+      base::WideToUTF16(L"foo \x1791\x17C1 \nCan \x041C\x0438..."));
+  BreakIterator iter(text, BreakIterator::BREAK_WORD);
+  ASSERT_TRUE(iter.Init());
+
+  EXPECT_TRUE(iter.Advance());
+  // Finds "foo".
+  EXPECT_EQ(base::UTF8ToUTF16("foo"), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_WORD_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds the space, and the Khmer characters.
+  EXPECT_EQ(base::UTF8ToUTF16(" "), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(base::WideToUTF16(L"\x1791\x17C1"), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_WORD_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds the space and the newline.
+  EXPECT_EQ(base::UTF8ToUTF16(" "), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(base::UTF8ToUTF16("\n"), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_TRUE(iter.Advance());
+  // Finds "Can".
+  EXPECT_EQ(base::UTF8ToUTF16("Can"), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_WORD_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds the space and the Russian characters.
+  EXPECT_EQ(base::UTF8ToUTF16(" "), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(base::WideToUTF16(L"\x041C\x0438"), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_WORD_BREAK);
+  EXPECT_TRUE(iter.Advance());
+  // Finds the trailing periods.
+  EXPECT_EQ(base::UTF8ToUTF16("."), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(base::UTF8ToUTF16("."), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_TRUE(iter.Advance());
+  EXPECT_EQ(base::UTF8ToUTF16("."), iter.GetString());
+  EXPECT_EQ(iter.GetWordBreakStatus(), BreakIterator::IS_SKIPPABLE_WORD);
+  EXPECT_FALSE(iter.Advance());
+}
+#endif  // STARBOARD_OLD_ICU
 
 }  // namespace i18n
 }  // namespace base

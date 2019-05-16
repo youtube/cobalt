@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
+
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -45,7 +46,8 @@ TEST(CSSComputedStyleDeclarationTest, DISABLED_CSSTextGetter) {
       new LengthValue(100, kPixelsUnit);
   scoped_refptr<LengthValue> bottom = new LengthValue(16, kPixelsUnit);
 
-  scoped_refptr<CSSComputedStyleData> style_data = new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> style_data =
+      new MutableCSSComputedStyleData();
   style_data->SetPropertyValue(kBackgroundSizeProperty, background_size);
   style_data->SetPropertyValue(kBottomProperty, bottom);
 
@@ -94,8 +96,8 @@ TEST(CSSComputedStyleDeclarationTest,
 }
 
 TEST(CSSComputedStyleDeclarationTest, RemovePropertyRaisesException) {
-  scoped_refptr<CSSComputedStyleData> initial_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> initial_style =
+      new MutableCSSComputedStyleData();
   initial_style->SetPropertyValue(kDisplayProperty, KeywordValue::GetInline());
   scoped_refptr<CSSComputedStyleDeclaration> style =
       new CSSComputedStyleDeclaration();
@@ -110,8 +112,8 @@ TEST(CSSComputedStyleDeclarationTest, RemovePropertyRaisesException) {
 }
 
 TEST(CSSComputedStyleDeclarationTest, PropertyValueGetter) {
-  scoped_refptr<CSSComputedStyleData> initial_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> initial_style =
+      new MutableCSSComputedStyleData();
   initial_style->SetPropertyValue(kTextAlignProperty,
                                   KeywordValue::GetCenter());
   scoped_refptr<CSSComputedStyleDeclaration> style =
@@ -124,8 +126,8 @@ TEST(CSSComputedStyleDeclarationTest, PropertyValueGetter) {
 
 TEST(CSSComputedStyleDeclarationTest,
      UnknownDeclaredStylePropertyValueShouldBeEmpty) {
-  scoped_refptr<CSSComputedStyleData> initial_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> initial_style =
+      new MutableCSSComputedStyleData();
   scoped_refptr<CSSComputedStyleDeclaration> style =
       new CSSComputedStyleDeclaration();
   style->SetData(initial_style);
@@ -141,8 +143,8 @@ TEST(CSSComputedStyleDeclarationTest, LengthAttributeGetterEmpty) {
 }
 
 TEST(CSSComputedStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
-  scoped_refptr<CSSComputedStyleData> initial_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> initial_style =
+      new MutableCSSComputedStyleData();
   initial_style->SetPropertyValue(kDisplayProperty, KeywordValue::GetInline());
   initial_style->SetPropertyValue(kTextAlignProperty,
                                   KeywordValue::GetCenter());
@@ -162,8 +164,8 @@ TEST(CSSComputedStyleDeclarationTest, ItemGetterEmpty) {
 }
 
 TEST(CSSComputedStyleDeclarationTest, ItemGetterNotEmpty) {
-  scoped_refptr<CSSComputedStyleData> initial_style =
-      new CSSComputedStyleData();
+  scoped_refptr<MutableCSSComputedStyleData> initial_style =
+      new MutableCSSComputedStyleData();
   initial_style->SetPropertyValue(kDisplayProperty, KeywordValue::GetInline());
   initial_style->SetPropertyValue(kTextAlignProperty,
                                   KeywordValue::GetCenter());

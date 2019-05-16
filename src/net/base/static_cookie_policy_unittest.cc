@@ -4,8 +4,12 @@
 
 #include "net/base/net_errors.h"
 #include "net/base/static_cookie_policy.h"
+#include "net/test/gtest_util.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
+
+using net::test::IsOk;
 
 namespace net {
 
@@ -20,11 +24,8 @@ class StaticCookiePolicyTest : public testing::Test {
   void SetPolicyType(StaticCookiePolicy::Type type) {
     policy_.set_type(type);
   }
-  int CanGetCookies(const GURL& url, const GURL& first_party) {
-    return policy_.CanGetCookies(url, first_party);
-  }
-  int CanSetCookie(const GURL& url, const GURL& first_party) {
-    return policy_.CanSetCookie(url, first_party);
+  int CanAccessCookies(const GURL& url, const GURL& first_party) {
+    return policy_.CanAccessCookies(url, first_party);
   }
  protected:
   StaticCookiePolicy policy_;
@@ -35,81 +36,41 @@ class StaticCookiePolicyTest : public testing::Test {
 };
 
 TEST_F(StaticCookiePolicyTest, DefaultPolicyTest) {
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_mail_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, GURL()));
-
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_mail_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, GURL()));
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_secure_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_mail_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_analytics_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, GURL()), IsOk());
 }
 
 TEST_F(StaticCookiePolicyTest, AllowAllCookiesTest) {
   SetPolicyType(StaticCookiePolicy::ALLOW_ALL_COOKIES);
 
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_mail_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, GURL()));
-
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_mail_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, GURL()));
-}
-
-TEST_F(StaticCookiePolicyTest, BlockSettingThirdPartyCookiesTest) {
-  SetPolicyType(StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES);
-
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_mail_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, GURL()));
-
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_mail_));
-  EXPECT_NE(OK, CanSetCookie(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, GURL()));
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_secure_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_mail_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_analytics_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, GURL()), IsOk());
 }
 
 TEST_F(StaticCookiePolicyTest, BlockAllThirdPartyCookiesTest) {
   SetPolicyType(StaticCookiePolicy::BLOCK_ALL_THIRD_PARTY_COOKIES);
 
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, url_google_mail_));
-  EXPECT_NE(OK, CanGetCookies(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanGetCookies(url_google_, GURL()));
-
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_secure_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, url_google_mail_));
-  EXPECT_NE(OK, CanSetCookie(url_google_, url_google_analytics_));
-  EXPECT_EQ(OK, CanSetCookie(url_google_, GURL()));
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_secure_), IsOk());
+  EXPECT_THAT(CanAccessCookies(url_google_, url_google_mail_), IsOk());
+  EXPECT_NE(OK, CanAccessCookies(url_google_, url_google_analytics_));
+  EXPECT_NE(OK, CanAccessCookies(url_google_, GURL()));
 }
 
 TEST_F(StaticCookiePolicyTest, BlockAllCookiesTest) {
   SetPolicyType(StaticCookiePolicy::BLOCK_ALL_COOKIES);
 
-  EXPECT_NE(OK, CanGetCookies(url_google_, url_google_));
-  EXPECT_NE(OK, CanGetCookies(url_google_, url_google_secure_));
-  EXPECT_NE(OK, CanGetCookies(url_google_, url_google_mail_));
-  EXPECT_NE(OK, CanGetCookies(url_google_, url_google_analytics_));
-  EXPECT_NE(OK, CanGetCookies(url_google_, GURL()));
-
-  EXPECT_NE(OK, CanSetCookie(url_google_, url_google_));
-  EXPECT_NE(OK, CanSetCookie(url_google_, url_google_secure_));
-  EXPECT_NE(OK, CanSetCookie(url_google_, url_google_mail_));
-  EXPECT_NE(OK, CanSetCookie(url_google_, url_google_analytics_));
-  EXPECT_NE(OK, CanSetCookie(url_google_, GURL()));
+  EXPECT_NE(OK, CanAccessCookies(url_google_, url_google_));
+  EXPECT_NE(OK, CanAccessCookies(url_google_, url_google_secure_));
+  EXPECT_NE(OK, CanAccessCookies(url_google_, url_google_mail_));
+  EXPECT_NE(OK, CanAccessCookies(url_google_, url_google_analytics_));
+  EXPECT_NE(OK, CanAccessCookies(url_google_, GURL()));
 }
 
 }  // namespace net

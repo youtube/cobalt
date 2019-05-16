@@ -15,6 +15,7 @@
 #include "cobalt/render_tree/brush.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "cobalt/render_tree/brush_visitor.h"
 
@@ -39,10 +40,10 @@ class BrushCloner : public BrushVisitor {
     cloned_.reset(new RadialGradientBrush(*radial_gradient_brush));
   }
 
-  scoped_ptr<Brush> PassClone() { return cloned_.Pass(); }
+  std::unique_ptr<Brush> PassClone() { return std::move(cloned_); }
 
  private:
-  scoped_ptr<Brush> cloned_;
+  std::unique_ptr<Brush> cloned_;
 };
 
 }  // namespace
@@ -141,7 +142,7 @@ void RadialGradientBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
 
-scoped_ptr<Brush> CloneBrush(const Brush* brush) {
+std::unique_ptr<Brush> CloneBrush(const Brush* brush) {
   DCHECK(brush);
 
   BrushCloner cloner;

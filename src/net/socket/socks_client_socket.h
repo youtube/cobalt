@@ -5,76 +5,76 @@
 #ifndef NET_SOCKET_SOCKS_CLIENT_SOCKET_H_
 #define NET_SOCKET_SOCKS_CLIENT_SOCKET_H_
 
+#include <memory>
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/address_list.h"
-#include "net/base/completion_callback.h"
-#include "net/base/host_resolver.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_log.h"
-#include "net/base/single_request_host_resolver.h"
+#include "net/base/net_export.h"
+#include "net/dns/host_resolver.h"
+#include "net/log/net_log_with_source.h"
 #include "net/socket/stream_socket.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 
 class ClientSocketHandle;
-class BoundNetLog;
 
 // The SOCKS client socket implementation
 class NET_EXPORT_PRIVATE SOCKSClientSocket : public StreamSocket {
  public:
-  // Takes ownership of the |transport_socket|, which should already be
-  // connected by the time Connect() is called.
-  //
   // |req_info| contains the hostname and port to which the socket above will
   // communicate to via the socks layer. For testing the referrer is optional.
-  SOCKSClientSocket(ClientSocketHandle* transport_socket,
+  SOCKSClientSocket(std::unique_ptr<ClientSocketHandle> transport_socket,
                     const HostResolver::RequestInfo& req_info,
-                    HostResolver* host_resolver);
-
-  // Deprecated constructor (http://crbug.com/37810) that takes a StreamSocket.
-  SOCKSClientSocket(StreamSocket* transport_socket,
-                    const HostResolver::RequestInfo& req_info,
-                    HostResolver* host_resolver);
+                    RequestPriority priority,
+                    HostResolver* host_resolver,
+                    const NetworkTrafficAnnotationTag& traffic_annotation);
 
   // On destruction Disconnect() is called.
-  virtual ~SOCKSClientSocket();
+  ~SOCKSClientSocket() override;
 
   // StreamSocket implementation.
 
   // Does the SOCKS handshake and completes the protocol.
-  virtual int Connect(const CompletionCallback& callback) override;
-  virtual void Disconnect() override;
-  virtual bool IsConnected() const override;
-  virtual bool IsConnectedAndIdle() const override;
-  virtual const BoundNetLog& NetLog() const override;
-  virtual void SetSubresourceSpeculation() override;
-  virtual void SetOmniboxSpeculation() override;
-  virtual bool WasEverUsed() const override;
-  virtual bool UsingTCPFastOpen() const override;
-  virtual int64 NumBytesRead() const override;
-  virtual base::TimeDelta GetConnectTimeMicros() const override;
-  virtual bool WasNpnNegotiated() const override;
-  virtual NextProto GetNegotiatedProtocol() const override;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) override;
+  int Connect(CompletionOnceCallback callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  const NetLogWithSource& NetLog() const override;
+  bool WasEverUsed() const override;
+  bool WasAlpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
+  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  void ClearConnectionAttempts() override {}
+  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
+  int64_t GetTotalReceivedBytes() const override;
+  void ApplySocketTag(const SocketTag& tag) override;
 
   // Socket implementation.
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
-                   const CompletionCallback& callback) override;
-  virtual int Write(IOBuffer* buf,
-                    int buf_len,
-                    const CompletionCallback& callback) override;
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadIfReady(IOBuffer* buf,
+                  int buf_len,
+                  CompletionOnceCallback callback) override;
+  int CancelReadIfReady() override;
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override;
 
-  virtual bool SetReceiveBufferSize(int32 size) override;
-  virtual bool SetSendBufferSize(int32 size) override;
+  int SetReceiveBufferSize(int32_t size) override;
+  int SetSendBufferSize(int32_t size) override;
 
-  virtual int GetPeerAddress(IPEndPoint* address) const override;
-  virtual int GetLocalAddress(IPEndPoint* address) const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SOCKSClientSocketTest, CompleteHandshake);
@@ -93,6 +93,7 @@ class NET_EXPORT_PRIVATE SOCKSClientSocket : public StreamSocket {
 
   void DoCallback(int result);
   void OnIOComplete(int result);
+  void OnReadWriteComplete(CompletionOnceCallback callback, int result);
 
   int DoLoop(int last_io_result);
   int DoResolveHost();
@@ -105,12 +106,12 @@ class NET_EXPORT_PRIVATE SOCKSClientSocket : public StreamSocket {
   const std::string BuildHandshakeWriteBuffer() const;
 
   // Stores the underlying socket.
-  scoped_ptr<ClientSocketHandle> transport_;
+  std::unique_ptr<ClientSocketHandle> transport_;
 
   State next_state_;
 
-  // Stores the callback to the layer above, called on completing Connect().
-  CompletionCallback user_callback_;
+  // Stores the callbacks to the layer above, called on completing Connect().
+  CompletionOnceCallback user_callback_;
 
   // This IOBuffer is used by the class to read and write
   // SOCKS handshake data. The length contains the expected size to
@@ -129,12 +130,20 @@ class NET_EXPORT_PRIVATE SOCKSClientSocket : public StreamSocket {
   size_t bytes_sent_;
   size_t bytes_received_;
 
+  // This becomes true when the socket is used to send or receive data.
+  bool was_ever_used_;
+
   // Used to resolve the hostname to which the SOCKS proxy will connect.
-  SingleRequestHostResolver host_resolver_;
+  HostResolver* host_resolver_;
+  std::unique_ptr<HostResolver::Request> request_;
   AddressList addresses_;
   HostResolver::RequestInfo host_request_info_;
+  RequestPriority priority_;
 
-  BoundNetLog net_log_;
+  NetLogWithSource net_log_;
+
+  // Traffic annotation for socket control.
+  NetworkTrafficAnnotationTag traffic_annotation_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSClientSocket);
 };

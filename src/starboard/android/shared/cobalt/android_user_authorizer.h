@@ -42,13 +42,13 @@ class AndroidUserAuthorizer : public ::cobalt::account::UserAuthorizer {
   AndroidUserAuthorizer();
   ~AndroidUserAuthorizer() override;
 
-  scoped_ptr<AccessToken> AuthorizeUser(SbUser user) override;
+  std::unique_ptr<AccessToken> AuthorizeUser(SbUser user) override;
   bool DeauthorizeUser(SbUser user) override;
-  scoped_ptr<AccessToken> RefreshAuthorization(SbUser user) override;
+  std::unique_ptr<AccessToken> RefreshAuthorization(SbUser user) override;
   void Shutdown() override;
 
  private:
-  scoped_ptr<AccessToken> CreateAccessToken(jobject j_token);
+  std::unique_ptr<AccessToken> CreateAccessToken(jobject j_token);
 
   jobject j_user_authorizer_;
 

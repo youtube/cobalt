@@ -26,7 +26,9 @@
     # Refer to base.gypi for a list of all available variables.
     'compiler_flags_host': [
       '-O2',
-    ],
+      # Do not warn about unused function params.
+      '-Wno-unused-parameter',
+     ],
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',

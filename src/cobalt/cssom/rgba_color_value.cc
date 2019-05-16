@@ -15,7 +15,7 @@
 #include "cobalt/cssom/rgba_color_value.h"
 
 #include "base/lazy_instance.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -87,8 +87,8 @@ struct NonTrivialStaticFields {
 
 namespace {
 
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

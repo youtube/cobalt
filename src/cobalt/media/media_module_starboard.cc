@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/media/media_module.h"
 
 #include "base/compiler_specific.h"
@@ -72,14 +74,14 @@ class MediaModuleStarboard : public MediaModule {
         system_window_(system_window),
         media_platform_(resource_provider) {}
 
-  scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+  std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebMediaPlayerClient* client) override {
     TRACK_MEMORY_SCOPE("Media");
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
       window = system_window_->GetSbWindow();
     }
-    return make_scoped_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
+    return std::unique_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
         window, client, this, &decoder_buffer_allocator_,
         options_.allow_resume_after_suspend, new media::MediaLog));
   }
@@ -103,16 +105,16 @@ class MediaModuleStarboard : public MediaModule {
 
 }  // namespace
 
-scoped_ptr<MediaModule> MediaModule::Create(
+std::unique_ptr<MediaModule> MediaModule::Create(
     system_window::SystemWindow* system_window,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
   TRACK_MEMORY_SCOPE("Media");
-  return make_scoped_ptr<MediaModule>(
+  return std::unique_ptr<MediaModule>(
       new MediaModuleStarboard(system_window, resource_provider, options));
 }
 
-scoped_ptr<CanPlayTypeHandler> MediaModule::CreateCanPlayTypeHandler() {
-  return make_scoped_ptr<CanPlayTypeHandler>(new CanPlayTypeHandlerStarboard);
+std::unique_ptr<CanPlayTypeHandler> MediaModule::CreateCanPlayTypeHandler() {
+  return std::unique_ptr<CanPlayTypeHandler>(new CanPlayTypeHandlerStarboard);
 }
 
 }  // namespace media

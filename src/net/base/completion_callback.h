@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_COMPLETION_CALLBACK_H__
-#define NET_BASE_COMPLETION_CALLBACK_H__
+#ifndef NET_BASE_COMPLETION_CALLBACK_H_
+#define NET_BASE_COMPLETION_CALLBACK_H_
 
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -14,12 +15,11 @@ namespace net {
 // used to report a byte count or network error code.
 typedef base::Callback<void(int)> CompletionCallback;
 
-// 64bit version of callback specialization that takes a single int64 parameter.
-// Usually this is used to report a file offset, size or network error code.
-typedef base::Callback<void(int64)> Int64CompletionCallback;
-
-typedef base::CancelableCallback<void(int)> CancelableCompletionCallback;
+// 64bit version of callback specialization that takes a single int64_t
+// parameter. Usually this is used to report a file offset, size or network
+// error code.
+typedef base::Callback<void(int64_t)> Int64CompletionCallback;
 
 }  // namespace net
 
-#endif  // NET_BASE_COMPLETION_CALLBACK_H__
+#endif  // NET_BASE_COMPLETION_CALLBACK_H_

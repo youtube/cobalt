@@ -22,16 +22,6 @@ const char kSupportedVersion[] = "13";
 const char kUpgrade[] = "Upgrade";
 const char kWebSocketGuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-const char kSecWebSocketProtocolSpdy3[] = ":sec-websocket-protocol";
-const char kSecWebSocketExtensionsSpdy3[] = ":sec-websocket-extensions";
-
-const char* const kSecWebSocketProtocolLowercase =
-    kSecWebSocketProtocolSpdy3 + 1;
-const char* const kSecWebSocketExtensionsLowercase =
-    kSecWebSocketExtensionsSpdy3 + 1;
-const char kSecWebSocketKeyLowercase[] = "sec-websocket-key";
-const char kSecWebSocketVersionLowercase[] = "sec-websocket-version";
-const char kUpgradeLowercase[] = "upgrade";
 const char kWebSocketLowercase[] = "websocket";
 
 }  // namespace websockets

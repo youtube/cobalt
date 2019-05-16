@@ -14,6 +14,7 @@
 
 #include "cobalt/cssom/property_value_visitor.h"
 
+#include <memory>
 #include <vector>
 
 #include "cobalt/cssom/absolute_url_value.h"
@@ -22,6 +23,7 @@
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
+#include "cobalt/cssom/interpolated_transform_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -44,7 +46,6 @@
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
@@ -86,11 +87,8 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitTimingFunctionList,
                void(TimingFunctionListValue* timing_function_list_value));
-  MOCK_METHOD1(VisitTransformFunctionList,
-               void(TransformFunctionListValue* transform_list_value));
-  MOCK_METHOD1(
-      VisitTransformMatrixFunction,
-      void(TransformMatrixFunctionValue* transform_matrix_function_value));
+  MOCK_METHOD1(VisitTransformPropertyValue,
+               void(TransformPropertyValue* transform_property_value));
   MOCK_METHOD1(VisitUnicodeRange, void(UnicodeRangeValue* unicode_range_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
   MOCK_METHOD1(VisitUrlSrc, void(UrlSrcValue* url_src_value));
@@ -114,16 +112,16 @@ TEST(PropertyValueVisitorTest, VisitsCalcValue) {
 
 TEST(PropertyValueVisitorTest, VisitsFilterListValue) {
   MapToMeshFunction::ResolutionMatchedMeshListBuilder resMs;
-  resMs.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
+  resMs.emplace_back(new MapToMeshFunction::ResolutionMatchedMesh(
       22, 22, new URLValue("a.msh")));
 
   FilterFunctionListValue::Builder builder;
-  builder.push_back(new MapToMeshFunction(new URLValue("p.msh"), resMs.Pass(),
-                                          120, 60, glm::mat4(1.0f),
-                                          KeywordValue::GetMonoscopic()));
+  builder.emplace_back(
+      new MapToMeshFunction(new URLValue("p.msh"), std::move(resMs), 120, 60,
+                            glm::mat4(1.0f), KeywordValue::GetMonoscopic()));
 
   scoped_refptr<FilterFunctionListValue> filter_list_value =
-      new FilterFunctionListValue(builder.Pass());
+      new FilterFunctionListValue(std::move(builder));
 
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitFilterFunctionList(filter_list_value.get()));
@@ -162,7 +160,7 @@ TEST(PropertyValueVisitorTest, VisitsKeywordValue) {
 TEST(PropertyValueVisitorTest, VisitsLinearGradientValue) {
   scoped_refptr<LinearGradientValue> linear_gradient_value =
       new LinearGradientValue(LinearGradientValue::kTopLeft,
-                              ScopedVector<ColorStop>());
+                              std::vector<std::unique_ptr<ColorStop>>());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitLinearGradient(linear_gradient_value.get()));
   linear_gradient_value->Accept(&mock_visitor);
@@ -206,11 +204,11 @@ TEST(PropertyValueVisitorTest, VisitsPercentageValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsPropertyKeyListValue) {
-  scoped_ptr<ListValue<PropertyKey>::Builder> builder(
+  std::unique_ptr<ListValue<PropertyKey>::Builder> builder(
       new PropertyKeyListValue::Builder());
   builder->push_back(kWidthProperty);
   scoped_refptr<PropertyKeyListValue> property_key_list_value =
-      new PropertyKeyListValue(builder.Pass());
+      new PropertyKeyListValue(std::move(builder));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
               VisitPropertyKeyList(property_key_list_value.get()));
@@ -218,11 +216,11 @@ TEST(PropertyValueVisitorTest, VisitsPropertyKeyListValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsPropertyListValue) {
-  scoped_ptr<ScopedRefListValue<PropertyValue>::Builder> builder(
+  std::unique_ptr<ScopedRefListValue<PropertyValue>::Builder> builder(
       new ScopedRefListValue<PropertyValue>::Builder());
   builder->push_back(cssom::KeywordValue::GetNone());
   scoped_refptr<PropertyListValue> property_list_value =
-      new PropertyListValue(builder.Pass());
+      new PropertyListValue(std::move(builder));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitPropertyList(property_list_value.get()));
   property_list_value->Accept(&mock_visitor);
@@ -232,7 +230,7 @@ TEST(PropertyValueVisitorTest, VisitsRadialGradientValue) {
   scoped_refptr<RadialGradientValue> radial_gradient_value =
       new RadialGradientValue(RadialGradientValue::kCircle,
                               RadialGradientValue::kClosestCorner, NULL,
-                              ScopedVector<ColorStop>());
+                              std::vector<std::unique_ptr<ColorStop>>());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitRadialGradient(radial_gradient_value.get()));
   radial_gradient_value->Accept(&mock_visitor);
@@ -278,45 +276,55 @@ TEST(PropertyValueVisitorTest, VisitsStringValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
-  scoped_ptr<TimeListValue::Builder> builder(new TimeListValue::Builder());
+  std::unique_ptr<TimeListValue::Builder> builder(new TimeListValue::Builder());
   builder->push_back(base::TimeDelta());
   scoped_refptr<TimeListValue> time_list_value =
-      new TimeListValue(builder.Pass());
+      new TimeListValue(std::move(builder));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTimeList(time_list_value.get()));
   time_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsTimingFunctionListValue) {
-  scoped_ptr<TimingFunctionListValue::Builder> builder(
+  std::unique_ptr<TimingFunctionListValue::Builder> builder(
       new TimingFunctionListValue::Builder());
   builder->push_back(TimingFunction::GetLinear());
   scoped_refptr<TimingFunctionListValue> timing_function_list_value =
-      new TimingFunctionListValue(builder.Pass());
+      new TimingFunctionListValue(std::move(builder));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
               VisitTimingFunctionList(timing_function_list_value.get()));
   timing_function_list_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
+TEST(PropertyValueVisitorTest, VisitsTransformPropertyValueList) {
   TransformFunctionListValue::Builder builder;
-  builder.push_back(new RotateFunction(0.0f));
+  builder.emplace_back(new RotateFunction(0.0f));
   scoped_refptr<TransformFunctionListValue> transform_list_value =
-      new TransformFunctionListValue(builder.Pass());
+      new TransformFunctionListValue(std::move(builder));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
-              VisitTransformFunctionList(transform_list_value.get()));
+              VisitTransformPropertyValue(transform_list_value.get()));
   transform_list_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitsTransformMatrixFunctionValue) {
-  scoped_refptr<TransformMatrixFunctionValue> transform_matrix_function_value =
-      new TransformMatrixFunctionValue(TransformMatrix());
+TEST(PropertyValueVisitorTest, VisitsTransformPropertyValueInterpolated) {
+  TransformFunctionListValue::Builder start_value_builder;
+  start_value_builder.emplace_back(new RotateFunction(0.0f));
+  scoped_refptr<TransformFunctionListValue> start_value(
+      new TransformFunctionListValue(std::move(start_value_builder)));
+
+  TransformFunctionListValue::Builder end_value_builder;
+  end_value_builder.emplace_back(new RotateFunction(0.0f));
+  scoped_refptr<TransformFunctionListValue> end_value(
+      new TransformFunctionListValue(std::move(end_value_builder)));
+
+  scoped_refptr<InterpolatedTransformPropertyValue> interpolated_value(
+      new InterpolatedTransformPropertyValue(start_value, end_value, 0.5f));
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTransformMatrixFunction(
-                                transform_matrix_function_value.get()));
-  transform_matrix_function_value->Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitTransformPropertyValue(
+      interpolated_value.get()));
+  interpolated_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsUnicodeRangeValue) {

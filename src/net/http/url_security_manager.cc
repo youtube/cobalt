@@ -4,18 +4,15 @@
 
 #include "net/http/url_security_manager.h"
 
+#include <utility>
+
 #include "net/http/http_auth_filter.h"
 
 namespace net {
 
-URLSecurityManagerWhitelist::URLSecurityManagerWhitelist(
-    const HttpAuthFilter* whitelist_default,
-    const HttpAuthFilter* whitelist_delegate)
-    : whitelist_default_(whitelist_default),
-      whitelist_delegate_(whitelist_delegate) {
-}
+URLSecurityManagerWhitelist::URLSecurityManagerWhitelist() = default;
 
-URLSecurityManagerWhitelist::~URLSecurityManagerWhitelist() {}
+URLSecurityManagerWhitelist::~URLSecurityManagerWhitelist() = default;
 
 bool URLSecurityManagerWhitelist::CanUseDefaultCredentials(
     const GURL& auth_origin) const  {
@@ -28,6 +25,20 @@ bool URLSecurityManagerWhitelist::CanDelegate(const GURL& auth_origin) const {
   if (whitelist_delegate_.get())
     return whitelist_delegate_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
   return false;
+}
+
+void URLSecurityManagerWhitelist::SetDefaultWhitelist(
+    std::unique_ptr<HttpAuthFilter> whitelist_default) {
+  whitelist_default_ = std::move(whitelist_default);
+}
+
+void URLSecurityManagerWhitelist::SetDelegateWhitelist(
+    std::unique_ptr<HttpAuthFilter> whitelist_delegate) {
+  whitelist_delegate_ = std::move(whitelist_delegate);
+}
+
+bool URLSecurityManagerWhitelist::HasDefaultWhitelist() const {
+  return whitelist_default_.get() != nullptr;
 }
 
 }  //  namespace net

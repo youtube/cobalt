@@ -5,7 +5,7 @@
 #ifndef NET_DIAL_DIAL_UDP_SOCKET_FACTORY_H
 #define NET_DIAL_DIAL_UDP_SOCKET_FACTORY_H
 
-#include "net/udp/udp_listen_socket.h"
+#include "net/socket/udp_socket.h"
 
 namespace net {
 
@@ -13,25 +13,22 @@ class IPEndPoint;
 
 class UdpSocketFactory {
  public:
-  scoped_refptr<UDPListenSocket> CreateAndBind(
-      const IPEndPoint& address, UDPListenSocket::Delegate* del);
+  std::unique_ptr<UDPSocket> CreateAndBind(const IPEndPoint& address);
   virtual ~UdpSocketFactory() {}
 
  protected:
-  virtual void SetupSocketAfterCreate(SocketDescriptor) { }
-  virtual void SetupSocketAfterBind(SocketDescriptor) { }
+  virtual void SetupSocketAfterBind(UDPSocket* sock) {}
 };
 
 class DialUdpSocketFactory : public UdpSocketFactory {
  public:
-  virtual ~DialUdpSocketFactory() { }
+  virtual ~DialUdpSocketFactory() {}
+
  protected:
   // UdpSocketFactory implementation
-  virtual void SetupSocketAfterCreate(SocketDescriptor) override;
-  virtual void SetupSocketAfterBind(SocketDescriptor) override;
+  virtual void SetupSocketAfterBind(UDPSocket* sock) override;
 };
 
-} // namespace net
+}  // namespace net
 
-#endif // NET_DIAL_DIAL_UDP_SOCKET_FACTORY_H
-
+#endif  // NET_DIAL_DIAL_UDP_SOCKET_FACTORY_H

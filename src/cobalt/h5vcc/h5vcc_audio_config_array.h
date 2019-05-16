@@ -47,7 +47,6 @@ class H5vccAudioConfigArray : public script::Wrappable {
  private:
   void MaybeRefreshAudioConfigs();
 
-  bool audio_config_updated_;
   std::vector<scoped_refptr<H5vccAudioConfig> > audio_configs_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccAudioConfigArray);

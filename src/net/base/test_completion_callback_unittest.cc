@@ -2,20 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Illustrates how to use worker threads that issue completion callbacks
+// Illustrates how to use net::TestCompletionCallback.
+
+#include "net/base/test_completion_callback.h"
 
 #include "base/bind.h"
+#include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
-#include "base/threading/worker_pool.h"
-#include "net/base/completion_callback.h"
-#include "net/base/test_completion_callback.h"
+#include "base/macros.h"
+#include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "net/base/completion_once_callback.h"
+#include "net/test/test_with_scoped_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-typedef PlatformTest TestCompletionCallbackTest;
+namespace net {
+
+namespace {
 
 const int kMagicResult = 8888;
+
+void CallClosureAfterCheckingResult(const base::Closure& closure,
+                                    bool* did_check_result,
+                                    int result) {
+  DCHECK_EQ(result, kMagicResult);
+  *did_check_result = true;
+  closure.Run();
+}
 
 // ExampleEmployer is a toy version of HostResolver
 // TODO: restore damage done in extracting example from real code
@@ -25,10 +39,9 @@ class ExampleEmployer {
   ExampleEmployer();
   ~ExampleEmployer();
 
-  // Do some imaginary work on a worker thread;
-  // when done, worker posts callback on the original thread.
-  // Returns true on success
-  bool DoSomething(const net::CompletionCallback& callback);
+  // Posts to the current thread a task which itself posts |callback| to the
+  // current thread. Returns true on success
+  bool DoSomething(CompletionOnceCallback callback);
 
  private:
   class ExampleWorker;
@@ -37,43 +50,32 @@ class ExampleEmployer {
   DISALLOW_COPY_AND_ASSIGN(ExampleEmployer);
 };
 
-// Helper class; this is how ExampleEmployer puts work on a different thread
+// Helper class; this is how ExampleEmployer schedules work.
 class ExampleEmployer::ExampleWorker
     : public base::RefCountedThreadSafe<ExampleWorker> {
  public:
-  ExampleWorker(ExampleEmployer* employer,
-                const net::CompletionCallback& callback)
-      : employer_(employer), callback_(callback),
-        origin_loop_(MessageLoop::current()) {
-  }
+  ExampleWorker(ExampleEmployer* employer, CompletionOnceCallback callback)
+      : employer_(employer), callback_(std::move(callback)) {}
   void DoWork();
   void DoCallback();
  private:
   friend class base::RefCountedThreadSafe<ExampleWorker>;
 
-  ~ExampleWorker() {}
+  ~ExampleWorker() = default;
 
   // Only used on the origin thread (where DoSomething was called).
   ExampleEmployer* employer_;
-  net::CompletionCallback callback_;
+  CompletionOnceCallback callback_;
   // Used to post ourselves onto the origin thread.
-  base::Lock origin_loop_lock_;
-  MessageLoop* origin_loop_;
+  const scoped_refptr<base::SingleThreadTaskRunner> origin_task_runner_ =
+      base::ThreadTaskRunnerHandle::Get();
 };
 
 void ExampleEmployer::ExampleWorker::DoWork() {
-  // Running on the worker thread
   // In a real worker thread, some work would be done here.
   // Pretend it is, and send the completion callback.
-
-  // The origin loop could go away while we are trying to post to it, so we
-  // need to call its PostTask method inside a lock.  See ~ExampleEmployer.
-  {
-    base::AutoLock locked(origin_loop_lock_);
-    if (origin_loop_)
-      origin_loop_->PostTask(FROM_HERE,
-                             base::Bind(&ExampleWorker::DoCallback, this));
-  }
+  origin_task_runner_->PostTask(FROM_HERE,
+                                base::Bind(&ExampleWorker::DoCallback, this));
 }
 
 void ExampleEmployer::ExampleWorker::DoCallback() {
@@ -84,25 +86,20 @@ void ExampleEmployer::ExampleWorker::DoCallback() {
   // destroyed.
   employer_->request_ = NULL;
 
-  callback_.Run(kMagicResult);
+  std::move(callback_).Run(kMagicResult);
 }
 
-ExampleEmployer::ExampleEmployer() {
-}
+ExampleEmployer::ExampleEmployer() = default;
 
-ExampleEmployer::~ExampleEmployer() {
-}
+ExampleEmployer::~ExampleEmployer() = default;
 
-bool ExampleEmployer::DoSomething(const net::CompletionCallback& callback) {
-  DCHECK(!request_) << "already in use";
+bool ExampleEmployer::DoSomething(CompletionOnceCallback callback) {
+  DCHECK(!request_.get()) << "already in use";
 
-  request_ = new ExampleWorker(this, callback);
+  request_ = new ExampleWorker(this, std::move(callback));
 
-  // Dispatch to worker thread...
-  if (!base::WorkerPool::PostTask(
-          FROM_HERE,
-          base::Bind(&ExampleWorker::DoWork, request_.get()),
-          true)) {
+  if (!base::ThreadTaskRunnerHandle::Get()->PostTask(
+          FROM_HERE, base::Bind(&ExampleWorker::DoWork, request_))) {
     NOTREACHED();
     request_ = NULL;
     return false;
@@ -111,13 +108,35 @@ bool ExampleEmployer::DoSomething(const net::CompletionCallback& callback) {
   return true;
 }
 
+}  // namespace
+
+class TestCompletionCallbackTest : public PlatformTest,
+                                   public WithScopedTaskEnvironment {};
+
 TEST_F(TestCompletionCallbackTest, Simple) {
   ExampleEmployer boss;
-  net::TestCompletionCallback callback;
+  TestCompletionCallback callback;
   bool queued = boss.DoSomething(callback.callback());
-  EXPECT_EQ(queued, true);
+  EXPECT_TRUE(queued);
   int result = callback.WaitForResult();
   EXPECT_EQ(result, kMagicResult);
 }
 
+TEST_F(TestCompletionCallbackTest, Closure) {
+  ExampleEmployer boss;
+  TestClosure closure;
+  bool did_check_result = false;
+  CompletionOnceCallback completion_callback =
+      base::BindOnce(&CallClosureAfterCheckingResult, closure.closure(),
+                     base::Unretained(&did_check_result));
+  bool queued = boss.DoSomething(std::move(completion_callback));
+  EXPECT_TRUE(queued);
+
+  EXPECT_FALSE(did_check_result);
+  closure.WaitForResult();
+  EXPECT_TRUE(did_check_result);
+}
+
 // TODO: test deleting ExampleEmployer while work outstanding
+
+}  // namespace net

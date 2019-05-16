@@ -1,0 +1,8 @@
+{
+    "description": "Spaceport.io benchmark.",
+    "pages": [
+        {
+            "url": "file:///../../../chrome/test/data/third_party/spaceport/index.html"
+        }
+    ]
+}

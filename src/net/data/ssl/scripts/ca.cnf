@@ -1,3 +1,11 @@
+# Defaults in the event they're not set in the environment
+CA_DIR    = out
+KEY_SIZE  = 2048
+ALGO      = sha256
+CERT_TYPE = root
+CA_NAME   = req_env_dn
+CA_COMMON_NAME = Test Root CA
+
 [ca]
 default_ca = CA_root
 preserve   = yes
@@ -17,7 +25,7 @@ private_key   = $dir/$type.key
 RANDFILE      = $dir/.rand
 default_days     = 3650
 default_crl_days = 30
-default_md       = sha1
+default_md       = sha256
 policy           = policy_anything
 unique_subject   = no
 copy_extensions  = copy
@@ -28,6 +36,32 @@ basicConstraints       = critical, CA:false
 subjectKeyIdentifier   = hash
 authorityKeyIdentifier = keyid:always
 extendedKeyUsage       = serverAuth,clientAuth
+
+[name_constraint_bad]
+# A leaf cert that will violate the root's imposed name constraints
+basicConstraints       = critical, CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always
+extendedKeyUsage       = serverAuth,clientAuth
+subjectAltName         = @san_name_constraint_bad
+
+[name_constraint_good]
+# A leaf cert that will match the root's imposed name constraints
+basicConstraints       = critical, CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always
+extendedKeyUsage       = serverAuth,clientAuth
+subjectAltName         = @san_name_constraint_good
+
+[san_name_constraint_bad]
+DNS.1 = test.ExAmPlE.CoM
+DNS.2 = test.ExAmPlE.OrG
+
+[san_name_constraint_good]
+DNS.1 = test.ExAmPlE.CoM
+DNS.2 = example.notarealtld
+DNS.3 = *.test2.ExAmPlE.CoM
+DNS.4 = *.example2.notarealtld
 
 [ca_cert]
 # Extensions to add when signing a request for an intermediate/CA cert
@@ -56,7 +90,7 @@ emailAddress           = optional
 # than the root CA, see README to find the appropriate configuration file
 # (ie: openssl_cert.cnf).
 default_bits       = $ENV::KEY_SIZE
-default_md         = sha1
+default_md         = sha256
 string_mask        = utf8only
 prompt             = no
 encrypt_key        = no

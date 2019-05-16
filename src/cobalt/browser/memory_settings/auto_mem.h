@@ -17,12 +17,12 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/math/size.h"
@@ -79,22 +79,24 @@ class AutoMem {
   std::vector<MemorySetting*> AllMemorySettingsMutable();
 
   // All of the following are included in AllMemorySettings().
-  scoped_ptr<IntSetting> image_cache_size_in_bytes_;
-  scoped_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
-  scoped_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;
-  scoped_ptr<IntSetting> misc_cobalt_gpu_size_in_bytes_;
-  scoped_ptr<IntSetting> remote_typeface_cache_size_in_bytes_;
-  scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
-  scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
-  scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;
-  scoped_ptr<IntSetting> offscreen_target_cache_size_in_bytes_;
+  std::unique_ptr<IntSetting> image_cache_size_in_bytes_;
+  std::unique_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
+  std::unique_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;
+  std::unique_ptr<IntSetting> misc_cobalt_gpu_size_in_bytes_;
+  std::unique_ptr<IntSetting> remote_typeface_cache_size_in_bytes_;
+  std::unique_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
+  std::unique_ptr<IntSetting> skia_cache_size_in_bytes_;
+  std::unique_ptr<IntSetting> software_surface_cache_size_in_bytes_;
+  std::unique_ptr<IntSetting> offscreen_target_cache_size_in_bytes_;
 
   // These settings are used for constraining the memory and are NOT included
   // in AllMemorySettings().
-  scoped_ptr<IntSetting> max_cpu_bytes_;
-  scoped_ptr<IntSetting> max_gpu_bytes_;
-  scoped_ptr<IntSetting> reduced_cpu_bytes_;  // Forces CPU memory reduction.
-  scoped_ptr<IntSetting> reduced_gpu_bytes_;  // Forces GPU memory reduction.
+  std::unique_ptr<IntSetting> max_cpu_bytes_;
+  std::unique_ptr<IntSetting> max_gpu_bytes_;
+  std::unique_ptr<IntSetting>
+      reduced_cpu_bytes_;  // Forces CPU memory reduction.
+  std::unique_ptr<IntSetting>
+      reduced_gpu_bytes_;  // Forces GPU memory reduction.
 
   std::vector<std::string> error_msgs_;
 

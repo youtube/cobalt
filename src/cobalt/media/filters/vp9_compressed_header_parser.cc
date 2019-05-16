@@ -95,7 +95,7 @@ void Vp9CompressedHeaderParser::DiffUpdateProb(Vp9Prob* prob) {
 
 // Helper function to DiffUpdateProb an array of probs.
 template <int N>
-void Vp9CompressedHeaderParser::DiffUpdateProbArray(Vp9Prob(&prob_array)[N]) {
+void Vp9CompressedHeaderParser::DiffUpdateProbArray(Vp9Prob (&prob_array)[N]) {
   for (auto& x : prob_array) {
     DiffUpdateProb(&x);
   }
@@ -233,7 +233,7 @@ void Vp9CompressedHeaderParser::UpdateMvProb(Vp9Prob* prob) {
 
 // Helper function to UpdateMvProb an array of probs.
 template <int N>
-void Vp9CompressedHeaderParser::UpdateMvProbArray(Vp9Prob(&prob_array)[N]) {
+void Vp9CompressedHeaderParser::UpdateMvProbArray(Vp9Prob (&prob_array)[N]) {
   for (auto& x : prob_array) {
     UpdateMvProb(&x);
   }

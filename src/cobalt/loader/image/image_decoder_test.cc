@@ -14,12 +14,13 @@
 
 #include "cobalt/loader/image/image_decoder.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/threading/thread.h"
@@ -42,7 +43,7 @@ struct MockImageDecoderCallback {
   void SuccessCallback(const scoped_refptr<Image>& value) { image = value; }
 
   MOCK_METHOD1(LoadCompleteCallback,
-               void(const base::optional<std::string>& message));
+               void(const base::Optional<std::string>& message));
 
   scoped_refptr<Image> image;
 };
@@ -64,12 +65,12 @@ class MockImageDecoder : public Decoder {
 
   scoped_refptr<Image> image();
 
-  void ExpectCallWithError(const base::optional<std::string>& error);
+  void ExpectCallWithError(const base::Optional<std::string>& error);
 
  protected:
   ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
   render_tree::ResourceProviderStub resource_provider_;
-  scoped_ptr<Decoder> image_decoder_;
+  std::unique_ptr<Decoder> image_decoder_;
 };
 
 MockImageDecoder::MockImageDecoder() {
@@ -104,24 +105,24 @@ scoped_refptr<Image> MockImageDecoder::image() {
 }
 
 void MockImageDecoder::ExpectCallWithError(
-    const base::optional<std::string>& error) {
+    const base::Optional<std::string>& error) {
   EXPECT_CALL(image_decoder_callback_, LoadCompleteCallback(error));
 }
 
-FilePath GetTestImagePath(const char* file_name) {
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+base::FilePath GetTestImagePath(const char* file_name) {
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("loader"))
       .Append(FILE_PATH_LITERAL("testdata"))
       .Append(FILE_PATH_LITERAL(file_name));
 }
 
-std::vector<uint8> GetImageData(const FilePath& file_path) {
+std::vector<uint8> GetImageData(const base::FilePath& file_path) {
   int64 size;
   std::vector<uint8> image_data;
 
-  bool success = file_util::GetFileSize(file_path, &size);
+  bool success = base::GetFileSize(file_path, &size);
 
   CHECK(success) << "Could not get file size.";
   CHECK_GT(size, 0);
@@ -129,11 +130,11 @@ std::vector<uint8> GetImageData(const FilePath& file_path) {
   image_data.resize(static_cast<size_t>(size));
 
   int num_of_bytes =
-      file_util::ReadFile(file_path, reinterpret_cast<char*>(&image_data[0]),
-                          static_cast<int>(size));
+      base::ReadFile(file_path, reinterpret_cast<char*>(&image_data[0]),
+                     static_cast<int>(size));
 
-  CHECK_EQ(num_of_bytes, image_data.size()) << "Could not read '"
-                                            << file_path.value() << "'.";
+  CHECK_EQ(num_of_bytes, static_cast<int>(image_data.size()))
+      << "Could not read '" << file_path.value() << "'.";
   return image_data;
 }
 
@@ -800,7 +801,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
 
   base::Thread thread("AnimatedWebP test");
   thread.Start();
-  animated_webp_image->Play(thread.message_loop_proxy());
+  animated_webp_image->Play(thread.task_runner());
   animated_webp_image->Stop();
   thread.Stop();
 
@@ -832,7 +833,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
 
   base::Thread thread("AnimatedWebP test");
   thread.Start();
-  animated_webp_image->Play(thread.message_loop_proxy());
+  animated_webp_image->Play(thread.task_runner());
   animated_webp_image->Stop();
   thread.Stop();
 

@@ -4,6 +4,8 @@
 
 #include "base/task_runner.h"
 
+#include <utility>
+
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/threading/post_task_and_reply_impl.h"
@@ -17,11 +19,10 @@ namespace {
 // possible to merge the two.
 class PostTaskAndReplyTaskRunner : public internal::PostTaskAndReplyImpl {
  public:
-  PostTaskAndReplyTaskRunner(TaskRunner* destination);
+  explicit PostTaskAndReplyTaskRunner(TaskRunner* destination);
 
  private:
-  virtual bool PostTask(const tracked_objects::Location& from_here,
-                        const Closure& task) override;
+  bool PostTask(const Location& from_here, OnceClosure task) override;
 
   // Non-owning.
   TaskRunner* destination_;
@@ -32,30 +33,27 @@ PostTaskAndReplyTaskRunner::PostTaskAndReplyTaskRunner(
   DCHECK(destination_);
 }
 
-bool PostTaskAndReplyTaskRunner::PostTask(
-    const tracked_objects::Location& from_here,
-    const Closure& task) {
-  return destination_->PostTask(from_here, task);
+bool PostTaskAndReplyTaskRunner::PostTask(const Location& from_here,
+                                          OnceClosure task) {
+  return destination_->PostTask(from_here, std::move(task));
 }
 
 }  // namespace
 
-bool TaskRunner::PostTask(const tracked_objects::Location& from_here,
-                          const Closure& task) {
-  return PostDelayedTask(from_here, task, base::TimeDelta());
+bool TaskRunner::PostTask(const Location& from_here, OnceClosure task) {
+  return PostDelayedTask(from_here, std::move(task), base::TimeDelta());
 }
 
-bool TaskRunner::PostTaskAndReply(
-    const tracked_objects::Location& from_here,
-    const Closure& task,
-    const Closure& reply) {
+bool TaskRunner::PostTaskAndReply(const Location& from_here,
+                                  OnceClosure task,
+                                  OnceClosure reply) {
   return PostTaskAndReplyTaskRunner(this).PostTaskAndReply(
-      from_here, task, reply);
+      from_here, std::move(task), std::move(reply));
 }
 
-TaskRunner::TaskRunner() {}
+TaskRunner::TaskRunner() = default;
 
-TaskRunner::~TaskRunner() {}
+TaskRunner::~TaskRunner() = default;
 
 void TaskRunner::OnDestruct() const {
   delete this;

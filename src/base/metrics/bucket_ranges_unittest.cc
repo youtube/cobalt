@@ -4,6 +4,7 @@
 
 #include "base/metrics/bucket_ranges.h"
 
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -12,8 +13,9 @@ namespace {
 TEST(BucketRangesTest, NormalSetup) {
   BucketRanges ranges(5);
   ASSERT_EQ(5u, ranges.size());
+  ASSERT_EQ(4u, ranges.bucket_count());
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 5; ++i) {
     EXPECT_EQ(0, ranges.range(i));
   }
   EXPECT_EQ(0u, ranges.checksum());
@@ -75,9 +77,9 @@ TEST(BucketRangesTest, Checksum) {
 // http://www.w3.org/TR/PNG/#D-CRCAppendix.
 TEST(BucketRangesTest, Crc32TableTest) {
   for (int i = 0; i < 256; ++i) {
-    uint32 checksum = i;
+    uint32_t checksum = i;
     for (int j = 0; j < 8; ++j) {
-      const uint32 kReversedPolynomial = 0xedb88320L;
+      const uint32_t kReversedPolynomial = 0xedb88320L;
       if (checksum & 1)
         checksum = kReversedPolynomial ^ (checksum >> 1);
       else

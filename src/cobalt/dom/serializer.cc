@@ -17,7 +17,7 @@
 #include <map>
 #include <string>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
@@ -45,7 +45,7 @@ void WriteAtttributes(const scoped_refptr<const Element>& element,
     // it explicitly as a cssom::CSSDeclaredStyleDeclaration structure instead
     // of as an attribute string, so we add it (or replace it) explicitly in the
     // attribute map.
-    base::optional<std::string> style_attribute = element->GetStyleAttribute();
+    base::Optional<std::string> style_attribute = element->GetStyleAttribute();
     if (style_attribute && !style_attribute->empty()) {
       sorted_attribute_map[kStyleAttributeName] = std::move(*style_attribute);
     }
@@ -113,7 +113,7 @@ void Serializer::Visit(const Comment* comment) {
 }
 
 void Serializer::Visit(const Document* document) {
-  UNREFERENCED_PARAMETER(document);
+  SB_UNREFERENCED_PARAMETER(document);
 }
 
 void Serializer::Visit(const DocumentType* document_type) {

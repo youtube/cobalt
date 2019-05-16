@@ -15,7 +15,8 @@
 #include "cobalt/csp/source.h"
 
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
+#include "url/url_canon.h"
 
 namespace cobalt {
 namespace csp {
@@ -24,9 +25,9 @@ Source::Source(ContentSecurityPolicy* policy, const SourceConfig& config)
     : policy_(policy) {
   // All comparisons require case-insensitivity.
   // Lower-case everything here to simplify that.
-  config_.scheme = StringToLowerASCII(config.scheme);
-  config_.host = StringToLowerASCII(config.host);
-  config_.path = StringToLowerASCII(config.path);
+  config_.scheme = base::ToLowerASCII(config.scheme);
+  config_.host = base::ToLowerASCII(config.host);
+  config_.path = base::ToLowerASCII(config.path);
   config_.port = config.port;
   config_.host_wildcard = config.host_wildcard;
   config_.port_wildcard = config.port_wildcard;
@@ -58,10 +59,10 @@ bool Source::SchemeMatches(const GURL& url) const {
   if (config_.scheme.empty()) {
     return policy_->SchemeMatchesSelf(url);
   }
-  if (LowerCaseEqualsASCII(config_.scheme, "http")) {
+  if (base::LowerCaseEqualsASCII(config_.scheme, "http")) {
     return url.SchemeIs("http") || url.SchemeIs("https");
   }
-  if (LowerCaseEqualsASCII(config_.scheme, "ws")) {
+  if (base::LowerCaseEqualsASCII(config_.scheme, "ws")) {
     return url.SchemeIs("ws") || url.SchemeIs("wss");
   }
   return url.SchemeIs(config_.scheme.c_str());
@@ -71,9 +72,10 @@ bool Source::HostMatches(const GURL& url) const {
   const std::string& host = url.host();
   bool match;
   if (config_.host_wildcard == SourceConfig::kHasWildcard) {
-    match = EndsWith(host, "." + config_.host, false /* case_sensitive */);
+    match =
+        base::EndsWith(host, "." + config_.host, base::CompareCase::SENSITIVE);
   } else {
-    match = LowerCaseEqualsASCII(host, config_.host.c_str());
+    match = base::LowerCaseEqualsASCII(host, config_.host.c_str());
   }
   return match;
 }
@@ -83,9 +85,9 @@ bool Source::PathMatches(const GURL& url) const {
     return true;
   }
 
-  std::string path = StringToLowerASCII(url.path());
-  if (EndsWith(config_.path, "/", true /* case sensitive */)) {
-    return StartsWithASCII(path, config_.path, true /* case_sensitive */);
+  std::string path = base::ToLowerASCII(url.path());
+  if (base::EndsWith(config_.path, "/", base::CompareCase::SENSITIVE)) {
+    return StartsWith(path, config_.path, base::CompareCase::SENSITIVE);
   } else {
     return path == config_.path;
   }
@@ -100,8 +102,8 @@ bool Source::PortMatches(const GURL& url) const {
   // the default port for url's scheme.
   const std::string& url_scheme = url.scheme();
   int config_port = config_.port;
-  if (config_port == url_parse::PORT_UNSPECIFIED) {
-    config_port = url_canon::DefaultPortForScheme(
+  if (config_port == url::PORT_UNSPECIFIED) {
+    config_port = url::DefaultPortForScheme(
         url_scheme.c_str(), static_cast<int>(url_scheme.length()));
   }
   int url_port = url.EffectiveIntPort();

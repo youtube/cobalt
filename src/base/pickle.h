@@ -2,17 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_PICKLE_H__
-#define BASE_PICKLE_H__
+#ifndef BASE_PICKLE_H_
+#define BASE_PICKLE_H_
 
 #include <string>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
-#include "base/string16.h"
+#include "base/memory/ref_counted.h"
+#include "base/strings/string16.h"
+#include "base/strings/string_piece.h"
+
+#if defined(OS_POSIX)
+#include "base/files/file.h"
+#include "starboard/types.h"
+#endif
+
+namespace base {
 
 class Pickle;
 
@@ -20,28 +28,44 @@ class Pickle;
 // while the PickleIterator object is in use.
 class BASE_EXPORT PickleIterator {
  public:
-  PickleIterator() : read_ptr_(NULL), read_end_ptr_(NULL) {}
+  PickleIterator() : payload_(NULL), read_index_(0), end_index_(0) {}
   explicit PickleIterator(const Pickle& pickle);
 
   // Methods for reading the payload of the Pickle. To read from the start of
   // the Pickle, create a PickleIterator from a Pickle. If successful, these
   // methods return true. Otherwise, false is returned to indicate that the
-  // result could not be extracted.
+  // result could not be extracted. It is not possible to read from the iterator
+  // after that.
   bool ReadBool(bool* result) WARN_UNUSED_RESULT;
   bool ReadInt(int* result) WARN_UNUSED_RESULT;
   bool ReadLong(long* result) WARN_UNUSED_RESULT;
-  bool ReadUInt16(uint16* result) WARN_UNUSED_RESULT;
-  bool ReadUInt32(uint32* result) WARN_UNUSED_RESULT;
-  bool ReadInt64(int64* result) WARN_UNUSED_RESULT;
-  bool ReadUInt64(uint64* result) WARN_UNUSED_RESULT;
+  bool ReadUInt16(uint16_t* result) WARN_UNUSED_RESULT;
+  bool ReadUInt32(uint32_t* result) WARN_UNUSED_RESULT;
+  bool ReadInt64(int64_t* result) WARN_UNUSED_RESULT;
+  bool ReadUInt64(uint64_t* result) WARN_UNUSED_RESULT;
   bool ReadFloat(float* result) WARN_UNUSED_RESULT;
+  bool ReadDouble(double* result) WARN_UNUSED_RESULT;
   bool ReadString(std::string* result) WARN_UNUSED_RESULT;
-  bool ReadWString(std::wstring* result) WARN_UNUSED_RESULT;
+  // The StringPiece data will only be valid for the lifetime of the message.
+  bool ReadStringPiece(StringPiece* result) WARN_UNUSED_RESULT;
   bool ReadString16(string16* result) WARN_UNUSED_RESULT;
+  // The StringPiece16 data will only be valid for the lifetime of the message.
+  bool ReadStringPiece16(StringPiece16* result) WARN_UNUSED_RESULT;
+
+  // A pointer to the data will be placed in |*data|, and the length will be
+  // placed in |*length|. The pointer placed into |*data| points into the
+  // message's buffer so it will be scoped to the lifetime of the message (or
+  // until the message data is mutated). Do not keep the pointer around!
   bool ReadData(const char** data, int* length) WARN_UNUSED_RESULT;
+
+  // A pointer to the data will be placed in |*data|. The caller specifies the
+  // number of bytes to read, and ReadBytes will validate this length. The
+  // pointer placed into |*data| points into the message's buffer so it will be
+  // scoped to the lifetime of the message (or until the message data is
+  // mutated). Do not keep the pointer around!
   bool ReadBytes(const char** data, int length) WARN_UNUSED_RESULT;
 
-  // Safer version of ReadInt() checks for the result not being negative.
+  // A safer version of ReadInt() that checks for the result not being negative.
   // Use it for reading the object sizes.
   bool ReadLength(int* result) WARN_UNUSED_RESULT {
     return ReadInt(result) && *result >= 0;
@@ -54,18 +78,17 @@ class BASE_EXPORT PickleIterator {
   }
 
  private:
-  // Aligns 'i' by rounding it up to the next multiple of 'alignment'
-  static size_t AlignInt(size_t i, int alignment) {
-    return i + (alignment - (i % alignment)) % alignment;
-  }
-
   // Read Type from Pickle.
   template <typename Type>
-  inline bool ReadBuiltinType(Type* result);
+  bool ReadBuiltinType(Type* result);
+
+  // Advance read_index_ but do not allow it to exceed end_index_.
+  // Keeps read_index_ aligned.
+  void Advance(size_t size);
 
   // Get read pointer for Type and advance read pointer.
   template<typename Type>
-  inline const char* GetReadPointerAndAdvance();
+  const char* GetReadPointerAndAdvance();
 
   // Get read pointer for |num_bytes| and advance read pointer. This method
   // checks num_bytes for negativity and wrapping.
@@ -73,12 +96,12 @@ class BASE_EXPORT PickleIterator {
 
   // Get read pointer for (num_elements * size_element) bytes and advance read
   // pointer. This method checks for int overflow, negativity and wrapping.
-  inline const char* GetReadPointerAndAdvance(int num_elements,
-                                              size_t size_element);
+  const char* GetReadPointerAndAdvance(int num_elements,
+                                       size_t size_element);
 
-  // Pointers to the Pickle data.
-  const char* read_ptr_;
-  const char* read_end_ptr_;
+  const char* payload_;  // Start of our pickle's payload.
+  size_t read_index_;  // Offset of the next readable byte in payload.
+  size_t end_index_;  // Payload size.
 
   FRIEND_TEST_ALL_PREFIXES(PickleTest, GetReadPointerAndAdvance);
 };
@@ -102,6 +125,21 @@ class BASE_EXPORT PickleIterator {
 //
 class BASE_EXPORT Pickle {
  public:
+  // Auxiliary data attached to a Pickle. Pickle must be subclassed along with
+  // this interface in order to provide a concrete implementation of support
+  // for attachments. The base Pickle implementation does not accept
+  // attachments.
+  class BASE_EXPORT Attachment : public RefCountedThreadSafe<Attachment> {
+   public:
+    Attachment();
+
+   protected:
+    friend class RefCountedThreadSafe<Attachment>;
+    virtual ~Attachment();
+
+    DISALLOW_COPY_AND_ASSIGN(Attachment);
+  };
+
   // Initialize a Pickle object using the default header size.
   Pickle();
 
@@ -129,137 +167,67 @@ class BASE_EXPORT Pickle {
   // Performs a deep copy.
   Pickle& operator=(const Pickle& other);
 
-  // Returns the size of the Pickle's data.
+  // Returns the number of bytes written in the Pickle, including the header.
   size_t size() const { return header_size_ + header_->payload_size; }
 
   // Returns the data for this Pickle.
   const void* data() const { return header_; }
 
-  // For compatibility, these older style read methods pass through to the
-  // PickleIterator methods.
-  // TODO(jbates) Remove these methods.
-  bool ReadBool(PickleIterator* iter, bool* result) const {
-    return iter->ReadBool(result);
-  }
-  bool ReadInt(PickleIterator* iter, int* result) const {
-    return iter->ReadInt(result);
-  }
-  bool ReadLong(PickleIterator* iter, long* result) const {
-    return iter->ReadLong(result);
-  }
-  bool ReadUInt16(PickleIterator* iter, uint16* result) const {
-    return iter->ReadUInt16(result);
-  }
-  bool ReadUInt32(PickleIterator* iter, uint32* result) const {
-    return iter->ReadUInt32(result);
-  }
-  bool ReadInt64(PickleIterator* iter, int64* result) const {
-    return iter->ReadInt64(result);
-  }
-  bool ReadUInt64(PickleIterator* iter, uint64* result) const {
-    return iter->ReadUInt64(result);
-  }
-  bool ReadFloat(PickleIterator* iter, float* result) const {
-    return iter->ReadFloat(result);
-  }
-  bool ReadString(PickleIterator* iter, std::string* result) const {
-    return iter->ReadString(result);
-  }
-  bool ReadWString(PickleIterator* iter, std::wstring* result) const {
-    return iter->ReadWString(result);
-  }
-  bool ReadString16(PickleIterator* iter, string16* result) const {
-    return iter->ReadString16(result);
-  }
-  // A pointer to the data will be placed in *data, and the length will be
-  // placed in *length. This buffer will be into the message's buffer so will
-  // be scoped to the lifetime of the message (or until the message data is
-  // mutated).
-  bool ReadData(PickleIterator* iter, const char** data, int* length) const {
-    return iter->ReadData(data, length);
-  }
-  // A pointer to the data will be placed in *data. The caller specifies the
-  // number of bytes to read, and ReadBytes will validate this length. The
-  // returned buffer will be into the message's buffer so will be scoped to the
-  // lifetime of the message (or until the message data is mutated).
-  bool ReadBytes(PickleIterator* iter, const char** data, int length) const {
-    return iter->ReadBytes(data, length);
-  }
-
-  // Safer version of ReadInt() checks for the result not being negative.
-  // Use it for reading the object sizes.
-  bool ReadLength(PickleIterator* iter, int* result) const {
-    return iter->ReadLength(result);
-  }
+  // Returns the effective memory capacity of this Pickle, that is, the total
+  // number of bytes currently dynamically allocated or 0 in the case of a
+  // read-only Pickle. This should be used only for diagnostic / profiling
+  // purposes.
+  size_t GetTotalAllocatedSize() const;
 
   // Methods for adding to the payload of the Pickle.  These values are
   // appended to the end of the Pickle's payload.  When reading values from a
   // Pickle, it is important to read them in the order in which they were added
   // to the Pickle.
-  bool WriteBool(bool value) {
-    return WriteInt(value ? 1 : 0);
+
+  void WriteBool(bool value) { WriteInt(value ? 1 : 0); }
+  void WriteInt(int value) { WritePOD(value); }
+  void WriteLong(long value) {
+    // Always write long as a 64-bit value to ensure compatibility between
+    // 32-bit and 64-bit processes.
+    WritePOD(static_cast<int64_t>(value));
   }
-  bool WriteInt(int value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  // WARNING: DO NOT USE THIS METHOD IF PICKLES ARE PERSISTED IN ANY WAY.
-  // It will write whatever a "long" is on this architecture. On 32-bit
-  // platforms, it is 32 bits. On 64-bit platforms, it is 64 bits. If persisted
-  // pickles are still around after upgrading to 64-bit, or if they are copied
-  // between dissimilar systems, YOUR PICKLES WILL HAVE GONE BAD.
-  bool WriteLongUsingDangerousNonPortableLessPersistableForm(long value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt16(uint16 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt32(uint32 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteInt64(int64 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt64(uint64 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteFloat(float value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteString(const std::string& value);
-  bool WriteWString(const std::wstring& value);
-  bool WriteString16(const string16& value);
+  void WriteUInt16(uint16_t value) { WritePOD(value); }
+  void WriteUInt32(uint32_t value) { WritePOD(value); }
+  void WriteInt64(int64_t value) { WritePOD(value); }
+  void WriteUInt64(uint64_t value) { WritePOD(value); }
+  void WriteFloat(float value) { WritePOD(value); }
+  void WriteDouble(double value) { WritePOD(value); }
+  void WriteString(const StringPiece& value);
+  void WriteString16(const StringPiece16& value);
   // "Data" is a blob with a length. When you read it out you will be given the
   // length. See also WriteBytes.
-  bool WriteData(const char* data, int length);
-  // "Bytes" is a blob with no length. The caller must specify the lenght both
+  void WriteData(const char* data, int length);
+  // "Bytes" is a blob with no length. The caller must specify the length both
   // when reading and writing. It is normally used to serialize PoD types of a
   // known size. See also WriteData.
-  bool WriteBytes(const void* data, int data_len);
+  void WriteBytes(const void* data, int length);
 
-  // Same as WriteData, but allows the caller to write directly into the
-  // Pickle. This saves a copy in cases where the data is not already
-  // available in a buffer. The caller should take care to not write more
-  // than the length it declares it will. Use ReadData to get the data.
-  // Returns NULL on failure.
-  //
-  // The returned pointer will only be valid until the next write operation
-  // on this Pickle.
-  char* BeginWriteData(int length);
+  // WriteAttachment appends |attachment| to the pickle. It returns
+  // false iff the set is full or if the Pickle implementation does not support
+  // attachments.
+  virtual bool WriteAttachment(scoped_refptr<Attachment> attachment);
 
-  // For Pickles which contain variable length buffers (e.g. those created
-  // with BeginWriteData), the Pickle can
-  // be 'trimmed' if the amount of data required is less than originally
-  // requested.  For example, you may have created a buffer with 10K of data,
-  // but decided to only fill 10 bytes of that data.  Use this function
-  // to trim the buffer so that we don't send 9990 bytes of unused data.
-  // You cannot increase the size of the variable buffer; only shrink it.
-  // This function assumes that the length of the variable buffer has
-  // not been changed.
-  void TrimWriteData(int length);
+  // ReadAttachment parses an attachment given the parsing state |iter| and
+  // writes it to |*attachment|. It returns true on success.
+  virtual bool ReadAttachment(base::PickleIterator* iter,
+                              scoped_refptr<Attachment>* attachment) const;
+
+  // Indicates whether the pickle has any attachments.
+  virtual bool HasAttachments() const;
+
+  // Reserves space for upcoming writes when multiple writes will be made and
+  // their sizes are computed in advance. It can be significantly faster to call
+  // Reserve() before calling WriteFoo() multiple times.
+  void Reserve(size_t additional_capacity);
 
   // Payload follows after allocation of Header (header size is customizable).
   struct Header {
-    uint32 payload_size;  // Specifies the size of the payload.
+    uint32_t payload_size;  // Specifies the size of the payload.
   };
 
   // Returns the header, cast to a user-specified type T.  The type T must be a
@@ -277,58 +245,62 @@ class BASE_EXPORT Pickle {
   }
 
   // The payload is the pickle data immediately following the header.
-  size_t payload_size() const { return header_->payload_size; }
+  size_t payload_size() const {
+    return header_ ? header_->payload_size : 0;
+  }
+
   const char* payload() const {
     return reinterpret_cast<const char*>(header_) + header_size_;
   }
 
- protected:
-  char* payload() {
-    return reinterpret_cast<char*>(header_) + header_size_;
-  }
-
   // Returns the address of the byte immediately following the currently valid
   // header + payload.
-  char* end_of_payload() {
-    // We must have a valid header_.
-    return payload() + payload_size();
-  }
   const char* end_of_payload() const {
     // This object may be invalid.
     return header_ ? payload() + payload_size() : NULL;
   }
 
-  size_t capacity() const {
-    return capacity_;
+ protected:
+  // Returns size of the header, which can have default value, set by user or
+  // calculated by passed raw data.
+  size_t header_size() const { return header_size_; }
+
+  char* mutable_payload() {
+    return reinterpret_cast<char*>(header_) + header_size_;
   }
 
-  // Resizes the buffer for use when writing the specified amount of data. The
-  // location that the data should be written at is returned, or NULL if there
-  // was an error. Call EndWrite with the returned offset and the given length
-  // to pad out for the next write.
-  char* BeginWrite(size_t length);
-
-  // Completes the write operation by padding the data with NULL bytes until it
-  // is padded. Should be paired with BeginWrite, but it does not necessarily
-  // have to be called after the data is written.
-  void EndWrite(char* dest, int length);
-
-  // Resize the capacity, note that the input value should include the size of
-  // the header: new_capacity = sizeof(Header) + desired_payload_capacity.
-  // A realloc() failure will cause a Resize failure... and caller should check
-  // the return result for true (i.e., successful resizing).
-  bool Resize(size_t new_capacity);
-
-  // Aligns 'i' by rounding it up to the next multiple of 'alignment'
-  static size_t AlignInt(size_t i, int alignment) {
-    return i + (alignment - (i % alignment)) % alignment;
+  size_t capacity_after_header() const {
+    return capacity_after_header_;
   }
+
+  // Resize the capacity, note that the input value should not include the size
+  // of the header.
+  void Resize(size_t new_capacity);
+
+  // Claims |num_bytes| bytes of payload. This is similar to Reserve() in that
+  // it may grow the capacity, but it also advances the write offset of the
+  // pickle by |num_bytes|. Claimed memory, including padding, is zeroed.
+  //
+  // Returns the address of the first byte claimed.
+  void* ClaimBytes(size_t num_bytes);
 
   // Find the end of the pickled data that starts at range_start.  Returns NULL
   // if the entire Pickle is not found in the given data range.
   static const char* FindNext(size_t header_size,
                               const char* range_start,
                               const char* range_end);
+
+  // Parse pickle header and return total size of the pickle. Data range
+  // doesn't need to contain entire pickle.
+  // Returns true if pickle header was found and parsed. Callers must check
+  // returned |pickle_size| for sanity (against maximum message size, etc).
+  // NOTE: when function successfully parses a header, but encounters an
+  // overflow during pickle size calculation, it sets |pickle_size| to the
+  // maximum size_t value and returns true.
+  static bool PeekNext(size_t header_size,
+                       const char* range_start,
+                       const char* range_end,
+                       size_t* pickle_size);
 
   // The allocation granularity of the payload.
   static const int kPayloadUnit;
@@ -338,13 +310,34 @@ class BASE_EXPORT Pickle {
 
   Header* header_;
   size_t header_size_;  // Supports extra data between header and payload.
-  // Allocation size of payload (or -1 if allocation is const).
-  size_t capacity_;
-  size_t variable_buffer_offset_;  // IF non-zero, then offset to a buffer.
+  // Allocation size of payload (or -1 if allocation is const). Note: this
+  // doesn't count the header.
+  size_t capacity_after_header_;
+  // The offset at which we will write the next field. Note: this doesn't count
+  // the header.
+  size_t write_offset_;
 
+  // Just like WriteBytes, but with a compile-time size, for performance.
+  template<size_t length> void BASE_EXPORT WriteBytesStatic(const void* data);
+
+  // Writes a POD by copying its bytes.
+  template <typename T> bool WritePOD(const T& data) {
+    WriteBytesStatic<sizeof(data)>(&data);
+    return true;
+  }
+
+  inline void* ClaimUninitializedBytesInternal(size_t num_bytes);
+  inline void WriteBytesCommon(const void* data, size_t length);
+
+  FRIEND_TEST_ALL_PREFIXES(PickleTest, DeepCopyResize);
   FRIEND_TEST_ALL_PREFIXES(PickleTest, Resize);
+  FRIEND_TEST_ALL_PREFIXES(PickleTest, PeekNext);
+  FRIEND_TEST_ALL_PREFIXES(PickleTest, PeekNextOverflow);
   FRIEND_TEST_ALL_PREFIXES(PickleTest, FindNext);
   FRIEND_TEST_ALL_PREFIXES(PickleTest, FindNextWithIncompleteHeader);
+  FRIEND_TEST_ALL_PREFIXES(PickleTest, FindNextOverflow);
 };
 
-#endif  // BASE_PICKLE_H__
+}  // namespace base
+
+#endif  // BASE_PICKLE_H_

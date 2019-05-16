@@ -14,7 +14,7 @@
 
 #include "cobalt/layout/initial_containing_block.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/integer_value.h"
@@ -33,7 +33,7 @@ namespace layout {
 // copied.
 bool PropagateBackgroundStyleAndTestIfChanged(
     const scoped_refptr<dom::HTMLElement>& element,
-    scoped_refptr<cssom::CSSComputedStyleData> destination_style) {
+    scoped_refptr<cssom::MutableCSSComputedStyleData> destination_style) {
   if (!element || !element->computed_style() ||
       element->computed_style()->display() == cssom::KeywordValue::GetNone()) {
     return false;
@@ -80,8 +80,8 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
   InitialContainingBlockCreationResults results;
   results.background_style_source = NULL;
 
-  scoped_refptr<cssom::CSSComputedStyleData> initial_containing_block_style =
-      new cssom::CSSComputedStyleData();
+  scoped_refptr<cssom::MutableCSSComputedStyleData>
+      initial_containing_block_style = new cssom::MutableCSSComputedStyleData();
   initial_containing_block_style->AssignFrom(
       default_initial_containing_block_style);
 
@@ -103,7 +103,7 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
   initial_style_state->SetData(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
 
-  results.box = make_scoped_refptr(new BlockLevelBlockContainerBox(
+  results.box = base::WrapRefCounted(new BlockLevelBlockContainerBox(
       initial_style_state, kLeftToRightBaseDirection, used_style_provider,
       layout_stat_tracker));
 

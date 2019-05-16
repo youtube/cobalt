@@ -48,7 +48,7 @@ class PixelTest : public testing::Test {
   }
 
  private:
-  base::optional<RenderTreePixelTester> pixel_tester_;
+  base::Optional<RenderTreePixelTester> pixel_tester_;
   math::Size output_surface_size_;
 };
 

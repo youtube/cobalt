@@ -24,8 +24,8 @@ namespace dom {
 
 namespace {
 
-scoped_refptr<base::Clock> CreateOffsetClock(Document* document,
-                                             double origin_time) {
+scoped_refptr<base::BasicClock> CreateOffsetClock(Document* document,
+                                                  double origin_time) {
   return document->navigation_start_clock() ?
       new base::OffsetClock(
         document->navigation_start_clock(),
@@ -44,7 +44,7 @@ dom::Document* DocumentFromEnvironmentSettings(
     script::EnvironmentSettings* settings) {
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  return dom_settings->window()->document();
+  return dom_settings->window()->document().get();
 }
 }  // namespace
 

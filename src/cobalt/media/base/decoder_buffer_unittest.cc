@@ -8,7 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ptr_util.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"

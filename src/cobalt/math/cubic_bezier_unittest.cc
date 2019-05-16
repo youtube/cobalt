@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "cobalt/math/cubic_bezier.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -72,7 +73,7 @@ TEST(CubicBezierTest, Range) {
   double min, max;
 
   // Derivative is a constant.
-  scoped_ptr<CubicBezier> function(
+  std::unique_ptr<CubicBezier> function(
       new CubicBezier(0.25, (1.0 / 3.0), 0.75, (2.0 / 3.0)));
   function->Range(&min, &max);
   EXPECT_EQ(0, min);

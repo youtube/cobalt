@@ -16,9 +16,8 @@
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
-#include "base/time.h"
+#include "base/message_loop/message_loop.h"
+#include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/demuxer_helper.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
@@ -62,15 +61,15 @@ class VideoDecoderSandbox {
     demuxer_ = demuxer;
 #if defined(__LB_LINUX__)
     decoder_ = new ShellVideoDecoderImpl(
-        base::MessageLoopProxy::current(),
+        base::MessageLoop::current()->task_runner(),
         base::Bind(::media::CreateShellRawVideoDecoderLinux));
 #elif defined(__LB_PS3__)
     decoder_ = new ShellVideoDecoderImpl(
-        base::MessageLoopProxy::current(),
+        base::MessageLoop::current()->task_runner(),
         base::Bind(::media::CreateShellRawVideoDecoderPS3));
 #else
     decoder_ = new ShellVideoDecoderImpl(
-        base::MessageLoopProxy::current(),
+        base::MessageLoop::current()->task_runner(),
         base::Bind(::media::CreateShellRawVideoDecoderStub));
 #endif
     decoder_->Initialize(
@@ -80,7 +79,7 @@ class VideoDecoderSandbox {
   }
 
   scoped_refptr<Image> GetCurrentFrame(const base::TimeDelta& time) {
-    UNREFERENCED_PARAMETER(time);
+    SB_UNREFERENCED_PARAMETER(time);
 
     return current_frame_
                ? reinterpret_cast<Image*>(current_frame_->texture_id())
@@ -95,8 +94,8 @@ class VideoDecoderSandbox {
     if (frame) {
       if (frame->IsEndOfStream()) {
         current_frame_ = NULL;
-        decoder_->Stop(
-            Bind(&Demuxer::Stop, demuxer_, MessageLoop::QuitWhenIdleClosure()));
+        decoder_->Stop(Bind(&Demuxer::Stop, demuxer_,
+                            base::MessageLoop::QuitWhenIdleClosure()));
         return;
       } else {
         current_frame_ = frame;
@@ -125,16 +124,17 @@ int SandboxMain(int argc, char** argv) {
 
   MediaSandbox media_sandbox(
       argc, argv,
-      FilePath(FILE_PATH_LITERAL("video_decoder_sandbox_trace.json")));
+      base::FilePath(FILE_PATH_LITERAL("video_decoder_sandbox_trace.json")));
   VideoDecoderSandbox decoder_sandbox;
   DemuxerHelper demuxer_helper(
-      base::MessageLoopProxy::current(), media_sandbox.GetFetcherFactory(),
-      video_url, BindToCurrentLoop(Bind(&VideoDecoderSandbox::SetDemuxer,
-                                        Unretained(&decoder_sandbox))));
+      base::MessageLoop::current()->task_runner(),
+      media_sandbox.GetFetcherFactory(), video_url,
+      BindToCurrentLoop(Bind(&VideoDecoderSandbox::SetDemuxer,
+                             Unretained(&decoder_sandbox))));
 
   media_sandbox.RegisterFrameCB(Bind(&VideoDecoderSandbox::GetCurrentFrame,
                                      Unretained(&decoder_sandbox)));
-  MessageLoop::current()->Run();
+  base::MessageLoop::current()->Run();
 
   LOG(INFO) << "Video playback finished successfully.";
 

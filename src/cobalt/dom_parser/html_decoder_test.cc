@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/dom_parser/html_decoder.h"
 
 #include "base/callback.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/attr.h"
@@ -40,9 +42,9 @@ namespace dom_parser {
 const int kDOMMaxElementDepth = 32;
 
 class MockLoadCompleteCallback
-    : public base::Callback<void(const base::optional<std::string>&)> {
+    : public base::Callback<void(const base::Optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
+  MOCK_METHOD1(Run, void(const base::Optional<std::string>&));
 };
 
 class HTMLDecoderTest : public ::testing::Test {
@@ -52,23 +54,23 @@ class HTMLDecoderTest : public ::testing::Test {
 
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
-  scoped_ptr<Parser> dom_parser_;
+  std::unique_ptr<Parser> dom_parser_;
   dom::testing::StubCSSParser stub_css_parser_;
   dom::testing::StubScriptRunner stub_script_runner_;
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
   scoped_refptr<dom::Element> root_;
   base::SourceLocation source_location_;
   MockLoadCompleteCallback mock_load_complete_callback_;
-  scoped_ptr<HTMLDecoder> html_decoder_;
-  MessageLoop message_loop_;
+  std::unique_ptr<HTMLDecoder> html_decoder_;
+  base::MessageLoop message_loop_;
 };
 
 HTMLDecoderTest::HTMLDecoderTest()
     : fetcher_factory_(NULL /* network_module */),
       loader_factory_(&fetcher_factory_, NULL /* ResourceProvider */,
-                      base::kThreadPriority_Default),
+                      base::ThreadPriority::DEFAULT),
       dom_parser_(new Parser()),
       dom_stat_tracker_(new dom::DomStatTracker("HTMLDecoderTest")),
       html_element_context_(

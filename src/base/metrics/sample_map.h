@@ -9,57 +9,39 @@
 #define BASE_METRICS_SAMPLE_MAP_H_
 
 #include <map>
+#include <memory>
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
+#include "starboard/types.h"
 
 namespace base {
 
-class BASE_EXPORT_PRIVATE SampleMap : public HistogramSamples {
+// The logic here is similar to that of PersistentSampleMap but with different
+// data structures. Changes here likely need to be duplicated there.
+class BASE_EXPORT SampleMap : public HistogramSamples {
  public:
   SampleMap();
-  virtual ~SampleMap();
+  explicit SampleMap(uint64_t id);
+  ~SampleMap() override;
 
-  // HistogramSamples implementation:
-  virtual void Accumulate(HistogramBase::Sample value,
-                          HistogramBase::Count count) override;
-  virtual HistogramBase::Count GetCount(
-      HistogramBase::Sample value) const override;
-  virtual HistogramBase::Count TotalCount() const override;
-  virtual scoped_ptr<SampleCountIterator> Iterator() const override;
-
-  void ResetRedundantCount(HistogramBase::Count count);
+  // HistogramSamples:
+  void Accumulate(HistogramBase::Sample value,
+                  HistogramBase::Count count) override;
+  HistogramBase::Count GetCount(HistogramBase::Sample value) const override;
+  HistogramBase::Count TotalCount() const override;
+  std::unique_ptr<SampleCountIterator> Iterator() const override;
 
  protected:
-  virtual bool AddSubtractImpl(
-      SampleCountIterator* iter,
-      HistogramSamples::Operator op) override;  // |op| is ADD or SUBTRACT.
+  // Performs arithemetic. |op| is ADD or SUBTRACT.
+  bool AddSubtractImpl(SampleCountIterator* iter, Operator op) override;
 
  private:
   std::map<HistogramBase::Sample, HistogramBase::Count> sample_counts_;
 
   DISALLOW_COPY_AND_ASSIGN(SampleMap);
-};
-
-class BASE_EXPORT_PRIVATE SampleMapIterator : public SampleCountIterator {
- public:
-  typedef std::map<HistogramBase::Sample, HistogramBase::Count>
-      SampleToCountMap;
-
-  SampleMapIterator(const SampleToCountMap& sample_counts);
-  virtual ~SampleMapIterator();
-
-  // SampleCountIterator implementation:
-  virtual bool Done() const override;
-  virtual void Next() override;
-  virtual void Get(HistogramBase::Sample* min,
-                   HistogramBase::Sample* max,
-                   HistogramBase::Count* count) const override;
- private:
-  SampleToCountMap::const_iterator iter_;
-  const SampleToCountMap::const_iterator end_;
 };
 
 }  // namespace base

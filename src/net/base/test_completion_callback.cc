@@ -7,8 +7,8 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
-#include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/run_loop.h"
+#include "net/base/io_buffer.h"
 
 namespace net {
 
@@ -16,41 +16,60 @@ namespace internal {
 
 void TestCompletionCallbackBaseInternal::DidSetResult() {
   have_result_ = true;
-  if (waiting_for_result_)
-    MessageLoop::current()->Quit();
+  if (run_loop_)
+    run_loop_->Quit();
 }
 
 void TestCompletionCallbackBaseInternal::WaitForResult() {
-  DCHECK(!waiting_for_result_);
-  while (!have_result_) {
-    waiting_for_result_ = true;
-    MessageLoop::current()->Run();
-    waiting_for_result_ = false;
+  DCHECK(!run_loop_);
+  if (!have_result_) {
+    run_loop_.reset(new base::RunLoop());
+    run_loop_->Run();
+    run_loop_.reset();
+    DCHECK(have_result_);
   }
   have_result_ = false;  // Auto-reset for next callback.
 }
 
 TestCompletionCallbackBaseInternal::TestCompletionCallbackBaseInternal()
-    : have_result_(false),
-      waiting_for_result_(false) {
+    : have_result_(false) {
 }
+
+TestCompletionCallbackBaseInternal::~TestCompletionCallbackBaseInternal() =
+    default;
 
 }  // namespace internal
 
-TestCompletionCallback::TestCompletionCallback()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
-        base::Bind(&TestCompletionCallback::SetResult,
-                   base::Unretained(this)))) {
+TestClosure::TestClosure()
+    : closure_(base::Bind(&TestClosure::DidSetResult, base::Unretained(this))) {
 }
 
-TestCompletionCallback::~TestCompletionCallback() {}
+TestClosure::~TestClosure() = default;
+
+TestCompletionCallback::TestCompletionCallback()
+    : callback_(base::Bind(&TestCompletionCallback::SetResult,
+                           base::Unretained(this))) {
+}
+
+TestCompletionCallback::~TestCompletionCallback() = default;
 
 TestInt64CompletionCallback::TestInt64CompletionCallback()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
-        base::Bind(&TestInt64CompletionCallback::SetResult,
-                   base::Unretained(this)))) {
+    : callback_(base::Bind(&TestInt64CompletionCallback::SetResult,
+                           base::Unretained(this))) {
 }
 
-TestInt64CompletionCallback::~TestInt64CompletionCallback() {}
+TestInt64CompletionCallback::~TestInt64CompletionCallback() = default;
+
+ReleaseBufferCompletionCallback::ReleaseBufferCompletionCallback(
+    IOBuffer* buffer) : buffer_(buffer) {
+}
+
+ReleaseBufferCompletionCallback::~ReleaseBufferCompletionCallback() = default;
+
+void ReleaseBufferCompletionCallback::SetResult(int result) {
+  if (!buffer_->HasOneRef())
+    result = ERR_FAILED;
+  TestCompletionCallback::SetResult(result);
+}
 
 }  // namespace net

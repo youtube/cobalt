@@ -6,8 +6,10 @@
 
 #include <algorithm>
 
-#include "base/memory/aligned_memory.h"
 #include "base/memory/ref_counted.h"
+#include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -77,7 +79,6 @@ TEST(StackContainer, Vector) {
 TEST(StackContainer, VectorDoubleDelete) {
   // Regression testing for double-delete.
   typedef StackVector<scoped_refptr<Dummy>, 2> Vector;
-  typedef Vector::ContainerType Container;
   Vector vect;
 
   int alive = 0;
@@ -88,10 +89,10 @@ TEST(StackContainer, VectorDoubleDelete) {
   EXPECT_EQ(alive, 1);
 
   Dummy* dummy_unref = dummy.get();
-  dummy = NULL;
+  dummy = nullptr;
   EXPECT_EQ(alive, 1);
 
-  Container::iterator itr = std::find(vect->begin(), vect->end(), dummy_unref);
+  auto itr = std::find(vect->begin(), vect->end(), dummy_unref);
   EXPECT_EQ(itr->get(), dummy_unref);
   vect->erase(itr);
   EXPECT_EQ(alive, 0);
@@ -104,9 +105,9 @@ namespace {
 template <size_t alignment>
 class AlignedData {
  public:
-  AlignedData() { memset(data_.void_data(), 0, alignment); }
-  ~AlignedData() {}
-  base::AlignedMemory<alignment, alignment> data_;
+  AlignedData() { SbMemorySet(data_, 0, alignment); }
+  ~AlignedData() = default;
+  alignas(alignment) char data_[alignment];
 };
 
 }  // anonymous namespace
@@ -117,21 +118,26 @@ class AlignedData {
 TEST(StackContainer, BufferAlignment) {
   StackVector<wchar_t, 16> text;
   text->push_back(L'A');
-  EXPECT_ALIGNED(&text[0], ALIGNOF(wchar_t));
+  EXPECT_ALIGNED(&text[0], alignof(wchar_t));
 
   StackVector<double, 1> doubles;
   doubles->push_back(0.0);
-  EXPECT_ALIGNED(&doubles[0], ALIGNOF(double));
+  EXPECT_ALIGNED(&doubles[0], alignof(double));
 
   StackVector<AlignedData<16>, 1> aligned16;
   aligned16->push_back(AlignedData<16>());
   EXPECT_ALIGNED(&aligned16[0], 16);
 
-#if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
+#ifndef STARBOARD
+#if !defined(__GNUC__) || defined(ARCH_CPU_X86_FAMILY)
+  // It seems that non-X86 gcc doesn't respect greater than 16 byte alignment.
+  // See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=33721 for details.
+  // TODO(sbc):re-enable this if GCC starts respecting higher alignments.
   StackVector<AlignedData<256>, 1> aligned256;
   aligned256->push_back(AlignedData<256>());
   EXPECT_ALIGNED(&aligned256[0], 256);
-#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
+#endif
+#endif  // STARBOARD
 }
 
 template class StackVector<int, 2>;

@@ -6,7 +6,7 @@
 #define COBALT_MEDIA_BASE_TIME_DELTA_INTERPOLATOR_H_
 
 #include "base/basictypes.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/media_export.h"
 
 namespace base {

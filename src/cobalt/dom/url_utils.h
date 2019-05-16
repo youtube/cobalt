@@ -19,7 +19,7 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/origin.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {

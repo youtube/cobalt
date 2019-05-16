@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/generic_event_handler_reference.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
 
@@ -59,7 +59,7 @@ void GenericEventHandlerReference::HandleEvent(
   TRACE_EVENT1("cobalt::dom", "GenericEventHandlerReference::HandleEvent",
                "Event Name", TRACE_STR_COPY(event->type().c_str()));
   bool had_exception;
-  base::optional<bool> result;
+  base::Optional<bool> result;
 
   // Forward the HandleEvent() call to the appropriate internal object.
   if (event_listener_reference_) {

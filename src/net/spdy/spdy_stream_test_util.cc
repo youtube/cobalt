@@ -4,7 +4,10 @@
 
 #include "net/spdy/spdy_stream_test_util.h"
 
-#include "net/base/completion_callback.h"
+#include <cstddef>
+#include <utility>
+
+#include "base/stl_util.h"
 #include "net/spdy/spdy_stream.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -12,76 +15,152 @@ namespace net {
 
 namespace test {
 
-TestSpdyStreamDelegate::TestSpdyStreamDelegate(
-    SpdyStream* stream,
-    SpdyHeaderBlock* headers,
-    IOBufferWithSize* buf,
-    const CompletionCallback& callback)
+ClosingDelegate::ClosingDelegate(
+    const base::WeakPtr<SpdyStream>& stream) : stream_(stream) {
+  DCHECK(stream_);
+}
+
+ClosingDelegate::~ClosingDelegate() = default;
+
+void ClosingDelegate::OnHeadersSent() {}
+
+void ClosingDelegate::OnHeadersReceived(
+    const spdy::SpdyHeaderBlock& response_headers,
+    const spdy::SpdyHeaderBlock* pushed_request_headers) {}
+
+void ClosingDelegate::OnDataReceived(std::unique_ptr<SpdyBuffer> buffer) {}
+
+void ClosingDelegate::OnDataSent() {}
+
+void ClosingDelegate::OnTrailers(const spdy::SpdyHeaderBlock& trailers) {}
+
+void ClosingDelegate::OnClose(int status) {
+  DCHECK(stream_);
+  stream_->Close();
+  // The |stream_| may still be alive (if it is our delegate).
+}
+
+NetLogSource ClosingDelegate::source_dependency() const {
+  return NetLogSource();
+}
+
+StreamDelegateBase::StreamDelegateBase(
+    const base::WeakPtr<SpdyStream>& stream)
     : stream_(stream),
-      headers_(headers),
-      buf_(buf),
-      callback_(callback),
-      send_headers_completed_(false),
-      response_(new SpdyHeaderBlock),
-      headers_sent_(0),
-      data_sent_(0),
-      closed_(false) {
+      stream_id_(0),
+      send_headers_completed_(false) {
 }
 
-TestSpdyStreamDelegate::~TestSpdyStreamDelegate() {
-}
+StreamDelegateBase::~StreamDelegateBase() = default;
 
-bool TestSpdyStreamDelegate::OnSendHeadersComplete(int status) {
+void StreamDelegateBase::OnHeadersSent() {
+  stream_id_ = stream_->stream_id();
+  EXPECT_NE(stream_id_, 0u);
   send_headers_completed_ = true;
-  return true;
 }
 
-int TestSpdyStreamDelegate::OnSendBody() {
-  ADD_FAILURE() << "OnSendBody should not be called";
-  return ERR_UNEXPECTED;
-}
-int TestSpdyStreamDelegate::OnSendBodyComplete(int /*status*/, bool* /*eof*/) {
-  ADD_FAILURE() << "OnSendBodyComplete should not be called";
-  return ERR_UNEXPECTED;
+void StreamDelegateBase::OnHeadersReceived(
+    const spdy::SpdyHeaderBlock& response_headers,
+    const spdy::SpdyHeaderBlock* pushed_request_headers) {
+  EXPECT_EQ(stream_->type() != SPDY_PUSH_STREAM, send_headers_completed_);
+  response_headers_ = response_headers.Clone();
 }
 
-int TestSpdyStreamDelegate::OnResponseReceived(const SpdyHeaderBlock& response,
-                                               base::Time response_time,
-                                               int status) {
-  EXPECT_TRUE(send_headers_completed_);
-  *response_ = response;
-  if (headers_.get()) {
-    EXPECT_EQ(ERR_IO_PENDING,
-              stream_->WriteHeaders(headers_.release()));
+void StreamDelegateBase::OnDataReceived(std::unique_ptr<SpdyBuffer> buffer) {
+  if (buffer)
+    received_data_queue_.Enqueue(std::move(buffer));
+}
+
+void StreamDelegateBase::OnDataSent() {}
+
+void StreamDelegateBase::OnTrailers(const spdy::SpdyHeaderBlock& trailers) {}
+
+void StreamDelegateBase::OnClose(int status) {
+  if (!stream_.get())
+    return;
+  stream_id_ = stream_->stream_id();
+  stream_.reset();
+  callback_.callback().Run(status);
+}
+
+NetLogSource StreamDelegateBase::source_dependency() const {
+  return NetLogSource();
+}
+
+int StreamDelegateBase::WaitForClose() {
+  int result = callback_.WaitForResult();
+  EXPECT_TRUE(!stream_.get());
+  return result;
+}
+
+std::string StreamDelegateBase::TakeReceivedData() {
+  size_t len = received_data_queue_.GetTotalSize();
+  std::string received_data(len, '\0');
+  if (len > 0) {
+    EXPECT_EQ(len,
+              received_data_queue_.Dequeue(base::data(received_data), len));
   }
-  if (buf_) {
-    EXPECT_EQ(ERR_IO_PENDING,
-              stream_->WriteStreamData(buf_.get(), buf_->size(),
-                                       DATA_FLAG_NONE));
+  return received_data;
+}
+
+std::string StreamDelegateBase::GetResponseHeaderValue(
+    const std::string& name) const {
+  spdy::SpdyHeaderBlock::const_iterator it = response_headers_.find(name);
+  return (it == response_headers_.end()) ? std::string()
+                                         : it->second.as_string();
+}
+
+StreamDelegateDoNothing::StreamDelegateDoNothing(
+    const base::WeakPtr<SpdyStream>& stream)
+    : StreamDelegateBase(stream) {}
+
+StreamDelegateDoNothing::~StreamDelegateDoNothing() = default;
+
+StreamDelegateSendImmediate::StreamDelegateSendImmediate(
+    const base::WeakPtr<SpdyStream>& stream,
+    base::StringPiece data)
+    : StreamDelegateBase(stream), data_(data) {}
+
+StreamDelegateSendImmediate::~StreamDelegateSendImmediate() = default;
+
+void StreamDelegateSendImmediate::OnHeadersReceived(
+    const spdy::SpdyHeaderBlock& response_headers,
+    const spdy::SpdyHeaderBlock* pushed_request_headers) {
+  StreamDelegateBase::OnHeadersReceived(response_headers,
+                                        pushed_request_headers);
+  if (data_.data()) {
+    scoped_refptr<StringIOBuffer> buf =
+        base::MakeRefCounted<StringIOBuffer>(data_.as_string());
+    stream()->SendData(buf.get(), buf->size(), MORE_DATA_TO_SEND);
   }
-  return status;
 }
 
-void TestSpdyStreamDelegate::OnHeadersSent() {
-  headers_sent_++;
+StreamDelegateWithBody::StreamDelegateWithBody(
+    const base::WeakPtr<SpdyStream>& stream,
+    base::StringPiece data)
+    : StreamDelegateBase(stream),
+      buf_(base::MakeRefCounted<StringIOBuffer>(data.as_string())) {}
+
+StreamDelegateWithBody::~StreamDelegateWithBody() = default;
+
+void StreamDelegateWithBody::OnHeadersSent() {
+  StreamDelegateBase::OnHeadersSent();
+  stream()->SendData(buf_.get(), buf_->size(), NO_MORE_DATA_TO_SEND);
 }
 
-int TestSpdyStreamDelegate::OnDataReceived(const char* buffer, int bytes) {
-  received_data_ += std::string(buffer, bytes);
-  return OK;
+StreamDelegateCloseOnHeaders::StreamDelegateCloseOnHeaders(
+    const base::WeakPtr<SpdyStream>& stream)
+    : StreamDelegateBase(stream) {
 }
 
-void TestSpdyStreamDelegate::OnDataSent(int length) {
-  data_sent_ += length;
+StreamDelegateCloseOnHeaders::~StreamDelegateCloseOnHeaders() = default;
+
+void StreamDelegateCloseOnHeaders::OnHeadersReceived(
+    const spdy::SpdyHeaderBlock& response_headers,
+    const spdy::SpdyHeaderBlock* pushed_request_headers) {
+  stream()->Cancel(ERR_ABORTED);
 }
 
-void TestSpdyStreamDelegate::OnClose(int status) {
-  closed_ = true;
-  CompletionCallback callback = callback_;
-  callback_.Reset();
-  callback.Run(OK);
-}
+}  // namespace test
 
-} // namespace test
-
-} // namespace net
+}  // namespace net

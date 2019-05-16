@@ -17,12 +17,12 @@
 #include "net/base/net_errors.h"
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "starboard/system.h"
 
 namespace net {
 
-Error MapSystemError(SbSystemError error) {
+Error MapSystemError(logging::SystemErrorCode error) {
   if (error != 0) {
     char error_string[256];
     SbSystemGetErrorString(error, error_string, sizeof(error_string));

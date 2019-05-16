@@ -15,11 +15,12 @@
 #include "cobalt/script/mozjs-45/mozjs_engine.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
@@ -194,8 +195,7 @@ HeapStatistics MozjsEngine::GetHeapStatistics() {
   DCHECK(thread_checker_.CalledOnValidThread());
   // There is unfortunately no easy way to get used vs total in SpiderMonkey,
   // so just return total bytes allocated for both.
-  size_t total_heap_size =
-      MemoryAllocatorReporter::Get()->GetTotalHeapSize();
+  size_t total_heap_size = MemoryAllocatorReporter::Get()->GetTotalHeapSize();
   return {total_heap_size, total_heap_size};
 }
 
@@ -252,10 +252,10 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
 }  // namespace mozjs
 
 // static
-scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
+std::unique_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
-  return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(options));
+  return std::unique_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(options));
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {

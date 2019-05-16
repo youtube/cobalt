@@ -30,8 +30,8 @@ namespace cobalt {
 namespace dom {
 namespace {
 
-const scoped_refptr<Node> kNullNode;
-const scoped_refptr<HTMLCollection> kNullCollection;
+const scoped_refptr<Node> kNullNode{};
+const scoped_refptr<HTMLCollection> kNullCollection{};
 
 // Helper function that validates that the children of the given node are
 // identical to the provided expected array.
@@ -130,7 +130,7 @@ TEST_F(NodeTest, AppendChild) {
   ASSERT_TRUE(child2);
 
   // Properly handle NULL input.
-  EXPECT_EQ(NULL, root->AppendChild(NULL));
+  EXPECT_EQ(NULL, root->AppendChild(NULL).get());
 
   scoped_refptr<Node> children[] = {child1, child2};
   ExpectNodeChildrenEq(children, root);
@@ -189,10 +189,11 @@ TEST_F(NodeTest, InsertBefore) {
   ASSERT_TRUE(child2);
 
   // Properly handle NULL input.
-  EXPECT_EQ(NULL, root->InsertBefore(NULL, NULL));
+  EXPECT_EQ(NULL, root->InsertBefore(NULL, NULL).get());
   // Properly handle a reference node that is not a child of root.
-  EXPECT_EQ(NULL,
-            root->InsertBefore(new Element(document_), new Element(document_)));
+  EXPECT_EQ(
+      NULL,
+      root->InsertBefore(new Element(document_), new Element(document_)).get());
 
   scoped_refptr<Node> children[] = {child1, child2, child3};
   ExpectNodeChildrenEq(children, root);
@@ -242,9 +243,9 @@ TEST_F(NodeTest, RemoveChild) {
   EXPECT_TRUE(root->RemoveChild(child3));
 
   // Properly handle NULL input.
-  EXPECT_EQ(NULL, root->RemoveChild(NULL));
+  EXPECT_EQ(NULL, root->RemoveChild(NULL).get());
   // Properly handle a node that is not a child of root.
-  EXPECT_EQ(NULL, root->RemoveChild(child1));
+  EXPECT_EQ(NULL, root->RemoveChild(child1).get());
 
   scoped_refptr<Node> children[] = {child2};
   ExpectNodeChildrenEq(children, root);

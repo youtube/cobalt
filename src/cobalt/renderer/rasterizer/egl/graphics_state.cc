@@ -26,18 +26,11 @@ namespace egl {
 
 namespace {
 
-void GLViewport(const math::Rect& viewport, const math::Size& target_size) {
+math::Rect ToGLRect(int x, int y, int width, int height,
+                    const math::Size& target_size) {
   // Incoming origin is top-left, but GL origin is bottom-left, so flip
   // vertically.
-  GL_CALL(glViewport(viewport.x(), target_size.height() - viewport.bottom(),
-                     viewport.width(), viewport.height()));
-}
-
-void GLScissor(const math::Rect& scissor, const math::Size& target_size) {
-  // Incoming origin is top-left, but GL origin is bottom-left, so flip
-  // vertically.
-  GL_CALL(glScissor(scissor.x(), target_size.height() - scissor.bottom(),
-                    scissor.width(), scissor.height()));
+  return math::Rect(x, target_size.height() - (y + height), width, height);
 }
 
 }  // namespace
@@ -119,9 +112,7 @@ void GraphicsState::EndFrame() {
   SetDirty();
 }
 
-void GraphicsState::Clear() {
-  Clear(0.0f, 0.0f, 0.0f, 0.0f);
-}
+void GraphicsState::Clear() { Clear(0.0f, 0.0f, 0.0f, 0.0f); }
 
 void GraphicsState::Clear(float r, float g, float b, float a) {
   if (state_dirty_) {
@@ -170,8 +161,8 @@ void GraphicsState::BindFramebuffer(
     render_target_size_.SetSize(0, 0);
     SetClipAdjustment();
   } else if (render_target->GetPlatformHandle() != render_target_handle_ ||
-      render_target->GetSerialNumber() != render_target_serial_ ||
-      render_target->GetSize() != render_target_size_) {
+             render_target->GetSerialNumber() != render_target_serial_ ||
+             render_target->GetSize() != render_target_size_) {
     render_target_handle_ = render_target->GetPlatformHandle();
     render_target_serial_ = render_target->GetSerialNumber();
     render_target_size_ = render_target->GetSize();
@@ -184,21 +175,23 @@ void GraphicsState::BindFramebuffer(
 }
 
 void GraphicsState::Viewport(int x, int y, int width, int height) {
-  if (viewport_.x() != x || viewport_.y() != y ||
-      viewport_.width() != width || viewport_.height() != height) {
-    viewport_.SetRect(x, y, width, height);
+  math::Rect new_viewport = ToGLRect(x, y, width, height, render_target_size_);
+  if (viewport_ != new_viewport) {
+    viewport_ = new_viewport;
     if (!state_dirty_) {
-      GLViewport(viewport_, render_target_size_);
+      GL_CALL(glViewport(viewport_.x(), viewport_.y(),
+                         viewport_.width(), viewport_.height()));
     }
   }
 }
 
 void GraphicsState::Scissor(int x, int y, int width, int height) {
-  if (scissor_.x() != x || scissor_.y() != y ||
-      scissor_.width() != width || scissor_.height() != height) {
-    scissor_.SetRect(x, y, width, height);
+  math::Rect new_scissor = ToGLRect(x, y, width, height, render_target_size_);
+  if (scissor_ != new_scissor) {
+    scissor_ = new_scissor;
     if (!state_dirty_) {
-      GLScissor(scissor_, render_target_size_);
+      GL_CALL(glScissor(scissor_.x(), scissor_.y(),
+                        scissor_.width(), scissor_.height()));
     }
   }
 }
@@ -239,7 +232,7 @@ void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
 }
 
 void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
-    GLuint texture, GLint texture_wrap_mode) {
+                                      GLuint texture, GLint texture_wrap_mode) {
   int texunit_index = texture_unit - GL_TEXTURE0;
 
   if (texture_unit_ != texture_unit) {
@@ -298,19 +291,17 @@ void GraphicsState::UpdateTransformMatrix(GLint handle,
                                           const math::Matrix3F& transform) {
   // Manually transpose our row-major matrix to column-major. Don't rely on
   // glUniformMatrix3fv to do it, since the driver may not support that.
-  float transpose[] = {
-    transform(0, 0), transform(1, 0), transform(2, 0),
-    transform(0, 1), transform(1, 1), transform(2, 1),
-    transform(0, 2), transform(1, 2), transform(2, 2)
-  };
+  float transpose[] = {transform(0, 0), transform(1, 0), transform(2, 0),
+                       transform(0, 1), transform(1, 1), transform(2, 1),
+                       transform(0, 2), transform(1, 2), transform(2, 2)};
   GL_CALL(glUniformMatrix3fv(handle, 1, GL_FALSE, transpose));
 }
 
 void GraphicsState::ReserveVertexData(size_t bytes) {
   DCHECK_EQ(vertex_data_allocated_, 0);
   DCHECK(!vertex_buffers_updated_);
-  vertex_data_reserved_ += bytes + (kVertexDataAlignment - 1) &
-                           ~(kVertexDataAlignment - 1);
+  vertex_data_reserved_ +=
+      bytes + (kVertexDataAlignment - 1) & ~(kVertexDataAlignment - 1);
 }
 
 uint8_t* GraphicsState::AllocateVertexData(size_t bytes) {
@@ -319,11 +310,12 @@ uint8_t* GraphicsState::AllocateVertexData(size_t bytes) {
   // Ensure the start address is aligned.
   uintptr_t start_address =
       reinterpret_cast<uintptr_t>(&vertex_data_buffer_[0]) +
-      vertex_data_allocated_ + (kVertexDataAlignment - 1) &
+          vertex_data_allocated_ + (kVertexDataAlignment - 1) &
       ~(kVertexDataAlignment - 1);
 
-  vertex_data_allocated_ = start_address -
-      reinterpret_cast<uintptr_t>(&vertex_data_buffer_[0]) + bytes;
+  vertex_data_allocated_ =
+      start_address - reinterpret_cast<uintptr_t>(&vertex_data_buffer_[0]) +
+      bytes;
 
   DCHECK_LE(vertex_data_allocated_, vertex_data_reserved_);
   return reinterpret_cast<uint8_t*>(start_address);
@@ -381,12 +373,13 @@ void GraphicsState::UpdateVertexBuffers() {
 }
 
 void GraphicsState::VertexAttribPointer(GLint index, GLint size, GLenum type,
-    GLboolean normalized, GLsizei stride, const void* client_pointer) {
-  const GLvoid* gl_pointer = reinterpret_cast<const GLvoid*>
-      (reinterpret_cast<const uint8_t*>(client_pointer) -
+                                        GLboolean normalized, GLsizei stride,
+                                        const void* client_pointer) {
+  const GLvoid* gl_pointer = reinterpret_cast<const GLvoid*>(
+      reinterpret_cast<const uint8_t*>(client_pointer) -
       &vertex_data_buffer_[0]);
-  GL_CALL(glVertexAttribPointer(index, size, type, normalized, stride,
-                                gl_pointer));
+  GL_CALL(
+      glVertexAttribPointer(index, size, type, normalized, stride, gl_pointer));
 
   // Ensure the vertex attrib array is enabled.
   const uint32_t mask = 1 << index;
@@ -415,8 +408,10 @@ void GraphicsState::Reset() {
   GL_CALL(glDisable(GL_CULL_FACE));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, render_target_handle_));
-  GLViewport(viewport_, render_target_size_);
-  GLScissor(scissor_, render_target_size_);
+  GL_CALL(glViewport(viewport_.x(), viewport_.y(),
+                     viewport_.width(), viewport_.height()));
+  GL_CALL(glScissor(scissor_.x(), scissor_.y(),
+                    scissor_.width(), scissor_.height()));
   GL_CALL(glEnable(GL_SCISSOR_TEST));
 
   array_buffer_handle_ = 0;

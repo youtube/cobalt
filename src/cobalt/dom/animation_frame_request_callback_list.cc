@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 
-#include "base/debug/trace_event.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
@@ -27,8 +27,9 @@ int32 AnimationFrameRequestCallbackList::RequestAnimationFrame(
   // Push it into our vector of frame requests and return its 1-based position
   // ((to ensure a > 0 handle value, as required by the specification) in that
   // vector as the handle.
-  frame_request_callbacks_.push_back(new FrameRequestCallbackWithCancelledFlag(
-      owner_, frame_request_callback));
+  frame_request_callbacks_.emplace_back(
+      new FrameRequestCallbackWithCancelledFlag(owner_,
+                                                frame_request_callback));
   return static_cast<int32>(frame_request_callbacks_.size());
 }
 

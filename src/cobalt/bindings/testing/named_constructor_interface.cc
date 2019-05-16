@@ -19,9 +19,10 @@ namespace bindings {
 namespace testing {
 
 base::LazyInstance< ::testing::StrictMock<
-    NamedConstructorInterface::ConstructorImplementationMock> >
-    NamedConstructorInterface::constructor_implementation_mock =
-        LAZY_INSTANCE_INITIALIZER;
+    NamedConstructorInterface::ConstructorImplementationMock> >::
+    DestructorAtExit
+        NamedConstructorInterface::constructor_implementation_mock =
+            LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace testing
 }  // namespace bindings

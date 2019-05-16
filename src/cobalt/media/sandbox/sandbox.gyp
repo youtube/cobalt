@@ -20,27 +20,33 @@
     'has_zzuf': '<!(python ../../../build/dir_exists.py ../../../third_party/zzuf)',
   },
   'targets': [
-    # This target can choose the correct media dependency.
-    {
-      'target_name': 'media',
-      'type': 'static_library',
-      'conditions': [
-        ['cobalt_media_source_2016==1', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/media2.gyp:media2',
-          ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/media.gyp:media',
-          ],
-        }],
-      ],
-    },
-
     # This target will build a sandbox application that allows for easy
     # experimentation with the media interface on any platform.  This can
     # also be useful for visually inspecting the output that the Cobalt
     # media stack is producing.
+    {
+      'target_name': 'media_sandbox',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'media2_sandbox.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
+      ],
+    },
+    {
+      'target_name': 'media_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'media_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'media_sandbox',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
     {
       'target_name': 'web_media_player_sandbox',
       'type': '<(final_executable_type)',
@@ -54,20 +60,19 @@
         'web_media_player_sandbox.cc',
       ],
       'dependencies': [
-        'media',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         # Use test data from demos to avoid keeping two copies of video files.
         '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/url/url.gyp:url',
         '<@(cobalt_platform_dependencies)',
       ],
     },
-
     {
       'target_name': 'web_media_player_sandbox_deploy',
       'type': 'none',
@@ -79,123 +84,5 @@
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
-  ],
-  'conditions': [
-    ['sb_media_platform == "starboard" and cobalt_media_source_2016==1', {
-      'targets': [
-        {
-          'target_name': 'media2_sandbox',
-          'type': '<(final_executable_type)',
-          'sources': [
-            'media2_sandbox.cc',
-          ],
-          'dependencies': [
-            '<(DEPTH)/cobalt/base/base.gyp:base',
-            '<(DEPTH)/cobalt/math/math.gyp:math',
-            '<(DEPTH)/cobalt/media/media2.gyp:media2',
-          ],
-        },
-        {
-          'target_name': 'media2_sandbox_deploy',
-          'type': 'none',
-          'dependencies': [
-            'media2_sandbox',
-          ],
-          'variables': {
-            'executable_name': 'media2_sandbox',
-          },
-          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-        },
-      ],
-    }],
-    ['OS == "starboard" and has_zzuf == "True" and cobalt_media_source_2016!=1', {
-      'targets': [
-        # This target will build a sandbox application that allows for fuzzing
-        # decoder.
-        {
-          'target_name': 'raw_video_decoder_fuzzer',
-          'type': '<(final_executable_type)',
-          'sources': [
-            'fuzzer_app.cc',
-            'fuzzer_app.h',
-            'media_sandbox.cc',
-            'media_sandbox.h',
-            'media_source_demuxer.cc',
-            'media_source_demuxer.h',
-            'raw_video_decoder_fuzzer.cc',
-            'zzuf_fuzzer.cc',
-            'zzuf_fuzzer.h',
-          ],
-          'dependencies': [
-            '<(DEPTH)/cobalt/base/base.gyp:base',
-            # Use test data from demos to avoid keeping two copies of video files.
-            '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
-            '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-            '<(DEPTH)/cobalt/media/media.gyp:media',
-            '<(DEPTH)/cobalt/network/network.gyp:network',
-            '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-            '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
-            '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
-            '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-            '<(DEPTH)/third_party/zzuf/zzuf.gyp:zzuf',
-          ],
-        },
-
-        {
-          'target_name': 'raw_video_decoder_fuzzer_deploy',
-          'type': 'none',
-          'dependencies': [
-            'raw_video_decoder_fuzzer',
-          ],
-          'variables': {
-            'executable_name': 'raw_video_decoder_fuzzer',
-          },
-          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-        },
-
-        # This target will build a sandbox application that allows for fuzzing
-        # shell demuxers.
-        {
-          'target_name': 'shell_demuxer_fuzzer',
-          'type': '<(final_executable_type)',
-          'sources': [
-            'fuzzer_app.cc',
-            'fuzzer_app.h',
-            'in_memory_data_source.cc',
-            'in_memory_data_source.h',
-            'media_sandbox.cc',
-            'media_sandbox.h',
-            'shell_demuxer_fuzzer.cc',
-            'zzuf_fuzzer.cc',
-            'zzuf_fuzzer.h',
-          ],
-          'dependencies': [
-            '<(DEPTH)/cobalt/base/base.gyp:base',
-            # Use test data from demos to avoid keeping two copies of video files.
-            '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
-            '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-            '<(DEPTH)/cobalt/media/media.gyp:media',
-            '<(DEPTH)/cobalt/network/network.gyp:network',
-            '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-            '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
-            '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
-            '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-            '<(DEPTH)/third_party/zzuf/zzuf.gyp:zzuf',
-          ],
-        },
-
-        {
-          'target_name': 'shell_demuxer_fuzzer_deploy',
-          'type': 'none',
-          'dependencies': [
-            'shell_demuxer_fuzzer',
-          ],
-          'variables': {
-            'executable_name': 'shell_demuxer_fuzzer',
-          },
-          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-        },
-      ],
-    }],
   ],
 }

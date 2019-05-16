@@ -38,8 +38,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
-#include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/cssom/transform_matrix_function_value.h"
+#include "cobalt/cssom/transform_property_value.h"
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
@@ -155,14 +154,9 @@ void DefaultingPropertyValueVisitor::VisitTimingFunctionList(
   VisitDefault(timing_function_list_value);
 }
 
-void DefaultingPropertyValueVisitor::VisitTransformFunctionList(
-    TransformFunctionListValue* transform_function_list_value) {
-  VisitDefault(transform_function_list_value);
-}
-
-void DefaultingPropertyValueVisitor::VisitTransformMatrixFunction(
-    TransformMatrixFunctionValue* transform_matrix_function_value) {
-  VisitDefault(transform_matrix_function_value);
+void DefaultingPropertyValueVisitor::VisitTransformPropertyValue(
+    TransformPropertyValue* transform_property_value) {
+  VisitDefault(transform_property_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitUnicodeRange(

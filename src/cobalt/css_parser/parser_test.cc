@@ -15,17 +15,19 @@
 #include "cobalt/css_parser/parser.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/bind.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 #include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
@@ -90,6 +92,13 @@ using testing::AtLeast;
 
 namespace cobalt {
 namespace css_parser {
+
+constexpr cssom::TransformFunction::Trait kTraitIsDynamic =
+    cssom::TransformFunction::Trait::kTraitIsDynamic;
+constexpr cssom::TransformFunction::Trait kTraitUsesRelativeUnits =
+    cssom::TransformFunction::Trait::kTraitUsesRelativeUnits;
+constexpr cssom::TransformFunction::Trait kTraitUsesUiNavFocus =
+    cssom::TransformFunction::Trait::kTraitUsesUiNavFocus;
 
 class MockParserObserver {
  public:
@@ -260,7 +269,7 @@ TEST_F(ParserTest, ParsesAttributeSelectorNoValue) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -269,7 +278,7 @@ TEST_F(ParserTest, ParsesAttributeSelectorNoValue) {
   cssom::AttributeSelector* attribute_selector =
       dynamic_cast<cssom::AttributeSelector*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(attribute_selector);
   EXPECT_EQ("attr", attribute_selector->attribute_name());
 }
@@ -286,7 +295,7 @@ TEST_F(ParserTest, ParsesAttributeSelectorValueWithQuotes) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -295,7 +304,7 @@ TEST_F(ParserTest, ParsesAttributeSelectorValueWithQuotes) {
   cssom::AttributeSelector* attribute_selector =
       dynamic_cast<cssom::AttributeSelector*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(attribute_selector);
   EXPECT_EQ("attr", attribute_selector->attribute_name());
   EXPECT_EQ("value", attribute_selector->attribute_value());
@@ -313,7 +322,7 @@ TEST_F(ParserTest, ParsesAttributeSelectorValueWithoutQuotes) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -322,7 +331,7 @@ TEST_F(ParserTest, ParsesAttributeSelectorValueWithoutQuotes) {
   cssom::AttributeSelector* attribute_selector =
       dynamic_cast<cssom::AttributeSelector*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(attribute_selector);
   EXPECT_EQ("attr", attribute_selector->attribute_name());
   EXPECT_EQ("value", attribute_selector->attribute_value());
@@ -340,7 +349,7 @@ TEST_F(ParserTest, ParsesClassSelector) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -348,7 +357,7 @@ TEST_F(ParserTest, ParsesClassSelector) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::ClassSelector* class_selector =
       dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
@@ -357,7 +366,8 @@ TEST_F(ParserTest, ParsesPropertyKeyAsClassSelector) {
   for (int i = 0; i < 1 + cssom::kMaxEveryPropertyKey; i++) {
     cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
     std::string property_name = cssom::GetPropertyName(property_key);
-    std::string declaration = StringPrintf(".%s {}", property_name.c_str());
+    std::string declaration =
+        base::StringPrintf(".%s {}", property_name.c_str());
 
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         parser_.ParseStyleSheet(declaration, source_location_);
@@ -370,7 +380,7 @@ TEST_F(ParserTest, ParsesPropertyKeyAsClassSelector) {
     ASSERT_EQ(1, style_rule->selectors().size());
     cssom::ComplexSelector* complex_selector =
         dynamic_cast<cssom::ComplexSelector*>(
-            const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+            const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
     ASSERT_TRUE(complex_selector);
     cssom::CompoundSelector* compound_selector =
         complex_selector->first_selector();
@@ -378,7 +388,7 @@ TEST_F(ParserTest, ParsesPropertyKeyAsClassSelector) {
     ASSERT_EQ(1, compound_selector->simple_selectors().size());
     cssom::ClassSelector* class_selector =
         dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
-            compound_selector->simple_selectors()[0]));
+            compound_selector->simple_selectors()[0].get()));
     ASSERT_TRUE(class_selector);
     EXPECT_EQ(property_name, class_selector->class_name());
   }
@@ -389,7 +399,8 @@ TEST_F(ParserTest, ParsesKeywordAsClassSelector) {
     cssom::KeywordValue::Value keyword_value =
         static_cast<cssom::KeywordValue::Value>(i);
     std::string keyword_name = cssom::KeywordValue::GetName(keyword_value);
-    std::string declaration = StringPrintf(".%s {}", keyword_name.c_str());
+    std::string declaration =
+        base::StringPrintf(".%s {}", keyword_name.c_str());
 
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         parser_.ParseStyleSheet(declaration, source_location_);
@@ -402,7 +413,7 @@ TEST_F(ParserTest, ParsesKeywordAsClassSelector) {
     ASSERT_EQ(1, style_rule->selectors().size());
     cssom::ComplexSelector* complex_selector =
         dynamic_cast<cssom::ComplexSelector*>(
-            const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+            const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
     ASSERT_TRUE(complex_selector);
     cssom::CompoundSelector* compound_selector =
         complex_selector->first_selector();
@@ -410,7 +421,7 @@ TEST_F(ParserTest, ParsesKeywordAsClassSelector) {
     ASSERT_EQ(1, compound_selector->simple_selectors().size());
     cssom::ClassSelector* class_selector =
         dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
-            compound_selector->simple_selectors()[0]));
+            compound_selector->simple_selectors()[0].get()));
     ASSERT_TRUE(class_selector);
     EXPECT_EQ(keyword_name, class_selector->class_name());
   }
@@ -428,7 +439,7 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -437,7 +448,7 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
   cssom::AfterPseudoElement* after_pseudo_element =
       dynamic_cast<cssom::AfterPseudoElement*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(after_pseudo_element);
 }
 
@@ -453,7 +464,7 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS3) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -462,7 +473,7 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS3) {
   cssom::AfterPseudoElement* after_pseudo_element =
       dynamic_cast<cssom::AfterPseudoElement*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(after_pseudo_element);
 }
 
@@ -478,7 +489,7 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS2) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -487,7 +498,7 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS2) {
   cssom::BeforePseudoElement* before_pseudo_element =
       dynamic_cast<cssom::BeforePseudoElement*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(before_pseudo_element);
 }
 
@@ -503,7 +514,7 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -512,7 +523,7 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
   cssom::BeforePseudoElement* before_pseudo_element =
       dynamic_cast<cssom::BeforePseudoElement*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(before_pseudo_element);
 }
 
@@ -528,7 +539,7 @@ TEST_F(ParserTest, ParsesActivePseudoClass) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -537,7 +548,7 @@ TEST_F(ParserTest, ParsesActivePseudoClass) {
   cssom::ActivePseudoClass* active_pseudo_class =
       dynamic_cast<cssom::ActivePseudoClass*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(active_pseudo_class);
 }
 
@@ -553,7 +564,7 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -561,7 +572,7 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::EmptyPseudoClass* empty_pseudo_class =
       dynamic_cast<cssom::EmptyPseudoClass*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(empty_pseudo_class);
 }
 
@@ -577,7 +588,7 @@ TEST_F(ParserTest, ParsesFocusPseudoClass) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -585,7 +596,7 @@ TEST_F(ParserTest, ParsesFocusPseudoClass) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::FocusPseudoClass* focus_pseudo_class =
       dynamic_cast<cssom::FocusPseudoClass*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(focus_pseudo_class);
 }
 
@@ -601,7 +612,7 @@ TEST_F(ParserTest, ParsesHoverPseudoClass) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -609,7 +620,7 @@ TEST_F(ParserTest, ParsesHoverPseudoClass) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::HoverPseudoClass* hover_pseudo_class =
       dynamic_cast<cssom::HoverPseudoClass*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(hover_pseudo_class);
 }
 
@@ -625,7 +636,7 @@ TEST_F(ParserTest, ParsesNotPseudoClass) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -633,7 +644,7 @@ TEST_F(ParserTest, ParsesNotPseudoClass) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::NotPseudoClass* not_pseudo_class =
       dynamic_cast<cssom::NotPseudoClass*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(not_pseudo_class);
 
   // Check the selector within :not pseudo class.
@@ -642,12 +653,12 @@ TEST_F(ParserTest, ParsesNotPseudoClass) {
   ASSERT_EQ(2, not_compound_selector->simple_selectors().size());
   cssom::TypeSelector* type_selector =
       dynamic_cast<cssom::TypeSelector*>(const_cast<cssom::SimpleSelector*>(
-          not_compound_selector->simple_selectors()[0]));
+          not_compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(type_selector);
   EXPECT_EQ("div", type_selector->element_name());
   cssom::ClassSelector* class_selector =
       dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
-          not_compound_selector->simple_selectors()[1]));
+          not_compound_selector->simple_selectors()[1].get()));
   ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
@@ -686,7 +697,7 @@ TEST_F(ParserTest, ParsesIdSelector) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -694,7 +705,7 @@ TEST_F(ParserTest, ParsesIdSelector) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::IdSelector* id_selector =
       dynamic_cast<cssom::IdSelector*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(id_selector);
   EXPECT_EQ("my-id", id_selector->id());
 }
@@ -711,7 +722,7 @@ TEST_F(ParserTest, ParsesTypeSelector) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -719,7 +730,7 @@ TEST_F(ParserTest, ParsesTypeSelector) {
   ASSERT_EQ(1, compound_selector->simple_selectors().size());
   cssom::TypeSelector* type_selector =
       dynamic_cast<cssom::TypeSelector*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(type_selector);
   EXPECT_EQ("div", type_selector->element_name());
 }
@@ -736,7 +747,7 @@ TEST_F(ParserTest, ParsesUniversalSelector) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -745,7 +756,7 @@ TEST_F(ParserTest, ParsesUniversalSelector) {
   cssom::UniversalSelector* universal_selector =
       dynamic_cast<cssom::UniversalSelector*>(
           const_cast<cssom::SimpleSelector*>(
-              compound_selector->simple_selectors()[0]));
+              compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(universal_selector);
 }
 
@@ -761,7 +772,7 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   cssom::CompoundSelector* compound_selector =
       complex_selector->first_selector();
@@ -769,12 +780,12 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
   ASSERT_EQ(2, compound_selector->simple_selectors().size());
   cssom::TypeSelector* type_selector =
       dynamic_cast<cssom::TypeSelector*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[0]));
+          compound_selector->simple_selectors()[0].get()));
   ASSERT_TRUE(type_selector);
   EXPECT_EQ("div", type_selector->element_name());
   cssom::ClassSelector* class_selector =
       dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
-          compound_selector->simple_selectors()[1]));
+          compound_selector->simple_selectors()[1].get()));
   ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
@@ -791,7 +802,7 @@ TEST_F(ParserTest, ParsesComplexSelectorDescendantCombinator) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   ASSERT_TRUE(complex_selector->first_selector());
   cssom::CompoundSelector* selector = complex_selector->first_selector();
@@ -812,7 +823,7 @@ TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   ASSERT_TRUE(complex_selector->first_selector());
   cssom::CompoundSelector* selector = complex_selector->first_selector();
@@ -833,7 +844,7 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   ASSERT_TRUE(complex_selector->first_selector());
   cssom::CompoundSelector* selector = complex_selector->first_selector();
@@ -854,7 +865,7 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
-          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+          const_cast<cssom::Selector*>(style_rule->selectors()[0].get()));
   ASSERT_TRUE(complex_selector);
   ASSERT_TRUE(complex_selector->first_selector());
   cssom::CompoundSelector* selector = complex_selector->first_selector();
@@ -1123,10 +1134,14 @@ TEST_F(ParserTest, StyleSheetEndsWhileFunctionIsStillOpen) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
@@ -1369,7 +1384,8 @@ TEST_F(ParserTest, ParsesLonghandPropertyKeywords) {
     ASSERT_NE(property, nullptr);
     for (++property_keyword; *property_keyword; ++property_keyword) {
       const char* keyword = *property_keyword;
-      std::string declaration = StringPrintf("%s: %s;", property, keyword);
+      std::string declaration =
+          base::StringPrintf("%s: %s;", property, keyword);
       scoped_refptr<cssom::CSSDeclaredStyleData> style =
           parser_.ParseStyleDeclarationList(declaration, source_location_);
       ASSERT_TRUE(style->IsDeclared(property_key));
@@ -1439,7 +1455,8 @@ TEST_F(ParserTest, ParsesShorthandPropertyInitialAndInherit) {
     for (const char** property_keyword = shorthand_property_keywords;
          *property_keyword; ++property_keyword) {
       const char* keyword = *property_keyword;
-      std::string declaration = StringPrintf("%s: %s;", property, keyword);
+      std::string declaration =
+          base::StringPrintf("%s: %s;", property, keyword);
       scoped_refptr<cssom::CSSDeclaredStyleData> style =
           parser_.ParseStyleDeclarationList(declaration, source_location_);
       KeywordProvider::VerifyIsLongHandKeywordValue(style, property_key,
@@ -1965,7 +1982,7 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradient) {
   float color_list[2] = {0x0000008E, 0x000000E5};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2001,7 +2018,7 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradientContainsTransparent) {
   float color_list[3] = {0x0000008E, 0x000000E5, 0x00000000};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2043,7 +2060,7 @@ TEST_F(ParserTest, ParsesBackgroundWithRadialGradient) {
   float color_list[2] = {0x0000008E, 0x000000E5};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2395,7 +2412,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
   float percentage_list[2] = {50.0f, 100.0f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
@@ -2433,7 +2450,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
   EXPECT_EQ(2, color_stop_list_value.size());
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
@@ -2476,7 +2493,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
   EXPECT_EQ(2, color_stop_list_value.size());
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
@@ -2540,7 +2557,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithShapeAndSizeKeyword) {
   float color_stop_position_list[2] = {0.25f, 0.6f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2603,7 +2620,7 @@ TEST_F(ParserTest,
   float color_stop_position_list[2] = {0.25f, 0.6f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2663,7 +2680,7 @@ TEST_F(ParserTest,
   float color_stop_position_list[2] = {0.25f, 0.6f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2723,7 +2740,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithSizeLength) {
   float color_stop_position_list[2] = {0.25f, 0.6f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2773,7 +2790,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithoutShapeAndSize) {
   float color_stop_position_list[2] = {0.25f, 0.6f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -2821,7 +2838,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientOnlyHasColorStop) {
   float color_stop_position_list[2] = {0.25f, 0.6f};
 
   for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
-    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i].get();
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -6598,10 +6615,14 @@ TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
-      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::RotateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
@@ -6617,10 +6638,14 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
-      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::RotateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
@@ -6636,10 +6661,14 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
-      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::RotateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
@@ -6655,10 +6684,14 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
-      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::RotateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
@@ -6674,10 +6707,14 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
-      dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::ScaleFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(1.5, scale_function->x_factor());
   EXPECT_FLOAT_EQ(1.5, scale_function->y_factor());
@@ -6693,10 +6730,14 @@ TEST_F(ParserTest, ParsesIsotropicScaleXTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
-      dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::ScaleFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(0.5, scale_function->x_factor());
   EXPECT_FLOAT_EQ(1.0, scale_function->y_factor());
@@ -6712,10 +6753,14 @@ TEST_F(ParserTest, ParsesIsotropicScaleYTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
-      dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::ScaleFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(1.0, scale_function->x_factor());
   EXPECT_FLOAT_EQ(20.0, scale_function->y_factor());
@@ -6735,10 +6780,14 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
-      dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::ScaleFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(16, scale_function->x_factor());
   EXPECT_FLOAT_EQ(9, scale_function->y_factor());
@@ -6754,10 +6803,14 @@ TEST_F(ParserTest, Parses2DTranslateTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(2, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function_1 =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function_1);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
@@ -6768,7 +6821,8 @@ TEST_F(ParserTest, Parses2DTranslateTransform) {
   EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function_1->axis());
 
   const cssom::TranslateFunction* translate_function_2 =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[1]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[1].get());
   ASSERT_TRUE(translate_function_2);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
@@ -6790,10 +6844,14 @@ TEST_F(ParserTest, Parses2DTranslateTransformYOmitted) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(2, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function_1 =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function_1);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
@@ -6804,7 +6862,8 @@ TEST_F(ParserTest, Parses2DTranslateTransformYOmitted) {
   EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function_1->axis());
 
   const cssom::TranslateFunction* translate_function_2 =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[1]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[1].get());
   ASSERT_TRUE(translate_function_2);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
@@ -6826,10 +6885,14 @@ TEST_F(ParserTest, ParsesTranslateXTransformLength) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
@@ -6851,10 +6914,14 @@ TEST_F(ParserTest, ParsesTranslateXTransformPercentage) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
@@ -6875,10 +6942,14 @@ TEST_F(ParserTest, ParsesTranslateYTransformLength) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
@@ -6900,10 +6971,14 @@ TEST_F(ParserTest, ParsesTranslateYTransformPercentage) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
@@ -6924,10 +6999,14 @@ TEST_F(ParserTest, ParsesTranslateZTransformLength) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
-      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::TranslateFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
@@ -6949,10 +7028,14 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::MatrixFunction* matrix_function =
-      dynamic_cast<const cssom::MatrixFunction*>(transform_list->value()[0]);
+      dynamic_cast<const cssom::MatrixFunction*>(
+          transform_list->value()[0].get());
   ASSERT_TRUE(matrix_function);
 
   EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(0, 0));
@@ -6966,6 +7049,28 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
   EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(2, 2));
 }
 
+TEST_F(ParserTest, ParsesCobaltUiNavFocusTransform) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "transform: -cobalt-ui-nav-focus-transform();",
+          source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->GetPropertyValue(cssom::kTransformProperty).get());
+  ASSERT_TRUE(transform_list);
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::CobaltUiNavFocusTransformFunction* focus_function =
+      dynamic_cast<const cssom::CobaltUiNavFocusTransformFunction*>(
+          transform_list->value()[0].get());
+  ASSERT_TRUE(focus_function);
+}
+
 TEST_F(ParserTest, ParsesCobaltUiNavSpotlightTransform) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
@@ -6977,11 +7082,14 @@ TEST_F(ParserTest, ParsesCobaltUiNavSpotlightTransform) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::CobaltUiNavSpotlightTransformFunction* spotlight_function =
       dynamic_cast<const cssom::CobaltUiNavSpotlightTransformFunction*>(
-          transform_list->value()[0]);
+          transform_list->value()[0].get());
   ASSERT_TRUE(spotlight_function);
 }
 
@@ -6995,13 +7103,16 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->GetPropertyValue(cssom::kTransformProperty).get());
   ASSERT_TRUE(transform_list);
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
   ASSERT_EQ(2, transform_list->value().size());
-  EXPECT_TRUE(transform_list->value()[0]);
+  EXPECT_TRUE(transform_list->value()[0].get());
   EXPECT_EQ(base::GetTypeId<cssom::ScaleFunction>(),
-            transform_list->value()[0]->GetTypeId());
-  EXPECT_TRUE(transform_list->value()[1]);
+            transform_list->value()[0].get()->GetTypeId());
+  EXPECT_TRUE(transform_list->value()[1].get());
   EXPECT_EQ(base::GetTypeId<cssom::TranslateFunction>(),
-            transform_list->value()[1]->GetTypeId());
+            transform_list->value()[1].get()->GetTypeId());
 }
 
 TEST_F(ParserTest, ParsesTranslateXTransformWithoutUnit) {
@@ -7961,12 +8072,12 @@ TEST_F(ParserTest, ParsesAnimationNameWithInvalidValues) {
 namespace {
 scoped_refptr<cssom::TimingFunctionListValue> CreateSingleTimingFunctionValue(
     const scoped_refptr<cssom::TimingFunction>& timing_function) {
-  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+  std::unique_ptr<cssom::TimingFunctionListValue::Builder>
       expected_result_list_builder(
           new cssom::TimingFunctionListValue::Builder());
   expected_result_list_builder->push_back(timing_function);
   return new cssom::TimingFunctionListValue(
-      expected_result_list_builder.Pass());
+      std::move(expected_result_list_builder));
 }
 }  // namespace
 
@@ -8481,7 +8592,7 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
               .get());
   ASSERT_TRUE(transition_timing_function.get());
 
-  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+  std::unique_ptr<cssom::TimingFunctionListValue::Builder>
       expected_result_list_builder(
           new cssom::TimingFunctionListValue::Builder());
   expected_result_list_builder->push_back(
@@ -8491,7 +8602,8 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
   expected_result_list_builder->push_back(
       cssom::TimingFunction::GetStepStart().get());
   scoped_refptr<cssom::TimingFunctionListValue> expected_result_list(
-      new cssom::TimingFunctionListValue(expected_result_list_builder.Pass()));
+      new cssom::TimingFunctionListValue(
+          std::move(expected_result_list_builder)));
 
   EXPECT_TRUE(expected_result_list->Equals(*transition_timing_function));
 }
@@ -9525,7 +9637,8 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   ASSERT_EQ(1, filter_list->value().size());
 
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(cssom::MapToMeshFunction::kUrls,
@@ -9559,7 +9672,8 @@ TEST_F(ParserTest, ParsesMtmEquirectangularFilter) {
   ASSERT_EQ(1, filter_list->value().size());
 
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(cssom::MapToMeshFunction::kEquirectangular,
@@ -9592,7 +9706,8 @@ TEST_F(ParserTest, ParsesMtmWIPFilterName) {
   ASSERT_EQ(1, filter_list->value().size());
 
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(static_cast<float>(M_PI),
@@ -9666,7 +9781,8 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
 
   ASSERT_TRUE(filter_list);
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
 
   const cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder& meshes =
       mtm_function->mesh_spec().resolution_matched_meshes();
@@ -9701,7 +9817,8 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
 
   ASSERT_TRUE(filter_list);
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
 
   const glm::mat4& actual = mtm_function->transform();
   EXPECT_TRUE(
@@ -9737,7 +9854,8 @@ TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
   ASSERT_EQ(1, filter_list->value().size());
 
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
@@ -9764,7 +9882,8 @@ TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
   ASSERT_EQ(1, filter_list->value().size());
 
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
@@ -9791,7 +9910,8 @@ TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
   ASSERT_EQ(1, filter_list->value().size());
 
   const cssom::MapToMeshFunction* mtm_function =
-      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
+      dynamic_cast<const cssom::MapToMeshFunction*>(
+          filter_list->value()[0].get());
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),

@@ -16,11 +16,15 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ptr_util.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/calc_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
+#include "cobalt/cssom/interpolated_transform_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -39,7 +43,6 @@
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
-#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
@@ -91,10 +94,8 @@ class InterpolateVisitor : public PropertyValueVisitor {
   void VisitRGBAColor(RGBAColorValue* start_color_value) override;
   void VisitShadow(ShadowValue* shadow_value) override;
   void VisitString(StringValue* start_string_value) override;
-  void VisitTransformFunctionList(
-      TransformFunctionListValue* start_transform_list_value) override;
-  void VisitTransformMatrixFunction(
-      TransformMatrixFunctionValue* transform_matrix_function_value) override;
+  void VisitTransformPropertyValue(
+      TransformPropertyValue* start_transform_property_value) override;
   void VisitTimeList(TimeListValue* start_time_list_value) override;
   void VisitTimingFunctionList(
       TimingFunctionListValue* start_timing_function_list_value) override;
@@ -143,12 +144,12 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   // and progress.  Note that end may be NULL if the destination transform is
   // 'none'.  In this case, we should use an appropriate identity transform
   // to animate towards.
-  static scoped_ptr<TransformFunction> Animate(const TransformFunction* start,
-                                               const TransformFunction* end,
-                                               float progress) {
+  static std::unique_ptr<TransformFunction> Animate(
+      const TransformFunction* start, const TransformFunction* end,
+      float progress) {
     AnimateTransformFunction visitor(end, progress);
     const_cast<TransformFunction*>(start)->Accept(&visitor);
-    return visitor.animated_.Pass();
+    return std::move(visitor.animated_);
   }
 
  private:
@@ -156,13 +157,17 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   void VisitRotate(const RotateFunction* rotate_function) override;
   void VisitScale(const ScaleFunction* scale_function) override;
   void VisitTranslate(const TranslateFunction* translate_function) override;
+  void VisitCobaltUiNavFocusTransform(
+      const CobaltUiNavFocusTransformFunction* focus_function) override;
+  void VisitCobaltUiNavSpotlightTransform(
+      const CobaltUiNavSpotlightTransformFunction* spotlight_function) override;
 
   AnimateTransformFunction(const TransformFunction* end, float progress)
       : end_(end), progress_(progress) {}
 
   const TransformFunction* end_;
   float progress_;
-  scoped_ptr<TransformFunction> animated_;
+  std::unique_ptr<TransformFunction> animated_;
 };
 
 void AnimateTransformFunction::VisitMatrix(
@@ -208,7 +213,7 @@ void AnimateTransformFunction::VisitScale(const ScaleFunction* scale_function) {
 }
 
 namespace {
-scoped_ptr<TranslateFunction> InterpolateTranslateFunctions(
+std::unique_ptr<TranslateFunction> InterpolateTranslateFunctions(
     const TranslateFunction* a, const TranslateFunction* b, float progress) {
   if (b) {
     DCHECK_EQ(a->axis(), b->axis());
@@ -226,21 +231,21 @@ scoped_ptr<TranslateFunction> InterpolateTranslateFunctions(
                         a->offset_type() == TranslateFunction::kCalc;
 
   if (result_is_calc) {
-    return make_scoped_ptr(new TranslateFunction(
+    return base::WrapUnique(new TranslateFunction(
         a->axis(),
         new CalcValue(new LengthValue(lerped_length_offset, kPixelsUnit),
                       new PercentageValue(lerped_percentage_offset))));
   } else if (a->offset_type() == TranslateFunction::kLength) {
     DCHECK_EQ(0.0f, lerped_percentage_offset);
-    return make_scoped_ptr(new TranslateFunction(
+    return base::WrapUnique(new TranslateFunction(
         a->axis(), new LengthValue(lerped_length_offset, kPixelsUnit)));
   } else if (a->offset_type() == TranslateFunction::kPercentage) {
     DCHECK_EQ(0.0f, lerped_length_offset);
-    return make_scoped_ptr(new TranslateFunction(
+    return base::WrapUnique(new TranslateFunction(
         a->axis(), new PercentageValue(lerped_percentage_offset)));
   } else {
     NOTREACHED();
-    return scoped_ptr<TranslateFunction>();
+    return std::unique_ptr<TranslateFunction>();
   }
 }
 }  // namespace
@@ -252,6 +257,40 @@ void AnimateTransformFunction::VisitTranslate(
 
   animated_ = InterpolateTranslateFunctions(translate_function, translate_end,
                                             progress_);
+}
+
+void AnimateTransformFunction::VisitCobaltUiNavFocusTransform(
+    const CobaltUiNavFocusTransformFunction* focus_function) {
+  const CobaltUiNavFocusTransformFunction* focus_end =
+      base::polymorphic_downcast<const CobaltUiNavFocusTransformFunction*>(
+          end_);
+  // Since the focus transform changes over time, it would be incorrect
+  // to grab a snapshot of the current value and interpolate that with the
+  // identity matrix when transitioning to transform none. Instead, the
+  // focus transform needs to know how close to the identity transform it
+  // needs to interpolate its value when evaluated.
+  float progress_to_identity_end =
+      focus_end ? focus_end->progress_to_identity() : 1.0f;
+  animated_.reset(new CobaltUiNavFocusTransformFunction(
+      Lerp(focus_function->progress_to_identity(),
+           progress_to_identity_end, progress_)));
+}
+
+void AnimateTransformFunction::VisitCobaltUiNavSpotlightTransform(
+    const CobaltUiNavSpotlightTransformFunction* spotlight_function) {
+  const CobaltUiNavSpotlightTransformFunction* spotlight_end =
+      base::polymorphic_downcast<const CobaltUiNavSpotlightTransformFunction*>(
+          end_);
+  // Since the spotlight transform changes over time, it would be incorrect
+  // to grab a snapshot of the current value and interpolate that with the
+  // identity matrix when transitioning to transform none. Instead, the
+  // spotlight transform needs to know how close to the identity transform it
+  // needs to interpolate its value when evaluated.
+  float progress_to_identity_end =
+      spotlight_end ? spotlight_end->progress_to_identity() : 1.0f;
+  animated_.reset(new CobaltUiNavSpotlightTransformFunction(
+      Lerp(spotlight_function->progress_to_identity(),
+           progress_to_identity_end, progress_)));
 }
 
 // Returns true if two given transform function lists have the same number of
@@ -267,9 +306,10 @@ bool TransformListsHaveSameType(const TransformFunctionListValue::Builder& a,
     if (a[i]->GetTypeId() != b[i]->GetTypeId()) {
       return false;
     } else if (a[i]->GetTypeId() == base::GetTypeId<TranslateFunction>() &&
-               base::polymorphic_downcast<const TranslateFunction*>(a[i])
+               base::polymorphic_downcast<const TranslateFunction*>(a[i].get())
                        ->axis() !=
-                   base::polymorphic_downcast<const TranslateFunction*>(b[i])
+                   base::polymorphic_downcast<const TranslateFunction*>(
+                       b[i].get())
                        ->axis()) {
       return false;
     }
@@ -277,8 +317,8 @@ bool TransformListsHaveSameType(const TransformFunctionListValue::Builder& a,
   return true;
 }
 
-scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
-                                              const PropertyValue* end_value,
+scoped_refptr<PropertyValue> AnimateTransform(PropertyValue* start_value,
+                                              PropertyValue* end_value,
                                               float progress) {
   // The process for animating a transform list are described here:
   //  https://www.w3.org/TR/2012/WD-css3-transforms-20120228/#animation
@@ -298,13 +338,13 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     progress = 1 - progress;
   }
 
-  const TransformFunctionListValue* start_transform =
-      base::polymorphic_downcast<const TransformFunctionListValue*>(
+  TransformFunctionListValue* start_transform =
+      base::polymorphic_downcast<TransformFunctionListValue*>(
           start_value);
-  const TransformFunctionListValue* end_transform =
+  TransformFunctionListValue* end_transform =
       end_value->Equals(*KeywordValue::GetNone())
           ? NULL
-          : base::polymorphic_downcast<const TransformFunctionListValue*>(
+          : base::polymorphic_downcast<TransformFunctionListValue*>(
                 end_value);
 
   const TransformFunctionListValue::Builder* start_functions =
@@ -327,20 +367,18 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     // matches in type.  In this case, we do a transition on each
     // corresponding transform individually.
     for (size_t i = 0; i < start_functions->size(); ++i) {
-      animated_functions.push_back(
-          AnimateTransformFunction::Animate(
-              (*start_functions)[i], end_functions ? (*end_functions)[i] : NULL,
-              progress)
-              .release());
+      animated_functions.push_back(AnimateTransformFunction::Animate(
+          (*start_functions)[i].get(),
+          end_functions ? (*end_functions)[i].get() : NULL, progress));
     }
-    return new TransformFunctionListValue(animated_functions.Pass());
+    return new TransformFunctionListValue(std::move(animated_functions));
   } else {
     // The transform lists do not match up type for type. Collapse each list
     // into a matrix and animate the matrix using the algorithm described here:
     //   https://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
     DCHECK(end_transform);
-    return new TransformMatrixFunctionValue(InterpolateTransformMatrices(
-        start_transform->ToMatrix(), end_transform->ToMatrix(), progress));
+    return new InterpolatedTransformPropertyValue(
+        start_transform, end_transform, progress);
   }
 }
 }  // namespace
@@ -375,7 +413,7 @@ void InterpolateVisitor::VisitFontWeight(
 }
 
 void InterpolateVisitor::VisitInteger(IntegerValue* integer_value) {
-  UNREFERENCED_PARAMETER(integer_value);
+  SB_UNREFERENCED_PARAMETER(integer_value);
   interpolated_value_ = end_value_;
 }
 
@@ -492,60 +530,39 @@ void InterpolateVisitor::VisitTimeList(
   interpolated_value_ = end_value_;
 }
 
-namespace {
-// Returns a TransformMatrix representing a valid 'transform' property value.
-TransformMatrix GetTransformMatrixFromPropertyValue(
-    const PropertyValue* value) {
-  if (value->Equals(*KeywordValue::GetNone())) {
-    // Return the identity matrix via the default constructor.
-    return TransformMatrix();
-  } else if (value->GetTypeId() ==
-             base::GetTypeId<TransformFunctionListValue>()) {
-    return base::polymorphic_downcast<const TransformFunctionListValue*>(value)
-        ->ToMatrix();
-  } else if (value->GetTypeId() ==
-             base::GetTypeId<TransformMatrixFunctionValue>()) {
-    return base::polymorphic_downcast<const TransformMatrixFunctionValue*>(
-               value)
-        ->value();
+void InterpolateVisitor::VisitTransformPropertyValue(
+    TransformPropertyValue* start_transform_property_value) {
+  if (start_transform_property_value->GetTypeId() ==
+      base::GetTypeId<TransformFunctionListValue>()) {
+    if (end_value_->GetTypeId() ==
+        base::GetTypeId<InterpolatedTransformPropertyValue>()) {
+      // Use matrix interpolation since the individual transform functions are
+      // unknown.
+      interpolated_value_ = new InterpolatedTransformPropertyValue(
+          start_transform_property_value,
+          base::polymorphic_downcast<InterpolatedTransformPropertyValue*>(
+              end_value_.get()),
+          progress_);
+    } else {
+      // Try to interpolate each transform function in the transform function
+      // list. This can only be done if the function types match.
+      interpolated_value_ = AnimateTransform(start_transform_property_value,
+          end_value_, progress_);
+    }
+  } else if (end_value_->Equals(*KeywordValue::GetNone())) {
+    // Interpolate to identity matrix.
+    TransformFunctionListValue::Builder builder;
+    builder.emplace_back(new MatrixFunction(math::Matrix3F::Identity()));
+    interpolated_value_ = new InterpolatedTransformPropertyValue(
+        start_transform_property_value,
+        new TransformFunctionListValue(std::move(builder)),
+        progress_);
   } else {
-    NOTREACHED();
-    return TransformMatrix();
+    interpolated_value_ = new InterpolatedTransformPropertyValue(
+        start_transform_property_value,
+        base::polymorphic_downcast<TransformPropertyValue*>(end_value_.get()),
+        progress_);
   }
-}
-
-// Converts some given valid 'transform' property values to TransformMatrices,
-// and then interpolates them and returns the result.
-scoped_refptr<TransformMatrixFunctionValue> InterpolateTransformsAsMatrices(
-    const PropertyValue* a, const PropertyValue* b, float progress) {
-  return new TransformMatrixFunctionValue(InterpolateTransformMatrices(
-      GetTransformMatrixFromPropertyValue(a),
-      GetTransformMatrixFromPropertyValue(b), progress));
-}
-}  // namespace
-
-void InterpolateVisitor::VisitTransformFunctionList(
-    TransformFunctionListValue* start_transform_list_value) {
-  if (end_value_->GetTypeId() ==
-      base::GetTypeId<TransformMatrixFunctionValue>()) {
-    // If our end value is a transform matrix, then simply convert to a
-    // transform matrix and interpolate between them.
-    interpolated_value_ = InterpolateTransformsAsMatrices(
-        start_transform_list_value, end_value_, progress_);
-  } else {
-    // If we are not dealing with a transform matrix, then animate the
-    // transform lists, attempting to keep the list structure as the result
-    // if possible (as opposed to converting to a matrix and interpolating that,
-    // resulting in a matrix).
-    interpolated_value_ =
-        AnimateTransform(start_transform_list_value, end_value_, progress_);
-  }
-}
-
-void InterpolateVisitor::VisitTransformMatrixFunction(
-    TransformMatrixFunctionValue* start_transform_matrix_function_value) {
-  interpolated_value_ = InterpolateTransformsAsMatrices(
-      start_transform_matrix_function_value, end_value_, progress_);
 }
 
 void InterpolateVisitor::VisitTimingFunctionList(

@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
+#include "base/memory/ptr_util.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
+#include "cobalt/cssom/cobalt_ui_nav_spotlight_transform_function.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -73,6 +78,35 @@ TEST(PropertyValueIsEqualTest, AbsoluteURLsAreNotEqual) {
   scoped_refptr<AbsoluteURLValue> value_b(new AbsoluteURLValue(url_b));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, CobaltUiNavFocusTransformFunctionsAreEqual) {
+  CobaltUiNavFocusTransformFunction function_a;
+  CobaltUiNavFocusTransformFunction function_b;
+
+  EXPECT_TRUE(function_a.Equals(function_b));
+}
+
+TEST(PropertyValueIsEqualTest, CobaltUiNavFocusTransformFunctionsAreNotEqual) {
+  CobaltUiNavFocusTransformFunction function_a(0.0f);
+  CobaltUiNavFocusTransformFunction function_b(1.0f);
+
+  EXPECT_FALSE(function_a.Equals(function_b));
+}
+
+TEST(PropertyValueIsEqualTest, CobaltUiNavSpotlightTransformFunctionsAreEqual) {
+  CobaltUiNavSpotlightTransformFunction function_a;
+  CobaltUiNavSpotlightTransformFunction function_b;
+
+  EXPECT_TRUE(function_a.Equals(function_b));
+}
+
+TEST(PropertyValueIsEqualTest,
+     CobaltUiNavSpotlightTransformFunctionsAreNotEqual) {
+  CobaltUiNavSpotlightTransformFunction function_a(0.0f);
+  CobaltUiNavSpotlightTransformFunction function_b(1.0f);
+
+  EXPECT_FALSE(function_a.Equals(function_b));
 }
 
 TEST(PropertyValueIsEqualTest, FontStylesAreEqual) {
@@ -200,9 +234,9 @@ TEST(PropertyValueIsEqualTest, PropertyKeyListsAreEqual) {
   property_list.push_back(kBackgroundColorProperty);
   property_list.push_back(kOpacityProperty);
   scoped_refptr<PropertyKeyListValue> value_a(new PropertyKeyListValue(
-      make_scoped_ptr(new PropertyKeyListValue::Builder(property_list))));
+      base::WrapUnique(new PropertyKeyListValue::Builder(property_list))));
   scoped_refptr<PropertyKeyListValue> value_b(new PropertyKeyListValue(
-      make_scoped_ptr(new PropertyKeyListValue::Builder(property_list))));
+      base::WrapUnique(new PropertyKeyListValue::Builder(property_list))));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
@@ -212,10 +246,10 @@ TEST(PropertyValueIsEqualTest, PropertyNameListsAreNotEqual) {
   property_list.push_back(kBackgroundColorProperty);
   property_list.push_back(kOpacityProperty);
   scoped_refptr<PropertyKeyListValue> value_a(new PropertyKeyListValue(
-      make_scoped_ptr(new PropertyKeyListValue::Builder(property_list))));
+      base::WrapUnique(new PropertyKeyListValue::Builder(property_list))));
   property_list.back() = kTransformProperty;
   scoped_refptr<PropertyKeyListValue> value_b(new PropertyKeyListValue(
-      make_scoped_ptr(new PropertyKeyListValue::Builder(property_list))));
+      base::WrapUnique(new PropertyKeyListValue::Builder(property_list))));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -268,14 +302,16 @@ TEST(PropertyValueIsEqualTest, LinearGradientValuesAreEqual) {
   scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
 
   ColorStopList color_stop_list_a;
-  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_a.emplace_back(
+      new ColorStop(property_color, property_length));
   ColorStopList color_stop_list_b;
-  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_b.emplace_back(
+      new ColorStop(property_color, property_length));
 
   scoped_refptr<LinearGradientValue> value_a(
-      new LinearGradientValue(123.0f, color_stop_list_a.Pass()));
+      new LinearGradientValue(123.0f, std::move(color_stop_list_a)));
   scoped_refptr<LinearGradientValue> value_b(
-      new LinearGradientValue(123.0f, color_stop_list_b.Pass()));
+      new LinearGradientValue(123.0f, std::move(color_stop_list_b)));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
@@ -286,21 +322,24 @@ TEST(PropertyValueIsEqualTest, LinearGradientValuesAreNotEqual) {
   scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
 
   ColorStopList color_stop_list_a;
-  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_a.emplace_back(
+      new ColorStop(property_color, property_length));
   ColorStopList color_stop_list_b;
-  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_b.emplace_back(
+      new ColorStop(property_color, property_length));
 
   scoped_refptr<RGBAColorValue> property_color_c(
       new RGBAColorValue(10, 10, 10, 255));
   ColorStopList color_stop_list_c;
-  color_stop_list_c.push_back(new ColorStop(property_color_c, property_length));
+  color_stop_list_c.emplace_back(
+      new ColorStop(property_color_c, property_length));
 
   scoped_refptr<LinearGradientValue> value_a(
-      new LinearGradientValue(123.0f, color_stop_list_a.Pass()));
+      new LinearGradientValue(123.0f, std::move(color_stop_list_a)));
   scoped_refptr<LinearGradientValue> value_b(
-      new LinearGradientValue(456.0f, color_stop_list_b.Pass()));
+      new LinearGradientValue(456.0f, std::move(color_stop_list_b)));
   scoped_refptr<LinearGradientValue> value_c(
-      new LinearGradientValue(123.0f, color_stop_list_c.Pass()));
+      new LinearGradientValue(123.0f, std::move(color_stop_list_c)));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -311,29 +350,31 @@ TEST(PropertyValueIsEqualTest, RadialGradientValuesAreEqual) {
   scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
 
   ColorStopList color_stop_list_a;
-  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_a.emplace_back(
+      new ColorStop(property_color, property_length));
   ColorStopList color_stop_list_b;
-  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_b.emplace_back(
+      new ColorStop(property_color, property_length));
 
-  scoped_ptr<PropertyListValue::Builder> position_a_builder(
+  std::unique_ptr<PropertyListValue::Builder> position_a_builder(
       new PropertyListValue::Builder());
-  position_a_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  position_a_builder->emplace_back(new LengthValue(1.5f, kPixelsUnit));
   scoped_refptr<PropertyListValue> position_a(
-      new PropertyListValue(position_a_builder.Pass()));
+      new PropertyListValue(std::move(position_a_builder)));
 
-  scoped_ptr<PropertyListValue::Builder> position_b_builder(
+  std::unique_ptr<PropertyListValue::Builder> position_b_builder(
       new PropertyListValue::Builder());
-  position_b_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  position_b_builder->emplace_back(new LengthValue(1.5f, kPixelsUnit));
   scoped_refptr<PropertyListValue> position_b(
-      new PropertyListValue(position_b_builder.Pass()));
+      new PropertyListValue(std::move(position_b_builder)));
 
   scoped_refptr<RadialGradientValue> value_a(new RadialGradientValue(
       RadialGradientValue::kCircle, RadialGradientValue::kFarthestSide,
-      position_a, color_stop_list_a.Pass()));
+      position_a, std::move(color_stop_list_a)));
 
   scoped_refptr<RadialGradientValue> value_b(new RadialGradientValue(
       RadialGradientValue::kCircle, RadialGradientValue::kFarthestSide,
-      position_b, color_stop_list_b.Pass()));
+      position_b, std::move(color_stop_list_b)));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
@@ -344,41 +385,43 @@ TEST(PropertyValueIsEqualTest, RadialGradientValuesAreNotEqual) {
   scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
 
   ColorStopList color_stop_list_a;
-  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_a.emplace_back(
+      new ColorStop(property_color, property_length));
   ColorStopList color_stop_list_b;
-  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
+  color_stop_list_b.emplace_back(
+      new ColorStop(property_color, property_length));
 
-  scoped_ptr<PropertyListValue::Builder> size_a_builder(
+  std::unique_ptr<PropertyListValue::Builder> size_a_builder(
       new PropertyListValue::Builder());
-  size_a_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  size_a_builder->emplace_back(new LengthValue(1.5f, kPixelsUnit));
   scoped_refptr<PropertyListValue> size_a(
-      new PropertyListValue(size_a_builder.Pass()));
+      new PropertyListValue(std::move(size_a_builder)));
 
-  scoped_ptr<PropertyListValue::Builder> size_b_builder(
+  std::unique_ptr<PropertyListValue::Builder> size_b_builder(
       new PropertyListValue::Builder());
-  size_b_builder->push_back(new LengthValue(2.5f, kPixelsUnit));
+  size_b_builder->emplace_back(new LengthValue(2.5f, kPixelsUnit));
   scoped_refptr<PropertyListValue> size_b(
-      new PropertyListValue(size_b_builder.Pass()));
+      new PropertyListValue(std::move(size_b_builder)));
 
-  scoped_ptr<PropertyListValue::Builder> position_a_builder(
+  std::unique_ptr<PropertyListValue::Builder> position_a_builder(
       new PropertyListValue::Builder());
-  position_a_builder->push_back(new LengthValue(3.0f, kFontSizesAkaEmUnit));
+  position_a_builder->emplace_back(new LengthValue(3.0f, kFontSizesAkaEmUnit));
   scoped_refptr<PropertyListValue> position_a(
-      new PropertyListValue(position_a_builder.Pass()));
+      new PropertyListValue(std::move(position_a_builder)));
 
-  scoped_ptr<PropertyListValue::Builder> position_b_builder(
+  std::unique_ptr<PropertyListValue::Builder> position_b_builder(
       new PropertyListValue::Builder());
-  position_b_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  position_b_builder->emplace_back(new LengthValue(1.5f, kPixelsUnit));
   scoped_refptr<PropertyListValue> position_b(
-      new PropertyListValue(position_b_builder.Pass()));
+      new PropertyListValue(std::move(position_b_builder)));
 
   scoped_refptr<RadialGradientValue> value_a(
       new RadialGradientValue(RadialGradientValue::kCircle, size_a, position_a,
-                              color_stop_list_a.Pass()));
+                              std::move(color_stop_list_a)));
 
   scoped_refptr<RadialGradientValue> value_b(
       new RadialGradientValue(RadialGradientValue::kCircle, size_b, position_b,
-                              color_stop_list_b.Pass()));
+                              std::move(color_stop_list_b)));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -403,9 +446,9 @@ TEST(PropertyValueIsEqualTest, TimeListsAreEqual) {
   time_list.push_back(base::TimeDelta::FromMilliseconds(2));
 
   scoped_refptr<TimeListValue> value_a(new TimeListValue(
-      make_scoped_ptr(new TimeListValue::Builder(time_list))));
+      base::WrapUnique(new TimeListValue::Builder(time_list))));
   scoped_refptr<TimeListValue> value_b(new TimeListValue(
-      make_scoped_ptr(new TimeListValue::Builder(time_list))));
+      base::WrapUnique(new TimeListValue::Builder(time_list))));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
@@ -416,54 +459,54 @@ TEST(PropertyValueIsEqualTest, TimeListsAreNotEqual) {
   time_list.push_back(base::TimeDelta::FromMilliseconds(2));
 
   scoped_refptr<TimeListValue> value_a(new TimeListValue(
-      make_scoped_ptr(new TimeListValue::Builder(time_list))));
+      base::WrapUnique(new TimeListValue::Builder(time_list))));
 
   time_list.back() = base::TimeDelta::FromSeconds(2);
 
   scoped_refptr<TimeListValue> value_b(new TimeListValue(
-      make_scoped_ptr(new TimeListValue::Builder(time_list))));
+      base::WrapUnique(new TimeListValue::Builder(time_list))));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TimingFunctionListsAreEqual) {
-  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_a(
+  std::unique_ptr<TimingFunctionListValue::Builder> timing_function_list_a(
       new TimingFunctionListValue::Builder());
   timing_function_list_a->push_back(TimingFunction::GetLinear());
   timing_function_list_a->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> value_a(
-      new TimingFunctionListValue(timing_function_list_a.Pass()));
+      new TimingFunctionListValue(std::move(timing_function_list_a)));
 
-  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_b(
+  std::unique_ptr<TimingFunctionListValue::Builder> timing_function_list_b(
       new TimingFunctionListValue::Builder());
   timing_function_list_b->push_back(
       new CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f));
   timing_function_list_b->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> value_b(
-      new TimingFunctionListValue(timing_function_list_b.Pass()));
+      new TimingFunctionListValue(std::move(timing_function_list_b)));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TimingFunctionListsAreNotEqual) {
-  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_a(
+  std::unique_ptr<TimingFunctionListValue::Builder> timing_function_list_a(
       new TimingFunctionListValue::Builder());
   timing_function_list_a->push_back(TimingFunction::GetLinear());
   timing_function_list_a->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> value_a(
-      new TimingFunctionListValue(timing_function_list_a.Pass()));
+      new TimingFunctionListValue(std::move(timing_function_list_a)));
 
-  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_b(
+  std::unique_ptr<TimingFunctionListValue::Builder> timing_function_list_b(
       new TimingFunctionListValue::Builder());
   timing_function_list_b->push_back(
       new CubicBezierTimingFunction(0.0f, 0.5f, 1.0f, 1.0f));
   timing_function_list_b->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> value_b(
-      new TimingFunctionListValue(timing_function_list_b.Pass()));
+      new TimingFunctionListValue(std::move(timing_function_list_b)));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -536,44 +579,42 @@ TEST(PropertyValueIsEqualTest, TranslateFunctionsAreNotEqual) {
 
 TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
   TransformFunctionListValue::Builder transform_list_a;
-  transform_list_a.push_back(
-      new TranslateFunction(TranslateFunction::kXAxis,
-                            new LengthValue(1, kPixelsUnit)));
-  transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
-  transform_list_a.push_back(new RotateFunction(1.0f));
+  transform_list_a.emplace_back(new TranslateFunction(
+      TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
+  transform_list_a.emplace_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list_a.emplace_back(new RotateFunction(1.0f));
+  transform_list_a.emplace_back(new CobaltUiNavSpotlightTransformFunction);
   scoped_refptr<TransformFunctionListValue> value_a(
-      new TransformFunctionListValue(transform_list_a.Pass()));
+      new TransformFunctionListValue(std::move(transform_list_a)));
 
   TransformFunctionListValue::Builder transform_list_b;
-  transform_list_b.push_back(
-      new TranslateFunction(TranslateFunction::kXAxis,
-                            new LengthValue(1, kPixelsUnit)));
-  transform_list_b.push_back(new ScaleFunction(2.0f, 2.0f));
-  transform_list_b.push_back(new RotateFunction(1.0f));
+  transform_list_b.emplace_back(new TranslateFunction(
+      TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
+  transform_list_b.emplace_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list_b.emplace_back(new RotateFunction(1.0f));
+  transform_list_b.emplace_back(new CobaltUiNavSpotlightTransformFunction);
   scoped_refptr<TransformFunctionListValue> value_b(
-      new TransformFunctionListValue(transform_list_b.Pass()));
+      new TransformFunctionListValue(std::move(transform_list_b)));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
   TransformFunctionListValue::Builder transform_list_a;
-  transform_list_a.push_back(
-      new TranslateFunction(TranslateFunction::kXAxis,
-                            new LengthValue(1, kPixelsUnit)));
-  transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
-  transform_list_a.push_back(new RotateFunction(1.0f));
+  transform_list_a.emplace_back(new TranslateFunction(
+      TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
+  transform_list_a.emplace_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list_a.emplace_back(new RotateFunction(1.0f));
   scoped_refptr<TransformFunctionListValue> value_a(
-      new TransformFunctionListValue(transform_list_a.Pass()));
+      new TransformFunctionListValue(std::move(transform_list_a)));
 
   TransformFunctionListValue::Builder transform_list_b;
-  transform_list_b.push_back(
-      new TranslateFunction(TranslateFunction::kXAxis,
-                            new LengthValue(1, kPixelsUnit)));
-  transform_list_b.push_back(new ScaleFunction(1.0f, 2.0f));
-  transform_list_b.push_back(new RotateFunction(1.0f));
+  transform_list_b.emplace_back(new TranslateFunction(
+      TranslateFunction::kXAxis, new LengthValue(1, kPixelsUnit)));
+  transform_list_b.emplace_back(new ScaleFunction(1.0f, 2.0f));
+  transform_list_b.emplace_back(new RotateFunction(1.0f));
   scoped_refptr<TransformFunctionListValue> value_b(
-      new TransformFunctionListValue(transform_list_b.Pass()));
+      new TransformFunctionListValue(std::move(transform_list_b)));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -598,91 +639,91 @@ TEST(PropertyValueIsEqualTest, URLsAreNotEqual) {
 
 TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
   FilterFunctionListValue::Builder filter_list_a;
-  filter_list_a.push_back(new MapToMeshFunction(
+  filter_list_a.emplace_back(new MapToMeshFunction(
       new URLValue("somemesh.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f,
-      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f,
-                       0.0f, 1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 0.70707f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
+                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list_a.push_back(new MapToMeshFunction(
+  filter_list_a.emplace_back(new MapToMeshFunction(
       new URLValue("sphere.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f,
-      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-                       0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 0.676f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
-  filter_list_a.push_back(new MapToMeshFunction(
+  filter_list_a.emplace_back(new MapToMeshFunction(
       MapToMeshFunction::kEquirectangular, 0.676f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_a(
-      new FilterFunctionListValue(filter_list_a.Pass()));
+      new FilterFunctionListValue(std::move(filter_list_a)));
 
   FilterFunctionListValue::Builder filter_list_b;
-  filter_list_b.push_back(new MapToMeshFunction(
+  filter_list_b.emplace_back(new MapToMeshFunction(
       new URLValue("somemesh.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f,
-      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f,
-                       0.0f, 1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 0.70707f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
+                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list_b.push_back(new MapToMeshFunction(
+  filter_list_b.emplace_back(new MapToMeshFunction(
       new URLValue("sphere.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f,
-      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-                       0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 0.676f, 6.28f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
-  filter_list_b.push_back(new MapToMeshFunction(
+  filter_list_b.emplace_back(new MapToMeshFunction(
       MapToMeshFunction::kEquirectangular, 0.676f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_b(
-      new FilterFunctionListValue(filter_list_b.Pass()));
+      new FilterFunctionListValue(std::move(filter_list_b)));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
   FilterFunctionListValue::Builder filter_list_a;
-  filter_list_a.push_back(new MapToMeshFunction(
+  filter_list_a.emplace_back(new MapToMeshFunction(
       new URLValue("format.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_a(
-      new FilterFunctionListValue(filter_list_a.Pass()));
+      new FilterFunctionListValue(std::move(filter_list_a)));
 
   FilterFunctionListValue::Builder filter_list_b;
-  filter_list_b.push_back(new MapToMeshFunction(
+  filter_list_b.emplace_back(new MapToMeshFunction(
       new URLValue("format.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_b(
-      new FilterFunctionListValue(filter_list_b.Pass()));
+      new FilterFunctionListValue(std::move(filter_list_b)));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 
   FilterFunctionListValue::Builder filter_list_c;
-  filter_list_c.push_back(new MapToMeshFunction(
+  filter_list_c.emplace_back(new MapToMeshFunction(
       MapToMeshFunction::kEquirectangular, 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_c(
-      new FilterFunctionListValue(filter_list_c.Pass()));
+      new FilterFunctionListValue(std::move(filter_list_c)));
 
   FilterFunctionListValue::Builder filter_list_d;
-  filter_list_d.push_back(new MapToMeshFunction(
+  filter_list_d.emplace_back(new MapToMeshFunction(
       new URLValue("format.msh"),
-      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_d(
-      new FilterFunctionListValue(filter_list_d.Pass()));
+      new FilterFunctionListValue(std::move(filter_list_d)));
 
   EXPECT_FALSE(value_c->Equals(*value_d));
 }

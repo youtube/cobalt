@@ -3,6 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/base/priority_queue.h"
+
+#include <cstddef>
+
+#include "base/stl_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -10,28 +14,30 @@ namespace net {
 namespace {
 
 typedef PriorityQueue<int>::Priority Priority;
-const Priority kPriorities[] = { 2, 1, 2, 0, 4, 3, 1, 4, 0 };
-const Priority kNumPriorities = 5;  // max(kPriorities) + 1
-const size_t kNumElements = arraysize(kPriorities);
-const int kFirstMinOrder[kNumElements] = { 3, 8, 1, 6, 0, 2, 5, 4, 7 };
-const int kLastMaxOrder[kNumElements] = { 7, 4, 5, 2, 0, 6, 1, 8, 3 };
-const int kFirstMaxOrder[kNumElements] = { 4, 7, 5, 0, 2, 1, 6, 3, 8 };
-const int kLastMinOrder[kNumElements] = { 8, 3, 6, 1, 2, 0, 5, 7, 4 };
+constexpr Priority kPriorities[] = {2, 1, 2, 0, 4, 3, 1, 4, 0};
+constexpr Priority kNumPriorities = 5;  // max(kPriorities) + 1
+constexpr size_t kNumElements = base::size(kPriorities);
+constexpr int kFirstMinOrder[kNumElements] = {3, 8, 1, 6, 0, 2, 5, 4, 7};
+constexpr int kLastMaxOrderErase[kNumElements] = {7, 4, 5, 2, 0, 6, 1, 8, 3};
+constexpr int kFirstMaxOrder[kNumElements] = {4, 7, 5, 0, 2, 1, 6, 3, 8};
+constexpr int kLastMinOrder[kNumElements] = {8, 3, 6, 1, 2, 0, 5, 7, 4};
 
 class PriorityQueueTest : public testing::Test {
  protected:
   PriorityQueueTest() : queue_(kNumPriorities) {}
 
-  virtual void SetUp() override {
+  void SetUp() override {
     CheckEmpty();
     for (size_t i = 0; i < kNumElements; ++i) {
       EXPECT_EQ(i, queue_.size());
       pointers_[i] = queue_.Insert(static_cast<int>(i), kPriorities[i]);
+      EXPECT_FALSE(queue_.empty());
     }
     EXPECT_EQ(kNumElements, queue_.size());
   }
 
   void CheckEmpty() {
+    EXPECT_TRUE(queue_.empty());
     EXPECT_EQ(0u, queue_.size());
     EXPECT_TRUE(queue_.FirstMin().is_null());
     EXPECT_TRUE(queue_.LastMin().is_null());
@@ -72,6 +78,32 @@ TEST_F(PriorityQueueTest, LastMinOrder) {
 }
 
 TEST_F(PriorityQueueTest, FirstMaxOrder) {
+  PriorityQueue<int>::Pointer p = queue_.FirstMax();
+  size_t i = 0;
+  for (; !p.is_null() && i < kNumElements;
+       p = queue_.GetNextTowardsLastMin(p), ++i) {
+    EXPECT_EQ(kFirstMaxOrder[i], p.value());
+  }
+  EXPECT_TRUE(p.is_null());
+  EXPECT_EQ(kNumElements, i);
+  queue_.Clear();
+  CheckEmpty();
+}
+
+TEST_F(PriorityQueueTest, GetNextTowardsLastMinAndErase) {
+  PriorityQueue<int>::Pointer current = queue_.FirstMax();
+  for (size_t i = 0; i < kNumElements; ++i) {
+    EXPECT_FALSE(current.is_null());
+    EXPECT_EQ(kFirstMaxOrder[i], current.value());
+    PriorityQueue<int>::Pointer next = queue_.GetNextTowardsLastMin(current);
+    queue_.Erase(current);
+    current = next;
+  }
+  EXPECT_TRUE(current.is_null());
+  CheckEmpty();
+}
+
+TEST_F(PriorityQueueTest, FirstMaxOrderErase) {
   for (size_t i = 0; i < kNumElements; ++i) {
     EXPECT_EQ(kFirstMaxOrder[i], queue_.FirstMax().value());
     queue_.Erase(queue_.FirstMax());
@@ -79,9 +111,9 @@ TEST_F(PriorityQueueTest, FirstMaxOrder) {
   CheckEmpty();
 }
 
-TEST_F(PriorityQueueTest, LastMaxOrder) {
+TEST_F(PriorityQueueTest, LastMaxOrderErase) {
   for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(kLastMaxOrder[i], queue_.LastMax().value());
+    EXPECT_EQ(kLastMaxOrderErase[i], queue_.LastMax().value());
     queue_.Erase(queue_.LastMax());
   }
   CheckEmpty();
@@ -91,10 +123,25 @@ TEST_F(PriorityQueueTest, EraseFromMiddle) {
   queue_.Erase(pointers_[2]);
   queue_.Erase(pointers_[3]);
 
-  int expected_order[] = { 8, 1, 6, 0, 5, 4, 7 };
+  const int expected_order[] = { 8, 1, 6, 0, 5, 4, 7 };
 
-  for (size_t i = 0; i < arraysize(expected_order); ++i) {
-    EXPECT_EQ(expected_order[i], queue_.FirstMin().value());
+  for (const auto& value : expected_order) {
+    EXPECT_EQ(value, queue_.FirstMin().value());
+    queue_.Erase(queue_.FirstMin());
+  }
+  CheckEmpty();
+}
+
+TEST_F(PriorityQueueTest, InsertAtFront) {
+  queue_.InsertAtFront(9, 2);
+  queue_.InsertAtFront(10, 0);
+  queue_.InsertAtFront(11, 1);
+  queue_.InsertAtFront(12, 1);
+
+  const int expected_order[] = { 10, 3, 8, 12, 11, 1, 6, 9, 0, 2, 5, 4, 7 };
+
+  for (const auto& value : expected_order) {
+    EXPECT_EQ(value, queue_.FirstMin().value());
     queue_.Erase(queue_.FirstMin());
   }
   CheckEmpty();

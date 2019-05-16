@@ -14,11 +14,12 @@ class URLFetcherDelegate;
 // URLFetcher. Factory is intended for testing.
 class URLFetcherFactory {
  public:
-  virtual URLFetcher* CreateURLFetcher(
+  virtual std::unique_ptr<URLFetcher> CreateURLFetcher(
       int id,
       const GURL& url,
       URLFetcher::RequestType request_type,
-      URLFetcherDelegate* delegate) = 0;
+      URLFetcherDelegate* delegate,
+      NetworkTrafficAnnotationTag traffic_annotation) = 0;
 
  protected:
   virtual ~URLFetcherFactory() {}

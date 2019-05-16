@@ -23,7 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_rule_visitor.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 

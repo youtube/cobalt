@@ -6,29 +6,34 @@
 #define BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 
 #if defined(OS_WIN)
-#include <windows.h>
-#endif
+#include "base/win/scoped_handle.h"
+#elif defined(OS_MACOSX)
+#include <mach/mach.h>
 
-#if defined(OS_POSIX) || defined(OS_STARBOARD)
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
-#include <vector>
-#else
 #include <list>
-#endif
-#include <utility>
+#include <memory>
+
+#include "base/callback_forward.h"
+#include "base/mac/scoped_mach_port.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#include <list>
+#include <utility>
+
+#include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {
 
-// This replaces INFINITE from Win32
-static const int kNoTimeout = -1;
-
 class TimeDelta;
+class TimeTicks;
 
 // A WaitableEvent can be a useful thread synchronization tool when you want to
 // allow one thread to wait for another thread to finish some work. For
@@ -47,20 +52,25 @@ class TimeDelta;
 // be better off just using an Windows event directly.
 class BASE_EXPORT WaitableEvent {
  public:
-  // If manual_reset is true, then to set the event state to non-signaled, a
-  // consumer must call the Reset method.  If this parameter is false, then the
-  // system automatically resets the event state to non-signaled after a single
-  // waiting thread has been released.
-  WaitableEvent(bool manual_reset, bool initially_signaled);
+  // Indicates whether a WaitableEvent should automatically reset the event
+  // state after a single waiting thread has been released or remain signaled
+  // until Reset() is manually invoked.
+  enum class ResetPolicy { MANUAL, AUTOMATIC };
+
+  // Indicates whether a new WaitableEvent should start in a signaled state or
+  // not.
+  enum class InitialState { SIGNALED, NOT_SIGNALED };
+
+  // Constructs a WaitableEvent with policy and initial state as detailed in
+  // the above enums.
+  WaitableEvent(ResetPolicy reset_policy = ResetPolicy::MANUAL,
+                InitialState initial_state = InitialState::NOT_SIGNALED);
 
 #if defined(OS_WIN)
   // Create a WaitableEvent from an Event HANDLE which has already been
   // created. This objects takes ownership of the HANDLE and will close it when
   // deleted.
-  explicit WaitableEvent(HANDLE event_handle);
-
-  // Releases ownership of the handle from this object.
-  HANDLE Release();
+  explicit WaitableEvent(win::ScopedHandle event_handle);
 #endif
 
   ~WaitableEvent();
@@ -76,16 +86,30 @@ class BASE_EXPORT WaitableEvent {
   // is not a manual reset event, then this test will cause a reset.
   bool IsSignaled();
 
-  // Wait indefinitely for the event to be signaled.
+  // Wait indefinitely for the event to be signaled. Wait's return "happens
+  // after" |Signal| has completed. This means that it's safe for a
+  // WaitableEvent to synchronise its own destruction, like this:
+  //
+  //   WaitableEvent *e = new WaitableEvent;
+  //   SendToOtherThread(e);
+  //   e->Wait();
+  //   delete e;
   void Wait();
 
-  // Wait up until max_time has passed for the event to be signaled.  Returns
-  // true if the event was signaled.  If this method returns false, then it
-  // does not necessarily mean that max_time was exceeded.
-  bool TimedWait(const TimeDelta& max_time);
+  // Wait up until wait_delta has passed for the event to be signaled.  Returns
+  // true if the event was signaled.
+  //
+  // TimedWait can synchronise its own destruction like |Wait|.
+  bool TimedWait(const TimeDelta& wait_delta);
+
+  // Wait up until end_time deadline has passed for the event to be signaled.
+  // Return true if the event was signaled.
+  //
+  // TimedWaitUntil can synchronise its own destruction like |Wait|.
+  bool TimedWaitUntil(const TimeTicks& end_time);
 
 #if defined(OS_WIN)
-  HANDLE handle() const { return handle_; }
+  HANDLE handle() const { return handle_.Get(); }
 #endif
 
   // Wait, synchronously, on multiple events.
@@ -95,7 +119,11 @@ class BASE_EXPORT WaitableEvent {
   // returns: the index of a WaitableEvent which has been signaled.
   //
   // You MUST NOT delete any of the WaitableEvent objects while this wait is
-  // happening.
+  // happening, however WaitMany's return "happens after" the |Signal| call
+  // that caused it has completed, like |Wait|.
+  //
+  // If more than one WaitableEvent is signaled to unblock WaitMany, the lowest
+  // index among them is returned.
   static size_t WaitMany(WaitableEvent** waitables, size_t count);
 
   // For asynchronous waiting, see WaitableEventWatcher
@@ -127,18 +155,87 @@ class BASE_EXPORT WaitableEvent {
     virtual bool Compare(void* tag) = 0;
 
    protected:
-    virtual ~Waiter() {}
+    virtual ~Waiter() = default;
   };
 
  private:
   friend class WaitableEventWatcher;
 
 #if defined(OS_WIN)
-  HANDLE handle_;
-#else
-  // On Windows, one can close a HANDLE which is currently being waited on. The
-  // MSDN documentation says that the resulting behaviour is 'undefined', but
-  // it doesn't crash. However, if we were to include the following members
+  win::ScopedHandle handle_;
+#elif defined(OS_MACOSX)
+  // Prior to macOS 10.12, a TYPE_MACH_RECV dispatch source may not be invoked
+  // immediately. If a WaitableEventWatcher is used on a manual-reset event,
+  // and another thread that is Wait()ing on the event calls Reset()
+  // immediately after waking up, the watcher may not receive the callback.
+  // On macOS 10.12 and higher, dispatch delivery is reliable. But for OSes
+  // prior, a lock-protected list of callbacks is used for manual-reset event
+  // watchers. Automatic-reset events are not prone to this issue, since the
+  // first thread to wake will claim the event.
+  static bool UseSlowWatchList(ResetPolicy policy);
+
+  // Peeks the message queue named by |port| and returns true if a message
+  // is present and false if not. If |dequeue| is true, the messsage will be
+  // drained from the queue. If |dequeue| is false, the queue will only be
+  // peeked. |port| must be a receive right.
+  static bool PeekPort(mach_port_t port, bool dequeue);
+
+  // The Mach receive right is waited on by both WaitableEvent and
+  // WaitableEventWatcher. It is valid to signal and then delete an event, and
+  // a watcher should still be notified. If the right were to be destroyed
+  // immediately, the watcher would not receive the signal. Because Mach
+  // receive rights cannot have a user refcount greater than one, the right
+  // must be reference-counted manually.
+  class ReceiveRight : public RefCountedThreadSafe<ReceiveRight> {
+   public:
+    ReceiveRight(mach_port_t name, bool create_slow_watch_list);
+
+    mach_port_t Name() const { return right_.get(); };
+
+    // This structure is used iff UseSlowWatchList() is true. See the comment
+    // in Signal() for details.
+    struct WatchList {
+      WatchList();
+      ~WatchList();
+
+      // The lock protects a list of closures to be run when the event is
+      // Signal()ed. The closures are invoked on the signaling thread, so they
+      // must be safe to be called from any thread.
+      Lock lock;
+      std::list<OnceClosure> list;
+    };
+
+    WatchList* SlowWatchList() const { return slow_watch_list_.get(); }
+
+   private:
+    friend class RefCountedThreadSafe<ReceiveRight>;
+    ~ReceiveRight();
+
+    mac::ScopedMachReceiveRight right_;
+
+    // This is allocated iff UseSlowWatchList() is true. It is created on the
+    // heap to avoid performing initialization when not using the slow path.
+    std::unique_ptr<WatchList> slow_watch_list_;
+
+    DISALLOW_COPY_AND_ASSIGN(ReceiveRight);
+  };
+
+  const ResetPolicy policy_;
+
+  // The receive right for the event.
+  scoped_refptr<ReceiveRight> receive_right_;
+
+  // The send right used to signal the event. This can be disposed of with
+  // the event, unlike the receive right, since a deleted event cannot be
+  // signaled.
+  mac::ScopedMachSendRight send_right_;
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+  // On Windows, you must not close a HANDLE which is currently being waited on.
+  // The MSDN documentation says that the resulting behaviour is 'undefined'.
+  // To solve that issue each WaitableEventWatcher duplicates the given event
+  // handle.
+
+  // However, if we were to include the following members
   // directly then, on POSIX, one couldn't use WaitableEventWatcher to watch an
   // event which gets deleted. This mismatch has bitten us several times now,
   // so we have a kernel of the WaitableEvent, which is reference counted.
@@ -147,18 +244,14 @@ class BASE_EXPORT WaitableEvent {
   struct WaitableEventKernel :
       public RefCountedThreadSafe<WaitableEventKernel> {
    public:
-    WaitableEventKernel(bool manual_reset, bool initially_signaled);
+    WaitableEventKernel(ResetPolicy reset_policy, InitialState initial_state);
 
     bool Dequeue(Waiter* waiter, void* tag);
 
     base::Lock lock_;
     const bool manual_reset_;
     bool signaled_;
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
-    std::vector<Waiter*> waiters_;
-#else
     std::list<Waiter*> waiters_;
-#endif
 
    private:
     friend class RefCountedThreadSafe<WaitableEventKernel>;

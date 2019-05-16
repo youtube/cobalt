@@ -21,7 +21,7 @@ namespace {
 const char kWindowNameKey[] = "name";
 }
 
-base::optional<WindowId> WindowId::FromValue(const base::Value* value) {
+base::Optional<WindowId> WindowId::FromValue(const base::Value* value) {
   std::string window_id;
   const base::DictionaryValue* dictionary_value;
   if (value->GetAsDictionary(&dictionary_value) &&

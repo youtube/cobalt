@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_IMAGE_WEBP_IMAGE_DECODER_H_
 #define COBALT_LOADER_IMAGE_WEBP_IMAGE_DECODER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -47,7 +48,7 @@ class WEBPImageDecoder : public ImageDataDecoder {
   WebPIDecoder* internal_decoder_;
   WebPDecoderConfig config_;
   scoped_refptr<AnimatedWebPImage> animated_webp_image_;
-  scoped_ptr<render_tree::ImageData> decoded_image_data_;
+  std::unique_ptr<render_tree::ImageData> decoded_image_data_;
 };
 
 }  // namespace image

@@ -10,9 +10,9 @@
 // FileStream::Context instance). Context was extracted into a different class
 // to be able to do and finish all async operations even when FileStream
 // instance is deleted. So FileStream's destructor can schedule file
-// closing to be done by Context in WorkerPool and then just return (releasing
-// Context pointer from scoped_ptr) without waiting for actual closing to
-// complete.
+// closing to be done by Context in WorkerPool (or the TaskRunner passed to
+// constructor) and then just return (releasing Context pointer from
+// scoped_ptr) without waiting for actual closing to complete.
 // Implementation of FileStream::Context is divided in two parts: some methods
 // and members are platform-independent and some depend on the platform. This
 // header file contains the complete definition of Context class including all
@@ -27,29 +27,33 @@
 #ifndef NET_BASE_FILE_STREAM_CONTEXT_H_
 #define NET_BASE_FILE_STREAM_CONTEXT_H_
 
-#include "base/message_loop.h"
-#include "base/platform_file.h"
-#include "net/base/completion_callback.h"
+#include "base/files/file.h"
+#include "base/macros.h"
+#include "base/memory/weak_ptr.h"
+#include "base/message_loop/message_pump_for_io.h"
+#include "base/single_thread_task_runner.h"
+#include "base/task_runner.h"
+#include "build/build_config.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/file_stream.h"
-#include "net/base/file_stream_metrics.h"
-#include "net/base/file_stream_whence.h"
-#include "net/base/net_log.h"
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <errno.h>
-#elif defined(OS_STARBOARD)
-#include "starboard/system.h"
+
+#include "starboard/types.h"
 #endif
 
+namespace base {
 class FilePath;
+}
 
 namespace net {
 
 class IOBuffer;
 
 #if defined(OS_WIN)
-class FileStream::Context : public MessageLoopForIO::IOHandler {
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+class FileStream::Context : public base::MessagePumpForIO::IOHandler {
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 class FileStream::Context {
 #endif
  public:
@@ -58,36 +62,18 @@ class FileStream::Context {
   // file_stream_context_{win,posix}.cc.
   ////////////////////////////////////////////////////////////////////////////
 
-  explicit Context(const BoundNetLog& bound_net_log);
-  Context(base::PlatformFile file,
-          const BoundNetLog& bound_net_log,
-          int open_flags);
+  explicit Context(const scoped_refptr<base::TaskRunner>& task_runner);
+  Context(base::File file, const scoped_refptr<base::TaskRunner>& task_runner);
 #if defined(OS_WIN)
-  virtual ~Context();
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+  ~Context() override;
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   ~Context();
 #endif
 
-  int64 GetFileSize() const;
+  int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
-  int ReadAsync(IOBuffer* buf,
-                int buf_len,
-                const CompletionCallback& callback);
-  int ReadSync(char* buf, int buf_len);
+  int Write(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
-  int WriteAsync(IOBuffer* buf,
-                 int buf_len,
-                 const CompletionCallback& callback);
-  int WriteSync(const char* buf, int buf_len);
-
-  int Truncate(int64 bytes);
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Inline methods.
-  ////////////////////////////////////////////////////////////////////////////
-
-  void set_record_uma(bool value) { record_uma_ = value; }
-  base::PlatformFile file() const { return file_; }
   bool async_in_progress() const { return async_in_progress_; }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -99,95 +85,72 @@ class FileStream::Context {
   // not closed yet.
   void Orphan();
 
-  void OpenAsync(const FilePath& path,
-                 int open_flags,
-                 const CompletionCallback& callback);
-  int OpenSync(const FilePath& path, int open_flags);
+  void Open(const base::FilePath& path,
+            int open_flags,
+            CompletionOnceCallback callback);
 
-  void CloseSync();
+  void Close(CompletionOnceCallback callback);
 
-  void SeekAsync(Whence whence,
-                 int64 offset,
-                 const Int64CompletionCallback& callback);
-  int64 SeekSync(Whence whence, int64 offset);
+  // Seeks |offset| bytes from the start of the file.
+  void Seek(int64_t offset, Int64CompletionOnceCallback callback);
 
-  void FlushAsync(const CompletionCallback& callback);
-  int FlushSync();
+  void GetFileInfo(base::File::Info* file_info,
+                   CompletionOnceCallback callback);
+
+  void Flush(CompletionOnceCallback callback);
+
+  bool IsOpen() const;
 
  private:
-  ////////////////////////////////////////////////////////////////////////////
-  // Error code that is platform-dependent but is used in the platform-
-  // independent code implemented in file_stream_context.cc.
-  ////////////////////////////////////////////////////////////////////////////
-  enum {
-#if defined(OS_WIN)
-    ERROR_BAD_FILE = ERROR_INVALID_HANDLE
-#elif defined(OS_POSIX)
-    ERROR_BAD_FILE = EBADF
-#elif defined(OS_STARBOARD)
-    ERROR_BAD_FILE = kSbFileErrorFailed
+  struct IOResult {
+    IOResult();
+    IOResult(int64_t result, logging::SystemErrorCode os_error);
+    static IOResult FromOSError(logging::SystemErrorCode os_error);
+#if defined(STARBOARD)
+    static IOResult FromFileError(
+        base::File::Error file_error, logging::SystemErrorCode os_error);
 #endif
+
+    int64_t result;
+    logging::SystemErrorCode os_error;  // Set only when result < 0.
+  };
+
+  struct OpenResult {
+   public:
+    OpenResult();
+    OpenResult(base::File file, IOResult error_code);
+    OpenResult(OpenResult&& other);
+    OpenResult& operator=(OpenResult&& other);
+
+    base::File file;
+    IOResult error_code;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(OpenResult);
   };
 
   ////////////////////////////////////////////////////////////////////////////
   // Platform-independent methods implemented in file_stream_context.cc.
   ////////////////////////////////////////////////////////////////////////////
 
-  struct OpenResult {
-    base::PlatformFile file;
-    int error_code;
-  };
+  OpenResult OpenFileImpl(const base::FilePath& path, int open_flags);
 
-  // Map system error into network error code and log it with |bound_net_log_|.
-  int RecordAndMapError(int error, FileErrorSource source) const;
+  IOResult GetFileInfoImpl(base::File::Info* file_info);
 
-  void BeginOpenEvent(const FilePath& path);
+  IOResult CloseFileImpl();
 
-  OpenResult OpenFileImpl(const FilePath& path, int open_flags);
+  IOResult FlushFileImpl();
 
-  int ProcessOpenError(int error_code);
-  void OnOpenCompleted(const CompletionCallback& callback, OpenResult result);
+  void OnOpenCompleted(CompletionOnceCallback callback, OpenResult open_result);
 
   void CloseAndDelete();
-  void OnCloseCompleted();
 
-  Int64CompletionCallback IntToInt64(const CompletionCallback& callback);
+  Int64CompletionOnceCallback IntToInt64(CompletionOnceCallback callback);
 
-  // Checks for IO error that probably happened in async methods.
-  // If there was error reports it.
-  void CheckForIOError(int64* result, FileErrorSource source);
-
-  // Called when asynchronous Seek() is completed.
-  // Reports error if needed and calls callback.
-  void ProcessAsyncResult(const Int64CompletionCallback& callback,
-                          FileErrorSource source,
-                          int64 result);
-
-  // Called when asynchronous Open() or Seek()
-  // is completed. |result| contains the result or a network error code.
-  void OnAsyncCompleted(const Int64CompletionCallback& callback, int64 result);
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Helper stuff which is platform-dependent but is used in the platform-
-  // independent code implemented in file_stream_context.cc. These helpers were
-  // introduced solely to implement as much of the Context methods as
-  // possible independently from platform.
-  ////////////////////////////////////////////////////////////////////////////
-
-#if defined(OS_WIN)
-  int GetLastErrno() { return GetLastError(); }
-  void OnAsyncFileOpened();
-#elif defined(OS_POSIX)
-  int GetLastErrno() { return errno; }
-  void OnAsyncFileOpened() {}
-  void CancelIo(base::PlatformFile) {}
-#elif defined(OS_STARBOARD)
-  int GetLastErrno() const {
-    return SbSystemGetLastError();
-  }
-  void OnAsyncFileOpened() {}
-  void CancelIo(base::PlatformFile) {}
-#endif
+  // Called when Open() or Seek() completes. |result| contains the result or a
+  // network error code.
+  void OnAsyncCompleted(Int64CompletionOnceCallback callback,
+                        const IOResult& result);
 
   ////////////////////////////////////////////////////////////////////////////
   // Platform-dependent methods implemented in
@@ -195,40 +158,90 @@ class FileStream::Context {
   ////////////////////////////////////////////////////////////////////////////
 
   // Adjusts the position from where the data is read.
-  int64 SeekFileImpl(Whence whence, int64 offset);
+  IOResult SeekFileImpl(int64_t offset);
 
-  // Flushes all data written to the stream.
-  int64 FlushFileImpl();
+  void OnFileOpened();
 
 #if defined(OS_WIN)
-  void IOCompletionIsPending(const CompletionCallback& callback, IOBuffer* buf);
+  void IOCompletionIsPending(CompletionOnceCallback callback, IOBuffer* buf);
 
-  // Implementation of MessageLoopForIO::IOHandler
-  virtual void OnIOCompleted(MessageLoopForIO::IOContext* context,
-                             DWORD bytes_read,
-                             DWORD error) override;
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+  // Implementation of MessagePumpForIO::IOHandler.
+  void OnIOCompleted(base::MessagePumpForIO::IOContext* context,
+                     DWORD bytes_read,
+                     DWORD error) override;
+
+  // Invokes the user callback.
+  void InvokeUserCallback();
+
+  // Deletes an orphaned context.
+  void DeleteOrphanedContext();
+
+  // The ReadFile call on Windows can execute synchonously at times.
+  // http://support.microsoft.com/kb/156932. This ends up blocking the calling
+  // thread which is undesirable. To avoid this we execute the ReadFile call
+  // on a worker thread.
+  // The |context| parameter is a pointer to the current Context instance. It
+  // is safe to pass this as is to the pool as the Context instance should
+  // remain valid until the pending Read operation completes.
+  // The |file| parameter is the handle to the file being read.
+  // The |buf| parameter is the buffer where we want the ReadFile to read the
+  // data into.
+  // The |buf_len| parameter contains the number of bytes to be read.
+  // The |overlapped| parameter is a pointer to the OVERLAPPED structure being
+  // used.
+  // The |origin_thread_task_runner| is a task runner instance used to post
+  // tasks back to the originating thread.
+  static void ReadAsync(
+      FileStream::Context* context,
+      HANDLE file,
+      scoped_refptr<IOBuffer> buf,
+      int buf_len,
+      OVERLAPPED* overlapped,
+      scoped_refptr<base::SingleThreadTaskRunner> origin_thread_task_runner);
+
+  // This callback executes on the main calling thread. It informs the caller
+  // about the result of the ReadFile call.
+  // The |read_file_ret| parameter contains the return value of the ReadFile
+  // call.
+  // The |bytes_read| contains the number of bytes read from the file, if
+  // ReadFile succeeds.
+  // The |os_error| parameter contains the value of the last error returned by
+  // the ReadFile API.
+  void ReadAsyncResult(BOOL read_file_ret, DWORD bytes_read, DWORD os_error);
+
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   // ReadFileImpl() is a simple wrapper around read() that handles EINTR
   // signals and calls RecordAndMapError() to map errno to net error codes.
-  int64 ReadFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
+  IOResult ReadFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
 
   // WriteFileImpl() is a simple wrapper around write() that handles EINTR
   // signals and calls MapSystemError() to map errno to net error codes.
   // It tries to write to completion.
-  int64 WriteFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
-#endif
+  IOResult WriteFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
+#endif  // defined(OS_WIN)
 
-  base::PlatformFile file_;
-  bool record_uma_;
+  base::File file_;
   bool async_in_progress_;
+
   bool orphaned_;
-  BoundNetLog bound_net_log_;
+  scoped_refptr<base::TaskRunner> task_runner_;
 
 #if defined(OS_WIN)
-  MessageLoopForIO::IOContext io_context_;
-  CompletionCallback callback_;
+  base::MessagePumpForIO::IOContext io_context_;
+  CompletionOnceCallback callback_;
   scoped_refptr<IOBuffer> in_flight_buf_;
-  FileErrorSource error_source_;
+  // This flag is set to true when we receive a Read request which is queued to
+  // the thread pool.
+  bool async_read_initiated_;
+  // This flag is set to true when we receive a notification ReadAsyncResult()
+  // on the calling thread which indicates that the asynchronous Read
+  // operation is complete.
+  bool async_read_completed_;
+  // This flag is set to true when we receive an IO completion notification for
+  // an asynchonously initiated Read operaton. OnIOComplete().
+  bool io_complete_for_read_received_;
+  // Tracks the result of the IO completion operation. Set in OnIOComplete.
+  int result_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(Context);

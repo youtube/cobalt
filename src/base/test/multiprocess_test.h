@@ -7,15 +7,83 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/process.h"
-#include "base/process_util.h"
+#include "base/macros.h"
+#include "base/process/launch.h"
+#include "base/process/process.h"
 #include "build/build_config.h"
 #include "testing/platform_test.h"
 
-class CommandLine;
+#if !defined(STARBOARD)
 
 namespace base {
+
+class CommandLine;
+
+// Helpers to spawn a child for a multiprocess test and execute a designated
+// function. Use these when you already have another base class for your test
+// fixture, but you want (some) of your tests to be multiprocess (otherwise you
+// may just want to derive your fixture from |MultiProcessTest|, below).
+//
+// Use these helpers as follows:
+//
+//   TEST_F(MyTest, ATest) {
+//     CommandLine command_line(
+//         base::GetMultiProcessTestChildBaseCommandLine());
+//     // Maybe add our own switches to |command_line|....
+//
+//     LaunchOptions options;
+//     // Maybe set some options (e.g., |start_hidden| on Windows)....
+//
+//     // Start a child process and run |a_test_func|.
+//     base::Process test_child_process =
+//         base::SpawnMultiProcessTestChild("a_test_func", command_line,
+//                                          options);
+//
+//     // Do stuff involving |test_child_process| and the child process....
+//
+//     int rv = -1;
+//     ASSERT_TRUE(base::WaitForMultiprocessTestChildExit(test_child_process,
+//         TestTimeouts::action_timeout(), &rv));
+//     EXPECT_EQ(0, rv);
+//   }
+//
+//   // Note: |MULTIPROCESS_TEST_MAIN()| is defined in
+//   // testing/multi_process_function_list.h.
+//   MULTIPROCESS_TEST_MAIN(a_test_func) {
+//     // Code here runs in a child process....
+//     return 0;
+//   }
+//
+// If you need to terminate the child process, use the
+// TerminateMultiProcessTestChild method to ensure that test will work on
+// Android.
+
+// Spawns a child process and executes the function |procname| declared using
+// |MULTIPROCESS_TEST_MAIN()| or |MULTIPROCESS_TEST_MAIN_WITH_SETUP()|.
+// |command_line| should be as provided by
+// |GetMultiProcessTestChildBaseCommandLine()| (below), possibly with arguments
+// added. Note: On Windows, you probably want to set |options.start_hidden|.
+Process SpawnMultiProcessTestChild(const std::string& procname,
+                                   const CommandLine& command_line,
+                                   const LaunchOptions& options);
+
+// Gets the base command line for |SpawnMultiProcessTestChild()|. To this, you
+// may add any flags needed for your child process.
+CommandLine GetMultiProcessTestChildBaseCommandLine();
+
+// Waits for the child process to exit. Returns true if the process exited
+// within |timeout| and sets |exit_code| if non null.
+bool WaitForMultiprocessTestChildExit(const Process& process,
+                                      TimeDelta timeout,
+                                      int* exit_code);
+
+// Terminates |process| with |exit_code|. If |wait| is true, this call blocks
+// until the process actually terminates.
+bool TerminateMultiProcessTestChild(const Process& process,
+                                    int exit_code,
+                                    bool wait);
+
+// MultiProcessTest ------------------------------------------------------------
 
 // A MultiProcessTest is a test class which makes it easier to
 // write a test which requires code running out of process.
@@ -53,33 +121,30 @@ class MultiProcessTest : public PlatformTest {
   //         // do client work here
   //    }
   //
-  // Returns the handle to the child, or NULL on failure
-  ProcessHandle SpawnChild(const std::string& procname, bool debug_on_start);
+  // Returns the child process.
+  Process SpawnChild(const std::string& procname);
 
-#if defined(OS_POSIX)
-  // TODO(evan): see if we can delete this via more refactoring.
-  // SpawnChild() should just take a base::LaunchOptions so that we don't
-  // need multiple versions of it.
-  ProcessHandle SpawnChild(const std::string& procname,
-                           const FileHandleMappingVector& fds_to_map,
-                           bool debug_on_start);
-#endif
+  // Run a child process using the given launch options.
+  //
+  // Note: On Windows, you probably want to set |options.start_hidden|.
+  Process SpawnChildWithOptions(const std::string& procname,
+                                const LaunchOptions& options);
 
   // Set up the command line used to spawn the child process.
-  virtual CommandLine MakeCmdLine(const std::string& procname,
-                                  bool debug_on_start);
+  // Override this to add things to the command line (calling this first in the
+  // override).
+  // Note that currently some tests rely on this providing a full command line,
+  // which they then use directly with |LaunchProcess()|.
+  // TODO(viettrungluu): Remove this and add a virtual
+  // |ModifyChildCommandLine()|; make the two divergent uses more sane.
+  virtual CommandLine MakeCmdLine(const std::string& procname);
 
  private:
-  // Shared implementation of SpawnChild.
-  // TODO: |fds_to_map| is unused on Windows; see above TODO about
-  // further refactoring.
-  ProcessHandle SpawnChildImpl(const std::string& procname,
-                               const FileHandleMappingVector& fds_to_map,
-                               bool debug_on_start);
-
   DISALLOW_COPY_AND_ASSIGN(MultiProcessTest);
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TEST_MULTIPROCESS_TEST_H_

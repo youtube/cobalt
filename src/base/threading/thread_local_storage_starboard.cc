@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,40 +18,32 @@
 
 namespace base {
 
-ThreadLocalStorage::Slot::Slot(TLSDestructorFunc destructor) {
-  initialized_ = false;
-  key_ = kSbThreadLocalKeyInvalid;
-  Initialize(destructor);
-}
+namespace internal {
 
-bool ThreadLocalStorage::StaticSlot::Initialize(TLSDestructorFunc destructor) {
-  DCHECK(!initialized_);
-  key_ = SbThreadCreateLocalKey(destructor);
-  if (!SbThreadIsValidLocalKey(key_)) {
+// static
+bool PlatformThreadLocalStorage::AllocTLS(TLSKey* key) {
+  *key = SbThreadCreateLocalKey(
+      base::internal::PlatformThreadLocalStorage::OnThreadExit);
+  if (!SbThreadIsValidLocalKey(*key)) {
     NOTREACHED();
     return false;
   }
 
-  initialized_ = true;
   return true;
 }
 
-void ThreadLocalStorage::StaticSlot::Free() {
-  DCHECK(initialized_);
-  SbThreadDestroyLocalKey(key_);
-  initialized_ = false;
+// static
+void PlatformThreadLocalStorage::FreeTLS(TLSKey key) {
+  SbThreadDestroyLocalKey(key);
 }
 
-void* ThreadLocalStorage::StaticSlot::Get() const {
-  DCHECK(initialized_);
-  return SbThreadGetLocalValue(key_);
-}
-
-void ThreadLocalStorage::StaticSlot::Set(void* value) {
-  DCHECK(initialized_);
-  if (!SbThreadSetLocalValue(key_, value)) {
+// static
+void PlatformThreadLocalStorage::SetTLSValue(TLSKey key, void* value) {
+  if (!SbThreadSetLocalValue(key, value)) {
     NOTREACHED();
   }
 }
+
+}  // namespace internal
 
 }  // namespace base

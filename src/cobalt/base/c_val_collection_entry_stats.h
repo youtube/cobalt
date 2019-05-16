@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -23,8 +24,8 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
-#include "base/time.h"
+#include "base/strings/stringprintf.h"
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 
 namespace base {
@@ -135,7 +136,7 @@ class CValCollectionEntryStatsImpl {
   base::CVal<EntryType, Visibility> percentile_95th_;
   base::CVal<EntryType, Visibility> standard_deviation_;
   // |entry_list_| is only non-NULL when it is enabled.
-  scoped_ptr<base::CVal<std::string, Visibility> > entry_list_;
+  std::unique_ptr<base::CVal<std::string, Visibility> > entry_list_;
 };
 
 template <typename EntryType, typename Visibility>
@@ -146,26 +147,26 @@ CValCollectionEntryStatsImpl<EntryType, Visibility>::
         const OnFlushCallback& on_flush /*=OnFlushCallback()*/)
     : max_size_(max_size),
       on_flush_(on_flush),
-      count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
-      average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
+      count_(base::StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
+      average_(base::StringPrintf("%s.Avg", name.c_str()), EntryType(),
                "Average value."),
-      minimum_(StringPrintf("%s.Min", name.c_str()), EntryType(),
+      minimum_(base::StringPrintf("%s.Min", name.c_str()), EntryType(),
                "Minimum value."),
-      maximum_(StringPrintf("%s.Max", name.c_str()), EntryType(),
+      maximum_(base::StringPrintf("%s.Max", name.c_str()), EntryType(),
                "Maximum value."),
-      percentile_25th_(StringPrintf("%s.Pct.25th", name.c_str()), EntryType(),
-                       "25th percentile value."),
-      percentile_50th_(StringPrintf("%s.Pct.50th", name.c_str()), EntryType(),
-                       "50th percentile value."),
-      percentile_75th_(StringPrintf("%s.Pct.75th", name.c_str()), EntryType(),
-                       "75th percentile value."),
-      percentile_95th_(StringPrintf("%s.Pct.95th", name.c_str()), EntryType(),
-                       "95th percentile value."),
-      standard_deviation_(StringPrintf("%s.Std", name.c_str()), EntryType(),
-                          "Standard deviation of values.") {
+      percentile_25th_(base::StringPrintf("%s.Pct.25th", name.c_str()),
+                       EntryType(), "25th percentile value."),
+      percentile_50th_(base::StringPrintf("%s.Pct.50th", name.c_str()),
+                       EntryType(), "50th percentile value."),
+      percentile_75th_(base::StringPrintf("%s.Pct.75th", name.c_str()),
+                       EntryType(), "75th percentile value."),
+      percentile_95th_(base::StringPrintf("%s.Pct.95th", name.c_str()),
+                       EntryType(), "95th percentile value."),
+      standard_deviation_(base::StringPrintf("%s.Std", name.c_str()),
+                          EntryType(), "Standard deviation of values.") {
   if (enable_entry_list_c_val) {
     entry_list_.reset(new base::CVal<std::string, Visibility>(
-        StringPrintf("%s.EntryList", name.c_str()), "[]",
+        base::StringPrintf("%s.EntryList", name.c_str()), "[]",
         "The list of entries in the collection."));
   }
 }
@@ -319,18 +320,18 @@ class CValCollectionEntryStatsStub {
   typedef typename FlushResults::OnFlushCallback OnFlushCallback;
 
   explicit CValCollectionEntryStatsStub(const std::string& name) {
-    UNREFERENCED_PARAMETER(name);
+    SB_UNREFERENCED_PARAMETER(name);
   }
   CValCollectionEntryStatsStub(
       const std::string& name, size_t max_size, bool enable_entry_list_c_val,
       const OnFlushCallback& on_flush = OnFlushCallback()) {
-    UNREFERENCED_PARAMETER(name);
-    UNREFERENCED_PARAMETER(max_size);
-    UNREFERENCED_PARAMETER(enable_entry_list_c_val);
-    UNREFERENCED_PARAMETER(on_flush);
+    SB_UNREFERENCED_PARAMETER(name);
+    SB_UNREFERENCED_PARAMETER(max_size);
+    SB_UNREFERENCED_PARAMETER(enable_entry_list_c_val);
+    SB_UNREFERENCED_PARAMETER(on_flush);
   }
 
-  void AddEntry(const EntryType& value) { UNREFERENCED_PARAMETER(value); }
+  void AddEntry(const EntryType& value) { SB_UNREFERENCED_PARAMETER(value); }
   void Flush() {}
 };
 #endif  // ENABLE_DEBUG_C_VAL

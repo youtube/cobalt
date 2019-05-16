@@ -10,7 +10,7 @@
 #include "base/pickle.h"
 #include "base/run_loop.h"
 #include "base/test/test_timeouts.h"
-#include "base/time.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/media/base/audio_buffer.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
@@ -62,34 +62,37 @@ PipelineStatusCB NewExpectedStatusCB(PipelineStatus status) {
   return base::Bind(&MockCallback::RunWithStatus, callback);
 }
 
-WaitableMessageLoopEvent::WaitableMessageLoopEvent()
-    : WaitableMessageLoopEvent(TestTimeouts::action_timeout()) {}
+Waitablebase::MessageLoopEvent::Waitablebase::MessageLoopEvent()
+    : Waitablebase::MessageLoopEvent(TestTimeouts::action_timeout()) {}
 
-WaitableMessageLoopEvent::WaitableMessageLoopEvent(base::TimeDelta timeout)
+Waitablebase::MessageLoopEvent::Waitablebase::MessageLoopEvent(
+    base::TimeDelta timeout)
     : signaled_(false), status_(PIPELINE_OK), timeout_(timeout) {}
 
-WaitableMessageLoopEvent::~WaitableMessageLoopEvent() {
+Waitablebase::MessageLoopEvent::~Waitablebase::MessageLoopEvent() {
   DCHECK(CalledOnValidThread());
 }
 
-base::Closure WaitableMessageLoopEvent::GetClosure() {
+base::Closure Waitablebase::MessageLoopEvent::GetClosure() {
   DCHECK(CalledOnValidThread());
-  return BindToCurrentLoop(base::Bind(&WaitableMessageLoopEvent::OnCallback,
-                                      base::Unretained(this), PIPELINE_OK));
+  return BindToCurrentLoop(
+      base::Bind(&Waitablebase::MessageLoopEvent::OnCallback,
+                 base::Unretained(this), PIPELINE_OK));
 }
 
-PipelineStatusCB WaitableMessageLoopEvent::GetPipelineStatusCB() {
+PipelineStatusCB Waitablebase::MessageLoopEvent::GetPipelineStatusCB() {
   DCHECK(CalledOnValidThread());
-  return BindToCurrentLoop(base::Bind(&WaitableMessageLoopEvent::OnCallback,
-                                      base::Unretained(this)));
+  return BindToCurrentLoop(base::Bind(
+      &Waitablebase::MessageLoopEvent::OnCallback, base::Unretained(this)));
 }
 
-void WaitableMessageLoopEvent::RunAndWait() {
+void Waitablebase::MessageLoopEvent::RunAndWait() {
   DCHECK(CalledOnValidThread());
   RunAndWaitForStatus(PIPELINE_OK);
 }
 
-void WaitableMessageLoopEvent::RunAndWaitForStatus(PipelineStatus expected) {
+void Waitablebase::MessageLoopEvent::RunAndWaitForStatus(
+    PipelineStatus expected) {
   DCHECK(CalledOnValidThread());
   if (signaled_) {
     EXPECT_EQ(expected, status_);
@@ -97,10 +100,10 @@ void WaitableMessageLoopEvent::RunAndWaitForStatus(PipelineStatus expected) {
   }
 
   run_loop_.reset(new base::RunLoop());
-  base::Timer timer(false, false);
-  timer.Start(
-      FROM_HERE, timeout_,
-      base::Bind(&WaitableMessageLoopEvent::OnTimeout, base::Unretained(this)));
+  base::OneShotTimer timer;
+  timer.Start(FROM_HERE, timeout_,
+              base::Bind(&Waitablebase::MessageLoopEvent::OnTimeout,
+                         base::Unretained(this)));
 
   run_loop_->Run();
   EXPECT_TRUE(signaled_);
@@ -108,7 +111,7 @@ void WaitableMessageLoopEvent::RunAndWaitForStatus(PipelineStatus expected) {
   run_loop_.reset();
 }
 
-void WaitableMessageLoopEvent::OnCallback(PipelineStatus status) {
+void Waitablebase::MessageLoopEvent::OnCallback(PipelineStatus status) {
   DCHECK(CalledOnValidThread());
   signaled_ = true;
   status_ = status;
@@ -117,7 +120,7 @@ void WaitableMessageLoopEvent::OnCallback(PipelineStatus status) {
   if (run_loop_) run_loop_->Quit();
 }
 
-void WaitableMessageLoopEvent::OnTimeout() {
+void Waitablebase::MessageLoopEvent::OnTimeout() {
   DCHECK(CalledOnValidThread());
   ADD_FAILURE() << "Timed out waiting for message loop to quit";
   run_loop_->Quit();

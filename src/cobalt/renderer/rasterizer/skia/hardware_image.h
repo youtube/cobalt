@@ -15,11 +15,11 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_IMAGE_H_
 
+#include <memory>
 #include <vector>
 
-#include "base/hash_tables.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
+#include "base/containers/hash_tables.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
@@ -42,45 +42,46 @@ enum AlternateRgbaFormat {
   AlternateRgbaFormat_UYVY,
 };
 
-typedef base::Callback<void(const scoped_refptr<render_tree::Node>& render_tree,
-                            const scoped_refptr<backend::RenderTarget>&
-                                render_target)> SubmitOffscreenCallback;
+typedef base::Callback<void(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    const scoped_refptr<backend::RenderTarget>& render_target)>
+    SubmitOffscreenCallback;
 
 // Wraps a Cobalt backend::TextureEGL with a Skia GrTexture, and returns the
 // Skia ref-counted GrTexture object (that takes ownership of the cobalt
 // texture).
 GrTexture* CobaltTextureToSkiaTexture(
-    GrContext* gr_context, scoped_ptr<backend::TextureEGL> cobalt_texture);
+    GrContext* gr_context, std::unique_ptr<backend::TextureEGL> cobalt_texture);
 
 // Forwards ImageData methods on to TextureData methods.
 class HardwareImageData : public render_tree::ImageData {
  public:
-  HardwareImageData(scoped_ptr<backend::TextureDataEGL> texture_data,
+  HardwareImageData(std::unique_ptr<backend::TextureDataEGL> texture_data,
                     render_tree::PixelFormat pixel_format,
                     render_tree::AlphaFormat alpha_format);
 
   const render_tree::ImageDataDescriptor& GetDescriptor() const override;
   uint8_t* GetMemory() override;
 
-  scoped_ptr<backend::TextureDataEGL> PassTextureData();
+  std::unique_ptr<backend::TextureDataEGL> PassTextureData();
 
  private:
-  scoped_ptr<backend::TextureDataEGL> texture_data_;
+  std::unique_ptr<backend::TextureDataEGL> texture_data_;
   render_tree::ImageDataDescriptor descriptor_;
 };
 
 class HardwareRawImageMemory : public render_tree::RawImageMemory {
  public:
   HardwareRawImageMemory(
-      scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory);
+      std::unique_ptr<backend::RawTextureMemoryEGL> raw_texture_memory);
 
   size_t GetSizeInBytes() const override;
   uint8_t* GetMemory() override;
 
-  scoped_ptr<backend::RawTextureMemoryEGL> PassRawTextureMemory();
+  std::unique_ptr<backend::RawTextureMemoryEGL> PassRawTextureMemory();
 
  private:
-  scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory_;
+  std::unique_ptr<backend::RawTextureMemoryEGL> raw_texture_memory_;
 };
 
 // A proxy object that can be used for inclusion in render trees.  When
@@ -91,29 +92,29 @@ class HardwareRawImageMemory : public render_tree::RawImageMemory {
 // actually contains the texture data.
 class HardwareFrontendImage : public SinglePlaneImage {
  public:
-  HardwareFrontendImage(scoped_ptr<HardwareImageData> image_data,
+  HardwareFrontendImage(std::unique_ptr<HardwareImageData> image_data,
                         backend::GraphicsContextEGL* cobalt_context,
                         GrContext* gr_context,
-                        MessageLoop* rasterizer_message_loop);
+                        base::MessageLoop* rasterizer_message_loop);
   HardwareFrontendImage(const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
                             raw_texture_memory,
                         intptr_t offset,
                         const render_tree::ImageDataDescriptor& descriptor,
                         backend::GraphicsContextEGL* cobalt_context,
                         GrContext* gr_context,
-                        MessageLoop* rasterizer_message_loop);
+                        base::MessageLoop* rasterizer_message_loop);
   HardwareFrontendImage(
-      scoped_ptr<backend::TextureEGL> texture,
+      std::unique_ptr<backend::TextureEGL> texture,
       render_tree::AlphaFormat alpha_format,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      scoped_ptr<math::RectF> content_region,
-      MessageLoop* rasterizer_message_loop,
-      base::optional<AlternateRgbaFormat> alternate_rgba_format);
+      std::unique_ptr<math::RectF> content_region,
+      base::MessageLoop* rasterizer_message_loop,
+      base::Optional<AlternateRgbaFormat> alternate_rgba_format);
   HardwareFrontendImage(
       const scoped_refptr<render_tree::Node>& root,
       const SubmitOffscreenCallback& submit_offscreen_callback,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      MessageLoop* rasterizer_message_loop);
+      base::MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const override { return size_; }
 
@@ -137,7 +138,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
 
   bool IsOpaque() const override { return is_opaque_; }
 
-  base::optional<AlternateRgbaFormat> alternate_rgba_format() {
+  base::Optional<AlternateRgbaFormat> alternate_rgba_format() {
     return alternate_rgba_format_;
   }
 
@@ -154,13 +155,13 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // An optional rectangle, in pixel coordinates (with the top-left as the
   // origin) that indicates where in this image the valid content is contained.
   // Usually this is only set from platform-specific SbDecodeTargets.
-  scoped_ptr<math::RectF> content_region_;
+  std::unique_ptr<math::RectF> content_region_;
 
   // In some cases where HardwareFrontendImage wraps a RGBA texture, the texture
   // actually contains pixel data in a non-RGBA format, like UYVY for example.
   // In this case, we track that in this member.  If this value is null, then
   // we are dealing with a normal RGBA texture.
-  const base::optional<AlternateRgbaFormat> alternate_rgba_format_;
+  const base::Optional<AlternateRgbaFormat> alternate_rgba_format_;
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.
@@ -170,7 +171,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // can issue graphics commands.  Specifically, this is the message loop
   // where all HardwareBackendImage (described below) logic is executed
   // on.
-  MessageLoop* rasterizer_message_loop_;
+  base::MessageLoop* rasterizer_message_loop_;
 
   // The HardwareBackendImage object is where all our rasterizer thread
   // specific objects live, such as the backend Skia graphics reference to
@@ -181,7 +182,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // a message sent by HardwareFrontendImage's destructor is received by
   // the rasterizer thread.
   class HardwareBackendImage;
-  scoped_ptr<HardwareBackendImage> backend_image_;
+  std::unique_ptr<HardwareBackendImage> backend_image_;
 
   // This closure binds the backend image construction parameters so that we
   // can delay construction of it until it is accessed by the rasterizer thread.
@@ -194,10 +195,10 @@ class HardwareFrontendImage : public SinglePlaneImage {
 class HardwareMultiPlaneImage : public MultiPlaneImage {
  public:
   HardwareMultiPlaneImage(
-      scoped_ptr<HardwareRawImageMemory> raw_image_memory,
+      std::unique_ptr<HardwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      MessageLoop* rasterizer_message_loop);
+      base::MessageLoop* rasterizer_message_loop);
 
   HardwareMultiPlaneImage(
       render_tree::MultiPlaneImageFormat format,

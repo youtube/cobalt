@@ -4,13 +4,17 @@
 
 #include "net/http/partial_data.h"
 
+#include <limits>
+#include <utility>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/callback_helpers.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_response_headers.h"
@@ -25,103 +29,22 @@ const char kLengthHeader[] = "Content-Length";
 const char kRangeHeader[] = "Content-Range";
 const int kDataStream = 1;
 
-void AddRangeHeader(int64 start, int64 end, HttpRequestHeaders* headers) {
-  DCHECK(start >= 0 || end >= 0);
-  std::string my_start, my_end;
-  if (start >= 0)
-    my_start = base::Int64ToString(start);
-  if (end >= 0)
-    my_end = base::Int64ToString(end);
-
-  headers->SetHeader(
-      HttpRequestHeaders::kRange,
-      base::StringPrintf("bytes=%s-%s", my_start.c_str(), my_end.c_str()));
-}
-
 }  // namespace
 
-// A core object that can be detached from the Partialdata object at destruction
-// so that asynchronous operations cleanup can be performed.
-class PartialData::Core {
- public:
-  // Build a new core object. Lifetime management is automatic.
-  static Core* CreateCore(PartialData* owner) {
-    return new Core(owner);
-  }
-
-  // Wrapper for Entry::GetAvailableRange. If this method returns ERR_IO_PENDING
-  // PartialData::GetAvailableRangeCompleted() will be invoked on the owner
-  // object when finished (unless Cancel() is called first).
-  int GetAvailableRange(disk_cache::Entry* entry, int64 offset, int len,
-                        int64* start);
-
-  // Cancels a pending operation. It is a mistake to call this method if there
-  // is no operation in progress; in fact, there will be no object to do so.
-  void Cancel();
-
- private:
-  explicit Core(PartialData* owner);
-  ~Core();
-
-  // Pending io completion routine.
-  void OnIOComplete(int result);
-
-  PartialData* owner_;
-  int64 start_;
-
-  DISALLOW_COPY_AND_ASSIGN(Core);
-};
-
-PartialData::Core::Core(PartialData* owner)
-    : owner_(owner), start_(0) {
-  DCHECK(!owner_->core_);
-  owner_->core_ = this;
-}
-
-PartialData::Core::~Core() {
-  if (owner_)
-    owner_->core_ = NULL;
-}
-
-void PartialData::Core::Cancel() {
-  DCHECK(owner_);
-  owner_ = NULL;
-}
-
-int PartialData::Core::GetAvailableRange(disk_cache::Entry* entry, int64 offset,
-                                         int len, int64* start) {
-  int rv = entry->GetAvailableRange(
-      offset, len, &start_, base::Bind(&PartialData::Core::OnIOComplete,
-                                       base::Unretained(this)));
-  if (rv != net::ERR_IO_PENDING) {
-    // The callback will not be invoked. Lets cleanup.
-    *start = start_;
-    delete this;
-  }
-  return rv;
-}
-
-void PartialData::Core::OnIOComplete(int result) {
-  if (owner_)
-    owner_->GetAvailableRangeCompleted(result, start_);
-  delete this;
-}
-
-// -----------------------------------------------------------------------------
-
 PartialData::PartialData()
-    : range_present_(false),
+    : current_range_start_(0),
+      current_range_end_(0),
+      cached_start_(0),
+      cached_min_len_(0),
+      resource_size_(0),
+      range_present_(false),
       final_range_(false),
       sparse_entry_(true),
       truncated_(false),
       initial_validation_(false),
-      core_(NULL) {
-}
+      weak_factory_(this) {}
 
-PartialData::~PartialData() {
-  if (core_)
-    core_->Cancel();
-}
+PartialData::~PartialData() = default;
 
 bool PartialData::Init(const HttpRequestHeaders& headers) {
   std::string range_header;
@@ -137,7 +60,6 @@ bool PartialData::Init(const HttpRequestHeaders& headers) {
   if (!byte_range_.IsValid())
     return false;
 
-  resource_size_ = 0;
   current_range_start_ = byte_range_.first_byte_position();
 
   DVLOG(1) << "Range start: " << current_range_start_ << " end: " <<
@@ -152,16 +74,26 @@ void PartialData::SetHeaders(const HttpRequestHeaders& headers) {
 
 void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
   DCHECK(current_range_start_ >= 0 || byte_range_.IsSuffixByteRange());
-  int64 end = byte_range_.IsSuffixByteRange() ?
-              byte_range_.suffix_length() : byte_range_.last_byte_position();
+  int64_t end = byte_range_.IsSuffixByteRange()
+                    ? byte_range_.suffix_length()
+                    : byte_range_.last_byte_position();
 
   headers->CopyFrom(extra_headers_);
-  if (!truncated_ && byte_range_.IsValid())
-    AddRangeHeader(current_range_start_, end, headers);
+  if (truncated_ || !byte_range_.IsValid())
+    return;
+
+  if (current_range_start_ < 0) {
+    headers->SetHeader(HttpRequestHeaders::kRange,
+                       HttpByteRange::Suffix(end).GetHeaderValue());
+  } else {
+    headers->SetHeader(HttpRequestHeaders::kRange,
+                       HttpByteRange::Bounded(
+                           current_range_start_, end).GetHeaderValue());
+  }
 }
 
 int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
-                                     const CompletionCallback& callback) {
+                                     CompletionOnceCallback callback) {
   DCHECK_GE(current_range_start_, 0);
 
   // Scan the disk cache for the first cached portion within this range.
@@ -173,13 +105,22 @@ int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
 
   if (sparse_entry_) {
     DCHECK(callback_.is_null());
-    Core* core = Core::CreateCore(this);
-    cached_min_len_ = core->GetAvailableRange(entry, current_range_start_, len,
-                                              &cached_start_);
+    // |start| will be deleted later in this method if GetAvailableRange()
+    // returns synchronously, or by GetAvailableRangeCompleted() if it returns
+    // asynchronously.
+    int64_t* start = new int64_t;
+    CompletionOnceCallback cb =
+        base::BindOnce(&PartialData::GetAvailableRangeCompleted,
+                       weak_factory_.GetWeakPtr(), start);
+    cached_min_len_ = entry->GetAvailableRange(current_range_start_, len, start,
+                                               std::move(cb));
 
     if (cached_min_len_ == ERR_IO_PENDING) {
-      callback_ = callback;
+      callback_ = std::move(callback);
       return ERR_IO_PENDING;
+    } else {
+      cached_start_ = *start;
+      delete start;
     }
   } else if (!truncated_) {
     if (byte_range_.HasFirstBytePosition() &&
@@ -220,14 +161,17 @@ void PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
   if (current_range_start_ == cached_start_) {
     // The data lives in the cache.
     range_present_ = true;
+    current_range_end_ = cached_start_ + cached_min_len_ - 1;
     if (len == cached_min_len_)
       final_range_ = true;
-    AddRangeHeader(current_range_start_, cached_start_ + cached_min_len_ - 1,
-                   headers);
   } else {
     // This range is not in the cache.
-    AddRangeHeader(current_range_start_, cached_start_ - 1, headers);
+    current_range_end_ = cached_start_ - 1;
   }
+  headers->SetHeader(
+      HttpRequestHeaders::kRange,
+      HttpByteRange::Bounded(current_range_start_, current_range_end_)
+          .GetHeaderValue());
 }
 
 bool PartialData::IsCurrentRangeCached() const {
@@ -240,7 +184,8 @@ bool PartialData::IsLastRange() const {
 
 bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
                                           disk_cache::Entry* entry,
-                                          bool truncated) {
+                                          bool truncated,
+                                          bool writing_in_progress) {
   resource_size_ = 0;
   if (truncated) {
     DCHECK_EQ(headers->response_code(), 200);
@@ -254,10 +199,23 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
 
     // Now we avoid resume if there is no content length, but that was not
     // always the case so double check here.
-    int64 total_length = headers->GetContentLength();
+    int64_t total_length = headers->GetContentLength();
     if (total_length <= 0)
       return false;
 
+    // In case we see a truncated entry, we first send a network request for
+    // 1 byte range with If-Range: to probe server support for resumption.
+    // The setting of |current_range_start_| and |cached_start_| below (with any
+    // positive value of |cached_min_len_|) results in that.
+    //
+    // Setting |initial_validation_| to true is how this communicates to
+    // HttpCache::Transaction that we're doing that (and that it's not the user
+    // asking for one byte), so if it sees a 206 with that flag set it will call
+    // SetRangeToStartDownload(), and then restart the process looking for the
+    // entire file (which is what the user wanted), with the cache handling
+    // the previous portion, and then a second network request for the entire
+    // rest of the range. A 200 in response to the probe request can be simply
+    // returned directly to the user.
     truncated_ = true;
     initial_validation_ = true;
     sparse_entry_ = false;
@@ -270,25 +228,39 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     return true;
   }
 
-  if (headers->response_code() != 206) {
-    DCHECK(byte_range_.IsValid());
-    sparse_entry_ = false;
+  sparse_entry_ = (headers->response_code() == 206);
+
+  if (writing_in_progress || sparse_entry_) {
+    // |writing_in_progress| means another Transaction is still fetching the
+    // body, so the only way we can see the length is if the server sent it
+    // in Content-Length -- GetDataSize would just return what got written
+    // thus far.
+    //
+    // |sparse_entry_| means a 206, and for those FixContentLength arranges it
+    // so that Content-Length written to the cache has the full length (on wire
+    // it's for a particular range only); while GetDataSize would be unusable
+    // since the data is stored using WriteSparseData, and not in the usual data
+    // stream.
+    resource_size_ = headers->GetContentLength();
+    if (resource_size_ <= 0)
+      return false;
+  } else {
+    // If we can safely use GetDataSize, it's preferrable since it's usable for
+    // things w/o Content-Length, such as chunked content.
     resource_size_ = entry->GetDataSize(kDataStream);
-    DVLOG(2) << "UpdateFromStoredHeaders size: " << resource_size_;
-    return true;
   }
 
-  if (!headers->HasStrongValidators())
-    return false;
+  DVLOG(2) << "UpdateFromStoredHeaders size: " << resource_size_;
 
-  int64 length_value = headers->GetContentLength();
-  if (length_value <= 0)
-    return false;  // We must have stored the resource length.
-
-  resource_size_ = length_value;
-
-  // Make sure that this is really a sparse entry.
-  return entry->CouldBeSparse();
+  if (sparse_entry_) {
+    // If our previous is a 206, we need strong validators as we may be
+    // stiching the cached data and network data together.
+    if (!headers->HasStrongValidators())
+      return false;
+    // Make sure that this is really a sparse entry.
+    return entry->CouldBeSparse();
+  }
+  return true;
 }
 
 void PartialData::SetRangeToStartDownload() {
@@ -331,14 +303,18 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
         byte_range_.HasLastBytePosition();
   }
 
-  int64 start, end, total_length;
-  if (!headers->GetContentRange(&start, &end, &total_length))
+  int64_t start, end, total_length;
+  if (!headers->GetContentRangeFor206(&start, &end, &total_length))
     return false;
   if (total_length <= 0)
     return false;
 
-  int64 content_length = headers->GetContentLength();
-  if (content_length < 0 || content_length != end - start + 1)
+  DCHECK_EQ(headers->response_code(), 206);
+
+  // A server should return a valid content length with a 206 (per the standard)
+  // but relax the requirement because some servers don't do that.
+  int64_t content_length = headers->GetContentLength();
+  if (content_length > 0 && content_length != end - start + 1)
     return false;
 
   if (!resource_size_) {
@@ -362,7 +338,21 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
   if (start != current_range_start_)
     return false;
 
-  if (byte_range_.IsValid() && end > byte_range_.last_byte_position())
+  if (!current_range_end_) {
+    // There is nothing in the cache.
+    DCHECK(byte_range_.HasLastBytePosition());
+    current_range_end_ = byte_range_.last_byte_position();
+    if (current_range_end_ >= resource_size_) {
+      // We didn't know the real file size, and the server is saying that the
+      // requested range goes beyond the size. Fix it.
+      current_range_end_ = end;
+      byte_range_.set_last_byte_position(end);
+    }
+  }
+
+  // If we received a range, but it's not exactly the range we asked for, avoid
+  // trouble and signal an error.
+  if (end != current_range_end_)
     return false;
 
   return true;
@@ -376,40 +366,26 @@ void PartialData::FixResponseHeaders(HttpResponseHeaders* headers,
   if (truncated_)
     return;
 
+  if (byte_range_.IsValid() && success) {
+    headers->UpdateWithNewRange(byte_range_, resource_size_, !sparse_entry_);
+    return;
+  }
+
   headers->RemoveHeader(kLengthHeader);
   headers->RemoveHeader(kRangeHeader);
 
-  int64 range_len, start, end;
   if (byte_range_.IsValid()) {
-    if (success) {
-      if (!sparse_entry_)
-        headers->ReplaceStatusLine("HTTP/1.1 206 Partial Content");
-
-      DCHECK(byte_range_.HasFirstBytePosition());
-      DCHECK(byte_range_.HasLastBytePosition());
-      start = byte_range_.first_byte_position();
-      end = byte_range_.last_byte_position();
-      range_len = end - start + 1;
-    } else {
-      headers->ReplaceStatusLine(
-          "HTTP/1.1 416 Requested Range Not Satisfiable");
-      start = 0;
-      end = 0;
-      range_len = 0;
-    }
-
-    headers->AddHeader(
-        base::StringPrintf("%s: bytes %" PRId64 "-%" PRId64 "/%" PRId64,
-                           kRangeHeader, start, end, resource_size_));
+    headers->ReplaceStatusLine("HTTP/1.1 416 Requested Range Not Satisfiable");
+    headers->AddHeader(base::StringPrintf("%s: bytes 0-0/%" PRId64,
+                                          kRangeHeader, resource_size_));
+    headers->AddHeader(base::StringPrintf("%s: 0", kLengthHeader));
   } else {
     // TODO(rvargas): Is it safe to change the protocol version?
     headers->ReplaceStatusLine("HTTP/1.1 200 OK");
     DCHECK_NE(resource_size_, 0);
-    range_len = resource_size_;
+    headers->AddHeader(base::StringPrintf("%s: %" PRId64, kLengthHeader,
+                                          resource_size_));
   }
-
-  headers->AddHeader(base::StringPrintf("%s: %" PRId64, kLengthHeader,
-                                        range_len));
 }
 
 void PartialData::FixContentLength(HttpResponseHeaders* headers) {
@@ -418,9 +394,10 @@ void PartialData::FixContentLength(HttpResponseHeaders* headers) {
                                         resource_size_));
 }
 
-int PartialData::CacheRead(
-    disk_cache::Entry* entry, IOBuffer* data, int data_len,
-    const net::CompletionCallback& callback) {
+int PartialData::CacheRead(disk_cache::Entry* entry,
+                           IOBuffer* data,
+                           int data_len,
+                           CompletionOnceCallback callback) {
   int read_len = std::min(data_len, cached_min_len_);
   if (!read_len)
     return 0;
@@ -428,30 +405,31 @@ int PartialData::CacheRead(
   int rv = 0;
   if (sparse_entry_) {
     rv = entry->ReadSparseData(current_range_start_, data, read_len,
-                               callback);
+                               std::move(callback));
   } else {
-    if (current_range_start_ > kint32max)
+    if (current_range_start_ > std::numeric_limits<int32_t>::max())
       return ERR_INVALID_ARGUMENT;
 
     rv = entry->ReadData(kDataStream, static_cast<int>(current_range_start_),
-                         data, read_len, callback);
+                         data, read_len, std::move(callback));
   }
   return rv;
 }
 
-int PartialData::CacheWrite(
-    disk_cache::Entry* entry, IOBuffer* data, int data_len,
-    const net::CompletionCallback& callback) {
+int PartialData::CacheWrite(disk_cache::Entry* entry,
+                            IOBuffer* data,
+                            int data_len,
+                            CompletionOnceCallback callback) {
   DVLOG(3) << "To write: " << data_len;
   if (sparse_entry_) {
-    return entry->WriteSparseData(
-        current_range_start_, data, data_len, callback);
+    return entry->WriteSparseData(current_range_start_, data, data_len,
+                                  std::move(callback));
   } else  {
-    if (current_range_start_ > kint32max)
+    if (current_range_start_ > std::numeric_limits<int32_t>::max())
       return ERR_INVALID_ARGUMENT;
 
     return entry->WriteData(kDataStream, static_cast<int>(current_range_start_),
-                            data, data_len, callback, true);
+                            data, data_len, std::move(callback), true);
   }
 }
 
@@ -470,27 +448,26 @@ void PartialData::OnNetworkReadCompleted(int result) {
 }
 
 int PartialData::GetNextRangeLen() {
-  int64 range_len =
-      byte_range_.HasLastBytePosition() ?
-      byte_range_.last_byte_position() - current_range_start_ + 1 :
-      kint32max;
-  if (range_len > kint32max)
-    range_len = kint32max;
-  return static_cast<int32>(range_len);
+  int64_t range_len =
+      byte_range_.HasLastBytePosition()
+          ? byte_range_.last_byte_position() - current_range_start_ + 1
+          : std::numeric_limits<int32_t>::max();
+  if (range_len > std::numeric_limits<int32_t>::max())
+    range_len = std::numeric_limits<int32_t>::max();
+  return static_cast<int32_t>(range_len);
 }
 
-void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
+void PartialData::GetAvailableRangeCompleted(int64_t* start, int result) {
   DCHECK(!callback_.is_null());
   DCHECK_NE(ERR_IO_PENDING, result);
 
-  cached_start_ = start;
+  cached_start_ = *start;
+  delete start;
   cached_min_len_ = result;
   if (result >= 0)
     result = 1;  // Return success, go ahead and validate the entry.
 
-  CompletionCallback cb = callback_;
-  callback_.Reset();
-  cb.Run(result);
+  base::ResetAndReturn(&callback_).Run(result);
 }
 
 }  // namespace net

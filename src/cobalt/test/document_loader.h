@@ -15,6 +15,7 @@
 #ifndef COBALT_TEST_DOCUMENT_LOADER_H_
 #define COBALT_TEST_DOCUMENT_LOADER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/optional.h"
@@ -50,9 +51,9 @@ class DocumentLoader : public dom::DocumentObserver {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
-        loader_factory_(new loader::LoaderFactory(&fetcher_factory_,
-                                                  resource_provider_stub_.get(),
-                                                  base::kThreadPriority_Low)),
+        loader_factory_(new loader::LoaderFactory(
+            &fetcher_factory_, resource_provider_stub_.get(),
+            base::ThreadPriority::BACKGROUND)),
         image_cache_(loader::image::CreateImageCache(
             "Test.ImageCache", 32U * 1024 * 1024, loader_factory_.get())),
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
@@ -88,7 +89,7 @@ class DocumentLoader : public dom::DocumentObserver {
   dom::Document* document() { return document_.get(); }
 
  private:
-  static void OnLoadComplete(const base::optional<std::string>& error) {
+  static void OnLoadComplete(const base::Optional<std::string>& error) {
     if (error) DLOG(ERROR) << *error;
   }
 
@@ -97,24 +98,24 @@ class DocumentLoader : public dom::DocumentObserver {
   void OnMutation() override {}
   void OnFocusChanged() override {}
 
-  script::FakeScriptRunner script_runner_;
-  loader::FetcherFactory fetcher_factory_;
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom_parser::Parser> dom_parser_;
-  scoped_ptr<render_tree::ResourceProviderStub> resource_provider_stub_;
-  scoped_ptr<loader::LoaderFactory> loader_factory_;
-  scoped_ptr<loader::image::ImageCache> image_cache_;
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
-  render_tree::ResourceProvider* resource_provider_;
-  dom::HTMLElementContext html_element_context_;
-  scoped_refptr<dom::Document> document_;
-  scoped_ptr<loader::Loader> document_loader_;
-
   // A nested message loop needs a non-nested message loop to exist.
-  MessageLoop message_loop_;
+  base::MessageLoop message_loop_;
 
   // Nested message loop on which the document loading will occur.
   base::RunLoop nested_loop_;
+
+  script::FakeScriptRunner script_runner_;
+  loader::FetcherFactory fetcher_factory_;
+  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<dom_parser::Parser> dom_parser_;
+  std::unique_ptr<render_tree::ResourceProviderStub> resource_provider_stub_;
+  std::unique_ptr<loader::LoaderFactory> loader_factory_;
+  std::unique_ptr<loader::image::ImageCache> image_cache_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
+  render_tree::ResourceProvider* resource_provider_;
+  dom::HTMLElementContext html_element_context_;
+  scoped_refptr<dom::Document> document_;
+  std::unique_ptr<loader::Loader> document_loader_;
 };
 }  // namespace test
 }  // namespace cobalt

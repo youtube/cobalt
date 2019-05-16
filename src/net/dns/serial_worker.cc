@@ -6,37 +6,29 @@
 
 #include "base/bind.h"
 #include "base/location.h"
-#include "base/message_loop_proxy.h"
-#include "base/threading/worker_pool.h"
+#include "base/task/post_task.h"
+#include "base/threading/thread_task_runner_handle.h"
 
 namespace net {
 
-SerialWorker::SerialWorker()
-  : message_loop_(base::MessageLoopProxy::current()),
-    state_(IDLE) {}
+SerialWorker::SerialWorker() : state_(IDLE), weak_factory_(this) {}
 
-SerialWorker::~SerialWorker() {}
+SerialWorker::~SerialWorker() = default;
 
 void SerialWorker::WorkNow() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   switch (state_) {
     case IDLE:
-      if (!base::WorkerPool::PostTask(FROM_HERE, base::Bind(
-          &SerialWorker::DoWorkJob, this), false)) {
-#if defined(OS_POSIX)
-        // See worker_pool_posix.cc.
-        NOTREACHED() << "WorkerPool::PostTask is not expected to fail on posix";
-#else
-        LOG(WARNING) << "Failed to WorkerPool::PostTask, will retry later";
-        const int kWorkerPoolRetryDelayMs = 100;
-        message_loop_->PostDelayedTask(
-            FROM_HERE,
-            base::Bind(&SerialWorker::RetryWork, this),
-            base::TimeDelta::FromMilliseconds(kWorkerPoolRetryDelayMs));
-        state_ = WAITING;
-        return;
-#endif
-      }
+      // We are posting weak pointer to OnWorkJobFinished to avoid leak when
+      // PostTaskWithTraitsAndReply fails to post task back to the original
+      // task runner. In this case the callback is not destroyed, and the
+      // weak reference allows SerialWorker instance to be deleted.
+      base::PostTaskWithTraitsAndReply(
+          FROM_HERE,
+          {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+          base::BindOnce(&SerialWorker::DoWork, this),
+          base::BindOnce(&SerialWorker::OnWorkJobFinished,
+                         weak_factory_.GetWeakPtr()));
       state_ = WORKING;
       return;
     case WORKING:
@@ -45,7 +37,6 @@ void SerialWorker::WorkNow() {
       return;
     case CANCELLED:
     case PENDING:
-    case WAITING:
       return;
     default:
       NOTREACHED() << "Unexpected state " << state_;
@@ -53,19 +44,12 @@ void SerialWorker::WorkNow() {
 }
 
 void SerialWorker::Cancel() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   state_ = CANCELLED;
 }
 
-void SerialWorker::DoWorkJob() {
-  this->DoWork();
-  // If this fails, the loop is gone, so there is no point retrying.
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &SerialWorker::OnWorkJobFinished, this));
-}
-
 void SerialWorker::OnWorkJobFinished() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   switch (state_) {
     case CANCELLED:
       return;
@@ -82,19 +66,4 @@ void SerialWorker::OnWorkJobFinished() {
   }
 }
 
-void SerialWorker::RetryWork() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  switch (state_) {
-    case CANCELLED:
-      return;
-    case WAITING:
-      state_ = IDLE;
-      WorkNow();
-      return;
-    default:
-      NOTREACHED() << "Unexpected state " << state_;
-  }
-}
-
 }  // namespace net
-

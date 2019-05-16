@@ -105,7 +105,7 @@ std::vector<Keyframe::Data> AddNoiseKeyframes(
 KeyframeEffectReadOnly::Data CreateKeyframeEffectWithTwoNumberKeyframes(
     cssom::PropertyKey target_property, bool add_noise_keyframes,
     double offset1, float value1, double offset2, float value2) {
-  UNREFERENCED_PARAMETER(add_noise_keyframes);
+  SB_UNREFERENCED_PARAMETER(add_noise_keyframes);
   std::vector<Keyframe::Data> keyframes;
 
   Keyframe::Data frame1(offset1);
@@ -124,7 +124,7 @@ KeyframeEffectReadOnly::Data CreateKeyframeEffectWithThreeNumberKeyframes(
     cssom::PropertyKey target_property, bool add_noise_keyframes,
     double offset1, float value1, double offset2, float value2, double offset3,
     float value3) {
-  UNREFERENCED_PARAMETER(add_noise_keyframes);
+  SB_UNREFERENCED_PARAMETER(add_noise_keyframes);
   std::vector<Keyframe::Data> keyframes;
 
   Keyframe::Data frame1(offset1);

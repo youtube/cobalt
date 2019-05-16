@@ -7,11 +7,13 @@
 #include <string>
 
 #include "base/base64.h"
-#include "base/i18n/icu_string_conversions.h"
-#include "base/string_util.h"
-#include "base/utf_string_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_string_util.h"
 #include "net/http/http_auth.h"
+#include "net/http/http_auth_challenge_tokenizer.h"
+#include "net/http/http_auth_scheme.h"
 
 namespace net {
 
@@ -33,25 +35,26 @@ namespace {
 //
 // TODO(cbentzel): Realm may need to be decoded using RFC 2047 rules as
 // well, see http://crbug.com/25790.
-bool ParseRealm(const HttpAuth::ChallengeTokenizer& tokenizer,
+bool ParseRealm(const HttpAuthChallengeTokenizer& tokenizer,
                 std::string* realm) {
   CHECK(realm);
   realm->clear();
   HttpUtil::NameValuePairsIterator parameters = tokenizer.param_pairs();
   while (parameters.GetNext()) {
-    if (!LowerCaseEqualsASCII(parameters.name(), "realm"))
+    if (!base::LowerCaseEqualsASCII(parameters.name(), "realm"))
       continue;
 
-    if (!base::ConvertToUtf8AndNormalize(
-            parameters.value(), base::kCodepageLatin1, realm))
+    if (!ConvertToUtf8AndNormalize(parameters.value(), kCharsetLatin1, realm)) {
       return false;
+    }
   }
   return parameters.valid();
 }
 
 }  // namespace
 
-bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
+bool HttpAuthHandlerBasic::Init(HttpAuthChallengeTokenizer* challenge,
+                                const SSLInfo& ssl_info) {
   auth_scheme_ = HttpAuth::AUTH_SCHEME_BASIC;
   score_ = 1;
   properties_ = 0;
@@ -59,9 +62,9 @@ bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
 }
 
 bool HttpAuthHandlerBasic::ParseChallenge(
-    HttpAuth::ChallengeTokenizer* challenge) {
+    HttpAuthChallengeTokenizer* challenge) {
   // Verify the challenge's auth-scheme.
-  if (!LowerCaseEqualsASCII(challenge->scheme(), "basic"))
+  if (!base::LowerCaseEqualsASCII(challenge->scheme(), kBasicAuthScheme))
     return false;
 
   std::string realm;
@@ -73,7 +76,7 @@ bool HttpAuthHandlerBasic::ParseChallenge(
 }
 
 HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
-    HttpAuth::ChallengeTokenizer* challenge) {
+    HttpAuthChallengeTokenizer* challenge) {
   // Basic authentication is always a single round, so any responses
   // should be treated as a rejection.  However, if the new challenge
   // is for a different realm, then indicate the realm change.
@@ -86,40 +89,38 @@ HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
 }
 
 int HttpAuthHandlerBasic::GenerateAuthTokenImpl(
-    const AuthCredentials* credentials, const HttpRequestInfo*,
-    const CompletionCallback&, std::string* auth_token) {
+    const AuthCredentials* credentials,
+    const HttpRequestInfo*,
+    CompletionOnceCallback callback,
+    std::string* auth_token) {
   DCHECK(credentials);
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;
-  if (!base::Base64Encode(
-          UTF16ToUTF8(credentials->username()) + ":" +
-          UTF16ToUTF8(credentials->password()),
-          &base64_username_password)) {
-    LOG(ERROR) << "Unexpected problem Base64 encoding.";
-    return ERR_UNEXPECTED;
-  }
+  base::Base64Encode(base::UTF16ToUTF8(credentials->username()) + ":" +
+                         base::UTF16ToUTF8(credentials->password()),
+                     &base64_username_password);
   *auth_token = "Basic " + base64_username_password;
   return OK;
 }
 
-HttpAuthHandlerBasic::Factory::Factory() {
-}
+HttpAuthHandlerBasic::Factory::Factory() = default;
 
-HttpAuthHandlerBasic::Factory::~Factory() {
-}
+HttpAuthHandlerBasic::Factory::~Factory() = default;
 
 int HttpAuthHandlerBasic::Factory::CreateAuthHandler(
-    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuthChallengeTokenizer* challenge,
     HttpAuth::Target target,
+    const SSLInfo& ssl_info,
     const GURL& origin,
     CreateReason reason,
     int digest_nonce_count,
-    const BoundNetLog& net_log,
-    scoped_ptr<HttpAuthHandler>* handler) {
+    const NetLogWithSource& net_log,
+    std::unique_ptr<HttpAuthHandler>* handler) {
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
-  scoped_ptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerBasic());
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
+  std::unique_ptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerBasic());
+  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info, origin,
+                                      net_log))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
   return OK;

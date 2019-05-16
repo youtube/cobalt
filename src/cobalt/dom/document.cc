@@ -14,14 +14,15 @@
 
 #include "cobalt/dom/document.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
-#include "base/debug/trace_event.h"
-#include "base/message_loop.h"
-#include "base/string_util.h"
+#include "base/message_loop/message_loop.h"
+#include "base/strings/string_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_media_rule.h"
@@ -107,15 +108,12 @@ Document::Document(HTMLElementContext* html_element_context,
     SetViewport(*options.viewport_size);
   }
 
-  scoped_ptr<CspViolationReporter> violation_reporter(
+  std::unique_ptr<CspViolationReporter> violation_reporter(
       new CspViolationReporter(this, options.post_sender));
-  csp_delegate_ =
-      CspDelegateFactory::GetInstance()
-          ->Create(options.csp_enforcement_mode, violation_reporter.Pass(),
-                   options.url, options.require_csp,
-                   options.csp_policy_changed_callback,
-                   options.csp_insecure_allowed_token)
-          .Pass();
+  csp_delegate_ = CspDelegateFactory::GetInstance()->Create(
+      options.csp_enforcement_mode, std::move(violation_reporter), options.url,
+      options.require_csp, options.csp_policy_changed_callback,
+      options.csp_insecure_allowed_token);
 
   cookie_jar_ = options.cookie_jar;
 
@@ -191,7 +189,7 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
   if (IsXMLDocument()) {
     return HTMLCollection::CreateWithElementsByLocalName(this, local_name);
   } else {
-    const std::string lower_local_name = StringToLowerASCII(local_name);
+    const std::string lower_local_name = base::ToLowerASCII(local_name);
     return HTMLCollection::CreateWithElementsByLocalName(this,
                                                          lower_local_name);
   }
@@ -206,8 +204,7 @@ scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
   if (IsXMLDocument()) {
     return new Element(this, base::Token(local_name));
   } else {
-    std::string lower_local_name = local_name;
-    StringToLowerASCII(&lower_local_name);
+    std::string lower_local_name = base::ToLowerASCII(local_name);
     DCHECK(html_element_context_->html_element_factory());
     return html_element_context_->html_element_factory()->CreateHTMLElement(
         this, base::Token(lower_local_name));
@@ -218,7 +215,7 @@ scoped_refptr<Element> Document::CreateElementNS(
     const std::string& namespace_uri, const std::string& local_name) {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
-  UNREFERENCED_PARAMETER(namespace_uri);
+  SB_UNREFERENCED_PARAMETER(namespace_uri);
   return CreateElement(local_name);
 }
 
@@ -293,13 +290,13 @@ scoped_refptr<HTMLBodyElement> Document::body() const {
   // is either a body element or a frameset element. If there is no such
   // element, it is null.
   //   https://www.w3.org/TR/html5/dom.html#the-body-element-0
-  HTMLHtmlElement* html_element = html();
+  HTMLHtmlElement* html_element = html().get();
   if (!html_element) {
     return NULL;
   }
   for (Element* child = html_element->first_element_child(); child;
        child = child->next_element_sibling()) {
-    HTMLElement* child_html_element = child->AsHTMLElement();
+    HTMLElement* child_html_element = child->AsHTMLElement().get();
     if (child_html_element) {
       HTMLBodyElement* body_element = child_html_element->AsHTMLBodyElement();
       if (body_element) {
@@ -348,13 +345,13 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   // The head element of a document is the first head element that is a child of
   // the html element, if there is one, or null otherwise.
   //   https://www.w3.org/TR/html5/dom.html#the-head-element-0
-  HTMLHtmlElement* html_element = html();
+  HTMLHtmlElement* html_element = html().get();
   if (!html_element) {
     return NULL;
   }
   for (Element* child = html_element->first_element_child(); child;
        child = child->next_element_sibling()) {
-    HTMLElement* child_html_element = child->AsHTMLElement();
+    HTMLElement* child_html_element = child->AsHTMLElement().get();
     if (child_html_element) {
       HTMLHeadElement* head_element = child_html_element->AsHTMLHeadElement();
       if (head_element) {
@@ -431,7 +428,8 @@ std::string Document::cookie(script::ExceptionState* exception_state) const {
     return "";
   }
   if (cookie_jar_) {
-    return cookie_jar_->GetCookies(url_as_gurl());
+    return net::CanonicalCookie::BuildCookieLine(
+        cookie_jar_->GetCookies(url_as_gurl()));
   } else {
     DLOG(WARNING) << "Document has no cookie jar";
     return "";
@@ -464,7 +462,8 @@ std::string Document::cookie() const {
     return "";
   }
   if (cookie_jar_) {
-    return cookie_jar_->GetCookies(url_as_gurl());
+    return net::CanonicalCookie::BuildCookieLine(
+        cookie_jar_->GetCookies(url_as_gurl()));
   } else {
     DLOG(WARNING) << "Document has no cookie jar";
     return "";
@@ -487,7 +486,7 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
   // The html element of a document is the document's root element, if there is
   // one and it's an html element, or null otherwise.
   //   https://www.w3.org/TR/html5/dom.html#the-html-element-0
-  Element* root = document_element();
+  Element* root = document_element().get();
   if (!root) {
     return NULL;
   }
@@ -504,7 +503,7 @@ void Document::SetActiveElement(Element* active_element) {
 }
 
 void Document::SetIndicatedElement(HTMLElement* indicated_element) {
-  if (indicated_element != indicated_element_) {
+  if (indicated_element != indicated_element_.get()) {
     if (indicated_element_) {
       // Clear the rule matching state on this element and its ancestors, as
       // their hover state may be changing. However, the tree's matching rules
@@ -538,14 +537,14 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
   DCHECK_GT(loading_counter_, 0);
   loading_counter_--;
   if (loading_counter_ == 0 && should_dispatch_load_event_) {
-    DCHECK(MessageLoop::current());
+    DCHECK(base::MessageLoop::current());
     should_dispatch_load_event_ = false;
 
-    MessageLoop::current()->PostTask(
+    base::MessageLoop::current()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
                               base::AsWeakPtr<Document>(this)));
 
-    HTMLBodyElement* body_element = body();
+    HTMLBodyElement* body_element = body().get();
     if (body_element) {
       body_element->PostToDispatchEventName(FROM_HERE, base::Tokens::load());
     }
@@ -652,7 +651,7 @@ void RemoveRulesFromCSSRuleListFromSelectorTree(
     const scoped_refptr<cssom::CSSRuleList>& css_rule_list,
     cssom::SelectorTree* maybe_selector_tree) {
   for (unsigned int i = 0; i < css_rule_list->length(); ++i) {
-    cssom::CSSRule* rule = css_rule_list->Item(i);
+    cssom::CSSRule* rule = css_rule_list->Item(i).get();
 
     cssom::CSSStyleRule* css_style_rule = rule->AsCSSStyleRule();
     if (css_style_rule && css_style_rule->added_to_selector_tree()) {
@@ -674,7 +673,7 @@ void AppendRulesFromCSSRuleListToSelectorTree(
     const scoped_refptr<cssom::CSSRuleList>& css_rule_list,
     cssom::SelectorTree* selector_tree) {
   for (unsigned int i = 0; i < css_rule_list->length(); ++i) {
-    cssom::CSSRule* rule = css_rule_list->Item(i);
+    cssom::CSSRule* rule = css_rule_list->Item(i).get();
 
     cssom::CSSStyleRule* css_style_rule = rule->AsCSSStyleRule();
     if (css_style_rule && !css_style_rule->added_to_selector_tree()) {
@@ -963,13 +962,13 @@ void Document::DisableJit() {
 }
 
 void Document::OnWindowFocusChanged(bool has_focus) {
-  UNREFERENCED_PARAMETER(has_focus);
+  SB_UNREFERENCED_PARAMETER(has_focus);
   // Ignored by this class.
 }
 
 void Document::OnVisibilityStateChanged(
     page_visibility::VisibilityState visibility_state) {
-  UNREFERENCED_PARAMETER(visibility_state);
+  SB_UNREFERENCED_PARAMETER(visibility_state);
   DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
                           Event::kNotCancelable));
 }

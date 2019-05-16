@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "third_party/QR-Code-generator/cpp/QrCode.hpp"
@@ -135,14 +135,14 @@ scoped_refptr<Image> CreateImageForQrCodes(
   DrawRect(image_width, kCodeBorderInPixels, image_desc.pitch_in_bytes,
            kBorderColor, row_data);
 
-  return resource_provider->CreateImage(image_data.Pass());
+  return resource_provider->CreateImage(std::move(image_data));
 }
 
 void AnimateCB(math::Size screen_size,
                render_tree::ResourceProvider* resource_provider,
                render_tree::ImageNode::Builder* image_node,
                base::TimeDelta time) {
-  UNREFERENCED_PARAMETER(time);
+  SB_UNREFERENCED_PARAMETER(time);
   DCHECK(image_node);
 
   TRACE_EVENT0("cobalt::overlay_info", "AnimateCB()");

@@ -46,6 +46,10 @@
 // and memmove().  We assume they are async-signal-safe.
 //
 
+// Note for Cobalt: Cobalt Starboard depends on the old version of Symbolize so
+// this file is from m27 Chromium. There are no Cobalt-introduced changes in
+// this file.
+
 #include "build/build_config.h"
 #include "utilities.h"
 
@@ -104,10 +108,10 @@ _END_GOOGLE_NAMESPACE_
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -287,7 +291,7 @@ FindSymbol(uint64_t pc, const int fd, char *out, int out_size,
     const ssize_t len = ReadFromOffset(fd, &buf, sizeof(buf), offset);
     SAFE_ASSERT(len % sizeof(buf[0]) == 0);
     const ssize_t num_symbols_in_buf = len / sizeof(buf[0]);
-    SAFE_ASSERT(num_symbols_in_buf <= sizeof(buf)/sizeof(buf[0]));
+    SAFE_ASSERT(num_symbols_in_buf <= sizeof(buf) / sizeof(buf[0]));
     for (int j = 0; j < num_symbols_in_buf; ++j) {
       const ElfW(Sym)& symbol = buf[j];
       uint64_t start_address = symbol.st_value;
@@ -313,8 +317,10 @@ FindSymbol(uint64_t pc, const int fd, char *out, int out_size,
 // both regular and dynamic symbol tables if necessary.  On success,
 // write the symbol name to "out" and return true.  Otherwise, return
 // false.
-static bool GetSymbolFromObjectFile(const int fd, uint64_t pc,
-                                    char *out, int out_size,
+static bool GetSymbolFromObjectFile(const int fd,
+                                    uint64_t pc,
+                                    char* out,
+                                    int out_size,
                                     uint64_t map_start_address) {
   // Read the ELF header.
   ElfW(Ehdr) elf_header;
@@ -334,12 +340,12 @@ static bool GetSymbolFromObjectFile(const int fd, uint64_t pc,
                               SHT_SYMTAB, &symtab)) {
     return false;
   }
-  if (!ReadFromOffsetExact(fd, &strtab, sizeof(strtab), elf_header.e_shoff +
-                           symtab.sh_link * sizeof(symtab))) {
+  if (!ReadFromOffsetExact(
+          fd, &strtab, sizeof(strtab),
+          elf_header.e_shoff + symtab.sh_link * sizeof(symtab))) {
     return false;
   }
-  if (FindSymbol(pc, fd, out, out_size, symbol_offset,
-                 &strtab, &symtab)) {
+  if (FindSymbol(pc, fd, out, out_size, symbol_offset, &strtab, &symtab)) {
     return true;  // Found the symbol in a regular symbol table.
   }
 
@@ -348,12 +354,12 @@ static bool GetSymbolFromObjectFile(const int fd, uint64_t pc,
                               SHT_DYNSYM, &symtab)) {
     return false;
   }
-  if (!ReadFromOffsetExact(fd, &strtab, sizeof(strtab), elf_header.e_shoff +
-                           symtab.sh_link * sizeof(symtab))) {
+  if (!ReadFromOffsetExact(
+          fd, &strtab, sizeof(strtab),
+          elf_header.e_shoff + symtab.sh_link * sizeof(symtab))) {
     return false;
   }
-  if (FindSymbol(pc, fd, out, out_size, symbol_offset,
-                 &strtab, &symtab)) {
+  if (FindSymbol(pc, fd, out, out_size, symbol_offset, &strtab, &symtab)) {
     return true;  // Found the symbol in a dynamic symbol table.
   }
 
@@ -447,7 +453,7 @@ class LineReader {
   void operator=(const LineReader&);
 
   char *FindLineFeed() {
-    return reinterpret_cast<char *>(memchr(bol_, '\n', eod_ - bol_));
+    return reinterpret_cast<char*>(memchr(bol_, '\n', eod_ - bol_));
   }
 
   bool BufferIsEmpty() {
@@ -489,9 +495,9 @@ static char *GetHex(const char *start, const char *end, uint64_t *hex) {
 // the specified pc. If found, open this file and return the file handle,
 // and also set start_address to the start address of where this object
 // file is mapped to in memory. Otherwise, return -1.
-static ATTRIBUTE_NOINLINE int
-OpenObjectFileContainingPcAndGetStartAddress(uint64_t pc,
-                                             uint64_t &start_address) {
+static ATTRIBUTE_NOINLINE int OpenObjectFileContainingPcAndGetStartAddress(
+    uint64_t pc,
+    uint64_t& start_address) {
   int object_fd;
 
   // Open /proc/self/maps.
@@ -595,8 +601,8 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void *pc, char *out,
   uint64_t pc0 = reinterpret_cast<uintptr_t>(pc);
   uint64_t start_address = 0;
 
-  int object_fd = OpenObjectFileContainingPcAndGetStartAddress(pc0,
-                                                               start_address);
+  int object_fd =
+      OpenObjectFileContainingPcAndGetStartAddress(pc0, start_address);
   if (object_fd == -1) {
     return false;
   }
@@ -618,8 +624,8 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void *pc, char *out,
       out_size -= num_bytes_written;
     }
   }
-  if (!GetSymbolFromObjectFile(wrapped_object_fd.get(), pc0,
-                               out, out_size, start_address)) {
+  if (!GetSymbolFromObjectFile(wrapped_object_fd.get(), pc0, out, out_size,
+                               start_address)) {
     return false;
   }
 

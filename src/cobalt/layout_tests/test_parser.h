@@ -18,19 +18,19 @@
 #include <string>
 #include <vector>
 
-#include "base/file_path.h"
+#include "base/files/file_path.h"
 #include "base/optional.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace layout_tests {
 
 // Final parsed information about an individual Layout Test entry.
 struct TestInfo {
-  TestInfo(const FilePath& base_file_path, const GURL& url,
-           const base::optional<cssom::ViewportSize>& viewport_size)
+  TestInfo(const base::FilePath& base_file_path, const GURL& url,
+           const base::Optional<cssom::ViewportSize>& viewport_size)
       : base_file_path(base_file_path),
         url(url),
         viewport_size(viewport_size) {}
@@ -39,7 +39,7 @@ struct TestInfo {
   // directory) to the test base filename from which all related files (such
   // as the source HTML file and the expected output PNG file) can be
   // derived.  This essentially acts as the test's identifier.
-  FilePath base_file_path;
+  base::FilePath base_file_path;
 
   // The URL is what the layout tests will load and render to produce the
   // actual output.  It is commonly computed from base_file_path (via
@@ -50,7 +50,7 @@ struct TestInfo {
   // The viewport_size is the size of the viewport used during the test.  It
   // may not be specified, in which case it is intended that a default viewport
   // size be used.
-  base::optional<cssom::ViewportSize> viewport_size;
+  base::Optional<cssom::ViewportSize> viewport_size;
 };
 
 // Define operator<< so that this test parameter can be printed by gtest if

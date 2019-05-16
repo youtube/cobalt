@@ -1,4 +1,0 @@
-optimize_mode: LITE_RUNTIME
-
-allowed_enum: "securegcm.Type"
-allowed_message: "securegcm.GcmMetadata"

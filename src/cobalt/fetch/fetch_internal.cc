@@ -14,10 +14,10 @@
 
 #include "cobalt/fetch/fetch_internal.h"
 
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace fetch {
@@ -28,8 +28,8 @@ bool FetchInternal::IsUrlValid(script::EnvironmentSettings* settings,
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
   GURL gurl = dom_settings->base_url().Resolve(url);
-  return gurl.is_valid() && (allow_credentials ||
-                            (!gurl.has_username() && !gurl.has_password()));
+  return gurl.is_valid() &&
+         (allow_credentials || (!gurl.has_username() && !gurl.has_password()));
 }
 
 // static
@@ -55,7 +55,8 @@ std::string FetchInternal::DecodeFromUTF8(
 
   if (IsStringUTF8(input)) {
     // Input is already UTF-8. Just strip the byte order mark if it's present.
-    const base::StringPiece kUtf8ByteOrderMarkStringPiece(kUtf8ByteOrderMark);
+    const base::StringPiece kUtf8ByteOrderMarkStringPiece(
+        base::kUtf8ByteOrderMark);
     if (input.starts_with(kUtf8ByteOrderMarkStringPiece)) {
       input = input.substr(kUtf8ByteOrderMarkStringPiece.length());
     }

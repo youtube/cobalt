@@ -4,10 +4,12 @@
 
 #include "base/base64url.h"
 
-#include <stddef.h>
-
 #include "base/base64.h"
-#include "base/string_util.h"
+#include "base/macros.h"
+#include "base/numerics/safe_math.h"
+#include "base/strings/string_util.h"
+#include "starboard/types.h"
+#include "third_party/modp_b64/modp_b64.h"
 
 namespace base {
 
@@ -75,11 +77,11 @@ bool Base64UrlDecode(const StringPiece& input,
   if (required_padding_characters > 0 || needs_replacement) {
     std::string base64_input;
 
-    size_t base64_input_size = input.size();
+    CheckedNumeric<size_t> base64_input_size = input.size();
     if (required_padding_characters > 0)
       base64_input_size += 4 - required_padding_characters;
 
-    base64_input.reserve(base64_input_size);
+    base64_input.reserve(base64_input_size.ValueOrDie());
     input.AppendToString(&base64_input);
 
     // Substitute the base64url URL-safe characters to their base64 equivalents.
@@ -87,7 +89,7 @@ bool Base64UrlDecode(const StringPiece& input,
     ReplaceChars(base64_input, "_", "/", &base64_input);
 
     // Append the necessary padding characters.
-    base64_input.resize(base64_input_size, '=');
+    base64_input.resize(base64_input_size.ValueOrDie(), '=');
 
     return Base64Decode(base64_input, output);
   }

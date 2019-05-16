@@ -15,15 +15,15 @@
 #ifndef COBALT_DOM_CSP_DELEGATE_FACTORY_H_
 #define COBALT_DOM_CSP_DELEGATE_FACTORY_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback_forward.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/csp_delegate_type.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 
@@ -41,15 +41,15 @@ class CspViolationReporter;
 class CspDelegateFactory {
  public:
   static CspDelegateFactory* GetInstance();
-  scoped_ptr<CspDelegate> Create(
+  std::unique_ptr<CspDelegate> Create(
       CspEnforcementType type,
-      scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+      std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
       csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token = 0);
 
   typedef CspDelegate* (*CspDelegateCreator)(
-      scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+      std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
       csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_chagned_callback, int insecure_allowed_token);
 
@@ -79,7 +79,7 @@ class CspDelegateFactory {
 
   CspDelegateCreator method_[kCspEnforcementCount];
 
-  friend struct DefaultSingletonTraits<CspDelegateFactory>;
+  friend struct base::DefaultSingletonTraits<CspDelegateFactory>;
   DISALLOW_COPY_AND_ASSIGN(CspDelegateFactory);
 };
 

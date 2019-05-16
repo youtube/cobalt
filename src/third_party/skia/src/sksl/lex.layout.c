@@ -28,8 +28,13 @@
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/file.h"
 #include "starboard/log.h"
+#include "starboard/system.h"
+#define exit(status) SbSystemBreakIntoDebugger()
+#define FILE SbFilePrivate
 #define fprintf(stderr, format, ...) SbLogFormatF(format, __VA_ARGS__)
+#define fwrite(ptr, size, count, stream) SbFileWrite(stream, ptr, size*count)
 #else
 #include <stdio.h>
 #include <string.h>
@@ -755,6 +760,12 @@ static int input (yyscan_t yyscanner );
  * is returned in "result".
  */
 #ifndef YY_INPUT
+#if defined(STARBOARD)
+#define YY_INPUT(buf,result,max_size) \
+	SB_NOTREACHED();
+\
+
+#else
 #define YY_INPUT(buf,result,max_size) \
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
@@ -785,6 +796,7 @@ static int input (yyscan_t yyscanner );
 		}\
 \
 
+#endif
 #endif
 
 /* No semi-colon after return; correct usage is to write "yyterminate();" -
@@ -853,11 +865,13 @@ YY_DECL
 		if ( ! yyg->yy_start )
 			yyg->yy_start = 1;	/* first start state */
 
+#ifndef STARBOARD
 		if ( ! yyin )
 			yyin = stdin;
 
 		if ( ! yyout )
 			yyout = stdout;
+#endif
 
 		if ( ! YY_CURRENT_BUFFER ) {
 			layoutensure_buffer_stack (yyscanner);
@@ -2136,7 +2150,7 @@ static int yy_init_globals (yyscan_t yyscanner)
     yyg->yy_start_stack =  NULL;
 
 /* Defined in main.c */
-#ifdef YY_STDINIT
+#if defined(YY_STDINIT) && !defined(STARBOARD)
     yyin = stdin;
     yyout = stdout;
 #else

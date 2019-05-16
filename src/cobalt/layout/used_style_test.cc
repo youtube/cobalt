@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/layout/used_style.h"
 
 #include "cobalt/cssom/calc_value.h"
@@ -28,7 +30,7 @@ namespace layout {
 // TODO: Add more tests for other style provider.
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::CalcValue(new cssom::LengthValue(0.0f, cssom::kPixelsUnit),
@@ -37,7 +39,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
       new cssom::CalcValue(new cssom::LengthValue(0.0f, cssom::kPixelsUnit),
                            new cssom::PercentageValue(0.8f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -53,7 +55,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::CalcValue(new cssom::LengthValue(60, cssom::kPixelsUnit),
@@ -62,7 +64,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
       new cssom::CalcValue(new cssom::LengthValue(80, cssom::kPixelsUnit),
                            new cssom::PercentageValue(0.0f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -78,7 +80,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
 
   property_value_builder->push_back(
@@ -88,7 +90,7 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
       new cssom::CalcValue(new cssom::LengthValue(-80.0f, cssom::kPixelsUnit),
                            new cssom::PercentageValue(1.0f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -160,12 +162,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderCoverWithHeightScale) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithDoubleAutoPropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(100, 200);
   const math::Size image_size(50, 50);
@@ -182,12 +184,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithDoubleAutoPropertyList) {
 
 TEST(UsedStyleTest,
      UsedBackgroundSizeProviderWithDoublePercentagePropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(new cssom::PercentageValue(0.5f));
   property_value_builder->push_back(new cssom::PercentageValue(0.8f));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 150);
   const math::Size image_size(50, 50);
@@ -204,12 +206,12 @@ TEST(UsedStyleTest,
 
 TEST(UsedStyleTest,
      UsedBackgroundSizeProviderWithAutoAndPercentagePropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   property_value_builder->push_back(new cssom::PercentageValue(0.8f));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 150);
   const math::Size image_size(50, 50);
@@ -226,12 +228,12 @@ TEST(UsedStyleTest,
 
 TEST(UsedStyleTest,
      UsedBackgroundSizeProviderWithPercentageAndAutoPropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(new cssom::PercentageValue(0.5f));
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 100);
   const math::Size image_size(50, 50);
@@ -247,14 +249,14 @@ TEST(UsedStyleTest,
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthValuePropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::LengthValue(30, cssom::kPixelsUnit));
   property_value_builder->push_back(
       new cssom::LengthValue(60, cssom::kPixelsUnit));
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 100);
   const math::Size image_size(50, 50);
@@ -270,13 +272,13 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthValuePropertyList) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthAndAutoPropertyList) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
       new cssom::LengthValue(30, cssom::kPixelsUnit));
   property_value_builder->push_back(cssom::KeywordValue::GetAuto());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   const math::SizeF frame_size(200, 100);
   const math::Size image_size(50, 60);
@@ -292,17 +294,376 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthAndAutoPropertyList) {
 }
 
 TEST(UsedStyleTest, UsedBackgroundRepeatProviderNoRepeatAndRepeat) {
-  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+  std::unique_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(cssom::KeywordValue::GetNoRepeat());
   property_value_builder->push_back(cssom::KeywordValue::GetRepeat());
   scoped_refptr<cssom::PropertyListValue> property_value(
-      new cssom::PropertyListValue(property_value_builder.Pass()));
+      new cssom::PropertyListValue(std::move(property_value_builder)));
 
   UsedBackgroundRepeatProvider used_background_repeat_provider;
   property_value->Accept(&used_background_repeat_provider);
   EXPECT_FALSE(used_background_repeat_provider.repeat_x());
   EXPECT_TRUE(used_background_repeat_provider.repeat_y());
+}
+
+TEST(UsedStyleTest, UsedLeftAutoIsNotResolved) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_left(cssom::KeywordValue::GetAuto());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_left = GetUsedLeftIfNotAuto(computed_style, containing_block_size);
+  EXPECT_FALSE(used_left);
+}
+
+TEST(UsedStyleTest, UsedLeftPercentDependsOnContainingBlockWidth) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_left(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_left = GetUsedLeftIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_left);
+  EXPECT_EQ(*used_left, LayoutUnit(50.0f));
+}
+
+TEST(UsedStyleTest, UsedLeftLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_left(new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_left = GetUsedLeftIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_left);
+  EXPECT_EQ(*used_left, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedTopAutoIsNotResolved) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_top(cssom::KeywordValue::GetAuto());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_top = GetUsedTopIfNotAuto(computed_style, containing_block_size);
+  EXPECT_FALSE(used_top);
+}
+
+TEST(UsedStyleTest, UsedTopPercentDependsOnContainingBlockHeight) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_top(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_top = GetUsedTopIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_top);
+  EXPECT_EQ(*used_top, LayoutUnit(100.0f));
+}
+
+TEST(UsedStyleTest, UsedTopLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_top(new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_top = GetUsedTopIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_top);
+  EXPECT_EQ(*used_top, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedRightAutoIsNotResolved) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_right(cssom::KeywordValue::GetAuto());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_right =
+      GetUsedRightIfNotAuto(computed_style, containing_block_size);
+  EXPECT_FALSE(used_right);
+}
+
+TEST(UsedStyleTest, UsedRightPercentDependsOnContainingBlockWidth) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_right(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_right =
+      GetUsedRightIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_right);
+  EXPECT_EQ(*used_right, LayoutUnit(50.0f));
+}
+
+TEST(UsedStyleTest, UsedRightLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_right(new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_right =
+      GetUsedRightIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_right);
+  EXPECT_EQ(*used_right, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedBottomAutoIsNotResolved) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_bottom(cssom::KeywordValue::GetAuto());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_bottom =
+      GetUsedBottomIfNotAuto(computed_style, containing_block_size);
+  EXPECT_FALSE(used_bottom);
+}
+
+TEST(UsedStyleTest, UsedBottomPercentDependsOnContainingBlockHeight) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_bottom(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_bottom =
+      GetUsedBottomIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_bottom);
+  EXPECT_EQ(*used_bottom, LayoutUnit(100.0f));
+}
+
+TEST(UsedStyleTest, UsedBottomLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_bottom(new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_bottom =
+      GetUsedBottomIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_bottom);
+  EXPECT_EQ(*used_bottom, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedFlexBasisAutoDependsOnFlexContainer) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_flex_basis(cssom::KeywordValue::GetAuto());
+  LayoutUnit flex_container_main_size(LayoutUnit(200.0f));
+  bool depends_on_flex_container = false;
+  auto used_flex_basis = GetUsedFlexBasisIfNotAuto(
+      computed_style, flex_container_main_size, &depends_on_flex_container);
+  EXPECT_TRUE(depends_on_flex_container);
+  EXPECT_FALSE(used_flex_basis);
+}
+
+TEST(UsedStyleTest, UsedFlexBasisPercentDependsOnFlexContainerMainSize) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_flex_basis(new cssom::PercentageValue(0.25f));
+  LayoutUnit flex_container_main_size(LayoutUnit(200.0f));
+  bool depends_on_flex_container = false;
+  auto used_flex_basis = GetUsedFlexBasisIfNotAuto(
+      computed_style, flex_container_main_size, &depends_on_flex_container);
+  EXPECT_TRUE(depends_on_flex_container);
+  EXPECT_TRUE(used_flex_basis);
+  EXPECT_EQ(*used_flex_basis, LayoutUnit(50.0f));
+}
+
+TEST(UsedStyleTest, UsedFlexBasisLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_flex_basis(
+      new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  LayoutUnit flex_container_main_size(LayoutUnit(200.0f));
+  bool depends_on_flex_container = false;
+  auto used_flex_basis = GetUsedFlexBasisIfNotAuto(
+      computed_style, flex_container_main_size, &depends_on_flex_container);
+  EXPECT_FALSE(depends_on_flex_container);
+  EXPECT_TRUE(used_flex_basis);
+  EXPECT_EQ(*used_flex_basis, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedWidthAutoDependsOnContainingBlock) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_width(cssom::KeywordValue::GetAuto());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_width = GetUsedWidthIfNotAuto(computed_style, containing_block_size,
+                                          &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_FALSE(used_width);
+}
+
+TEST(UsedStyleTest, UsedWidthPercentDependsOnContainingBlockWidth) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_width(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_width = GetUsedWidthIfNotAuto(computed_style, containing_block_size,
+                                          &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_TRUE(used_width);
+  EXPECT_EQ(*used_width, LayoutUnit(50.0f));
+}
+
+TEST(UsedStyleTest, UsedWidthLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_width(new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_width = GetUsedWidthIfNotAuto(computed_style, containing_block_size,
+                                          &depends_on_containing_block);
+  EXPECT_FALSE(depends_on_containing_block);
+  EXPECT_TRUE(used_width);
+  EXPECT_EQ(*used_width, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedMaxHeightNoneDependsOnContainingBlock) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_max_height(cssom::KeywordValue::GetNone());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_max_height = GetUsedMaxHeightIfNotNone(
+      computed_style, containing_block_size, &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_FALSE(used_max_height);
+}
+
+TEST(UsedStyleTest, UsedMaxHeightPercentDependsOnContainingBlockHeight) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_max_height(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_max_height = GetUsedMaxHeightIfNotNone(
+      computed_style, containing_block_size, &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_TRUE(used_max_height);
+  EXPECT_EQ(*used_max_height, LayoutUnit(100.0f));
+}
+
+TEST(UsedStyleTest, UsedMaxHeightLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_max_height(
+      new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_max_height = GetUsedMaxHeightIfNotNone(
+      computed_style, containing_block_size, &depends_on_containing_block);
+  EXPECT_FALSE(depends_on_containing_block);
+  EXPECT_TRUE(used_max_height);
+  EXPECT_EQ(*used_max_height, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedMaxWidthNoneDependsOnContainingBlock) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_max_width(cssom::KeywordValue::GetNone());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_max_width = GetUsedMaxWidthIfNotNone(
+      computed_style, containing_block_size, &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_FALSE(used_max_width);
+}
+
+TEST(UsedStyleTest, UsedMaxWidthPercentDependsOnContainingBlockWidth) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_max_width(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_max_width = GetUsedMaxWidthIfNotNone(
+      computed_style, containing_block_size, &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_TRUE(used_max_width);
+  EXPECT_EQ(*used_max_width, LayoutUnit(50.0f));
+}
+
+TEST(UsedStyleTest, UsedMaxWidthLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_max_width(
+      new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_max_width = GetUsedMaxWidthIfNotNone(
+      computed_style, containing_block_size, &depends_on_containing_block);
+  EXPECT_FALSE(depends_on_containing_block);
+  EXPECT_TRUE(used_max_width);
+  EXPECT_EQ(*used_max_width, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedMinHeightPercentDependsOnContainingBlockHeight) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_min_height(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_min_height = GetUsedMinHeight(computed_style, containing_block_size,
+                                          &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_EQ(used_min_height, LayoutUnit(100.0f));
+}
+
+TEST(UsedStyleTest, UsedMinHeightLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_min_height(
+      new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_min_height = GetUsedMinHeight(computed_style, containing_block_size,
+                                          &depends_on_containing_block);
+  EXPECT_FALSE(depends_on_containing_block);
+  EXPECT_EQ(used_min_height, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedMinWidthPercentDependsOnContainingBlockWidth) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_min_width(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_min_width = GetUsedMinWidth(computed_style, containing_block_size,
+                                        &depends_on_containing_block);
+  EXPECT_TRUE(depends_on_containing_block);
+  EXPECT_EQ(used_min_width, LayoutUnit(50.0f));
+}
+
+TEST(UsedStyleTest, UsedMinWidthLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_min_width(
+      new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  bool depends_on_containing_block = false;
+  auto used_min_width = GetUsedMinWidth(computed_style, containing_block_size,
+                                        &depends_on_containing_block);
+  EXPECT_FALSE(depends_on_containing_block);
+  EXPECT_EQ(used_min_width, LayoutUnit(25.0f));
+}
+
+TEST(UsedStyleTest, UsedHeightAutoDependsOnContainingBlock) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_height(cssom::KeywordValue::GetAuto());
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_height =
+      GetUsedHeightIfNotAuto(computed_style, containing_block_size);
+  EXPECT_FALSE(used_height);
+}
+
+TEST(UsedStyleTest, UsedHeightPercentDependsOnContainingBlockHeight) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_height(new cssom::PercentageValue(0.25f));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_height =
+      GetUsedHeightIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_height);
+  EXPECT_EQ(*used_height, LayoutUnit(100.0f));
+}
+
+TEST(UsedStyleTest, UsedHeightLengthValue) {
+  scoped_refptr<cssom::MutableCSSComputedStyleData> computed_style(
+      new cssom::MutableCSSComputedStyleData());
+  computed_style->set_height(new cssom::LengthValue(25.0f, cssom::kPixelsUnit));
+  SizeLayoutUnit containing_block_size(LayoutUnit(200.0f), LayoutUnit(400.0f));
+  auto used_height =
+      GetUsedHeightIfNotAuto(computed_style, containing_block_size);
+  EXPECT_TRUE(used_height);
+  EXPECT_EQ(*used_height, LayoutUnit(25.0f));
 }
 
 }  // namespace layout

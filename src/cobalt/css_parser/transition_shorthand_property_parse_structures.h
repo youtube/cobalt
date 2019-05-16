@@ -15,6 +15,8 @@
 #ifndef COBALT_CSS_PARSER_TRANSITION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 #define COBALT_CSS_PARSER_TRANSITION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
+#include <memory>
+
 #include "base/optional.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
@@ -34,10 +36,10 @@ struct SingleTransitionShorthand {
 
   void ReplaceNullWithInitialValues();
 
-  base::optional<cssom::PropertyKey> property;
-  base::optional<base::TimeDelta> duration;
+  base::Optional<cssom::PropertyKey> property;
+  base::Optional<base::TimeDelta> duration;
   scoped_refptr<cssom::TimingFunction> timing_function;
-  base::optional<base::TimeDelta> delay;
+  base::Optional<base::TimeDelta> delay;
 
   bool error;
 };
@@ -51,11 +53,11 @@ struct TransitionShorthandBuilder {
             new cssom::TimingFunctionListValue::Builder()),
         delay_list_builder(new cssom::TimeListValue::Builder()) {}
 
-  scoped_ptr<cssom::PropertyKeyListValue::Builder> property_list_builder;
-  scoped_ptr<cssom::TimeListValue::Builder> duration_list_builder;
-  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+  std::unique_ptr<cssom::PropertyKeyListValue::Builder> property_list_builder;
+  std::unique_ptr<cssom::TimeListValue::Builder> duration_list_builder;
+  std::unique_ptr<cssom::TimingFunctionListValue::Builder>
       timing_function_list_builder;
-  scoped_ptr<cssom::TimeListValue::Builder> delay_list_builder;
+  std::unique_ptr<cssom::TimeListValue::Builder> delay_list_builder;
 };
 
 struct TransitionShorthand {

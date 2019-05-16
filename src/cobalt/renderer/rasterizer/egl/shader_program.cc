@@ -34,7 +34,7 @@ void CompileShader(GLuint handle, const GLchar* source) {
   GLint compiled = GL_FALSE;
   GL_CALL(glGetShaderiv(handle, GL_COMPILE_STATUS, &compiled));
   if (compiled != GL_TRUE) {
-    GLchar log[2048] = { 0 };
+    GLchar log[2048] = {0};
     glGetShaderInfoLog(handle, arraysize(log) - 1, NULL, log);
     DLOG(ERROR) << "shader compile error:\n" << log;
     DLOG(ERROR) << "shader source:\n" << source;
@@ -44,12 +44,9 @@ void CompileShader(GLuint handle, const GLchar* source) {
 
 }  // namespace
 
-ShaderProgramBase::ShaderProgramBase()
-    : handle_(0) {}
+ShaderProgramBase::ShaderProgramBase() : handle_(0) {}
 
-ShaderProgramBase::~ShaderProgramBase() {
-  DCHECK_EQ(handle_, 0);
-}
+ShaderProgramBase::~ShaderProgramBase() { DCHECK_EQ(handle_, 0); }
 
 void ShaderProgramBase::Create(ShaderBase* vertex_shader,
                                ShaderBase* fragment_shader) {
@@ -70,7 +67,7 @@ void ShaderProgramBase::Create(ShaderBase* vertex_shader,
   GLint linked = GL_FALSE;
   GL_CALL(glGetProgramiv(handle_, GL_LINK_STATUS, &linked));
   if (linked != GL_TRUE) {
-    GLchar log[2048] = { 0 };
+    GLchar log[2048] = {0};
     glGetProgramInfoLog(handle_, arraysize(log) - 1, NULL, log);
     DLOG(ERROR) << "shader link error:\n" << log;
     DLOG(ERROR) << "vertex source:\n" << vertex_shader->GetSource();

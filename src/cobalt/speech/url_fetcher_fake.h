@@ -22,11 +22,12 @@
 #include <string>
 
 #include "base/optional.h"
-#include "base/timer.h"
-#include "googleurl/src/gurl.h"
+#include "base/threading/thread_checker.h"
+#include "base/timer/timer.h"
 #include "net/base/host_port_pair.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_request_status.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace speech {
@@ -37,20 +38,31 @@ class URLFetcherFake : public net::URLFetcher {
                  net::URLFetcherDelegate* delegate);
   virtual ~URLFetcherFake();
 
-  // URLFetcher implementation:
+  // net::URLFetcher implementation:
   void SetUploadData(const std::string& /*upload_content_type*/,
                      const std::string& /*upload_content*/) override {
     NOTREACHED();
   }
+  void SetUploadFilePath(
+      const std::string& /*upload_content_type*/,
+      const base::FilePath& /*file_path*/, uint64_t /*range_offset*/,
+      uint64_t /*range_length*/,
+      scoped_refptr<base::TaskRunner> /*file_task_runner*/) override{};
+  void SetUploadStreamFactory(
+      const std::string& /*upload_content_type*/,
+      const CreateUploadStreamCallback& /*callback*/) override{};
   void SetChunkedUpload(const std::string& /*upload_content_type*/) override;
   void AppendChunkToUpload(const std::string& data,
                            bool is_last_chunk) override;
   void SetLoadFlags(int /*load_flags*/) override { NOTREACHED(); }
+  void SetAllowCredentials(bool /*allow_credentials*/) override {}
   int GetLoadFlags() const override {
     NOTREACHED();
     return 0;
   }
   void SetReferrer(const std::string& /*referrer*/) override { NOTREACHED(); }
+  void SetReferrerPolicy(
+      net::URLRequest::ReferrerPolicy /*referrer_policy*/) override {}
   void SetExtraRequestHeaders(
       const std::string& /*extra_request_headers*/) override {
     NOTREACHED();
@@ -58,15 +70,9 @@ class URLFetcherFake : public net::URLFetcher {
   void AddExtraRequestHeader(const std::string& /*header_line*/) override {
     NOTREACHED();
   }
-  void GetExtraRequestHeaders(
-      net::HttpRequestHeaders* /*headers*/) const override {
-    NOTREACHED();
-  }
   void SetRequestContext(
       net::URLRequestContextGetter* request_context_getter) override;
-  void SetFirstPartyForCookies(
-      const GURL& /*first_party_for_cookies*/) override {
-    NOTREACHED();
+  void SetInitiator(const base::Optional<url::Origin>& /*initiator*/) override {
   }
   void SetURLRequestUserData(
       const void* /*key*/,
@@ -75,6 +81,18 @@ class URLFetcherFake : public net::URLFetcher {
   }
   void SetStopOnRedirect(bool /*stop_on_redirect*/) override { NOTREACHED(); }
   void SetAutomaticallyRetryOn5xx(bool /*retry*/) override { NOTREACHED(); }
+  void SaveResponseToFileAtPath(
+      const base::FilePath& /*file_path*/,
+      scoped_refptr<base::SequencedTaskRunner> /*file_task_runner*/) override {}
+  void SaveResponseToTemporaryFile(
+      scoped_refptr<base::SequencedTaskRunner> /*file_task_runner*/) override {}
+  void SaveResponseWithWriter(
+      std::unique_ptr<net::URLFetcherResponseWriter> response_writer) override {
+    response_data_writer_ = std::move(response_writer);
+  }
+  net::URLFetcherResponseWriter* GetResponseWriter() const override {
+    return response_data_writer_.get();
+  }
   void SetMaxRetriesOn5xx(int /*max_retries*/) override { NOTREACHED(); }
   int GetMaxRetriesOn5xx() const override {
     NOTREACHED();
@@ -87,16 +105,6 @@ class URLFetcherFake : public net::URLFetcher {
   void SetAutomaticallyRetryOnNetworkChanges(int /*max_retries*/) override {
     NOTREACHED();
   }
-  void SaveResponseToFileAtPath(
-      const FilePath& /*file_path*/,
-      scoped_refptr<base::TaskRunner> /*file_task_runner*/) override {
-    NOTREACHED();
-  }
-  void SaveResponseToTemporaryFile(
-      scoped_refptr<base::TaskRunner> /*file_task_runner*/) override {
-    NOTREACHED();
-  }
-  void DiscardResponse() override { NOTREACHED(); }
   net::HttpResponseHeaders* GetResponseHeaders() const override {
     NOTREACHED();
     return NULL;
@@ -105,32 +113,40 @@ class URLFetcherFake : public net::URLFetcher {
     NOTREACHED();
     return net::HostPortPair();
   }
+  const net::ProxyServer& ProxyServerUsed() const override {
+    NOTREACHED();
+    return proxy_server_;
+  }
   bool WasFetchedViaProxy() const override {
     NOTREACHED();
     return false;
+  }
+  bool WasCached() const override {
+    NOTREACHED();
+    return false;
+  }
+  int64_t GetReceivedResponseContentLength() const override {
+    NOTREACHED();
+    return 1;
+  }
+  int64_t GetTotalReceivedBytes() const override {
+    NOTREACHED();
+    return 1;
   }
   void Start() override;
   const GURL& GetOriginalURL() const override { return original_url_; }
   const GURL& GetURL() const override { return original_url_; }
   const net::URLRequestStatus& GetStatus() const override;
   int GetResponseCode() const override;
-  const net::ResponseCookies& GetCookies() const override {
-    NOTREACHED();
-    return fake_cookies_;
-  }
-  bool FileErrorOccurred(
-      base::PlatformFileError* /*out_error_code*/) const override {
-    NOTREACHED();
-    return false;
-  }
   void ReceivedContentWasMalformed() override { NOTREACHED(); }
   bool GetResponseAsString(
       std::string* /*out_response_string*/) const override {
     NOTREACHED();
     return false;
   }
-  bool GetResponseAsFilePath(bool /*take_ownership*/,
-                             FilePath* /*out_response_path*/) const override {
+  bool GetResponseAsFilePath(
+      bool /*take_ownership*/,
+      base::FilePath* /*out_response_path*/) const override {
     NOTREACHED();
     return false;
   }
@@ -142,9 +158,11 @@ class URLFetcherFake : public net::URLFetcher {
   net::URLFetcherDelegate* delegate_;
   bool is_chunked_upload_;
   int download_index_;
-  net::ResponseCookies fake_cookies_;
   net::URLRequestStatus fake_status_;
-  base::optional<base::RepeatingTimer<URLFetcherFake> > download_timer_;
+  base::Optional<base::RepeatingTimer> download_timer_;
+  net::ProxyServer proxy_server_;
+  std::unique_ptr<net::URLFetcherResponseWriter> response_data_writer_;
+  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace speech

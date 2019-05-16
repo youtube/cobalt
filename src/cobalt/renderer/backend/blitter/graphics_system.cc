@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/backend/blitter/graphics_system.h"
 
 #include "cobalt/renderer/backend/blitter/display.h"
@@ -31,13 +33,14 @@ GraphicsSystemBlitter::~GraphicsSystemBlitter() {
   SbBlitterDestroyDevice(device_);
 }
 
-scoped_ptr<Display> GraphicsSystemBlitter::CreateDisplay(
+std::unique_ptr<Display> GraphicsSystemBlitter::CreateDisplay(
     system_window::SystemWindow* system_window) {
-  return scoped_ptr<Display>(new DisplayBlitter(device_, system_window));
+  return std::unique_ptr<Display>(new DisplayBlitter(device_, system_window));
 }
 
-scoped_ptr<GraphicsContext> GraphicsSystemBlitter::CreateGraphicsContext() {
-  return scoped_ptr<GraphicsContext>(new GraphicsContextBlitter(this));
+std::unique_ptr<GraphicsContext>
+GraphicsSystemBlitter::CreateGraphicsContext() {
+  return std::unique_ptr<GraphicsContext>(new GraphicsContextBlitter(this));
 }
 
 }  // namespace backend

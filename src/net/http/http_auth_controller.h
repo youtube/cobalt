@@ -1,22 +1,20 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_AUTH_CONTROLLER_H_
 #define NET_HTTP_HTTP_AUTH_CONTROLLER_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/threading/non_thread_safe.h"
-#include "googleurl/src/gurl.h"
-#include "net/base/completion_callback.h"
+#include "base/threading/thread_checker.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
-#include "net/base/net_log.h"
 #include "net/http/http_auth.h"
+#include "url/gurl.h"
 
 namespace net {
 
@@ -26,14 +24,25 @@ class HttpAuthHandler;
 class HttpAuthHandlerFactory;
 class HttpAuthCache;
 class HttpRequestHeaders;
+class NetLogWithSource;
 struct HttpRequestInfo;
+class SSLInfo;
 
+// HttpAuthController is interface between other classes and HttpAuthHandlers.
+// It handles all challenges when attempting to make a single request to a
+// server, both in the case of trying multiple sets of credentials (Possibly on
+// different sockets), and when going through multiple rounds of auth with
+// connection-based auth, creating new HttpAuthHandlers as necessary.
+//
+// It is unaware of when a round of auth uses a new socket, which can lead to
+// problems for connection-based auth.
 class NET_EXPORT_PRIVATE HttpAuthController
-    : public base::RefCounted<HttpAuthController>,
-      NON_EXPORTED_BASE(public base::NonThreadSafe) {
+    : public base::RefCounted<HttpAuthController> {
  public:
   // The arguments are self explanatory except possibly for |auth_url|, which
   // should be both the auth target and auth path in a single url argument.
+  // |target| indicates whether this is for authenticating with a proxy or
+  // destination server.
   HttpAuthController(HttpAuth::Target target,
                      const GURL& auth_url,
                      HttpAuthCache* http_auth_cache,
@@ -43,34 +52,45 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // value is a net error code. |OK| will be returned both in the case that
   // a token is correctly generated synchronously, as well as when no tokens
   // were necessary.
-  virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                     const CompletionCallback& callback,
-                                     const BoundNetLog& net_log);
+  int MaybeGenerateAuthToken(const HttpRequestInfo* request,
+                             CompletionOnceCallback callback,
+                             const NetLogWithSource& net_log);
 
   // Adds either the proxy auth header, or the origin server auth header,
   // as specified by |target_|.
-  virtual void AddAuthorizationHeader(
-      HttpRequestHeaders* authorization_headers);
+  void AddAuthorizationHeader(HttpRequestHeaders* authorization_headers);
 
   // Checks for and handles HTTP status code 401 or 407.
   // |HandleAuthChallenge()| returns OK on success, or a network error code
   // otherwise. It may also populate |auth_info_|.
-  virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
-                                  bool do_not_send_server_auth,
-                                  bool establishing_tunnel,
-                                  const BoundNetLog& net_log);
+  int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
+                          const SSLInfo& ssl_info,
+                          bool do_not_send_server_auth,
+                          bool establishing_tunnel,
+                          const NetLogWithSource& net_log);
 
   // Store the supplied credentials and prepare to restart the auth.
-  virtual void ResetAuth(const AuthCredentials& credentials);
+  void ResetAuth(const AuthCredentials& credentials);
 
-  virtual bool HaveAuthHandler() const;
+  bool HaveAuthHandler() const;
 
-  virtual bool HaveAuth() const;
+  bool HaveAuth() const;
 
-  virtual scoped_refptr<AuthChallengeInfo> auth_info();
+  // Return whether the authentication scheme is incompatible with HTTP/2
+  // and thus the server would presumably reject a request on HTTP/2 anyway.
+  bool NeedsHTTP11() const;
 
-  virtual bool IsAuthSchemeDisabled(HttpAuth::Scheme scheme) const;
-  virtual void DisableAuthScheme(HttpAuth::Scheme scheme);
+  scoped_refptr<AuthChallengeInfo> auth_info();
+
+  bool IsAuthSchemeDisabled(HttpAuth::Scheme scheme) const;
+  void DisableAuthScheme(HttpAuth::Scheme scheme);
+  void DisableEmbeddedIdentity();
+
+  // Called when the connection has been closed, so the current handler (which
+  // contains state bound to the connection) should be dropped. If retrying on a
+  // new connection, the next call to MaybeGenerateAuthToken will retry the
+  // current auth scheme.
+  void OnConnectionClosed();
 
  private:
   // Actions for InvalidateCurrentHandler()
@@ -83,12 +103,12 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // So that we can mock this object.
   friend class base::RefCounted<HttpAuthController>;
 
-  virtual ~HttpAuthController();
+  ~HttpAuthController();
 
   // Searches the auth cache for an entry that encompasses the request's path.
   // If such an entry is found, updates |identity_| and |handler_| with the
   // cache entry's data and returns true.
-  bool SelectPreemptiveAuth(const BoundNetLog& net_log);
+  bool SelectPreemptiveAuth(const NetLogWithSource& net_log);
 
   // Invalidates the current handler.  If |action| is
   // INVALIDATE_HANDLER_AND_CACHED_CREDENTIALS, then also invalidate
@@ -108,12 +128,12 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // URLRequestHttpJob can prompt for credentials.
   void PopulateAuthChallenge();
 
-  // If |result| indicates a permanent failure, disables the current
-  // auth scheme for this controller and returns true.  Returns false
-  // otherwise.
-  bool DisableOnAuthHandlerResult(int result);
+  // Handle the result of calling GenerateAuthToken on an HttpAuthHandler. The
+  // return value of this function should be used as the return value of the
+  // GenerateAuthToken operation.
+  int HandleGenerateTokenResult(int result);
 
-  void OnIOComplete(int result);
+  void OnGenerateAuthTokenDone(int result);
 
   // Indicates if this handler is for Proxy auth or Server auth.
   HttpAuth::Target target_;
@@ -131,7 +151,7 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // |handler_| encapsulates the logic for the particular auth-scheme.
   // This includes the challenge's parameters. If NULL, then there is no
   // associated auth handler.
-  scoped_ptr<HttpAuthHandler> handler_;
+  std::unique_ptr<HttpAuthHandler> handler_;
 
   // |identity_| holds the credentials that should be used by
   // the handler_ to generate challenge responses. This identity can come from
@@ -162,7 +182,9 @@ class NET_EXPORT_PRIVATE HttpAuthController
 
   std::set<HttpAuth::Scheme> disabled_schemes_;
 
-  CompletionCallback callback_;
+  CompletionOnceCallback callback_;
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace net

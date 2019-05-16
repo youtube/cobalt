@@ -8,11 +8,11 @@
 #include <map>
 #include <vector>
 
-#include "base/threading/non_thread_safe.h"
+#include "base/macros.h"
+#include "base/threading/thread_checker.h"
 #include "net/base/address_list.h"
-#include "net/base/net_errors.h"
+#include "net/base/ip_address.h"
 #include "net/base/net_export.h"
-#include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
 #include "net/dns/address_sorter.h"
 
@@ -24,13 +24,12 @@ class ClientSocketFactory;
 // thread-safe and always completes synchronously.
 class NET_EXPORT_PRIVATE AddressSorterPosix
     : public AddressSorter,
-      public base::NonThreadSafe,
       public NetworkChangeNotifier::IPAddressObserver {
  public:
   // Generic policy entry.
   struct PolicyEntry {
     // IPv4 addresses must be mapped to IPv6.
-    unsigned char prefix[kIPv6AddressSize];
+    unsigned char prefix[IPAddress::kIPv6AddressSize];
     unsigned prefix_length;
     unsigned value;
   };
@@ -58,24 +57,22 @@ class NET_EXPORT_PRIVATE AddressSorterPosix
     bool native;
   };
 
-  typedef std::map<IPAddressNumber, SourceAddressInfo> SourceAddressMap;
+  typedef std::map<IPAddress, SourceAddressInfo> SourceAddressMap;
 
   explicit AddressSorterPosix(ClientSocketFactory* socket_factory);
-  virtual ~AddressSorterPosix();
+  ~AddressSorterPosix() override;
 
   // AddressSorter:
-  virtual void Sort(const AddressList& list,
-                    const CallbackType& callback) const override;
+  void Sort(const AddressList& list, CallbackType callback) const override;
 
  private:
   friend class AddressSorterPosixTest;
 
   // NetworkChangeNotifier::IPAddressObserver:
-  virtual void OnIPAddressChanged() override;
+  void OnIPAddressChanged() override;
 
   // Fills |info| with values for |address| from policy tables.
-  void FillPolicy(const IPAddressNumber& address,
-                  SourceAddressInfo* info) const;
+  void FillPolicy(const IPAddress& address, SourceAddressInfo* info) const;
 
   // Mutable to allow using default values for source addresses which were not
   // found in most recent OnIPAddressChanged.
@@ -85,6 +82,8 @@ class NET_EXPORT_PRIVATE AddressSorterPosix
   PolicyTable precedence_table_;
   PolicyTable label_table_;
   PolicyTable ipv4_scope_table_;
+
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(AddressSorterPosix);
 };

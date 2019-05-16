@@ -5,21 +5,30 @@
 #ifndef NET_SOCKET_NEXT_PROTO_H_
 #define NET_SOCKET_NEXT_PROTO_H_
 
+#include <vector>
+
+#include "base/strings/string_piece.h"
+#include "net/base/net_export.h"
+
 namespace net {
 
-// Next Protocol Negotiation (NPN), if successful, results in agreement on an
-// application-level string that specifies the application level protocol to
-// use over the TLS connection. NextProto enumerates the application level
-// protocols that we recognise.
+// This enum is used in Net.SSLNegotiatedAlpnProtocol histogram.
+// Do not change or re-use values.
 enum NextProto {
   kProtoUnknown = 0,
   kProtoHTTP11 = 1,
-  kProtoSPDY1 = 2,
-  kProtoSPDY2 = 3,
-  kProtoSPDY21 = 4,
-  kProtoSPDY3 = 5,
-  kProtoMaximumVersion = 6,
+  kProtoHTTP2 = 2,
+  kProtoQUIC = 3,
+  kProtoLast = kProtoQUIC
 };
+
+// List of protocols to use for NPN, used for configuring HttpNetworkSessions.
+typedef std::vector<NextProto> NextProtoVector;
+
+NET_EXPORT_PRIVATE NextProto
+NextProtoFromString(base::StringPiece proto_string);
+
+NET_EXPORT_PRIVATE const char* NextProtoToString(NextProto next_proto);
 
 }  // namespace net
 

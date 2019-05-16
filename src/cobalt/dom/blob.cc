@@ -71,7 +71,7 @@ size_t TotalDataLength(const script::Sequence<Blob::BlobPart>& blob_parts) {
   return byte_length;
 }
 
-base::LazyInstance<BlobPropertyBag> empty_blob_property_bag =
+base::LazyInstance<BlobPropertyBag>::DestructorAtExit empty_blob_property_bag =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

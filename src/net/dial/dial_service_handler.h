@@ -29,19 +29,17 @@ namespace net {
 
 class HttpServerRequestInfo;
 
-struct HttpServerResponseInfo {
-  int response_code;
-  std::string mime_type;
-  std::string body;
-  std::vector<std::string> headers;
-};
+// DialUdpServer used to define HttpServerResponseInfo itself. The new net
+// have its own HttpServerResponseInfo now and we can use that instead. It also
+// makes connecting with other net components easier.
+class HttpServerResponseInfo;
 
 // Abstract class that provides a response to a request from the dial server.
 // DialServiceHandlers should be Register()ed with a DialService object.
 class DialServiceHandler
     : public base::RefCountedThreadSafe<DialServiceHandler> {
  public:
-  typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo> response)>
+  typedef base::Callback<void(std::unique_ptr<HttpServerResponseInfo> response)>
       CompletionCB;
   // Called by the DialHttpServer to satisfy an incoming request.
   // It is expected that this will be handled asynchronously and the completion
@@ -60,7 +58,6 @@ class DialServiceHandler
   virtual ~DialServiceHandler() {}
 };
 
-} // namespace net
+}  // namespace net
 
 #endif  // SRC_DIAL_SERVICE_HANDLER_H_
-

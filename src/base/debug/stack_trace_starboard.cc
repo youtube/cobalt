@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <ostream>
 
-#include "base/basictypes.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
 
@@ -128,8 +127,11 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
 
 void ProcessBacktrace(void* const* trace,
                       int size,
+                      const char* prefix_string,
                       BacktraceOutputHandler* handler) {
   for (int i = 0; i < size; ++i) {
+    if (prefix_string)
+      handler->HandleOutput(prefix_string);
     handler->HandleOutput("\t");
 
     char buf[1024] = {'\0'};
@@ -150,13 +152,13 @@ void ProcessBacktrace(void* const* trace,
 
 }  // namespace
 
-StackTrace::StackTrace() {
+StackTrace::StackTrace(size_t count) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
   // Though the SbSystemGetStack API documentation does not specify any possible
   // negative return values, we take no chance.
-  count_ = std::max(SbSystemGetStack(trace_, arraysize(trace_)), 0);
+  count_ = std::max(SbSystemGetStack(trace_, count), 0);
   if (count_ < 1) {
     return;
   }
@@ -168,14 +170,17 @@ StackTrace::StackTrace() {
   }
 }
 
-void StackTrace::PrintBacktrace() const {
+void StackTrace::PrintWithPrefix(const char* prefix_string) const {
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
   PrintBacktraceOutputHandler handler;
-  ProcessBacktrace(trace_, count_, &handler);
+  ProcessBacktrace(trace_, count_, prefix_string, &handler);
 }
 
-void StackTrace::OutputToStream(std::ostream* out_stream) const {
-  StreamBacktraceOutputHandler handler(out_stream);
-  ProcessBacktrace(trace_, count_, &handler);
+void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
+                                          const char* prefix_string) const {
+  StreamBacktraceOutputHandler handler(os);
+  ProcessBacktrace(trace_, count_, prefix_string, &handler);
 }
 
 bool EnableInProcessStackDumping() {

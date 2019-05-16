@@ -24,7 +24,7 @@ class EncryptionScheme;
 class H264Parser;
 struct H264SPS;
 class OffsetByteQueue;
-}
+}  // namespace media
 
 namespace cobalt {
 namespace media {

@@ -7,28 +7,23 @@
 
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "net/base/net_export.h"
-
-class GURL;
 
 namespace net {
 
-// The interface used by HTTP jobs to retrieve HTTP Accept-Language,
-// Accept-Charset and User-Agent header values.
+// The interface used by HTTP jobs to retrieve HTTP Accept-Language
+// and User-Agent header values.
 class NET_EXPORT HttpUserAgentSettings {
  public:
   HttpUserAgentSettings() {}
   virtual ~HttpUserAgentSettings() {}
 
   // Gets the value of 'Accept-Language' header field.
-  virtual const std::string& GetAcceptLanguage() const = 0;
-
-  // Gets the value of 'Accept-Charset' header field.
-  virtual const std::string& GetAcceptCharset() const = 0;
+  virtual std::string GetAcceptLanguage() const = 0;
 
   // Gets the UA string.
-  virtual const std::string& GetUserAgent() const = 0;
+  virtual std::string GetUserAgent() const = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpUserAgentSettings);
@@ -37,4 +32,3 @@ class NET_EXPORT HttpUserAgentSettings {
 }  // namespace net
 
 #endif  // NET_URL_REQUEST_HTTP_USER_AGENT_SETTINGS_H_
-

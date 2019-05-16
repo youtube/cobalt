@@ -5,232 +5,204 @@
 #include "base/json/json_writer.h"
 
 #include <cmath>
+#include <limits>
 
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
-#include "base/utf_string_conversions.h"
+#include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 
 #if defined(OS_WIN)
-static const char kPrettyPrintLineEnding[] = "\r\n";
+const char kPrettyPrintLineEnding[] = "\r\n";
 #else
-static const char kPrettyPrintLineEnding[] = "\n";
+const char kPrettyPrintLineEnding[] = "\n";
 #endif
 
-/* static */
-const char* JSONWriter::kEmptyArray = "[]";
-
-/* static */
-void JSONWriter::Write(const Value* const node, std::string* json) {
-  WriteWithOptions(node, 0, json);
+// static
+bool JSONWriter::Write(const Value& node, std::string* json) {
+  return WriteWithOptions(node, 0, json);
 }
 
-/* static */
-void JSONWriter::WriteWithOptions(const Value* const node, int options,
+// static
+bool JSONWriter::WriteWithOptions(const Value& node,
+                                  int options,
                                   std::string* json) {
   json->clear();
   // Is there a better way to estimate the size of the output?
   json->reserve(1024);
 
-  bool escape = !(options & OPTIONS_DO_NOT_ESCAPE);
-  bool omit_binary_values = !!(options & OPTIONS_OMIT_BINARY_VALUES);
-  bool omit_double_type_preservation =
-      !!(options & OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION);
-  bool pretty_print = !!(options & OPTIONS_PRETTY_PRINT);
+  JSONWriter writer(options, json);
+  bool result = writer.BuildJSONString(node, 0U);
 
-  JSONWriter writer(escape, omit_binary_values, omit_double_type_preservation,
-                    pretty_print, json);
-  writer.BuildJSONString(node, 0);
-
-  if (pretty_print)
+  if (options & OPTIONS_PRETTY_PRINT)
     json->append(kPrettyPrintLineEnding);
+
+  return result;
 }
 
-JSONWriter::JSONWriter(bool escape, bool omit_binary_values,
-                       bool omit_double_type_preservation, bool pretty_print,
-                       std::string* json)
-    : escape_(escape),
-      omit_binary_values_(omit_binary_values),
-      omit_double_type_preservation_(omit_double_type_preservation),
-      pretty_print_(pretty_print),
+JSONWriter::JSONWriter(int options, std::string* json)
+    : omit_binary_values_((options & OPTIONS_OMIT_BINARY_VALUES) != 0),
+      omit_double_type_preservation_(
+          (options & OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION) != 0),
+      pretty_print_((options & OPTIONS_PRETTY_PRINT) != 0),
       json_string_(json) {
   DCHECK(json);
 }
 
-void JSONWriter::BuildJSONString(const Value* const node, int depth) {
-  switch (node->GetType()) {
-    case Value::TYPE_NULL:
+bool JSONWriter::BuildJSONString(const Value& node, size_t depth) {
+  switch (node.type()) {
+    case Value::Type::NONE: {
       json_string_->append("null");
-      break;
+      return true;
+    }
 
-    case Value::TYPE_BOOLEAN:
-      {
-        bool value;
-        bool result = node->GetAsBoolean(&value);
-        DCHECK(result);
-        json_string_->append(value ? "true" : "false");
-        break;
+    case Value::Type::BOOLEAN: {
+      bool value;
+      bool result = node.GetAsBoolean(&value);
+      DCHECK(result);
+      json_string_->append(value ? "true" : "false");
+      return result;
+    }
+
+    case Value::Type::INTEGER: {
+      int value;
+      bool result = node.GetAsInteger(&value);
+      DCHECK(result);
+      json_string_->append(IntToString(value));
+      return result;
+    }
+
+    case Value::Type::DOUBLE: {
+      double value;
+      bool result = node.GetAsDouble(&value);
+      DCHECK(result);
+      if (omit_double_type_preservation_ &&
+          value <= std::numeric_limits<int64_t>::max() &&
+          value >= std::numeric_limits<int64_t>::min() &&
+          std::floor(value) == value) {
+        json_string_->append(Int64ToString(static_cast<int64_t>(value)));
+        return result;
       }
-
-    case Value::TYPE_INTEGER:
-      {
-        int value;
-        bool result = node->GetAsInteger(&value);
-        DCHECK(result);
-        base::StringAppendF(json_string_, "%d", value);
-        break;
+      std::string real = NumberToString(value);
+      // Ensure that the number has a .0 if there's no decimal or 'e'.  This
+      // makes sure that when we read the JSON back, it's interpreted as a
+      // real rather than an int.
+      if (real.find('.') == std::string::npos &&
+          real.find('e') == std::string::npos &&
+          real.find('E') == std::string::npos) {
+        real.append(".0");
       }
-
-    case Value::TYPE_DOUBLE:
-      {
-        double value;
-        bool result = node->GetAsDouble(&value);
-        DCHECK(result);
-        if (omit_double_type_preservation_ &&
-            value <= kint64max &&
-            value >= kint64min &&
-            std::floor(value) == value) {
-          json_string_->append(Int64ToString(static_cast<int64>(value)));
-          break;
-        }
-        std::string real = DoubleToString(value);
-        // Ensure that the number has a .0 if there's no decimal or 'e'.  This
-        // makes sure that when we read the JSON back, it's interpreted as a
-        // real rather than an int.
-        if (real.find('.') == std::string::npos &&
-            real.find('e') == std::string::npos &&
-            real.find('E') == std::string::npos) {
-          real.append(".0");
-        }
-        // The JSON spec requires that non-integer values in the range (-1,1)
-        // have a zero before the decimal point - ".52" is not valid, "0.52" is.
-        if (real[0] == '.') {
-          real.insert(0, "0");
-        } else if (real.length() > 1 && real[0] == '-' && real[1] == '.') {
-          // "-.1" bad "-0.1" good
-          real.insert(1, "0");
-        }
-        json_string_->append(real);
-        break;
+      // The JSON spec requires that non-integer values in the range (-1,1)
+      // have a zero before the decimal point - ".52" is not valid, "0.52" is.
+      if (real[0] == '.') {
+        real.insert(static_cast<size_t>(0), static_cast<size_t>(1), '0');
+      } else if (real.length() > 1 && real[0] == '-' && real[1] == '.') {
+        // "-.1" bad "-0.1" good
+        real.insert(static_cast<size_t>(1), static_cast<size_t>(1), '0');
       }
+      json_string_->append(real);
+      return result;
+    }
 
-    case Value::TYPE_STRING:
-      {
-        std::string value;
-        bool result = node->GetAsString(&value);
-        DCHECK(result);
-        if (escape_) {
-          JsonDoubleQuote(UTF8ToUTF16(value), true, json_string_);
-        } else {
-          JsonDoubleQuote(value, true, json_string_);
-        }
-        break;
-      }
+    case Value::Type::STRING: {
+      std::string value;
+      bool result = node.GetAsString(&value);
+      DCHECK(result);
+      EscapeJSONString(value, true, json_string_);
+      return result;
+    }
 
-    case Value::TYPE_LIST:
-      {
-        json_string_->append("[");
-        if (pretty_print_)
-          json_string_->append(" ");
+    case Value::Type::LIST: {
+      json_string_->push_back('[');
+      if (pretty_print_)
+        json_string_->push_back(' ');
 
-        const ListValue* list = static_cast<const ListValue*>(node);
-        for (size_t i = 0; i < list->GetSize(); ++i) {
-          const Value* value = NULL;
-          bool result = list->Get(i, &value);
-          DCHECK(result);
+      const ListValue* list = nullptr;
+      bool first_value_has_been_output = false;
+      bool result = node.GetAsList(&list);
+      DCHECK(result);
+      for (const auto& value : *list) {
+        if (omit_binary_values_ && value.type() == Value::Type::BINARY)
+          continue;
 
-          if (omit_binary_values_ && value->GetType() == Value::TYPE_BINARY) {
-            continue;
-          }
-
-          if (i != 0) {
-            json_string_->append(",");
-            if (pretty_print_)
-              json_string_->append(" ");
-          }
-
-          BuildJSONString(value, depth);
-        }
-
-        if (pretty_print_)
-          json_string_->append(" ");
-        json_string_->append("]");
-        break;
-      }
-
-    case Value::TYPE_DICTIONARY:
-      {
-        json_string_->append("{");
-        if (pretty_print_)
-          json_string_->append(kPrettyPrintLineEnding);
-
-        const DictionaryValue* dict =
-          static_cast<const DictionaryValue*>(node);
-        for (DictionaryValue::key_iterator key_itr = dict->begin_keys();
-             key_itr != dict->end_keys();
-             ++key_itr) {
-          const Value* value = NULL;
-          bool result = dict->GetWithoutPathExpansion(*key_itr, &value);
-          DCHECK(result);
-
-          if (omit_binary_values_ && value->GetType() == Value::TYPE_BINARY) {
-            continue;
-          }
-
-          if (key_itr != dict->begin_keys()) {
-            json_string_->append(",");
-            if (pretty_print_)
-              json_string_->append(kPrettyPrintLineEnding);
-          }
-
+        if (first_value_has_been_output) {
+          json_string_->push_back(',');
           if (pretty_print_)
-            IndentLine(depth + 1);
-          AppendQuotedString(*key_itr);
-          if (pretty_print_) {
-            json_string_->append(": ");
-          } else {
-            json_string_->append(":");
-          }
-          BuildJSONString(value, depth + 1);
+            json_string_->push_back(' ');
         }
 
-        if (pretty_print_) {
-          json_string_->append(kPrettyPrintLineEnding);
-          IndentLine(depth);
-          json_string_->append("}");
-        } else {
-          json_string_->append("}");
-        }
-        break;
+        if (!BuildJSONString(value, depth))
+          result = false;
+
+        first_value_has_been_output = true;
       }
 
-    case Value::TYPE_BINARY:
-      {
-        if (!omit_binary_values_) {
-          NOTREACHED() << "Cannot serialize binary value.";
+      if (pretty_print_)
+        json_string_->push_back(' ');
+      json_string_->push_back(']');
+      return result;
+    }
+
+    case Value::Type::DICTIONARY: {
+      json_string_->push_back('{');
+      if (pretty_print_)
+        json_string_->append(kPrettyPrintLineEnding);
+
+      const DictionaryValue* dict = nullptr;
+      bool first_value_has_been_output = false;
+      bool result = node.GetAsDictionary(&dict);
+      DCHECK(result);
+      for (DictionaryValue::Iterator itr(*dict); !itr.IsAtEnd();
+           itr.Advance()) {
+        if (omit_binary_values_ && itr.value().type() == Value::Type::BINARY) {
+          continue;
         }
-        break;
+
+        if (first_value_has_been_output) {
+          json_string_->push_back(',');
+          if (pretty_print_)
+            json_string_->append(kPrettyPrintLineEnding);
+        }
+
+        if (pretty_print_)
+          IndentLine(depth + 1U);
+
+        EscapeJSONString(itr.key(), true, json_string_);
+        json_string_->push_back(':');
+        if (pretty_print_)
+          json_string_->push_back(' ');
+
+        if (!BuildJSONString(itr.value(), depth + 1U))
+          result = false;
+
+        first_value_has_been_output = true;
       }
 
-    default:
-      NOTREACHED() << "unknown json type";
+      if (pretty_print_) {
+        json_string_->append(kPrettyPrintLineEnding);
+        IndentLine(depth);
+      }
+
+      json_string_->push_back('}');
+      return result;
+    }
+
+    case Value::Type::BINARY:
+      // Successful only if we're allowed to omit it.
+      DLOG_IF(ERROR, !omit_binary_values_) << "Cannot serialize binary value.";
+      return omit_binary_values_;
   }
+  NOTREACHED();
+  return false;
 }
 
-void JSONWriter::AppendQuotedString(const std::string& str) {
-  // TODO(viettrungluu): |str| is UTF-8, not ASCII, so to properly escape it we
-  // have to convert it to UTF-16. This round-trip is suboptimal.
-  JsonDoubleQuote(UTF8ToUTF16(str), true, json_string_);
-}
-
-void JSONWriter::IndentLine(int depth) {
-  // It may be faster to keep an indent string so we don't have to keep
-  // reallocating.
-  json_string_->append(std::string(depth * 3, ' '));
+void JSONWriter::IndentLine(size_t depth) {
+  json_string_->append(depth * 3U, ' ');
 }
 
 }  // namespace base

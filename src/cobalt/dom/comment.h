@@ -15,7 +15,9 @@
 #ifndef COBALT_DOM_COMMENT_H_
 #define COBALT_DOM_COMMENT_H_
 
-#include "base/string_piece.h"
+#include <string>
+
+#include "base/strings/string_piece.h"
 #include "cobalt/dom/character_data.h"
 #include "cobalt/script/environment_settings.h"
 

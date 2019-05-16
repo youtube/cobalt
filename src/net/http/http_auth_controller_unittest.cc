@@ -4,15 +4,20 @@
 
 #include "net/http/http_auth_controller.h"
 
-#include "base/utf_string_conversions.h"
+#include <utility>
+
+#include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_task_environment.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_log.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_cache.h"
+#include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/http_auth_handler_mock.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
+#include "net/log/net_log_with_source.h"
+#include "net/ssl/ssl_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -48,7 +53,7 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
                             int handler_rv,
                             int expected_controller_rv,
                             SchemeState scheme_state) {
-  BoundNetLog dummy_log;
+  NetLogWithSource dummy_log;
   HttpAuthCache dummy_auth_cache;
 
   HttpRequestInfo request;
@@ -71,8 +76,9 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
       new HttpAuthController(HttpAuth::AUTH_PROXY,
                              GURL("http://example.com"),
                              &dummy_auth_cache, &auth_handler_factory));
-  ASSERT_EQ(OK,
-            controller->HandleAuthChallenge(headers, false, false, dummy_log));
+  SSLInfo null_ssl_info;
+  ASSERT_EQ(OK, controller->HandleAuthChallenge(headers, null_ssl_info, false,
+                                                false, dummy_log));
   ASSERT_TRUE(controller->HaveAuthHandler());
   controller->ResetAuth(AuthCredentials());
   EXPECT_TRUE(controller->HaveAuth());
@@ -94,6 +100,7 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
 // permanent error, the HttpAuthController should disable the scheme
 // used and retry the request.
 TEST(HttpAuthControllerTest, PermanentErrors) {
+  base::test::ScopedTaskEnvironment scoped_task_environment;
 
   // Run a synchronous handler that returns
   // ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS.  We expect a return value
@@ -111,8 +118,15 @@ TEST(HttpAuthControllerTest, PermanentErrors) {
 
   // If a non-permanent error is returned by the handler, then the
   // controller should report it unchanged.
-  RunSingleRoundAuthTest(RUN_HANDLER_ASYNC, ERR_INVALID_AUTH_CREDENTIALS,
-                         ERR_INVALID_AUTH_CREDENTIALS, SCHEME_IS_ENABLED);
+  RunSingleRoundAuthTest(RUN_HANDLER_ASYNC, ERR_UNEXPECTED, ERR_UNEXPECTED,
+                         SCHEME_IS_ENABLED);
+
+  // ERR_INVALID_AUTH_CREDENTIALS is special. It's a non-permanet error, but
+  // the error isn't propagated, nor is the auth scheme disabled. This allows
+  // the scheme to re-attempt the authentication attempt using a different set
+  // of credentials.
+  RunSingleRoundAuthTest(RUN_HANDLER_ASYNC, ERR_INVALID_AUTH_CREDENTIALS, OK,
+                         SCHEME_IS_ENABLED);
 }
 
 // If an HttpAuthHandler indicates that it doesn't allow explicit
@@ -127,8 +141,9 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
     }
 
    protected:
-    virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) override {
-      HttpAuthHandlerMock::Init(challenge);
+    bool Init(HttpAuthChallengeTokenizer* challenge,
+              const SSLInfo& ssl_info) override {
+      HttpAuthHandlerMock::Init(challenge, ssl_info);
       set_allows_default_credentials(true);
       set_allows_explicit_credentials(false);
       set_connection_based(true);
@@ -142,14 +157,12 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
       return true;
     }
 
-    virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
-                                      const HttpRequestInfo* request,
-                                      const CompletionCallback& callback,
-                                      std::string* auth_token) override {
-      int result =
-          HttpAuthHandlerMock::GenerateAuthTokenImpl(credentials,
-                                                     request, callback,
-                                                     auth_token);
+    int GenerateAuthTokenImpl(const AuthCredentials* credentials,
+                              const HttpRequestInfo* request,
+                              CompletionOnceCallback callback,
+                              std::string* auth_token) override {
+      int result = HttpAuthHandlerMock::GenerateAuthTokenImpl(
+          credentials, request, std::move(callback), auth_token);
       EXPECT_TRUE(result != OK ||
                   !AllowsExplicitCredentials() ||
                   !credentials->Empty());
@@ -160,7 +173,7 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
     HttpAuth::Scheme expected_scheme_;
   };
 
-  BoundNetLog dummy_log;
+  NetLogWithSource dummy_log;
   HttpAuthCache dummy_auth_cache;
   HttpRequestInfo request;
   request.method = "GET";
@@ -208,30 +221,32 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
       new HttpAuthController(HttpAuth::AUTH_SERVER,
                              GURL("http://example.com"),
                              &dummy_auth_cache, &auth_handler_factory));
-  ASSERT_EQ(OK,
-            controller->HandleAuthChallenge(headers, false, false, dummy_log));
+  SSLInfo null_ssl_info;
+  ASSERT_EQ(OK, controller->HandleAuthChallenge(headers, null_ssl_info, false,
+                                                false, dummy_log));
   ASSERT_TRUE(controller->HaveAuthHandler());
   controller->ResetAuth(AuthCredentials());
   EXPECT_TRUE(controller->HaveAuth());
 
   // Should only succeed if we are using the AUTH_SCHEME_MOCK MockHandler.
   EXPECT_EQ(OK, controller->MaybeGenerateAuthToken(
-      &request, CompletionCallback(), dummy_log));
+                    &request, CompletionOnceCallback(), dummy_log));
   controller->AddAuthorizationHeader(&request_headers);
 
   // Once a token is generated, simulate the receipt of a server response
   // indicating that the authentication attempt was rejected.
-  ASSERT_EQ(OK,
-            controller->HandleAuthChallenge(headers, false, false, dummy_log));
+  ASSERT_EQ(OK, controller->HandleAuthChallenge(headers, null_ssl_info, false,
+                                                false, dummy_log));
   ASSERT_TRUE(controller->HaveAuthHandler());
-  controller->ResetAuth(AuthCredentials(ASCIIToUTF16("Hello"), string16()));
+  controller->ResetAuth(AuthCredentials(base::ASCIIToUTF16("Hello"),
+                        base::string16()));
   EXPECT_TRUE(controller->HaveAuth());
   EXPECT_TRUE(controller->IsAuthSchemeDisabled(HttpAuth::AUTH_SCHEME_MOCK));
   EXPECT_FALSE(controller->IsAuthSchemeDisabled(HttpAuth::AUTH_SCHEME_BASIC));
 
   // Should only succeed if we are using the AUTH_SCHEME_BASIC MockHandler.
   EXPECT_EQ(OK, controller->MaybeGenerateAuthToken(
-      &request, CompletionCallback(), dummy_log));
+                    &request, CompletionOnceCallback(), dummy_log));
 }
 
 }  // namespace net

@@ -15,9 +15,11 @@
 #ifndef COBALT_BROWSER_APPLICATION_H_
 #define COBALT_BROWSER_APPLICATION_H_
 
+#include <memory>
+
 #include "base/callback.h"
 #include "base/command_line.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
@@ -52,11 +54,11 @@ class Application {
   void HandleStarboardEvent(const SbEvent* event);
 
  protected:
-  MessageLoop* message_loop() { return message_loop_; }
+  base::MessageLoop* message_loop() { return message_loop_; }
 
  private:
   // The message loop that will handle UI events.
-  MessageLoop* message_loop_;
+  base::MessageLoop* message_loop_;
 
   const base::Closure quit_closure_;
 
@@ -96,10 +98,10 @@ class Application {
   base::EventDispatcher event_dispatcher_;
 
   // Account manager.
-  scoped_ptr<account::AccountManager> account_manager_;
+  std::unique_ptr<account::AccountManager> account_manager_;
 
   // Main components of the Cobalt browser application.
-  scoped_ptr<BrowserModule> browser_module_;
+  std::unique_ptr<BrowserModule> browser_module_;
 
   // Event callbacks.
   base::EventCallback network_event_callback_;
@@ -127,13 +129,13 @@ class Application {
 
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
-  scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
+  std::unique_ptr<webdriver::WebDriverModule> web_driver_module_;
 #endif
 
 #if defined(ENABLE_DEBUGGER)
   // Web server to serve devtools front end. Debugging messages are sent and
   // received via a WebSocket and communicated to an embedded DebugDispatcher.
-  scoped_ptr<debug::remote::DebugWebServer> debug_web_server_;
+  std::unique_ptr<debug::remote::DebugWebServer> debug_web_server_;
 #endif
 
  private:
@@ -164,9 +166,9 @@ class Application {
     // GPU memory stats are not always available, so we put them behind
     // base::optional so that we can enable them at runtime depending on system
     // capabilities.
-    base::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
+    base::Optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         free_gpu_memory;
-    base::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
+    base::Optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         used_gpu_memory;
 
     base::CVal<int64, base::CValPublic> app_start_time;
@@ -193,9 +195,9 @@ class Application {
 
   CValStats c_val_stats_;
 
-  base::Timer stats_update_timer_;
+  base::RepeatingTimer stats_update_timer_;
 
-  scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
+  std::unique_ptr<memory_tracker::Tool> memory_tracker_tool_;
 };
 
 }  // namespace browser

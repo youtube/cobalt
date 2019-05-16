@@ -4,62 +4,48 @@
 
 #include "crypto/ec_signature_creator.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/signature_verifier.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(USE_OPENSSL)
-// Once ECSignatureCreator is implemented for OpenSSL, remove this #if block.
-// TODO(rch): When that happens, also add some exported keys from each to
+// TODO(rch): Add some exported keys from each to
 // test interop between NSS and OpenSSL.
-TEST(ECSignatureCreatorTest, OpenSSLStub) {
-  scoped_ptr<crypto::ECSignatureCreator> signer(
-      crypto::ECSignatureCreator::Create(NULL));
-  ASSERT_TRUE(signer.get());
-  EXPECT_FALSE(signer->Sign(NULL, 0, NULL));
-}
-#else
+
 TEST(ECSignatureCreatorTest, BasicTest) {
   // Do a verify round trip.
-  scoped_ptr<crypto::ECPrivateKey> key_original(
+  std::unique_ptr<crypto::ECPrivateKey> key_original(
       crypto::ECPrivateKey::Create());
-  ASSERT_TRUE(key_original.get());
+  ASSERT_TRUE(key_original);
 
-  std::vector<uint8> key_info;
-  ASSERT_TRUE(key_original->ExportEncryptedPrivateKey("", 1000, &key_info));
-  std::vector<uint8> pubkey_info;
-  ASSERT_TRUE(key_original->ExportPublicKey(&pubkey_info));
+  std::vector<uint8_t> key_info;
+  ASSERT_TRUE(key_original->ExportPrivateKey(&key_info));
 
-  scoped_ptr<crypto::ECPrivateKey> key(
-      crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo("", key_info,
-                                                              pubkey_info));
-  ASSERT_TRUE(key.get());
-  ASSERT_TRUE(key->key() != NULL);
+  std::unique_ptr<crypto::ECPrivateKey> key(
+      crypto::ECPrivateKey::CreateFromPrivateKeyInfo(key_info));
+  ASSERT_TRUE(key);
+  ASSERT_TRUE(key->key());
 
-  scoped_ptr<crypto::ECSignatureCreator> signer(
+  std::unique_ptr<crypto::ECSignatureCreator> signer(
       crypto::ECSignatureCreator::Create(key.get()));
-  ASSERT_TRUE(signer.get());
+  ASSERT_TRUE(signer);
 
   std::string data("Hello, World!");
-  std::vector<uint8> signature;
-  ASSERT_TRUE(signer->Sign(reinterpret_cast<const uint8*>(data.c_str()),
-                           data.size(),
-                           &signature));
+  std::vector<uint8_t> signature;
+  ASSERT_TRUE(signer->Sign(reinterpret_cast<const uint8_t*>(data.c_str()),
+                           data.size(), &signature));
 
-  std::vector<uint8> public_key_info;
+  std::vector<uint8_t> public_key_info;
   ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));
 
   crypto::SignatureVerifier verifier;
-  ASSERT_TRUE(verifier.VerifyInit(
-      crypto::SignatureVerifier::ECDSA_SHA256, &signature[0], signature.size(),
-      &public_key_info.front(), public_key_info.size()));
+  ASSERT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::ECDSA_SHA256,
+                                  signature, public_key_info));
 
-  verifier.VerifyUpdate(reinterpret_cast<const uint8*>(data.c_str()),
-                        data.size());
+  verifier.VerifyUpdate(base::as_bytes(base::make_span(data)));
   ASSERT_TRUE(verifier.VerifyFinal());
 }
-#endif  // !defined(USE_OPENSSL)

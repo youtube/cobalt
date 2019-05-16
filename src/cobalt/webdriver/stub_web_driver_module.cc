@@ -21,5 +21,5 @@
 namespace cobalt {
 namespace webdriver {
 class WebDriverModule {};
-}
-}
+}  // namespace webdriver
+}  // namespace cobalt

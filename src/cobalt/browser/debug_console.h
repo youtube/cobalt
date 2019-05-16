@@ -19,6 +19,7 @@
 #error "Debugger is not enabled in this build."
 #endif  // !ENABLE_DEBUGGER
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -32,7 +33,7 @@
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/dom/window.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -119,7 +120,7 @@ class DebugConsole : public LifecycleObserver {
   // implements the debug console.
   // This web module will produce a second render tree to combine with the main
   // one.
-  scoped_ptr<WebModule> web_module_;
+  std::unique_ptr<WebModule> web_module_;
 };
 
 }  // namespace browser

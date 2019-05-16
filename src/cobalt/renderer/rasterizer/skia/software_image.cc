@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 
 #include "base/memory/aligned_memory.h"
@@ -36,11 +38,11 @@ const render_tree::ImageDataDescriptor& SoftwareImageData::GetDescriptor()
 
 uint8_t* SoftwareImageData::GetMemory() { return pixel_data_.get(); }
 
-scoped_array<uint8_t> SoftwareImageData::PassPixelData() {
-  return pixel_data_.Pass();
+std::unique_ptr<uint8_t[]> SoftwareImageData::PassPixelData() {
+  return std::move(pixel_data_);
 }
 
-SoftwareImage::SoftwareImage(scoped_ptr<SoftwareImageData> source_data) {
+SoftwareImage::SoftwareImage(std::unique_ptr<SoftwareImageData> source_data) {
   owned_pixel_data_ = source_data->PassPixelData();
   Initialize(owned_pixel_data_.get(), source_data->GetDescriptor());
 }
@@ -121,13 +123,13 @@ size_t SoftwareRawImageMemory::GetSizeInBytes() const { return size_in_bytes_; }
 
 uint8_t* SoftwareRawImageMemory::GetMemory() { return pixel_data_.get(); }
 
-scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree>
+std::unique_ptr<uint8_t, base::AlignedFreeDeleter>
 SoftwareRawImageMemory::PassPixelData() {
-  return pixel_data_.Pass();
+  return std::move(pixel_data_);
 }
 
 SoftwareMultiPlaneImage::SoftwareMultiPlaneImage(
-    scoped_ptr<SoftwareRawImageMemory> raw_image_memory,
+    std::unique_ptr<SoftwareRawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor)
     : size_(descriptor.GetPlaneDescriptor(0).size),
       format_(descriptor.image_format()),

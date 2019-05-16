@@ -7,7 +7,8 @@
 
 #include <string>
 #include <vector>
-#include "base/basictypes.h"
+
+#include "base/macros.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -17,10 +18,13 @@ class HostPortPair;
 class NET_EXPORT_PRIVATE HostMappingRules {
  public:
   HostMappingRules();
+  HostMappingRules(const HostMappingRules& host_mapping_rules);
   ~HostMappingRules();
 
-  // Modifies |*host_port| based on the current rules. Returns true if the
-  // RequestInfo was modified, false otherwise.
+  HostMappingRules& operator=(const HostMappingRules& host_mapping_rules);
+
+  // Modifies |*host_port| based on the current rules. Returns true if
+  // |*host_port| was modified, false otherwise.
   bool RewriteHost(HostPortPair* host_port) const;
 
   // Adds a rule to this mapper. The format of the rule can be one of:
@@ -45,8 +49,6 @@ class NET_EXPORT_PRIVATE HostMappingRules {
 
   MapRuleList map_rules_;
   ExclusionRuleList exclusion_rules_;
-
-  DISALLOW_COPY_AND_ASSIGN(HostMappingRules);
 };
 
 }  // namespace net

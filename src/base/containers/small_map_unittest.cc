@@ -4,20 +4,19 @@
 
 #include "base/containers/small_map.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <unordered_map>
 
 #include "base/logging.h"
-#include "base/hash_tables.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
 TEST(SmallMap, General) {
-  SmallMap<hash_map<int, int> > m;
+  small_map<std::unordered_map<int, int>> m;
 
   EXPECT_TRUE(m.empty());
 
@@ -35,7 +34,7 @@ TEST(SmallMap, General) {
   EXPECT_EQ(m[0], 5);
   EXPECT_FALSE(m.UsingFullMap());
 
-  SmallMap<hash_map<int, int> >::iterator iter(m.begin());
+  small_map<std::unordered_map<int, int>>::iterator iter(m.begin());
   ASSERT_TRUE(iter != m.end());
   EXPECT_EQ(iter->first, 0);
   EXPECT_EQ(iter->second, 5);
@@ -66,26 +65,26 @@ TEST(SmallMap, General) {
   }
   EXPECT_TRUE(iter == m.end());
 
-  const SmallMap<hash_map<int, int> >& ref = m;
+  const small_map<std::unordered_map<int, int>>& ref = m;
   EXPECT_TRUE(ref.find(1234) != m.end());
   EXPECT_TRUE(ref.find(5678) == m.end());
 }
 
 TEST(SmallMap, PostFixIteratorIncrement) {
-  SmallMap<hash_map<int, int> > m;
+  small_map<std::unordered_map<int, int>> m;
   m[0] = 5;
   m[2] = 3;
 
   {
-    SmallMap<hash_map<int, int> >::iterator iter(m.begin());
-    SmallMap<hash_map<int, int> >::iterator last(iter++);
+    small_map<std::unordered_map<int, int>>::iterator iter(m.begin());
+    small_map<std::unordered_map<int, int>>::iterator last(iter++);
     ++last;
     EXPECT_TRUE(last == iter);
   }
 
   {
-    SmallMap<hash_map<int, int> >::const_iterator iter(m.begin());
-    SmallMap<hash_map<int, int> >::const_iterator last(iter++);
+    small_map<std::unordered_map<int, int>>::const_iterator iter(m.begin());
+    small_map<std::unordered_map<int, int>>::const_iterator last(iter++);
     ++last;
     EXPECT_TRUE(last == iter);
   }
@@ -93,17 +92,17 @@ TEST(SmallMap, PostFixIteratorIncrement) {
 
 // Based on the General testcase.
 TEST(SmallMap, CopyConstructor) {
-  SmallMap<hash_map<int, int> > src;
+  small_map<std::unordered_map<int, int>> src;
 
   {
-    SmallMap<hash_map<int, int> > m(src);
+    small_map<std::unordered_map<int, int>> m(src);
     EXPECT_TRUE(m.empty());
   }
 
   src[0] = 5;
 
   {
-    SmallMap<hash_map<int, int> > m(src);
+    small_map<std::unordered_map<int, int>> m(src);
     EXPECT_FALSE(m.empty());
     EXPECT_EQ(m.size(), 1u);
   }
@@ -111,7 +110,7 @@ TEST(SmallMap, CopyConstructor) {
   src[9] = 2;
 
   {
-    SmallMap<hash_map<int, int> > m(src);
+    small_map<std::unordered_map<int, int>> m(src);
     EXPECT_FALSE(m.empty());
     EXPECT_EQ(m.size(), 2u);
 
@@ -125,7 +124,7 @@ TEST(SmallMap, CopyConstructor) {
   src[-5] = 6;
 
   {
-    SmallMap<hash_map<int, int> > m(src);
+    small_map<std::unordered_map<int, int>> m(src);
     EXPECT_EQ(m[   9],  2);
     EXPECT_EQ(m[   0],  5);
     EXPECT_EQ(m[1234], 90);
@@ -138,11 +137,11 @@ TEST(SmallMap, CopyConstructor) {
 }
 
 template <class inner>
-static bool SmallMapIsSubset(SmallMap<inner> const& a,
-                             SmallMap<inner> const& b) {
-  typename SmallMap<inner>::const_iterator it;
+static bool SmallMapIsSubset(small_map<inner> const& a,
+                             small_map<inner> const& b) {
+  typename small_map<inner>::const_iterator it;
   for (it = a.begin(); it != a.end(); ++it) {
-    typename SmallMap<inner>::const_iterator it_in_b = b.find(it->first);
+    typename small_map<inner>::const_iterator it_in_b = b.find(it->first);
     if (it_in_b == b.end() || it_in_b->second != it->second)
       return false;
   }
@@ -150,14 +149,14 @@ static bool SmallMapIsSubset(SmallMap<inner> const& a,
 }
 
 template <class inner>
-static bool SmallMapEqual(SmallMap<inner> const& a,
-                          SmallMap<inner> const& b) {
+static bool SmallMapEqual(small_map<inner> const& a,
+                          small_map<inner> const& b) {
   return SmallMapIsSubset(a, b) && SmallMapIsSubset(b, a);
 }
 
 TEST(SmallMap, AssignmentOperator) {
-  SmallMap<hash_map<int, int> > src_small;
-  SmallMap<hash_map<int, int> > src_large;
+  small_map<std::unordered_map<int, int>> src_small;
+  small_map<std::unordered_map<int, int>> src_large;
 
   src_small[1] = 20;
   src_small[2] = 21;
@@ -173,13 +172,13 @@ TEST(SmallMap, AssignmentOperator) {
   EXPECT_TRUE(src_large.UsingFullMap());
 
   // Assignments to empty.
-  SmallMap<hash_map<int, int> > dest_small;
+  small_map<std::unordered_map<int, int>> dest_small;
   dest_small = src_small;
   EXPECT_TRUE(SmallMapEqual(dest_small, src_small));
   EXPECT_EQ(dest_small.UsingFullMap(),
             src_small.UsingFullMap());
 
-  SmallMap<hash_map<int, int> > dest_large;
+  small_map<std::unordered_map<int, int>> dest_large;
   dest_large = src_large;
   EXPECT_TRUE(SmallMapEqual(dest_large, src_large));
   EXPECT_EQ(dest_large.UsingFullMap(),
@@ -202,14 +201,13 @@ TEST(SmallMap, AssignmentOperator) {
 }
 
 TEST(SmallMap, Insert) {
-  SmallMap<hash_map<int, int> > sm;
+  small_map<std::unordered_map<int, int>> sm;
 
   // loop through the transition from small map to map.
   for (int i = 1; i <= 10; ++i) {
     VLOG(1) << "Iteration " << i;
     // insert an element
-    std::pair<SmallMap<hash_map<int, int> >::iterator,
-        bool> ret;
+    std::pair<small_map<std::unordered_map<int, int>>::iterator, bool> ret;
     ret = sm.insert(std::make_pair(i, 100*i));
     EXPECT_TRUE(ret.second);
     EXPECT_TRUE(ret.first == sm.find(i));
@@ -226,7 +224,7 @@ TEST(SmallMap, Insert) {
 
     // check the state of the map.
     for (int j = 1; j <= i; ++j) {
-      SmallMap<hash_map<int, int> >::iterator it = sm.find(j);
+      small_map<std::unordered_map<int, int>>::iterator it = sm.find(j);
       EXPECT_TRUE(it != sm.end());
       EXPECT_EQ(it->first, j);
       EXPECT_EQ(it->second, j * 100);
@@ -240,12 +238,12 @@ TEST(SmallMap, InsertRange) {
   // loop through the transition from small map to map.
   for (int elements = 0; elements <= 10; ++elements) {
     VLOG(1) << "Elements " << elements;
-    hash_map<int, int> normal_map;
+    std::unordered_map<int, int> normal_map;
     for (int i = 1; i <= elements; ++i) {
       normal_map.insert(std::make_pair(i, 100*i));
     }
 
-    SmallMap<hash_map<int, int> > sm;
+    small_map<std::unordered_map<int, int>> sm;
     sm.insert(normal_map.begin(), normal_map.end());
     EXPECT_EQ(normal_map.size(), sm.size());
     for (int i = 1; i <= elements; ++i) {
@@ -258,8 +256,8 @@ TEST(SmallMap, InsertRange) {
 }
 
 TEST(SmallMap, Erase) {
-  SmallMap<hash_map<std::string, int> > m;
-  SmallMap<hash_map<std::string, int> >::iterator iter;
+  small_map<std::unordered_map<std::string, int>> m;
+  small_map<std::unordered_map<std::string, int>>::iterator iter;
 
   m["monday"] = 1;
   m["tuesday"] = 2;
@@ -331,8 +329,38 @@ TEST(SmallMap, Erase) {
   EXPECT_TRUE(m.empty());
 }
 
+TEST(SmallMap, EraseReturnsIteratorFollowingRemovedElement) {
+  small_map<std::unordered_map<std::string, int>> m;
+  small_map<std::unordered_map<std::string, int>>::iterator iter;
+
+  m["a"] = 0;
+  m["b"] = 1;
+  m["c"] = 2;
+
+  // Erase first item.
+  auto following_iter = m.erase(m.begin());
+  EXPECT_EQ(m.begin(), following_iter);
+  EXPECT_EQ(2u, m.size());
+  EXPECT_EQ(m.count("a"), 0u);
+  EXPECT_EQ(m.count("b"), 1u);
+  EXPECT_EQ(m.count("c"), 1u);
+
+  // Iterate to last item and erase it.
+  ++following_iter;
+  following_iter = m.erase(following_iter);
+  ASSERT_EQ(1u, m.size());
+  EXPECT_EQ(m.end(), following_iter);
+  EXPECT_EQ(m.count("b"), 0u);
+  EXPECT_EQ(m.count("c"), 1u);
+
+  // Erase remaining item.
+  following_iter = m.erase(m.begin());
+  EXPECT_TRUE(m.empty());
+  EXPECT_EQ(m.end(), following_iter);
+}
+
 TEST(SmallMap, NonHashMap) {
-  SmallMap<std::map<int, int>, 4, std::equal_to<int> > m;
+  small_map<std::map<int, int>, 4, std::equal_to<int>> m;
   EXPECT_TRUE(m.empty());
 
   m[9] = 2;
@@ -344,7 +372,7 @@ TEST(SmallMap, NonHashMap) {
   EXPECT_FALSE(m.empty());
   EXPECT_FALSE(m.UsingFullMap());
 
-  SmallMap<std::map<int, int>, 4, std::equal_to<int> >::iterator iter(
+  small_map<std::map<int, int>, 4, std::equal_to<int>>::iterator iter(
       m.begin());
   ASSERT_TRUE(iter != m.end());
   EXPECT_EQ(iter->first, 9);
@@ -404,35 +432,33 @@ TEST(SmallMap, NonHashMap) {
 TEST(SmallMap, DefaultEqualKeyWorks) {
   // If these tests compile, they pass. The EXPECT calls are only there to avoid
   // unused variable warnings.
-  SmallMap<hash_map<int, int> > hm;
+  small_map<std::unordered_map<int, int>> hm;
   EXPECT_EQ(0u, hm.size());
-  SmallMap<std::map<int, int> > m;
+  small_map<std::map<int, int>> m;
   EXPECT_EQ(0u, m.size());
 }
 
 namespace {
 
-class hash_map_add_item : public hash_map<int, int> {
+class unordered_map_add_item : public std::unordered_map<int, int> {
  public:
-  hash_map_add_item() : hash_map<int, int>() {}
-  explicit hash_map_add_item(const std::pair<int, int>& item)
-      : hash_map<int, int>() {
+  unordered_map_add_item() = default;
+  explicit unordered_map_add_item(const std::pair<int, int>& item) {
     insert(item);
   }
 };
 
-void InitMap(ManualConstructor<hash_map_add_item>* map_ctor) {
-  map_ctor->Init(std::make_pair(0, 0));
+void InitMap(unordered_map_add_item* map_ctor) {
+  new (map_ctor) unordered_map_add_item(std::make_pair(0, 0));
 }
 
-class hash_map_add_item_initializer {
+class unordered_map_add_item_initializer {
  public:
-  explicit hash_map_add_item_initializer(int item_to_add)
+  explicit unordered_map_add_item_initializer(int item_to_add)
       : item_(item_to_add) {}
-  hash_map_add_item_initializer()
-      : item_(0) {}
-  void operator()(ManualConstructor<hash_map_add_item>* map_ctor) const {
-    map_ctor->Init(std::make_pair(item_, item_));
+  unordered_map_add_item_initializer() : item_(0) {}
+  void operator()(unordered_map_add_item* map_ctor) const {
+    new (map_ctor) unordered_map_add_item(std::make_pair(item_, item_));
   }
 
   int item_;
@@ -441,8 +467,9 @@ class hash_map_add_item_initializer {
 }  // anonymous namespace
 
 TEST(SmallMap, SubclassInitializationWithFunctionPointer) {
-  SmallMap<hash_map_add_item, 4, std::equal_to<int>,
-           void (*)(ManualConstructor<hash_map_add_item>*)> m(InitMap);
+  small_map<unordered_map_add_item, 4, std::equal_to<int>,
+            void (&)(unordered_map_add_item*)>
+      m(InitMap);
 
   EXPECT_TRUE(m.empty());
 
@@ -461,8 +488,9 @@ TEST(SmallMap, SubclassInitializationWithFunctionPointer) {
 }
 
 TEST(SmallMap, SubclassInitializationWithFunctionObject) {
-  SmallMap<hash_map_add_item, 4, std::equal_to<int>,
-      hash_map_add_item_initializer> m(hash_map_add_item_initializer(-1));
+  small_map<unordered_map_add_item, 4, std::equal_to<int>,
+            unordered_map_add_item_initializer>
+      m(unordered_map_add_item_initializer(-1));
 
   EXPECT_TRUE(m.empty());
 
@@ -478,6 +506,97 @@ TEST(SmallMap, SubclassInitializationWithFunctionObject) {
   EXPECT_EQ(6u, m.size());
   // Our functor adds an extra item when we convert to a map.
   EXPECT_EQ(1u, m.count(-1));
+}
+
+namespace {
+
+// This class acts as a basic implementation of a move-only type. The canonical
+// example of such a type is scoped_ptr/unique_ptr.
+template <typename V>
+class MoveOnlyType {
+ public:
+  MoveOnlyType() : value_(0) {}
+  explicit MoveOnlyType(V value) : value_(value) {}
+
+  MoveOnlyType(MoveOnlyType&& other) {
+    *this = std::move(other);
+  }
+
+  MoveOnlyType& operator=(MoveOnlyType&& other) {
+    value_ = other.value_;
+    other.value_ = 0;
+    return *this;
+  }
+
+  MoveOnlyType(const MoveOnlyType&) = delete;
+  MoveOnlyType& operator=(const MoveOnlyType&) = delete;
+
+  V value() const { return value_; }
+
+ private:
+  V value_;
+};
+
+}  // namespace
+
+TEST(SmallMap, MoveOnlyValueType) {
+  small_map<std::map<int, MoveOnlyType<int>>, 2> m;
+
+  m[0] = MoveOnlyType<int>(1);
+  m[1] = MoveOnlyType<int>(2);
+  m.erase(m.begin());
+
+  // small_map will move m[1] to an earlier index in the internal array.
+  EXPECT_EQ(m.size(), 1u);
+  EXPECT_EQ(m[1].value(), 2);
+
+  m[0] = MoveOnlyType<int>(1);
+  // small_map must move the values from the array into the internal std::map.
+  m[2] = MoveOnlyType<int>(3);
+
+  EXPECT_EQ(m.size(), 3u);
+  EXPECT_EQ(m[0].value(), 1);
+  EXPECT_EQ(m[1].value(), 2);
+  EXPECT_EQ(m[2].value(), 3);
+
+  m.erase(m.begin());
+
+  // small_map should also let internal std::map erase with a move-only type.
+  EXPECT_EQ(m.size(), 2u);
+  EXPECT_EQ(m[1].value(), 2);
+  EXPECT_EQ(m[2].value(), 3);
+}
+
+TEST(SmallMap, Emplace) {
+  small_map<std::map<size_t, MoveOnlyType<size_t>>> sm;
+
+  // loop through the transition from small map to map.
+  for (size_t i = 1; i <= 10; ++i) {
+    // insert an element
+    auto ret = sm.emplace(i, MoveOnlyType<size_t>(100 * i));
+    EXPECT_TRUE(ret.second);
+    EXPECT_TRUE(ret.first == sm.find(i));
+    EXPECT_EQ(ret.first->first, i);
+    EXPECT_EQ(ret.first->second.value(), 100 * i);
+
+    // try to insert it again with different value, fails, but we still get an
+    // iterator back with the original value.
+    ret = sm.emplace(i, MoveOnlyType<size_t>(i));
+    EXPECT_FALSE(ret.second);
+    EXPECT_TRUE(ret.first == sm.find(i));
+    EXPECT_EQ(ret.first->first, i);
+    EXPECT_EQ(ret.first->second.value(), 100 * i);
+
+    // check the state of the map.
+    for (size_t j = 1; j <= i; ++j) {
+      const auto it = sm.find(j);
+      EXPECT_TRUE(it != sm.end());
+      EXPECT_EQ(it->first, j);
+      EXPECT_EQ(it->second.value(), j * 100);
+    }
+    EXPECT_EQ(sm.size(), i);
+    EXPECT_FALSE(sm.empty());
+  }
 }
 
 }  // namespace base

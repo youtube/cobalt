@@ -15,8 +15,9 @@
 #ifndef COBALT_NETWORK_NETWORK_SYSTEM_H_
 #define COBALT_NETWORK_NETWORK_SYSTEM_H_
 
+#include <memory>
+
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/event_dispatcher.h"
 
 namespace cobalt {
@@ -31,7 +32,7 @@ class NetworkSystem {
   // To be implemented by each platform.
   // Platforms may wish to dispatch NetworkEvents to any registered listeners.
   // Use the event_dispatcher for this.
-  static scoped_ptr<NetworkSystem> Create(
+  static std::unique_ptr<NetworkSystem> Create(
       base::EventDispatcher* event_dispatcher);
 
  protected:

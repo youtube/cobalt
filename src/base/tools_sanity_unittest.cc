@@ -7,17 +7,18 @@
 // errors to verify the sanity of the tools.
 
 #include "base/atomicops.h"
-#include "base/message_loop.h"
+#if !defined(STARBOARD)
+#include "base/cfi_buildflags.h"
+#endif
+#include "base/debug/asan_invalid_access.h"
+#include "base/debug/profiler.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
-#if defined(OS_STARBOARD)
+#include "debug/leak_annotations.h"
 #include "starboard/memory.h"
-#define free SbMemoryDeallocate
-#define malloc SbMemoryAllocate
-#endif
+#include "starboard/types.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
@@ -28,30 +29,39 @@ const base::subtle::Atomic32 kMagicValue = 42;
 // Helper for memory accesses that can potentially corrupt memory or cause a
 // crash during a native run.
 #if defined(ADDRESS_SANITIZER)
-#if defined(OS_IOS) || defined(__LB_SHELL__) || defined(OS_STARBOARD)
+#if defined(OS_IOS)
 // EXPECT_DEATH is not supported on IOS.
-// TODO: We have EXPECT_DEATH disabled for all Steel platforms,
-// but we could potentially support it on Linux.
 #define HARMFUL_ACCESS(action,error_regexp) do { action; } while (0)
 #else
 #define HARMFUL_ACCESS(action,error_regexp) EXPECT_DEATH(action,error_regexp)
 #endif  // !OS_IOS
 #else
-#define HARMFUL_ACCESS(action,error_regexp) \
-do { if (RunningOnValgrind()) { action; } } while (0)
+#define HARMFUL_ACCESS(action, error_regexp)
+#define HARMFUL_ACCESS_IS_NOOP
 #endif
 
-void ReadUninitializedValue(char *ptr) {
+void DoReadUninitializedValue(char *ptr) {
   // Comparison with 64 is to prevent clang from optimizing away the
   // jump -- valgrind only catches jumps and conditional moves, but clang uses
-  // the borrow flag if the condition is just `*ptr == '\0'`.
+  // the borrow flag if the condition is just `*ptr == '\0'`.  We no longer
+  // support valgrind, but this constant should be fine to keep as-is.
   if (*ptr == 64) {
-    (*ptr)++;
+    VLOG(1) << "Uninit condition is true";
   } else {
-    (*ptr)--;
+    VLOG(1) << "Uninit condition is false";
   }
 }
 
+void ReadUninitializedValue(char *ptr) {
+#if defined(MEMORY_SANITIZER)
+  EXPECT_DEATH(DoReadUninitializedValue(ptr),
+               "use-of-uninitialized-value");
+#else
+  DoReadUninitializedValue(ptr);
+#endif
+}
+
+#ifndef HARMFUL_ACCESS_IS_NOOP
 void ReadValueOutOfArrayBoundsLeft(char *ptr) {
   char c = ptr[-2];
   VLOG(1) << "Reading a byte out of bounds: " << c;
@@ -62,54 +72,65 @@ void ReadValueOutOfArrayBoundsRight(char *ptr, size_t size) {
   VLOG(1) << "Reading a byte out of bounds: " << c;
 }
 
-// This is harmless if you run it under Valgrind thanks to redzones.
 void WriteValueOutOfArrayBoundsLeft(char *ptr) {
   ptr[-1] = kMagicValue;
 }
 
-// This is harmless if you run it under Valgrind thanks to redzones.
 void WriteValueOutOfArrayBoundsRight(char *ptr, size_t size) {
   ptr[size] = kMagicValue;
 }
+#endif  // HARMFUL_ACCESS_IS_NOOP
 
 void MakeSomeErrors(char *ptr, size_t size) {
   ReadUninitializedValue(ptr);
+#if !defined(STARBOARD)
   HARMFUL_ACCESS(ReadValueOutOfArrayBoundsLeft(ptr),
-                 "heap-buffer-overflow.*2 bytes to the left");
+                 "2 bytes to the left");
   HARMFUL_ACCESS(ReadValueOutOfArrayBoundsRight(ptr, size),
-                 "heap-buffer-overflow.*1 bytes to the right");
+                 "1 bytes to the right");
   HARMFUL_ACCESS(WriteValueOutOfArrayBoundsLeft(ptr),
-                 "heap-buffer-overflow.*1 bytes to the left");
+                 "1 bytes to the left");
   HARMFUL_ACCESS(WriteValueOutOfArrayBoundsRight(ptr, size),
-                 "heap-buffer-overflow.*0 bytes to the right");
+                 "0 bytes to the right");
+#endif
 }
 
 }  // namespace
 
-#if defined(ADDRESS_SANITIZER) && \
-  (defined(OS_IOS) || defined(__LB_SHELL__) || defined(OS_STARBOARD))
-// Because iOS doesn't support death tests, each of the following tests will
-// crash the whole program under ASan.
-#define MAYBE_AccessesToNewMemory DISABLED_AccessesToNewMemory
-#define MAYBE_AccessesToMallocMemory DISABLED_AccessesToMallocMemory
-#define MAYBE_ArrayDeletedWithoutBraces DISABLED_ArrayDeletedWithoutBraces
-#define MAYBE_MemoryLeak DISABLED_MemoryLeak
-#define MAYBE_SingleElementDeletedWithBraces \
-    DISABLED_SingleElementDeletedWithBraces
-#else
-#define MAYBE_AccessesToNewMemory AccessesToNewMemory
-#define MAYBE_AccessesToMallocMemory AccessesToMallocMemory
-#define MAYBE_ArrayDeletedWithoutBraces ArrayDeletedWithoutBraces
-#define MAYBE_MemoryLeak MemoryLeak
-#define MAYBE_SingleElementDeletedWithBraces SingleElementDeletedWithBraces
-#endif
 // A memory leak detector should report an error in this test.
-TEST(ToolsSanityTest, MAYBE_MemoryLeak) {
+TEST(ToolsSanityTest, MemoryLeak) {
+  ANNOTATE_SCOPED_MEMORY_LEAK;
   // Without the |volatile|, clang optimizes away the next two lines.
   int* volatile leak = new int[256];  // Leak some memory intentionally.
   leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
+#if (defined(ADDRESS_SANITIZER) && defined(OS_IOS))
+// Because iOS doesn't support death tests, each of the following tests will
+// crash the whole program under Asan.
+#define MAYBE_AccessesToNewMemory DISABLED_AccessesToNewMemory
+#define MAYBE_AccessesToMallocMemory DISABLED_AccessesToMallocMemory
+#else
+#define MAYBE_AccessesToNewMemory AccessesToNewMemory
+#define MAYBE_AccessesToMallocMemory AccessesToMallocMemory
+#endif  // (defined(ADDRESS_SANITIZER) && defined(OS_IOS))
+
+// The following tests pass with Clang r170392, but not r172454, which
+// makes AddressSanitizer detect errors in them. We disable these tests under
+// AddressSanitizer until we fully switch to Clang r172454. After that the
+// tests should be put back under the (defined(OS_IOS) || defined(OS_WIN))
+// clause above.
+// See also http://crbug.com/172614.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_SingleElementDeletedWithBraces \
+    DISABLED_SingleElementDeletedWithBraces
+#define MAYBE_ArrayDeletedWithoutBraces DISABLED_ArrayDeletedWithoutBraces
+#else
+#define MAYBE_ArrayDeletedWithoutBraces ArrayDeletedWithoutBraces
+#define MAYBE_SingleElementDeletedWithBraces SingleElementDeletedWithBraces
+#endif  // defined(ADDRESS_SANITIZER)
+
+#if !defined(STARBOARD)
 TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
   char *foo = new char[10];
   MakeSomeErrors(foo, 10);
@@ -119,13 +140,15 @@ TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
 }
 
 TEST(ToolsSanityTest, MAYBE_AccessesToMallocMemory) {
-  char *foo = reinterpret_cast<char*>(malloc(10));
+  char* foo = reinterpret_cast<char*>(SbMemoryAllocate(10));
   MakeSomeErrors(foo, 10);
-  free(foo);
+  SbMemoryDeallocate(foo);
   // Use after free.
   HARMFUL_ACCESS(foo[5] = 0, "heap-use-after-free");
 }
+#endif  // !defined(STARBOARD)
 
+#if defined(ADDRESS_SANITIZER)
 
 static int* allocateArray() {
   // Clang warns about the mismatched new[]/delete if they occur in the same
@@ -133,40 +156,32 @@ static int* allocateArray() {
   return new int[10];
 }
 
+// This test may corrupt memory if not compiled with AddressSanitizer.
 TEST(ToolsSanityTest, MAYBE_ArrayDeletedWithoutBraces) {
-#if !defined(ADDRESS_SANITIZER)
-  // This test may corrupt memory if not run under Valgrind or compiled with
-  // AddressSanitizer.
-  if (!RunningOnValgrind())
-    return;
-#endif
-
   // Without the |volatile|, clang optimizes away the next two lines.
   int* volatile foo = allocateArray();
   delete foo;
 }
+#endif
 
+#if defined(ADDRESS_SANITIZER)
 static int* allocateScalar() {
   // Clang warns about the mismatched new/delete[] if they occur in the same
   // function.
   return new int;
 }
 
+// This test may corrupt memory if not compiled with AddressSanitizer.
 TEST(ToolsSanityTest, MAYBE_SingleElementDeletedWithBraces) {
-#if !defined(ADDRESS_SANITIZER)
-  // This test may corrupt memory if not run under Valgrind or compiled with
-  // AddressSanitizer.
-  if (!RunningOnValgrind())
-    return;
-#endif
-
   // Without the |volatile|, clang optimizes away the next two lines.
   int* volatile foo = allocateScalar();
   (void) foo;
   delete [] foo;
 }
+#endif
 
 #if defined(ADDRESS_SANITIZER)
+
 TEST(ToolsSanityTest, DISABLED_AddressSanitizerNullDerefCrashTest) {
   // Intentionally crash to make sure AddressSanitizer is running.
   // This test should not be ran on bots.
@@ -198,7 +213,37 @@ TEST(ToolsSanityTest, DISABLED_AddressSanitizerGlobalOOBCrashTest) {
   *access = 43;
 }
 
-#endif
+#ifndef HARMFUL_ACCESS_IS_NOOP
+#if !defined(STARBOARD)
+TEST(ToolsSanityTest, AsanHeapOverflow) {
+  HARMFUL_ACCESS(debug::AsanHeapOverflow() ,"to the right");
+}
+
+TEST(ToolsSanityTest, AsanHeapUnderflow) {
+  HARMFUL_ACCESS(debug::AsanHeapUnderflow(), "to the left");
+}
+
+TEST(ToolsSanityTest, AsanHeapUseAfterFree) {
+  HARMFUL_ACCESS(debug::AsanHeapUseAfterFree(), "heap-use-after-free");
+}
+
+#if defined(OS_WIN)
+// The ASAN runtime doesn't detect heap corruption, this needs fixing before
+// ASAN builds can ship to the wild. See https://crbug.com/818747.
+TEST(ToolsSanityTest, DISABLED_AsanCorruptHeapBlock) {
+  HARMFUL_ACCESS(debug::AsanCorruptHeapBlock(), "");
+}
+
+TEST(ToolsSanityTest, DISABLED_AsanCorruptHeap) {
+  // This test will kill the process by raising an exception, there's no
+  // particular string to look for in the stack trace.
+  EXPECT_DEATH(debug::AsanCorruptHeap(), "");
+}
+#endif  // OS_WIN
+#endif  // !defined(STARBOARD)
+#endif  // !HARMFUL_ACCESS_IS_NOOP
+
+#endif  // ADDRESS_SANITIZER
 
 namespace {
 
@@ -207,8 +252,8 @@ namespace {
 class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
  public:
   explicit TOOLS_SANITY_TEST_CONCURRENT_THREAD(bool *value) : value_(value) {}
-  virtual ~TOOLS_SANITY_TEST_CONCURRENT_THREAD() {}
-  virtual void ThreadMain() override {
+  ~TOOLS_SANITY_TEST_CONCURRENT_THREAD() override = default;
+  void ThreadMain() override {
     *value_ = true;
 
     // Sleep for a few milliseconds so the two threads are more likely to live
@@ -223,8 +268,8 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
 class ReleaseStoreThread : public PlatformThread::Delegate {
  public:
   explicit ReleaseStoreThread(base::subtle::Atomic32 *value) : value_(value) {}
-  virtual ~ReleaseStoreThread() {}
-  virtual void ThreadMain() override {
+  ~ReleaseStoreThread() override = default;
+  void ThreadMain() override {
     base::subtle::Release_Store(value_, kMagicValue);
 
     // Sleep for a few milliseconds so the two threads are more likely to live
@@ -239,8 +284,8 @@ class ReleaseStoreThread : public PlatformThread::Delegate {
 class AcquireLoadThread : public PlatformThread::Delegate {
  public:
   explicit AcquireLoadThread(base::subtle::Atomic32 *value) : value_(value) {}
-  virtual ~AcquireLoadThread() {}
-  virtual void ThreadMain() override {
+  ~AcquireLoadThread() override = default;
+  void ThreadMain() override {
     // Wait for the other thread to make Release_Store
     PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
     base::subtle::Acquire_Load(value_);
@@ -258,15 +303,27 @@ void RunInParallel(PlatformThread::Delegate *d1, PlatformThread::Delegate *d2) {
   PlatformThread::Join(b);
 }
 
+#if defined(THREAD_SANITIZER)
+void DataRace() {
+  bool *shared = new bool(false);
+  TOOLS_SANITY_TEST_CONCURRENT_THREAD thread1(shared), thread2(shared);
+  RunInParallel(&thread1, &thread2);
+  EXPECT_TRUE(*shared);
+  delete shared;
+  // We're in a death test - crash.
+  CHECK(0);
+}
+#endif
+
 }  // namespace
 
+#if defined(THREAD_SANITIZER)
 // A data race detector should report an error in this test.
 TEST(ToolsSanityTest, DataRace) {
-  bool shared = false;
-  TOOLS_SANITY_TEST_CONCURRENT_THREAD thread1(&shared), thread2(&shared);
-  RunInParallel(&thread1, &thread2);
-  EXPECT_TRUE(shared);
+  // The suppression regexp must match that in base/debug/tsan_suppressions.cc.
+  EXPECT_DEATH(DataRace(), "1 race:base/tools_sanity_unittest.cc");
 }
+#endif
 
 TEST(ToolsSanityTest, AnnotateBenignRace) {
   bool shared = false;
@@ -283,5 +340,95 @@ TEST(ToolsSanityTest, AtomicsAreIgnored) {
   RunInParallel(&thread1, &thread2);
   EXPECT_EQ(kMagicValue, shared);
 }
+
+#if !defined(STARBOARD)
+#if BUILDFLAG(CFI_ENFORCEMENT_TRAP)
+#if defined(OS_WIN)
+#define CFI_ERROR_MSG "EXCEPTION_ILLEGAL_INSTRUCTION"
+#elif defined(OS_ANDROID)
+// TODO(pcc): Produce proper stack dumps on Android and test for the correct
+// si_code here.
+#define CFI_ERROR_MSG "^$"
+#else
+#define CFI_ERROR_MSG "ILL_ILLOPN"
+#endif
+#elif BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
+#define CFI_ERROR_MSG "runtime error: control flow integrity check"
+#endif  // BUILDFLAG(CFI_ENFORCEMENT_TRAP || CFI_ENFORCEMENT_DIAGNOSTIC)
+
+#if defined(CFI_ERROR_MSG)
+class A {
+ public:
+  A(): n_(0) {}
+  virtual void f() { n_++; }
+ protected:
+  int n_;
+};
+
+class B: public A {
+ public:
+  void f() override { n_--; }
+};
+
+class C: public B {
+ public:
+  void f() override { n_ += 2; }
+};
+
+NOINLINE void KillVptrAndCall(A *obj) {
+  *reinterpret_cast<void **>(obj) = 0;
+  obj->f();
+}
+
+TEST(ToolsSanityTest, BadVirtualCallNull) {
+  A a;
+  B b;
+  EXPECT_DEATH({ KillVptrAndCall(&a); KillVptrAndCall(&b); }, CFI_ERROR_MSG);
+}
+
+NOINLINE void OverwriteVptrAndCall(B *obj, A *vptr) {
+  *reinterpret_cast<void **>(obj) = *reinterpret_cast<void **>(vptr);
+  obj->f();
+}
+
+TEST(ToolsSanityTest, BadVirtualCallWrongType) {
+  A a;
+  B b;
+  C c;
+  EXPECT_DEATH({ OverwriteVptrAndCall(&b, &a); OverwriteVptrAndCall(&b, &c); },
+               CFI_ERROR_MSG);
+}
+
+// TODO(pcc): remove CFI_CAST_CHECK, see https://crbug.com/626794.
+#if BUILDFLAG(CFI_CAST_CHECK)
+TEST(ToolsSanityTest, BadDerivedCast) {
+  A a;
+  EXPECT_DEATH((void)(B*)&a, CFI_ERROR_MSG);
+}
+
+TEST(ToolsSanityTest, BadUnrelatedCast) {
+  class A {
+    virtual void f() {}
+  };
+
+  class B {
+    virtual void f() {}
+  };
+
+  A a;
+  EXPECT_DEATH((void)(B*)&a, CFI_ERROR_MSG);
+}
+#endif  // BUILDFLAG(CFI_CAST_CHECK)
+
+#endif  // CFI_ERROR_MSG
+#endif  // !defined(STARBOARD)
+
+#undef CFI_ERROR_MSG
+#undef MAYBE_AccessesToNewMemory
+#undef MAYBE_AccessesToMallocMemory
+#undef MAYBE_ArrayDeletedWithoutBraces
+#undef MAYBE_SingleElementDeletedWithBraces
+#undef HARMFUL_ACCESS
+#undef HARMFUL_ACCESS_IS_NOOP
 
 }  // namespace base

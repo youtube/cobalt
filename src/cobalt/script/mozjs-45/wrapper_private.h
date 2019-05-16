@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs-45/mozjs_tracer.h"

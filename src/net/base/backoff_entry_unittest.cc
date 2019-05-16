@@ -3,44 +3,36 @@
 // found in the LICENSE file.
 
 #include "net/base/backoff_entry.h"
+
+#include "base/macros.h"
+#include "base/time/tick_clock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace net {
 
 namespace {
 
 using base::TimeDelta;
 using base::TimeTicks;
-using net::BackoffEntry;
 
 BackoffEntry::Policy base_policy = { 0, 1000, 2.0, 0.0, 20000, 2000, false };
 
-class TestBackoffEntry : public BackoffEntry {
+class TestTickClock : public base::TickClock {
  public:
-  explicit TestBackoffEntry(const Policy* const policy)
-      : BackoffEntry(policy),
-        now_(TimeTicks()) {
-    // Work around initialization in constructor not picking up
-    // fake time.
-    SetCustomReleaseTime(TimeTicks());
-  }
+  TestTickClock() = default;
+  ~TestTickClock() override = default;
 
-  virtual ~TestBackoffEntry() {}
-
-  virtual TimeTicks ImplGetTimeNow() const override {
-    return now_;
-  }
-
-  void set_now(const TimeTicks& now) {
-    now_ = now;
-  }
+  TimeTicks NowTicks() const override { return now_ticks_; }
+  void set_now(TimeTicks now) { now_ticks_ = now; }
 
  private:
-  TimeTicks now_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestBackoffEntry);
+  TimeTicks now_ticks_;
+  DISALLOW_COPY_AND_ASSIGN(TestTickClock);
 };
 
 TEST(BackoffEntryTest, BaseTest) {
-  TestBackoffEntry entry(&base_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&base_policy, &now_ticks);
   EXPECT_FALSE(entry.ShouldRejectRequest());
   EXPECT_EQ(TimeDelta(), entry.GetTimeUntilRelease());
 
@@ -52,14 +44,16 @@ TEST(BackoffEntryTest, BaseTest) {
 TEST(BackoffEntryTest, CanDiscardNeverExpires) {
   BackoffEntry::Policy never_expires_policy = base_policy;
   never_expires_policy.entry_lifetime_ms = -1;
-  TestBackoffEntry never_expires(&never_expires_policy);
+  TestTickClock now_ticks;
+  BackoffEntry never_expires(&never_expires_policy, &now_ticks);
   EXPECT_FALSE(never_expires.CanDiscard());
-  never_expires.set_now(TimeTicks() + TimeDelta::FromDays(100));
+  now_ticks.set_now(TimeTicks() + TimeDelta::FromDays(100));
   EXPECT_FALSE(never_expires.CanDiscard());
 }
 
 TEST(BackoffEntryTest, CanDiscard) {
-  TestBackoffEntry entry(&base_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&base_policy, &now_ticks);
   // Because lifetime is non-zero, we shouldn't be able to discard yet.
   EXPECT_FALSE(entry.CanDiscard());
 
@@ -68,19 +62,18 @@ TEST(BackoffEntryTest, CanDiscard) {
   EXPECT_FALSE(entry.CanDiscard());
 
   // Test the case where there are errors but we can time out.
-  entry.set_now(
-      entry.GetReleaseTime() + TimeDelta::FromMilliseconds(1));
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(1));
   EXPECT_FALSE(entry.CanDiscard());
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(
       base_policy.maximum_backoff_ms + 1));
   EXPECT_TRUE(entry.CanDiscard());
 
   // Test the final case (no errors, dependent only on specified lifetime).
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(
       base_policy.entry_lifetime_ms - 1));
   entry.InformOfRequest(true);
   EXPECT_FALSE(entry.CanDiscard());
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(
       base_policy.entry_lifetime_ms));
   EXPECT_TRUE(entry.CanDiscard());
 }
@@ -90,10 +83,11 @@ TEST(BackoffEntryTest, CanDiscardAlwaysDelay) {
   always_delay_policy.always_use_initial_delay = true;
   always_delay_policy.entry_lifetime_ms = 0;
 
-  TestBackoffEntry entry(&always_delay_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&always_delay_policy, &now_ticks);
 
   // Because lifetime is non-zero, we shouldn't be able to discard yet.
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
   EXPECT_TRUE(entry.CanDiscard());
 
   // Even with no failures, we wait until the delay before we allow discard.
@@ -101,14 +95,15 @@ TEST(BackoffEntryTest, CanDiscardAlwaysDelay) {
   EXPECT_FALSE(entry.CanDiscard());
 
   // Wait until the delay expires, and we can discard the entry again.
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(1000));
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(1000));
   EXPECT_TRUE(entry.CanDiscard());
 }
 
 TEST(BackoffEntryTest, CanDiscardNotStored) {
   BackoffEntry::Policy no_store_policy = base_policy;
   no_store_policy.entry_lifetime_ms = 0;
-  TestBackoffEntry not_stored(&no_store_policy);
+  TestTickClock now_ticks;
+  BackoffEntry not_stored(&no_store_policy, &now_ticks);
   EXPECT_TRUE(not_stored.CanDiscard());
 }
 
@@ -129,28 +124,29 @@ TEST(BackoffEntryTest, ShouldIgnoreFirstTwo) {
 }
 
 TEST(BackoffEntryTest, ReleaseTimeCalculation) {
-  TestBackoffEntry entry(&base_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&base_policy, &now_ticks);
 
   // With zero errors, should return "now".
   TimeTicks result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.ImplGetTimeNow(), result);
+  EXPECT_EQ(now_ticks.NowTicks(), result);
 
   // 1 error.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(1000), result);
+  EXPECT_EQ(now_ticks.NowTicks() + TimeDelta::FromMilliseconds(1000), result);
   EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
 
   // 2 errors.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(2000), result);
+  EXPECT_EQ(now_ticks.NowTicks() + TimeDelta::FromMilliseconds(2000), result);
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
 
   // 3 errors.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
+  EXPECT_EQ(now_ticks.NowTicks() + TimeDelta::FromMilliseconds(4000), result);
   EXPECT_EQ(TimeDelta::FromMilliseconds(4000), entry.GetTimeUntilRelease());
 
   // 6 errors (to check it doesn't pass maximum).
@@ -158,8 +154,7 @@ TEST(BackoffEntryTest, ReleaseTimeCalculation) {
   entry.InformOfRequest(false);
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(
-      entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(20000), result);
+  EXPECT_EQ(now_ticks.NowTicks() + TimeDelta::FromMilliseconds(20000), result);
 }
 
 TEST(BackoffEntryTest, ReleaseTimeCalculationAlwaysDelay) {
@@ -167,7 +162,8 @@ TEST(BackoffEntryTest, ReleaseTimeCalculationAlwaysDelay) {
   always_delay_policy.always_use_initial_delay = true;
   always_delay_policy.num_errors_to_ignore = 2;
 
-  TestBackoffEntry entry(&always_delay_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&always_delay_policy, &now_ticks);
 
   // With previous requests, should return "now".
   TimeTicks result = entry.GetReleaseTime();
@@ -203,21 +199,21 @@ TEST(BackoffEntryTest, ReleaseTimeCalculationWithJitter) {
     BackoffEntry::Policy jittery_policy = base_policy;
     jittery_policy.jitter_factor = 0.2;
 
-    TestBackoffEntry entry(&jittery_policy);
+    TestTickClock now_ticks;
+    BackoffEntry entry(&jittery_policy, &now_ticks);
 
     entry.InformOfRequest(false);
     entry.InformOfRequest(false);
     entry.InformOfRequest(false);
     TimeTicks result = entry.GetReleaseTime();
-    EXPECT_LE(
-        entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(3200), result);
-    EXPECT_GE(
-        entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
+    EXPECT_LE(now_ticks.NowTicks() + TimeDelta::FromMilliseconds(3200), result);
+    EXPECT_GE(now_ticks.NowTicks() + TimeDelta::FromMilliseconds(4000), result);
   }
 }
 
 TEST(BackoffEntryTest, FailureThenSuccess) {
-  TestBackoffEntry entry(&base_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&base_policy, &now_ticks);
 
   // Failure count 1, establishes horizon.
   entry.InformOfRequest(false);
@@ -226,7 +222,7 @@ TEST(BackoffEntryTest, FailureThenSuccess) {
 
   // Success, failure count 0, should not advance past
   // the horizon that was already set.
-  entry.set_now(release_time - TimeDelta::FromMilliseconds(200));
+  now_ticks.set_now(release_time - TimeDelta::FromMilliseconds(200));
   entry.InformOfRequest(true);
   EXPECT_EQ(release_time, entry.GetReleaseTime());
 
@@ -241,7 +237,8 @@ TEST(BackoffEntryTest, FailureThenSuccessAlwaysDelay) {
   always_delay_policy.always_use_initial_delay = true;
   always_delay_policy.num_errors_to_ignore = 1;
 
-  TestBackoffEntry entry(&always_delay_policy);
+  TestTickClock now_ticks;
+  BackoffEntry entry(&always_delay_policy, &now_ticks);
 
   // Failure count 1.
   entry.InformOfRequest(false);
@@ -250,7 +247,7 @@ TEST(BackoffEntryTest, FailureThenSuccessAlwaysDelay) {
   // Failure count 2.
   entry.InformOfRequest(false);
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
 
   // Success.  We should go back to the original delay.
   entry.InformOfRequest(true);
@@ -259,23 +256,24 @@ TEST(BackoffEntryTest, FailureThenSuccessAlwaysDelay) {
   // Failure count reaches 2 again.  We should increase the delay once more.
   entry.InformOfRequest(false);
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
-  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
+  now_ticks.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
 }
 
 TEST(BackoffEntryTest, RetainCustomHorizon) {
-  TestBackoffEntry custom(&base_policy);
+  TestTickClock now_ticks;
+  BackoffEntry custom(&base_policy, &now_ticks);
   TimeTicks custom_horizon = TimeTicks() + TimeDelta::FromDays(3);
   custom.SetCustomReleaseTime(custom_horizon);
   custom.InformOfRequest(false);
   custom.InformOfRequest(true);
-  custom.set_now(TimeTicks() + TimeDelta::FromDays(2));
+  now_ticks.set_now(TimeTicks() + TimeDelta::FromDays(2));
   custom.InformOfRequest(false);
   custom.InformOfRequest(true);
   EXPECT_EQ(custom_horizon, custom.GetReleaseTime());
 
   // Now check that once we are at or past the custom horizon,
   // we get normal behavior.
-  custom.set_now(TimeTicks() + TimeDelta::FromDays(3));
+  now_ticks.set_now(TimeTicks() + TimeDelta::FromDays(3));
   custom.InformOfRequest(false);
   EXPECT_EQ(
       TimeTicks() + TimeDelta::FromDays(3) + TimeDelta::FromMilliseconds(1000),
@@ -286,11 +284,33 @@ TEST(BackoffEntryTest, RetainCustomHorizonWhenInitialErrorsIgnored) {
   // Regression test for a bug discovered during code review.
   BackoffEntry::Policy lenient_policy = base_policy;
   lenient_policy.num_errors_to_ignore = 1;
-  TestBackoffEntry custom(&lenient_policy);
+  TestTickClock now_ticks;
+  BackoffEntry custom(&lenient_policy, &now_ticks);
   TimeTicks custom_horizon = TimeTicks() + TimeDelta::FromDays(3);
   custom.SetCustomReleaseTime(custom_horizon);
   custom.InformOfRequest(false);  // This must not reset the horizon.
   EXPECT_EQ(custom_horizon, custom.GetReleaseTime());
 }
 
+TEST(BackoffEntryTest, OverflowProtection) {
+  BackoffEntry::Policy large_multiply_policy = base_policy;
+  large_multiply_policy.multiply_factor = 256;
+  TestTickClock now_ticks;
+  BackoffEntry custom(&large_multiply_policy, &now_ticks);
+
+  // Trigger enough failures such that more than 11 bits of exponent are used
+  // to represent the exponential backoff intermediate values. Given a multiply
+  // factor of 256 (2^8), 129 iterations is enough: 2^(8*(129-1)) = 2^1024.
+  for (int i = 0; i < 129; ++i) {
+     now_ticks.set_now(now_ticks.NowTicks() + custom.GetTimeUntilRelease());
+     custom.InformOfRequest(false);
+     ASSERT_TRUE(custom.ShouldRejectRequest());
+  }
+
+  // Max delay should still be respected.
+  EXPECT_EQ(20000, custom.GetTimeUntilRelease().InMilliseconds());
+}
+
 }  // namespace
+
+}  // namespace net

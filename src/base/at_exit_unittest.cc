@@ -30,7 +30,7 @@ void ExpectCounter1IsZero(void* unused) {
 }
 
 void ExpectParamIsNull(void* param) {
-  EXPECT_EQ(static_cast<void*>(NULL), param);
+  EXPECT_EQ(nullptr, param);
 }
 
 void ExpectParamIsCounter(void* param) {
@@ -48,9 +48,9 @@ class AtExitTest : public testing::Test {
 
 TEST_F(AtExitTest, Basic) {
   ZeroTestCounters();
-  base::AtExitManager::RegisterCallback(&IncrementTestCounter1, NULL);
-  base::AtExitManager::RegisterCallback(&IncrementTestCounter2, NULL);
-  base::AtExitManager::RegisterCallback(&IncrementTestCounter1, NULL);
+  base::AtExitManager::RegisterCallback(&IncrementTestCounter1, nullptr);
+  base::AtExitManager::RegisterCallback(&IncrementTestCounter2, nullptr);
+  base::AtExitManager::RegisterCallback(&IncrementTestCounter1, nullptr);
 
   EXPECT_EQ(0, g_test_counter_1);
   EXPECT_EQ(0, g_test_counter_2);
@@ -61,9 +61,9 @@ TEST_F(AtExitTest, Basic) {
 
 TEST_F(AtExitTest, LIFOOrder) {
   ZeroTestCounters();
-  base::AtExitManager::RegisterCallback(&IncrementTestCounter1, NULL);
-  base::AtExitManager::RegisterCallback(&ExpectCounter1IsZero, NULL);
-  base::AtExitManager::RegisterCallback(&IncrementTestCounter2, NULL);
+  base::AtExitManager::RegisterCallback(&IncrementTestCounter1, nullptr);
+  base::AtExitManager::RegisterCallback(&ExpectCounter1IsZero, nullptr);
+  base::AtExitManager::RegisterCallback(&IncrementTestCounter2, nullptr);
 
   EXPECT_EQ(0, g_test_counter_1);
   EXPECT_EQ(0, g_test_counter_2);
@@ -73,7 +73,7 @@ TEST_F(AtExitTest, LIFOOrder) {
 }
 
 TEST_F(AtExitTest, Param) {
-  base::AtExitManager::RegisterCallback(&ExpectParamIsNull, NULL);
+  base::AtExitManager::RegisterCallback(&ExpectParamIsNull, nullptr);
   base::AtExitManager::RegisterCallback(&ExpectParamIsCounter,
                                         &g_test_counter_1);
   base::AtExitManager::ProcessCallbacksNow();

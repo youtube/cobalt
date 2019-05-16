@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,9 +27,6 @@ enum {
   DIR_CACHE,    // Directory where to put cache data.  Note this is
                 // *not* where the browser cache lives, but the
                 // browser cache can be a subdirectory.
-
-  DIR_HOME,     // The root of the primary directory for a user (and their
-                // programs) to place their personal files.
 
   DIR_SYSTEM_FONTS,                // Directory where system font files can be
                                    // be found. This is only specified on

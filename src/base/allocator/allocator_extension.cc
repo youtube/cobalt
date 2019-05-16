@@ -3,53 +3,63 @@
 // found in the LICENSE file.
 
 #include "base/allocator/allocator_extension.h"
-
+#include "base/allocator/buildflags.h"
 #include "base/logging.h"
+
+#if defined(USE_TCMALLOC)
+#if BUILDFLAG(USE_NEW_TCMALLOC)
+#include "third_party/tcmalloc/chromium/src/gperftools/heap-profiler.h"
+#include "third_party/tcmalloc/chromium/src/gperftools/malloc_extension.h"
+#include "third_party/tcmalloc/chromium/src/gperftools/malloc_hook.h"
+#else
+#include "third_party/tcmalloc/gperftools-2.0/chromium/src/gperftools/heap-profiler.h"
+#include "third_party/tcmalloc/gperftools-2.0/chromium/src/gperftools/malloc_extension.h"
+#include "third_party/tcmalloc/gperftools-2.0/chromium/src/gperftools/malloc_hook.h"
+#endif
+#endif
 
 namespace base {
 namespace allocator {
 
-bool GetAllocatorWasteSize(size_t* size) {
-  thunks::GetAllocatorWasteSizeFunction get_allocator_waste_size_function =
-      thunks::GetGetAllocatorWasteSizeFunction();
-  return get_allocator_waste_size_function != NULL &&
-         get_allocator_waste_size_function(size);
-}
-
-void GetStats(char* buffer, int buffer_length) {
-  DCHECK_GT(buffer_length, 0);
-  thunks::GetStatsFunction get_stats_function = thunks::GetGetStatsFunction();
-  if (get_stats_function)
-    get_stats_function(buffer, buffer_length);
-  else
-    buffer[0] = '\0';
-}
-
 void ReleaseFreeMemory() {
-  thunks::ReleaseFreeMemoryFunction release_free_memory_function =
-      thunks::GetReleaseFreeMemoryFunction();
-  if (release_free_memory_function)
-    release_free_memory_function();
+#if defined(USE_TCMALLOC)
+  ::MallocExtension::instance()->ReleaseFreeMemory();
+#endif
 }
 
-void SetGetAllocatorWasteSizeFunction(
-    thunks::GetAllocatorWasteSizeFunction get_allocator_waste_size_function) {
-  DCHECK_EQ(thunks::GetGetAllocatorWasteSizeFunction(),
-            reinterpret_cast<thunks::GetAllocatorWasteSizeFunction>(NULL));
-  thunks::SetGetAllocatorWasteSizeFunction(get_allocator_waste_size_function);
+bool GetNumericProperty(const char* name, size_t* value) {
+#if defined(USE_TCMALLOC)
+  return ::MallocExtension::instance()->GetNumericProperty(name, value);
+#endif
+  return false;
 }
 
-void SetGetStatsFunction(thunks::GetStatsFunction get_stats_function) {
-  DCHECK_EQ(thunks::GetGetStatsFunction(),
-            reinterpret_cast<thunks::GetStatsFunction>(NULL));
-  thunks::SetGetStatsFunction(get_stats_function);
+bool IsHeapProfilerRunning() {
+#if defined(USE_TCMALLOC)
+  return ::IsHeapProfilerRunning();
+#endif
+  return false;
 }
 
-void SetReleaseFreeMemoryFunction(
-    thunks::ReleaseFreeMemoryFunction release_free_memory_function) {
-  DCHECK_EQ(thunks::GetReleaseFreeMemoryFunction(),
-            reinterpret_cast<thunks::ReleaseFreeMemoryFunction>(NULL));
-  thunks::SetReleaseFreeMemoryFunction(release_free_memory_function);
+void SetHooks(AllocHookFunc alloc_hook, FreeHookFunc free_hook) {
+// TODO(sque): Use allocator shim layer instead.
+#if defined(USE_TCMALLOC)
+  // Make sure no hooks get overwritten.
+  auto prev_alloc_hook = MallocHook::SetNewHook(alloc_hook);
+  if (alloc_hook)
+    DCHECK(!prev_alloc_hook);
+
+  auto prev_free_hook = MallocHook::SetDeleteHook(free_hook);
+  if (free_hook)
+    DCHECK(!prev_free_hook);
+#endif
+}
+
+int GetCallStack(void** stack, int max_stack_size) {
+#if defined(USE_TCMALLOC)
+  return MallocHook::GetCallerStackTrace(stack, max_stack_size, 0);
+#endif
+  return 0;
 }
 
 }  // namespace allocator

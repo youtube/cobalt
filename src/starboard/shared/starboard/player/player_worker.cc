@@ -32,6 +32,12 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
+#ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+const int kPlayerStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
+#else
+const int kPlayerStackSize = 0;
+#endif
+
 // 8 ms is enough to ensure that DoWritePendingSamples() is called twice for
 // every frame in HFR.
 // TODO: Reduce this as there should be enough frames caches in the renderers.
@@ -118,9 +124,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   SB_DCHECK(update_media_info_cb_);
 
   ThreadParam thread_param(this);
-  thread_ = SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
-                           "player_worker", &PlayerWorker::ThreadEntryPoint,
-                           &thread_param);
+  thread_ = SbThreadCreate(kPlayerStackSize, kSbThreadPriorityHigh,
+                           kSbThreadNoAffinity, true, "player_worker",
+                           &PlayerWorker::ThreadEntryPoint, &thread_param);
   if (!SbThreadIsValid(thread_)) {
     SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
     return;

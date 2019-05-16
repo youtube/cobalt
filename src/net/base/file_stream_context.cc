@@ -4,233 +4,277 @@
 
 #include "net/base/file_stream_context.h"
 
+#include <utility>
+
+#include "base/files/file_path.h"
 #include "base/location.h"
-#include "base/message_loop_proxy.h"
+#include "base/task_runner.h"
 #include "base/task_runner_util.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/threading/worker_pool.h"
-#include "net/base/file_stream_net_log_parameters.h"
+#include "base/values.h"
 #include "net/base/net_errors.h"
+
+#ifdef STARBOARD
+#include "base/message_loop/message_loop.h"
+#include "base/single_thread_task_runner.h"
+#include "nb/polymorphic_downcast.h"
+#endif
+
+#if defined(OS_ANDROID)
+#include "base/android/content_uri_utils.h"
+#endif
+
+namespace net {
 
 namespace {
 
-void CallInt64ToInt(const net::CompletionCallback& callback, int64 result) {
-  callback.Run(static_cast<int>(result));
+void CallInt64ToInt(CompletionOnceCallback callback, int64_t result) {
+  std::move(callback).Run(static_cast<int>(result));
 }
 
+}  // namespace
+
+FileStream::Context::IOResult::IOResult()
+    : result(OK),
+      os_error(0) {
 }
 
-namespace net {
+FileStream::Context::IOResult::IOResult(int64_t result,
+                                        logging::SystemErrorCode os_error)
+    : result(result), os_error(os_error) {
+}
+
+// static
+FileStream::Context::IOResult FileStream::Context::IOResult::FromOSError(
+    logging::SystemErrorCode os_error) {
+  return IOResult(MapSystemError(os_error), os_error);
+}
+
+#if defined(STARBOARD)
+//static
+FileStream::Context::IOResult FileStream::Context::IOResult::FromFileError(
+    base::File::Error file_error, logging::SystemErrorCode os_error) {
+  if (file_error == base::File::FILE_ERROR_NOT_FOUND) {
+    return IOResult(ERR_FILE_NOT_FOUND, os_error);
+  } else {
+    return IOResult(ERR_FAILED, os_error);
+  }
+}
+#endif
+
+// ---------------------------------------------------------------------
+
+FileStream::Context::OpenResult::OpenResult() = default;
+
+FileStream::Context::OpenResult::OpenResult(base::File file,
+                                            IOResult error_code)
+    : file(std::move(file)), error_code(error_code) {}
+
+FileStream::Context::OpenResult::OpenResult(OpenResult&& other)
+    : file(std::move(other.file)), error_code(other.error_code) {}
+
+FileStream::Context::OpenResult& FileStream::Context::OpenResult::operator=(
+    OpenResult&& other) {
+  file = std::move(other.file);
+  error_code = other.error_code;
+  return *this;
+}
+
+// ---------------------------------------------------------------------
 
 void FileStream::Context::Orphan() {
   DCHECK(!orphaned_);
 
   orphaned_ = true;
-  if (file_ != base::kInvalidPlatformFileValue)
-    bound_net_log_.EndEvent(NetLog::TYPE_FILE_STREAM_OPEN);
 
   if (!async_in_progress_) {
     CloseAndDelete();
-  } else if (file_ != base::kInvalidPlatformFileValue) {
-    CancelIo(file_);
+  } else if (file_.IsValid()) {
+#if defined(OS_WIN)
+    CancelIo(file_.GetPlatformFile());
+#endif
   }
 }
 
-void FileStream::Context::OpenAsync(const FilePath& path,
-                                    int open_flags,
-                                    const CompletionCallback& callback) {
+void FileStream::Context::Open(const base::FilePath& path,
+                               int open_flags,
+                               CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  BeginOpenEvent(path);
-
-  const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task_is_slow */),
-      FROM_HERE,
-      base::Bind(&Context::OpenFileImpl,
-                 base::Unretained(this), path, open_flags),
-      base::Bind(&Context::OnOpenCompleted,
-                 base::Unretained(this), callback));
+  bool posted = base::PostTaskAndReplyWithResult(
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::OpenFileImpl, base::Unretained(this), path,
+                     open_flags),
+      base::BindOnce(&Context::OnOpenCompleted, base::Unretained(this),
+                     std::move(callback)));
   DCHECK(posted);
 
   async_in_progress_ = true;
 }
 
-int FileStream::Context::OpenSync(const FilePath& path, int open_flags) {
+void FileStream::Context::Close(CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  BeginOpenEvent(path);
-  OpenResult result = OpenFileImpl(path, open_flags);
-  file_ = result.file;
-  if (file_ == base::kInvalidPlatformFileValue) {
-    result.error_code = ProcessOpenError(result.error_code);
-  } else {
-    // TODO(satorux): Remove this once all async clients are migrated to use
-    // Open(). crbug.com/114783
-    if (open_flags & base::PLATFORM_FILE_ASYNC)
-      OnAsyncFileOpened();
-  }
-  return result.error_code;
-}
-
-void FileStream::Context::CloseSync() {
-  DCHECK(!async_in_progress_);
-  if (file_ != base::kInvalidPlatformFileValue) {
-    base::ClosePlatformFile(file_);
-    file_ = base::kInvalidPlatformFileValue;
-    bound_net_log_.EndEvent(NetLog::TYPE_FILE_STREAM_OPEN);
-  }
-}
-
-void FileStream::Context::SeekAsync(Whence whence,
-                                    int64 offset,
-                                    const Int64CompletionCallback& callback) {
-  DCHECK(!async_in_progress_);
-
-  const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task is slow */),
-      FROM_HERE,
-      base::Bind(&Context::SeekFileImpl,
-                 base::Unretained(this), whence, offset),
-      base::Bind(&Context::ProcessAsyncResult,
-                 base::Unretained(this), callback, FILE_ERROR_SOURCE_SEEK));
+  bool posted = base::PostTaskAndReplyWithResult(
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::CloseFileImpl, base::Unretained(this)),
+      base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
+                     IntToInt64(std::move(callback))));
   DCHECK(posted);
 
   async_in_progress_ = true;
 }
 
-int64 FileStream::Context::SeekSync(Whence whence, int64 offset) {
-  int64 result = SeekFileImpl(whence, offset);
-  CheckForIOError(&result, FILE_ERROR_SOURCE_SEEK);
-  return result;
-}
-
-void FileStream::Context::FlushAsync(const CompletionCallback& callback) {
+void FileStream::Context::Seek(int64_t offset,
+                               Int64CompletionOnceCallback callback) {
   DCHECK(!async_in_progress_);
 
-  const bool posted = base::PostTaskAndReplyWithResult(
-      base::WorkerPool::GetTaskRunner(true /* task is slow */),
-      FROM_HERE,
-      base::Bind(&Context::FlushFileImpl,
-                 base::Unretained(this)),
-      base::Bind(&Context::ProcessAsyncResult,
-                 base::Unretained(this), IntToInt64(callback),
-                 FILE_ERROR_SOURCE_FLUSH));
+  bool posted = base::PostTaskAndReplyWithResult(
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::SeekFileImpl, base::Unretained(this), offset),
+      base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
+                     std::move(callback)));
   DCHECK(posted);
 
   async_in_progress_ = true;
 }
 
-int FileStream::Context::FlushSync() {
-  int64 result = FlushFileImpl();
-  CheckForIOError(&result, FILE_ERROR_SOURCE_FLUSH);
-  return result;
+void FileStream::Context::GetFileInfo(base::File::Info* file_info,
+                                      CompletionOnceCallback callback) {
+  base::PostTaskAndReplyWithResult(
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::GetFileInfoImpl, base::Unretained(this),
+                     base::Unretained(file_info)),
+      base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
+                     IntToInt64(std::move(callback))));
+
+  async_in_progress_ = true;
 }
 
-int FileStream::Context::RecordAndMapError(int error,
-                                           FileErrorSource source) const {
-  // The following check is against incorrect use or bug. File descriptor
-  // shouldn't ever be closed outside of FileStream while it still tries to do
-  // something with it.
-  DCHECK(error != ERROR_BAD_FILE);
-  Error net_error = MapSystemError(error);
+void FileStream::Context::Flush(CompletionOnceCallback callback) {
+  DCHECK(!async_in_progress_);
 
-  if (!orphaned_) {
-    bound_net_log_.AddEvent(NetLog::TYPE_FILE_STREAM_ERROR,
-                            base::Bind(&NetLogFileStreamErrorCallback,
-                                       source, error, net_error));
-  }
-  RecordFileError(error, source, record_uma_);
-  return net_error;
+  bool posted = base::PostTaskAndReplyWithResult(
+      task_runner_.get(), FROM_HERE,
+      base::BindOnce(&Context::FlushFileImpl, base::Unretained(this)),
+      base::BindOnce(&Context::OnAsyncCompleted, base::Unretained(this),
+                     IntToInt64(std::move(callback))));
+  DCHECK(posted);
+
+  async_in_progress_ = true;
 }
 
-void FileStream::Context::BeginOpenEvent(const FilePath& path) {
-  std::string file_name = path.AsUTF8Unsafe();
-  bound_net_log_.BeginEvent(NetLog::TYPE_FILE_STREAM_OPEN,
-                            NetLog::StringCallback("file_name", &file_name));
+bool FileStream::Context::IsOpen() const {
+  return file_.IsValid();
 }
 
 FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
-    const FilePath& path, int open_flags) {
-  // FileStream::Context actually closes the file asynchronously, independently
-  // from FileStream's destructor. It can cause problems for users wanting to
-  // delete the file right after FileStream deletion. Thus we are always
-  // adding SHARE_DELETE flag to accommodate such use case.
-  open_flags |= base::PLATFORM_FILE_SHARE_DELETE;
-  OpenResult result;
-  result.error_code = OK;
-  result.file = base::CreatePlatformFile(path, open_flags, NULL, NULL);
-  if (result.file == base::kInvalidPlatformFileValue)
-    result.error_code = GetLastErrno();
+    const base::FilePath& path, int open_flags) {
+#if defined(OS_POSIX) || defined(STARBOARD)
+  // Always use blocking IO.
+  open_flags &= ~base::File::FLAG_ASYNC;
+#endif
+  base::File file;
+#if defined(OS_ANDROID)
+  if (path.IsContentUri()) {
+    // Check that only Read flags are set.
+    DCHECK_EQ(open_flags & ~base::File::FLAG_ASYNC,
+              base::File::FLAG_OPEN | base::File::FLAG_READ);
+    file = base::OpenContentUriForRead(path);
+  } else {
+#endif  // defined(OS_ANDROID)
+    // FileStream::Context actually closes the file asynchronously,
+    // independently from FileStream's destructor. It can cause problems for
+    // users wanting to delete the file right after FileStream deletion. Thus
+    // we are always adding SHARE_DELETE flag to accommodate such use case.
+    // TODO(rvargas): This sounds like a bug, as deleting the file would
+    // presumably happen on the wrong thread. There should be an async delete.
+    open_flags |= base::File::FLAG_SHARE_DELETE;
+    file.Initialize(path, open_flags);
+#if defined(OS_ANDROID)
+  }
+#endif  // defined(OS_ANDROID)
+  if (!file.IsValid()) {
+#if defined(STARBOARD)
+    return OpenResult(
+        base::File(), IOResult::FromFileError(
+            file.error_details(), logging::GetLastSystemErrorCode()));
+#else
+    return OpenResult(base::File(),
+                      IOResult::FromOSError(logging::GetLastSystemErrorCode()));
+#endif
+  }
 
-  return result;
+  return OpenResult(std::move(file), IOResult(OK, 0));
 }
 
-int FileStream::Context::ProcessOpenError(int error_code) {
-  bound_net_log_.EndEvent(NetLog::TYPE_FILE_STREAM_OPEN);
-  return RecordAndMapError(error_code, FILE_ERROR_SOURCE_OPEN);
+FileStream::Context::IOResult FileStream::Context::GetFileInfoImpl(
+    base::File::Info* file_info) {
+  bool result = file_.GetInfo(file_info);
+  if (!result)
+    return IOResult::FromOSError(logging::GetLastSystemErrorCode());
+  return IOResult(OK, 0);
 }
 
-void FileStream::Context::OnOpenCompleted(const CompletionCallback& callback,
-                                          OpenResult result) {
-  file_ = result.file;
-  if (file_ == base::kInvalidPlatformFileValue)
-    result.error_code = ProcessOpenError(result.error_code);
-  else if (!orphaned_)
-    OnAsyncFileOpened();
-  OnAsyncCompleted(IntToInt64(callback), result.error_code);
+FileStream::Context::IOResult FileStream::Context::CloseFileImpl() {
+  file_.Close();
+  return IOResult(OK, 0);
+}
+
+FileStream::Context::IOResult FileStream::Context::FlushFileImpl() {
+  if (file_.Flush())
+    return IOResult(OK, 0);
+
+  return IOResult::FromOSError(logging::GetLastSystemErrorCode());
+}
+
+void FileStream::Context::OnOpenCompleted(CompletionOnceCallback callback,
+                                          OpenResult open_result) {
+  file_ = std::move(open_result.file);
+  if (file_.IsValid() && !orphaned_)
+    OnFileOpened();
+
+  OnAsyncCompleted(IntToInt64(std::move(callback)), open_result.error_code);
 }
 
 void FileStream::Context::CloseAndDelete() {
   DCHECK(!async_in_progress_);
 
-  if (file_ == base::kInvalidPlatformFileValue) {
-    delete this;
-  } else {
-    const bool posted = base::WorkerPool::PostTaskAndReply(
-        FROM_HERE,
-        base::Bind(base::IgnoreResult(&base::ClosePlatformFile), file_),
-        base::Bind(&Context::OnCloseCompleted, base::Unretained(this)),
-        true /* task_is_slow */);
+  if (file_.IsValid()) {
+#ifdef STARBOARD
+    // On Windows, holding file_ will prevent re-creation immediately after
+    // CloseAndDelete is called, failing some tests.
+    if (base::MessageLoop::current()->task_runner() == task_runner_.get()) {
+      file_.Close();
+      delete this;
+      return;
+    }
+#endif
+    bool posted = task_runner_.get()->PostTask(
+        FROM_HERE, base::BindOnce(base::IgnoreResult(&Context::CloseFileImpl),
+                                  base::Owned(this)));
     DCHECK(posted);
-    file_ = base::kInvalidPlatformFileValue;
+  } else {
+    delete this;
   }
 }
 
-void FileStream::Context::OnCloseCompleted() {
-  delete this;
+Int64CompletionOnceCallback FileStream::Context::IntToInt64(
+    CompletionOnceCallback callback) {
+  return base::BindOnce(&CallInt64ToInt, std::move(callback));
 }
 
-Int64CompletionCallback FileStream::Context::IntToInt64(
-    const CompletionCallback& callback) {
-  return base::Bind(&CallInt64ToInt, callback);
-}
-
-void FileStream::Context::CheckForIOError(int64* result,
-                                          FileErrorSource source) {
-  if (*result < 0)
-    *result = RecordAndMapError(static_cast<int>(*result), source);
-}
-
-void FileStream::Context::ProcessAsyncResult(
-    const Int64CompletionCallback& callback,
-    FileErrorSource source,
-    int64 result) {
-  CheckForIOError(&result, source);
-  OnAsyncCompleted(callback, result);
-}
-
-void FileStream::Context::OnAsyncCompleted(
-    const Int64CompletionCallback& callback,
-    int64 result) {
+void FileStream::Context::OnAsyncCompleted(Int64CompletionOnceCallback callback,
+                                           const IOResult& result) {
   // Reset this before Run() as Run() may issue a new async operation. Also it
-  // should be reset before CloseAsync() because it shouldn't run if any async
+  // should be reset before Close() because it shouldn't run if any async
   // operation is in progress.
   async_in_progress_ = false;
-  if (orphaned_)
+  if (orphaned_) {
     CloseAndDelete();
-  else
-    callback.Run(result);
+  } else {
+    std::move(callback).Run(result.result);
+  }
 }
 
 }  // namespace net
-

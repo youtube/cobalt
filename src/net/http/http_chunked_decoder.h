@@ -48,6 +48,7 @@
 #include <string>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -105,10 +106,10 @@ class NET_EXPORT_PRIVATE HttpChunkedDecoder {
   // Converts string |start| of length |len| to a numeric value.
   // |start| is a string of type "chunk-size" (hex string).
   // If the conversion succeeds, returns true and places the result in |out|.
-  static bool ParseChunkSize(const char* start, int len, int* out);
+  static bool ParseChunkSize(const char* start, int len, int64_t* out);
 
   // Indicates the number of bytes remaining for the current chunk.
-  int chunk_remaining_;
+  int64_t chunk_remaining_;
 
   // A small buffer used to store a partial chunk marker.
   std::string line_buf_;
@@ -122,8 +123,7 @@ class NET_EXPORT_PRIVATE HttpChunkedDecoder {
   // Set to true when FilterBuf encounters the final CRLF.
   bool reached_eof_;
 
-  // The number of unfiltered bytes after the final CRLF, either extraneous
-  // data or the first part of the next response in a pipelined stream.
+  // The number of extraneous unfiltered bytes after the final CRLF.
   int bytes_after_eof_;
 };
 

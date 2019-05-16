@@ -5,8 +5,8 @@
 #ifndef NET_SOCKET_SSL_SOCKET_H_
 #define NET_SOCKET_SSL_SOCKET_H_
 
-#include "base/basictypes.h"
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
+#include "net/base/net_export.h"
 #include "net/socket/stream_socket.h"
 
 namespace net {
@@ -15,7 +15,7 @@ namespace net {
 // and server SSL sockets.
 class NET_EXPORT SSLSocket : public StreamSocket {
 public:
-  virtual ~SSLSocket() {}
+ ~SSLSocket() override {}
 
   // Exports data derived from the SSL master-secret (see RFC 5705).
   // If |has_context| is false, uses the no-context construction from the
@@ -27,9 +27,6 @@ public:
                                    const base::StringPiece& context,
                                    unsigned char* out,
                                    unsigned int outlen) = 0;
-
-  // Stores the the tls-unique channel binding (see RFC 5929) in |*out|.
-  virtual int GetTLSUniqueChannelBinding(std::string* out) = 0;
 };
 
 }  // namespace net

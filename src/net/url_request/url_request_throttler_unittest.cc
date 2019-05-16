@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/url_request/url_request_throttler_manager.h"
+#include <memory>
 
-#include "base/memory/scoped_ptr.h"
-#include "base/metrics/histogram.h"
 #include "base/metrics/histogram_samples.h"
-#include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
 #include "base/stl_util.h"
-#include "base/stringprintf.h"
-#include "base/string_number_conversions.h"
-#include "base/time.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/time/time.h"
 #include "net/base/load_flags.h"
+#include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
+#include "net/test/test_with_scoped_task_environment.h"
+#include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_test_util.h"
-#include "net/url_request/url_request_throttler_header_interface.h"
+#include "net/url_request/url_request_throttler_manager.h"
 #include "net/url_request/url_request_throttler_test_support.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -28,29 +29,26 @@ namespace net {
 
 namespace {
 
-using base::Histogram;
-using base::HistogramSamples;
-using base::StatisticsRecorder;
+const char kRequestThrottledHistogramName[] = "Throttling.RequestThrottled";
 
 class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
  public:
   explicit MockURLRequestThrottlerEntry(
-      net::URLRequestThrottlerManager* manager)
-      : net::URLRequestThrottlerEntry(manager, ""),
-        mock_backoff_entry_(&backoff_policy_) {
+      URLRequestThrottlerManager* manager)
+      : URLRequestThrottlerEntry(manager, std::string()),
+        backoff_entry_(&backoff_policy_, &fake_clock_) {
     InitPolicy();
   }
   MockURLRequestThrottlerEntry(
-      net::URLRequestThrottlerManager* manager,
+      URLRequestThrottlerManager* manager,
       const TimeTicks& exponential_backoff_release_time,
       const TimeTicks& sliding_window_release_time,
       const TimeTicks& fake_now)
-      : net::URLRequestThrottlerEntry(manager, ""),
-        fake_time_now_(fake_now),
-        mock_backoff_entry_(&backoff_policy_) {
+      : URLRequestThrottlerEntry(manager, std::string()),
+        fake_clock_(fake_now),
+        backoff_entry_(&backoff_policy_, &fake_clock_) {
     InitPolicy();
 
-    mock_backoff_entry_.set_fake_now(fake_now);
     set_exponential_backoff_release_time(exponential_backoff_release_time);
     set_sliding_window_release_time(sliding_window_release_time);
   }
@@ -64,50 +62,42 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
     backoff_policy_.num_errors_to_ignore = 0;
   }
 
-  const BackoffEntry* GetBackoffEntry() const {
-    return &mock_backoff_entry_;
+  const BackoffEntry* GetBackoffEntry() const override {
+    return &backoff_entry_;
   }
 
-  BackoffEntry* GetBackoffEntry() {
-    return &mock_backoff_entry_;
-  }
-
-  static bool ExplicitUserRequest(int load_flags) {
-    return URLRequestThrottlerEntry::ExplicitUserRequest(load_flags);
-  }
+  BackoffEntry* GetBackoffEntry() override { return &backoff_entry_; }
 
   void ResetToBlank(const TimeTicks& time_now) {
-    fake_time_now_ = time_now;
-    mock_backoff_entry_.set_fake_now(time_now);
+    fake_clock_.set_now(time_now);
 
     GetBackoffEntry()->Reset();
-    GetBackoffEntry()->SetCustomReleaseTime(time_now);
     set_sliding_window_release_time(time_now);
   }
 
   // Overridden for tests.
-  virtual TimeTicks ImplGetTimeNow() const override { return fake_time_now_; }
+  TimeTicks ImplGetTimeNow() const override { return fake_clock_.NowTicks(); }
 
-  void set_exponential_backoff_release_time(
-      const base::TimeTicks& release_time) {
+  void set_fake_now(const TimeTicks& now) { fake_clock_.set_now(now); }
+
+  void set_exponential_backoff_release_time(const TimeTicks& release_time) {
     GetBackoffEntry()->SetCustomReleaseTime(release_time);
   }
 
-  base::TimeTicks sliding_window_release_time() const {
+  TimeTicks sliding_window_release_time() const {
     return URLRequestThrottlerEntry::sliding_window_release_time();
   }
 
-  void set_sliding_window_release_time(
-      const base::TimeTicks& release_time) {
-    URLRequestThrottlerEntry::set_sliding_window_release_time(
-        release_time);
+  void set_sliding_window_release_time(const TimeTicks& release_time) {
+    URLRequestThrottlerEntry::set_sliding_window_release_time(release_time);
   }
 
-  TimeTicks fake_time_now_;
-  MockBackoffEntry mock_backoff_entry_;
-
  protected:
-  virtual ~MockURLRequestThrottlerEntry() {}
+  ~MockURLRequestThrottlerEntry() override = default;
+
+ private:
+  mutable TestTickClock fake_clock_;
+  BackoffEntry backoff_entry_;
 };
 
 class MockURLRequestThrottlerManager : public URLRequestThrottlerManager {
@@ -169,81 +159,30 @@ struct GurlAndString {
 
 }  // namespace
 
-class URLRequestThrottlerEntryTest : public testing::Test {
+class URLRequestThrottlerEntryTest : public TestWithScopedTaskEnvironment {
  protected:
-  URLRequestThrottlerEntryTest() : request_(GURL(), NULL, &context_) {
-  }
+  URLRequestThrottlerEntryTest()
+      : request_(context_.CreateRequest(GURL(),
+                                        DEFAULT_PRIORITY,
+                                        NULL,
+                                        TRAFFIC_ANNOTATION_FOR_TESTS)) {}
 
-  virtual void SetUp();
-  virtual void TearDown();
-
-  // After calling this function, histogram snapshots in |samples_| contain
-  // only the delta caused by the test case currently running.
-  void CalculateHistogramDeltas();
+  void SetUp() override;
 
   TimeTicks now_;
   MockURLRequestThrottlerManager manager_;  // Dummy object, not used.
   scoped_refptr<MockURLRequestThrottlerEntry> entry_;
 
-  std::map<std::string, HistogramSamples*> original_samples_;
-  std::map<std::string, HistogramSamples*> samples_;
-
   TestURLRequestContext context_;
-  TestURLRequest request_;
-};
-
-// List of all histograms we care about in these unit tests.
-const char* kHistogramNames[] = {
-  "Throttling.FailureCountAtSuccess",
-  "Throttling.PerceivedDowntime",
-  "Throttling.RequestThrottled",
-  "Throttling.SiteOptedOut",
+  std::unique_ptr<URLRequest> request_;
 };
 
 void URLRequestThrottlerEntryTest::SetUp() {
-  request_.set_load_flags(0);
+  request_->SetLoadFlags(0);
 
   now_ = TimeTicks::Now();
   entry_ = new MockURLRequestThrottlerEntry(&manager_);
   entry_->ResetToBlank(now_);
-
-  for (size_t i = 0; i < arraysize(kHistogramNames); ++i) {
-    // Must retrieve original samples for each histogram for comparison
-    // as other tests may affect them.
-    const char* name = kHistogramNames[i];
-    Histogram* histogram = StatisticsRecorder::FindHistogram(name);
-    if (histogram) {
-      original_samples_[name] = histogram->SnapshotSamples().release();
-    } else {
-      original_samples_[name] = NULL;
-    }
-  }
-}
-
-void URLRequestThrottlerEntryTest::TearDown() {
-  STLDeleteValues(&original_samples_);
-  STLDeleteValues(&samples_);
-}
-
-void URLRequestThrottlerEntryTest::CalculateHistogramDeltas() {
-  for (size_t i = 0; i < arraysize(kHistogramNames); ++i) {
-    const char* name = kHistogramNames[i];
-    HistogramSamples* original = original_samples_[name];
-
-    Histogram* histogram = StatisticsRecorder::FindHistogram(name);
-    if (histogram) {
-      ASSERT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
-
-      scoped_ptr<HistogramSamples> samples(histogram->SnapshotSamples());
-      if (original)
-        samples->Subtract(*original);
-      samples_[name] = samples.release();
-    }
-  }
-
-  // Ensure we don't accidentally use the originals in our tests.
-  STLDeleteValues(&original_samples_);
-  original_samples_.clear();
 }
 
 std::ostream& operator<<(std::ostream& out, const base::TimeTicks& time) {
@@ -251,53 +190,48 @@ std::ostream& operator<<(std::ostream& out, const base::TimeTicks& time) {
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceDuringExponentialBackoff) {
+  base::HistogramTester histogram_tester;
   entry_->set_exponential_backoff_release_time(
-      entry_->fake_time_now_ + TimeDelta::FromMilliseconds(1));
-  EXPECT_TRUE(entry_->ShouldRejectRequest(request_));
+      entry_->ImplGetTimeNow() + TimeDelta::FromMilliseconds(1));
+  EXPECT_TRUE(entry_->ShouldRejectRequest(*request_));
 
-  // Also end-to-end test the load flags exceptions.
-  request_.set_load_flags(LOAD_MAYBE_USER_GESTURE);
-  EXPECT_FALSE(entry_->ShouldRejectRequest(request_));
-
-  CalculateHistogramDeltas();
-  ASSERT_EQ(1, samples_["Throttling.RequestThrottled"]->GetCount(0));
-  ASSERT_EQ(1, samples_["Throttling.RequestThrottled"]->GetCount(1));
+  histogram_tester.ExpectBucketCount(kRequestThrottledHistogramName, 0, 0);
+  histogram_tester.ExpectBucketCount(kRequestThrottledHistogramName, 1, 1);
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceNotDuringExponentialBackoff) {
-  entry_->set_exponential_backoff_release_time(entry_->fake_time_now_);
-  EXPECT_FALSE(entry_->ShouldRejectRequest(request_));
+  base::HistogramTester histogram_tester;
+  entry_->set_exponential_backoff_release_time(entry_->ImplGetTimeNow());
+  EXPECT_FALSE(entry_->ShouldRejectRequest(*request_));
   entry_->set_exponential_backoff_release_time(
-      entry_->fake_time_now_ - TimeDelta::FromMilliseconds(1));
-  EXPECT_FALSE(entry_->ShouldRejectRequest(request_));
+      entry_->ImplGetTimeNow() - TimeDelta::FromMilliseconds(1));
+  EXPECT_FALSE(entry_->ShouldRejectRequest(*request_));
 
-  CalculateHistogramDeltas();
-  ASSERT_EQ(2, samples_["Throttling.RequestThrottled"]->GetCount(0));
-  ASSERT_EQ(0, samples_["Throttling.RequestThrottled"]->GetCount(1));
+  histogram_tester.ExpectBucketCount(kRequestThrottledHistogramName, 0, 2);
+  histogram_tester.ExpectBucketCount(kRequestThrottledHistogramName, 1, 0);
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceUpdateFailure) {
-  MockURLRequestThrottlerHeaderAdapter failure_response(503);
-  entry_->UpdateWithResponse("", &failure_response);
-  EXPECT_GT(entry_->GetExponentialBackoffReleaseTime(), entry_->fake_time_now_)
+  entry_->UpdateWithResponse(503);
+  EXPECT_GT(entry_->GetExponentialBackoffReleaseTime(),
+            entry_->ImplGetTimeNow())
       << "A failure should increase the release_time";
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceUpdateSuccess) {
-  MockURLRequestThrottlerHeaderAdapter success_response(200);
-  entry_->UpdateWithResponse("", &success_response);
-  EXPECT_EQ(entry_->GetExponentialBackoffReleaseTime(), entry_->fake_time_now_)
+  entry_->UpdateWithResponse(200);
+  EXPECT_EQ(entry_->GetExponentialBackoffReleaseTime(),
+            entry_->ImplGetTimeNow())
       << "A success should not add any delay";
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceUpdateSuccessThenFailure) {
-  MockURLRequestThrottlerHeaderAdapter failure_response(503);
-  MockURLRequestThrottlerHeaderAdapter success_response(200);
-  entry_->UpdateWithResponse("", &success_response);
-  entry_->UpdateWithResponse("", &failure_response);
-  EXPECT_GT(entry_->GetExponentialBackoffReleaseTime(), entry_->fake_time_now_)
+  entry_->UpdateWithResponse(200);
+  entry_->UpdateWithResponse(503);
+  EXPECT_GT(entry_->GetExponentialBackoffReleaseTime(),
+            entry_->ImplGetTimeNow())
       << "This scenario should add delay";
-  entry_->UpdateWithResponse("", &success_response);
+  entry_->UpdateWithResponse(200);
 }
 
 TEST_F(URLRequestThrottlerEntryTest, IsEntryReallyOutdated) {
@@ -322,8 +256,7 @@ TEST_F(URLRequestThrottlerEntryTest, IsEntryReallyOutdated) {
 
 TEST_F(URLRequestThrottlerEntryTest, MaxAllowedBackoff) {
   for (int i = 0; i < 30; ++i) {
-    MockURLRequestThrottlerHeaderAdapter response_adapter(503);
-    entry_->UpdateWithResponse("", &response_adapter);
+    entry_->UpdateWithResponse(503);
   }
 
   TimeDelta delay = entry_->GetExponentialBackoffReleaseTime() - now_;
@@ -332,9 +265,8 @@ TEST_F(URLRequestThrottlerEntryTest, MaxAllowedBackoff) {
 }
 
 TEST_F(URLRequestThrottlerEntryTest, MalformedContent) {
-  MockURLRequestThrottlerHeaderAdapter response_adapter(503);
   for (int i = 0; i < 5; ++i)
-    entry_->UpdateWithResponse("", &response_adapter);
+    entry_->UpdateWithResponse(503);
 
   TimeTicks release_after_failures = entry_->GetExponentialBackoffReleaseTime();
 
@@ -344,8 +276,7 @@ TEST_F(URLRequestThrottlerEntryTest, MalformedContent) {
   // is what happens in practice (if a body is received, then a non-500
   // response must also have been received).
   entry_->ReceivedContentWasMalformed(200);
-  MockURLRequestThrottlerHeaderAdapter success_adapter(200);
-  entry_->UpdateWithResponse("", &success_adapter);
+  entry_->UpdateWithResponse(200);
   EXPECT_GT(entry_->GetExponentialBackoffReleaseTime(), release_after_failures);
 }
 
@@ -354,13 +285,13 @@ TEST_F(URLRequestThrottlerEntryTest, SlidingWindow) {
   int sliding_window =
       URLRequestThrottlerEntry::kDefaultSlidingWindowPeriodMs;
 
-  TimeTicks time_1 = entry_->fake_time_now_ +
+  TimeTicks time_1 = entry_->ImplGetTimeNow() +
       TimeDelta::FromMilliseconds(sliding_window / 3);
-  TimeTicks time_2 = entry_->fake_time_now_ +
+  TimeTicks time_2 = entry_->ImplGetTimeNow() +
       TimeDelta::FromMilliseconds(2 * sliding_window / 3);
-  TimeTicks time_3 = entry_->fake_time_now_ +
+  TimeTicks time_3 = entry_->ImplGetTimeNow() +
       TimeDelta::FromMilliseconds(sliding_window);
-  TimeTicks time_4 = entry_->fake_time_now_ +
+  TimeTicks time_4 = entry_->ImplGetTimeNow() +
       TimeDelta::FromMilliseconds(sliding_window + 2 * sliding_window / 3);
 
   entry_->set_exponential_backoff_release_time(time_1);
@@ -371,7 +302,7 @@ TEST_F(URLRequestThrottlerEntryTest, SlidingWindow) {
   }
   EXPECT_EQ(time_2, entry_->sliding_window_release_time());
 
-  entry_->fake_time_now_ = time_3;
+  entry_->set_fake_now(time_3);
 
   for (int i = 0; i < (max_send + 1) / 2; ++i)
     EXPECT_EQ(0, entry_->ReserveSendingTimeForNextRequest(TimeTicks()));
@@ -379,27 +310,19 @@ TEST_F(URLRequestThrottlerEntryTest, SlidingWindow) {
   EXPECT_EQ(time_4, entry_->sliding_window_release_time());
 }
 
-TEST_F(URLRequestThrottlerEntryTest, ExplicitUserRequest) {
-  ASSERT_FALSE(MockURLRequestThrottlerEntry::ExplicitUserRequest(0));
-  ASSERT_TRUE(MockURLRequestThrottlerEntry::ExplicitUserRequest(
-      LOAD_MAYBE_USER_GESTURE));
-  ASSERT_FALSE(MockURLRequestThrottlerEntry::ExplicitUserRequest(
-      ~LOAD_MAYBE_USER_GESTURE));
-}
-
-class URLRequestThrottlerManagerTest : public testing::Test {
+class URLRequestThrottlerManagerTest : public TestWithScopedTaskEnvironment {
  protected:
   URLRequestThrottlerManagerTest()
-      : request_(GURL(), NULL, &context_) {
-  }
+      : request_(context_.CreateRequest(GURL(),
+                                        DEFAULT_PRIORITY,
+                                        NULL,
+                                        TRAFFIC_ANNOTATION_FOR_TESTS)) {}
 
-  virtual void SetUp() {
-    request_.set_load_flags(0);
-  }
+  void SetUp() override { request_->SetLoadFlags(0); }
 
   // context_ must be declared before request_.
   TestURLRequestContext context_;
-  TestURLRequest request_;
+  std::unique_ptr<URLRequest> request_;
 };
 
 TEST_F(URLRequestThrottlerManagerTest, IsUrlStandardised) {
@@ -466,77 +389,34 @@ TEST_F(URLRequestThrottlerManagerTest, IsHostBeingRegistered) {
   EXPECT_EQ(3, manager.GetNumberOfEntries());
 }
 
-void ExpectEntryAllowsAllOnErrorIfOptedOut(
-    net::URLRequestThrottlerEntryInterface* entry,
-    bool opted_out,
-    const URLRequest& request) {
-  EXPECT_FALSE(entry->ShouldRejectRequest(request));
-  MockURLRequestThrottlerHeaderAdapter failure_adapter(503);
-  for (int i = 0; i < 10; ++i) {
-    // Host doesn't really matter in this scenario so we skip it.
-    entry->UpdateWithResponse("", &failure_adapter);
-  }
-  EXPECT_NE(opted_out, entry->ShouldRejectRequest(request));
-
-  if (opted_out) {
-    // We're not mocking out GetTimeNow() in this scenario
-    // so add a 100 ms buffer to avoid flakiness (that should always
-    // give enough time to get from the TimeTicks::Now() call here
-    // to the TimeTicks::Now() call in the entry class).
-    EXPECT_GT(TimeTicks::Now() + TimeDelta::FromMilliseconds(100),
-              entry->GetExponentialBackoffReleaseTime());
-  } else {
-    // As above, add 100 ms.
-    EXPECT_LT(TimeTicks::Now() + TimeDelta::FromMilliseconds(100),
-              entry->GetExponentialBackoffReleaseTime());
-  }
-}
-
-TEST_F(URLRequestThrottlerManagerTest, OptOutHeader) {
+TEST_F(URLRequestThrottlerManagerTest, LocalHostOptedOut) {
   MockURLRequestThrottlerManager manager;
-  scoped_refptr<net::URLRequestThrottlerEntryInterface> entry =
-      manager.RegisterRequestUrl(GURL("http://www.google.com/yodude"));
-
-  // Fake a response with the opt-out header.
-  MockURLRequestThrottlerHeaderAdapter response_adapter(
-      "",
-      MockURLRequestThrottlerEntry::kExponentialThrottlingDisableValue,
-      200);
-  entry->UpdateWithResponse("www.google.com", &response_adapter);
-
-  // Ensure that the same entry on error always allows everything.
-  ExpectEntryAllowsAllOnErrorIfOptedOut(entry, true, request_);
-
-  // Ensure that a freshly created entry (for a different URL on an
-  // already opted-out host) also gets "always allow" behavior.
-  scoped_refptr<net::URLRequestThrottlerEntryInterface> other_entry =
-      manager.RegisterRequestUrl(GURL("http://www.google.com/bingobob"));
-  ExpectEntryAllowsAllOnErrorIfOptedOut(other_entry, true, request_);
-
-  // Fake a response with the opt-out header incorrectly specified.
-  scoped_refptr<net::URLRequestThrottlerEntryInterface> no_opt_out_entry =
-      manager.RegisterRequestUrl(GURL("http://www.nike.com/justdoit"));
-  MockURLRequestThrottlerHeaderAdapter wrong_adapter("", "yesplease", 200);
-  no_opt_out_entry->UpdateWithResponse("www.nike.com", &wrong_adapter);
-  ExpectEntryAllowsAllOnErrorIfOptedOut(no_opt_out_entry, false, request_);
-
   // A localhost entry should always be opted out.
-  scoped_refptr<net::URLRequestThrottlerEntryInterface> localhost_entry =
+  scoped_refptr<URLRequestThrottlerEntryInterface> localhost_entry =
       manager.RegisterRequestUrl(GURL("http://localhost/hello"));
-  ExpectEntryAllowsAllOnErrorIfOptedOut(localhost_entry, true, request_);
+  EXPECT_FALSE(localhost_entry->ShouldRejectRequest(*request_));
+  for (int i = 0; i < 10; ++i) {
+    localhost_entry->UpdateWithResponse(503);
+  }
+  EXPECT_FALSE(localhost_entry->ShouldRejectRequest(*request_));
+
+  // We're not mocking out GetTimeNow() in this scenario
+  // so add a 100 ms buffer to avoid flakiness (that should always
+  // give enough time to get from the TimeTicks::Now() call here
+  // to the TimeTicks::Now() call in the entry class).
+  EXPECT_GT(TimeTicks::Now() + TimeDelta::FromMilliseconds(100),
+            localhost_entry->GetExponentialBackoffReleaseTime());
 }
 
 TEST_F(URLRequestThrottlerManagerTest, ClearOnNetworkChange) {
   for (int i = 0; i < 3; ++i) {
     MockURLRequestThrottlerManager manager;
-    scoped_refptr<net::URLRequestThrottlerEntryInterface> entry_before =
+    scoped_refptr<URLRequestThrottlerEntryInterface> entry_before =
         manager.RegisterRequestUrl(GURL("http://www.example.com/"));
-    MockURLRequestThrottlerHeaderAdapter failure_adapter(503);
     for (int j = 0; j < 10; ++j) {
-      // Host doesn't really matter in this scenario so we skip it.
-      entry_before->UpdateWithResponse("", &failure_adapter);
+      entry_before->UpdateWithResponse(503);
     }
-    EXPECT_TRUE(entry_before->ShouldRejectRequest(request_));
+    EXPECT_TRUE(entry_before->ShouldRejectRequest(*request_));
 
     switch (i) {
       case 0:
@@ -544,19 +424,18 @@ TEST_F(URLRequestThrottlerManagerTest, ClearOnNetworkChange) {
         break;
       case 1:
         manager.OnConnectionTypeChanged(
-            net::NetworkChangeNotifier::CONNECTION_UNKNOWN);
+            NetworkChangeNotifier::CONNECTION_UNKNOWN);
         break;
       case 2:
-        manager.OnConnectionTypeChanged(
-            net::NetworkChangeNotifier::CONNECTION_NONE);
+        manager.OnConnectionTypeChanged(NetworkChangeNotifier::CONNECTION_NONE);
         break;
       default:
         FAIL();
     }
 
-    scoped_refptr<net::URLRequestThrottlerEntryInterface> entry_after =
+    scoped_refptr<URLRequestThrottlerEntryInterface> entry_after =
         manager.RegisterRequestUrl(GURL("http://www.example.com/"));
-    EXPECT_FALSE(entry_after->ShouldRejectRequest(request_));
+    EXPECT_FALSE(entry_after->ShouldRejectRequest(*request_));
   }
 }
 

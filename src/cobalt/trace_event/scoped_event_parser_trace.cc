@@ -12,54 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/trace_event/scoped_event_parser_trace.h"
 
-#include "base/debug/trace_event_impl.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/trace_event/trace_config.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_event_impl.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "cobalt/trace_event/event_parser.h"
 #include "cobalt/trace_event/json_file_outputter.h"
 
 namespace cobalt {
 namespace trace_event {
 
-ScopedEventParserTrace::ScopedEventParserTrace(
-    const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback) {
-  CommonInit(flow_end_event_callback);
-}
+ScopedEventParserTrace::ScopedEventParserTrace() { CommonInit(); }
 
 ScopedEventParserTrace::ScopedEventParserTrace(
-    const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback,
-    const FilePath& log_relative_output_path) {
-  FilePath absolute_output_path;
-  PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &absolute_output_path);
+    const base::FilePath& log_relative_output_path) {
+  base::FilePath absolute_output_path;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT,
+                         &absolute_output_path);
   absolute_output_path_ = absolute_output_path.Append(log_relative_output_path);
 
-  CommonInit(flow_end_event_callback);
+  CommonInit();
 }
 
-void ScopedEventParserTrace::CommonInit(
-    const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback) {
-  flow_end_event_callback_ = flow_end_event_callback;
-
-  DCHECK(!base::debug::TraceLog::GetInstance()->IsEnabled());
-  base::debug::TraceLog::GetInstance()->SetEnabled(true);
+void ScopedEventParserTrace::CommonInit() {
+  DCHECK(!base::trace_event::TraceLog::GetInstance()->IsEnabled());
+  base::trace_event::TraceLog::GetInstance()->SetEnabled(
+      base::trace_event::TraceConfig(
+          "", "record-as-much-as-possible, enable-systrace"),
+      base::trace_event::TraceLog::RECORDING_MODE);
+  DCHECK(base::trace_event::TraceLog::GetInstance()->IsEnabled());
 }
 
 ScopedEventParserTrace::~ScopedEventParserTrace() {
-  base::debug::TraceLog* trace_log = base::debug::TraceLog::GetInstance();
+  base::trace_event::TraceLog* trace_log =
+      base::trace_event::TraceLog::GetInstance();
 
-  trace_log->SetEnabled(false);
-
-  // Setup our raw TraceLog::TraceEvent callback.
-  EventParser event_parser(flow_end_event_callback_);
+  trace_log->SetDisabled();
 
   // Setup the JSON outputter callback if the client had provided a JSON
   // file output path.
-  base::optional<JSONFileOutputter> json_outputter;
-  base::debug::TraceLog::OutputCallback json_output_callback;
+  base::Optional<JSONFileOutputter> json_outputter;
+  base::trace_event::TraceLog::OutputCallback json_output_callback =
+      base::Bind([](const scoped_refptr<base::RefCountedString>&, bool) {});
   if (absolute_output_path_) {
     json_outputter.emplace(*absolute_output_path_);
     if (json_outputter->GetError()) {
@@ -74,33 +75,12 @@ ScopedEventParserTrace::~ScopedEventParserTrace() {
   }
 
   // Flush the trace log through our callbacks.
-  trace_log->FlushWithRawEvents(
-      base::Bind(&EventParser::ParseEvent, base::Unretained(&event_parser)),
-      json_output_callback);
+  trace_log->Flush(json_output_callback);
 }
 
-namespace {
-void EndEventParserTrace(scoped_ptr<ScopedEventParserTrace> trace,
-                         base::Closure callback) {
-  trace.reset();
-  callback.Run();
+bool IsTracing() {
+  return base::trace_event::TraceLog::GetInstance()->IsEnabled();
 }
-}  // namespace
-
-void TraceWithEventParserForDuration(
-    const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback,
-    const base::Closure& flow_end_event_finish_callback,
-    const base::TimeDelta& duration) {
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&EndEventParserTrace,
-                 base::Passed(make_scoped_ptr(
-                     new ScopedEventParserTrace(flow_end_event_callback))),
-                 flow_end_event_finish_callback),
-      duration);
-}
-
-bool IsTracing() { return base::debug::TraceLog::GetInstance()->IsEnabled(); }
 
 }  // namespace trace_event
 }  // namespace cobalt

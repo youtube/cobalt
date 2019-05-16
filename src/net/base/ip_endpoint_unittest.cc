@@ -4,40 +4,76 @@
 
 #include "net/base/ip_endpoint.h"
 
-#include "base/string_number_conversions.h"
-#include "net/base/net_util.h"
-#include "testing/gtest/include/gtest/gtest.h"
-#include "testing/platform_test.h"
+#include "build/build_config.h"
+
 #if defined(OS_WIN)
 #include <winsock2.h>
 #elif defined(OS_POSIX)
 #include <netinet/in.h>
 #endif
 
+#include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/sys_byteorder.h"
+#include "net/base/sockaddr_storage.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "testing/platform_test.h"
+
 namespace net {
 
 namespace {
+
+#if !defined(STARBOARD)
+
+// Retuns the port field of the |sockaddr|.
+const uint16_t* GetPortFieldFromSockaddr(const struct sockaddr* address,
+                                         socklen_t address_len) {
+  if (address->sa_family == AF_INET) {
+    DCHECK_LE(sizeof(sockaddr_in), static_cast<size_t>(address_len));
+    const struct sockaddr_in* sockaddr =
+        reinterpret_cast<const struct sockaddr_in*>(address);
+    return &sockaddr->sin_port;
+  } else if (address->sa_family == AF_INET6) {
+    DCHECK_LE(sizeof(sockaddr_in6), static_cast<size_t>(address_len));
+    const struct sockaddr_in6* sockaddr =
+        reinterpret_cast<const struct sockaddr_in6*>(address);
+    return &sockaddr->sin6_port;
+  } else {
+    NOTREACHED();
+    return NULL;
+  }
+}
+
+// Returns the value of port in |sockaddr| (in host byte ordering).
+int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
+  const uint16_t* port_field = GetPortFieldFromSockaddr(address, address_len);
+  if (!port_field)
+    return -1;
+  return base::NetToHost16(*port_field);
+}
+
+#endif  // !defined(STARBOARD)
 
 struct TestData {
   std::string host;
   std::string host_normalized;
   bool ipv6;
-  IPAddressNumber ip_address;
+  IPAddress ip_address;
 } tests[] = {
   { "127.0.00.1", "127.0.0.1", false},
   { "192.168.1.1", "192.168.1.1", false },
   { "::1", "[::1]", true },
   { "2001:db8:0::42", "[2001:db8::42]", true },
 };
-int test_count = ARRAYSIZE_UNSAFE(tests);
 
 class IPEndPointTest : public PlatformTest {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     // This is where we populate the TestData.
-    for (int index = 0; index < test_count; ++index) {
-      EXPECT_TRUE(ParseIPLiteralToNumber(tests[index].host,
-          &tests[index].ip_address));
+    for (auto& test : tests) {
+      EXPECT_TRUE(test.ip_address.AssignFromIPLiteral(test.host));
     }
   }
 };
@@ -46,16 +82,17 @@ TEST_F(IPEndPointTest, Constructor) {
   IPEndPoint endpoint;
   EXPECT_EQ(0, endpoint.port());
 
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint endpoint(tests[index].ip_address, 80);
+  for (const auto& test : tests) {
+    IPEndPoint endpoint(test.ip_address, 80);
     EXPECT_EQ(80, endpoint.port());
-    EXPECT_EQ(tests[index].ip_address, endpoint.address());
+    EXPECT_EQ(test.ip_address, endpoint.address());
   }
 }
 
 TEST_F(IPEndPointTest, Assignment) {
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint src(tests[index].ip_address, index);
+  uint16_t port = 0;
+  for (const auto& test : tests) {
+    IPEndPoint src(test.ip_address, ++port);
     IPEndPoint dest = src;
 
     EXPECT_EQ(src.port(), dest.port());
@@ -64,8 +101,9 @@ TEST_F(IPEndPointTest, Assignment) {
 }
 
 TEST_F(IPEndPointTest, Copy) {
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint src(tests[index].ip_address, index);
+  uint16_t port = 0;
+  for (const auto& test : tests) {
+    IPEndPoint src(test.ip_address, ++port);
     IPEndPoint dest(src);
 
     EXPECT_EQ(src.port(), dest.port());
@@ -73,49 +111,19 @@ TEST_F(IPEndPointTest, Copy) {
   }
 }
 
-#if defined(OS_STARBOARD)
-TEST_F(IPEndPointTest, ToFromSbSocketAddress) {
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint ip_endpoint(tests[index].ip_address, index);
-
-    if (tests[index].ipv6)
-      continue;
-
-    // Convert to a SbSocketAddress.
-    SbSocketAddress sb_address;
-    EXPECT_TRUE(ip_endpoint.ToSbSocketAddress(&sb_address));
-
-    // Basic verification.
-    EXPECT_EQ(ip_endpoint.port(), sb_address.port);
-
-    // And convert back to an IPEndPoint.
-    IPEndPoint ip_endpoint2;
-    EXPECT_TRUE(ip_endpoint2.FromSbSocketAddress(&sb_address));
-    EXPECT_EQ(ip_endpoint.port(), ip_endpoint2.port());
-    EXPECT_EQ(ip_endpoint.address(), ip_endpoint2.address());
-  }
-}
-#else  // defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST_F(IPEndPointTest, ToFromSockAddr) {
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint ip_endpoint(tests[index].ip_address, index);
-
-#if !defined(IN6ADDR_ANY_INIT)
-    if (tests[index].ipv6)
-      continue;
-#endif
+  uint16_t port = 0;
+  for (const auto& test : tests) {
+    IPEndPoint ip_endpoint(test.ip_address, ++port);
 
     // Convert to a sockaddr.
     SockaddrStorage storage;
     EXPECT_TRUE(ip_endpoint.ToSockAddr(storage.addr, &storage.addr_len));
 
     // Basic verification.
-#if !defined(IN6ADDR_ANY_INIT)
-    socklen_t expected_size = sizeof(struct sockaddr_in);
-#else
-    socklen_t expected_size = tests[index].ipv6 ?
-        sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
-#endif
+    socklen_t expected_size =
+        test.ipv6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
     EXPECT_EQ(expected_size, storage.addr_len);
     EXPECT_EQ(ip_endpoint.port(), GetPortFromSockaddr(storage.addr,
                                                       storage.addr_len));
@@ -129,28 +137,31 @@ TEST_F(IPEndPointTest, ToFromSockAddr) {
 }
 
 TEST_F(IPEndPointTest, ToSockAddrBufTooSmall) {
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint ip_endpoint(tests[index].ip_address, index);
+  uint16_t port = 0;
+  for (const auto& test : tests) {
+    IPEndPoint ip_endpoint(test.ip_address, port);
 
     SockaddrStorage storage;
-    storage.addr_len = index;  // size is too small!
+    storage.addr_len = 3;  // size is too small!
     EXPECT_FALSE(ip_endpoint.ToSockAddr(storage.addr, &storage.addr_len));
   }
 }
 
 TEST_F(IPEndPointTest, FromSockAddrBufTooSmall) {
   struct sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
+  SbMemorySet(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   IPEndPoint ip_endpoint;
   struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
   EXPECT_FALSE(ip_endpoint.FromSockAddr(sockaddr, sizeof(addr) - 1));
 }
-#endif  // defined(OS_STARBOARD)
+
+#endif  // !defined(STARBOARD)
 
 TEST_F(IPEndPointTest, Equality) {
-  for (int index = 0; index < test_count; ++index) {
-    IPEndPoint src(tests[index].ip_address, index);
+  uint16_t port = 0;
+  for (const auto& test : tests) {
+    IPEndPoint src(test.ip_address, ++port);
     IPEndPoint dest(src);
     EXPECT_TRUE(src == dest);
   }
@@ -192,13 +203,19 @@ TEST_F(IPEndPointTest, ToString) {
   IPEndPoint endpoint;
   EXPECT_EQ(0, endpoint.port());
 
-  for (int index = 0; index < test_count; ++index) {
-    int port = 100 + index;
-    IPEndPoint endpoint(tests[index].ip_address, port);
+  uint16_t port = 100;
+  for (const auto& test : tests) {
+    ++port;
+    IPEndPoint endpoint(test.ip_address, port);
     const std::string result = endpoint.ToString();
-    EXPECT_EQ(tests[index].host_normalized + ":" + base::IntToString(port),
-              result);
+    EXPECT_EQ(test.host_normalized + ":" + base::UintToString(port), result);
   }
+
+  // ToString() shouldn't crash on invalid addresses.
+  IPAddress invalid_address;
+  IPEndPoint invalid_endpoint(invalid_address, 8080);
+  EXPECT_EQ("", invalid_endpoint.ToString());
+  EXPECT_EQ("", invalid_endpoint.ToStringWithoutPort());
 }
 
 }  // namespace

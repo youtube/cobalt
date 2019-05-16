@@ -47,10 +47,7 @@ class TranslateFunction : public TransformFunction {
     kPercentage,
   };
 
-  TranslateFunction(Axis axis, const scoped_refptr<PropertyValue>& offset)
-      : axis_(axis), offset_(offset) {
-    DCHECK(offset);
-  }
+  TranslateFunction(Axis axis, const scoped_refptr<PropertyValue>& offset);
 
   void Accept(TransformFunctionVisitor* visitor) const override;
 
@@ -71,6 +68,10 @@ class TranslateFunction : public TransformFunction {
   Axis axis() const { return axis_; }
 
   std::string ToString() const override;
+
+  math::Matrix3F ToMatrix(const math::SizeF& used_size,
+      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
+      const override;
 
   bool operator==(const TranslateFunction& other) const {
     return offset_->Equals(*other.offset_) && axis_ == other.axis_;

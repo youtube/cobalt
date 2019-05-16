@@ -6,6 +6,7 @@
 #define NET_WEBSOCKETS_WEBSOCKET_ERRORS_H_
 
 #include "net/base/net_errors.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -46,14 +47,8 @@ enum WebSocketError {
 };
 
 // Convert WebSocketError to net::Error defined in net/base/net_errors.h.
-Error WebSocketErrorToNetError(WebSocketError error);
+NET_EXPORT_PRIVATE Error WebSocketErrorToNetError(WebSocketError error);
 
-// Check a close status code for strict compliance with RFC6455.
-// That this function was adapted from Chromium's IsStrictlyValidCloseStatusCode
-// They differ in that codes 1004, 1005, and 1006 are reserved codes and must
-// not be set in a Close message.  Chromium's check is different since they
-// check for reserved codes separately.
-bool IsValidCloseStatusCode(int code);
 }  // namespace net
 
 #endif  // NET_WEBSOCKETS_WEBSOCKET_ERRORS_H_

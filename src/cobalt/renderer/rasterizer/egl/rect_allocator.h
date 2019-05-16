@@ -47,7 +47,7 @@ class RectAllocator {
  private:
   void AddUnused(const math::Rect& memory);
 
-  math::Size total_size_;     // Total memory space managed by the allocator.
+  math::Size total_size_;  // Total memory space managed by the allocator.
 
   typedef std::vector<math::Rect> MemoryList;
   MemoryList unused_;

@@ -14,6 +14,7 @@
 
 #include "cobalt/script/v8c/wrapper_factory.h"
 
+#include <memory>
 #include <utility>
 
 #include "base/lazy_instance.h"
@@ -43,9 +44,9 @@ v8::Local<v8::Object> WrapperFactory::GetWrapper(
   v8::MaybeLocal<v8::Object> maybe_wrapper = V8cWrapperHandle::MaybeGetObject(
       isolate_, GetCachedWrapper(wrappable.get()));
   if (!maybe_wrapper.ToLocal(&wrapper)) {
-    scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
+    std::unique_ptr<Wrappable::WeakWrapperHandle> object_handle =
         CreateWrapper(wrappable);
-    SetCachedWrapper(wrappable.get(), object_handle.Pass());
+    SetCachedWrapper(wrappable.get(), std::move(object_handle));
     wrapper = V8cWrapperHandle::MaybeGetObject(
                   isolate_, GetCachedWrapper(wrappable.get()))
                   .ToLocalChecked();
@@ -58,19 +59,19 @@ WrapperPrivate* WrapperFactory::MaybeGetWrapperPrivate(Wrappable* wrappable) {
                                                   GetCachedWrapper(wrappable));
 }
 
-scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
+std::unique_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     const scoped_refptr<Wrappable>& wrappable) const {
   auto it = wrappable_type_functions_.find(wrappable->GetWrappableType());
   if (it == wrappable_type_functions_.end()) {
     NOTREACHED();
-    return scoped_ptr<Wrappable::WeakWrapperHandle>();
+    return std::unique_ptr<Wrappable::WeakWrapperHandle>();
   }
   v8::Local<v8::Object> new_object =
       it->second.create_wrapper.Run(isolate_, wrappable);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrapperObject(new_object);
   DCHECK(wrapper_private);
-  return make_scoped_ptr<Wrappable::WeakWrapperHandle>(
+  return std::unique_ptr<Wrappable::WeakWrapperHandle>(
       new V8cWrapperHandle(wrapper_private));
 }
 

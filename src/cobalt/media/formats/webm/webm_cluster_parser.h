@@ -7,11 +7,11 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
@@ -266,12 +266,12 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   WebMListParser parser_;
 
   int64_t last_block_timecode_;
-  scoped_array<uint8_t> block_data_;
+  std::unique_ptr<uint8_t[]> block_data_;
   int block_data_size_;
   int64_t block_duration_;
   int64_t block_add_id_;
 
-  scoped_array<uint8_t> block_additional_data_;
+  std::unique_ptr<uint8_t[]> block_additional_data_;
   // Must be 0 if |block_additional_data_| is null. Must be > 0 if
   // |block_additional_data_| is NOT null.
   int block_additional_data_size_;

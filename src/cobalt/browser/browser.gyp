@@ -137,6 +137,7 @@
         '<(DEPTH)/cobalt/input/input.gyp:input',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/media_capture/media_capture.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
@@ -153,8 +154,9 @@
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/websocket/websocket.gyp:websocket',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/nb/nb.gyp:nb',
+        '<(DEPTH)/url/url.gyp:url',
         'browser_bindings.gyp:bindings',
         '<(cobalt_webapi_extension_gyp_target)',
       ],
@@ -181,23 +183,12 @@
         ['enable_map_to_mesh == 1', {
           'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
-        ['cobalt_media_source_2016==1', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/media2.gyp:media2',
-          ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/media.gyp:media',
-          ],
-        }],
         ['enable_debugger == 1', {
           'sources': [
             'debug_console.cc',
             'debug_console.h',
             'lifecycle_console_commands.cc',
             'lifecycle_console_commands.h',
-            'trace_manager.cc',
-            'trace_manager.h',
           ],
           'dependencies': [
             '<(DEPTH)/cobalt/debug/debug.gyp:debug',

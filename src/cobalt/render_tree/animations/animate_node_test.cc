@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
@@ -70,7 +71,7 @@ class ImageFake : public Image {
 // The following tests ensure that simple single time-independent animations
 // work fine on single-node render trees of different types.
 void AnimateText(TextNode::Builder* text_node, base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   text_node->color = ColorRGBA(.5f, .5f, .5f);
 }
 TEST(AnimateNodeTest, EnsureSingleTextNodeAnimates) {
@@ -91,12 +92,12 @@ TEST(AnimateNodeTest, EnsureSingleTextNodeAnimates) {
 
 void AnimateImage(ImageNode::Builder* image_node,
                   base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   image_node->destination_rect = RectF(2.0f, 2.0f);
 }
 TEST(AnimateNodeTest, EnsureSingleImageNodeAnimates) {
   scoped_refptr<ImageNode> image_node(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
 
   scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
@@ -111,13 +112,13 @@ TEST(AnimateNodeTest, EnsureSingleImageNodeAnimates) {
 }
 
 void AnimateRect(RectNode::Builder* rect_node, base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(2.0f, 2.0f);
 }
 TEST(AnimateNodeTest, EnsureSingleRectNodeAnimates) {
   scoped_refptr<RectNode> rect_node(new RectNode(
-      RectF(1.0f, 1.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+      RectF(1.0f, 1.0f), std::unique_ptr<Brush>(new SolidColorBrush(
+                             ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
   scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(rect_node, base::Bind(&AnimateRect));
@@ -142,7 +143,7 @@ void AnimateImageAddWithTime(ImageNode::Builder* image_node,
 }
 TEST(AnimateNodeTest, SingleImageNodeAnimatesOverTimeRepeatedlyCorrectly) {
   scoped_refptr<ImageNode> image_node(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
 
   scoped_refptr<AnimateNode> with_animations =
       CreateSingleAnimation(image_node, base::Bind(&AnimateImageAddWithTime));
@@ -186,7 +187,7 @@ void AnimateImageScaleWithTime(ImageNode::Builder* image_node,
 }
 TEST(AnimateNodeTest, MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
   scoped_refptr<ImageNode> image_node(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
 
   // Here we add 2 animations both targeting the same ImageNode.  We expect
   // them to be applied in the order that they appear in the list.  We test this
@@ -200,7 +201,7 @@ TEST(AnimateNodeTest, MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
 
   AnimateNode::Builder animations_builder;
   animations_builder.Add(image_node,
-                         make_scoped_refptr(new AnimationList<ImageNode>(
+                         base::WrapRefCounted(new AnimationList<ImageNode>(
                              animation_list_builder.Pass())));
   scoped_refptr<AnimateNode> with_animations(
       new AnimateNode(animations_builder, image_node));
@@ -219,12 +220,12 @@ TEST(AnimateNodeTest, MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
 // leaves its child node untouched.
 void AnimateTransform(MatrixTransformNode::Builder* transform_node,
                       base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   transform_node->transform = math::TranslateMatrix(2.0f, 2.0f);
 }
 TEST(AnimateNodeTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
   scoped_refptr<ImageNode> image_node(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
   scoped_refptr<MatrixTransformNode> transform_node(
       new MatrixTransformNode(image_node, math::Matrix3F::Identity()));
 
@@ -249,14 +250,14 @@ TEST(AnimateNodeTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
 TEST(AnimateNodeTest,
      AnimatingCompositionChildNodeAffectsParentAsWellButNotSibling) {
   scoped_refptr<ImageNode> image_node_a(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
   scoped_refptr<ImageNode> image_node_b(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
   CompositionNode::Builder composition_node_builder;
   composition_node_builder.AddChild(image_node_a);
   composition_node_builder.AddChild(image_node_b);
   scoped_refptr<CompositionNode> composition_node(
-      new CompositionNode(composition_node_builder.Pass()));
+      new CompositionNode(std::move(composition_node_builder)));
 
   AnimateNode::Builder animation_builder;
   animation_builder.Add(image_node_a, base::Bind(&AnimateImage));
@@ -284,7 +285,7 @@ TEST(AnimateNodeTest, SimpleSubAnimateNode) {
   // Test that we can properly animate trees that built upon multiple
   // AnimateNodes.
   scoped_refptr<ImageNode> image_node(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
   scoped_refptr<AnimateNode> image_animation =
       CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
 
@@ -316,7 +317,7 @@ TEST(AnimateNodeTest, SubAnimateNodeWithTwoAncestors) {
   // Test that we can properly animate trees that built upon multiple
   // AnimateNodes.
   scoped_refptr<ImageNode> image_node(
-      new ImageNode(make_scoped_refptr(new ImageFake()), RectF(1.0f, 1.0f)));
+      new ImageNode(base::WrapRefCounted(new ImageFake()), RectF(1.0f, 1.0f)));
   scoped_refptr<AnimateNode> image_animation =
       CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
 
@@ -352,23 +353,24 @@ TEST(AnimateNodeTest, SubAnimateNodeWithTwoAncestors) {
 
 void BoundsAnimateRect(RectNode::Builder* rect_node,
                        base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(3.0f, 5.0f, 15.0f, 20.0f);
 }
 TEST(AnimateNodeTest, AnimationBounds) {
   scoped_refptr<RectNode> rect_node_static(new RectNode(
-      RectF(1.0f, 1.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+      RectF(1.0f, 1.0f), std::unique_ptr<Brush>(new SolidColorBrush(
+                             ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
-  scoped_refptr<RectNode> rect_node_animated(new RectNode(
-      RectF(4.0f, 4.0f, 10.0f, 10.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+  scoped_refptr<RectNode> rect_node_animated(
+      new RectNode(RectF(4.0f, 4.0f, 10.0f, 10.0f),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
   CompositionNode::Builder builder;
   builder.AddChild(rect_node_static);
   builder.AddChild(rect_node_animated);
   scoped_refptr<CompositionNode> composition(
-      new CompositionNode(builder.Pass()));
+      new CompositionNode(std::move(builder)));
 
   AnimateNode::Builder animations_builder;
   animations_builder.Add(rect_node_animated, base::Bind(&BoundsAnimateRect));
@@ -386,18 +388,19 @@ TEST(AnimateNodeTest, AnimationBounds) {
 
 TEST(AnimateNodeTest, AnimationBoundsExpiration) {
   scoped_refptr<RectNode> rect_node_static(new RectNode(
-      RectF(1.0f, 1.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+      RectF(1.0f, 1.0f), std::unique_ptr<Brush>(new SolidColorBrush(
+                             ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
-  scoped_refptr<RectNode> rect_node_animated(new RectNode(
-      RectF(4.0f, 4.0f, 10.0f, 10.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+  scoped_refptr<RectNode> rect_node_animated(
+      new RectNode(RectF(4.0f, 4.0f, 10.0f, 10.0f),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
   CompositionNode::Builder builder;
   builder.AddChild(rect_node_static);
   builder.AddChild(rect_node_animated);
   scoped_refptr<CompositionNode> composition(
-      new CompositionNode(builder.Pass()));
+      new CompositionNode(std::move(builder)));
 
   AnimateNode::Builder animations_builder;
   animations_builder.Add(rect_node_animated, base::Bind(&BoundsAnimateRect),
@@ -431,23 +434,24 @@ TEST(AnimateNodeTest, AnimationBoundsExpiration) {
 
 void BoundsAnimateRect2(RectNode::Builder* rect_node,
                         base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(2.0f, 6.0f, 10.0f, 25.0f);
 }
 TEST(AnimateNodeTest, AnimationBoundsUnionsMultipleAnimations) {
   scoped_refptr<RectNode> rect_node_1(new RectNode(
-      RectF(1.0f, 1.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+      RectF(1.0f, 1.0f), std::unique_ptr<Brush>(new SolidColorBrush(
+                             ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
-  scoped_refptr<RectNode> rect_node_2(new RectNode(
-      RectF(4.0f, 4.0f, 10.0f, 10.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+  scoped_refptr<RectNode> rect_node_2(
+      new RectNode(RectF(4.0f, 4.0f, 10.0f, 10.0f),
+                   std::unique_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
   CompositionNode::Builder builder;
   builder.AddChild(rect_node_1);
   builder.AddChild(rect_node_2);
   scoped_refptr<CompositionNode> composition(
-      new CompositionNode(builder.Pass()));
+      new CompositionNode(std::move(builder)));
 
   AnimateNode::Builder animations_builder;
   animations_builder.Add(rect_node_1, base::Bind(&BoundsAnimateRect));
@@ -466,7 +470,7 @@ TEST(AnimateNodeTest, AnimationBoundsUnionsMultipleAnimations) {
 
 void AnimateTranslate(CompositionNode::Builder* composition_node,
                       base::TimeDelta time_elapsed) {
-  UNREFERENCED_PARAMETER(time_elapsed);
+  SB_UNREFERENCED_PARAMETER(time_elapsed);
   composition_node->set_offset(math::Vector2dF(4.0f, 4.0f));
 }
 // This test makes sure that the animation bounds are calculated correctly when
@@ -475,18 +479,18 @@ void AnimateTranslate(CompositionNode::Builder* composition_node,
 // versus the non-animated path.
 TEST(AnimateNodeTest, AnimationBoundsWorksForCompoundedTransformations) {
   scoped_refptr<RectNode> rect_node(new RectNode(
-      RectF(8.0f, 8.0f),
-      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+      RectF(8.0f, 8.0f), std::unique_ptr<Brush>(new SolidColorBrush(
+                             ColorRGBA(1.0f, 1.0f, 1.0f)))));
 
   CompositionNode::Builder composition_node_builder_1;
   composition_node_builder_1.AddChild(rect_node);
   scoped_refptr<CompositionNode> composition_node_1(
-      new CompositionNode(composition_node_builder_1.Pass()));
+      new CompositionNode(std::move(composition_node_builder_1)));
 
   CompositionNode::Builder composition_node_builder_2;
   composition_node_builder_2.AddChild(composition_node_1);
   scoped_refptr<CompositionNode> composition_node_2(
-      new CompositionNode(composition_node_builder_2.Pass()));
+      new CompositionNode(std::move(composition_node_builder_2)));
 
   AnimateNode::Builder animations_builder;
   animations_builder.Add(composition_node_1, base::Bind(&AnimateTranslate));

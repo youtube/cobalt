@@ -6,30 +6,30 @@
 
 #include <algorithm>
 #include <limits>
+#include <utility>
+#include <vector>
 
-#include "base/basictypes.h"
+#include "base/big_endian.h"
 #include "base/logging.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
-#include "net/base/big_endian.h"
+#include "base/memory/scoped_refptr.h"
 #include "net/base/io_buffer.h"
 #include "net/websockets/websocket_frame.h"
+#include "starboard/memory.h"
 
 namespace {
 
-const uint8 kFinalBit = 0x80;
-const uint8 kReserved1Bit = 0x40;
-const uint8 kReserved2Bit = 0x20;
-const uint8 kReserved3Bit = 0x10;
-const uint8 kOpCodeMask = 0xF;
-const uint8 kMaskBit = 0x80;
-const uint8 kPayloadLengthMask = 0x7F;
-const uint64 kMaxPayloadLengthWithoutExtendedLengthField = 125;
-const uint64 kPayloadLengthWithTwoByteExtendedLengthField = 126;
-const uint64 kPayloadLengthWithEightByteExtendedLengthField = 127;
+const uint8_t kFinalBit = 0x80;
+const uint8_t kReserved1Bit = 0x40;
+const uint8_t kReserved2Bit = 0x20;
+const uint8_t kReserved3Bit = 0x10;
+const uint8_t kOpCodeMask = 0xF;
+const uint8_t kMaskBit = 0x80;
+const uint8_t kPayloadLengthMask = 0x7F;
+const uint64_t kMaxPayloadLengthWithoutExtendedLengthField = 125;
+const uint64_t kPayloadLengthWithTwoByteExtendedLengthField = 126;
+const uint64_t kPayloadLengthWithEightByteExtendedLengthField = 127;
 
-}  // Unnamed namespace.
+}  // namespace.
 
 namespace net {
 
@@ -42,13 +42,12 @@ WebSocketFrameParser::WebSocketFrameParser()
             '\0');
 }
 
-WebSocketFrameParser::~WebSocketFrameParser() {
-}
+WebSocketFrameParser::~WebSocketFrameParser() = default;
 
 bool WebSocketFrameParser::Decode(
     const char* data,
     size_t length,
-    ScopedVector<WebSocketFrameChunk>* frame_chunks) {
+    std::vector<std::unique_ptr<WebSocketFrameChunk>>* frame_chunks) {
   if (websocket_error_ != kWebSocketNormalClosure)
     return false;
   if (!length)
@@ -70,10 +69,10 @@ bool WebSocketFrameParser::Decode(
       first_chunk = true;
     }
 
-    scoped_ptr<WebSocketFrameChunk> frame_chunk =
+    std::unique_ptr<WebSocketFrameChunk> frame_chunk =
         DecodeFramePayload(first_chunk);
     DCHECK(frame_chunk.get());
-    frame_chunks->push_back(frame_chunk.release());
+    frame_chunks->push_back(std::move(frame_chunk));
 
     if (current_frame_header_.get()) {
       DCHECK(current_read_pos_ == buffer_.size());
@@ -110,22 +109,22 @@ void WebSocketFrameParser::DecodeFrameHeader() {
   if (end - current < 2)
     return;
 
-  uint8 first_byte = *current++;
-  uint8 second_byte = *current++;
+  uint8_t first_byte = *current++;
+  uint8_t second_byte = *current++;
 
   bool final = (first_byte & kFinalBit) != 0;
   bool reserved1 = (first_byte & kReserved1Bit) != 0;
   bool reserved2 = (first_byte & kReserved2Bit) != 0;
   bool reserved3 = (first_byte & kReserved3Bit) != 0;
-  OpCode opcode = OpCode(first_byte & kOpCodeMask);
+  OpCode opcode = first_byte & kOpCodeMask;
 
   bool masked = (second_byte & kMaskBit) != 0;
-  uint64 payload_length = second_byte & kPayloadLengthMask;
+  uint64_t payload_length = second_byte & kPayloadLengthMask;
   if (payload_length == kPayloadLengthWithTwoByteExtendedLengthField) {
     if (end - current < 2)
       return;
-    uint16 payload_length_16;
-    ReadBigEndian(current, &payload_length_16);
+    uint16_t payload_length_16;
+    base::ReadBigEndian(current, &payload_length_16);
     current += 2;
     payload_length = payload_length_16;
     if (payload_length <= kMaxPayloadLengthWithoutExtendedLengthField)
@@ -133,12 +132,12 @@ void WebSocketFrameParser::DecodeFrameHeader() {
   } else if (payload_length == kPayloadLengthWithEightByteExtendedLengthField) {
     if (end - current < 8)
       return;
-    ReadBigEndian(current, &payload_length);
+    base::ReadBigEndian(current, &payload_length);
     current += 8;
-    if (payload_length <= kuint16max ||
-        payload_length > static_cast<uint64>(kint64max)) {
+    if (payload_length <= UINT16_MAX ||
+        payload_length > static_cast<uint64_t>(INT64_MAX)) {
       websocket_error_ = kWebSocketErrorProtocolError;
-    } else if (payload_length > static_cast<uint64>(kint32max)) {
+    } else if (payload_length > static_cast<uint64_t>(INT32_MAX)) {
       websocket_error_ = kWebSocketErrorMessageTooBig;
     }
   }
@@ -159,43 +158,40 @@ void WebSocketFrameParser::DecodeFrameHeader() {
     std::fill(masking_key_.key, masking_key_.key + kMaskingKeyLength, '\0');
   }
 
-  current_frame_header_.reset(new WebSocketFrameHeader);
+  current_frame_header_ = std::make_unique<WebSocketFrameHeader>(opcode);
   current_frame_header_->final = final;
   current_frame_header_->reserved1 = reserved1;
   current_frame_header_->reserved2 = reserved2;
   current_frame_header_->reserved3 = reserved3;
-  current_frame_header_->opcode = opcode;
   current_frame_header_->masked = masked;
   current_frame_header_->payload_length = payload_length;
   current_read_pos_ += current - start;
   DCHECK_EQ(0u, frame_offset_);
 }
 
-scoped_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
+std::unique_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
     bool first_chunk) {
-  const char* current = &buffer_.front() + current_read_pos_;
-  const char* end = &buffer_.front() + buffer_.size();
-  uint64 next_size = std::min<uint64>(
-      end - current,
-      current_frame_header_->payload_length - frame_offset_);
-  // This check must pass because |payload_length| is already checked to be
+  // The cast here is safe because |payload_length| is already checked to be
   // less than std::numeric_limits<int>::max() when the header is parsed.
-  DCHECK_LE(next_size, static_cast<uint64>(kint32max));
+  int next_size = static_cast<int>(
+      std::min(static_cast<uint64_t>(buffer_.size() - current_read_pos_),
+               current_frame_header_->payload_length - frame_offset_));
 
-  scoped_ptr<WebSocketFrameChunk> frame_chunk(new WebSocketFrameChunk);
+  auto frame_chunk = std::make_unique<WebSocketFrameChunk>();
   if (first_chunk) {
-    frame_chunk->header.reset(new WebSocketFrameHeader(*current_frame_header_));
+    frame_chunk->header = current_frame_header_->Clone();
   }
   frame_chunk->final_chunk = false;
   if (next_size) {
-    frame_chunk->data = new IOBufferWithSize(static_cast<int>(next_size));
+    frame_chunk->data =
+        base::MakeRefCounted<IOBufferWithSize>(static_cast<int>(next_size));
     char* io_data = frame_chunk->data->data();
-    SbMemoryCopy(io_data, current, next_size);
+    SbMemoryCopy(io_data, &buffer_.front() + current_read_pos_, next_size);
     if (current_frame_header_->masked) {
       // The masking function is its own inverse, so we use the same function to
       // unmask as to mask.
-      MaskWebSocketFramePayload(masking_key_, frame_offset_,
-                                io_data, next_size);
+      MaskWebSocketFramePayload(
+          masking_key_, frame_offset_, io_data, next_size);
     }
 
     current_read_pos_ += next_size;
@@ -209,7 +205,7 @@ scoped_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
     frame_offset_ = 0;
   }
 
-  return frame_chunk.Pass();
+  return frame_chunk;
 }
 
 }  // namespace net

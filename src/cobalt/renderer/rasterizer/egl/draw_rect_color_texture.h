@@ -32,8 +32,7 @@ namespace egl {
 class DrawRectColorTexture : public DrawObject {
  public:
   DrawRectColorTexture(GraphicsState* graphics_state,
-                       const BaseState& base_state,
-                       const math::RectF& rect,
+                       const BaseState& base_state, const math::RectF& rect,
                        const render_tree::ColorRGBA& color,
                        const backend::TextureEGL* texture,
                        const math::Matrix3F& texcoord_transform,

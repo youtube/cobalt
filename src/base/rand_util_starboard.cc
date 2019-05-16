@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@
 namespace base {
 
 // NOTE: This function must be cryptographically secure. http://crbug.com/140076
-uint64 RandUint64() {
-  return SbSystemGetRandomUInt64();
+void RandBytes(void* output, size_t output_length) {
+  if (output_length != 0) {
+    SbSystemGetRandomData(output, output_length);
+  }
 }
 
 }  // namespace base

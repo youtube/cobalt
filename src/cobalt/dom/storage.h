@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_STORAGE_H_
 #define COBALT_DOM_STORAGE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
@@ -24,7 +25,7 @@
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace dom {
@@ -45,10 +46,10 @@ class Storage : public script::Wrappable {
   unsigned int length() const {
     return static_cast<unsigned int>(area_->length());
   }
-  base::optional<std::string> Key(unsigned int index) const {
+  base::Optional<std::string> Key(unsigned int index) const {
     return area_->Key(static_cast<int>(index));
   }
-  base::optional<std::string> GetItem(const std::string& key) const {
+  base::Optional<std::string> GetItem(const std::string& key) const {
     return area_->GetItem(key);
   }
   void SetItem(const std::string& key, const std::string& value) {
@@ -63,16 +64,16 @@ class Storage : public script::Wrappable {
   // Custom, not in any spec.
   void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) const;
 
-  virtual bool DispatchEvent(const base::optional<std::string>& key,
-                             const base::optional<std::string>& old_value,
-                             const base::optional<std::string>& new_value);
+  virtual bool DispatchEvent(const base::Optional<std::string>& key,
+                             const base::Optional<std::string>& old_value,
+                             const base::Optional<std::string>& new_value);
   virtual GURL origin() const;
 
   DEFINE_WRAPPABLE_TYPE(Storage);
 
  protected:
   Window* window_;
-  scoped_ptr<StorageArea> area_;
+  std::unique_ptr<StorageArea> area_;
 
   FRIEND_TEST(StorageAreaTest, InitialState);
   FRIEND_TEST(StorageAreaTest, Identifier);

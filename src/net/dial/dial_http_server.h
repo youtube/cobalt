@@ -9,11 +9,11 @@
 
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "net/base/tcp_listen_socket.h"
+#include "base/single_thread_task_runner.h"
 #include "net/dial/dial_service_handler.h"
 #include "net/http/http_status_code.h"
 #include "net/server/http_server.h"
+#include "net/server/http_server_response_info.h"
 
 namespace net {
 
@@ -28,13 +28,15 @@ class IPEndPoint;
 // by a DialServiceHandler.
 // It's refcounted threadsafe so we can safely bind it to the callback we pass
 // to DialServiceHandler::handleRequest().
-class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
-    public base::RefCountedThreadSafe<DialHttpServer> {
+class NET_EXPORT DialHttpServer
+    : public HttpServer::Delegate,
+      public base::RefCountedThreadSafe<DialHttpServer> {
  public:
   explicit DialHttpServer(DialService* dial_service);
   void Stop();
 
   // HttpServer::Delegate implementation
+  virtual void OnConnect(int /*conn_id*/) override{};
   virtual void OnHttpRequest(int conn_id,
                              const HttpServerRequestInfo& info) override;
 
@@ -49,14 +51,10 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
                                   const std::string& /*data*/) override {}
 
   // Return the formatted application URL
-  std::string application_url() const {
-    return server_url_ + "apps/";
-  }
+  std::string application_url() const { return server_url_ + "apps/"; }
 
   // Return the formatted location URL.
-  std::string location_url() const {
-    return server_url_ + "dd.xml";
-  }
+  std::string location_url() const { return server_url_ + "dd.xml"; }
 
   // Somewhat similar to HttpServer::GetLocalAddress, but figures out the
   // network IP address and uses that. The port remains the same.
@@ -79,25 +77,23 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
   // Callback from WebKit thread when the HTTP task is complete.
   // Post the response info to DIAL service thread.
   void AsyncReceivedResponse(int conn_id,
-                             scoped_ptr<HttpServerResponseInfo> response);
+                             std::unique_ptr<HttpServerResponseInfo> response);
   // Handles DIAL response.
   void OnReceivedResponse(int conn_id,
-                          scoped_ptr<HttpServerResponseInfo> response);
+                          std::unique_ptr<HttpServerResponseInfo> response);
 
-  TCPListenSocketFactory factory_;
-  scoped_refptr<HttpServer> http_server_;
+  std::unique_ptr<HttpServer> http_server_;
   std::string server_url_;
   // DialService owns this object.
   DialService* dial_service_;
 
   // Message Loop of the thread that created us. We make sure http server
   // is only called on the proper thread.
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(DialHttpServer);
 };
 
-} // namespace net
+}  // namespace net
 
-#endif // NET_DIAL_DIAL_HTTP_SERVER_H
-
+#endif  // NET_DIAL_DIAL_HTTP_SERVER_H

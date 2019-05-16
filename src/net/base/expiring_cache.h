@@ -8,9 +8,10 @@
 #include <map>
 #include <utility>
 
-#include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/time.h"
+#include "base/macros.h"
+#include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -19,11 +20,11 @@ template <typename KeyType,
           typename ExpirationType>
 class NoopEvictionHandler {
  public:
-  void Handle(const KeyType& /* key */,
-              const ValueType& /* value */,
-              const ExpirationType& /* expiration */,
-              const ExpirationType& /* now */,
-              bool /* onGet */) const {}
+  void Handle(const KeyType& /*key*/,
+              const ValueType& /*value*/,
+              const ExpirationType& /*expiration*/,
+              const ExpirationType& /*now*/,
+              bool /*onGet*/) const {}
 };
 
 // Cache implementation where all entries have an explicit expiration policy. As

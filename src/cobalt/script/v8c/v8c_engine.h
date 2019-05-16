@@ -15,10 +15,11 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_ENGINE_H_
 #define COBALT_SCRIPT_V8C_V8C_ENGINE_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/threading/thread_checker.h"
-#include "base/timer.h"
+#include "base/timer/timer.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/v8c/v8c_heap_tracer.h"
 #include "v8/include/libplatform/libplatform.h"
@@ -58,7 +59,7 @@ class V8cEngine : public JavaScriptEngine {
   // An isolated instance of the V8 engine.
   v8::Isolate* isolate_;
 
-  scoped_ptr<V8cHeapTracer> v8c_heap_tracer_;
+  std::unique_ptr<V8cHeapTracer> v8c_heap_tracer_;
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;

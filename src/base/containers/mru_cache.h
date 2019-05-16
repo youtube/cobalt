@@ -16,31 +16,43 @@
 #ifndef BASE_CONTAINERS_MRU_CACHE_H_
 #define BASE_CONTAINERS_MRU_CACHE_H_
 
+#include <algorithm>
+#include <functional>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <utility>
 
-#include "base/basictypes.h"
-#include "base/hash_tables.h"
 #include "base/logging.h"
+#include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
+namespace trace_event {
+namespace internal {
+
+template <class MruCacheType>
+size_t DoEstimateMemoryUsageForMruCache(const MruCacheType&);
+
+}  // namespace internal
+}  // namespace trace_event
 
 // MRUCacheBase ----------------------------------------------------------------
 
 // This template is used to standardize map type containers that can be used
 // by MRUCacheBase. This level of indirection is necessary because of the way
 // that template template params and default template params interact.
-template <class KeyType, class ValueType>
+template <class KeyType, class ValueType, class CompareType>
 struct MRUCacheStandardMap {
-  typedef std::map<KeyType, ValueType> Type;
+  typedef std::map<KeyType, ValueType, CompareType> Type;
 };
 
 // Base class for the MRU cache specializations defined below.
-// The deletor will get called on all payloads that are being removed or
-// replaced.
-template <class KeyType, class PayloadType, class DeletorType,
-          template <typename, typename> class MapType = MRUCacheStandardMap>
+template <class KeyType,
+          class PayloadType,
+          class HashOrCompareType,
+          template <typename, typename, typename> class MapType =
+              MRUCacheStandardMap>
 class MRUCacheBase {
  public:
   // The payload of the list. This maintains a copy of the key so we can
@@ -50,7 +62,8 @@ class MRUCacheBase {
  private:
   typedef std::list<value_type> PayloadList;
   typedef typename MapType<KeyType,
-                           typename PayloadList::iterator>::Type KeyIndex;
+                           typename PayloadList::iterator,
+                           HashOrCompareType>::Type KeyIndex;
 
  public:
   typedef typename PayloadList::size_type size_type;
@@ -66,18 +79,9 @@ class MRUCacheBase {
   // a new item is inserted. If the caller wants to manager this itself (for
   // example, maybe it has special work to do when something is evicted), it
   // can pass NO_AUTO_EVICT to not restrict the cache size.
-  explicit MRUCacheBase(size_type max_size) : max_size_(max_size) {
-  }
+  explicit MRUCacheBase(size_type max_size) : max_size_(max_size) {}
 
-  MRUCacheBase(size_type max_size, const DeletorType& deletor)
-      : max_size_(max_size), deletor_(deletor) {
-  }
-
-  virtual ~MRUCacheBase() {
-    iterator i = begin();
-    while (i != end())
-      i = Erase(i);
-  }
+  virtual ~MRUCacheBase() = default;
 
   size_type max_size() const { return max_size_; }
 
@@ -85,14 +89,14 @@ class MRUCacheBase {
   // the same key, it is removed prior to insertion. An iterator indicating the
   // inserted item will be returned (this will always be the front of the list).
   //
-  // The payload will be copied. In the case of an OwningMRUCache, this function
-  // will take ownership of the pointer.
-  iterator Put(const KeyType& key, const PayloadType& payload) {
+  // The payload will be forwarded.
+  template <typename Payload>
+  iterator Put(const KeyType& key, Payload&& payload) {
     // Remove any existing payload with that key.
     typename KeyIndex::iterator index_iter = index_.find(key);
     if (index_iter != index_.end()) {
-      // Erase the reference to it. This will call the deletor on the removed
-      // element. The index reference will be replaced in the code below.
+      // Erase the reference to it. The index reference will be replaced in the
+      // code below.
       Erase(index_iter->second);
     } else if (max_size_ != NO_AUTO_EVICT) {
       // New item is being inserted which might make it larger than the maximum
@@ -100,16 +104,14 @@ class MRUCacheBase {
       ShrinkToSize(max_size_ - 1);
     }
 
-    ordering_.push_front(value_type(key, payload));
-    index_.insert(std::make_pair(key, ordering_.begin()));
+    ordering_.emplace_front(key, std::forward<Payload>(payload));
+    index_.emplace(key, ordering_.begin());
     return ordering_.begin();
   }
 
   // Retrieves the contents of the given key, or end() if not found. This method
   // has the side effect of moving the requested item to the front of the
   // recency list.
-  //
-  // TODO(brettw) We may want a const version of this function in the future.
   iterator Get(const KeyType& key) {
     typename KeyIndex::iterator index_iter = index_.find(key);
     if (index_iter == index_.end())
@@ -123,8 +125,6 @@ class MRUCacheBase {
 
   // Retrieves the payload associated with a given key and returns it via
   // result without affecting the ordering (unlike Get).
-  //
-  // TODO(brettw) We may want a const version of this function in the future.
   iterator Peek(const KeyType& key) {
     typename KeyIndex::const_iterator index_iter = index_.find(key);
     if (index_iter == index_.end())
@@ -132,10 +132,23 @@ class MRUCacheBase {
     return index_iter->second;
   }
 
+  const_iterator Peek(const KeyType& key) const {
+    typename KeyIndex::const_iterator index_iter = index_.find(key);
+    if (index_iter == index_.end())
+      return end();
+    return index_iter->second;
+  }
+
+  // Exchanges the contents of |this| by the contents of the |other|.
+  void Swap(MRUCacheBase& other) {
+    ordering_.swap(other.ordering_);
+    index_.swap(other.index_);
+    std::swap(max_size_, other.max_size_);
+  }
+
   // Erases the item referenced by the given iterator. An iterator to the item
   // following it will be returned. The iterator must be valid.
   iterator Erase(iterator pos) {
-    deletor_(pos->second);
     index_.erase(pos->first);
     return ordering_.erase(pos);
   }
@@ -158,9 +171,6 @@ class MRUCacheBase {
 
   // Deletes everything from the cache.
   void Clear() {
-    for (typename PayloadList::iterator i(ordering_.begin());
-         i != ordering_.end(); ++i)
-      deletor_(i->second);
     index_.clear();
     ordering_.clear();
   }
@@ -192,109 +202,61 @@ class MRUCacheBase {
   bool empty() const { return ordering_.empty(); }
 
  private:
+  template <class MruCacheType>
+  friend size_t trace_event::internal::DoEstimateMemoryUsageForMruCache(
+      const MruCacheType&);
+
   PayloadList ordering_;
   KeyIndex index_;
 
   size_type max_size_;
-
-  DeletorType deletor_;
 
   DISALLOW_COPY_AND_ASSIGN(MRUCacheBase);
 };
 
 // MRUCache --------------------------------------------------------------------
 
-// A functor that does nothing. Used by the MRUCache.
-template<class PayloadType>
-class MRUCacheNullDeletor {
- public:
-  void operator()(PayloadType& /*payload*/) {
-  }
-};
-
 // A container that does not do anything to free its data. Use this when storing
 // value types (as opposed to pointers) in the list.
-template <class KeyType, class PayloadType>
-class MRUCache : public MRUCacheBase<KeyType,
-                                     PayloadType,
-                                     MRUCacheNullDeletor<PayloadType> > {
+template <class KeyType,
+          class PayloadType,
+          class CompareType = std::less<KeyType>>
+class MRUCache : public MRUCacheBase<KeyType, PayloadType, CompareType> {
  private:
-  typedef MRUCacheBase<KeyType, PayloadType,
-      MRUCacheNullDeletor<PayloadType> > ParentType;
+  using ParentType = MRUCacheBase<KeyType, PayloadType, CompareType>;
 
  public:
   // See MRUCacheBase, noting the possibility of using NO_AUTO_EVICT.
   explicit MRUCache(typename ParentType::size_type max_size)
-      : ParentType(max_size) {
-  }
-  virtual ~MRUCache() {
-  }
+      : ParentType(max_size) {}
+  virtual ~MRUCache() = default;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MRUCache);
 };
 
-// OwningMRUCache --------------------------------------------------------------
-
-template<class PayloadType>
-class MRUCachePointerDeletor {
- public:
-  void operator()(PayloadType& payload) {
-    delete payload;
-  }
-};
-
-// A cache that owns the payload type, which must be a non-const pointer type.
-// The pointers will be deleted when they are removed, replaced, or when the
-// cache is destroyed.
-template <class KeyType, class PayloadType>
-class OwningMRUCache
-    : public MRUCacheBase<KeyType,
-                          PayloadType,
-                          MRUCachePointerDeletor<PayloadType> > {
- private:
-  typedef MRUCacheBase<KeyType, PayloadType,
-      MRUCachePointerDeletor<PayloadType> > ParentType;
-
- public:
-  // See MRUCacheBase, noting the possibility of using NO_AUTO_EVICT.
-  explicit OwningMRUCache(typename ParentType::size_type max_size)
-      : ParentType(max_size) {
-  }
-  virtual ~OwningMRUCache() {
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(OwningMRUCache);
-};
-
 // HashingMRUCache ------------------------------------------------------------
 
-template <class KeyType, class ValueType>
+template <class KeyType, class ValueType, class HashType>
 struct MRUCacheHashMap {
-  typedef base::hash_map<KeyType, ValueType> Type;
+  typedef std::unordered_map<KeyType, ValueType, HashType> Type;
 };
 
-// This class is similar to MRUCache, except that it uses base::hash_map as
-// the map type instead of std::map. Note that your KeyType must be hashable
-// to use this cache.
-template <class KeyType, class PayloadType>
-class HashingMRUCache : public MRUCacheBase<KeyType,
-                                            PayloadType,
-                                            MRUCacheNullDeletor<PayloadType>,
-                                            MRUCacheHashMap> {
+// This class is similar to MRUCache, except that it uses std::unordered_map as
+// the map type instead of std::map. Note that your KeyType must be hashable to
+// use this cache or you need to provide a hashing class.
+template <class KeyType, class PayloadType, class HashType = std::hash<KeyType>>
+class HashingMRUCache
+    : public MRUCacheBase<KeyType, PayloadType, HashType, MRUCacheHashMap> {
  private:
-  typedef MRUCacheBase<KeyType, PayloadType,
-                       MRUCacheNullDeletor<PayloadType>,
-                       MRUCacheHashMap> ParentType;
+  using ParentType =
+      MRUCacheBase<KeyType, PayloadType, HashType, MRUCacheHashMap>;
 
  public:
   // See MRUCacheBase, noting the possibility of using NO_AUTO_EVICT.
   explicit HashingMRUCache(typename ParentType::size_type max_size)
-      : ParentType(max_size) {
-  }
-  virtual ~HashingMRUCache() {
-  }
+      : ParentType(max_size) {}
+  virtual ~HashingMRUCache() = default;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HashingMRUCache);

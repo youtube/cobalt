@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

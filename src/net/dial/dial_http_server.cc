@@ -7,15 +7,16 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/debug/trace_event.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/dial/dial_service.h"
 #include "net/dial/dial_service_handler.h"
 #include "net/dial/dial_system_config.h"
 #include "net/server/http_server_request_info.h"
+#include "net/socket/tcp_server_socket.h"
 
 #if defined(__LB_SHELL__)
 #include "lb_network_helpers.h"
@@ -45,18 +46,50 @@ const char* kDdXmlFormat =
     "</root>";
 
 const char* kAppsPrefix = "/apps/";
+
+constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
+    net::DefineNetworkTrafficAnnotation("dial_http_server", "dial_http_server");
+base::Optional<net::IPEndPoint> GetLocalIpAddress() {
+  net::IPEndPoint ip_addr;
+  SbSocketAddress local_ip;
+  SbMemorySet(&local_ip, 0, sizeof(local_ip));
+  bool result = false;
+
+  // Dial Server only supports Ipv4 now.
+  SbSocketAddressType address_types = {kSbSocketAddressTypeIpv4};
+  SbSocketAddress destination;
+  SbMemorySet(&(destination.address), 0, sizeof(destination.address));
+  destination.type = address_types;
+  if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL) ||
+      !ip_addr.FromSbSocketAddress(&local_ip)) {
+    DLOG(WARNING) << "Unable to get a local interface address.";
+    return base::nullopt;
+  }
+
+  return ip_addr;
+}
 }  // namespace
 
 const int kDialHttpServerPort = 0;  // Random Port.
 
 DialHttpServer::DialHttpServer(DialService* dial_service)
-    : factory_("0.0.0.0", kDialHttpServerPort),
-      dial_service_(dial_service),
-      message_loop_proxy_(base::MessageLoopProxy::current()) {
+    : dial_service_(dial_service),
+      task_runner_(base::MessageLoop::current()->task_runner()) {
   DCHECK(dial_service);
-  DCHECK(message_loop_proxy_);
+  DCHECK(task_runner_);
 
-  http_server_ = new HttpServer(factory_, this);
+  auto* server_socket =
+      new net::TCPServerSocket(NULL /*net_log*/, net::NetLogSource());
+  base::Optional<net::IPEndPoint> ip_addr = GetLocalIpAddress();
+  if (!ip_addr) {
+    DLOG(ERROR) << "Can not get a local address for Dial HTTP Server";
+  } else {
+    server_socket->ListenWithAddressAndPort(
+        ip_addr.value().address().ToString(), ip_addr.value().port(),
+        1 /*backlog*/);
+  }
+  http_server_.reset(
+      new HttpServer(std::unique_ptr<ServerSocket>(server_socket), this));
   ConfigureApplicationUrl();
 }
 
@@ -67,18 +100,12 @@ DialHttpServer::~DialHttpServer() {
 }
 
 void DialHttpServer::Stop() {
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-  http_server_ = NULL;
+  DCHECK_EQ(task_runner_, base::MessageLoop::current()->task_runner());
+  http_server_.reset();
 }
 
 int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-  // get the port information
-  int ret = http_server_->GetLocalAddress(addr);
-
-  if (ret != 0) {
-    return ERR_FAILED;
-  }
+  DCHECK_EQ(task_runner_, base::MessageLoop::current()->task_runner());
 
   SbSocketAddress local_ip = {0};
 
@@ -91,7 +118,6 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
     return ERR_FAILED;
   }
-  local_ip.port = addr->port();
 
   if (addr->FromSbSocketAddress(&local_ip)) {
     return OK;
@@ -103,23 +129,32 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 void DialHttpServer::OnHttpRequest(int conn_id,
                                    const HttpServerRequestInfo& info) {
   TRACE_EVENT0("net::dial", "DialHttpServer::OnHttpRequest");
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-  if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
+  DCHECK_EQ(task_runner_, base::MessageLoop::current()->task_runner());
+  if (info.method == "GET" &&
+      base::LowerCaseEqualsASCII(info.path, "/dd.xml")) {
     // If dd.xml request
     SendDeviceDescriptionManifest(conn_id);
 
   } else if (strstr(info.path.c_str(), kAppsPrefix)) {
     if (info.method == "GET" && info.path.length() == strlen(kAppsPrefix)) {
       // If /apps/ request, send 302 to current application.
-      http_server_->Send302(conn_id, application_url() + "YouTube");
+      http_server_->SendRaw(
+          conn_id,
+          base::StringPrintf("HTTP/1.1 %d %s\r\n"
+                             "Location: %s\r\n"
+                             "Content-Length: 0\r\n"
+                             "\r\n",
+                             HTTP_FOUND, "Found",
+                             (application_url() + "YouTube").c_str()),
+          kNetworkTrafficAnnotation);
 
     } else if (!DispatchToHandler(conn_id, info)) {
       // If handled, let it pass. Otherwise, send 404.
-      http_server_->Send404(conn_id);
+      http_server_->Send404(conn_id, kNetworkTrafficAnnotation);
     }
   } else {
     // For all other cases, send 404.
-    http_server_->Send404(conn_id);
+    http_server_->Send404(conn_id, kNetworkTrafficAnnotation);
   }
 }
 
@@ -131,14 +166,14 @@ void DialHttpServer::ConfigureApplicationUrl() {
     LOG(ERROR) << "Could not get the local URL!";
     return;
   }
-  std::string addr = end_point.ToString();
+  std::string addr = end_point.ToStringWithoutPort();
   DCHECK(!addr.empty());
 
   server_url_ = base::StringPrintf("http://%s/", addr.c_str());
 }
 
 void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
+  DCHECK_EQ(task_runner_, base::MessageLoop::current()->task_runner());
   DialSystemConfig* system_config = DialSystemConfig::GetInstance();
 #if defined(COBALT_BUILD_TYPE_GOLD)
   const char* friendly_name = system_config->friendly_name();
@@ -154,25 +189,33 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   const char* friendly_name = friendly_name_str.c_str();
 #endif
 
-  std::string data = base::StringPrintf(
+  std::string request_body = base::StringPrintf(
       kDdXmlFormat, friendly_name, system_config->manufacturer_name(),
       system_config->model_name(), system_config->model_uuid());
 
-  std::vector<std::string> headers;
-  headers.push_back(
-      base::StringPrintf("Application-URL: %s", application_url().c_str()));
-  http_server_->Send(conn_id, HTTP_OK, data, kXmlMimeType, headers);
+  HttpServerResponseInfo response_info(HTTP_OK);
+  std::string response_body = base::StringPrintf(
+      "Application-URL: %s\r\n"
+      "Content-Length: %d\r\n"
+      "\r\n"
+      "%s\r\n",
+      application_url().c_str(), static_cast<int>(request_body.length()),
+      request_body.c_str());
+  response_info.SetBody(response_body, kXmlMimeType);
+  response_info.AddHeader("Application-URL", application_url().c_str());
+
+  http_server_->SendResponse(conn_id, response_info, kNetworkTrafficAnnotation);
 }
 
 bool DialHttpServer::DispatchToHandler(int conn_id,
                                        const HttpServerRequestInfo& info) {
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
+  DCHECK_EQ(task_runner_, base::MessageLoop::current()->task_runner());
   // See if DialService has a handler for this request.
   TRACE_EVENT0("net::dial", __FUNCTION__);
   std::string handler_path;
   scoped_refptr<DialServiceHandler> handler =
       dial_service_->GetHandler(info.path, &handler_path);
-  if (handler == NULL) {
+  if (handler.get() == NULL) {
     return false;
   }
 
@@ -184,25 +227,21 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
 
 void DialHttpServer::OnReceivedResponse(
     int conn_id,
-    scoped_ptr<HttpServerResponseInfo> response) {
-  if (message_loop_proxy_ != base::MessageLoopProxy::current()) {
-    message_loop_proxy_->PostTask(
-        FROM_HERE,
-        base::Bind(&DialHttpServer::OnReceivedResponse, this,
-                   conn_id, base::Passed(&response)));
+    std::unique_ptr<HttpServerResponseInfo> response) {
+  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+    task_runner_->PostTask(FROM_HERE,
+                           base::Bind(&DialHttpServer::OnReceivedResponse, this,
+                                      conn_id, base::Passed(&response)));
     return;
   }
 
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
+  DCHECK_EQ(task_runner_, base::MessageLoop::current()->task_runner());
   TRACE_EVENT0("net::dial", __FUNCTION__);
   if (response) {
-    http_server_->Send(conn_id,
-                       static_cast<HttpStatusCode>(response->response_code),
-                       response->body,
-                       response->mime_type,
-                       response->headers);
+    http_server_->SendResponse(conn_id, *(response.get()),
+                               kNetworkTrafficAnnotation);
   } else {
-    http_server_->Send404(conn_id);
+    http_server_->Send404(conn_id, kNetworkTrafficAnnotation);
   }
 }
 

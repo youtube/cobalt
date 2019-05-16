@@ -7,21 +7,35 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
-#include "base/compiler_specific.h"
-#include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/macros.h"
+#include "base/run_loop.h"
 #include "base/threading/platform_thread.h"
+#include "build/build_config.h"
+#include "net/base/completion_once_callback.h"
+#include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
-#include "net/base/mock_host_resolver.h"
+#include "net/base/load_timing_info.h"
+#include "net/base/load_timing_info_test_util.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
 #include "net/base/test_completion_callback.h"
-#include "net/socket/client_socket_factory.h"
+#include "net/dns/mock_host_resolver.h"
+#include "net/log/net_log_with_source.h"
+#include "net/log/test_net_log.h"
 #include "net/socket/client_socket_handle.h"
-#include "net/socket/client_socket_pool_histograms.h"
+#include "net/socket/socket_tag.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/stream_socket.h"
+#include "net/socket/transport_client_socket_pool_test_util.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
+#include "net/test/gtest_util.h"
+#include "net/test/test_with_scoped_task_environment.h"
+#include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/string.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using net::test::IsError;
+using net::test::IsOk;
 
 namespace net {
 
@@ -31,397 +45,45 @@ namespace {
 
 const int kMaxSockets = 32;
 const int kMaxSocketsPerGroup = 6;
-const net::RequestPriority kDefaultPriority = LOW;
+const RequestPriority kDefaultPriority = LOW;
 
-void SetIPv4Address(IPEndPoint* address) {
-  IPAddressNumber number;
-  CHECK(ParseIPLiteralToNumber("1.1.1.1", &number));
-  *address = IPEndPoint(number, 80);
-}
-
-void SetIPv6Address(IPEndPoint* address) {
-  IPAddressNumber number;
-  CHECK(ParseIPLiteralToNumber("1:abcd::3:4:ff", &number));
-  *address = IPEndPoint(number, 80);
-}
-
-class MockClientSocket : public StreamSocket {
- public:
-  MockClientSocket(const AddressList& addrlist)
-      : connected_(false),
-        addrlist_(addrlist) {}
-
-  // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) {
-    connected_ = true;
-    return OK;
-  }
-  virtual void Disconnect() {
-    connected_ = false;
-  }
-  virtual bool IsConnected() const {
-    return connected_;
-  }
-  virtual bool IsConnectedAndIdle() const {
-    return connected_;
-  }
-  virtual int GetPeerAddress(IPEndPoint* address) const {
-    return ERR_UNEXPECTED;
-  }
-  virtual int GetLocalAddress(IPEndPoint* address) const {
-    if (!connected_)
-      return ERR_SOCKET_NOT_CONNECTED;
-    if (addrlist_.front().GetFamily() == ADDRESS_FAMILY_IPV4)
-      SetIPv4Address(address);
-    else
-      SetIPv6Address(address);
-    return OK;
-  }
-  virtual const BoundNetLog& NetLog() const {
-    return net_log_;
-  }
-
-  virtual void SetSubresourceSpeculation() {}
-  virtual void SetOmniboxSpeculation() {}
-  virtual bool WasEverUsed() const { return false; }
-  virtual bool UsingTCPFastOpen() const { return false; }
-  virtual int64 NumBytesRead() const { return -1; }
-  virtual base::TimeDelta GetConnectTimeMicros() const {
-    return base::TimeDelta::FromMicroseconds(-1);
-  }
-  virtual bool WasNpnNegotiated() const {
-    return false;
-  }
-  virtual NextProto GetNegotiatedProtocol() const {
-    return kProtoUnknown;
-  }
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
-    return false;
-  }
-
-  // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
-  virtual bool SetReceiveBufferSize(int32 size) { return true; }
-  virtual bool SetSendBufferSize(int32 size) { return true; }
-
- private:
-  bool connected_;
-  const AddressList addrlist_;
-  BoundNetLog net_log_;
-};
-
-class MockFailingClientSocket : public StreamSocket {
- public:
-  MockFailingClientSocket(const AddressList& addrlist) : addrlist_(addrlist) {}
-
-  // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) {
-    return ERR_CONNECTION_FAILED;
-  }
-
-  virtual void Disconnect() {}
-
-  virtual bool IsConnected() const {
-    return false;
-  }
-  virtual bool IsConnectedAndIdle() const {
-    return false;
-  }
-  virtual int GetPeerAddress(IPEndPoint* address) const {
-    return ERR_UNEXPECTED;
-  }
-  virtual int GetLocalAddress(IPEndPoint* address) const {
-    return ERR_UNEXPECTED;
-  }
-  virtual const BoundNetLog& NetLog() const {
-    return net_log_;
-  }
-
-  virtual void SetSubresourceSpeculation() {}
-  virtual void SetOmniboxSpeculation() {}
-  virtual bool WasEverUsed() const { return false; }
-  virtual bool UsingTCPFastOpen() const { return false; }
-  virtual int64 NumBytesRead() const { return -1; }
-  virtual base::TimeDelta GetConnectTimeMicros() const {
-    return base::TimeDelta::FromMicroseconds(-1);
-  }
-  virtual bool WasNpnNegotiated() const {
-    return false;
-  }
-  virtual NextProto GetNegotiatedProtocol() const {
-    return kProtoUnknown;
-  }
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
-    return false;
-  }
-
-  // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
-
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
-  virtual bool SetReceiveBufferSize(int32 size) { return true; }
-  virtual bool SetSendBufferSize(int32 size) { return true; }
-
- private:
-  const AddressList addrlist_;
-  BoundNetLog net_log_;
-};
-
-class MockPendingClientSocket : public StreamSocket {
- public:
-  // |should_connect| indicates whether the socket should successfully complete
-  // or fail.
-  // |should_stall| indicates that this socket should never connect.
-  // |delay_ms| is the delay, in milliseconds, before simulating a connect.
-  MockPendingClientSocket(
-      const AddressList& addrlist,
-      bool should_connect,
-      bool should_stall,
-      base::TimeDelta delay)
-      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-        should_connect_(should_connect),
-        should_stall_(should_stall),
-        delay_(delay),
-        is_connected_(false),
-        addrlist_(addrlist) {}
-
-  // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) {
-    MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&MockPendingClientSocket::DoCallback,
-                   weak_factory_.GetWeakPtr(), callback),
-        delay_);
-    return ERR_IO_PENDING;
-  }
-
-  virtual void Disconnect() {}
-
-  virtual bool IsConnected() const {
-    return is_connected_;
-  }
-  virtual bool IsConnectedAndIdle() const {
-    return is_connected_;
-  }
-  virtual int GetPeerAddress(IPEndPoint* address) const {
-    return ERR_UNEXPECTED;
-  }
-  virtual int GetLocalAddress(IPEndPoint* address) const {
-    if (!is_connected_)
-      return ERR_SOCKET_NOT_CONNECTED;
-    if (addrlist_.front().GetFamily() == ADDRESS_FAMILY_IPV4)
-      SetIPv4Address(address);
-    else
-      SetIPv6Address(address);
-    return OK;
-  }
-  virtual const BoundNetLog& NetLog() const {
-    return net_log_;
-  }
-
-  virtual void SetSubresourceSpeculation() {}
-  virtual void SetOmniboxSpeculation() {}
-  virtual bool WasEverUsed() const { return false; }
-  virtual bool UsingTCPFastOpen() const { return false; }
-  virtual int64 NumBytesRead() const { return -1; }
-  virtual base::TimeDelta GetConnectTimeMicros() const {
-    return base::TimeDelta::FromMicroseconds(-1);
-  }
-  virtual bool WasNpnNegotiated() const {
-    return false;
-  }
-  virtual NextProto GetNegotiatedProtocol() const {
-    return kProtoUnknown;
-  }
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
-    return false;
-  }
-
-  // Socket implementation.
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
-
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
-  virtual bool SetReceiveBufferSize(int32 size) { return true; }
-  virtual bool SetSendBufferSize(int32 size) { return true; }
-
- private:
-  void DoCallback(const CompletionCallback& callback) {
-    if (should_stall_)
-      return;
-
-    if (should_connect_) {
-      is_connected_ = true;
-      callback.Run(OK);
-    } else {
-      is_connected_ = false;
-      callback.Run(ERR_CONNECTION_FAILED);
-    }
-  }
-
-  base::WeakPtrFactory<MockPendingClientSocket> weak_factory_;
-  bool should_connect_;
-  bool should_stall_;
-  base::TimeDelta delay_;
-  bool is_connected_;
-  const AddressList addrlist_;
-  BoundNetLog net_log_;
-};
-
-class MockClientSocketFactory : public ClientSocketFactory {
- public:
-  enum ClientSocketType {
-    MOCK_CLIENT_SOCKET,
-    MOCK_FAILING_CLIENT_SOCKET,
-    MOCK_PENDING_CLIENT_SOCKET,
-    MOCK_PENDING_FAILING_CLIENT_SOCKET,
-    // A delayed socket will pause before connecting through the message loop.
-    MOCK_DELAYED_CLIENT_SOCKET,
-    // A stalled socket that never connects at all.
-    MOCK_STALLED_CLIENT_SOCKET,
-  };
-
-  MockClientSocketFactory()
-      : allocation_count_(0), client_socket_type_(MOCK_CLIENT_SOCKET),
-        client_socket_types_(NULL), client_socket_index_(0),
-        client_socket_index_max_(0),
-        delay_(base::TimeDelta::FromMilliseconds(
-            ClientSocketPool::kMaxConnectRetryIntervalMs)) {}
-
-  virtual DatagramClientSocket* CreateDatagramClientSocket(
-      DatagramSocket::BindType bind_type,
-      const RandIntCallback& rand_int_cb,
-      NetLog* net_log,
-      const NetLog::Source& source) {
-    NOTREACHED();
-    return NULL;
-  }
-
-  virtual StreamSocket* CreateTransportClientSocket(
-      const AddressList& addresses,
-      NetLog* /* net_log */,
-      const NetLog::Source& /* source */) {
-    allocation_count_++;
-
-    ClientSocketType type = client_socket_type_;
-    if (client_socket_types_ &&
-        client_socket_index_ < client_socket_index_max_) {
-      type = client_socket_types_[client_socket_index_++];
-    }
-
-    switch (type) {
-      case MOCK_CLIENT_SOCKET:
-        return new MockClientSocket(addresses);
-      case MOCK_FAILING_CLIENT_SOCKET:
-        return new MockFailingClientSocket(addresses);
-      case MOCK_PENDING_CLIENT_SOCKET:
-        return new MockPendingClientSocket(
-            addresses, true, false, base::TimeDelta());
-      case MOCK_PENDING_FAILING_CLIENT_SOCKET:
-        return new MockPendingClientSocket(
-            addresses, false, false, base::TimeDelta());
-      case MOCK_DELAYED_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, false, delay_);
-      case MOCK_STALLED_CLIENT_SOCKET:
-        return new MockPendingClientSocket(
-            addresses, true, true, base::TimeDelta());
-      default:
-        NOTREACHED();
-        return new MockClientSocket(addresses);
-    }
-  }
-
-  virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocketHandle* transport_socket,
-      const HostPortPair& host_and_port,
-      const SSLConfig& ssl_config,
-      const SSLClientSocketContext& context) {
-    NOTIMPLEMENTED();
-    return NULL;
-  }
-
-  virtual void ClearSSLSessionCache() {
-    NOTIMPLEMENTED();
-  }
-
-  int allocation_count() const { return allocation_count_; }
-
-  // Set the default ClientSocketType.
-  void set_client_socket_type(ClientSocketType type) {
-    client_socket_type_ = type;
-  }
-
-  // Set a list of ClientSocketTypes to be used.
-  void set_client_socket_types(ClientSocketType* type_list, int num_types) {
-    DCHECK_GT(num_types, 0);
-    client_socket_types_ = type_list;
-    client_socket_index_ = 0;
-    client_socket_index_max_ = num_types;
-  }
-
-  void set_delay(base::TimeDelta delay) { delay_ = delay; }
-
- private:
-  int allocation_count_;
-  ClientSocketType client_socket_type_;
-  ClientSocketType* client_socket_types_;
-  int client_socket_index_;
-  int client_socket_index_max_;
-  base::TimeDelta delay_;
-};
-
-class TransportClientSocketPoolTest : public testing::Test {
+class TransportClientSocketPoolTest : public TestWithScopedTaskEnvironment {
  protected:
   TransportClientSocketPoolTest()
       : connect_backup_jobs_enabled_(
             ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
-        params_(
-            new TransportSocketParams(HostPortPair("www.google.com", 80),
-                                      kDefaultPriority, false, false,
-                                      OnHostResolutionCallback())),
-        low_params_(
-            new TransportSocketParams(HostPortPair("www.google.com", 80),
-                                      LOW, false, false,
-                                      OnHostResolutionCallback())),
-        histograms_(new ClientSocketPoolHistograms("TCPUnitTest")),
+        params_(new TransportSocketParams(
+            HostPortPair("www.google.com", 80),
+            false,
+            OnHostResolutionCallback(),
+            TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DEFAULT)),
         host_resolver_(new MockHostResolver),
+        client_socket_factory_(&net_log_),
         pool_(kMaxSockets,
               kMaxSocketsPerGroup,
-              histograms_.get(),
               host_resolver_.get(),
               &client_socket_factory_,
-              NULL) {
-  }
+              NULL,
+              NULL) {}
 
-  ~TransportClientSocketPoolTest() {
+  ~TransportClientSocketPoolTest() override {
     internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
         connect_backup_jobs_enabled_);
   }
 
+  scoped_refptr<TransportSocketParams> CreateParamsForTCPFastOpen() {
+    return new TransportSocketParams(
+        HostPortPair("www.google.com", 80), false, OnHostResolutionCallback(),
+        TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DESIRED);
+  }
+
   int StartRequest(const std::string& group_name, RequestPriority priority) {
     scoped_refptr<TransportSocketParams> params(new TransportSocketParams(
-        HostPortPair("www.google.com", 80), MEDIUM, false, false,
-        OnHostResolutionCallback()));
+        HostPortPair("www.google.com", 80), false, OnHostResolutionCallback(),
+        TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DEFAULT));
     return test_base_.StartRequestUsingPool(
-        &pool_, group_name, priority, params);
+        &pool_, group_name, priority, ClientSocketPool::RespectLimits::ENABLED,
+        params);
   }
 
   int GetOrderOfRequest(size_t index) {
@@ -436,29 +98,31 @@ class TransportClientSocketPoolTest : public testing::Test {
     test_base_.ReleaseAllConnections(keep_alive);
   }
 
-  ScopedVector<TestSocketRequest>* requests() { return test_base_.requests(); }
+  std::vector<std::unique_ptr<TestSocketRequest>>* requests() {
+    return test_base_.requests();
+  }
   size_t completion_count() const { return test_base_.completion_count(); }
 
   bool connect_backup_jobs_enabled_;
+  TestNetLog net_log_;
   scoped_refptr<TransportSocketParams> params_;
-  scoped_refptr<TransportSocketParams> low_params_;
-  scoped_ptr<ClientSocketPoolHistograms> histograms_;
-  scoped_ptr<MockHostResolver> host_resolver_;
-  MockClientSocketFactory client_socket_factory_;
+  std::unique_ptr<MockHostResolver> host_resolver_;
+  MockTransportClientSocketFactory client_socket_factory_;
   TransportClientSocketPool pool_;
   ClientSocketPoolTest test_base_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(TransportClientSocketPoolTest);
 };
 
 TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
-  IPAddressNumber ip_number;
-  ASSERT_TRUE(ParseIPLiteralToNumber("192.168.1.1", &ip_number));
-  IPEndPoint addrlist_v4_1(ip_number, 80);
-  ASSERT_TRUE(ParseIPLiteralToNumber("192.168.1.2", &ip_number));
-  IPEndPoint addrlist_v4_2(ip_number, 80);
-  ASSERT_TRUE(ParseIPLiteralToNumber("2001:4860:b006::64", &ip_number));
-  IPEndPoint addrlist_v6_1(ip_number, 80);
-  ASSERT_TRUE(ParseIPLiteralToNumber("2001:4860:b006::66", &ip_number));
-  IPEndPoint addrlist_v6_2(ip_number, 80);
+  IPEndPoint addrlist_v4_1(IPAddress(192, 168, 1, 1), 80);
+  IPEndPoint addrlist_v4_2(IPAddress(192, 168, 1, 2), 80);
+  IPAddress ip_address;
+  ASSERT_TRUE(ip_address.AssignFromIPLiteral("2001:4860:b006::64"));
+  IPEndPoint addrlist_v6_1(ip_address, 80);
+  ASSERT_TRUE(ip_address.AssignFromIPLiteral("2001:4860:b006::66"));
+  IPEndPoint addrlist_v6_2(ip_address, 80);
 
   AddressList addrlist;
 
@@ -523,17 +187,33 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
 TEST_F(TransportClientSocketPoolTest, Basic) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool_,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool_, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
+  TestLoadTimingInfoConnectedNotReused(handle);
+  EXPECT_EQ(0u, handle.connection_attempts().size());
+}
 
-  handle.Reset();
+// Make sure that TransportConnectJob passes on its priority to its
+// HostResolver request on Init.
+TEST_F(TransportClientSocketPoolTest, SetResolvePriorityOnInit) {
+  for (int i = MINIMUM_PRIORITY; i <= MAXIMUM_PRIORITY; ++i) {
+    RequestPriority priority = static_cast<RequestPriority>(i);
+    TestCompletionCallback callback;
+    ClientSocketHandle handle;
+    EXPECT_EQ(ERR_IO_PENDING,
+              handle.Init("a", params_, priority, SocketTag(),
+                          ClientSocketPool::RespectLimits::ENABLED,
+                          callback.callback(), &pool_, NetLogWithSource()));
+    EXPECT_EQ(priority, host_resolver_->last_request_priority());
+  }
 }
 
 TEST_F(TransportClientSocketPoolTest, InitHostResolutionFailure) {
@@ -542,57 +222,74 @@ TEST_F(TransportClientSocketPoolTest, InitHostResolutionFailure) {
   ClientSocketHandle handle;
   HostPortPair host_port_pair("unresolvable.host.name", 80);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-      host_port_pair, kDefaultPriority, false, false,
-      OnHostResolutionCallback()));
+      host_port_pair, false, OnHostResolutionCallback(),
+      TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DEFAULT));
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", dest, kDefaultPriority, callback.callback(),
-                        &pool_, BoundNetLog()));
-  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, callback.WaitForResult());
+            handle.Init("a", dest, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback.callback(), &pool_, NetLogWithSource()));
+  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_NAME_NOT_RESOLVED));
+  ASSERT_EQ(1u, handle.connection_attempts().size());
+  EXPECT_TRUE(handle.connection_attempts()[0].endpoint.address().empty());
+  EXPECT_THAT(handle.connection_attempts()[0].result,
+              IsError(ERR_NAME_NOT_RESOLVED));
 }
 
 TEST_F(TransportClientSocketPoolTest, InitConnectionFailure) {
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET);
   TestCompletionCallback callback;
   ClientSocketHandle handle;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", params_, kDefaultPriority, callback.callback(),
-                        &pool_, BoundNetLog()));
-  EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
+            handle.Init("a", params_, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback.callback(), &pool_, NetLogWithSource()));
+  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_CONNECTION_FAILED));
+  ASSERT_EQ(1u, handle.connection_attempts().size());
+  EXPECT_EQ("127.0.0.1:80",
+            handle.connection_attempts()[0].endpoint.ToString());
+  EXPECT_THAT(handle.connection_attempts()[0].result,
+              IsError(ERR_CONNECTION_FAILED));
 
   // Make the host resolutions complete synchronously this time.
   host_resolver_->set_synchronous_mode(true);
   EXPECT_EQ(ERR_CONNECTION_FAILED,
-            handle.Init("a", params_, kDefaultPriority, callback.callback(),
-                        &pool_, BoundNetLog()));
+            handle.Init("a", params_, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback.callback(), &pool_, NetLogWithSource()));
+  ASSERT_EQ(1u, handle.connection_attempts().size());
+  EXPECT_EQ("127.0.0.1:80",
+            handle.connection_attempts()[0].endpoint.ToString());
+  EXPECT_THAT(handle.connection_attempts()[0].result,
+              IsError(ERR_CONNECTION_FAILED));
 }
 
 TEST_F(TransportClientSocketPoolTest, PendingRequests) {
   // First request finishes asynchronously.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, (*requests())[0]->WaitForResult());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT((*requests())[0]->WaitForResult(), IsOk());
 
   // Make all subsequent host resolutions complete synchronously.
   host_resolver_->set_synchronous_mode(true);
 
   // Rest of them finish synchronously, until we reach the per-group limit.
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
 
   // The rest are pending since we've used all active sockets.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_THAT(StartRequest("a", HIGHEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOWEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOWEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", MEDIUM), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOW), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", HIGHEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOWEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", MEDIUM), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", MEDIUM), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", HIGHEST), IsError(ERR_IO_PENDING));
 
   ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
 
@@ -627,34 +324,34 @@ TEST_F(TransportClientSocketPoolTest, PendingRequests) {
 
 TEST_F(TransportClientSocketPoolTest, PendingRequests_NoKeepAlive) {
   // First request finishes asynchronously.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, (*requests())[0]->WaitForResult());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT((*requests())[0]->WaitForResult(), IsOk());
 
   // Make all subsequent host resolutions complete synchronously.
   host_resolver_->set_synchronous_mode(true);
 
   // Rest of them finish synchronously, until we reach the per-group limit.
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
 
   // The rest are pending since we've used all active sockets.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
 
   ReleaseAllConnections(ClientSocketPoolTest::NO_KEEP_ALIVE);
 
   // The pending requests should finish successfully.
-  EXPECT_EQ(OK, (*requests())[6]->WaitForResult());
-  EXPECT_EQ(OK, (*requests())[7]->WaitForResult());
-  EXPECT_EQ(OK, (*requests())[8]->WaitForResult());
-  EXPECT_EQ(OK, (*requests())[9]->WaitForResult());
-  EXPECT_EQ(OK, (*requests())[10]->WaitForResult());
+  EXPECT_THAT((*requests())[6]->WaitForResult(), IsOk());
+  EXPECT_THAT((*requests())[7]->WaitForResult(), IsOk());
+  EXPECT_THAT((*requests())[8]->WaitForResult(), IsOk());
+  EXPECT_THAT((*requests())[9]->WaitForResult(), IsOk());
+  EXPECT_THAT((*requests())[10]->WaitForResult(), IsOk());
 
   EXPECT_EQ(static_cast<int>(requests()->size()),
             client_socket_factory_.allocation_count());
@@ -670,8 +367,9 @@ TEST_F(TransportClientSocketPoolTest, CancelRequestClearGroup) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", params_, kDefaultPriority, callback.callback(),
-                        &pool_, BoundNetLog()));
+            handle.Init("a", params_, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback.callback(), &pool_, NetLogWithSource()));
   handle.Reset();
 }
 
@@ -682,33 +380,37 @@ TEST_F(TransportClientSocketPoolTest, TwoRequestsCancelOne) {
   TestCompletionCallback callback2;
 
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", params_, kDefaultPriority, callback.callback(),
-                        &pool_, BoundNetLog()));
+            handle.Init("a", params_, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback.callback(), &pool_, NetLogWithSource()));
   EXPECT_EQ(ERR_IO_PENDING,
-            handle2.Init("a", params_, kDefaultPriority, callback2.callback(),
-                         &pool_, BoundNetLog()));
+            handle2.Init("a", params_, kDefaultPriority, SocketTag(),
+                         ClientSocketPool::RespectLimits::ENABLED,
+                         callback2.callback(), &pool_, NetLogWithSource()));
 
   handle.Reset();
 
-  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_THAT(callback2.WaitForResult(), IsOk());
   handle2.Reset();
 }
 
 TEST_F(TransportClientSocketPoolTest, ConnectCancelConnect) {
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET);
   ClientSocketHandle handle;
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", params_, kDefaultPriority, callback.callback(),
-                        &pool_, BoundNetLog()));
+            handle.Init("a", params_, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback.callback(), &pool_, NetLogWithSource()));
 
   handle.Reset();
 
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", params_, kDefaultPriority, callback2.callback(),
-                        &pool_, BoundNetLog()));
+            handle.Init("a", params_, kDefaultPriority, SocketTag(),
+                        ClientSocketPool::RespectLimits::ENABLED,
+                        callback2.callback(), &pool_, NetLogWithSource()));
 
   host_resolver_->set_synchronous_mode(true);
   // At this point, handle has two ConnectingSockets out for it.  Due to the
@@ -720,7 +422,7 @@ TEST_F(TransportClientSocketPoolTest, ConnectCancelConnect) {
   // If the first one is not cancelled, it will advance the load state, and
   // then the second one will crash.
 
-  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_THAT(callback2.WaitForResult(), IsOk());
   EXPECT_FALSE(callback.have_result());
 
   handle.Reset();
@@ -728,29 +430,29 @@ TEST_F(TransportClientSocketPoolTest, ConnectCancelConnect) {
 
 TEST_F(TransportClientSocketPoolTest, CancelRequest) {
   // First request finishes asynchronously.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, (*requests())[0]->WaitForResult());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT((*requests())[0]->WaitForResult(), IsOk());
 
   // Make all subsequent host resolutions complete synchronously.
   host_resolver_->set_synchronous_mode(true);
 
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsOk());
 
   // Reached per-group limit, queue up requests.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_THAT(StartRequest("a", LOWEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", HIGHEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", HIGHEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", MEDIUM), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", MEDIUM), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOW), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", HIGHEST), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOW), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOW), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", LOWEST), IsError(ERR_IO_PENDING));
 
   // Cancel a request.
   size_t index_to_cancel = kMaxSocketsPerGroup + 2;
@@ -789,46 +491,40 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
  public:
   RequestSocketCallback(ClientSocketHandle* handle,
                         TransportClientSocketPool* pool)
-      : handle_(handle),
-        pool_(pool),
-        within_callback_(false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
-            base::Bind(&RequestSocketCallback::OnComplete,
-                       base::Unretained(this)))) {
+      : handle_(handle), pool_(pool), within_callback_(false) {}
+
+  ~RequestSocketCallback() override = default;
+
+  CompletionOnceCallback callback() {
+    return base::BindOnce(&RequestSocketCallback::OnComplete,
+                          base::Unretained(this));
   }
-
-  virtual ~RequestSocketCallback() {}
-
-  const CompletionCallback& callback() const { return callback_; }
 
  private:
   void OnComplete(int result) {
     SetResult(result);
-    ASSERT_EQ(OK, result);
+    ASSERT_THAT(result, IsOk());
 
     if (!within_callback_) {
       // Don't allow reuse of the socket.  Disconnect it and then release it and
       // run through the MessageLoop once to get it completely released.
       handle_->socket()->Disconnect();
       handle_->Reset();
-      {
-        MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
-        MessageLoop::current()->RunUntilIdle();
-      }
+      base::RunLoop(base::RunLoop::Type::kNestableTasksAllowed).RunUntilIdle();
       within_callback_ = true;
       scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-          HostPortPair("www.google.com", 80), LOWEST, false, false,
-          OnHostResolutionCallback()));
-      int rv = handle_->Init("a", dest, LOWEST, callback(), pool_,
-                             BoundNetLog());
-      EXPECT_EQ(OK, rv);
+          HostPortPair("www.google.com", 80), false, OnHostResolutionCallback(),
+          TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DEFAULT));
+      int rv = handle_->Init("a", dest, LOWEST, SocketTag(),
+                             ClientSocketPool::RespectLimits::ENABLED,
+                             callback(), pool_, NetLogWithSource());
+      EXPECT_THAT(rv, IsOk());
     }
   }
 
   ClientSocketHandle* const handle_;
   TransportClientSocketPool* const pool_;
   bool within_callback_;
-  CompletionCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(RequestSocketCallback);
 };
@@ -837,17 +533,18 @@ TEST_F(TransportClientSocketPoolTest, RequestTwice) {
   ClientSocketHandle handle;
   RequestSocketCallback callback(&handle, &pool_);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-      HostPortPair("www.google.com", 80), LOWEST, false, false,
-      OnHostResolutionCallback()));
-  int rv = handle.Init("a", dest, LOWEST, callback.callback(), &pool_,
-                       BoundNetLog());
-  ASSERT_EQ(ERR_IO_PENDING, rv);
+      HostPortPair("www.google.com", 80), false, OnHostResolutionCallback(),
+      TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DEFAULT));
+  int rv = handle.Init("a", dest, LOWEST, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool_, NetLogWithSource());
+  ASSERT_THAT(rv, IsError(ERR_IO_PENDING));
 
   // The callback is going to request "www.google.com". We want it to complete
   // synchronously this time.
   host_resolver_->set_synchronous_mode(true);
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
 
   handle.Reset();
 }
@@ -855,19 +552,19 @@ TEST_F(TransportClientSocketPoolTest, RequestTwice) {
 // Make sure that pending requests get serviced after active requests get
 // cancelled.
 TEST_F(TransportClientSocketPoolTest, CancelActiveRequestWithPendingRequests) {
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET);
 
   // Queue up all the requests
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
+  EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
 
   // Now, kMaxSocketsPerGroup requests should be active.  Let's cancel them.
   ASSERT_LE(kMaxSocketsPerGroup, static_cast<int>(requests()->size()));
@@ -876,7 +573,7 @@ TEST_F(TransportClientSocketPoolTest, CancelActiveRequestWithPendingRequests) {
 
   // Let's wait for the rest to complete now.
   for (size_t i = kMaxSocketsPerGroup; i < requests()->size(); ++i) {
-    EXPECT_EQ(OK, (*requests())[i]->WaitForResult());
+    EXPECT_THAT((*requests())[i]->WaitForResult(), IsOk());
     (*requests())[i]->handle()->Reset();
   }
 
@@ -885,68 +582,100 @@ TEST_F(TransportClientSocketPoolTest, CancelActiveRequestWithPendingRequests) {
 
 // Make sure that pending requests get serviced after active requests fail.
 TEST_F(TransportClientSocketPoolTest, FailingActiveRequestWithPendingRequests) {
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_PENDING_FAILING_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_PENDING_FAILING_CLIENT_SOCKET);
 
   const int kNumRequests = 2 * kMaxSocketsPerGroup + 1;
   ASSERT_LE(kNumRequests, kMaxSockets);  // Otherwise the test will hang.
 
   // Queue up all the requests
   for (int i = 0; i < kNumRequests; i++)
-    EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+    EXPECT_THAT(StartRequest("a", kDefaultPriority), IsError(ERR_IO_PENDING));
 
   for (int i = 0; i < kNumRequests; i++)
-    EXPECT_EQ(ERR_CONNECTION_FAILED, (*requests())[i]->WaitForResult());
+    EXPECT_THAT((*requests())[i]->WaitForResult(),
+                IsError(ERR_CONNECTION_FAILED));
+}
+
+TEST_F(TransportClientSocketPoolTest, IdleSocketLoadTiming) {
+  TestCompletionCallback callback;
+  ClientSocketHandle handle;
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool_, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+  EXPECT_FALSE(handle.is_initialized());
+  EXPECT_FALSE(handle.socket());
+
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
+  EXPECT_TRUE(handle.is_initialized());
+  EXPECT_TRUE(handle.socket());
+  TestLoadTimingInfoConnectedNotReused(handle);
+
+  handle.Reset();
+  // Need to run all pending to release the socket back to the pool.
+  base::RunLoop().RunUntilIdle();
+
+  // Now we should have 1 idle socket.
+  EXPECT_EQ(1, pool_.IdleSocketCount());
+
+  rv = handle.Init("a", params_, LOW, SocketTag(),
+                   ClientSocketPool::RespectLimits::ENABLED,
+                   callback.callback(), &pool_, NetLogWithSource());
+  EXPECT_THAT(rv, IsOk());
+  EXPECT_EQ(0, pool_.IdleSocketCount());
+  TestLoadTimingInfoConnectedReused(handle);
 }
 
 TEST_F(TransportClientSocketPoolTest, ResetIdleSocketsOnIPAddressChange) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool_,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool_, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
 
   handle.Reset();
 
   // Need to run all pending to release the socket back to the pool.
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   // Now we should have 1 idle socket.
   EXPECT_EQ(1, pool_.IdleSocketCount());
 
   // After an IP address change, we should have 0 idle sockets.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
+  base::RunLoop().RunUntilIdle();  // Notification happens async.
 
   EXPECT_EQ(0, pool_.IdleSocketCount());
 }
 
 TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
   // Case 1 tests the first socket stalling, and the backup connecting.
-  MockClientSocketFactory::ClientSocketType case1_types[] = {
+  MockTransportClientSocketFactory::ClientSocketType case1_types[] = {
     // The first socket will not connect.
-    MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
+    MockTransportClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
     // The second socket will connect more quickly.
-    MockClientSocketFactory::MOCK_CLIENT_SOCKET
+    MockTransportClientSocketFactory::MOCK_CLIENT_SOCKET
   };
 
   // Case 2 tests the first socket being slow, so that we start the
   // second connect, but the second connect stalls, and we still
   // complete the first.
-  MockClientSocketFactory::ClientSocketType case2_types[] = {
+  MockTransportClientSocketFactory::ClientSocketType case2_types[] = {
     // The first socket will connect, although delayed.
-    MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
+    MockTransportClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
     // The second socket will not connect.
-    MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET
+    MockTransportClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET
   };
 
-  MockClientSocketFactory::ClientSocketType* cases[2] = {
+  MockTransportClientSocketFactory::ClientSocketType* cases[2] = {
     case1_types,
     case2_types
   };
@@ -958,23 +687,24 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
 
     TestCompletionCallback callback;
     ClientSocketHandle handle;
-    int rv = handle.Init("b", low_params_, LOW, callback.callback(), &pool_,
-                         BoundNetLog());
-    EXPECT_EQ(ERR_IO_PENDING, rv);
+    int rv = handle.Init("b", params_, LOW, SocketTag(),
+                         ClientSocketPool::RespectLimits::ENABLED,
+                         callback.callback(), &pool_, NetLogWithSource());
+    EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
     EXPECT_FALSE(handle.is_initialized());
     EXPECT_FALSE(handle.socket());
 
     // Create the first socket, set the timer.
-    MessageLoop::current()->RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
 
     // Wait for the backup socket timer to fire.
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
         ClientSocketPool::kMaxConnectRetryIntervalMs + 50));
 
     // Let the appropriate socket connect.
-    MessageLoop::current()->RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
 
-    EXPECT_EQ(OK, callback.WaitForResult());
+    EXPECT_THAT(callback.WaitForResult(), IsOk());
     EXPECT_TRUE(handle.is_initialized());
     EXPECT_TRUE(handle.socket());
 
@@ -990,8 +720,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket, but then we cancelled the request after that.
 TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET);
 
   enum { CANCEL_BEFORE_WAIT, CANCEL_AFTER_WAIT };
 
@@ -1000,14 +730,15 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 
     TestCompletionCallback callback;
     ClientSocketHandle handle;
-    int rv = handle.Init("c", low_params_, LOW, callback.callback(), &pool_,
-                         BoundNetLog());
-    EXPECT_EQ(ERR_IO_PENDING, rv);
+    int rv = handle.Init("c", params_, LOW, SocketTag(),
+                         ClientSocketPool::RespectLimits::ENABLED,
+                         callback.callback(), &pool_, NetLogWithSource());
+    EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
     EXPECT_FALSE(handle.is_initialized());
     EXPECT_FALSE(handle.socket());
 
     // Create the first socket, set the timer.
-    MessageLoop::current()->RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
 
     if (index == CANCEL_AFTER_WAIT) {
       // Wait for the backup socket timer to fire.
@@ -1016,7 +747,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
     }
 
     // Let the appropriate socket connect.
-    MessageLoop::current()->RunUntilIdle();
+    base::RunLoop().RunUntilIdle();
 
     handle.Reset();
 
@@ -1033,11 +764,11 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // of the backup socket and never completes, and then the backup
 // connection fails.
 TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
-  MockClientSocketFactory::ClientSocketType case_types[] = {
+  MockTransportClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will not connect.
-    MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
+    MockTransportClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
     // The second socket will fail immediately.
-    MockClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET
+    MockTransportClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
@@ -1046,14 +777,15 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("b", low_params_, LOW, callback.callback(), &pool_,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("b", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool_, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
   // Create the first socket, set the timer.
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   // Wait for the backup socket timer to fire.
   base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
@@ -1064,27 +796,27 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
   host_resolver_->set_synchronous_mode(true);
 
   // Let the appropriate socket connect.
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_CONNECTION_FAILED));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
+  ASSERT_EQ(1u, handle.connection_attempts().size());
+  EXPECT_THAT(handle.connection_attempts()[0].result,
+              IsError(ERR_CONNECTION_FAILED));
   EXPECT_EQ(0, pool_.IdleSocketCount());
   handle.Reset();
-
-  // Reset for the next case.
-  host_resolver_->set_synchronous_mode(false);
 }
 
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and eventually completes, but the backup socket
 // fails.
 TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
-  MockClientSocketFactory::ClientSocketType case_types[] = {
+  MockTransportClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will connect, although delayed.
-    MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
+    MockTransportClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
     // The second socket will not connect.
-    MockClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET
+    MockTransportClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
@@ -1094,14 +826,15 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("b", low_params_, LOW, callback.callback(), &pool_,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("b", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool_, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
   // Create the first socket, set the timer.
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
   // Wait for the backup socket timer to fire.
   base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
@@ -1112,181 +845,430 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   host_resolver_->set_synchronous_mode(true);
 
   // Let the appropriate socket connect.
-  MessageLoop::current()->RunUntilIdle();
+  base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_CONNECTION_FAILED));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
+  ASSERT_EQ(1u, handle.connection_attempts().size());
+  EXPECT_THAT(handle.connection_attempts()[0].result,
+              IsError(ERR_CONNECTION_FAILED));
   handle.Reset();
-
-  // Reset for the next case.
-  host_resolver_->set_synchronous_mode(false);
 }
 
-// Disable this test since the TransportConnectJob::DoResolveHostComplete
-// customization causes the IPv4 address to be tried first, thus breaking
-// the assumptions of this test.
-#ifndef STARBOARD
 // Test the case of the IPv6 address stalling, and falling back to the IPv4
 // socket which finishes first.
 TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv4FinishesFirst) {
   // Create a pool without backup jobs.
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-  TransportClientSocketPool pool(kMaxSockets,
-                                 kMaxSocketsPerGroup,
-                                 histograms_.get(),
-                                 host_resolver_.get(),
-                                 &client_socket_factory_,
-                                 NULL);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &client_socket_factory_,
+                                 NULL, NULL);
 
-  MockClientSocketFactory::ClientSocketType case_types[] = {
-    // This is the IPv6 socket.
-    MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
-    // This is the IPv4 socket.
-    MockClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET
-  };
+  MockTransportClientSocketFactory::ClientSocketType case_types[] = {
+      // This is the IPv6 socket. It stalls, but presents one failed connection
+      // attempt on GetConnectionAttempts.
+      MockTransportClientSocketFactory::MOCK_STALLED_FAILING_CLIENT_SOCKET,
+      // This is the IPv4 socket.
+      MockTransportClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET};
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
 
   // Resolve an AddressList with a IPv6 address first and then a IPv4 address.
-  host_resolver_->rules()->AddIPLiteralRule(
-      "*", "2:abcd::3:4:ff,2.2.2.2", "");
+  host_resolver_->rules()
+      ->AddIPLiteralRule("*", "2:abcd::3:4:ff,2.2.2.2", std::string());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   IPEndPoint endpoint;
   handle.socket()->GetLocalAddress(&endpoint);
-  EXPECT_EQ(kIPv4AddressSize, endpoint.address().size());
+  EXPECT_TRUE(endpoint.address().IsIPv4());
+
+  // Check that the failed connection attempt on the main socket is collected.
+  ConnectionAttempts attempts;
+  handle.socket()->GetConnectionAttempts(&attempts);
+  ASSERT_EQ(1u, attempts.size());
+  EXPECT_THAT(attempts[0].result, IsError(ERR_CONNECTION_FAILED));
+  EXPECT_TRUE(attempts[0].endpoint.address().IsIPv6());
+
   EXPECT_EQ(2, client_socket_factory_.allocation_count());
 }
-#endif  // STARBOARD
 
-// Disable this test since the TransportConnectJob::DoResolveHostComplete
-// customization causes the IPv4 address to be tried first, thus breaking
-// the assumptions of this test.
-#ifndef STARBOARD
 // Test the case of the IPv6 address being slow, thus falling back to trying to
 // connect to the IPv4 address, but having the connect to the IPv6 address
 // finish first.
 TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv6FinishesFirst) {
   // Create a pool without backup jobs.
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-  TransportClientSocketPool pool(kMaxSockets,
-                                 kMaxSocketsPerGroup,
-                                 histograms_.get(),
-                                 host_resolver_.get(),
-                                 &client_socket_factory_,
-                                 NULL);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &client_socket_factory_,
+                                 NULL, NULL);
 
-  MockClientSocketFactory::ClientSocketType case_types[] = {
-    // This is the IPv6 socket.
-    MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
-    // This is the IPv4 socket.
-    MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET
-  };
+  MockTransportClientSocketFactory::ClientSocketType case_types[] = {
+      // This is the IPv6 socket.
+      MockTransportClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
+      // This is the IPv4 socket. It stalls, but presents one failed connection
+      // attempt on GetConnectionATtempts.
+      MockTransportClientSocketFactory::MOCK_STALLED_FAILING_CLIENT_SOCKET};
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
   client_socket_factory_.set_delay(base::TimeDelta::FromMilliseconds(
       TransportConnectJob::kIPv6FallbackTimerInMs + 50));
 
   // Resolve an AddressList with a IPv6 address first and then a IPv4 address.
-  host_resolver_->rules()->AddIPLiteralRule(
-      "*", "2:abcd::3:4:ff,2.2.2.2", "");
+  host_resolver_->rules()
+      ->AddIPLiteralRule("*", "2:abcd::3:4:ff,2.2.2.2", std::string());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   IPEndPoint endpoint;
   handle.socket()->GetLocalAddress(&endpoint);
-  EXPECT_EQ(kIPv6AddressSize, endpoint.address().size());
+  EXPECT_TRUE(endpoint.address().IsIPv6());
+
+  // Check that the failed connection attempt on the fallback socket is
+  // collected.
+  ConnectionAttempts attempts;
+  handle.socket()->GetConnectionAttempts(&attempts);
+  ASSERT_EQ(1u, attempts.size());
+  EXPECT_THAT(attempts[0].result, IsError(ERR_CONNECTION_FAILED));
+  EXPECT_TRUE(attempts[0].endpoint.address().IsIPv4());
+
   EXPECT_EQ(2, client_socket_factory_.allocation_count());
 }
-#endif  // STARBOARD
 
 TEST_F(TransportClientSocketPoolTest, IPv6NoIPv4AddressesToFallbackTo) {
   // Create a pool without backup jobs.
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-  TransportClientSocketPool pool(kMaxSockets,
-                                 kMaxSocketsPerGroup,
-                                 histograms_.get(),
-                                 host_resolver_.get(),
-                                 &client_socket_factory_,
-                                 NULL);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &client_socket_factory_,
+                                 NULL, NULL);
 
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET);
 
   // Resolve an AddressList with only IPv6 addresses.
-  host_resolver_->rules()->AddIPLiteralRule(
-      "*", "2:abcd::3:4:ff,3:abcd::3:4:ff", "");
+  host_resolver_->rules()
+      ->AddIPLiteralRule("*", "2:abcd::3:4:ff,3:abcd::3:4:ff", std::string());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   IPEndPoint endpoint;
   handle.socket()->GetLocalAddress(&endpoint);
-  EXPECT_EQ(kIPv6AddressSize, endpoint.address().size());
+  EXPECT_TRUE(endpoint.address().IsIPv6());
+  EXPECT_EQ(0u, handle.connection_attempts().size());
   EXPECT_EQ(1, client_socket_factory_.allocation_count());
 }
 
 TEST_F(TransportClientSocketPoolTest, IPv4HasNoFallback) {
   // Create a pool without backup jobs.
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-  TransportClientSocketPool pool(kMaxSockets,
-                                 kMaxSocketsPerGroup,
-                                 histograms_.get(),
-                                 host_resolver_.get(),
-                                 &client_socket_factory_,
-                                 NULL);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &client_socket_factory_,
+                                 NULL, NULL);
 
-  client_socket_factory_.set_client_socket_type(
-      MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET);
 
   // Resolve an AddressList with only IPv4 addresses.
-  host_resolver_->rules()->AddIPLiteralRule(
-      "*", "1.1.1.1", "");
+  host_resolver_->rules()->AddIPLiteralRule("*", "1.1.1.1", std::string());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
-                       BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  int rv = handle.Init("a", params_, LOW, SocketTag(),
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   IPEndPoint endpoint;
   handle.socket()->GetLocalAddress(&endpoint);
-  EXPECT_EQ(kIPv4AddressSize, endpoint.address().size());
+  EXPECT_TRUE(endpoint.address().IsIPv4());
+  EXPECT_EQ(0u, handle.connection_attempts().size());
   EXPECT_EQ(1, client_socket_factory_.allocation_count());
 }
+
+// Test that if TCP FastOpen is enabled, it is set on the socket
+// when we have only an IPv4 address.
+TEST_F(TransportClientSocketPoolTest, TCPFastOpenOnIPv4WithNoFallback) {
+  SequencedSocketData socket_data;
+  MockClientSocketFactory factory;
+  factory.AddSocketDataProvider(&socket_data);
+  // Create a pool without backup jobs.
+  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &factory, NULL, NULL);
+  // Resolve an AddressList with only IPv4 addresses.
+  host_resolver_->rules()->AddIPLiteralRule("*", "1.1.1.1", std::string());
+
+  TestCompletionCallback callback;
+  ClientSocketHandle handle;
+  // Enable TCP FastOpen in TransportSocketParams.
+  scoped_refptr<TransportSocketParams> params = CreateParamsForTCPFastOpen();
+  handle.Init("a", params, LOW, SocketTag(),
+              ClientSocketPool::RespectLimits::ENABLED, callback.callback(),
+              &pool, NetLogWithSource());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
+  EXPECT_TRUE(socket_data.IsUsingTCPFastOpen());
+}
+
+// Test that if TCP FastOpen is enabled, it is set on the socket
+// when we have only IPv6 addresses.
+TEST_F(TransportClientSocketPoolTest, TCPFastOpenOnIPv6WithNoFallback) {
+  SequencedSocketData socket_data;
+  MockClientSocketFactory factory;
+  factory.AddSocketDataProvider(&socket_data);
+  // Create a pool without backup jobs.
+  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &factory, NULL, NULL);
+  client_socket_factory_.set_default_client_socket_type(
+      MockTransportClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET);
+  // Resolve an AddressList with only IPv6 addresses.
+  host_resolver_->rules()
+      ->AddIPLiteralRule("*", "2:abcd::3:4:ff,3:abcd::3:4:ff", std::string());
+
+  TestCompletionCallback callback;
+  ClientSocketHandle handle;
+  // Enable TCP FastOpen in TransportSocketParams.
+  scoped_refptr<TransportSocketParams> params = CreateParamsForTCPFastOpen();
+  handle.Init("a", params, LOW, SocketTag(),
+              ClientSocketPool::RespectLimits::ENABLED, callback.callback(),
+              &pool, NetLogWithSource());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
+  EXPECT_TRUE(socket_data.IsUsingTCPFastOpen());
+}
+
+// Test that if TCP FastOpen is enabled, it does not do anything when there
+// is a IPv6 address with fallback to an IPv4 address. This test tests the case
+// when the IPv6 connect fails and the IPv4 one succeeds.
+TEST_F(TransportClientSocketPoolTest,
+       NoTCPFastOpenOnIPv6FailureWithIPv4Fallback) {
+  SequencedSocketData socket_data_1;
+  socket_data_1.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
+  SequencedSocketData socket_data_2;
+
+  MockClientSocketFactory factory;
+  factory.AddSocketDataProvider(&socket_data_1);
+  factory.AddSocketDataProvider(&socket_data_2);
+  // Create a pool without backup jobs.
+  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &factory, NULL, NULL);
+
+  // Resolve an AddressList with a IPv6 address first and then a IPv4 address.
+  host_resolver_->rules()
+      ->AddIPLiteralRule("*", "2:abcd::3:4:ff,2.2.2.2", std::string());
+
+  TestCompletionCallback callback;
+  ClientSocketHandle handle;
+  // Enable TCP FastOpen in TransportSocketParams.
+  scoped_refptr<TransportSocketParams> params = CreateParamsForTCPFastOpen();
+  handle.Init("a", params, LOW, SocketTag(),
+              ClientSocketPool::RespectLimits::ENABLED, callback.callback(),
+              &pool, NetLogWithSource());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
+  // Verify that the socket used is connected to the fallback IPv4 address.
+  IPEndPoint endpoint;
+  handle.socket()->GetPeerAddress(&endpoint);
+  EXPECT_TRUE(endpoint.address().IsIPv4());
+  // Verify that TCP FastOpen was not turned on for the socket.
+  EXPECT_FALSE(socket_data_1.IsUsingTCPFastOpen());
+}
+
+// Test that if TCP FastOpen is enabled, it does not do anything when there
+// is a IPv6 address with fallback to an IPv4 address. This test tests the case
+// when the IPv6 connect succeeds.
+TEST_F(TransportClientSocketPoolTest,
+       NoTCPFastOpenOnIPv6SuccessWithIPv4Fallback) {
+  SequencedSocketData socket_data;
+  MockClientSocketFactory factory;
+  factory.AddSocketDataProvider(&socket_data);
+  // Create a pool without backup jobs.
+  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
+  TransportClientSocketPool pool(kMaxSockets, kMaxSocketsPerGroup,
+                                 host_resolver_.get(), &factory, NULL, NULL);
+
+  // Resolve an AddressList with a IPv6 address first and then a IPv4 address.
+  host_resolver_->rules()
+      ->AddIPLiteralRule("*", "2:abcd::3:4:ff,2.2.2.2", std::string());
+
+  TestCompletionCallback callback;
+  ClientSocketHandle handle;
+  // Enable TCP FastOpen in TransportSocketParams.
+  scoped_refptr<TransportSocketParams> params = CreateParamsForTCPFastOpen();
+  handle.Init("a", params, LOW, SocketTag(),
+              ClientSocketPool::RespectLimits::ENABLED, callback.callback(),
+              &pool, NetLogWithSource());
+  EXPECT_THAT(callback.WaitForResult(), IsOk());
+  IPEndPoint endpoint;
+  handle.socket()->GetPeerAddress(&endpoint);
+  // Verify that the socket used is connected to the IPv6 address.
+  EXPECT_TRUE(endpoint.address().IsIPv6());
+  // Verify that TCP FastOpen was not turned on for the socket.
+  EXPECT_FALSE(socket_data.IsUsingTCPFastOpen());
+}
+
+// Test that SocketTag passed into TransportClientSocketPool is applied to
+// returned sockets.
+#if defined(OS_ANDROID)
+TEST_F(TransportClientSocketPoolTest, Tag) {
+  // Start test server.
+  EmbeddedTestServer test_server;
+  test_server.AddDefaultHandlers(base::FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  TransportClientSocketPool pool(
+      kMaxSockets, kMaxSocketsPerGroup, host_resolver_.get(),
+      ClientSocketFactory::GetDefaultFactory(), NULL, NULL);
+  ClientSocketHandle handle;
+  int32_t tag_val1 = 0x12345678;
+  SocketTag tag1(SocketTag::UNSET_UID, tag_val1);
+  int32_t tag_val2 = 0x87654321;
+  SocketTag tag2(getuid(), tag_val2);
+
+  // Test socket is tagged before connected.
+  uint64_t old_traffic = GetTaggedBytes(tag_val1);
+  scoped_refptr<TransportSocketParams> params(new TransportSocketParams(
+      test_server.host_port_pair(), false, OnHostResolutionCallback(),
+      TransportSocketParams::COMBINE_CONNECT_AND_WRITE_DEFAULT));
+  TestCompletionCallback callback;
+  int rv = handle.Init("a", params, LOW, tag1,
+                       ClientSocketPool::RespectLimits::ENABLED,
+                       callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+  EXPECT_TRUE(handle.socket());
+  EXPECT_TRUE(handle.socket()->IsConnected());
+  EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
+
+  // Test reused socket is retagged.
+  StreamSocket* socket = handle.socket();
+  handle.Reset();
+  old_traffic = GetTaggedBytes(tag_val2);
+  rv = handle.Init("a", params, LOW, tag2,
+                   ClientSocketPool::RespectLimits::ENABLED,
+                   callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(rv, IsOk());
+  EXPECT_TRUE(handle.socket());
+  EXPECT_TRUE(handle.socket()->IsConnected());
+  EXPECT_EQ(handle.socket(), socket);
+  const char kRequest[] = "GET / HTTP/1.0\n\n";
+  scoped_refptr<IOBuffer> write_buffer =
+      base::MakeRefCounted<StringIOBuffer>(kRequest);
+  rv =
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+                             callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
+  EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
+  // Disconnect socket to prevent reuse.
+  handle.socket()->Disconnect();
+  handle.Reset();
+
+  // Test connect jobs that are orphaned and then adopted, appropriately apply
+  // new tag. Request socket with |tag1|.
+  TestCompletionCallback callback2;
+  rv = handle.Init("a", params, LOW, tag1,
+                   ClientSocketPool::RespectLimits::ENABLED,
+                   callback2.callback(), &pool, NetLogWithSource());
+  EXPECT_TRUE(rv == OK || rv == ERR_IO_PENDING) << "Result: " << rv;
+  // Abort and request socket with |tag2|.
+  handle.Reset();
+  rv = handle.Init("a", params, LOW, tag2,
+                   ClientSocketPool::RespectLimits::ENABLED,
+                   callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+  EXPECT_TRUE(handle.socket());
+  EXPECT_TRUE(handle.socket()->IsConnected());
+  // Verify socket has |tag2| applied.
+  old_traffic = GetTaggedBytes(tag_val2);
+  rv =
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+                             callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
+  EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
+  // Disconnect socket to prevent reuse.
+  handle.socket()->Disconnect();
+  handle.Reset();
+  // Eat the left over connect job from the second request.
+  // TODO(pauljensen): remove when crbug.com/800731 fixed.
+  rv = handle.Init("a", params, LOW, tag1,
+                   ClientSocketPool::RespectLimits::ENABLED,
+                   callback.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(rv, IsOk());
+  // Disconnect socket to prevent reuse.
+  handle.socket()->Disconnect();
+  handle.Reset();
+
+  // Test two connect jobs of differing priorities. Start the lower priority one
+  // first but expect its socket to get vended to the higher priority request.
+  ClientSocketHandle handle_high_pri;
+  TestCompletionCallback callback_high_pri;
+  rv = handle.Init("a", params, LOW, tag1,
+                   ClientSocketPool::RespectLimits::ENABLED,
+                   callback.callback(), &pool, NetLogWithSource());
+  EXPECT_TRUE(rv == OK || rv == ERR_IO_PENDING) << "Result: " << rv;
+  int rv_high_pri = handle_high_pri.Init(
+      "a", params, HIGHEST, tag2, ClientSocketPool::RespectLimits::ENABLED,
+      callback_high_pri.callback(), &pool, NetLogWithSource());
+  EXPECT_THAT(callback_high_pri.GetResult(rv_high_pri), IsOk());
+  EXPECT_TRUE(handle_high_pri.socket());
+  EXPECT_TRUE(handle_high_pri.socket()->IsConnected());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+  EXPECT_TRUE(handle.socket());
+  EXPECT_TRUE(handle.socket()->IsConnected());
+  // Verify |handle_high_pri| has |tag2| applied.
+  old_traffic = GetTaggedBytes(tag_val2);
+  rv = handle_high_pri.socket()->Write(
+      write_buffer.get(), SbStringGetLength(kRequest), callback.callback(),
+      TRAFFIC_ANNOTATION_FOR_TESTS);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
+  EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
+  // Verify |handle| has |tag1| applied.
+  old_traffic = GetTaggedBytes(tag_val1);
+  rv =
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+                             callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
+  EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
+}
+#endif
 
 }  // namespace
 

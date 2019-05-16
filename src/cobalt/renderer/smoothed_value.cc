@@ -22,7 +22,7 @@ namespace cobalt {
 namespace renderer {
 
 SmoothedValue::SmoothedValue(base::TimeDelta time_to_converge,
-                             base::optional<double> max_slope_magnitude)
+                             base::Optional<double> max_slope_magnitude)
     : time_to_converge_(time_to_converge),
       previous_derivative_(0),
       max_slope_magnitude_(max_slope_magnitude) {
@@ -33,7 +33,7 @@ SmoothedValue::SmoothedValue(base::TimeDelta time_to_converge,
 void SmoothedValue::SetTarget(double target, const base::TimeTicks& time) {
   // Determine the current derivative and value.
   double current_derivative = GetCurrentDerivative(time);
-  base::optional<double> current_value;
+  base::Optional<double> current_value;
   if (target_) {
     current_value = GetValueAtTime(time);
   }
@@ -93,11 +93,9 @@ double SmoothedValue::t(const base::TimeTicks& time) const {
     double unconstrained_largest_slope =
         largest_slope / time_to_converge_in_seconds;
     if (unconstrained_largest_slope < -*max_slope_magnitude_) {
-      time_to_converge_in_seconds =
-          -largest_slope / *max_slope_magnitude_;
+      time_to_converge_in_seconds = -largest_slope / *max_slope_magnitude_;
     } else if (unconstrained_largest_slope > *max_slope_magnitude_) {
-      time_to_converge_in_seconds =
-          largest_slope / *max_slope_magnitude_;
+      time_to_converge_in_seconds = largest_slope / *max_slope_magnitude_;
     }
   }
 
@@ -125,7 +123,7 @@ double EvaluateCubicBezierDerivative(double P0, double P1, double P2, double P3,
   return 3 * one_minus_t * one_minus_t * (P1 - P0) +
          6 * one_minus_t * t * (P2 - P1) + 3 * t * t * (P3 - P2);
 }
-}
+}  // namespace
 
 double SmoothedValue::GetCurrentDerivative(const base::TimeTicks& time) const {
   if (!previous_value_) {

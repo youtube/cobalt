@@ -15,9 +15,9 @@
 #ifndef COBALT_H5VCC_H5VCC_SSO_H_
 #define COBALT_H5VCC_H5VCC_SSO_H_
 
+#include <memory>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/sso/sso_interface.h"
 
@@ -35,7 +35,7 @@ class H5vccSso : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccSso);
 
  private:
-  scoped_ptr<sso::SsoInterface> sso_;
+  std::unique_ptr<sso::SsoInterface> sso_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccSso);
 };

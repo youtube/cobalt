@@ -16,9 +16,9 @@
 
 #include <algorithm>
 
-#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
-#include "base/string_util.h"
+#include "base/strings/string_util.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -64,7 +64,7 @@ struct ElementCountLog {
   DISALLOW_COPY_AND_ASSIGN(ElementCountLog);
 };
 
-base::LazyInstance<ElementCountLog> element_count_log =
+base::LazyInstance<ElementCountLog>::DestructorAtExit element_count_log =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
@@ -81,7 +81,7 @@ Element::Element(Document* document, base::Token local_name)
   ++(element_count_log.Get().count);
 }
 
-base::optional<std::string> Element::text_content() const {
+base::Optional<std::string> Element::text_content() const {
   TRACK_MEMORY_SCOPE("DOM");
   std::string content;
 
@@ -97,7 +97,7 @@ base::optional<std::string> Element::text_content() const {
 }
 
 void Element::set_text_content(
-    const base::optional<std::string>& text_content) {
+    const base::Optional<std::string>& text_content) {
   TRACK_MEMORY_SCOPE("DOM");
   // https://www.w3.org/TR/dom/#dom-node-textcontent
   // 1. Let node be null.
@@ -115,11 +115,11 @@ void Element::set_text_content(
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 
-base::optional<std::string> Element::GetAttributeNS(
+base::Optional<std::string> Element::GetAttributeNS(
     const std::string& namespace_uri, const std::string& name) const {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
-  UNREFERENCED_PARAMETER(namespace_uri);
+  SB_UNREFERENCED_PARAMETER(namespace_uri);
   return GetAttribute(name);
 }
 
@@ -127,7 +127,7 @@ bool Element::HasAttributeNS(const std::string& namespace_uri,
                              const std::string& name) const {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
-  UNREFERENCED_PARAMETER(namespace_uri);
+  SB_UNREFERENCED_PARAMETER(namespace_uri);
   return HasAttribute(name);
 }
 
@@ -155,7 +155,7 @@ const scoped_refptr<DOMTokenList>& Element::class_list() {
 
 // Algorithm for GetAttribute:
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
-base::optional<std::string> Element::GetAttribute(
+base::Optional<std::string> Element::GetAttribute(
     const std::string& name) const {
   TRACK_MEMORY_SCOPE("DOM");
   Document* document = node_document();
@@ -164,7 +164,7 @@ base::optional<std::string> Element::GetAttribute(
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
   if (document && !document->IsXMLDocument()) {
-    StringToLowerASCII(&attr_name);
+    attr_name = base::ToLowerASCII(attr_name);
   }
 
   // 2. Return the value of the attribute in element's attribute list whose
@@ -201,7 +201,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
   if (document && !document->IsXMLDocument()) {
-    StringToLowerASCII(&attr_name);
+    attr_name = base::ToLowerASCII(attr_name);
   }
 
   // 3. Let attribute be the first attribute in the context object's attribute
@@ -211,7 +211,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    terminate these steps.
   // 5. Change attribute from context object to value.
 
-  base::optional<std::string> old_value = GetAttribute(attr_name);
+  base::Optional<std::string> old_value = GetAttribute(attr_name);
   MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
   mutation_reporter.ReportAttributesMutation(attr_name, old_value);
 
@@ -278,10 +278,10 @@ void Element::RemoveAttribute(const std::string& name) {
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
   if (document && !document->IsXMLDocument()) {
-    StringToLowerASCII(&attr_name);
+    attr_name = base::ToLowerASCII(attr_name);
   }
 
-  base::optional<std::string> old_value = GetAttribute(attr_name);
+  base::Optional<std::string> old_value = GetAttribute(attr_name);
   if (old_value) {
     MutationReporter mutation_reporter(this,
                                        GatherInclusiveAncestorsObservers());
@@ -298,11 +298,7 @@ void Element::RemoveAttribute(const std::string& name) {
       }
     // fall-through if not style attribute name
     default: {
-      AttributeMap::iterator iter = attribute_map_.find(attr_name);
-      if (iter == attribute_map_.end()) {
-        return;
-      }
-      attribute_map_.erase(iter);
+      attribute_map_.erase(attr_name);
       break;
     }
   }
@@ -345,7 +341,7 @@ base::Token Element::tag_name() const {
   // an HTML document, let qualified name be converted to ASCII uppercase.
   Document* document = node_document();
   if (document && !document->IsXMLDocument()) {
-    StringToUpperASCII(&qualified_name);
+    qualified_name = base::ToUpperASCII(qualified_name);
   }
 
   // 3. Return qualified name.
@@ -362,7 +358,7 @@ bool Element::HasAttribute(const std::string& name) const {
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
   if (document && !document->IsXMLDocument()) {
-    StringToLowerASCII(&attr_name);
+    attr_name = base::ToLowerASCII(attr_name);
   }
 
   // 2. Return true if the context object has an attribute whose name is name,
@@ -382,7 +378,7 @@ scoped_refptr<HTMLCollection> Element::GetElementsByTagName(
   if (document && document->IsXMLDocument()) {
     return HTMLCollection::CreateWithElementsByLocalName(this, local_name);
   } else {
-    const std::string lower_local_name = StringToLowerASCII(local_name);
+    const std::string lower_local_name = base::ToLowerASCII(local_name);
     return HTMLCollection::CreateWithElementsByLocalName(this,
                                                          lower_local_name);
   }
@@ -426,7 +422,7 @@ scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
   // 2. If the list is empty return a DOMRect object whose x, y, width and
   // height members are zero.
   if (list->length() == 0) {
-    return make_scoped_refptr(new DOMRect());
+    return base::WrapRefCounted(new DOMRect());
   }
   // 3. Otherwise, return a DOMRect object describing the smallest rectangle
   // that includes the first rectangle in list and all of the remaining
@@ -440,7 +436,7 @@ scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
       bounding_rect.Union(GetBoundingRectangle(box_rect));
     }
   }
-  return make_scoped_refptr(new DOMRect(bounding_rect));
+  return base::WrapRefCounted(new DOMRect(bounding_rect));
 }
 
 // Algorithm for GetClientRects:
@@ -448,7 +444,7 @@ scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
 scoped_refptr<DOMRectList> Element::GetClientRects() {
   // 1. If the element on which it was invoked does not have an associated
   // layout box return an empty DOMRectList object and stop this algorithm.
-  return make_scoped_refptr(new DOMRectList());
+  return base::WrapRefCounted(new DOMRectList());
 }
 
 // Algorithm for client_top:
@@ -627,7 +623,7 @@ bool Element::HasFocus() {
   return document ? (document->active_element() == this) : false;
 }
 
-base::optional<std::string> Element::GetStyleAttribute() const {
+base::Optional<std::string> Element::GetStyleAttribute() const {
   AttributeMap::const_iterator iter = attribute_map_.find(kStyleAttributeName);
   if (iter != attribute_map_.end()) {
     return iter->second;

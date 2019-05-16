@@ -1,3 +1,0 @@
-optimize_mode: LITE_RUNTIME
-
-allowed_message: "securegcm.DeviceToDeviceMessage"

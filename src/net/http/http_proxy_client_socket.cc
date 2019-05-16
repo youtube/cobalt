@@ -4,58 +4,57 @@
 
 #include "net/http/http_proxy_client_socket.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
-#include "googleurl/src/gurl.h"
+#include "base/callback_helpers.h"
+#include "base/strings/string_util.h"
+#include "base/values.h"
 #include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_log.h"
-#include "net/base/net_util.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_stream_parser.h"
+#include "net/http/proxy_connect_redirect_http_stream.h"
+#include "net/log/net_log.h"
+#include "net/log/net_log_event_type.h"
 #include "net/socket/client_socket_handle.h"
+#include "url/gurl.h"
 
 namespace net {
 
+const int HttpProxyClientSocket::kDrainBodyBufferSize;
+
 HttpProxyClientSocket::HttpProxyClientSocket(
-    ClientSocketHandle* transport_socket,
-    const GURL& request_url,
+    std::unique_ptr<ClientSocketHandle> transport_socket,
     const std::string& user_agent,
     const HostPortPair& endpoint,
-    const HostPortPair& proxy_server,
-    HttpAuthCache* http_auth_cache,
-    HttpAuthHandlerFactory* http_auth_handler_factory,
+    HttpAuthController* http_auth_controller,
     bool tunnel,
     bool using_spdy,
-    NextProto protocol_negotiated,
-    bool is_https_proxy)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
-        base::Bind(&HttpProxyClientSocket::OnIOComplete,
-                   base::Unretained(this)))),
+    NextProto negotiated_protocol,
+    bool is_https_proxy,
+    const NetworkTrafficAnnotationTag& traffic_annotation)
+    : io_callback_(base::BindRepeating(&HttpProxyClientSocket::OnIOComplete,
+                                       base::Unretained(this))),
       next_state_(STATE_NONE),
-      transport_(transport_socket),
+      transport_(std::move(transport_socket)),
       endpoint_(endpoint),
-      auth_(tunnel ?
-          new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                 GURL((is_https_proxy ? "https://" : "http://")
-                                      + proxy_server.ToString()),
-                                 http_auth_cache,
-                                 http_auth_handler_factory)
-          : NULL),
+      auth_(http_auth_controller),
       tunnel_(tunnel),
       using_spdy_(using_spdy),
-      protocol_negotiated_(protocol_negotiated),
+      negotiated_protocol_(negotiated_protocol),
       is_https_proxy_(is_https_proxy),
-      net_log_(transport_socket->socket()->NetLog()) {
+      redirect_has_load_timing_info_(false),
+      traffic_annotation_(traffic_annotation),
+      net_log_(transport_->socket()->NetLog()) {
   // Synthesize the bits of a request that we actually use.
-  request_.url = request_url;
-  request_.method = "GET";
+  request_.url = GURL("https://" + endpoint.ToString());
+  request_.method = "CONNECT";
   if (!user_agent.empty())
     request_.extra_headers.SetHeader(HttpRequestHeaders::kUserAgent,
                                      user_agent);
@@ -65,7 +64,7 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
 }
 
-int HttpProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
+int HttpProxyClientSocket::RestartWithAuth(CompletionOnceCallback callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(user_callback_.is_null());
 
@@ -76,7 +75,7 @@ int HttpProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
   rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
     if (!callback.is_null())
-      user_callback_ =  callback;
+      user_callback_ = std::move(callback);
   }
 
   return rv;
@@ -91,21 +90,21 @@ bool HttpProxyClientSocket::IsUsingSpdy() const {
   return using_spdy_;
 }
 
-NextProto HttpProxyClientSocket::GetProtocolNegotiated() const {
-  return protocol_negotiated_;
+NextProto HttpProxyClientSocket::GetProxyNegotiatedProtocol() const {
+  return negotiated_protocol_;
 }
 
 const HttpResponseInfo* HttpProxyClientSocket::GetConnectResponseInfo() const {
-  return response_.headers ? &response_ : NULL;
+  return response_.headers.get() ? &response_ : NULL;
 }
 
-HttpStream* HttpProxyClientSocket::CreateConnectResponseStream() {
-  return new HttpBasicStream(transport_.release(),
-                             http_stream_parser_.release(), false);
+std::unique_ptr<HttpStream>
+HttpProxyClientSocket::CreateConnectResponseStream() {
+  return std::make_unique<ProxyConnectRedirectHttpStream>(
+      redirect_has_load_timing_info_ ? &redirect_load_timing_info_ : nullptr);
 }
 
-
-int HttpProxyClientSocket::Connect(const CompletionCallback& callback) {
+int HttpProxyClientSocket::Connect(CompletionOnceCallback callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
   DCHECK(user_callback_.is_null());
@@ -125,7 +124,7 @@ int HttpProxyClientSocket::Connect(const CompletionCallback& callback) {
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    user_callback_ = std::move(callback);
   return rv;
 }
 
@@ -148,24 +147,8 @@ bool HttpProxyClientSocket::IsConnectedAndIdle() const {
     transport_->socket()->IsConnectedAndIdle();
 }
 
-const BoundNetLog& HttpProxyClientSocket::NetLog() const {
+const NetLogWithSource& HttpProxyClientSocket::NetLog() const {
   return net_log_;
-}
-
-void HttpProxyClientSocket::SetSubresourceSpeculation() {
-  if (transport_.get() && transport_->socket()) {
-    transport_->socket()->SetSubresourceSpeculation();
-  } else {
-    NOTREACHED();
-  }
-}
-
-void HttpProxyClientSocket::SetOmniboxSpeculation() {
-  if (transport_.get() && transport_->socket()) {
-    transport_->socket()->SetOmniboxSpeculation();
-  } else {
-    NOTREACHED();
-  }
 }
 
 bool HttpProxyClientSocket::WasEverUsed() const {
@@ -176,33 +159,9 @@ bool HttpProxyClientSocket::WasEverUsed() const {
   return false;
 }
 
-bool HttpProxyClientSocket::UsingTCPFastOpen() const {
+bool HttpProxyClientSocket::WasAlpnNegotiated() const {
   if (transport_.get() && transport_->socket()) {
-    return transport_->socket()->UsingTCPFastOpen();
-  }
-  NOTREACHED();
-  return false;
-}
-
-int64 HttpProxyClientSocket::NumBytesRead() const {
-  if (transport_.get() && transport_->socket()) {
-    return transport_->socket()->NumBytesRead();
-  }
-  NOTREACHED();
-  return -1;
-}
-
-base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
-  if (transport_.get() && transport_->socket()) {
-    return transport_->socket()->GetConnectTimeMicros();
-  }
-  NOTREACHED();
-  return base::TimeDelta::FromMicroseconds(-1);
-}
-
-bool HttpProxyClientSocket::WasNpnNegotiated() const {
-  if (transport_.get() && transport_->socket()) {
-    return transport_->socket()->WasNpnNegotiated();
+    return transport_->socket()->WasAlpnNegotiated();
   }
   NOTREACHED();
   return false;
@@ -224,39 +183,60 @@ bool HttpProxyClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
   return false;
 }
 
-int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
-                                const CompletionCallback& callback) {
-  DCHECK(user_callback_.is_null());
-  if (next_state_ != STATE_DONE) {
-    // We're trying to read the body of the response but we're still trying
-    // to establish an SSL tunnel through the proxy.  We can't read these
-    // bytes when establishing a tunnel because they might be controlled by
-    // an active network attacker.  We don't worry about this for HTTP
-    // because an active network attacker can already control HTTP sessions.
-    // We reach this case when the user cancels a 407 proxy auth prompt.
-    // See http://crbug.com/8473.
-    DCHECK_EQ(407, response_.headers->response_code());
-    LogBlockedTunnelResponse();
-
-    return ERR_TUNNEL_CONNECTION_FAILED;
-  }
-
-  return transport_->socket()->Read(buf, buf_len, callback);
+void HttpProxyClientSocket::GetConnectionAttempts(
+    ConnectionAttempts* out) const {
+  out->clear();
 }
 
-int HttpProxyClientSocket::Write(IOBuffer* buf, int buf_len,
-                                 const CompletionCallback& callback) {
+int64_t HttpProxyClientSocket::GetTotalReceivedBytes() const {
+  return transport_->socket()->GetTotalReceivedBytes();
+}
+
+void HttpProxyClientSocket::ApplySocketTag(const SocketTag& tag) {
+  return transport_->socket()->ApplySocketTag(tag);
+}
+
+int HttpProxyClientSocket::Read(IOBuffer* buf,
+                                int buf_len,
+                                CompletionOnceCallback callback) {
+  DCHECK(user_callback_.is_null());
+  if (!CheckDone())
+    return ERR_TUNNEL_CONNECTION_FAILED;
+
+  return transport_->socket()->Read(buf, buf_len, std::move(callback));
+}
+
+int HttpProxyClientSocket::ReadIfReady(IOBuffer* buf,
+                                       int buf_len,
+                                       CompletionOnceCallback callback) {
+  DCHECK(user_callback_.is_null());
+  if (!CheckDone())
+    return ERR_TUNNEL_CONNECTION_FAILED;
+
+  return transport_->socket()->ReadIfReady(buf, buf_len, std::move(callback));
+}
+
+int HttpProxyClientSocket::CancelReadIfReady() {
+  return transport_->socket()->CancelReadIfReady();
+}
+
+int HttpProxyClientSocket::Write(
+    IOBuffer* buf,
+    int buf_len,
+    CompletionOnceCallback callback,
+    const NetworkTrafficAnnotationTag& traffic_annotation) {
   DCHECK_EQ(STATE_DONE, next_state_);
   DCHECK(user_callback_.is_null());
 
-  return transport_->socket()->Write(buf, buf_len, callback);
+  return transport_->socket()->Write(buf, buf_len, std::move(callback),
+                                     traffic_annotation);
 }
 
-bool HttpProxyClientSocket::SetReceiveBufferSize(int32 size) {
+int HttpProxyClientSocket::SetReceiveBufferSize(int32_t size) {
   return transport_->socket()->SetReceiveBufferSize(size);
 }
 
-bool HttpProxyClientSocket::SetSendBufferSize(int32 size) {
+int HttpProxyClientSocket::SetSendBufferSize(int32_t size) {
   return transport_->socket()->SetSendBufferSize(size);
 }
 
@@ -272,48 +252,42 @@ int HttpProxyClientSocket::PrepareForAuthRestart() {
   if (!response_.headers.get())
     return ERR_CONNECTION_RESET;
 
-  bool keep_alive = false;
-  if (response_.headers->IsKeepAlive() &&
-      http_stream_parser_->CanFindEndOfResponse()) {
-    if (!http_stream_parser_->IsResponseBodyComplete()) {
-      next_state_ = STATE_DRAIN_BODY;
-      drain_buf_ = new IOBuffer(kDrainBodyBufferSize);
-      return OK;
-    }
-    keep_alive = true;
+  // If the connection can't be reused, return
+  // ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH.  The request will be retried
+  // at a higher layer.
+  if (!response_.headers->IsKeepAlive() ||
+      !http_stream_parser_->CanFindEndOfResponse() ||
+      !transport_->socket()->IsConnected()) {
+    transport_->socket()->Disconnect();
+    return ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH;
   }
 
-  // We don't need to drain the response body, so we act as if we had drained
-  // the response body.
-  return DidDrainBodyForAuthRestart(keep_alive);
+  // If the auth request had a body, need to drain it before reusing the socket.
+  if (!http_stream_parser_->IsResponseBodyComplete()) {
+    next_state_ = STATE_DRAIN_BODY;
+    drain_buf_ = base::MakeRefCounted<IOBuffer>(kDrainBodyBufferSize);
+    return OK;
+  }
+
+  return DidDrainBodyForAuthRestart();
 }
 
-int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
-  if (keep_alive && transport_->socket()->IsConnectedAndIdle()) {
-    next_state_ = STATE_GENERATE_AUTH_TOKEN;
-    transport_->set_is_reused(true);
-  } else {
-    // This assumes that the underlying transport socket is a TCP socket,
-    // since only TCP sockets are restartable.
-    next_state_ = STATE_TCP_RESTART;
-    transport_->socket()->Disconnect();
-  }
+int HttpProxyClientSocket::DidDrainBodyForAuthRestart() {
+  // Can't reuse the socket if there's still unread data on it.
+  if (!transport_->socket()->IsConnectedAndIdle())
+    return ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH;
+
+  next_state_ = STATE_GENERATE_AUTH_TOKEN;
+  transport_->set_reuse_type(ClientSocketHandle::REUSED_IDLE);
 
   // Reset the other member variables.
-  drain_buf_ = NULL;
-  parser_buf_ = NULL;
+  drain_buf_ = nullptr;
+  parser_buf_ = nullptr;
   http_stream_parser_.reset();
   request_line_.clear();
   request_headers_.Clear();
   response_ = HttpResponseInfo();
   return OK;
-}
-
-void HttpProxyClientSocket::LogBlockedTunnelResponse() const {
-  ProxyClientSocket::LogBlockedTunnelResponse(
-      response_.headers->response_code(),
-      request_.url,
-      is_https_proxy_);
 }
 
 void HttpProxyClientSocket::DoCallback(int result) {
@@ -322,9 +296,7 @@ void HttpProxyClientSocket::DoCallback(int result) {
 
   // Since Run() may result in Read being called,
   // clear user_callback_ up front.
-  CompletionCallback c = user_callback_;
-  user_callback_.Reset();
-  c.Run(result);
+  std::move(user_callback_).Run(result);
 }
 
 void HttpProxyClientSocket::OnIOComplete(int result) {
@@ -353,24 +325,24 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST);
+            NetLogEventType::HTTP_TRANSACTION_TUNNEL_SEND_REQUEST);
         rv = DoSendRequest();
         break;
       case STATE_SEND_REQUEST_COMPLETE:
         rv = DoSendRequestComplete(rv);
         net_log_.EndEventWithNetErrorCode(
-            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST, rv);
+            NetLogEventType::HTTP_TRANSACTION_TUNNEL_SEND_REQUEST, rv);
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_READ_HEADERS);
+            NetLogEventType::HTTP_TRANSACTION_TUNNEL_READ_HEADERS);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         rv = DoReadHeadersComplete(rv);
         net_log_.EndEventWithNetErrorCode(
-            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_READ_HEADERS, rv);
+            NetLogEventType::HTTP_TRANSACTION_TUNNEL_READ_HEADERS, rv);
         break;
       case STATE_DRAIN_BODY:
         DCHECK_EQ(OK, rv);
@@ -378,13 +350,6 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
         break;
       case STATE_DRAIN_BODY_COMPLETE:
         rv = DoDrainBodyComplete(rv);
-        break;
-      case STATE_TCP_RESTART:
-        DCHECK_EQ(OK, rv);
-        rv = DoTCPRestart();
-        break;
-      case STATE_TCP_RESTART_COMPLETE:
-        rv = DoTCPRestartComplete(rv);
         break;
       case STATE_DONE:
         break;
@@ -420,21 +385,26 @@ int HttpProxyClientSocket::DoSendRequest() {
     HttpRequestHeaders authorization_headers;
     if (auth_->HaveAuth())
       auth_->AddAuthorizationHeader(&authorization_headers);
-    BuildTunnelRequest(request_, authorization_headers, endpoint_,
+    std::string user_agent;
+    if (!request_.extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
+                                          &user_agent)) {
+      user_agent.clear();
+    }
+    BuildTunnelRequest(endpoint_, authorization_headers, user_agent,
                        &request_line_, &request_headers_);
 
     net_log_.AddEvent(
-        NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+        NetLogEventType::HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
         base::Bind(&HttpRequestHeaders::NetLogCallback,
-                   base::Unretained(&request_headers_),
-                   &request_line_));
+                   base::Unretained(&request_headers_), &request_line_));
   }
 
-  parser_buf_ = new GrowableIOBuffer();
-  http_stream_parser_.reset(
-      new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
-  return http_stream_parser_->SendRequest(
-      request_line_, request_headers_, &response_, io_callback_);
+  parser_buf_ = base::MakeRefCounted<GrowableIOBuffer>();
+  http_stream_parser_.reset(new HttpStreamParser(
+      transport_.get(), &request_, parser_buf_.get(), net_log_));
+  return http_stream_parser_->SendRequest(request_line_, request_headers_,
+                                          traffic_annotation_, &response_,
+                                          io_callback_);
 }
 
 int HttpProxyClientSocket::DoSendRequestComplete(int result) {
@@ -455,11 +425,11 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
     return result;
 
   // Require the "HTTP/1.x" status line for SSL CONNECT.
-  if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0))
+  if (response_.headers->GetHttpVersion() < HttpVersion(1, 0))
     return ERR_TUNNEL_CONNECTION_FAILED;
 
   net_log_.AddEvent(
-      NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
+      NetLogEventType::HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
       base::Bind(&HttpResponseHeaders::NetLogCallback, response_.headers));
 
   switch (response_.headers->response_code()) {
@@ -483,19 +453,24 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       // sanitize the response.  This still allows a rogue HTTPS proxy to
       // redirect an HTTPS site load to a similar-looking site, but no longer
       // allows it to impersonate the site the user requested.
-      if (is_https_proxy_ && SanitizeProxyRedirect(&response_, request_.url))
-        return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
+      if (!is_https_proxy_ || !SanitizeProxyRedirect(&response_))
+        return ERR_TUNNEL_CONNECTION_FAILED;
 
-      // We're not using an HTTPS proxy, or we couldn't sanitize the redirect.
-      LogBlockedTunnelResponse();
-      return ERR_TUNNEL_CONNECTION_FAILED;
+      redirect_has_load_timing_info_ = transport_->GetLoadTimingInfo(
+          http_stream_parser_->IsConnectionReused(),
+          &redirect_load_timing_info_);
+      transport_.reset();
+      http_stream_parser_.reset();
+      return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
 
     case 407:  // Proxy Authentication Required
       // We need this status code to allow proxy authentication.  Our
       // authentication code is smart enough to avoid being tricked by an
       // active network attacker.
       // The next state is intentionally not set as it should be STATE_NONE;
-      return HandleProxyAuthChallenge(auth_, &response_, net_log_);
+      if (!SanitizeProxyAuth(&response_))
+        return ERR_TUNNEL_CONNECTION_FAILED;
+      return HandleProxyAuthChallenge(auth_.get(), &response_, net_log_);
 
     default:
       // Ignore response to avoid letting the proxy impersonate the target
@@ -504,43 +479,46 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       // 501 response bodies that contain a useful error message.  For
       // example, Squid uses a 404 response to report the DNS error: "The
       // domain name does not exist."
-      LogBlockedTunnelResponse();
       return ERR_TUNNEL_CONNECTION_FAILED;
   }
 }
 
 int HttpProxyClientSocket::DoDrainBody() {
-  DCHECK(drain_buf_);
-  DCHECK(transport_->is_initialized());
+  DCHECK(drain_buf_.get());
   next_state_ = STATE_DRAIN_BODY_COMPLETE;
-  return http_stream_parser_->ReadResponseBody(drain_buf_, kDrainBodyBufferSize,
-                                               io_callback_);
+  return http_stream_parser_->ReadResponseBody(
+      drain_buf_.get(), kDrainBodyBufferSize, io_callback_);
 }
 
 int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
   if (result < 0)
-    return result;
+    return ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH;
 
-  if (http_stream_parser_->IsResponseBodyComplete())
-    return DidDrainBodyForAuthRestart(true);
+  if (!http_stream_parser_->IsResponseBodyComplete()) {
+    // Keep draining.
+    next_state_ = STATE_DRAIN_BODY;
+    return OK;
+  }
 
-  // Keep draining.
-  next_state_ = STATE_DRAIN_BODY;
-  return OK;
+  return DidDrainBodyForAuthRestart();
 }
 
-int HttpProxyClientSocket::DoTCPRestart() {
-  next_state_ = STATE_TCP_RESTART_COMPLETE;
-  return transport_->socket()->Connect(
-      base::Bind(&HttpProxyClientSocket::OnIOComplete, base::Unretained(this)));
+bool HttpProxyClientSocket::CheckDone() {
+  if (next_state_ != STATE_DONE) {
+    // We're trying to read the body of the response but we're still trying
+    // to establish an SSL tunnel through the proxy.  We can't read these
+    // bytes when establishing a tunnel because they might be controlled by
+    // an active network attacker.  We don't worry about this for HTTP
+    // because an active network attacker can already control HTTP sessions.
+    // We reach this case when the user cancels a 407 proxy auth prompt.
+    // See http://crbug.com/8473.
+    DCHECK_EQ(407, response_.headers->response_code());
+
+    return false;
+  }
+  return true;
 }
 
-int HttpProxyClientSocket::DoTCPRestartComplete(int result) {
-  if (result != OK)
-    return result;
-
-  next_state_ = STATE_GENERATE_AUTH_TOKEN;
-  return result;
-}
+//----------------------------------------------------------------
 
 }  // namespace net

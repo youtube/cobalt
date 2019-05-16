@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/webdriver/protocol/cookie.h"
 
-#include "base/string_split.h"
-#include "base/stringprintf.h"
+#include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -34,14 +36,15 @@ const char kHttpOnlyKey[] = "httpOnly";
 const char kExpiryKey[] = "expiry";
 }  // namespace
 
-scoped_ptr<base::Value> Cookie::ToValue(const Cookie& cookie) {
-  scoped_ptr<base::DictionaryValue> cookie_value(new base::DictionaryValue());
+std::unique_ptr<base::Value> Cookie::ToValue(const Cookie& cookie) {
+  std::unique_ptr<base::DictionaryValue> cookie_value(
+      new base::DictionaryValue());
   cookie_value->SetString(kNameKey, cookie.name_);
   cookie_value->SetString(kValueKey, cookie.value_);
-  return cookie_value.PassAs<base::Value>();
+  return std::unique_ptr<base::Value>(cookie_value.release());
 }
 
-base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
+base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // TODO: Malformed data should return an "unable to set cookie"
   // error, but the current implementation will return "invalid parameter".
   const base::DictionaryValue* dictionary_value;
@@ -52,8 +55,8 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
 
   const base::DictionaryValue* cookie_dictionary_value;
   if (!dictionary_value->GetDictionary(kCookieKey, &cookie_dictionary_value)) {
-    DLOG(INFO) << StringPrintf("Value of key [%s] is not a JSON object.",
-                               kCookieKey);
+    DLOG(INFO) << base::StringPrintf("Value of key [%s] is not a JSON object.",
+                                     kCookieKey);
     return base::nullopt;
   }
 
@@ -62,7 +65,7 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // Name and value are required.
   if (!cookie_dictionary_value->GetString(kNameKey, &cookie_name) ||
       !cookie_dictionary_value->GetString(kValueKey, &cookie_value)) {
-    DLOG(INFO) << StringPrintf(
+    DLOG(INFO) << base::StringPrintf(
         "cookie.%s or cookie.%s either does not exist or is not a string",
         kNameKey, kValueKey);
     return base::nullopt;
@@ -75,7 +78,7 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetString(kDomainKey, &string_value)) {
       new_cookie.domain_ = string_value;
     } else {
-      DLOG(INFO) << StringPrintf("cookie.%s is not a string", kDomainKey);
+      DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
       return base::nullopt;
     }
   }
@@ -83,7 +86,7 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetString(kPathKey, &string_value)) {
       new_cookie.path_ = string_value;
     } else {
-      DLOG(INFO) << StringPrintf("cookie.%s is not a string", kPathKey);
+      DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kPathKey);
       return base::nullopt;
     }
   }
@@ -93,7 +96,8 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetBoolean(kSecureKey, &bool_value)) {
       new_cookie.secure_ = bool_value;
     } else {
-      DLOG(INFO) << StringPrintf("cookie.%s is not a boolean", kSecureKey);
+      DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
+                                       kSecureKey);
       return base::nullopt;
     }
   }
@@ -101,7 +105,8 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
     if (cookie_dictionary_value->GetBoolean(kHttpOnlyKey, &bool_value)) {
       new_cookie.http_only_ = bool_value;
     } else {
-      DLOG(INFO) << StringPrintf("cookie.%s is not a boolean", kHttpOnlyKey);
+      DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
+                                       kHttpOnlyKey);
       return base::nullopt;
     }
   }
@@ -113,7 +118,8 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
           base::TimeDelta::FromSeconds(timestamp_value);
       new_cookie.expiry_time_ = base::Time::UnixEpoch() + seconds_since_epoch;
     } else {
-      DLOG(INFO) << StringPrintf("cookie.%s is not an integer", kExpiryKey);
+      DLOG(INFO) << base::StringPrintf("cookie.%s is not an integer",
+                                       kExpiryKey);
       return base::nullopt;
     }
   }
@@ -122,17 +128,17 @@ base::optional<Cookie> Cookie::FromValue(const base::Value* value) {
 
 void Cookie::ToCookieVector(const std::string& cookies_string,
                             std::vector<Cookie>* cookies) {
-  std::vector<std::string> cookie_strings;
-  base::SplitString(cookies_string, ';', &cookie_strings);
+  std::vector<std::string> cookie_strings = base::SplitString(
+      cookies_string, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (size_t i = 0; i < cookie_strings.size(); ++i) {
-    base::optional<Cookie> cookie = FromString(cookie_strings[i]);
+    base::Optional<Cookie> cookie = FromString(cookie_strings[i]);
     if (cookie) {
       cookies->push_back(*cookie);
     }
   }
 }
 
-base::optional<Cookie> Cookie::FromString(const std::string& cookie_as_string) {
+base::Optional<Cookie> Cookie::FromString(const std::string& cookie_as_string) {
   size_t pos = cookie_as_string.find('=');
   if (pos == std::string::npos) {
     return base::nullopt;
@@ -152,20 +158,21 @@ std::string Cookie::ToCookieString(const std::string& current_domain) const {
     base::Time::Exploded exploded_now;
     base::Time::Now().UTCExplode(&exploded_now);
     exploded_now.year += 20;
-    expiry_time = base::Time::FromUTCExploded(exploded_now);
+    bool ret = base::Time::FromUTCExploded(exploded_now, &expiry_time);
+    DCHECK(ret);
   }
 
   // WebDriver protocol defines expiry as seconds since the Unix Epoch, but
   // the Max-Age attribute defines it as seconds from right now.
   base::TimeDelta max_age = expiry_time - base::Time::Now();
 
-  std::string cookie_string =
-      StringPrintf("%s=%s; Path=%s; Domain=%s; Max-Age=%d%s%s", name_.c_str(),
-                   value_.c_str(), path_.value_or("/").c_str(),
-                   domain_.value_or(current_domain).c_str(),
-                   static_cast<int>(max_age.InSeconds()),
-                   secure_.value_or(false) ? " ;Secure" : "",
-                   http_only_.value_or(false) ? " ;HttpOnly" : "");
+  std::string cookie_string = base::StringPrintf(
+      "%s=%s; Path=%s; Domain=%s; Max-Age=%d%s%s", name_.c_str(),
+      value_.c_str(), path_.value_or("/").c_str(),
+      domain_.value_or(current_domain).c_str(),
+      static_cast<int>(max_age.InSeconds()),
+      secure_.value_or(false) ? " ;Secure" : "",
+      http_only_.value_or(false) ? " ;HttpOnly" : "");
   return cookie_string;
 }
 

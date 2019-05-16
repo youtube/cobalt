@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "cobalt/loader/font/typeface_decoder.h"
 
 #include "base/bind.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -40,7 +42,7 @@ struct MockTypefaceDecoderCallback {
   }
 
   MOCK_METHOD1(OnCompleteFunction,
-               void(const base::optional<std::string>& error));
+               void(const base::Optional<std::string>& error));
 
   scoped_refptr<render_tree::Typeface> typeface;
 };
@@ -58,12 +60,12 @@ class MockTypefaceDecoder : public Decoder {
 
   scoped_refptr<render_tree::Typeface> Typeface();
 
-  void ExpectOnCompleteWithError(const base::optional<std::string>& error);
+  void ExpectOnCompleteWithError(const base::Optional<std::string>& error);
 
  protected:
   ::testing::StrictMock<MockTypefaceDecoderCallback> typeface_decoder_callback_;
   render_tree::ResourceProviderStub resource_provider_;
-  scoped_ptr<Decoder> typeface_decoder_;
+  std::unique_ptr<Decoder> typeface_decoder_;
 };
 
 MockTypefaceDecoder::MockTypefaceDecoder() {
@@ -93,24 +95,24 @@ scoped_refptr<render_tree::Typeface> MockTypefaceDecoder::Typeface() {
 }
 
 void MockTypefaceDecoder::ExpectOnCompleteWithError(
-    const base::optional<std::string>& error) {
+    const base::Optional<std::string>& error) {
   EXPECT_CALL(typeface_decoder_callback_, OnCompleteFunction(error));
 }
 
-FilePath GetTestTypefacePath(const char* file_name) {
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
+base::FilePath GetTestTypefacePath(const char* file_name) {
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("loader"))
       .Append(FILE_PATH_LITERAL("testdata"))
       .Append(FILE_PATH_LITERAL(file_name));
 }
 
-std::vector<uint8> GetTypefaceData(const FilePath& file_path) {
+std::vector<uint8> GetTypefaceData(const base::FilePath& file_path) {
   int64 size;
   std::vector<uint8> typeface_data;
 
-  bool success = file_util::GetFileSize(file_path, &size);
+  bool success = base::GetFileSize(file_path, &size);
 
   CHECK(success) << "Could not get file size.";
   CHECK_GT(size, 0);
@@ -118,11 +120,11 @@ std::vector<uint8> GetTypefaceData(const FilePath& file_path) {
   typeface_data.resize(static_cast<size_t>(size));
 
   int num_of_bytes =
-      file_util::ReadFile(file_path, reinterpret_cast<char*>(&typeface_data[0]),
-                          static_cast<int>(size));
+      base::ReadFile(file_path, reinterpret_cast<char*>(&typeface_data[0]),
+                     static_cast<int>(size));
 
-  CHECK_EQ(num_of_bytes, typeface_data.size()) << "Could not read '"
-                                               << file_path.value() << "'.";
+  CHECK_EQ(num_of_bytes, static_cast<int>(typeface_data.size()))
+      << "Could not read '" << file_path.value() << "'.";
   return typeface_data;
 }
 

@@ -6,16 +6,17 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <utility>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "base/debug/trace_event.h"
 #include "base/location.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
-#include "base/string_number_conversions.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/media_tracks.h"
@@ -72,8 +73,8 @@ void ChunkDemuxerStream::Shutdown() {
   // Pass an end of stream buffer to the pending callback to signal that no more
   // data will be sent.
   if (!read_cb_.is_null()) {
-    base::ResetAndReturn(&read_cb_)
-        .Run(DemuxerStream::kOk, StreamParserBuffer::CreateEOSBuffer());
+    base::ResetAndReturn(&read_cb_).Run(DemuxerStream::kOk,
+                                        StreamParserBuffer::CreateEOSBuffer());
   }
 }
 
@@ -253,8 +254,8 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
 
   if (!is_enabled_) {
     DVLOG(1) << "Read from disabled stream, returning EOS";
-    base::ResetAndReturn(&read_cb_)
-        .Run(kOk, StreamParserBuffer::CreateEOSBuffer());
+    base::ResetAndReturn(&read_cb_).Run(kOk,
+                                        StreamParserBuffer::CreateEOSBuffer());
     return;
   }
 
@@ -300,8 +301,8 @@ void ChunkDemuxerStream::set_enabled(bool enabled, base::TimeDelta timestamp) {
     stream_->Seek(timestamp);
   } else if (!read_cb_.is_null()) {
     DVLOG(1) << "Read from disabled stream, returning EOS";
-    base::ResetAndReturn(&read_cb_)
-        .Run(kOk, StreamParserBuffer::CreateEOSBuffer());
+    base::ResetAndReturn(&read_cb_).Run(kOk,
+                                        StreamParserBuffer::CreateEOSBuffer());
   }
   if (!stream_status_change_cb_.is_null())
     stream_status_change_cb_.Run(is_enabled_, timestamp);
@@ -533,13 +534,13 @@ DemuxerStream* ChunkDemuxer::GetStream(DemuxerStream::Type type) {
   // DemuxerStreamProvider, tracked by crbug.com/646669
   if (type == DemuxerStream::AUDIO) {
     for (size_t i = 0; i < audio_streams_.size(); ++i) {
-      if (audio_streams_[i]->enabled()) return audio_streams_[i];
+      if (audio_streams_[i]->enabled()) return audio_streams_[i].get();
     }
   }
 
   if (type == DemuxerStream::VIDEO) {
     for (size_t i = 0; i < video_streams_.size(); ++i) {
-      if (video_streams_[i]->enabled()) return video_streams_[i];
+      if (video_streams_[i]->enabled()) return video_streams_[i].get();
     }
   }
 
@@ -618,21 +619,22 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   std::vector<std::string> parsed_codec_ids;
   media::ParseCodecString(codecs, &parsed_codec_ids, false);
 
-  scoped_ptr<media::StreamParser> stream_parser(StreamParserFactory::Create(
-      buffer_allocator_, type, parsed_codec_ids, media_log_));
+  std::unique_ptr<media::StreamParser> stream_parser(
+      StreamParserFactory::Create(buffer_allocator_, type, parsed_codec_ids,
+                                  media_log_));
 
   if (!stream_parser) return ChunkDemuxer::kNotSupported;
 
-  scoped_ptr<FrameProcessor> frame_processor(
+  std::unique_ptr<FrameProcessor> frame_processor(
       new FrameProcessor(base::Bind(&ChunkDemuxer::IncreaseDurationIfNecessary,
                                     base::Unretained(this)),
                          media_log_));
 
-  scoped_ptr<SourceBufferState> source_state(
-      new SourceBufferState(stream_parser.Pass(), frame_processor.Pass(),
-                            base::Bind(&ChunkDemuxer::CreateDemuxerStream,
-                                       base::Unretained(this), id),
-                            media_log_, buffer_allocator_));
+  std::unique_ptr<SourceBufferState> source_state(new SourceBufferState(
+      std::move(stream_parser), std::move(frame_processor),
+      base::Bind(&ChunkDemuxer::CreateDemuxerStream, base::Unretained(this),
+                 id),
+      media_log_, buffer_allocator_));
 
   SourceBufferState::NewTextTrackCB new_text_track_cb;
 
@@ -677,19 +679,19 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
        iter != streams.end(); ++iter) {
     bool stream_found = false;
     for (size_t i = 0; i < audio_streams_.size(); ++i) {
-      if (audio_streams_[i] == *iter) {
+      if (audio_streams_[i].get() == *iter) {
         stream_found = true;
-        removed_streams_.push_back(audio_streams_[i]);
-        audio_streams_.weak_erase(audio_streams_.begin() + i);
+        removed_streams_.push_back(std::move(audio_streams_[i]));
+        audio_streams_.erase(audio_streams_.begin() + i);
         break;
       }
     }
     if (stream_found) continue;
     for (size_t i = 0; i < video_streams_.size(); ++i) {
-      if (video_streams_[i] == *iter) {
+      if (video_streams_[i].get() == *iter) {
         stream_found = true;
-        removed_streams_.push_back(video_streams_[i]);
-        video_streams_.weak_erase(video_streams_.begin() + i);
+        removed_streams_.push_back(std::move(video_streams_[i]));
+        video_streams_.erase(video_streams_.begin() + i);
         break;
       }
     }
@@ -733,8 +735,9 @@ void ChunkDemuxer::OnEnabledAudioTracksChanged(
   // First disable all streams that need to be disabled and then enable streams
   // that are enabled.
   for (size_t i = 0; i < audio_streams_.size(); ++i) {
-    if (enabled_streams.find(audio_streams_[i]) == enabled_streams.end()) {
-      DVLOG(1) << __func__ << ": disabling stream " << audio_streams_[i];
+    if (enabled_streams.find(audio_streams_[i].get()) ==
+        enabled_streams.end()) {
+      DVLOG(1) << __func__ << ": disabling stream " << audio_streams_[i].get();
       audio_streams_[i]->set_enabled(false, currTime);
     }
   }
@@ -760,8 +763,8 @@ void ChunkDemuxer::OnSelectedVideoTrackChanged(
   // First disable all streams that need to be disabled and then enable the
   // stream that needs to be enabled (if any).
   for (size_t i = 0; i < video_streams_.size(); ++i) {
-    if (video_streams_[i] != selected_stream) {
-      DVLOG(1) << __func__ << ": disabling stream " << video_streams_[i];
+    if (video_streams_[i].get() != selected_stream) {
+      DVLOG(1) << __func__ << ": disabling stream " << video_streams_[i].get();
       DCHECK_EQ(DemuxerStream::VIDEO, video_streams_[i]->type());
       video_streams_[i]->set_enabled(false, currTime);
     }
@@ -1220,14 +1223,15 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       return NULL;
   }
 
-  scoped_ptr<ChunkDemuxerStream> stream(
+  std::unique_ptr<ChunkDemuxerStream> stream(
       new ChunkDemuxerStream(type, splice_frames_enabled_, media_track_id));
   DCHECK(track_id_to_demux_stream_map_.find(media_track_id) ==
          track_id_to_demux_stream_map_.end());
   track_id_to_demux_stream_map_[media_track_id] = stream.get();
   id_to_streams_map_[source_id].push_back(stream.get());
-  owning_vector->push_back(stream.release());
-  return owning_vector->back();
+  owning_vector->push_back(
+      std::unique_ptr<ChunkDemuxerStream>(stream.release()));
+  return owning_vector->back().get();
 }
 
 void ChunkDemuxer::OnNewTextTrack(ChunkDemuxerStream* text_stream,

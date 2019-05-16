@@ -15,11 +15,13 @@
 #include "cobalt/media/fetcher_buffered_data_source.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "base/string_number_conversions.h"
+#include "base/strings/string_number_conversions.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
@@ -38,11 +40,11 @@ const uint32 kInitialBufferCapacity = kBackwardBytes + kInitialForwardBytes;
 using base::CircularBufferShell;
 
 FetcherBufferedDataSource::FetcherBufferedDataSource(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
-    const csp::SecurityCallback& security_callback,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const GURL& url, const csp::SecurityCallback& security_callback,
     network::NetworkModule* network_module, loader::RequestMode request_mode,
     loader::Origin origin)
-    : message_loop_(message_loop),
+    : task_runner_(task_runner),
       url_(url),
       network_module_(network_module),
       is_downloading_(false),
@@ -59,7 +61,7 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
       request_mode_(request_mode),
       document_origin_(origin),
       is_origin_safe_(false) {
-  DCHECK(message_loop_);
+  DCHECK(task_runner_);
   DCHECK(network_module);
 }
 
@@ -118,7 +120,7 @@ bool FetcherBufferedDataSource::GetSize(int64* size_out) {
 
 void FetcherBufferedDataSource::SetDownloadingStatusCB(
     const DownloadingStatusCB& downloading_status_cb) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   DCHECK(!downloading_status_cb.is_null());
   DCHECK(downloading_status_cb_.is_null());
@@ -127,7 +129,7 @@ void FetcherBufferedDataSource::SetDownloadingStatusCB(
 
 void FetcherBufferedDataSource::OnURLFetchResponseStarted(
     const net::URLFetcher* source) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
 
@@ -180,10 +182,9 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
     int64 first_byte_position = -1;
     int64 last_byte_position = -1;
     int64 instance_length = -1;
-    bool is_range_valid =
-        headers &&
-        headers->GetContentRange(&first_byte_position, &last_byte_position,
-                                 &instance_length);
+    bool is_range_valid = headers && headers->GetContentRangeFor206(
+                                         &first_byte_position,
+                                         &last_byte_position, &instance_length);
     if (is_range_valid) {
       if (first_byte_position >= 0) {
         first_byte_offset = static_cast<uint64>(first_byte_position);
@@ -202,9 +203,14 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
   }
 }
 
-void FetcherBufferedDataSource::OnURLFetchDownloadData(
-    const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+void FetcherBufferedDataSource::OnURLFetchDownloadProgress(
+    const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
+    int64_t /*current_network_bytes*/) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  auto* download_data_writer =
+      base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+          source->GetResponseWriter());
+  std::unique_ptr<std::string> download_data = download_data_writer->data();
   size_t size = download_data->size();
   if (size == 0) {
     return;
@@ -271,7 +277,7 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
 
 void FetcherBufferedDataSource::OnURLFetchComplete(
     const net::URLFetcher* source) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
 
@@ -299,7 +305,7 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
 }
 
 void FetcherBufferedDataSource::CreateNewFetcher() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
 
@@ -320,13 +326,17 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
     return;
   }
 
-  fetcher_.reset(net::URLFetcher::Create(url_, net::URLFetcher::GET, this));
-  fetcher_->SetRequestContext(network_module_->url_request_context_getter());
-  fetcher_->DiscardResponse();
+  fetcher_ =
+      std::move(net::URLFetcher::Create(url_, net::URLFetcher::GET, this));
+  fetcher_->SetRequestContext(
+      network_module_->url_request_context_getter().get());
+  auto* download_data_writer = new CobaltURLFetcherStringWriter();
+  fetcher_->SaveResponseWithWriter(
+      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
 
   std::string range_request =
-      "Range: bytes=" + base::Uint64ToString(last_request_offset_) + "-" +
-      base::Uint64ToString(last_request_offset_ + last_request_size_ - 1);
+      "Range: bytes=" + base::NumberToString(last_request_offset_) + "-" +
+      base::NumberToString(last_request_offset_ + last_request_size_ - 1);
   fetcher_->AddExtraRequestHeader(range_request);
   if (!is_origin_safe_) {
     if (request_mode_ != loader::kNoCORSMode &&
@@ -342,7 +352,7 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
 }
 
 void FetcherBufferedDataSource::UpdateDownloadingStatus(bool is_downloading) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (is_downloading_ == is_downloading) {
     return;
@@ -462,8 +472,8 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
   cancelable_create_fetcher_closure_ =
       new CancelableClosure(create_fetcher_closure);
   fetcher_to_be_destroyed_.reset(fetcher_.release());
-  message_loop_->PostTask(FROM_HERE,
-                          cancelable_create_fetcher_closure_->AsClosure());
+  task_runner_->PostTask(FROM_HERE,
+                         cancelable_create_fetcher_closure_->AsClosure());
 }
 
 void FetcherBufferedDataSource::ProcessPendingRead_Locked() {

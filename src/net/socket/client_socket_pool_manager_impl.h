@@ -6,141 +6,127 @@
 #define NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_IMPL_H_
 
 #include <map>
-#include "base/basictypes.h"
+#include <memory>
+#include <string>
+#include <type_traits>
+
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/stl_util.h"
-#include "base/template_util.h"
-#include "base/threading/non_thread_safe.h"
-#include "net/base/cert_database.h"
+#include "base/threading/thread_checker.h"
+#include "net/base/net_export.h"
+#include "net/cert/cert_database.h"
 #include "net/http/http_network_session.h"
-#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool_manager.h"
+
+namespace base {
+namespace trace_event {
+class ProcessMemoryDump;
+}
+}
 
 namespace net {
 
 class CertVerifier;
+class ChannelIDService;
 class ClientSocketFactory;
-class ClientSocketPoolHistograms;
+class CTVerifier;
 class HttpProxyClientSocketPool;
 class HostResolver;
 class NetLog;
-class ServerBoundCertService;
-class ProxyService;
+class NetworkQualityProvider;
+class SocketPerformanceWatcherFactory;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
 class SSLConfigService;
 class TransportClientSocketPool;
 class TransportSecurityState;
+class WebSocketEndpointLockManager;
 
-namespace internal {
-
-// A helper class for auto-deleting Values in the destructor.
-template <typename Key, typename Value>
-class OwnedPoolMap : public std::map<Key, Value> {
+class NET_EXPORT_PRIVATE ClientSocketPoolManagerImpl
+    : public ClientSocketPoolManager,
+      public CertDatabase::Observer {
  public:
-  OwnedPoolMap() {
-    COMPILE_ASSERT(base::is_pointer<Value>::value,
-                   value_must_be_a_pointer);
-  }
+  ClientSocketPoolManagerImpl(
+      NetLog* net_log,
+      ClientSocketFactory* socket_factory,
+      SocketPerformanceWatcherFactory* socket_performance_watcher_factory,
+      NetworkQualityProvider* network_quality_provider,
+      HostResolver* host_resolver,
+      CertVerifier* cert_verifier,
+      ChannelIDService* channel_id_service,
+      TransportSecurityState* transport_security_state,
+      CTVerifier* cert_transparency_verifier,
+      CTPolicyEnforcer* ct_policy_enforcer,
+      const std::string& ssl_session_cache_shard,
+      SSLConfigService* ssl_config_service,
+      WebSocketEndpointLockManager* websocket_endpoint_lock_manager,
+      HttpNetworkSession::SocketPoolType pool_type);
+  ~ClientSocketPoolManagerImpl() override;
 
-  ~OwnedPoolMap() {
-    STLDeleteValues(this);
-  }
-};
+  void FlushSocketPoolsWithError(int error) override;
+  void CloseIdleSockets() override;
 
-}  // namespace internal
+  TransportClientSocketPool* GetTransportSocketPool() override;
 
-class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
-                                    public ClientSocketPoolManager,
-                                    public CertDatabase::Observer {
- public:
-  ClientSocketPoolManagerImpl(NetLog* net_log,
-                              ClientSocketFactory* socket_factory,
-                              HostResolver* host_resolver,
-                              CertVerifier* cert_verifier,
-                              ServerBoundCertService* server_bound_cert_service,
-                              TransportSecurityState* transport_security_state,
-                              const std::string& ssl_session_cache_shard,
-                              ProxyService* proxy_service,
-                              SSLConfigService* ssl_config_service,
-                              HttpNetworkSession::SocketPoolType pool_type);
-  virtual ~ClientSocketPoolManagerImpl();
+  SSLClientSocketPool* GetSSLSocketPool() override;
 
-  virtual void FlushSocketPoolsWithError(int error) override;
-  virtual void CloseIdleSockets() override;
-
-  virtual TransportClientSocketPool* GetTransportSocketPool() override;
-
-  virtual SSLClientSocketPool* GetSSLSocketPool() override;
-
-  virtual SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
+  SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy) override;
 
-  virtual HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
+  HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy) override;
 
-  virtual SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
+  SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
       const HostPortPair& proxy_server) override;
 
-  // Creates a Value summary of the state of the socket pools. The caller is
-  // responsible for deleting the returned value.
-  virtual base::Value* SocketPoolInfoToValue() const override;
+  // Creates a Value summary of the state of the socket pools.
+  std::unique_ptr<base::Value> SocketPoolInfoToValue() const override;
 
   // CertDatabase::Observer methods:
-  virtual void OnCertAdded(const X509Certificate* cert) override;
-  virtual void OnCertTrustChanged(const X509Certificate* cert) override;
+  void OnCertDBChanged() override;
+
+  void DumpMemoryStats(
+      base::trace_event::ProcessMemoryDump* pmd,
+      const std::string& parent_dump_absolute_name) const override;
 
  private:
-  typedef internal::OwnedPoolMap<HostPortPair, TransportClientSocketPool*>
-      TransportSocketPoolMap;
-  typedef internal::OwnedPoolMap<HostPortPair, SOCKSClientSocketPool*>
-      SOCKSSocketPoolMap;
-  typedef internal::OwnedPoolMap<HostPortPair, HttpProxyClientSocketPool*>
-      HTTPProxySocketPoolMap;
-  typedef internal::OwnedPoolMap<HostPortPair, SSLClientSocketPool*>
-      SSLSocketPoolMap;
+  using TransportSocketPoolMap =
+      std::map<HostPortPair, std::unique_ptr<TransportClientSocketPool>>;
+  using SOCKSSocketPoolMap =
+      std::map<HostPortPair, std::unique_ptr<SOCKSClientSocketPool>>;
+  using HTTPProxySocketPoolMap =
+      std::map<HostPortPair, std::unique_ptr<HttpProxyClientSocketPool>>;
+  using SSLSocketPoolMap =
+      std::map<HostPortPair, std::unique_ptr<SSLClientSocketPool>>;
 
   NetLog* const net_log_;
   ClientSocketFactory* const socket_factory_;
+  SocketPerformanceWatcherFactory* socket_performance_watcher_factory_;
+  NetworkQualityProvider* network_quality_provider_;
   HostResolver* const host_resolver_;
   CertVerifier* const cert_verifier_;
-  ServerBoundCertService* const server_bound_cert_service_;
+  ChannelIDService* const channel_id_service_;
   TransportSecurityState* const transport_security_state_;
+  CTVerifier* const cert_transparency_verifier_;
+  CTPolicyEnforcer* const ct_policy_enforcer_;
   const std::string ssl_session_cache_shard_;
-  ProxyService* const proxy_service_;
-  const scoped_refptr<SSLConfigService> ssl_config_service_;
+  SSLConfigService* const ssl_config_service_;
   const HttpNetworkSession::SocketPoolType pool_type_;
 
   // Note: this ordering is important.
 
-  ClientSocketPoolHistograms transport_pool_histograms_;
-  scoped_ptr<TransportClientSocketPool> transport_socket_pool_;
-
-  ClientSocketPoolHistograms ssl_pool_histograms_;
-  scoped_ptr<SSLClientSocketPool> ssl_socket_pool_;
-
-  ClientSocketPoolHistograms transport_for_socks_pool_histograms_;
+  std::unique_ptr<TransportClientSocketPool> transport_socket_pool_;
+  std::unique_ptr<SSLClientSocketPool> ssl_socket_pool_;
   TransportSocketPoolMap transport_socket_pools_for_socks_proxies_;
-
-  ClientSocketPoolHistograms socks_pool_histograms_;
   SOCKSSocketPoolMap socks_socket_pools_;
-
-  ClientSocketPoolHistograms transport_for_http_proxy_pool_histograms_;
   TransportSocketPoolMap transport_socket_pools_for_http_proxies_;
-
-  ClientSocketPoolHistograms transport_for_https_proxy_pool_histograms_;
   TransportSocketPoolMap transport_socket_pools_for_https_proxies_;
-
-  ClientSocketPoolHistograms ssl_for_https_proxy_pool_histograms_;
   SSLSocketPoolMap ssl_socket_pools_for_https_proxies_;
-
-  ClientSocketPoolHistograms http_proxy_pool_histograms_;
   HTTPProxySocketPoolMap http_proxy_socket_pools_;
-
-  ClientSocketPoolHistograms ssl_socket_pool_for_proxies_histograms_;
   SSLSocketPoolMap ssl_socket_pools_for_proxies_;
+
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolManagerImpl);
 };

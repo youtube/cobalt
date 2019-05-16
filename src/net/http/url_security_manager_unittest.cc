@@ -4,23 +4,24 @@
 
 #include "net/http/url_security_manager.h"
 
-#include "base/basictypes.h"
-#include "googleurl/src/gurl.h"
+#include <utility>
+
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_filter.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace net {
 
 namespace {
 
 struct TestData {
-  const char* url;
+  const char* const url;
   bool succeds_in_windows_default;
   bool succeeds_in_whitelist;
 };
 
-const char* kTestAuthWhitelist = "*example.com,*foobar.com,baz";
+const char kTestAuthWhitelist[] = "*example.com,*foobar.com,baz";
 
 // Under Windows the following will be allowed by default:
 //    localhost
@@ -44,12 +45,13 @@ const TestData kTestDataList[] = {
 }  // namespace
 
 TEST(URLSecurityManager, UseDefaultCredentials) {
-  HttpAuthFilterWhitelist* auth_filter = new HttpAuthFilterWhitelist(
-      kTestAuthWhitelist);
+  std::unique_ptr<HttpAuthFilter> auth_filter(
+      new HttpAuthFilterWhitelist(kTestAuthWhitelist));
   ASSERT_TRUE(auth_filter);
   // The URL security manager takes ownership of |auth_filter|.
-  scoped_ptr<URLSecurityManager> url_security_manager(
-      URLSecurityManager::Create(auth_filter, NULL));
+  std::unique_ptr<URLSecurityManager> url_security_manager(
+      URLSecurityManager::Create());
+  url_security_manager->SetDefaultWhitelist(std::move(auth_filter));
   ASSERT_TRUE(url_security_manager.get());
 
   for (size_t i = 0; i < arraysize(kTestDataList); ++i) {
@@ -63,12 +65,13 @@ TEST(URLSecurityManager, UseDefaultCredentials) {
 }
 
 TEST(URLSecurityManager, CanDelegate) {
-  HttpAuthFilterWhitelist* auth_filter = new HttpAuthFilterWhitelist(
-      kTestAuthWhitelist);
+  std::unique_ptr<HttpAuthFilter> auth_filter(
+      new HttpAuthFilterWhitelist(kTestAuthWhitelist));
   ASSERT_TRUE(auth_filter);
   // The URL security manager takes ownership of |auth_filter|.
-  scoped_ptr<URLSecurityManager> url_security_manager(
-      URLSecurityManager::Create(NULL, auth_filter));
+  std::unique_ptr<URLSecurityManager> url_security_manager(
+      URLSecurityManager::Create());
+  url_security_manager->SetDelegateWhitelist(std::move(auth_filter));
   ASSERT_TRUE(url_security_manager.get());
 
   for (size_t i = 0; i < arraysize(kTestDataList); ++i) {
@@ -81,8 +84,8 @@ TEST(URLSecurityManager, CanDelegate) {
 
 TEST(URLSecurityManager, CanDelegate_NoWhitelist) {
   // Nothing can delegate in this case.
-  scoped_ptr<URLSecurityManager> url_security_manager(
-      URLSecurityManager::Create(NULL, NULL));
+  std::unique_ptr<URLSecurityManager> url_security_manager(
+      URLSecurityManager::Create());
   ASSERT_TRUE(url_security_manager.get());
 
   for (size_t i = 0; i < arraysize(kTestDataList); ++i) {

@@ -5,21 +5,39 @@
 #include "net/base/io_buffer.h"
 
 #include "base/logging.h"
-#include "build/build_config.h"
-
-#if defined(OS_STARBOARD)
+#include "base/numerics/safe_math.h"
 #include "starboard/memory.h"
-#define realloc SbMemoryReallocate
-#endif
 
 namespace net {
+
+namespace {
+
+// TODO(eroman): IOBuffer is being converted to require buffer sizes and offsets
+// be specified as "size_t" rather than "int" (crbug.com/488553). To facilitate
+// this move (since LOTS of code needs to be updated), both "size_t" and "int
+// are being accepted. When using "size_t" this function ensures that it can be
+// safely converted to an "int" without truncation.
+void AssertValidBufferSize(size_t size) {
+  base::CheckedNumeric<int>(size).ValueOrDie();
+}
+
+void AssertValidBufferSize(int size) {
+  CHECK_GE(size, 0);
+}
+
+}  // namespace
 
 IOBuffer::IOBuffer()
     : data_(NULL) {
 }
 
 IOBuffer::IOBuffer(int buffer_size) {
-  DCHECK(buffer_size > 0);
+  AssertValidBufferSize(buffer_size);
+  data_ = new char[buffer_size];
+}
+
+IOBuffer::IOBuffer(size_t buffer_size) {
+  AssertValidBufferSize(buffer_size);
   data_ = new char[buffer_size];
 }
 
@@ -35,19 +53,37 @@ IOBuffer::~IOBuffer() {
 IOBufferWithSize::IOBufferWithSize(int size)
     : IOBuffer(size),
       size_(size) {
+  AssertValidBufferSize(size);
+}
+
+IOBufferWithSize::IOBufferWithSize(size_t size) : IOBuffer(size), size_(size) {
+  // Note: Size check is done in superclass' constructor.
 }
 
 IOBufferWithSize::IOBufferWithSize(char* data, int size)
     : IOBuffer(data),
       size_(size) {
+  AssertValidBufferSize(size);
 }
 
-IOBufferWithSize::~IOBufferWithSize() {
+IOBufferWithSize::IOBufferWithSize(char* data, size_t size)
+    : IOBuffer(data), size_(size) {
+  AssertValidBufferSize(size);
 }
+
+IOBufferWithSize::~IOBufferWithSize() = default;
 
 StringIOBuffer::StringIOBuffer(const std::string& s)
     : IOBuffer(static_cast<char*>(NULL)),
       string_data_(s) {
+  AssertValidBufferSize(s.size());
+  data_ = const_cast<char*>(string_data_.data());
+}
+
+StringIOBuffer::StringIOBuffer(std::unique_ptr<std::string> s)
+    : IOBuffer(static_cast<char*>(NULL)) {
+  AssertValidBufferSize(s->size());
+  string_data_.swap(*s.get());
   data_ = const_cast<char*>(string_data_.data());
 }
 
@@ -57,11 +93,14 @@ StringIOBuffer::~StringIOBuffer() {
   data_ = NULL;
 }
 
-DrainableIOBuffer::DrainableIOBuffer(IOBuffer* base, int size)
-    : IOBuffer(base->data()),
-      base_(base),
-      size_(size),
-      used_(0) {
+DrainableIOBuffer::DrainableIOBuffer(scoped_refptr<IOBuffer> base, int size)
+    : IOBuffer(base->data()), base_(std::move(base)), size_(size), used_(0) {
+  AssertValidBufferSize(size);
+}
+
+DrainableIOBuffer::DrainableIOBuffer(scoped_refptr<IOBuffer> base, size_t size)
+    : IOBuffer(base->data()), base_(std::move(base)), size_(size), used_(0) {
+  AssertValidBufferSize(size);
 }
 
 void DrainableIOBuffer::DidConsume(int bytes) {
@@ -98,7 +137,8 @@ GrowableIOBuffer::GrowableIOBuffer()
 void GrowableIOBuffer::SetCapacity(int capacity) {
   DCHECK_GE(capacity, 0);
   // realloc will crash if it fails.
-  real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
+  real_data_.reset(
+      static_cast<char*>(SbMemoryReallocate(real_data_.release(), capacity)));
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);
@@ -125,13 +165,16 @@ GrowableIOBuffer::~GrowableIOBuffer() {
   data_ = NULL;
 }
 
-PickledIOBuffer::PickledIOBuffer() : IOBuffer() {}
+PickledIOBuffer::PickledIOBuffer() : IOBuffer() {
+}
 
 void PickledIOBuffer::Done() {
   data_ = const_cast<char*>(static_cast<const char*>(pickle_.data()));
 }
 
-PickledIOBuffer::~PickledIOBuffer() { data_ = NULL; }
+PickledIOBuffer::~PickledIOBuffer() {
+  data_ = NULL;
+}
 
 WrappedIOBuffer::WrappedIOBuffer(const char* data)
     : IOBuffer(const_cast<char*>(data)) {
