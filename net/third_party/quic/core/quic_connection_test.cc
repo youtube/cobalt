@@ -43,8 +43,8 @@
 #include "net/third_party/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quic/test_tools/simple_session_notifier.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #include "testing/gmock_mutant.h"
 

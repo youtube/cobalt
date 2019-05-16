@@ -39,8 +39,8 @@
 #include "net/third_party/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/simple_data_producer.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace quic {
 namespace test {

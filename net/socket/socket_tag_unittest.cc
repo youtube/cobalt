@@ -17,7 +17,7 @@
 #include "net/base/sockaddr_storage.h"
 #include "net/socket/socket_test_util.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

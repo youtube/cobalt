@@ -24,7 +24,7 @@
 #include "net/third_party/quic/tools/quic_backend_response.h"
 #include "net/third_party/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quic/tools/quic_simple_server_session.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

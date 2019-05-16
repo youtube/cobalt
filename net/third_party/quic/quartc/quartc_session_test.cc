@@ -20,7 +20,7 @@
 #include "net/third_party/quic/test_tools/mock_clock.h"
 #include "net/third_party/quic/test_tools/simulator/packet_filter.h"
 #include "net/third_party/quic/test_tools/simulator/simulator.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

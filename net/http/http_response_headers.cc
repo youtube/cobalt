@@ -30,7 +30,7 @@
 #include "net/http/http_log_util.h"
 #include "net/http/http_util.h"
 #include "net/log/net_log_capture_mode.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 using base::StringPiece;
 using base::Time;

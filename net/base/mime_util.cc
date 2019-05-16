@@ -12,9 +12,9 @@
 #include "base/containers/hash_tables.h"
 #include "base/containers/span.h"
 #include "base/cpp14oncpp11.h"
+#include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/files/file_path.h"
 #include "base/rand_util.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -25,7 +25,7 @@
 #include "net/base/mime_util.h"
 #include "net/base/platform_mime_util.h"
 #include "net/http/http_util.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"

@@ -32,7 +32,7 @@
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #endif
 
