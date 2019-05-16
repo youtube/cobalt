@@ -25,7 +25,7 @@
 #include "glimp/gles/shader.h"
 #include "glimp/gles/texture.h"
 #include "nb/ref_counted.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 namespace glimp {
 namespace gles {
