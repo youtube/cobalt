@@ -37,7 +37,7 @@ static SB_C_INLINE int PoemAbs(int x) {
 
 #if !defined(POEM_NO_EMULATION)
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 #ifdef __cplusplus
 #include <string>

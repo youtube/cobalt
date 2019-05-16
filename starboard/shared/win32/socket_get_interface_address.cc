@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 #include <winsock2.h>
 
@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/adapter_utils.h"

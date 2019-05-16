@@ -14,8 +14,8 @@
 
 // Destroy is mostly Sunny Day tested in Create.
 
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/raspi/shared/open_max/open_max_component_base.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/time.h"

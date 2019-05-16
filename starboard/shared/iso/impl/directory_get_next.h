@@ -20,8 +20,8 @@
 #include <dirent.h>
 #include <errno.h>
 
+#include "starboard/common/string.h"
 #include "starboard/file.h"
-#include "starboard/string.h"
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/iso/impl/directory_impl.h"

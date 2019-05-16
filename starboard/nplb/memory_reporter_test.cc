@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/memory_reporter.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
-#include "starboard/memory_reporter.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"

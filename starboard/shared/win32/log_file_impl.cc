@@ -16,12 +16,12 @@
 
 #include <string>
 
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/win32/file_internal.h"
-#include "starboard/string.h"
 
 namespace {
 

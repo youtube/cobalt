@@ -23,8 +23,8 @@
 #include <map>
 #include <string>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 

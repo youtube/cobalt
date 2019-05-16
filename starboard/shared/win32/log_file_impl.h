@@ -18,8 +18,8 @@
 #ifndef STARBOARD_SHARED_WIN32_LOG_FILE_IMPL_H_
 #define STARBOARD_SHARED_WIN32_LOG_FILE_IMPL_H_
 
+#include "starboard/common/mutex.h"
 #include "starboard/file.h"
-#include "starboard/mutex.h"
 
 namespace starboard {
 namespace shared {

@@ -16,8 +16,8 @@
 
 #include <sstream>
 
+#include "starboard/common/string.h"
 #include "starboard/shared/win32/error_utils.h"
-#include "starboard/string.h"
 
 int SbSystemGetErrorString(SbSystemError error,
                            char* out_string,

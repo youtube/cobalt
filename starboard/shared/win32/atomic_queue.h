@@ -17,7 +17,7 @@
 
 #include <deque>
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 namespace starboard {
 namespace shared {

@@ -19,7 +19,7 @@
 
 #include <algorithm>
 
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 

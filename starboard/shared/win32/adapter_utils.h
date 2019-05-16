@@ -22,7 +22,7 @@
 
 #include <memory>
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 namespace starboard {
 namespace shared {

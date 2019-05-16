@@ -17,9 +17,9 @@
 #include <stdio.h>
 #include <windows.h>
 
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/win32/log_file_impl.h"
-#include "starboard/string.h"
 
 namespace sbwin32 = starboard::shared::win32;
 

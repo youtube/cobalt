@@ -20,8 +20,8 @@
 #ifndef STARBOARD_COMMON_RWLOCK_H_
 #define STARBOARD_COMMON_RWLOCK_H_
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
-#include "starboard/mutex.h"
 
 #ifdef __cplusplus
 namespace starboard {

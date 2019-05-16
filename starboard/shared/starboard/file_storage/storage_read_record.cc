@@ -17,8 +17,8 @@
 #include <algorithm>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
-#include "starboard/string.h"
 #include "starboard/user.h"
 
 int64_t SbStorageReadRecord(SbStorageRecord record,

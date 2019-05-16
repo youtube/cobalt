@@ -17,7 +17,7 @@
 #include "cobalt/extension/platform_service.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/common/log.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 void* SbSystemGetExtension(const char* name) {
   if (SbStringCompareAll(name, kCobaltExtensionPlatformServiceName) == 0) {

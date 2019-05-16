@@ -17,7 +17,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/once.h"
 
 namespace starboard {

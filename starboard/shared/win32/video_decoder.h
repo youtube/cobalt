@@ -21,11 +21,11 @@
 #include <list>
 #include <memory>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"

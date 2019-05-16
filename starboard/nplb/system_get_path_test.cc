@@ -16,10 +16,10 @@
 
 #include <algorithm>
 
+#include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"

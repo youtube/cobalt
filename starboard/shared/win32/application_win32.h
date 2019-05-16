@@ -22,7 +22,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/localized_strings.h"
 #include "starboard/shared/starboard/queue_application.h"

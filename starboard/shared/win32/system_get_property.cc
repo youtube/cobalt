@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/log.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 
 namespace {

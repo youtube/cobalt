@@ -19,7 +19,7 @@
 #include <dbghelp.h>
 #include <string>
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/win32/file_internal.h"
 

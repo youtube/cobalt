@@ -26,13 +26,13 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/nouser/user_internal.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/win32/application_win32.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace sbwin32 = starboard::shared::win32;

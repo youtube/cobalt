@@ -17,7 +17,7 @@
 #include <locale.h>  // for setlocale and LC_*
 #include <stdlib.h>  // for getenv
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace {
 bool IsValidId(const char* posix_id) {

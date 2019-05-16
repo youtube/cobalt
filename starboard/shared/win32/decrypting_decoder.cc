@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <numeric>
 
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/memory.h"

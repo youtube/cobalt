@@ -14,8 +14,8 @@
 
 #include "starboard/thread.h"
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::SbThreadPrivate;

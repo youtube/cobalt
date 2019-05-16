@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/shared/win32/drm_system_playready.h"
-#include "starboard/string.h"
 
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,

@@ -19,9 +19,9 @@
 #include <WS2tcpip.h>
 
 #include "starboard/atomic.h"
+#include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/auto_event_handle.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/types.h"
 

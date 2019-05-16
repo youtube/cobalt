@@ -14,7 +14,7 @@
 
 // Most of the destroy tests are done in the other tests that create sockets.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

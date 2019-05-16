@@ -27,12 +27,12 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {

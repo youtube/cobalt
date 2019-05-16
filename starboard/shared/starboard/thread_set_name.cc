@@ -14,8 +14,8 @@
 
 #include "starboard/thread.h"
 
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/thread_name_internal.h"
-#include "starboard/string.h"
 
 void SbThreadSetName(const char* name) {
   SbStringCopy(starboard::shared::GetThreadName(), name,

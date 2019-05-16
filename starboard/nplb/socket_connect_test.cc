@@ -15,8 +15,8 @@
 // The basic Sunny Day test is a subset of other Sunny Day tests, so it is not
 // repeated here.
 
+#include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

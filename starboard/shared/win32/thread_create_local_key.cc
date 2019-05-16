@@ -16,8 +16,8 @@
 
 #include <windows.h>
 
+#include "starboard/common/mutex.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 

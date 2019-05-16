@@ -14,8 +14,8 @@
 
 #include "starboard/android/shared/log_internal.h"
 
-#include "starboard/log.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 namespace {
   const char kLogSleepTimeSwitch[] = "android_log_sleep_time";

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 int SbStringCompareNoCase(const char* /*string1*/, const char* /*string2*/) {
   return 0;

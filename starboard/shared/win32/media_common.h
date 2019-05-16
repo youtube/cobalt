@@ -26,14 +26,14 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {

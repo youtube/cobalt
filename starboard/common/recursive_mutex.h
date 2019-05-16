@@ -15,9 +15,9 @@
 #ifndef STARBOARD_COMMON_RECURSIVE_MUTEX_H_
 #define STARBOARD_COMMON_RECURSIVE_MUTEX_H_
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 

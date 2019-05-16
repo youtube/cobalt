@@ -21,8 +21,8 @@
 #include <memory>
 
 #include "starboard/common/log.h"
+#include "starboard/common/socket.h"
 #include "starboard/shared/win32/socket_internal.h"
-#include "starboard/socket.h"
 
 namespace {
 const ULONG kDefaultAdapterInfoBufferSizeInBytes = 16 * 1024;

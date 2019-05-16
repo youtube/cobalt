@@ -15,8 +15,8 @@
 #include "starboard/drm.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/win32/drm_system_playready.h"
-#include "starboard/string.h"
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,

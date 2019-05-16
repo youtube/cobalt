@@ -16,7 +16,7 @@
 
 #include <windows.h>
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetCurrentSbThreadPrivate;

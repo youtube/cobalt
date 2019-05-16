@@ -20,8 +20,8 @@
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/linux/x64x11/system_properties.h"
-#include "starboard/string.h"
 
 namespace {
 

@@ -20,8 +20,8 @@
 
 #include "starboard/character.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {

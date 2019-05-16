@@ -17,11 +17,11 @@
 #include <deque>
 #include <functional>
 
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/condition_variable.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"

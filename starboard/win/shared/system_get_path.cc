@@ -23,11 +23,11 @@
 #include <locale>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/shared/win32/directory_internal.h"
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
-#include "starboard/string.h"
 
 namespace {
 

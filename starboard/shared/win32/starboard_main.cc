@@ -22,12 +22,12 @@
 #include <cstdio>
 #include <string>
 
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/win32/application_win32.h"
 #include "starboard/shared/win32/thread_private.h"
-#include "starboard/string.h"
 
 using starboard::shared::starboard::CommandLine;
 using starboard::shared::starboard::kNetLogCommandSwitchWait;

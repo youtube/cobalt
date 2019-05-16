@@ -23,12 +23,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
-#include "starboard/mutex.h"
+#include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/auto_event_handle.h"
 #include "starboard/shared/win32/socket_internal.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"

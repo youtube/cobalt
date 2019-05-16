@@ -21,10 +21,10 @@
 #include <list>
 
 #include "starboard/atomic.h"
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
