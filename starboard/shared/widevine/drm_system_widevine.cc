@@ -19,13 +19,13 @@
 
 #include "starboard/character.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/widevine/widevine_storage.h"
 #include "starboard/shared/widevine/widevine_timer.h"
-#include "starboard/string.h"
 #include "starboard/time.h"
 #include "third_party/ce_cdm/core/include/log.h"  // for wvcdm::InitLogging();
 #include "third_party/ce_cdm/core/include/string_conversions.h"

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 size_t SbStringGetLengthWide(const wchar_t* /*str*/) {
   return static_cast<size_t>(0);

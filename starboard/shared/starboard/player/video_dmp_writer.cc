@@ -19,10 +19,10 @@
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/string.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {

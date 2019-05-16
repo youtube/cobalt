@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 
 #include <iomanip>
 

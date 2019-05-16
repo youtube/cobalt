@@ -22,8 +22,8 @@
 #include "starboard/format_string.h"
 #endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace android {

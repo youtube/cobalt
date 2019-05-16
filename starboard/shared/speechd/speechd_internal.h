@@ -17,7 +17,7 @@
 
 #include <libspeechd.h>
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {

@@ -18,9 +18,9 @@
 #include <queue>
 
 #include "starboard/common/log.h"
+#include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
-#include "starboard/queue.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"

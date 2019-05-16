@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #include <string.h>  // Non-standard, required for some platforms.
 #include <strings.h>

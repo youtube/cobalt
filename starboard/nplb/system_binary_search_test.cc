@@ -15,7 +15,7 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -20,7 +20,7 @@
 #include <directfb.h>
 
 #include "starboard/blitter.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 
 struct SbBlitterDevicePrivate {

@@ -21,7 +21,7 @@
 
 #if !defined(POEM_NO_EMULATION)
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #undef vswprintf
 #define vswprintf SbStringFormatWide

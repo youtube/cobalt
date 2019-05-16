@@ -14,8 +14,8 @@
 
 #include "starboard/user.h"
 
+#include "starboard/common/string.h"
 #include "starboard/shared/nouser/user_internal.h"
-#include "starboard/string.h"
 
 int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
   if (!SbUserIsValid(user)) {

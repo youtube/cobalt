@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/file.h"
-#include "starboard/string.h"
 
 namespace {
 bool IsUpdate(const char* mode) {

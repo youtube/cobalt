@@ -29,6 +29,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/directory.h"
 #include "starboard/input.h"
@@ -36,7 +37,6 @@
 #include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/time_internal.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
