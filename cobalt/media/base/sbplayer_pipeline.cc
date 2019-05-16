@@ -64,6 +64,7 @@ struct StartTaskParameters {
   base::Closure duration_change_cb;
   base::Closure output_mode_change_cb;
   base::Closure content_size_change_cb;
+  std::string max_video_capabilities;
 #if SB_HAS(PLAYER_WITH_URL)
   std::string source_url;
   bool is_url_based;
@@ -89,11 +90,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
-             const SeekCB& seek_cb,
-             const BufferingStateCB& buffering_state_cb,
+             const SeekCB& seek_cb, const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
-             const base::Closure& content_size_change_cb) override;
+             const base::Closure& content_size_change_cb,
+             const std::string& max_video_capabilities) override;
 #if SB_HAS(PLAYER_WITH_URL)
   void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const OnEncryptedMediaInitDataEncounteredCB&
@@ -283,6 +284,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbTime last_media_time_;
   // Time when we last checked the media time.
   SbTime last_time_media_time_retrieved_ = 0;
+  // The maximum video playback capabilities required for the playback.
+  std::string max_video_capabilities_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -358,12 +361,12 @@ void OnEncryptedMediaInitDataEncountered(
 void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                              const PipelineStatusCB& ended_cb,
-                             const ErrorCB& error_cb,
-                             const SeekCB& seek_cb,
+                             const ErrorCB& error_cb, const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
                              const base::Closure& output_mode_change_cb,
-                             const base::Closure& content_size_change_cb) {
+                             const base::Closure& content_size_change_cb,
+                             const std::string& max_video_capabilities) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
   DCHECK(!ended_cb.is_null());
@@ -385,6 +388,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   parameters.duration_change_cb = duration_change_cb;
   parameters.output_mode_change_cb = output_mode_change_cb;
   parameters.content_size_change_cb = content_size_change_cb;
+  parameters.max_video_capabilities = max_video_capabilities;
 #if SB_HAS(PLAYER_WITH_URL)
   parameters.is_url_based = false;
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -736,6 +740,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   duration_change_cb_ = parameters.duration_change_cb;
   output_mode_change_cb_ = parameters.output_mode_change_cb;
   content_size_change_cb_ = parameters.content_size_change_cb;
+  max_video_capabilities_ = parameters.max_video_capabilities;
 #if SB_HAS(PLAYER_WITH_URL)
   is_url_based_ = parameters.is_url_based;
   if (is_url_based_) {
@@ -910,7 +915,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     player_.reset(new StarboardPlayer(
         task_runner_, audio_config, video_config, window_, drm_system, this,
         set_bounds_helper_.get(), allow_resume_after_suspend_,
-        *decode_to_texture_output_mode_, video_frame_provider_));
+        *decode_to_texture_output_mode_, video_frame_provider_,
+        max_video_capabilities_));
     SetPlaybackRateTask(playback_rate_);
     SetVolumeTask(volume_);
   }

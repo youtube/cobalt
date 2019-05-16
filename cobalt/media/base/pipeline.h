@@ -114,7 +114,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
                      const base::Closure& output_mode_change_cb,
-                     const base::Closure& content_size_change_cb) = 0;
+                     const base::Closure& content_size_change_cb,
+                     const std::string& max_video_capabilities) = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   // Build a pipeline with an url-base player.

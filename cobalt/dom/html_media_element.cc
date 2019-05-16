@@ -1621,6 +1621,10 @@ std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
 }
 
+std::string HTMLMediaElement::MaxVideoCapabilities() const {
+  return max_video_capabilities_;
+}
+
 bool HTMLMediaElement::PreferDecodeToTexture() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture()");
 
@@ -1720,6 +1724,17 @@ void HTMLMediaElement::ClearMediaSource() {
     media_source_->Close();
     media_source_ = NULL;
   }
+}
+
+void HTMLMediaElement::SetMaxVideoCapabilities(
+    const std::string& max_video_capabilities,
+    script::ExceptionState* exception_state) {
+  if (GetAttribute("src").value_or("").length() > 0) {
+    LOG(WARNING) << "Cannot set maxmium capabilities after src is defined.";
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    return;
+  }
+  max_video_capabilities_ = max_video_capabilities;
 }
 
 }  // namespace dom

@@ -122,7 +122,8 @@ StarboardPlayer::StarboardPlayer(
     SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
-    VideoFrameProvider* const video_frame_provider)
+    VideoFrameProvider* const video_frame_provider,
+    const std::string& max_video_capabilities)
     : task_runner_(task_runner),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
@@ -133,7 +134,8 @@ StarboardPlayer::StarboardPlayer(
       host_(host),
       set_bounds_helper_(set_bounds_helper),
       allow_resume_after_suspend_(allow_resume_after_suspend),
-      video_frame_provider_(video_frame_provider)
+      video_frame_provider_(video_frame_provider),
+      max_video_capabilities_(max_video_capabilities)
 #if SB_HAS(PLAYER_WITH_URL)
       ,
       is_url_based_(false)
@@ -499,20 +501,24 @@ void StarboardPlayer::CreatePlayer() {
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 
-  player_ = SbPlayerCreate(window_, video_codec, audio_codec,
+  player_ = SbPlayerCreate(
+      window_, video_codec, audio_codec,
 #if SB_API_VERSION < 10
-                           SB_PLAYER_NO_DURATION,
+      SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-                           drm_system_, has_audio ? &audio_header : NULL,
-                           &StarboardPlayer::DeallocateSampleCB,
-                           &StarboardPlayer::DecoderStatusCB,
-                           &StarboardPlayer::PlayerStatusCB,
+      drm_system_, has_audio ? &audio_header : NULL,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+      max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
+                                           : NULL,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
+      &StarboardPlayer::PlayerStatusCB,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-                           &StarboardPlayer::PlayerErrorCB,
+      &StarboardPlayer::PlayerErrorCB,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-                           this, output_mode_,
-                           ShellMediaPlatform::Instance()
-                               ->GetSbDecodeTargetGraphicsContextProvider());
+      this, output_mode_,
+      ShellMediaPlatform::Instance()
+          ->GetSbDecodeTargetGraphicsContextProvider());
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
