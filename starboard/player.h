@@ -357,6 +357,17 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+// |max_video_capabilities|: This string communicates the video maximums to the
+//   platform. The web app will not provide a video stream exceeding the
+//   maximums described by this parameter. Allows the platform to optimize
+//   playback pipeline for low quality video streams if it knows that it will
+//   never adapt to higher quality streams. The string uses the same format as
+//   the string passed in to SbMediaCanPlayMimeAndKeySystem(), for example, when
+//   it is set to "width=1920; height=1080; framerate=15;", the video will never
+//   adapt to resolution higher than 1920x1080 or frame per second higher than
+//   15 fps. When the maximums are unknown, this will be set to NULL.
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
 #if SB_HAS(AUDIOLESS_VIDEO)
 //   When |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
 #endif  // SB_HAS(AUDIOLESS_VIDEO)
@@ -412,6 +423,9 @@ SbPlayerCreate(SbWindow window,
 #endif  // SB_API_VERSION < 10
                SbDrmSystem drm_system,
                const SbMediaAudioHeader* audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+               const char* max_video_capabilities,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
                SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
