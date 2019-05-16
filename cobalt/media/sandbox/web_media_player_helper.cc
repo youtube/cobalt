@@ -50,6 +50,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
     chunk_demuxer_open_cb_.Run(chunk_demuxer);
   }
   std::string SourceURL() const override { return ""; }
+  std::string MaxVideoCapabilities() const override { return std::string(); };
   bool PreferDecodeToTexture() { return true; }
 
   void EncryptedMediaInitDataEncountered(EmeInitDataType, const unsigned char*,

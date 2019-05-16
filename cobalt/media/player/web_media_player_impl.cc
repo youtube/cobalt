@@ -805,7 +805,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged),
+      GetClient()->MaxVideoCapabilities());
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
