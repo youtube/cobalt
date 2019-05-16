@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <iterator>
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 #include "base/atomicops.h"

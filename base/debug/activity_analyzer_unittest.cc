@@ -24,8 +24,8 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/time/time.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

@@ -15,7 +15,7 @@
 #include "base/synchronization/lock_impl.h"
 
 #include "base/logging.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 namespace base {
 namespace internal {

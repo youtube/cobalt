@@ -8,7 +8,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_event_argument.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace base {
 namespace trace_event {

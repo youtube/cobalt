@@ -26,8 +26,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace base {
 namespace debug {
