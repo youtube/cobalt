@@ -15,8 +15,8 @@
  */
 
 #include "glimp/gles/program.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace glimp {
 namespace gles {

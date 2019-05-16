@@ -17,7 +17,7 @@
 #ifndef GLIMP_EGL_SCOPED_EGL_LOCK_H_
 #define GLIMP_EGL_SCOPED_EGL_LOCK_H_
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 namespace glimp {
 namespace egl {
