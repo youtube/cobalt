@@ -33,7 +33,7 @@
 #include <vector>
 #include "QrCode.hpp"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 using qrcodegen::QrCode;
 using qrcodegen::QrSegment;
