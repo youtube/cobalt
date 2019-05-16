@@ -12,8 +12,8 @@
 #endif  // defined(OS_CHROMEOS)
 
 #include "base/threading/thread_restrictions.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 
 namespace base {

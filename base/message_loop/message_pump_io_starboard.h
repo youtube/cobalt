@@ -21,7 +21,7 @@
 #include "base/observer_list.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 
 namespace base {

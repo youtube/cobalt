@@ -21,7 +21,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/time/time.h"
 #include "nb/memory_scope.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 
 namespace base {

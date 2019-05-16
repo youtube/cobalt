@@ -18,7 +18,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/third_party/dmg_fp/dmg_fp.h"
 #include "starboard/character.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace base {
