@@ -89,8 +89,11 @@ TEST_F(SbPlayerTest, SunnyDay) {
 #if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-        kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
-        DummyDecoderStatusFunc, DummyStatusFunc,
+        kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+        NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+        DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -128,8 +131,12 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 #if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-          kSbDrmSystemInvalid, &audio_header, NULL /* deallocate_sample_func */,
-          DummyDecoderStatusFunc, DummyStatusFunc,
+          kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          NULL /* deallocate_sample_func */, DummyDecoderStatusFunc,
+          DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
           DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -147,8 +154,12 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 #if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-          kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
-          NULL /* decoder_status_func */, DummyStatusFunc,
+          kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          DummyDeallocateSampleFunc, NULL /* decoder_status_func */,
+          DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
           DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -166,8 +177,12 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 #if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-          kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
-          DummyDecoderStatusFunc, NULL /*status_func */,
+          kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
+          NULL /*status_func */,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
           DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -186,9 +201,12 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 #if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-          kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
-          DummyDecoderStatusFunc, DummyStatusFunc, NULL /*error_func */,
-          NULL /* context */, output_mode,
+          kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+          DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
+          NULL /*error_func */, NULL /* context */, output_mode,
           fake_graphics_context_provider_.decoder_target_provider());
       EXPECT_FALSE(SbPlayerIsValid(player));
 
@@ -219,8 +237,11 @@ TEST_F(SbPlayerTest, Audioless) {
 #if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-        kSbDrmSystemInvalid, NULL /* audio_header */, DummyDeallocateSampleFunc,
-        DummyDecoderStatusFunc, DummyStatusFunc,
+        kSbDrmSystemInvalid, NULL /* audio_header */,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+        NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+        DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -259,8 +280,11 @@ TEST_F(SbPlayerTest, AudioOnly) {
 #if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-        kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
-        DummyDecoderStatusFunc, DummyStatusFunc,
+        kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+        NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+        DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -359,6 +383,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
           created_players.push_back(SbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+              NULL /* max_video_capabilities */,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
               DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
               DummyStatusFunc, DummyErrorFunc, NULL /* context */,
               kOutputModes[j],

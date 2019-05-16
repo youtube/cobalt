@@ -180,6 +180,11 @@
 // Starboard.
 #define SB_LOG_SYNCHRONIZATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add new parameter max_video_capabilities to SbPlayerCreate(), which sets
+// a maximum video features contract. Please see comment in SbPlayerCreate()
+// for more details.
+#define SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
