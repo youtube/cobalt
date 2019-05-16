@@ -20,7 +20,7 @@
 #include <string>
 
 #include "base/logging.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace css_parser {

@@ -30,7 +30,7 @@
 #include "net/base/net_errors.h"
 #include "net/server/http_server_request_info.h"
 #include "net/socket/tcp_server_socket.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 namespace cobalt {
 namespace debug {

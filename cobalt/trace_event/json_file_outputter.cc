@@ -26,7 +26,7 @@
 #include "cobalt/trace_event/switches.h"
 #endif
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace trace_event {

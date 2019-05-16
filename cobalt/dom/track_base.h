@@ -20,7 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace dom {

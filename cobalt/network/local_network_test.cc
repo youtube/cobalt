@@ -16,7 +16,7 @@
 
 #include "base/logging.h"
 #include "cobalt/network/socket_address_parser.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/url_util.h"
 

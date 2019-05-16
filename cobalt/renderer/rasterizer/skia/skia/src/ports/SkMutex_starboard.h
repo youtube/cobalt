@@ -15,7 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKMUTEX_STARBOARD_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKMUTEX_STARBOARD_H_
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 
 // A Starboard-based implementation of mutex, with support for static

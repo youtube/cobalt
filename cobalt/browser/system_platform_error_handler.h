@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/system.h"
 
 namespace cobalt {

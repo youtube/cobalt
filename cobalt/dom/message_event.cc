@@ -20,7 +20,7 @@
 #include "base/basictypes.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace {
 const char* const kResponseTypes[] = {"text", "blob", "arraybuffer"};
