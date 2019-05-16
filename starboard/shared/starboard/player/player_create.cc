@@ -41,6 +41,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #endif  // SB_API_VERSION < 10
                         SbDrmSystem drm_system,
                         const SbMediaAudioHeader* audio_header,
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+                        const char* max_video_capabilities,
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
@@ -51,6 +54,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
+#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+  SB_UNREFERENCED_PARAMETER(max_video_capabilities);
+#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
 #if SB_API_VERSION < 10
   SB_UNREFERENCED_PARAMETER(duration_pts);
 #endif  // SB_API_VERSION < 10
