@@ -18,9 +18,9 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/semaphore.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"

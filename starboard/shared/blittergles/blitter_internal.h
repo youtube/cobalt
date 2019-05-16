@@ -21,7 +21,7 @@
 #include <GLES2/gl2.h>
 
 #include "starboard/blitter.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {

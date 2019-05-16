@@ -15,8 +15,8 @@
 #include "starboard/shared/starboard/queue_application.h"
 
 #include "starboard/atomic.h"
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/time.h"
 

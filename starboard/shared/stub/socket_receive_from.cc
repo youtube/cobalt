@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 int SbSocketReceiveFrom(SbSocket /*socket*/,
                         char* /*out_data*/,

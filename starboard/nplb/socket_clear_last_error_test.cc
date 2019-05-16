@@ -15,8 +15,8 @@
 // The Sunny Day test is used in several other tests as the way to detect if the
 // error is correct, so it is not repeated here.
 
+#include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

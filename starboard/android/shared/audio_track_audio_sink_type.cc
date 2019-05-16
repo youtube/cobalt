@@ -19,8 +19,8 @@
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 
 namespace starboard {

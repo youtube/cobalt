@@ -16,7 +16,7 @@
 
 #include "starboard/character.h"
 #include "starboard/common/log.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace starboard {
 namespace shared {

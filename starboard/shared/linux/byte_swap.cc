@@ -15,7 +15,7 @@
 // Not breaking these functions up because however one is implemented, the
 // others should be implemented similarly.
 
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 
 #include <byteswap.h>
 

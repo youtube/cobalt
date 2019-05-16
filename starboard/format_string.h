@@ -20,7 +20,7 @@
 #ifndef STARBOARD_FORMAT_STRING_H_
 #define STARBOARD_FORMAT_STRING_H_
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #ifdef __cplusplus

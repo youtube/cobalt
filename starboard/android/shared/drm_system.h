@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 namespace starboard {
 namespace android {

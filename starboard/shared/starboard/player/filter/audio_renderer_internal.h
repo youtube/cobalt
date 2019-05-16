@@ -20,10 +20,10 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"

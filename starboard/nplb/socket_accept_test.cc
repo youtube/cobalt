@@ -15,8 +15,8 @@
 // The accept SunnyDay case is tested as a subset of at least one other test
 // case, so it is not included redundantly here.
 
+#include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/socket.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -18,10 +18,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 
+#include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/storage.h"
-#include "starboard/string.h"
 #include "starboard/user.h"
 
 #if SB_HAS_QUIRK(HASH_FILE_NAME)
