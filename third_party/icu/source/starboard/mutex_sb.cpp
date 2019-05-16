@@ -25,8 +25,8 @@
 #include "third_party/icu/source/starboard/mutex_sb.h"
 
 #include "starboard/atomic.h"
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "third_party/icu/source/common/uassert.h"
 #include "third_party/icu/source/common/umutex.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
