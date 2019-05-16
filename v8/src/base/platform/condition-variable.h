@@ -10,7 +10,7 @@
 #include "src/base/platform/mutex.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
 #endif
 
 namespace v8 {
