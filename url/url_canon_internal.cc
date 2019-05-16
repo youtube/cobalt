@@ -5,7 +5,7 @@
 #include "url/url_canon_internal.h"
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #ifndef EINVAL
 #define EINVAL 22
 #endif

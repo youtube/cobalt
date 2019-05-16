@@ -10,7 +10,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #endif
 

@@ -8,8 +8,8 @@
 #include <limits>
 
 #include "base/logging.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
-#include "starboard/string.h"
 #include "url/url_canon_internal.h"
 
 namespace url {
