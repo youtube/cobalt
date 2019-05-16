@@ -13,7 +13,7 @@
 #include "net/base/net_string_util.h"
 
 #if defined(OS_STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #endif
 
 namespace net {

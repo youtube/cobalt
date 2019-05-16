@@ -8,7 +8,7 @@
 #include "net/base/net_export.h"
 
 #if defined(STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #endif
 
 namespace net {

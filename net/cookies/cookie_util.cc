@@ -14,7 +14,7 @@
 #include "build/build_config.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "url/gurl.h"
 
 namespace net {

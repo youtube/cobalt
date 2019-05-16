@@ -16,7 +16,7 @@
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quic/tools/quic_simple_server_session.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace quic {
 

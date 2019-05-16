@@ -48,7 +48,7 @@
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "net/network_error_logging/network_error_logging_service.h"
 #include "net/reporting/reporting_service.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
 using base::Time;

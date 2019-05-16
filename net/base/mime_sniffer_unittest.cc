@@ -4,7 +4,7 @@
 
 #include "net/base/mime_sniffer.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 

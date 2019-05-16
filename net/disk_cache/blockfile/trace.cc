@@ -14,8 +14,8 @@
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 #include "net/disk_cache/blockfile/stress_support.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 
 // Change this value to 1 to enable tracing on a release build. By default,

@@ -43,7 +43,7 @@
 #include "net/socket/transport_client_socket_pool.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

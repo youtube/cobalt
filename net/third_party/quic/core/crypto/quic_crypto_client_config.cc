@@ -30,7 +30,7 @@
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
 namespace quic {

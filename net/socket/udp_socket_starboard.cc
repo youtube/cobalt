@@ -32,7 +32,7 @@
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_source_type.h"
 #include "net/socket/udp_net_log_parameters.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/system.h"
 
 namespace {

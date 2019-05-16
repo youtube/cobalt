@@ -25,8 +25,8 @@
 #include "net/log/net_log_event_type.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "url/url_canon.h"
 
 namespace net {

@@ -7,7 +7,7 @@
 
 #include "base/strings/string_util.h"
 #include "net/http/http_util.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

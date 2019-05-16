@@ -18,7 +18,7 @@
 #include "net/third_party/quic/tools/quic_backend_response.h"
 #include "net/tools/quic/quic_http_proxy_backend.h"
 #include "starboard/character.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace net {
 namespace test {
