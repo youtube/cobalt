@@ -9,7 +9,7 @@
 #include "SkMatrix.h"
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #define sscanf SbStringScanF
 #else
 #include <stdio.h>
