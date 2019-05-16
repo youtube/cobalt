@@ -11,7 +11,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #else
 #if defined(OS_WIN)
 #include "base/win/windows_types.h"

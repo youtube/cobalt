@@ -12,9 +12,9 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
-#include "starboard/mutex.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 typedef SbFile FileHandle;
@@ -116,7 +116,7 @@ typedef pthread_mutex_t* MutexHandle;
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/posix/safe_strerror.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #endif
 

@@ -12,7 +12,7 @@
 #include "base/run_loop.h"
 #include "base/trace_event/trace_buffer.h"
 #include "base/trace_event/trace_log.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace base {
 namespace test {
