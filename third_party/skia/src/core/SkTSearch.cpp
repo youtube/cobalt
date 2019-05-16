@@ -12,7 +12,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/character.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #define strncmp SbStringCompare
 #define strlen SbStringGetLength
 #define tolower SbCharacterToLower
