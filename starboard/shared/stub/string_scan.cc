@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 int SbStringScan(const char* /*buffer*/,
                  const char* /*pattern*/,

@@ -17,9 +17,9 @@
 #if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
 #include "starboard/format_string.h"
 #endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libvpx/vpx_library_loader.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {

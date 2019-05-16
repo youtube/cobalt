@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "third_party/ce_cdm/cdm/include/cdm.h"
 
 namespace starboard {

@@ -22,8 +22,8 @@
 #include <unistd.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/file.h"
-#include "starboard/string.h"
 
 // We find the current amount of used memory on Linux by opening
 // '/proc/self/status' and scan the file for its "VmRSS" and "VmSwap" entries.

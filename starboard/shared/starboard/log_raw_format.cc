@@ -16,7 +16,7 @@
 
 #include <stdarg.h>
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 void SbLogRawFormat(const char* format, va_list arguments) {
   char message[128];

@@ -31,7 +31,7 @@
 
 #include <cstring>
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace std {
 

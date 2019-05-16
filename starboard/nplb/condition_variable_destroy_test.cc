@@ -14,8 +14,8 @@
 
 // Destroy is mostly Sunny Day tested in Create.
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -20,7 +20,7 @@
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace {
 

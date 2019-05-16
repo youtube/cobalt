@@ -26,8 +26,8 @@ extern "C++" {
 }  // extern "C++"
 #endif
 
+#include "starboard/common/mutex.h"
 #include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
 #include "starboard/thread_types.h"
 #include "starboard/time.h"
 #include "starboard/types.h"

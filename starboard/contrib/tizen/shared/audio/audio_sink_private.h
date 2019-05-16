@@ -18,7 +18,7 @@
 #include <audio_io.h>
 
 #include "starboard/audio_sink.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 

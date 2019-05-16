@@ -19,18 +19,18 @@
 #include <functional>
 #include <set>
 
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/condition_variable.h"
+#include "starboard/common/string.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"

@@ -15,8 +15,8 @@
 #include "starboard/drm.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
-#include "starboard/string.h"
 
 #warning "This implementation is meant to use for testing purpose only."
 #warning "|company_name| and |model_name| should be replaced in production."
