@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/network/job_factory_config.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
@@ -102,8 +103,15 @@ URLRequestContext::URLRequestContext(
   net::HttpNetworkSession::Params params;
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
-#else
-  SB_UNREFERENCED_PARAMETER(ignore_certificate_errors);
+  if (ignore_certificate_errors) {
+    auto* multi_threaded_cert_verifier =
+        base::polymorphic_downcast<net::MultiThreadedCertVerifier*>(
+            cert_verifier());
+    multi_threaded_cert_verifier->set_ignore_errors(true);
+    LOG(INFO) << "ignore_certificate_errors option specified, Certificate "
+                 "validation results will be ignored but error message will "
+                 "still be displayed.";
+  }
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
   net::HttpNetworkSession::Context context;
