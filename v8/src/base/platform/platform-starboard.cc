@@ -20,10 +20,10 @@
 
 #include "src/base/timezone-cache.h"
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/time.h"
 
 namespace v8 {
