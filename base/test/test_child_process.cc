@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 // Simple testing command, used to exercise child process launcher calls.

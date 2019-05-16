@@ -16,10 +16,10 @@
 
 #include "base/files/file_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace base {
 

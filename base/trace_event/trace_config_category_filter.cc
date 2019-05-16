@@ -11,7 +11,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace base {
 namespace trace_event {

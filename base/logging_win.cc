@@ -6,7 +6,7 @@
 #include "base/memory/singleton.h"
 #include <initguid.h>  // NOLINT
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace logging {

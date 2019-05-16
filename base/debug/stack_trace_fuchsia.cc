@@ -19,7 +19,7 @@
 #include <iostream>
 
 #include "base/logging.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace base {

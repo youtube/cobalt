@@ -300,8 +300,8 @@ static double private_mem[PRIVATE_mem], *pmem_next = private_mem;
 
 #ifndef __MATH_H__
 #include "math.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #endif
 
