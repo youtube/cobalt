@@ -131,6 +131,7 @@ class Application {
     PrintUsage(argv[0]);
     SbSystemRequestStop(0);
   }
+  ~Application() { media_sandbox_.RegisterFrameCB(MediaSandbox::FrameCB()); }
 
  private:
   void InitializeAdaptivePlayback(const FormatGuesstimator& guesstimator) {
