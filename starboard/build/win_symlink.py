@@ -36,7 +36,8 @@ build 14972, which is not widely available yet.
 
 
 def CreateReparsePoint(from_folder, link_folder):
-  """ Mimics os.symlink for usage. """
+  """ Mimics os.symlink for usage. If link cannot be created then an OSError
+  is raised."""
   return _CreateReparsePoint(from_folder, link_folder)
 
 
@@ -79,6 +80,7 @@ import os
 import shutil
 import subprocess
 import stat
+import tempfile
 import time
 import traceback
 
@@ -115,13 +117,13 @@ def _RmtreeShallow(root_dir):
         del_dirs.append(path)
   # At this point, all files should be deleted and all symlinks should be
   # unlinked.
-  for d in dirs + [root_dir]:
+  for d in del_dirs + [root_dir]:
     try:
       if os.path.isdir(d):
         shutil.rmtree(d)
     except Exception as err:
       traceback.print_exc()
-      print('Error while deleting: ' + err)
+      print('Error while deleting: ' + str(err))
 
 
 def _ReadReparsePointShell(path):
@@ -167,7 +169,6 @@ def _IsReparsePoint(path):
 
 
 def _CreateReparsePoint(from_folder, link_folder):
-  from_folder = os.path.abspath(from_folder)
   link_folder = os.path.abspath(link_folder)
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
@@ -176,15 +177,22 @@ def _CreateReparsePoint(from_folder, link_folder):
   try:
     from win_symlink_fast import FastCreateReparseLink
     FastCreateReparseLink(from_folder, link_folder)
+    return
+  except OSError as os_err:
+    # The operating system doesn't support the call.
+    pass
   except Exception as err:
-    print(__file__ + ' error: ' + str(err) + \
+    print(__file__ + ' unexpected error: ' + str(err) + \
+          ', from='+from_folder+', link='+link_folder+ \
           ', falling back to command line version.')
-    par_dir = os.path.dirname(link_folder)
-    if not os.path.isdir(par_dir):
-      os.makedirs(par_dir)
-    cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
-    subprocess.check_output(cmd_parts)
-
+  par_dir = os.path.dirname(link_folder)
+  if not os.path.isdir(par_dir):
+    os.makedirs(par_dir)
+  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+  subprocess.check_output(cmd_parts)
+  if not _IsReparsePoint(link_folder):
+    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
+                  from_folder)
 
 
 def _UnlinkReparsePoint(link_dir):
@@ -251,7 +259,7 @@ def _OsWalk(top, topdown, onerror, followlinks):
 def UnitTest():
   """Tests that a small directory hierarchy can be created and then symlinked,
   and then removed."""
-  tmp_dir = os.path.join(os.environ['temp'], 'win_symlink')
+  tmp_dir = os.path.join(tempfile.gettempdir(), 'win_symlink')
   from_dir = os.path.join(tmp_dir, 'from_dir')
   test_txt = os.path.join(from_dir, 'test.txt')
   inner_dir = os.path.join(from_dir, 'inner_dir')
