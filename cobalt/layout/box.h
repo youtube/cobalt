@@ -305,6 +305,8 @@ class Box : public base::RefCounted<Box> {
   // Border box.
   RectLayoutUnit GetBorderBoxFromRoot(bool transform_forms_root) const;
   RectLayoutUnit GetTransformedBorderBoxFromRoot() const;
+  RectLayoutUnit GetTransformedBorderBoxFromContainingBlock(
+      const ContainerBox* containing_block) const;
 
   LayoutUnit GetBorderBoxWidth() const;
   LayoutUnit GetBorderBoxHeight() const;

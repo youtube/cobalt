@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 
@@ -358,6 +359,72 @@ float HTMLElement::client_height() {
   // Return the height of the padding edge, ignoring any transforms that apply
   // to the element and its ancestors.
   return layout_boxes_->GetPaddingEdgeHeight();
+}
+
+// Algorithm for scrollWidth:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollwidth
+int32 HTMLElement::scroll_width() {
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate
+  //    these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  int32 element_scroll_width = static_cast<int32>(
+      layout_boxes_->GetScrollArea(directionality_).width());
+
+  // 3. Let viewport width be the width of the viewport excluding the width of
+  //    the scroll bar, if any, or zero if there is no viewport.
+  // 4. If the element is the root element and document is not in quirks mode
+  //    return max(viewport scrolling area width, viewport width).
+  // 5. If the element is the HTML body element, document is in quirks mode
+  //    and the element is not potentially scrollable, return max(viewport
+  //    scrolling area width, viewport width).
+  if (IsRootElement()) {
+    return std::max(node_document()->viewport_size().width(),
+                    element_scroll_width);
+  }
+
+  // 6. If the element does not have any associated CSS layout box return zero
+  //    and terminate these steps.
+  // 7. Return the width of the element's scrolling area.
+  return element_scroll_width;
+}
+
+// Algorithm for scrollHeight:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollheight
+int32 HTMLElement::scroll_height() {
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate
+  //    these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  int32 element_scroll_height = static_cast<int32>(
+      layout_boxes_->GetScrollArea(directionality_).height());
+
+  // 3. Let viewport height be the height of the viewport excluding the height
+  //    of the scroll bar, if any, or zero if there is no viewport.
+  // 4. If the element is the root element and document is not in quirks mode
+  //    return max(viewport scrolling area height, viewport height).
+  // 5. If the element is the HTML body element, document is in quirks mode
+  //    and the element is not potentially scrollable, return max(viewport
+  //    scrolling area height, viewport height).
+  if (IsRootElement()) {
+    return std::max(node_document()->viewport_size().height(),
+                    element_scroll_height);
+  }
+
+  // 6. If the element does not have any associated CSS layout box return zero
+  //    and terminate these steps.
+  // 7. Return the height of the element's scrolling area.
+  return element_scroll_height;
 }
 
 // Algorithm for offsetParent:

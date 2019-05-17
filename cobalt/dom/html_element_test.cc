@@ -92,6 +92,8 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_CONST_METHOD0(GetPaddingEdgeWidth, float());
   MOCK_CONST_METHOD0(GetPaddingEdgeHeight, float());
 
+  MOCK_CONST_METHOD1(GetScrollArea, math::RectF(dom::Directionality));
+
   MOCK_METHOD0(InvalidateSizes, void());
   MOCK_METHOD0(InvalidateCrossReferences, void());
   MOCK_METHOD0(InvalidateRenderTreeNodes, void());
