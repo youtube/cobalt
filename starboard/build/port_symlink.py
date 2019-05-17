@@ -30,6 +30,11 @@ def IsSymLink(path):
 
 
 def MakeSymLink(from_folder, link_folder):
+  """Makes a symlink
+    Input:
+      link_folder: Path to the link
+      from_folder: Path to the actual folder
+  """
   return _MakeSymLink(from_folder=from_folder, link_folder=link_folder)
 
 
@@ -56,9 +61,12 @@ def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
 #                                 IMPL                                         #
 ################################################################################
 
-
+import argparse
+import logging
 import os
+import shutil
 import sys
+import tempfile
 
 import _env
 
@@ -78,9 +86,9 @@ def _IsSymLink(path):
 def _MakeSymLink(from_folder, link_folder):
   if _IsWindows():
     from starboard.build.win_symlink import CreateReparsePoint
-    return CreateReparsePoint(from_folder, link_folder)
+    CreateReparsePoint(from_folder, link_folder)
   else:
-    os.link(from_folder, link_folder)
+    os.symlink(from_folder, link_folder)
 
 
 def _ReadSymLink(link_path):
@@ -89,7 +97,10 @@ def _ReadSymLink(link_path):
     from starboard.build.win_symlink import ReadReparsePoint
     path = ReadReparsePoint(link_path)
   else:
-    path = os.readlink(link_path)
+    try:
+      path = os.readlink(link_path)
+    except OSError:
+      path = None
   if path and '..' in path:
     path = os.path.abspath(os.path.normpath(os.path.join(link_path, path)))
   return path
@@ -111,7 +122,10 @@ def _Rmtree(path):
     from starboard.build.win_symlink import RmtreeShallow
     RmtreeShallow(path)
   else:
-    shutil.rmtree(path)
+    if os.path.islink(path):
+      os.unlink(path)
+    else:
+      shutil.rmtree(path)
 
 def _OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
   if IsWindows():
@@ -143,7 +157,7 @@ def _IsSamePath(p1, p2):
 def UnitTest():
   """Tests that a small directory hierarchy can be created and then symlinked,
   and then removed."""
-  tmp_dir = os.path.join(os.environ['temp'], 'win_symlink')
+  tmp_dir = os.path.join(tempfile.gettempdir(), 'port_symlink')
   from_dir = os.path.join(tmp_dir, 'from_dir')
   test_txt = os.path.join(from_dir, 'test.txt')
   inner_dir = os.path.join(from_dir, 'inner_dir')
@@ -232,5 +246,50 @@ def UnitTest():
   print "Test completed."
 
 
+def _CreateArgumentParser():
+  class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+      sys.stderr.write('error: %s\n' % message)
+      self.print_help()
+      sys.exit(2)
+  help_msg = (
+    'Example 1:\n'
+    '  python port_link.py --unit_test "actual_folder_path" "link_path"\n\n'
+    'Example 2:\n'
+    '  python port_link.py --link "actual_folder_path" "link_path"\n\n'
+    'Example 3:\n'
+    '  python port_link.py --link "../actual_folder_path" "link_path"\n\n')
+  # Enables new lines in the description and epilog.
+  formatter_class = argparse.RawDescriptionHelpFormatter
+  parser = MyParser(epilog=help_msg, formatter_class=formatter_class)
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument('--unit_test', help='Runs a unit test.',
+                     action='store_true')
+  group.add_argument('--link',
+                     help='Issues an scp command to upload src to remote_dst',
+                     metavar='"path"',
+                     nargs=2)
+  return parser
+
+
+def _main():
+  format = '[%(filename)s:%(lineno)s:%(levelname)s] %(message)s'
+  logging.basicConfig(level=logging.INFO, format=format, datefmt='%m-%d %H:%M')
+  parser = _CreateArgumentParser()
+  args = parser.parse_args()
+
+  if args.unit_test:
+    UnitTest()
+  else:
+    folder_path, link_path = args.link
+    if '.' in folder_path:
+      d1 = os.path.abspath(folder_path)
+    else:
+      d1 = os.path.abspath(os.path.join(link_path, folder_path))
+    if not os.path.isdir(d1):
+      logging.warning('%s is not a directory.' % d1)
+    MakeSymLink(from_folder=folder_path, link_folder=link_path)
+
+
 if __name__ == "__main__":
-  UnitTest()
+  _main()
