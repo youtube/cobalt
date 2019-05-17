@@ -13,6 +13,9 @@
 # limitations under the License.
 {
   'variables': {
+    # Mock does not use a filter-based player.
+    'sb_filter_based_player': 0,
+
     'target_arch': 'x64',
     'target_os': 'linux',
 
