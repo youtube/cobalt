@@ -414,7 +414,7 @@ bool PulseAudioSinkType::Initialize() {
   bool pa_ready = false;
   pa_context_set_state_callback(context_, StateCallback, &pa_ready);
   if (pa_context_connect(context_, NULL, pa_context_flags_t(0), NULL) < 0) {
-    SB_LOG(WARNING) << "Pulse audio error: cannot connecting to context.";
+    SB_LOG(WARNING) << "Pulse audio warning: cannot connect to context.";
     pa_context_unref(context_);
     context_ = NULL;
     return false;
@@ -427,7 +427,7 @@ bool PulseAudioSinkType::Initialize() {
   pa_context_set_state_callback(context_, NULL, NULL);
   // Check status.
   if (pa_context_get_state(context_) != PA_CONTEXT_READY) {
-    SB_LOG(WARNING) << "Pulse audio error: cannot connecting to context.";
+    SB_LOG(WARNING) << "Pulse audio warning: cannot connect to context.";
     pa_context_unref(context_);
     context_ = NULL;
     return false;
