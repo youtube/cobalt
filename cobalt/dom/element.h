@@ -113,6 +113,12 @@ class Element : public Node {
   virtual float client_width();
   virtual float client_height();
 
+  // Updated version of the CSSOM View Module extensions:
+  //   https://www.w3.org/TR/cssom-view-1/#extension-to-the-element-interface
+  // If the element does not have any associated CSS layout box return zero.
+  virtual int32 scroll_width() { return 0; }
+  virtual int32 scroll_height() { return 0; }
+
   // Web API: DOM Parsing and Serialization (partial interface)
   //   https://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
   //
