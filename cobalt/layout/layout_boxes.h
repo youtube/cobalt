@@ -55,6 +55,8 @@ class LayoutBoxes : public dom::LayoutBoxes {
   float GetPaddingEdgeWidth() const override;
   float GetPaddingEdgeHeight() const override;
 
+  math::RectF GetScrollArea(dom::Directionality dir) const override;
+
   void InvalidateSizes() override;
   void InvalidateCrossReferences() override;
   void InvalidateRenderTreeNodes() override;

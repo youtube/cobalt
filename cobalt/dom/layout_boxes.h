@@ -16,7 +16,9 @@
 #define COBALT_DOM_LAYOUT_BOXES_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/directionality.h"
 #include "cobalt/dom/dom_rect_list.h"
+#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace dom {
@@ -72,6 +74,10 @@ class LayoutBoxes {
   virtual float GetPaddingEdgeTop() const = 0;
   virtual float GetPaddingEdgeWidth() const = 0;
   virtual float GetPaddingEdgeHeight() const = 0;
+
+  // Return scrolling area.
+  // See https://www.w3.org/TR/cssom-view-1/#scrolling-area
+  virtual math::RectF GetScrollArea(Directionality dir) const = 0;
 
   // Invalidate the sizes of the layout boxes so that they'll be recalculated
   // during the next layout.
