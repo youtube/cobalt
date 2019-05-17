@@ -269,12 +269,17 @@
 # include <sys/stat.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
+#include <memory>
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
+#include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/mutex.h"
 #include "starboard/system.h"
+#include "starboard/thread.h"
 #include "starboard/types.h"
 #endif  // !defined(STARBOARD)
 
@@ -1464,6 +1469,77 @@ void SetInjectableArgvs(const ::std::vector<testing::internal::string>*
 #endif  // GTEST_HAS_DEATH_TEST
 
 // Defines synchronization primitives.
+#if defined(GTEST_OS_STARBOARD)
+
+class Mutex {
+ public:
+  Mutex() { SbMutexCreate(&mutex_); }
+  void Lock() { SbMutexAcquire(&mutex_); }
+  void Unlock() { SbMutexRelease(&mutex_); }
+  void AssertHeld() const {}
+
+ private:
+  SbMutex mutex_;
+  friend class GTestMutexLock;
+};
+
+#define GTEST_DECLARE_STATIC_MUTEX_(mutex) \
+  extern ::testing::internal::Mutex mutex
+
+#define GTEST_DEFINE_STATIC_MUTEX_(mutex) ::testing::internal::Mutex mutex
+
+// We cannot name this class MutexLock because the ctor declaration would
+// conflict with a macro named MutexLock, which is defined on some
+// platforms. That macro is used as a defensive measure to prevent against
+// inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
+// "MutexLock l(&mu)".  Hence the typedef trick below.
+class GTestMutexLock {
+ public:
+  explicit GTestMutexLock(Mutex* mutex) : mutex_ptr_(&mutex->mutex_) {
+    SbMutexAcquire(mutex_ptr_);
+  }  // NOLINT
+  ~GTestMutexLock() { SbMutexRelease(mutex_ptr_); }
+
+ private:
+  SbMutex* mutex_ptr_;
+};
+
+typedef GTestMutexLock MutexLock;
+
+template <typename T>
+class ThreadLocal {
+ public:
+  ThreadLocal() {
+    key_ = SbThreadCreateLocalKey(
+        [](void* value) { delete static_cast<T*>(value); });
+    SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
+  }
+  explicit ThreadLocal(const T& value) : ThreadLocal() { set(value); }
+  ~ThreadLocal() {
+    SbThreadDestroyLocalKey(key_);
+  }
+  T* pointer() { return GetOrCreateValue(); }
+  const T* pointer() const { return GetOrCreateValue(); }
+  const T& get() const { return *pointer(); }
+  void set(const T& value) { *GetOrCreateValue() = value; }
+
+ private:
+  T* GetOrCreateValue() const {
+    T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
+    if (ptr) {
+      return ptr;
+    } else {
+      T* new_value = new T();
+      bool is_set = SbThreadSetLocalValue(key_, new_value);
+      SB_DCHECK(is_set);
+      return new_value;
+    }
+  }
+
+  SbThreadLocalKey key_;
+};
+
+#else  // GTEST_OS_STARBOARD
 #if GTEST_IS_THREADSAFE
 # if GTEST_HAS_PTHREAD
 // Sleeps for (roughly) n milliseconds.  This function is only for testing
@@ -2201,6 +2277,7 @@ class ThreadLocal {
 };
 
 #endif  // GTEST_IS_THREADSAFE
+#endif  // GTEST_OS_STARBOARD
 
 // Returns the number of threads running in the process, or 0 to indicate that
 // we cannot detect it.
