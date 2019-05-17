@@ -47,6 +47,8 @@
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
+        '<(DEPTH)/starboard/shared/starboard/log_mutex.cc',
+        '<(DEPTH)/starboard/shared/starboard/log_mutex.h',
         '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
         '<(DEPTH)/starboard/shared/starboard/log_raw_format.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
