@@ -51,6 +51,8 @@
         '<(DEPTH)/starboard/shared/starboard/log_mutex.h',
         '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
         '<(DEPTH)/starboard/shared/starboard/log_raw_format.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/mime_type.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/mime_type.h',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
         '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
         '<(DEPTH)/starboard/stub/application_stub.cc',
