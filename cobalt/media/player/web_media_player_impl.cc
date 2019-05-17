@@ -587,7 +587,8 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
   }
 }
 
-void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
+void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
+                                        bool is_initial_preroll) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
   state_.starting = false;
   state_.seeking = false;
@@ -605,8 +606,10 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   // Update our paused time.
   if (state_.paused) state_.paused_time = pipeline_->GetMediaTime();
 
-  const bool eos_played = false;
-  GetClient()->TimeChanged(eos_played);
+  if (is_initial_preroll) {
+    const bool kEosPlayed = false;
+    GetClient()->TimeChanged(kEosPlayed);
+  }
 }
 
 void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
@@ -616,8 +619,8 @@ void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
     return;
   }
 
-  const bool eos_played = true;
-  GetClient()->TimeChanged(eos_played);
+  const bool kEosPlayed = true;
+  GetClient()->TimeChanged(kEosPlayed);
 }
 
 void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
