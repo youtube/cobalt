@@ -141,7 +141,6 @@ class ThreadPostingAndRunningTask : public SimpleThread {
       // after popping a task from it.
       EXPECT_FALSE(tracker_->RunAndPopNextTask(std::move(sequence),
                                                &never_notified_observer));
-      DLOG(INFO) << "ThreadPostingAndRunningTask thread finished Run steps";
     }
   }
 
@@ -173,8 +172,6 @@ class TaskSchedulerTaskTrackerTest
  protected:
   TaskSchedulerTaskTrackerTest()
       : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {
-    DLOG(INFO) << "never_notified_observer_ address is: "
-               << &never_notified_observer_;
   }
 
   // Creates a task.
@@ -935,7 +932,6 @@ TEST_F(TaskSchedulerTaskTrackerTest, LoadWillPostAndRunBeforeShutdown) {
 
   for (const auto& thread : threads)
     thread->Join();
-  DLOG(INFO) << "ALL thread should have been run now";
 
   // Expect all tasks to be executed.
   EXPECT_EQ(kLoadTestNumIterations * 3, NumTasksExecuted());
