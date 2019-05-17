@@ -36,6 +36,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
+#include "cobalt/dom/directionality.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
@@ -66,16 +67,6 @@ class HTMLStyleElement;
 class HTMLTitleElement;
 class HTMLUnknownElement;
 class HTMLVideoElement;
-
-// The enum Directionality is used to track the explicit direction of the html
-// element:
-// https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
-// NOTE: Value "auto" is not supported.
-enum Directionality {
-  kNoExplicitDirectionality,
-  kLeftToRightDirectionality,
-  kRightToLeftDirectionality,
-};
 
 // The enum PseudoElementType is used to track the type of pseudo element
 enum PseudoElementType {
@@ -169,6 +160,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   float client_left() override;
   float client_width() override;
   float client_height() override;
+
+  // Updated version of the CSSOM View Module extensions:
+  //   https://www.w3.org/TR/cssom-view-1/#extension-to-the-element-interface
+  int32 scroll_width() override;
+  int32 scroll_height() override;
 
   // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
   // (partial interface)

@@ -65,6 +65,39 @@ using cobalt::render_tree::animations::AnimateNode;
 namespace cobalt {
 namespace layout {
 
+namespace {
+// Returns a matrix representing the transform on the object induced by its
+// CSS transform style property.  If the object does not have a transform
+// style property set, this will be the identity matrix.  Otherwise, it is
+// calculated from the property value and returned.  The transform-origin
+// style property will also be taken into account, and therefore the laid
+// out size of the object is also required in order to resolve a
+// percentage-based transform-origin.
+math::Matrix3F GetCSSTransform(
+    cssom::PropertyValue* transform_property_value,
+    cssom::PropertyValue* transform_origin_property_value,
+    const math::RectF& used_rect,
+    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus) {
+  if (transform_property_value == cssom::KeywordValue::GetNone()) {
+    return math::Matrix3F::Identity();
+  }
+
+  cssom::TransformPropertyValue* transform_value =
+      base::polymorphic_downcast<cssom::TransformPropertyValue*>(
+          transform_property_value);
+  math::Matrix3F css_transform_matrix = transform_value->ToMatrix(
+      used_rect.size(), ui_nav_focus);
+
+  // Apply the CSS transformations, taking into account the CSS
+  // transform-origin property.
+  math::Vector2dF origin =
+      GetTransformOrigin(used_rect, transform_origin_property_value);
+
+  return math::TranslateMatrix(origin.x(), origin.y()) * css_transform_matrix *
+         math::TranslateMatrix(-origin.x(), -origin.y());
+}
+}  // namespace
+
 Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
              css_computed_style_declaration,
          UsedStyleProvider* used_style_provider,
@@ -323,6 +356,71 @@ RectLayoutUnit Box::GetTransformedBorderBoxFromRoot() const {
     current_corner = box_corners[i];
     min_corner.SetToMin(current_corner);
     max_corner.SetToMax(current_corner);
+  }
+
+  return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
+                        LayoutUnit(max_corner.x() - min_corner.x()),
+                        LayoutUnit(max_corner.y() - min_corner.y()));
+}
+
+RectLayoutUnit Box::GetTransformedBorderBoxFromContainingBlock(
+    const ContainerBox* containing_block) const {
+  // Get the untransformed border box corners.
+  const int kNumPoints = 4;
+  math::PointF border_box_corners[kNumPoints] = {
+    { 0.0f, 0.0f },
+    { GetBorderBoxWidth().toFloat(), 0.0f },
+    { 0.0f, GetBorderBoxHeight().toFloat() },
+    { GetBorderBoxWidth().toFloat(), GetBorderBoxHeight().toFloat() },
+  };
+
+  // Walk up the containing block chain and transform the border box corners.
+  const Box* box = this;
+  Vector2dLayoutUnit containing_block_offset;
+
+  while (box != nullptr && box != containing_block) {
+    Vector2dLayoutUnit local_border_box_offset =
+        box->margin_box_offset_from_containing_block() +
+        box->GetBorderBoxOffsetFromMarginBox();
+
+    math::Vector2dF border_box_translate(
+        (containing_block_offset.x() + local_border_box_offset.x()).toFloat(),
+        (containing_block_offset.y() + local_border_box_offset.y()).toFloat());
+
+    // Transform the border box corners.
+    if (box->IsTransformed()) {
+      math::Matrix3F transform = GetCSSTransform(
+          box->computed_style()->transform().get(),
+          box->computed_style()->transform_origin().get(),
+          math::RectF(local_border_box_offset.x().toFloat(),
+                      local_border_box_offset.y().toFloat(),
+                      box->GetBorderBoxWidth().toFloat(),
+                      box->GetBorderBoxHeight().toFloat()),
+          ComputeUiNavFocusForTransform());
+      for (int i = 0; i < kNumPoints; ++i) {
+        border_box_corners[i] += border_box_translate;
+        border_box_corners[i] = transform * border_box_corners[i];
+      }
+    } else {
+      for (int i = 0; i < kNumPoints; ++i) {
+        border_box_corners[i] += border_box_translate;
+      }
+    }
+
+    // Determine the offset to transform the border box corners into the
+    // containing block's coordinate system.
+    const ContainerBox* container = box->GetContainingBlock();
+    containing_block_offset =
+        box->GetContainingBlockOffsetFromItsContentBox(container);
+    box = container;
+  }
+
+  // Generate the new box from the min and max values of all of the corners.
+  math::PointF min_corner(border_box_corners[0]);
+  math::PointF max_corner(border_box_corners[0]);
+  for (int i = 1; i < kNumPoints; ++i) {
+    min_corner.SetToMin(border_box_corners[i]);
+    max_corner.SetToMax(border_box_corners[i]);
   }
 
   return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
@@ -1155,37 +1253,6 @@ void Box::UpdatePaddings(const LayoutParams& layout_params) {
 }
 
 namespace {
-
-// Returns a matrix representing the transform on the object induced by its
-// CSS transform style property.  If the object does not have a transform
-// style property set, this will be the identity matrix.  Otherwise, it is
-// calculated from the property value and returned.  The transform-origin
-// style property will also be taken into account, and therefore the laid
-// out size of the object is also required in order to resolve a
-// percentage-based transform-origin.
-math::Matrix3F GetCSSTransform(
-    cssom::PropertyValue* transform_property_value,
-    cssom::PropertyValue* transform_origin_property_value,
-    const math::RectF& used_rect,
-    const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus) {
-  if (transform_property_value == cssom::KeywordValue::GetNone()) {
-    return math::Matrix3F::Identity();
-  }
-
-  cssom::TransformPropertyValue* transform_value =
-      base::polymorphic_downcast<cssom::TransformPropertyValue*>(
-          transform_property_value);
-  math::Matrix3F css_transform_matrix = transform_value->ToMatrix(
-      used_rect.size(), ui_nav_focus);
-
-  // Apply the CSS transformations, taking into account the CSS
-  // transform-origin property.
-  math::Vector2dF origin =
-      GetTransformOrigin(used_rect, transform_origin_property_value);
-
-  return math::TranslateMatrix(origin.x(), origin.y()) * css_transform_matrix *
-         math::TranslateMatrix(-origin.x(), -origin.y());
-}
 
 // Used within the animation callback for CSS transforms.  This will set the
 // transform of a single-child matrix transform node to that specified by the

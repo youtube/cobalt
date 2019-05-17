@@ -72,6 +72,7 @@
         'device_orientation_event.cc',
         'device_orientation_event.h',
         'device_orientation_event_init.h',
+        'directionality.h',
         'document.cc',
         'document.h',
         'document_timeline.cc',
