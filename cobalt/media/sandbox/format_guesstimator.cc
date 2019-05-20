@@ -150,7 +150,7 @@ void FormatGuesstimator::InitializeAsMp4(const base::FilePath& path) {
 void FormatGuesstimator::InitializeAsWebM(const base::FilePath& path) {
   std::vector<uint8_t> header = ReadHeader(path);
   adaptive_path_ = path;
-  if (FindString(header, "OpusHead") != -1) {
+  if (FindString(header, "OpusHead") == -1) {
     mime_ = "video/webm";
     codecs_ = "vp9";
   } else {
