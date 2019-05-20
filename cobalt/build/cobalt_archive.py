@@ -364,7 +364,7 @@ def _GenerateBuildInfoStr(platform_name, platform_sdk_version,
   build_info['config'] = config
   build_info['sdk_version'] = platform_sdk_version
   # Can be used by clients for caching reasons.
-  build_info['random_uint64'] = random.randint(0, 0xffffffffffffffff)
+  build_info['nonce'] = random.randint(0, 0xffffffffffffffff)
   build_info_str = _JsonDumpPrettyPrint(build_info)
   return build_info_str
 
