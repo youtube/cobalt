@@ -1414,7 +1414,7 @@ TEST(TaskSchedulerWorkerPoolOverCapacityTest, VerifyCleanup) {
 // Verify that the maximum number of workers is 256 and that hitting the max
 // leaves the pool in a valid state with regards to max tasks.
 TEST_F(TaskSchedulerWorkerPoolBlockingTest, MaximumWorkersTest) {
-#ifdef STARBOARDD
+#ifdef STARBOARD
   // Devices like Raspberry Pi is unalbe to create 256 threads at once.
   constexpr size_t kMaxNumberOfWorkers = 128;
 #else
@@ -1665,7 +1665,7 @@ INSTANTIATE_TEST_CASE_P(
 // Verify that worker detachement doesn't race with worker cleanup, regression
 // test for https://crbug.com/810464.
 TEST_F(TaskSchedulerWorkerPoolImplStartInBodyTest, RacyCleanup) {
-#ifdef STARBOARDD
+#ifdef STARBOARD
   // Devices like Raspberry Pi is unalbe to create 256 threads at once.
   constexpr size_t kLocalMaxTasks = 128;
 #else
