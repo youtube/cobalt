@@ -27,7 +27,7 @@
 
 {
   'variables': {
-    'output_dir': '<(sb_static_contents_output_base_dir)/data/i18n'
+    'output_dir': '<(sb_static_contents_output_data_dir)/i18n'
   },
   'targets': [
     {
