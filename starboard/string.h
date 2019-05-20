@@ -404,8 +404,8 @@ SB_EXPORT double SbStringParseDouble(const char* start, char** out_end);
 }  // extern "C"
 #endif
 
-#ifdef SB_EXT_API_REFACTORING_VERSION
+#if SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
 #include "starboard/common/string.h"
-#endif
+#endif  // SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
 
 #endif  // STARBOARD_STRING_H_

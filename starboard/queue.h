@@ -15,10 +15,10 @@
 #ifndef STARBOARD_QUEUE_H_
 #define STARBOARD_QUEUE_H_
 
-#if defined(SB_EXT_API_REFACTORING_VERSION)
+#if SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
 #include "starboard/common/queue.h"
-#else  // !defined(SB_EXT_API_REFACTORING_VERSION)
+#else  // SB_API_VERSION >= SB_EXT_API_REFACTORING_VERSION
 #error "File moved to //starboard/common/queue.h."
-#endif  // defined(SB_EXT_API_REFACTORING_VERSION)
+#endif  // SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
 
 #endif  // STARBOARD_QUEUE_H_
