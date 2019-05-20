@@ -18,7 +18,7 @@
       'target_name': 'de265',
       'type': 'none',
       'direct_dependent_settings': {
-        'include_dirs': [ 'de265.1.0.3' ],
+        'include_dirs': [ '.' ],
       },
     },
   ],
