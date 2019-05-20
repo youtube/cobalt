@@ -417,8 +417,8 @@ SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
 }  // extern "C"
 #endif
 
-#if defined(SB_EXT_API_REFACTORING_VERSION)
+#if SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
 #include "starboard/common/socket.h"
-#endif
+#endif  // SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
 
 #endif  // STARBOARD_SOCKET_H_
