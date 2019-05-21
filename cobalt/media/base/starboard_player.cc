@@ -487,10 +487,10 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-  SbMediaAudioHeader audio_header;
+  SbMediaAudioSampleInfo audio_sample_info;
   bool has_audio = audio_config_.IsValidConfig();
   if (has_audio) {
-    audio_header = MediaAudioConfigToSbMediaAudioHeader(audio_config_);
+    audio_sample_info = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   }
 
@@ -506,7 +506,7 @@ void StarboardPlayer::CreatePlayer() {
 #if SB_API_VERSION < 10
       SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-      drm_system_, has_audio ? &audio_header : NULL,
+      drm_system_, has_audio ? &audio_sample_info : NULL,
 #if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
       max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
                                            : NULL,
