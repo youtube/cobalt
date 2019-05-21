@@ -125,6 +125,11 @@ typedef struct SbPlayerSampleInfo {
   int buffer_size;
   // The timestamp of the sample in SbTime.
   SbTime timestamp;
+#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+  // Information about an audio sample. This value is required for audio
+  // samples. Otherwise, it must be |NULL|.
+  const SbMediaAudioSampleInfo* audio_sample_info;
+#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
   // Information about a video sample. This value is required for video samples.
   // Otherwise, it must be |NULL|.
   const SbMediaVideoSampleInfo* video_sample_info;
