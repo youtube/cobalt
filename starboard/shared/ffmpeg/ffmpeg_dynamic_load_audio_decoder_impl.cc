@@ -27,8 +27,9 @@ namespace shared {
 namespace ffmpeg {
 
 // static
-AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
-                                   const SbMediaAudioHeader& audio_header) {
+AudioDecoder* AudioDecoder::Create(
+    SbMediaAudioCodec audio_codec,
+    const SbMediaAudioSampleInfo& audio_sample_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
     SB_NOTREACHED();
@@ -38,14 +39,17 @@ AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
   AudioDecoder* audio_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      audio_decoder = AudioDecoderImpl<540>::Create(audio_codec, audio_header);
+      audio_decoder =
+          AudioDecoderImpl<540>::Create(audio_codec, audio_sample_info);
       break;
     case 550:
     case 560:
-      audio_decoder = AudioDecoderImpl<560>::Create(audio_codec, audio_header);
+      audio_decoder =
+          AudioDecoderImpl<560>::Create(audio_codec, audio_sample_info);
       break;
     case 571:
-      audio_decoder = AudioDecoderImpl<571>::Create(audio_codec, audio_header);
+      audio_decoder =
+          AudioDecoderImpl<571>::Create(audio_codec, audio_sample_info);
       break;
     default:
       SB_NOTREACHED() << "Unsupported FFMPEG specialization " << std::hex

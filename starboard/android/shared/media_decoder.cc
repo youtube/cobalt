@@ -76,7 +76,7 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 MediaDecoder::MediaDecoder(Host* host,
                            SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header,
+                           const SbMediaAudioSampleInfo& audio_sample_info,
                            SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
@@ -87,17 +87,17 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_codec, audio_header, this, j_media_crypto);
+      audio_codec, audio_sample_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
   }
-  if (audio_header.audio_specific_config_size > 0) {
-    // |audio_header.audio_specific_config| is guaranteed to be outlived the
-    // decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
-    pending_tasks_.push_back(
-        Event(static_cast<const int8_t*>(audio_header.audio_specific_config),
-              audio_header.audio_specific_config_size));
+  if (audio_sample_info.audio_specific_config_size > 0) {
+    // |audio_sample_info.audio_specific_config| is guaranteed to be outlived
+    // the decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
+    pending_tasks_.push_back(Event(
+        static_cast<const int8_t*>(audio_sample_info.audio_specific_config),
+        audio_sample_info.audio_specific_config_size));
     number_of_pending_tasks_.increment();
   }
 }

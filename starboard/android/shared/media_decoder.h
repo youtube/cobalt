@@ -69,7 +69,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
 
   MediaDecoder(Host* host,
                SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header,
+               const SbMediaAudioSampleInfo& audio_sample_info,
                SbDrmSystem drm_system);
   MediaDecoder(Host* host,
                SbMediaVideoCodec video_codec,

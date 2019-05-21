@@ -452,15 +452,15 @@ typedef struct SbMediaAudioConfiguration {
   int number_of_channels;
 } SbMediaAudioConfiguration;
 
-// An audio sequence header, which is a description of a given audio stream.
+// An audio sample info, which is a description of a given audio sample.
 // This, in hexadecimal string form, acts as a set of instructions to the audio
 // decoder.
 //
-// The Sequence Header consists of a little-endian hexadecimal encoded
+// The audio sample info consists of a little-endian hexadecimal encoded
 // |WAVEFORMATEX| structure followed by an Audio-specific configuration field.
 // The |WAVEFORMATEX| structure is specified at:
 // http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx
-typedef struct SbMediaAudioHeader {
+typedef struct SbMediaAudioSampleInfo {
   // The waveform-audio format type code.
   uint16_t format_tag;
 
@@ -489,7 +489,13 @@ typedef struct SbMediaAudioHeader {
 #else  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   int8_t audio_specific_config[8];
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-} SbMediaAudioHeader;
+} SbMediaAudioSampleInfo;
+
+#if SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+// SbMediaAudioHeader is same as SbMediaAudioSampleInfo in old starboard
+// version.
+typedef SbMediaAudioSampleInfo SbMediaAudioHeader;
+#endif  // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
 
 #if SB_API_VERSION < 10
 // --- Constants -------------------------------------------------------------

@@ -110,7 +110,7 @@ class AudioRendererTest : public ::testing::Test {
     audio_renderer_.reset(new AudioRenderer(
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
-        GetDefaultAudioHeader(), kMaxCachedFrames, kMaxFramesPerAppend));
+        GetDefaultAudioSampleInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
         std::bind(&AudioRendererTest::OnPrerolled, this),
@@ -223,19 +223,20 @@ class AudioRendererTest : public ::testing::Test {
     SbMemoryDeallocate(const_cast<void*>(sample_buffer));
   }
 
-  static SbMediaAudioHeader GetDefaultAudioHeader() {
-    SbMediaAudioHeader audio_header = {};
+  static SbMediaAudioSampleInfo GetDefaultAudioSampleInfo() {
+    SbMediaAudioSampleInfo audio_sample_info = {};
 
-    audio_header.number_of_channels = kDefaultNumberOfChannels;
-    audio_header.samples_per_second = kDefaultSamplesPerSecond;
-    audio_header.bits_per_sample = 32;
-    audio_header.average_bytes_per_second = audio_header.samples_per_second *
-                                            audio_header.number_of_channels *
-                                            audio_header.bits_per_sample / 8;
-    audio_header.block_alignment = 4;
-    audio_header.audio_specific_config_size = 0;
+    audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
+    audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
+    audio_sample_info.bits_per_sample = 32;
+    audio_sample_info.average_bytes_per_second =
+        audio_sample_info.samples_per_second *
+        audio_sample_info.number_of_channels *
+        audio_sample_info.bits_per_sample / 8;
+    audio_sample_info.block_alignment = 4;
+    audio_sample_info.audio_specific_config_size = 0;
 
-    return audio_header;
+    return audio_sample_info;
   }
 
   static void DeallocateSampleCB(SbPlayer player,

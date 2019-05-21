@@ -333,10 +333,11 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //
 // |audio_codec|: The audio codec used for the player. The value should never
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
-//   populated |audio_header| if the audio codec is |kSbMediaAudioCodecAac|.
+//   populated |audio_sample_info| if the audio codec is
+//   |kSbMediaAudioCodecAac|.
 #if SB_HAS(AUDIOLESS_VIDEO)
 //   This can be set to |kSbMediaAudioCodecNone| to play a video without any
-//   audio track.  In such case |audio_header| must be NULL.
+//   audio track.  In such case |audio_sample_info| must be NULL.
 #endif  // SB_HAS(AUDIOLESS_VIDEO)
 //
 #if SB_API_VERSION < 10
@@ -349,9 +350,15 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   |SbDrmCreateSystem()|. If the stream does not have encrypted portions,
 //   then |drm_system| may be |kSbDrmSystemInvalid|.
 //
-// |audio_header|: Note that the caller must provide a populated |audio_header|
-//   if the audio codec is |kSbMediaAudioCodecAac|. Otherwise, |audio_header|
-//   can be NULL. See media.h for the format of the |SbMediaAudioHeader| struct.
+#if SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+// |audio_header|: |audio_header| is same as |audio_sample_info| in old
+// starboard version.
+#else   // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+// |audio_sample_info|: Note that the caller must provide a populated
+//   |audio_sample_info| if the audio codec is |kSbMediaAudioCodecAac|.
+//   Otherwise, |audio_sample_info| can be NULL. See media.h for the format of
+//   the |SbMediaAudioSampleInfo| struct.
+#endif  // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 //   Note that |audio_specific_config| is a pointer and the content it points to
 //   is no longer valid after this function returns.  The implementation has to
@@ -422,7 +429,11 @@ SbPlayerCreate(SbWindow window,
                SbMediaTime duration_pts,
 #endif  // SB_API_VERSION < 10
                SbDrmSystem drm_system,
+#if SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
                const SbMediaAudioHeader* audio_header,
+#else   // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+               const SbMediaAudioSampleInfo* audio_sample_info,
+#endif  // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
 #if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
                const char* max_video_capabilities,
 #endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION

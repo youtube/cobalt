@@ -76,7 +76,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
     PlayerComponents::AudioParameters audio_parameters = {
-        dmp_reader_.audio_codec(), dmp_reader_.audio_header(),
+        dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
         kSbDrmSystemInvalid};
 
     scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
@@ -242,7 +242,7 @@ TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
   const int kDecodersToCreate = 3;
 
   PlayerComponents::AudioParameters audio_parameters = {
-      dmp_reader_.audio_codec(), dmp_reader_.audio_header(),
+      dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
       kSbDrmSystemInvalid};
 
   scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
