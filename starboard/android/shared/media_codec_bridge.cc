@@ -137,7 +137,7 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputFormatChanged(
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     SbMediaAudioCodec audio_codec,
-    const SbMediaAudioHeader& audio_header,
+    const SbMediaAudioSampleInfo& audio_sample_info,
     Handler* handler,
     jobject j_media_crypto) {
   const char* mime = SupportedAudioCodecToMimeType(audio_codec);
@@ -153,8 +153,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       "(JLjava/lang/String;ZZIILandroid/media/MediaCrypto;)Ldev/cobalt/media/"
       "MediaCodecBridge;",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      !!j_media_crypto, false, audio_header.samples_per_second,
-      audio_header.number_of_channels, j_media_crypto);
+      !!j_media_crypto, false, audio_sample_info.samples_per_second,
+      audio_sample_info.number_of_channels, j_media_crypto);
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);

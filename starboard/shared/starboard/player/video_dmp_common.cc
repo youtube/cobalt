@@ -90,40 +90,43 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaAudioHeaderWithConfig* audio_header) {
-  Read(read_cb, reverse_byte_order, &audio_header->format_tag);
-  Read(read_cb, reverse_byte_order, &audio_header->number_of_channels);
-  Read(read_cb, reverse_byte_order, &audio_header->samples_per_second);
-  Read(read_cb, reverse_byte_order, &audio_header->average_bytes_per_second);
-  Read(read_cb, reverse_byte_order, &audio_header->block_alignment);
-  Read(read_cb, reverse_byte_order, &audio_header->bits_per_sample);
-  Read(read_cb, reverse_byte_order, &audio_header->audio_specific_config_size);
-  audio_header->stored_audio_specific_config.resize(
-      audio_header->audio_specific_config_size);
+          SbMediaAudioSampleInfoWithConfig* audio_sample_info) {
+  Read(read_cb, reverse_byte_order, &audio_sample_info->format_tag);
+  Read(read_cb, reverse_byte_order, &audio_sample_info->number_of_channels);
+  Read(read_cb, reverse_byte_order, &audio_sample_info->samples_per_second);
+  Read(read_cb, reverse_byte_order,
+       &audio_sample_info->average_bytes_per_second);
+  Read(read_cb, reverse_byte_order, &audio_sample_info->block_alignment);
+  Read(read_cb, reverse_byte_order, &audio_sample_info->bits_per_sample);
+  Read(read_cb, reverse_byte_order,
+       &audio_sample_info->audio_specific_config_size);
+  audio_sample_info->stored_audio_specific_config.resize(
+      audio_sample_info->audio_specific_config_size);
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  audio_header->audio_specific_config =
-      audio_header->stored_audio_specific_config.data();
+  audio_sample_info->audio_specific_config =
+      audio_sample_info->stored_audio_specific_config.data();
 #else   // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  SB_DCHECK(sizeof(audio_header->audio_specific_config) >=
-            audio_header->stored_audio_specific_config.size());
-  SbMemoryCopy(audio_header->audio_specific_config,
-               audio_header->stored_audio_specific_config.data(),
-               audio_header->stored_audio_specific_config.size());
+  SB_DCHECK(sizeof(audio_sample_info->audio_specific_config) >=
+            audio_sample_info->stored_audio_specific_config.size());
+  SbMemoryCopy(audio_sample_info->audio_specific_config,
+               audio_sample_info->stored_audio_specific_config.data(),
+               audio_sample_info->stored_audio_specific_config.size());
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  Read(read_cb, audio_header->stored_audio_specific_config.data(),
-       audio_header->audio_specific_config_size);
+  Read(read_cb, audio_sample_info->stored_audio_specific_config.data(),
+       audio_sample_info->audio_specific_config_size);
 }
 
-void Write(const WriteCB& write_cb, const SbMediaAudioHeader& audio_header) {
-  Write(write_cb, audio_header.format_tag);
-  Write(write_cb, audio_header.number_of_channels);
-  Write(write_cb, audio_header.samples_per_second);
-  Write(write_cb, audio_header.average_bytes_per_second);
-  Write(write_cb, audio_header.block_alignment);
-  Write(write_cb, audio_header.bits_per_sample);
-  Write(write_cb, audio_header.audio_specific_config_size);
-  Write(write_cb, audio_header.audio_specific_config,
-        audio_header.audio_specific_config_size);
+void Write(const WriteCB& write_cb,
+           const SbMediaAudioSampleInfo& audio_sample_info) {
+  Write(write_cb, audio_sample_info.format_tag);
+  Write(write_cb, audio_sample_info.number_of_channels);
+  Write(write_cb, audio_sample_info.samples_per_second);
+  Write(write_cb, audio_sample_info.average_bytes_per_second);
+  Write(write_cb, audio_sample_info.block_alignment);
+  Write(write_cb, audio_sample_info.bits_per_sample);
+  Write(write_cb, audio_sample_info.audio_specific_config_size);
+  Write(write_cb, audio_sample_info.audio_specific_config,
+        audio_sample_info.audio_specific_config_size);
 }
 
 void Read(const ReadCB& read_cb,

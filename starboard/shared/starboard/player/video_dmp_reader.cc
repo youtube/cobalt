@@ -129,7 +129,7 @@ void VideoDmpReader::Parse() {
       case kRecordTypeAudioConfig:
         Read(read_cb_, reverse_byte_order_, &audio_codec_);
         if (audio_codec_ != kSbMediaAudioCodecNone) {
-          Read(read_cb_, reverse_byte_order_, &audio_header_);
+          Read(read_cb_, reverse_byte_order_, &audio_sample_info_);
         }
         break;
       case kRecordTypeVideoConfig:

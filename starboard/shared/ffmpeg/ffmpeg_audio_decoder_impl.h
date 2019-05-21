@@ -42,12 +42,12 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
                                  private starboard::player::JobQueue::JobOwner {
  public:
   AudioDecoderImpl(SbMediaAudioCodec audio_codec,
-                   const SbMediaAudioHeader& audio_header);
+                   const SbMediaAudioSampleInfo& audio_sample_info);
   ~AudioDecoderImpl() override;
 
   // From: AudioDecoder
   static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
-                              const SbMediaAudioHeader& audio_header);
+                              const SbMediaAudioSampleInfo& audio_sample_info);
   bool is_valid() const override;
 
   // From: starboard::player::filter::AudioDecoder
@@ -76,7 +76,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
 
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
-  SbMediaAudioHeader audio_header_;
+  SbMediaAudioSampleInfo audio_sample_info_;
 };
 
 }  // namespace ffmpeg

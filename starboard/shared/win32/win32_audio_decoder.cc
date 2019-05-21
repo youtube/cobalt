@@ -45,17 +45,18 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   AbstractWin32AudioDecoderImpl(SbMediaAudioCodec codec,
                                 SbMediaAudioFrameStorageType audio_frame_fmt,
                                 SbMediaAudioSampleType sample_type,
-                                const SbMediaAudioHeader& audio_header,
+                                const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system)
       : thread_checker_(ThreadChecker::kSetThreadIdOnFirstCheck),
         codec_(codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
-        number_of_channels_(audio_header.number_of_channels),
+        number_of_channels_(audio_sample_info.number_of_channels),
         heaac_detected_(false),
-        samples_per_second_(static_cast<int>(audio_header.samples_per_second)) {
+        samples_per_second_(
+            static_cast<int>(audio_sample_info.samples_per_second)) {
     scoped_ptr<MediaTransform> audio_decoder =
-        CreateAudioTransform(audio_header, codec_);
+        CreateAudioTransform(audio_sample_info, codec_);
     impl_.reset(
         new DecryptingDecoder("audio", audio_decoder.Pass(), drm_system));
   }
@@ -185,11 +186,11 @@ scoped_ptr<AbstractWin32AudioDecoder> AbstractWin32AudioDecoder::Create(
     SbMediaAudioCodec code,
     SbMediaAudioFrameStorageType audio_frame_fmt,
     SbMediaAudioSampleType sample_type,
-    const SbMediaAudioHeader& audio_header,
+    const SbMediaAudioSampleInfo& audio_sample_info,
     SbDrmSystem drm_system) {
   return scoped_ptr<AbstractWin32AudioDecoder>(
       new AbstractWin32AudioDecoderImpl(code, audio_frame_fmt, sample_type,
-                                        audio_header, drm_system));
+                                        audio_sample_info, drm_system));
 }
 
 }  // namespace win32

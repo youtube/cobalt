@@ -66,12 +66,12 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 
 AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                              scoped_ptr<AudioRendererSink> audio_renderer_sink,
-                             const SbMediaAudioHeader& audio_header,
+                             const SbMediaAudioSampleInfo& audio_sample_info,
                              int max_cached_frames,
                              int max_frames_per_append)
     : max_cached_frames_(max_cached_frames),
       max_frames_per_append_(max_frames_per_append),
-      channels_(audio_header.number_of_channels),
+      channels_(audio_sample_info.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),

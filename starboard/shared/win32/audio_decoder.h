@@ -39,7 +39,7 @@ class AudioDecoder
       private AudioDecodedCallback {
  public:
   AudioDecoder(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header,
+               const SbMediaAudioSampleInfo& audio_sample_info,
                SbDrmSystem drm_system);
   ~AudioDecoder() override;
 
@@ -63,7 +63,7 @@ class AudioDecoder
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaAudioCodec audio_codec_;
-  const SbMediaAudioHeader audio_header_;
+  const SbMediaAudioSampleInfo audio_sample_info_;
   SbDrmSystem const drm_system_;
   const SbMediaAudioSampleType sample_type_;
   bool stream_ended_;

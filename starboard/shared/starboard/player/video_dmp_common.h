@@ -38,7 +38,7 @@ namespace video_dmp {
 //     audio config:
 //       fourcc type: 'acfg'
 //       2 bytes audio codec type in SbMediaAudioCodec
-//       all members of SbMediaAudioHeader
+//       all members of SbMediaAudioSampleInfo
 //
 //     video config:
 //       fourcc type: 'vcfg'
@@ -67,10 +67,10 @@ enum RecordType {
 
 // Helper structures to allow returning structs containing pointers without
 // explicit memory management.
-struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
-  SbMediaAudioHeaderWithConfig() {}
-  SbMediaAudioHeaderWithConfig(const SbMediaAudioHeaderWithConfig& that)
-      : SbMediaAudioHeader(that),
+struct SbMediaAudioSampleInfoWithConfig : public SbMediaAudioSampleInfo {
+  SbMediaAudioSampleInfoWithConfig() {}
+  SbMediaAudioSampleInfoWithConfig(const SbMediaAudioSampleInfoWithConfig& that)
+      : SbMediaAudioSampleInfo(that),
         stored_audio_specific_config(that.stored_audio_specific_config) {
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
     audio_specific_config = stored_audio_specific_config.data();
@@ -80,7 +80,7 @@ struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
                  stored_audio_specific_config.size());
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   }
-  void operator=(const SbMediaAudioHeaderWithConfig& that) = delete;
+  void operator=(const SbMediaAudioSampleInfoWithConfig& that) = delete;
 
   std::vector<uint8_t> stored_audio_specific_config;
 };
@@ -149,8 +149,9 @@ void Write(const WriteCB& write_cb, RecordType record_type);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaAudioHeaderWithConfig* audio_header);
-void Write(const WriteCB& write_cb, const SbMediaAudioHeader& audio_header);
+          SbMediaAudioSampleInfoWithConfig* audio_sample_info);
+void Write(const WriteCB& write_cb,
+           const SbMediaAudioSampleInfo& audio_sample_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,

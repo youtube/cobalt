@@ -21,7 +21,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaTime /*duration_pts*/,
 #endif  // SB_API_VERSION < 10
                         SbDrmSystem /*drm_system*/,
-                        const SbMediaAudioHeader* /*audio_header*/,
+                        const SbMediaAudioSampleInfo* /*audio_sample_info*/,
 #if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
                         const char* /*max_video_capabilities*/,
 #endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION

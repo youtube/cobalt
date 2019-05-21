@@ -56,10 +56,10 @@ class AudioDecoder::CallbackScheduler : private JobOwner {
 };
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header,
+                           const SbMediaAudioSampleInfo& audio_sample_info,
                            SbDrmSystem drm_system)
     : audio_codec_(audio_codec),
-      audio_header_(audio_header),
+      audio_sample_info_(audio_sample_info),
       drm_system_(drm_system),
       sample_type_(kSbMediaAudioSampleTypeFloat32),
       stream_ended_(false) {
@@ -83,7 +83,7 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   SB_DCHECK(!output_cb_);
   output_cb_ = output_cb;
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
+      audio_codec_, GetStorageType(), GetSampleType(), audio_sample_info_,
       drm_system_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   callback_scheduler_.reset(new CallbackScheduler());

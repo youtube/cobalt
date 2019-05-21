@@ -65,7 +65,7 @@ class AudioRenderer : public MediaTimeProvider,
   // tries to append to the sink buffer at once.
   AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                 scoped_ptr<AudioRendererSink> audio_renderer_sink,
-                const SbMediaAudioHeader& audio_header,
+                const SbMediaAudioSampleInfo& audio_sample_info,
                 int max_cached_frames,
                 int max_frames_per_append);
   ~AudioRenderer();

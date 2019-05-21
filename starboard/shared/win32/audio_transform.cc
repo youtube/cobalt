@@ -49,36 +49,37 @@ GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
 
 class WinAudioFormat {
  public:
-  explicit WinAudioFormat(const SbMediaAudioHeader& audio_header) {
+  explicit WinAudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
     // The HEAACWAVEFORMAT structure has many specializations with varying data
     // appended at the end.
     // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
     // HEAACWAVEFORMAT.
     format_buffer_.resize(sizeof(HEAACWAVEFORMAT) +
-                          audio_header.audio_specific_config_size - 1);
+                          audio_sample_info.audio_specific_config_size - 1);
     HEAACWAVEFORMAT* wave_format =
         reinterpret_cast<HEAACWAVEFORMAT*>(format_buffer_.data());
 
     wave_format->wfInfo.wfx.nAvgBytesPerSec = 0;
-    wave_format->wfInfo.wfx.nBlockAlign = audio_header.block_alignment;
-    wave_format->wfInfo.wfx.nChannels = audio_header.number_of_channels;
-    wave_format->wfInfo.wfx.nSamplesPerSec = audio_header.samples_per_second;
-    wave_format->wfInfo.wfx.wBitsPerSample = audio_header.bits_per_sample;
+    wave_format->wfInfo.wfx.nBlockAlign = audio_sample_info.block_alignment;
+    wave_format->wfInfo.wfx.nChannels = audio_sample_info.number_of_channels;
+    wave_format->wfInfo.wfx.nSamplesPerSec =
+        audio_sample_info.samples_per_second;
+    wave_format->wfInfo.wfx.wBitsPerSample = audio_sample_info.bits_per_sample;
     wave_format->wfInfo.wfx.wFormatTag = WAVE_FORMAT_MPEG_HEAAC;
     // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
     // HEAACWAVEFORMAT.
     wave_format->wfInfo.wfx.cbSize =
         sizeof(HEAACWAVEFORMAT) - sizeof(WAVEFORMATEX) +
-        audio_header.audio_specific_config_size - 1;
+        audio_sample_info.audio_specific_config_size - 1;
 
     wave_format->wfInfo.wPayloadType = 0;                     // RAW
     wave_format->wfInfo.wAudioProfileLevelIndication = 0xfe;  // Unknown Profile
     wave_format->wfInfo.wStructType = 0;  // AudioSpecificConfig()
 
-    if (audio_header.audio_specific_config_size > 0) {
+    if (audio_sample_info.audio_specific_config_size > 0) {
       SbMemoryCopy(wave_format->pbAudioSpecificConfig,
-                   audio_header.audio_specific_config,
-                   audio_header.audio_specific_config_size);
+                   audio_sample_info.audio_specific_config,
+                   audio_sample_info.audio_specific_config_size);
     }
   }
 
@@ -94,7 +95,7 @@ class WinAudioFormat {
 }  // namespace.
 
 scoped_ptr<MediaTransform> CreateAudioTransform(
-    const SbMediaAudioHeader& audio,
+    const SbMediaAudioSampleInfo& audio,
     SbMediaAudioCodec codec) {
   ComPtr<IMFTransform> transform;
   HRESULT hr = CreateDecoderTransform(CLSID_MSAACDecMFT, &transform);

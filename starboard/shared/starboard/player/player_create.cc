@@ -40,7 +40,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaTime duration_pts,
 #endif  // SB_API_VERSION < 10
                         SbDrmSystem drm_system,
-                        const SbMediaAudioHeader* audio_header,
+                        const SbMediaAudioSampleInfo* audio_sample_info,
 #if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
                         const char* max_video_capabilities,
 #endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
@@ -101,9 +101,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (audio_codec != kSbMediaAudioCodecNone && !audio_header) {
-    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader "
-                  << "when |audio_codec| is not kSbMediaAudioCodecNone";
+  if (audio_codec != kSbMediaAudioCodecNone && !audio_sample_info) {
+    SB_LOG(ERROR)
+        << "SbPlayerCreate() requires a non-NULL SbMediaAudioSampleInfo "
+        << "when |audio_codec| is not kSbMediaAudioCodecNone";
     return kSbPlayerInvalid;
   }
 
@@ -123,7 +124,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         audio_header, output_mode, provider));
+                                         audio_sample_info, output_mode,
+                                         provider));
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
@@ -136,7 +138,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerCreate(player, video_codec, audio_codec, drm_system,
-                                 audio_header);
+                                 audio_sample_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
   return player;

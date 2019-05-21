@@ -36,7 +36,7 @@ class AbstractWin32AudioDecoder {
       SbMediaAudioCodec codec,
       SbMediaAudioFrameStorageType audio_frame_fmt,
       SbMediaAudioSampleType sample_type,
-      const SbMediaAudioHeader& audio_header,
+      const SbMediaAudioSampleInfo& audio_sample_info,
       SbDrmSystem drm_system);
   virtual ~AbstractWin32AudioDecoder() {}
 

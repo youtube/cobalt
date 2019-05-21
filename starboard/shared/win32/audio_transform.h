@@ -24,7 +24,7 @@ namespace shared {
 namespace win32 {
 
 scoped_ptr<MediaTransform> CreateAudioTransform(
-    const SbMediaAudioHeader& audio,
+    const SbMediaAudioSampleInfo& audio,
     SbMediaAudioCodec codec);
 
 }  // namespace win32
