@@ -86,6 +86,8 @@ class StarboardPlayer {
 
   void UpdateVideoResolution(int frame_width, int frame_height);
 
+  void UpdateAudioConfig(const AudioDecoderConfig& audio_config);
+
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
 
@@ -232,6 +234,7 @@ class StarboardPlayer {
   double playback_rate_ = 0.0;
   bool seek_pending_ = false;
   DecoderBufferCache decoder_buffer_cache_;
+  SbMediaAudioSampleInfo audio_sample_info_;
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
