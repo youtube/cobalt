@@ -34,7 +34,7 @@ class OpusAudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
       private starboard::player::JobQueue::JobOwner {
  public:
-  explicit OpusAudioDecoder(const SbMediaAudioHeader& audio_header);
+  explicit OpusAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info);
   ~OpusAudioDecoder() override;
 
   bool is_valid() const;
@@ -57,7 +57,7 @@ class OpusAudioDecoder
   OpusDecoder* decoder_ = NULL;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
-  SbMediaAudioHeader audio_header_;
+  SbMediaAudioSampleInfo audio_sample_info_;
   std::vector<uint8_t> working_buffer_;
 };
 

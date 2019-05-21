@@ -28,13 +28,14 @@ namespace shared {
 namespace ffmpeg {
 
 // static
-AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
-                                   const SbMediaAudioHeader& audio_header) {
+AudioDecoder* AudioDecoder::Create(
+    SbMediaAudioCodec audio_codec,
+    const SbMediaAudioSampleInfo& audio_sample_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg && ffmpeg->is_valid());
   SB_DCHECK(FFMPEG == ffmpeg->specialization_version());
 
-  return AudioDecoderImpl<FFMPEG>::Create(audio_codec, audio_header);
+  return AudioDecoderImpl<FFMPEG>::Create(audio_codec, audio_sample_info);
 }
 
 }  // namespace ffmpeg

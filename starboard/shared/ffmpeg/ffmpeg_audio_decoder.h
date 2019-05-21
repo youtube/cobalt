@@ -27,7 +27,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
   // Create an audio decoder for the currently loaded ffmpeg library.
   static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
-                              const SbMediaAudioHeader& audio_header);
+                              const SbMediaAudioSampleInfo& audio_sample_info);
   // Returns true if the audio decoder is initialized successfully.
   virtual bool is_valid() const = 0;
 };

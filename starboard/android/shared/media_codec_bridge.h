@@ -95,7 +95,7 @@ class MediaCodecBridge {
 
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       SbMediaAudioCodec audio_codec,
-      const SbMediaAudioHeader& audio_header,
+      const SbMediaAudioSampleInfo& audio_sample_info,
       Handler* handler,
       jobject j_media_crypto);
 
