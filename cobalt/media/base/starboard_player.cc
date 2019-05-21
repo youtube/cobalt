@@ -179,6 +179,15 @@ void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
   frame_height_ = frame_height;
 }
 
+void StarboardPlayer::UpdateAudioConfig(
+    const AudioDecoderConfig& audio_config) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(audio_config.IsValidConfig());
+
+  audio_config_ = audio_config;
+  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+}
+
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                                   const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -487,10 +496,10 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-  SbMediaAudioSampleInfo audio_sample_info;
   bool has_audio = audio_config_.IsValidConfig();
   if (has_audio) {
-    audio_sample_info = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+    audio_sample_info_ =
+        MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   }
 
@@ -506,7 +515,7 @@ void StarboardPlayer::CreatePlayer() {
 #if SB_API_VERSION < 10
       SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-      drm_system_, has_audio ? &audio_sample_info : NULL,
+      drm_system_, has_audio ? &audio_sample_info_ : NULL,
 #if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
       max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
                                            : NULL,
@@ -609,10 +618,15 @@ void StarboardPlayer::WriteBufferInternal(
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
   DCHECK_EQ(allocations.number_of_buffers(), 1);
   SbPlayerSampleInfo sample_info = {
-      allocations.buffers()[0], allocations.buffer_sizes()[0],
-      buffer->timestamp().InMicroseconds(),
-      type == DemuxerStream::VIDEO ? &video_info : NULL,
-      drm_info.subsample_count > 0 ? &drm_info : NULL};
+    allocations.buffers()[0],
+    allocations.buffer_sizes()[0],
+    buffer->timestamp().InMicroseconds(),
+#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+    type == DemuxerStream::AUDIO ? &audio_sample_info_ : NULL,
+#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+    type == DemuxerStream::VIDEO ? &video_info : NULL,
+    drm_info.subsample_count > 0 ? &drm_info : NULL
+  };
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #endif  // SB_API_VERSION < 10
 }

@@ -1275,7 +1275,8 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (stream->type() == DemuxerStream::AUDIO) {
-    stream->audio_decoder_config();
+    const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
+    player_->UpdateAudioConfig(decoder_config);
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
