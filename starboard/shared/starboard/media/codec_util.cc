@@ -44,6 +44,48 @@ int hex_to_int(char hex) {
   return 0;
 }
 
+// Read one digit hex from |str| and store into |output|. Return false if
+// the character is not a digit, return true otherwise.
+template <typename T>
+bool ReadOneDigitHex(const char* str, T* output) {
+  SB_DCHECK(str);
+
+  if (str[0] >= 'A' && str[0] <= 'F') {
+    *output = static_cast<T>((str[0] - 'A' + 10));
+    return true;
+  }
+  if (str[0] >= 'a' && str[0] <= 'f') {
+    *output = static_cast<T>((str[0] - 'a' + 10));
+    return true;
+  }
+
+  if (!SbCharacterIsDigit(str[0])) {
+    return false;
+  }
+
+  *output = static_cast<T>((str[0] - '0'));
+  return true;
+}
+
+// Read multi digit decimal from |str| until the next '.' character or end of
+// string, and store into |output|. Return false if one of the character is not
+// a digit, return true otherwise.
+template <typename T>
+bool ReadDecimalUntilDot(const char* str, T* output) {
+  SB_DCHECK(str);
+
+  *output = 0;
+  while (*str != 0 && *str != '.') {
+    if (!SbCharacterIsDigit(*str)) {
+      return false;
+    }
+    *output = *output * 10 + (*str - '0');
+    ++str;
+  }
+
+  return true;
+}
+
 // Read two digit decimal from |str| and store into |output|. Return false if
 // any character is not a digit, return true otherwise.
 template <typename T>
@@ -257,6 +299,126 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
   *profile = hex_to_int(codec[5]) * 16 + hex_to_int(codec[6]);
   *level = hex_to_int(codec[9]) * 16 + hex_to_int(codec[10]);
   return true;
+}
+
+// This function parses an h265 codec as specificed by ISO IEC 14496-15 dated
+// 2012 or newer in the Annex E.3.  The codec will be in the form of:
+//   hvc1.PPP.PCPCPCPC.TLLL.CB.CB.CB.CB.CB.CB, where
+// PPP: 0 or 1 byte general_profile_space ('', 'A', 'B', or 'C') +
+//        up to two bytes profile idc.
+// PCPCPCPC: Profile compatibility, up to 32 bits hex, with leading 0 omitted.
+// TLLL: One byte tier ('L' or 'H') + up to three bytes level.
+// CB: Up to 6 constraint bytes, separated by '.'.
+// Note that the above level in decimal = 30 * real level, i.e. 93 means level
+// 3.1, 120 mean level 4.
+// Please see the comment in the code for interactions between the various
+// parts.
+bool ParseH265Info(const char* codec, int* profile, int* level) {
+  if (SbStringCompare(codec, "hev1.", 5) != 0 &&
+      SbStringCompare(codec, "hvc1.", 5) != 0) {
+    return false;
+  }
+
+  codec += 5;
+
+  // Read profile space
+  if (codec[0] == 'A' || codec[0] == 'B' || codec[0] == 'C') {
+    ++codec;
+  }
+
+  if (SbStringGetLength(codec) < 3) {
+    return false;
+  }
+
+  // Read profile
+  int general_profile_idc;
+  if (codec[1] == '.') {
+    if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
+      return false;
+    }
+    codec += 2;
+  } else if (codec[2] == '.') {
+    if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
+      return false;
+    }
+    codec += 3;
+  } else {
+    return false;
+  }
+
+  // Read profile compatibility, up to 32 bits hex.
+  const char* dot = SbStringFindCharacter(codec, '.');
+  if (dot == NULL || dot - codec == 0 || dot - codec > 8) {
+    return false;
+  }
+
+  uint32_t general_profile_compatibility_flags = 0;
+  for (int i = 0; i < 9; ++i) {
+    if (codec[0] == '.') {
+      ++codec;
+      break;
+    }
+    uint32_t hex = 0;
+    if (!ReadOneDigitHex(codec, &hex)) {
+      return false;
+    }
+    general_profile_compatibility_flags *= 16;
+    general_profile_compatibility_flags += hex;
+    ++codec;
+  }
+
+  *profile = -1;
+  if (general_profile_idc == 3 || (general_profile_compatibility_flags & 4)) {
+    *profile = 3;
+  }
+  if (general_profile_idc == 2 || (general_profile_compatibility_flags & 2)) {
+    *profile = 2;
+  }
+  if (general_profile_idc == 1 || (general_profile_compatibility_flags & 1)) {
+    *profile = 1;
+  }
+  if (*profile == -1) {
+    return false;
+  }
+
+  // Parse tier
+  if (codec[0] != 'L' && codec[0] != 'H') {
+    return false;
+  }
+  ++codec;
+
+  // Parse level in 2 or 3 digits decimal.
+  if (SbStringGetLength(codec) < 2) {
+    return false;
+  }
+  if (!ReadDecimalUntilDot(codec, level)) {
+    return false;
+  }
+  if (*level % 3 != 0) {
+    return false;
+  }
+  *level /= 3;
+  if (codec[2] == 0 || codec[2] == '.') {
+    codec += 2;
+  } else if (codec[3] == 0 || codec[3] == '.') {
+    codec += 3;
+  } else {
+    return false;
+  }
+
+  // Parse up to 6 constraint flags in the form of ".HH".
+  for (int i = 0; i < 6; ++i) {
+    if (codec[0] == 0) {
+      return true;
+    }
+    if (codec[0] != '.' || !SbCharacterIsHexDigit(codec[1]) ||
+        !SbCharacterIsHexDigit(codec[2])) {
+      return false;
+    }
+    codec += 3;
+  }
+
+  return *codec == 0;
 }
 
 // This function parses an vp09 codec in the form of "vp09.00.41.08" or
@@ -476,7 +638,7 @@ bool ParseVideoCodec(const char* codec_string,
   if (SbStringCompare(codec_string, "hev1.", 5) == 0 ||
       SbStringCompare(codec_string, "hvc1.", 5) == 0) {
     *codec = kSbMediaVideoCodecH265;
-    return true;
+    return ParseH265Info(codec_string, profile, level);
   }
   if (SbStringCompare(codec_string, "vp09.", 5) == 0) {
     *codec = kSbMediaVideoCodecVp9;
