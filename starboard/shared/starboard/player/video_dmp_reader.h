@@ -81,7 +81,9 @@ class VideoDmpReader {
   ~VideoDmpReader();
 
   SbMediaAudioCodec audio_codec() const { return audio_codec_; }
-  const SbMediaAudioHeader& audio_header() const { return audio_header_; }
+  const SbMediaAudioSampleInfo& audio_sample_info() const {
+    return audio_sample_info_;
+  }
   int64_t audio_bitrate() const { return audio_bitrate_; }
 
   SbMediaVideoCodec video_codec() const { return video_codec_; }
@@ -105,7 +107,7 @@ class VideoDmpReader {
   bool reverse_byte_order_;
 
   SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
-  SbMediaAudioHeaderWithConfig audio_header_;
+  SbMediaAudioSampleInfoWithConfig audio_sample_info_;
   int64_t audio_bitrate_ = 0;
 
   SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;

@@ -39,7 +39,7 @@ class AudioDecoder
       private MediaDecoder::Host {
  public:
   AudioDecoder(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header,
+               const SbMediaAudioSampleInfo& audio_sample_info,
                SbDrmSystem drm_system);
   ~AudioDecoder() override;
 
@@ -57,7 +57,7 @@ class AudioDecoder
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }
   int GetSamplesPerSecond() const override {
-    return audio_header_.samples_per_second;
+    return audio_sample_info_.samples_per_second;
   }
 
   bool is_valid() const { return media_decoder_ != NULL; }
@@ -75,7 +75,7 @@ class AudioDecoder
   void OnFlushing() override {}
 
   SbMediaAudioCodec audio_codec_;
-  SbMediaAudioHeader audio_header_;
+  SbMediaAudioSampleInfo audio_sample_info_;
   SbMediaAudioSampleType sample_type_;
 
   jint output_sample_rate_;

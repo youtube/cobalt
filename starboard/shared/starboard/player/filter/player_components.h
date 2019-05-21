@@ -51,7 +51,7 @@ class PlayerComponents {
  public:
   struct AudioParameters {
     SbMediaAudioCodec audio_codec;
-    const SbMediaAudioHeader& audio_header;
+    const SbMediaAudioSampleInfo& audio_sample_info;
     SbDrmSystem drm_system;
   };
 
@@ -90,7 +90,7 @@ class PlayerComponents {
     GetAudioRendererParams(&max_cached_frames, &max_frames_per_append);
     return make_scoped_ptr(
         new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
-                          audio_parameters.audio_header, max_cached_frames,
+                          audio_parameters.audio_sample_info, max_cached_frames,
                           max_frames_per_append));
   }
   scoped_ptr<VideoRenderer> CreateVideoRenderer(
@@ -147,7 +147,8 @@ class PlayerComponents {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
 
-    audio_decoder->reset(new StubAudioDecoder(audio_parameters.audio_header));
+    audio_decoder->reset(
+        new StubAudioDecoder(audio_parameters.audio_sample_info));
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }
 

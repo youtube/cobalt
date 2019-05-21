@@ -49,10 +49,11 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(audio_renderer_sink);
 
     if (audio_parameters.audio_codec == kSbMediaAudioCodecOpus) {
-      audio_decoder->reset(new OpusAudioDecoder(audio_parameters.audio_header));
+      audio_decoder->reset(
+          new OpusAudioDecoder(audio_parameters.audio_sample_info));
     } else {
       scoped_ptr<AacAudioDecoder> audio_decoder_impl(new AacAudioDecoder(
-          audio_parameters.audio_codec, audio_parameters.audio_header,
+          audio_parameters.audio_codec, audio_parameters.audio_sample_info,
           audio_parameters.drm_system));
       if (audio_decoder_impl->is_valid()) {
         audio_decoder->reset(audio_decoder_impl.release());

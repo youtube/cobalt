@@ -45,7 +45,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       SbMediaVideoCodec video_codec,
       SbMediaAudioCodec audio_codec,
       SbDrmSystem drm_system,
-      const SbMediaAudioHeader* audio_header,
+      const SbMediaAudioSampleInfo* audio_sample_info,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider* provider);
 
@@ -88,11 +88,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbMediaAudioCodec audio_codec_;
   SbDrmSystem drm_system_;
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  // Store a copy of |SbMediaAudioHeader::audio_specific_config| passed to the
-  // ctor so it is valid for the life time of the player worker.
+  // Store a copy of |SbMediaAudioSampleInfo::audio_specific_config| passed to
+  // the ctor so it is valid for the life time of the player worker.
   scoped_array<int8_t> audio_specific_config_;
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  SbMediaAudioHeader audio_header_;
+  SbMediaAudioSampleInfo audio_sample_info_;
 
   // |media_time_provider_impl_| is used to provide the media playback time when
   // there is no audio track.  In such case |audio_renderer_| will be NULL.
