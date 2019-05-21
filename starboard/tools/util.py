@@ -24,6 +24,14 @@ import time
 import zipfile
 
 
+def Which(filename):
+  """Searches the environment's PATH for |filename|, returning the first."""
+  for path in os.environ['PATH'].split(os.pathsep):
+    full_name = os.path.join(path, filename)
+    if os.path.exists(full_name) and os.path.isfile(full_name):
+      return full_name
+  return None
+
 def MakeDirs(destination_dir):
   """Wrapper around os.makedirs that is a noop if the directory exists."""
   if os.path.isdir(destination_dir):
