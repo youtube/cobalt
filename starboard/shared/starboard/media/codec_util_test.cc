@@ -40,10 +40,9 @@ class CodecUtilTest : public ::testing::Test {
 };
 
 TEST_F(CodecUtilTest, SimpleCodecs) {
-  const char* kCodecStrings[] = {"hev1.", "hvc1.", "vp8", "vp9"};
-  const SbMediaVideoCodec kVideoCodecs[] = {
-      kSbMediaVideoCodecH265, kSbMediaVideoCodecH265, kSbMediaVideoCodecVp8,
-      kSbMediaVideoCodecVp9};
+  const char* kCodecStrings[] = {"vp8", "vp9"};
+  const SbMediaVideoCodec kVideoCodecs[] = {kSbMediaVideoCodecVp8,
+                                            kSbMediaVideoCodecVp9};
   for (size_t i = 0; i < SB_ARRAY_SIZE(kCodecStrings); ++i) {
     ASSERT_TRUE(Parse(kCodecStrings[i]));
     EXPECT_EQ(codec_, kVideoCodecs[i]);
@@ -126,6 +125,35 @@ TEST_F(CodecUtilTest, InvalidAvc) {
   EXPECT_FALSE(Parse("avc1.64002"));
   EXPECT_FALSE(Parse("avc2.640028"));
   EXPECT_FALSE(Parse("avc3.640028.1"));
+}
+
+TEST_F(CodecUtilTest, H265) {
+  ASSERT_TRUE(Parse("hvc1.1.2.L93.B0"));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecH265);
+  EXPECT_EQ(profile_, 1);
+  EXPECT_EQ(level_, 31);
+  ASSERT_TRUE(Parse("hev1.A4.41.H120.B0.12.34.56.78.90"));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecH265);
+  EXPECT_EQ(profile_, 1);
+  EXPECT_EQ(level_, 40);
+
+  EXPECT_TRUE(Parse("hvc1.1.2.H93.B0"));
+  EXPECT_TRUE(Parse("hvc1.A1.2.H93.B0"));
+  EXPECT_TRUE(Parse("hvc1.B1.2.H93.B0"));
+  EXPECT_TRUE(Parse("hvc1.C1.2.H93.B0"));
+  EXPECT_TRUE(Parse("hvc1.C1.2.H93"));
+  EXPECT_TRUE(Parse("hvc1.C1.ABCDEF01.H93.B0"));
+}
+
+TEST_F(CodecUtilTest, InvalidH265) {
+  EXPECT_FALSE(Parse("hvc2.1.2.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.D1.2.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.A111.2.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.111.2.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.ABCDEF012.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.L92.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.P93.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.L93.B0.B1.B2.B3.B4.B5.B6"));
 }
 
 TEST_F(CodecUtilTest, ShortFormVp9) {
