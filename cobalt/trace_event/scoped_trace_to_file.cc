@@ -49,15 +49,11 @@ ScopedTraceToFile::~ScopedTraceToFile() {
 
   // Output results to absolute_output_path_.
   JSONFileOutputter outputter(absolute_output_path_);
-  if (!outputter.GetError()) {
-    // Write out the actual data by calling Flush().  Within Flush(), this
-    // will call OutputTraceData(), possibly multiple times.
-    trace_log->Flush(base::Bind(&JSONFileOutputter::OutputTraceData,
-                                base::Unretained(&outputter)));
+  if (outputter.Output(trace_log)) {
     LOG(INFO) << "Trace output written to " << absolute_output_path_.value();
   } else {
-    DLOG(WARNING) << "Error opening JSON tracing output file for writing: "
-                  << absolute_output_path_.value();
+    LOG(WARNING) << "Error opening JSON tracing output file for writing: "
+                 << absolute_output_path_.value();
   }
 }
 
