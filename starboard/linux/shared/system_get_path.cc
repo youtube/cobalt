@@ -134,7 +134,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetExecutableDirectory(path, kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/content/data", kPathSize) >= kPathSize) {
+      if (SbStringConcat(path, "/content", kPathSize) >= kPathSize) {
         return false;
       }
       break;

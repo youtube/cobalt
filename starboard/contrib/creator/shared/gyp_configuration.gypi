@@ -14,6 +14,10 @@
 
 {
   'variables': {
+    # Override that omits the "data" subdirectory.
+    # TODO: Remove when omitted for all platforms in base_configuration.gypi.
+    'sb_static_contents_output_data_dir': '<(PRODUCT_DIR)/content',
+
     'target_arch': 'mips',
     'target_os': 'linux',
 

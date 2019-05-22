@@ -47,6 +47,8 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     variables.update({
         'clang': 0,
         'sysroot': self.sysroot,
+        'include_path_platform_deploy_gypi':
+            'starboard/raspi/shared/platform_deploy.gypi',
     })
 
     return variables
@@ -91,7 +93,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
           # The RasPi test devices don't have access to an IPV6 network, so
