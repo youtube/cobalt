@@ -67,10 +67,13 @@
         'src/condition_variable.cpp',
         'src/debug.cpp',
         'src/exception.cpp',
-        'src/filesystem/directory_iterator.cpp',
-        'src/filesystem/filesystem_common.h',
-        'src/filesystem/int128_builtins.cpp',
-        'src/filesystem/operations.cpp',
+
+        # Remove file system operations
+        #'src/filesystem/directory_iterator.cpp',
+        #'src/filesystem/filesystem_common.h',
+        #'src/filesystem/int128_builtins.cpp',
+        #'src/filesystem/operations.cpp',
+
         'src/functional.cpp',
         'src/future.cpp',
         'src/hash.cpp',
