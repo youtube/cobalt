@@ -21,8 +21,6 @@
       'sources': [
         'json_file_outputter.cc',
         'json_file_outputter.h',
-        'scoped_event_parser_trace.cc',
-        'scoped_event_parser_trace.h',
         'scoped_trace_to_file.cc',
         'scoped_trace_to_file.h',
         'switches.cc',
