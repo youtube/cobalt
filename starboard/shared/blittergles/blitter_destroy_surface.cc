@@ -26,13 +26,15 @@ bool SbBlitterDestroySurface(SbBlitterSurface surface) {
     return false;
   }
 
-  if (surface->render_target.framebuffer_handle != 0) {
-    GL_CALL(
-        glDeleteFramebuffers(1, &surface->render_target.framebuffer_handle));
-  }
-
   if (surface->color_texture_handle != 0) {
     GL_CALL(glDeleteTextures(1, &surface->color_texture_handle));
+  }
+  if (surface->render_target != NULL) {
+    if (surface->render_target->framebuffer_handle != 0) {
+      GL_CALL(
+          glDeleteFramebuffers(1, &surface->render_target->framebuffer_handle));
+    }
+    delete surface->render_target;
   }
   delete surface;
   return true;

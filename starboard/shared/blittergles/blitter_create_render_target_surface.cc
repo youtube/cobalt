@@ -44,15 +44,18 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
   surface->info.width = width;
   surface->info.height = height;
   surface->info.format = surface_format;
-  surface->render_target.swap_chain = kSbBlitterInvalidSwapChain;
-  surface->render_target.surface = surface.get();
-  surface->render_target.width = width;
-  surface->render_target.height = height;
-  surface->render_target.device = device;
+  std::unique_ptr<SbBlitterRenderTargetPrivate> render_target(
+      new SbBlitterRenderTargetPrivate());
+  render_target->swap_chain = kSbBlitterInvalidSwapChain;
+  render_target->surface = surface.get();
+  render_target->width = width;
+  render_target->height = height;
+  render_target->device = device;
 
   // These values are lazily initialized when used.
   surface->color_texture_handle = 0;
-  surface->render_target.framebuffer_handle = 0;
+  render_target->framebuffer_handle = 0;
 
+  surface->render_target = render_target.release();
   return surface.release();
 }

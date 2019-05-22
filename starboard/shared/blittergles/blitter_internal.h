@@ -152,7 +152,7 @@ struct SbBlitterSurfacePrivate {
   SbBlitterDevicePrivate* device;
 
   // Surfaces may have a render target depending on the way they were created.
-  SbBlitterRenderTargetPrivate render_target;
+  SbBlitterRenderTargetPrivate* render_target;
 
   // Store information about this surface.
   SbBlitterSurfaceInfo info;
