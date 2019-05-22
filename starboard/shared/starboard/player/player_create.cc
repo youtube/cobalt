@@ -128,8 +128,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
                                          provider));
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
-      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func,
+      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
+      decoder_status_func, player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
       player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)

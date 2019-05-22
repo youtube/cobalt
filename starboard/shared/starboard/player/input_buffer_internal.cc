@@ -94,6 +94,7 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
                          const void* sample_buffer,
                          int sample_buffer_size,
                          SbTime sample_timestamp,
+                         const SbMediaAudioSampleInfo* audio_sample_info,
                          const SbMediaVideoSampleInfo* video_sample_info,
                          const SbDrmSampleInfo* sample_drm_info)
     : sample_type_(sample_type),
@@ -104,7 +105,19 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
       size_(sample_buffer_size),
       timestamp_(sample_timestamp) {
   SB_DCHECK(deallocate_sample_func);
-  TryToAssignVideoSampleInfo(video_sample_info);
+
+  if (sample_type_ == kSbMediaTypeAudio) {
+    SB_DCHECK(audio_sample_info);
+    audio_sample_info_ = *audio_sample_info;
+  } else {
+    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    SB_DCHECK(video_sample_info);
+    video_sample_info_ = *video_sample_info;
+    if (video_sample_info_.color_metadata) {
+      color_metadata_ = *video_sample_info_.color_metadata;
+      video_sample_info_.color_metadata = &color_metadata_;
+    }
+  }
   TryToAssignDrmSampleInfo(sample_drm_info);
 }
 
@@ -116,6 +129,7 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
                          const int* sample_buffer_sizes,
                          int number_of_sample_buffers,
                          SbTime sample_timestamp,
+                         const SbMediaAudioSampleInfo* audio_sample_info,
                          const SbMediaVideoSampleInfo* video_sample_info,
                          const SbDrmSampleInfo* sample_drm_info)
     : sample_type_(sample_type),
@@ -126,7 +140,18 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
   SB_DCHECK(deallocate_sample_func);
   SB_DCHECK(number_of_sample_buffers > 0);
 
-  TryToAssignVideoSampleInfo(video_sample_info);
+  if (sample_type_ == kSbMediaTypeAudio) {
+    SB_DCHECK(audio_sample_info);
+    audio_sample_info_ = *audio_sample_info;
+  } else {
+    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    SB_DCHECK(video_sample_info);
+    video_sample_info_ = *video_sample_info;
+    if (video_sample_info_.color_metadata) {
+      color_metadata_ = *video_sample_info_.color_metadata;
+      video_sample_info_.color_metadata = &color_metadata_;
+    }
+  }
   TryToAssignDrmSampleInfo(sample_drm_info);
 
   if (number_of_sample_buffers == 1) {
@@ -177,7 +202,10 @@ std::string InputBuffer::ToString() const {
      << (sample_type_ == kSbMediaTypeAudio ? "audio" : "video")
      << " sample @ timestamp: " << timestamp_ << " in " << size_
      << " bytes ==========\n";
-  if (has_video_sample_info_) {
+  if (sample_type_ == kSbMediaTypeAudio) {
+    ss << audio_sample_info_.samples_per_second << '\n';
+  } else {
+    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
     ss << video_sample_info_.frame_width << " x "
        << video_sample_info_.frame_height << '\n';
   }
@@ -196,23 +224,6 @@ std::string InputBuffer::ToString() const {
   }
   ss << GetMixedRepresentation(data_, size_, 16) << '\n';
   return ss.str();
-}
-
-void InputBuffer::TryToAssignVideoSampleInfo(
-    const SbMediaVideoSampleInfo* video_sample_info) {
-  has_video_sample_info_ = video_sample_info != NULL;
-
-  if (!has_video_sample_info_) {
-    return;
-  }
-
-  video_sample_info_ = *video_sample_info;
-  if (video_sample_info_.color_metadata) {
-    color_metadata_ = *video_sample_info_.color_metadata;
-    video_sample_info_.color_metadata = &color_metadata_;
-  } else {
-    video_sample_info_.color_metadata = NULL;
-  }
 }
 
 void InputBuffer::TryToAssignDrmSampleInfo(

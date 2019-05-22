@@ -40,6 +40,7 @@ int SbPlayerPrivate::number_of_players_ = 0;
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
+    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -51,6 +52,10 @@ SbPlayerPrivate::SbPlayerPrivate(
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       media_time_updated_at_(SbTimeGetMonotonicNow()) {
+  if (audio_codec != kSbMediaAudioCodecNone) {
+    SB_DCHECK(audio_sample_info);
+    audio_sample_info_ = *audio_sample_info;
+  }
   worker_ = starboard::make_scoped_ptr(PlayerWorker::CreateInstance(
       audio_codec, video_codec, player_worker_handler.Pass(),
       std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
@@ -67,6 +72,7 @@ SbPlayerPrivate::SbPlayerPrivate(
 SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
+    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -75,13 +81,13 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void* context,
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler) {
-  SbPlayerPrivate* ret =
-      new SbPlayerPrivate(audio_codec, video_codec, sample_deallocate_func,
-                          decoder_status_func, player_status_func,
+  SbPlayerPrivate* ret = new SbPlayerPrivate(
+      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
+      decoder_status_func, player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-                          player_error_func,
+      player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-                          context, player_worker_handler.Pass());
+      context, player_worker_handler.Pass());
 
   if (ret && ret->worker_) {
     return ret;
@@ -108,16 +114,26 @@ void SbPlayerPrivate::WriteSample(
     const int* sample_buffer_sizes,
     int number_of_sample_buffers,
     SbTime sample_timestamp,
+#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+    const SbMediaAudioSampleInfo* audio_sample_info,
+#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* sample_drm_info) {
   if (sample_type == kSbMediaTypeVideo) {
+    SB_DCHECK(video_sample_info);
     ++total_video_frames_;
     frame_width_ = video_sample_info->frame_width;
     frame_height_ = video_sample_info->frame_height;
   }
+
   starboard::scoped_refptr<InputBuffer> input_buffer = new InputBuffer(
       sample_type, sample_deallocate_func_, this, context_, sample_buffers,
       sample_buffer_sizes, number_of_sample_buffers, sample_timestamp,
+#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+      audio_sample_info,
+#else  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+      &audio_sample_info_,
+#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
       video_sample_info, sample_drm_info);
   worker_->WriteSample(input_buffer);
 }
