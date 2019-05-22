@@ -69,6 +69,6 @@
       '<@(collect_deploy_content_extra_args)',
       '>@(content_deploy_subdirs)',
     ],
-    'message': 'Collect content: <(executable_name)',
+    'message': 'Collect content: <(content_deploy_dir)',
   }],
 }

@@ -45,6 +45,8 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     variables.update({
         'javascript_engine': 'v8',
         'cobalt_enable_jit': 1,
+        'include_path_platform_deploy_gypi':
+            'starboard/linux/shared/platform_deploy.gypi',
     })
     return variables
 
@@ -89,6 +91,6 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
   }
