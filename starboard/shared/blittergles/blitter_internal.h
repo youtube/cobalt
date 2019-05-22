@@ -161,4 +161,19 @@ struct SbBlitterSurfacePrivate {
   GLuint color_texture_handle;
 };
 
+struct SbBlitterPixelDataPrivate {
+  // Keep track of the device that was used to create this SbBlitterPixelData
+  // object.
+  SbBlitterDevicePrivate* device;
+
+  // The pitch of the pixel data, in bytes.
+  int pitch_in_bytes;
+
+  // Surface information including dimensions.
+  SbBlitterSurfaceInfo info;
+
+  // Points to the pixels.
+  void* data;
+};
+
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_
