@@ -31,6 +31,9 @@ void SbPlayerWriteSample2(SbPlayer player,
   const int sample_buffer_sizes[] = {sample_infos->buffer_size};
   int number_of_sample_buffers = 1;
   SbTime sample_timestamp = sample_infos->timestamp;
+#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+  auto audio_sample_info = sample_infos->audio_sample_info;
+#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
   auto video_sample_info = sample_infos->video_sample_info;
   auto sample_drm_info = sample_infos->drm_info;
 
@@ -55,6 +58,9 @@ void SbPlayerWriteSample2(SbPlayer player,
 
   player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
                       number_of_sample_buffers, sample_timestamp,
+#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+                      audio_sample_info,
+#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
                       video_sample_info, sample_drm_info);
 }
 #endif  // SB_API_VERSION >= 10

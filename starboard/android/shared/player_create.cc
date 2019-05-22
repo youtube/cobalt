@@ -107,8 +107,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                                          audio_sample_info, output_mode,
                                          provider));
   SbPlayer player = SbPlayerPrivate::CreateInstance(
-      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, handler.Pass());
+      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
+      decoder_status_func, player_status_func, player_error_func, context,
+      handler.Pass());
 
   // TODO: accomplish this through more direct means.
   // Set the bounds to initialize the VideoSurfaceView. The initial values don't
