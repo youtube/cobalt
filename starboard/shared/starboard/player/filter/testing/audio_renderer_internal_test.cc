@@ -186,7 +186,7 @@ class AudioRendererTest : public ::testing::Test {
     const int kInputBufferSize = 4;
     return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleCB, NULL, this,
                            SbMemoryAllocate(kInputBufferSize), kInputBufferSize,
-                           timestamp, NULL, NULL);
+                           timestamp, &GetDefaultAudioSampleInfo(), NULL, NULL);
   }
 
   scoped_refptr<DecodedAudio> CreateDecodedAudio(SbTime timestamp, int frames) {
@@ -223,8 +223,8 @@ class AudioRendererTest : public ::testing::Test {
     SbMemoryDeallocate(const_cast<void*>(sample_buffer));
   }
 
-  static SbMediaAudioSampleInfo GetDefaultAudioSampleInfo() {
-    SbMediaAudioSampleInfo audio_sample_info = {};
+  static const SbMediaAudioSampleInfo& GetDefaultAudioSampleInfo() {
+    static SbMediaAudioSampleInfo audio_sample_info = {};
 
     audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
     audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
