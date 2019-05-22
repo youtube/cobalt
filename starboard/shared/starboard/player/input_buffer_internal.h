@@ -39,6 +39,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
               const void* sample_buffer,
               int sample_buffer_size,
               SbTime sample_timestamp,
+              const SbMediaAudioSampleInfo* audio_sample_info,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
   InputBuffer(SbMediaType sample_type,
@@ -49,6 +50,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
               const int* sample_buffer_sizes,
               int number_of_sample_buffers,
               SbTime sample_timestamp,
+              const SbMediaAudioSampleInfo* audio_sample_info,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
   ~InputBuffer();
@@ -57,8 +59,11 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const uint8_t* data() const { return data_; }
   int size() const { return size_; }
   SbTime timestamp() const { return timestamp_; }
+  const SbMediaAudioSampleInfo* audio_sample_info() const {
+    return sample_type_ == kSbMediaTypeAudio ? &audio_sample_info_ : NULL;
+  }
   const SbMediaVideoSampleInfo* video_sample_info() const {
-    return has_video_sample_info_ ? &video_sample_info_ : NULL;
+    return sample_type_ == kSbMediaTypeVideo ? &video_sample_info_ : NULL;
   }
   const SbDrmSampleInfo* drm_info() const {
     return has_drm_info_ ? &drm_info_ : NULL;
@@ -68,8 +73,6 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   std::string ToString() const;
 
  private:
-  void TryToAssignVideoSampleInfo(
-      const SbMediaVideoSampleInfo* video_sample_info);
   void TryToAssignDrmSampleInfo(const SbDrmSampleInfo* sample_drm_info);
   void DeallocateSampleBuffer(const void* buffer);
 
@@ -80,7 +83,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const uint8_t* data_;
   int size_;
   SbTime timestamp_;
-  bool has_video_sample_info_;
+  SbMediaAudioSampleInfo audio_sample_info_;
   SbMediaColorMetadata color_metadata_;
   SbMediaVideoSampleInfo video_sample_info_;
   bool has_drm_info_;

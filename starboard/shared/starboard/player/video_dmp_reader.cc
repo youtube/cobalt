@@ -89,7 +89,7 @@ scoped_refptr<InputBuffer> VideoDmpReader::GetAudioInputBuffer(
   const AudioAccessUnit& au = audio_access_units_[index];
   return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
                          au.data().data(), static_cast<int>(au.data().size()),
-                         au.timestamp(), NULL, NULL);
+                         au.timestamp(), &audio_sample_info_, NULL, NULL);
 }
 
 scoped_refptr<InputBuffer> VideoDmpReader::GetVideoInputBuffer(
@@ -98,7 +98,7 @@ scoped_refptr<InputBuffer> VideoDmpReader::GetVideoInputBuffer(
   const VideoAccessUnit& au = video_access_units_[index];
   return new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc, NULL, NULL,
                          au.data().data(), static_cast<int>(au.data().size()),
-                         au.timestamp(), &au.video_sample_info(), NULL);
+                         au.timestamp(), NULL, &au.video_sample_info(), NULL);
 }
 
 void VideoDmpReader::Parse() {
