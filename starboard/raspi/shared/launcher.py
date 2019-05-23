@@ -91,20 +91,24 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
 
-    test_path = self.GetTargetPath()
+    test_dir = os.path.join(self.out_directory, 'deploy', self.target_name)
+    test_file = self.target_name
+
+    test_path = os.path.join(test_dir, test_file)
     if not os.path.isfile(test_path):
       raise ValueError('TargetPath ({}) must be a file.'.format(test_path))
 
-    test_dir_path, test_file = os.path.split(test_path)
-    test_base_dir = os.path.basename(os.path.normpath(test_dir_path))
-
     raspi_user_hostname = Launcher._RASPI_USERNAME + '@' + self.device_id
-    raspi_test_path = os.path.join(test_base_dir, test_file)
+
+    # Use the basename of the out directory as a common directory on the device
+    # so content can be reused for several targets w/o re-syncing for each one.
+    raspi_test_dir = os.path.basename(self.out_directory)
+    raspi_test_path = os.path.join(raspi_test_dir, test_file)
 
     # rsync command setup
-    options = '-avzLh --exclude obj/ --exclude obj.host/ --exclude gen/'
-    source = test_dir_path
-    destination = raspi_user_hostname + ':~/'
+    options = '-avzLh'
+    source = test_dir + '/'
+    destination = '{}:~/{}/'.format(raspi_user_hostname, raspi_test_dir)
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
     # ssh command setup
@@ -138,6 +142,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
        command: The command to use when spawning the pexpect process.
     """
 
+    logging.info('executing: %s', command)
     self.pexpect_process = pexpect.spawn(
         command, timeout=Launcher._PEXPECT_TIMEOUT)
     retry_count = 0
