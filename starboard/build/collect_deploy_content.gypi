@@ -34,9 +34,19 @@
 
     # Some platforms will symlink to a folder containing relative symlinks,
     # and this will cause an invalid path. To get around this these platforms
-    # should set use_absolute_symlinks to 1.
-    'content_deploy_use_absolute_symlinks': 0,
+    # should set |content_deploy_use_absolute_symlinks| to 1.
+    'content_deploy_use_absolute_symlinks%': 0,
+
+    # Implementation detail to add conditional args.
+    'collect_deploy_content_extra_args': [],
   },
+  'conditions': [
+    ['content_deploy_use_absolute_symlinks == 1', {
+      'variables': {
+        'collect_deploy_content_extra_args': [ '--use_absolute_symlinks' ],
+      }
+    }],
+  ],
   'actions': [{
     'action_name': 'collect_deploy_content',
     'variables': {
@@ -52,7 +62,7 @@
       '-i', '<(input_dir)',
       '-o', '<(output_dir)',
       '-s', '<(content_deploy_stamp_file)',
-      '--use_absolute_symlinks', '<(content_deploy_use_absolute_symlinks)',
+      '<@(collect_deploy_content_extra_args)',
       '>@(content_deploy_subdirs)',
     ],
     'message': 'Collect content: <(executable_name)',
