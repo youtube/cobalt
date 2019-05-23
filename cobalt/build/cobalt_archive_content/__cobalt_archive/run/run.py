@@ -15,10 +15,10 @@
 # limitations under the License.
 
 
-"""A trampoline for running the unit tests from a Cobalt Archive.
+"""A trampoline that launches starboard/tools/example/app_launcher.py.
 
 
-   Example: python __cobalt_archive/run/run_tests.py -t nplb -t nb_test
+   Example: python __cobalt_archive/run/run.py -t cobalt
 """
 
 
@@ -28,7 +28,7 @@ import impl.trampoline  # pylint: disable=relative-import,g-import-not-at-top
 
 
 TRAMPOLINE = [
-    'python starboard/tools/testing/test_runner.py',
+    'python starboard/tools/example/app_launcher_client.py',
     '{target_names_arg}',
     '{platform_arg}',
     '{config_arg}',
