@@ -19,12 +19,9 @@
 import argparse
 import logging
 import os
-import shutil
-import stat
 import sys
-import traceback
 
-import _env # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import
 import starboard.build.port_symlink as port_symlink
 
 
@@ -40,7 +37,7 @@ def EscapePath(path):
 
 def _ClearDir(path):
   path = os.path.normpath(path)
-  if not os.path.exists(path): # Works for symlinks for both *nix and Windows.
+  if not os.path.exists(path):  # Works for symlinks for both *nix and Windows.
     return
   port_symlink.Rmtree(path)
 
@@ -55,7 +52,7 @@ def main(argv):
       '-s', dest='stamp_file', required=True,
       help='stamp file to update after the output directory is populated')
   parser.add_argument(
-      '--use_absolute_symlinks', required=True, type=bool,
+      '--use_absolute_symlinks', action='store_true',
       help='Generated symlinks are stored as absolute paths.')
   parser.add_argument(
       'subdirs', metavar='subdirs', nargs='*',
@@ -90,7 +87,7 @@ def main(argv):
     if not os.path.exists(dst_dir):
       try:
         os.makedirs(dst_dir)
-      except Exception as err:
+      except Exception as err:  # pylint: disable=broad-except
         msg = 'Error: ' + str(err)
         if os.path.isdir(dst_dir):
           msg += ' path is a directory'
