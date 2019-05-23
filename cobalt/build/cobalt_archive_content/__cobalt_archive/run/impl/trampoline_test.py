@@ -15,126 +15,65 @@
 # limitations under the License.
 
 
-import sys
 import unittest
 
-import trampoline  # pylint: disable=relative-import
-sys.path.insert(0, '..')
-import run_cobalt  # pylint: disable=relative-import
-import run_tests  # pylint: disable=relative-import
+import trampoline  # pylint: disable=relative-import,g-bad-import-order,g-import-not-at-top
 
 
 class TrampolineTest(unittest.TestCase):
-  """Tests trampoline substitutions"""
+  """Tests trampoline substitutions."""
+
   def setUp(self):
+    super(TrampolineTest, self).setUp()
     # Change the trampoline internals for testing purposes.
     self.prev_platform, trampoline.PLATFORM = trampoline.PLATFORM, 'MY_PLATFORM'
     self.prev_config, trampoline.CONFIG = trampoline.CONFIG, 'MY_CONFIG'
 
   def tearDown(self):
+    super(TrampolineTest, self).tearDown()
     trampoline.PLATFORM = self.prev_platform
     trampoline.CONFIG = self.prev_config
 
   def testResolvePlatformConfig(self):
     """Tests that a device_id resolves to the expected value."""
-    INPUT = [
-      'python dummy.py', '{platform_arg}', '{config_arg}', '{device_id_arg}',
-      '{target_params_arg}',
+    tramp = [
+        'python dummy.py', '{platform_arg}', '{config_arg}', '{device_id_arg}',
+        '{target_params_arg}',
     ]
-    EXPECTED_OUTPUT = (
+    expected_output = (
         'python dummy.py --platform MY_PLATFORM --config MY_CONFIG')
-    cmd_str = trampoline.ResolveTrampoline(
-        INPUT, argv=[])
-    self.assertEqual(EXPECTED_OUTPUT, cmd_str)
+    cmd_str = trampoline.ResolveTrampoline(tramp, argv=[])
+    self.assertEqual(expected_output, cmd_str)
 
   def testResolveDeviceId(self):
     """Tests that a device_id resolves to the expected value."""
-    INPUT = [
-      'python dummy.py', '{platform_arg}', '{config_arg}', '{device_id_arg}',
-      '{target_params_arg}',
+    tramp = [
+        'python dummy.py', '{platform_arg}', '{config_arg}', '{device_id_arg}',
+        '{target_params_arg}',
     ]
-    EXPECTED_OUTPUT = (
-      'python dummy.py --platform MY_PLATFORM --config MY_CONFIG'
-      ' --device_id 1234')
+    expected_output = (
+        'python dummy.py --platform MY_PLATFORM --config MY_CONFIG'
+        ' --device_id 1234')
     cmd_str = trampoline.ResolveTrampoline(
-        INPUT,
+        tramp,
         argv=['--device_id', '1234'])
-    self.assertEqual(EXPECTED_OUTPUT, cmd_str)
+    self.assertEqual(expected_output, cmd_str)
 
   def testTargetParams(self):
     """Tests that target_params resolves to the expected value."""
-    INPUT = [
-      'python dummy.py', '--target_name cobalt',
-      '{platform_arg}', '{config_arg}', '{device_id_arg}',
-      '{target_params_arg}',
+    tramp = [
+        'python dummy.py', '--target_name cobalt',
+        '{platform_arg}', '{config_arg}', '{device_id_arg}',
+        '{target_params_arg}',
     ]
-    EXPECTED_OUTPUT = (
-      'python dummy.py'
-      ' --target_name cobalt --platform MY_PLATFORM'
-      ' --config MY_CONFIG --target_params="--url=http://my.server.test"')
+    expected_output = (
+        'python dummy.py'
+        ' --target_name cobalt --platform MY_PLATFORM'
+        ' --config MY_CONFIG --target_params="--url=http://my.server.test"')
     cmd_str = trampoline.ResolveTrampoline(
-        INPUT,
+        tramp,
         argv=['--target_params', '"--url=http://my.server.test"'])
-    self.assertEqual(EXPECTED_OUTPUT, cmd_str)
-
-
-class RunCobaltTrampolineTest(unittest.TestCase):
-  """Tests trampoline substitutions for run_cobalt.py"""
-  def setUp(self):
-    # Change the trampoline internals for testing purposes.
-    self.prev_platform, trampoline.PLATFORM = trampoline.PLATFORM, 'MY_PLATFORM'
-    self.prev_config, trampoline.CONFIG = trampoline.CONFIG, 'MY_CONFIG'
-
-  def tearDown(self):
-    trampoline.PLATFORM = self.prev_platform
-    trampoline.CONFIG = self.prev_config
-
-  def testGeneral(self):
-    """Tests that target_params resolves to the expected value."""
-    INPUT = run_cobalt.TRAMPOLINE
-    EXPECTED_OUTPUT = (
-      'python starboard/tools/example/app_launcher_client.py'
-      ' --target_name cobalt --platform MY_PLATFORM --config MY_CONFIG'
-      ' --target_params="--url=http://my.server.test"')
-    cmd_str = trampoline.ResolveTrampoline(
-        INPUT,
-        argv=['--target_params', '"--url=http://my.server.test"'])
-    self.assertEqual(EXPECTED_OUTPUT, cmd_str)
-
-
-class RunUnitTestsTrampolineTest(unittest.TestCase):
-  """Tests trampoline substitutions for run_unit_tests.py"""
-  def setUp(self):
-    # Change the trampoline internals for testing purposes.
-    self.prev_platform, trampoline.PLATFORM = trampoline.PLATFORM, 'MY_PLATFORM'
-    self.prev_config, trampoline.CONFIG = trampoline.CONFIG, 'MY_CONFIG'
-
-  def tearDown(self):
-    trampoline.PLATFORM = self.prev_platform
-    trampoline.CONFIG = self.prev_config
-
-  def testOne(self):
-    """Tests that --target_name resolves to the expected value."""
-    INPUT = run_tests.TRAMPOLINE
-    EXPECTED_OUTPUT = (
-      'python starboard/tools/testing/test_runner.py'
-      ' --target_name nplb --platform MY_PLATFORM --config MY_CONFIG')
-    cmd_str = trampoline.ResolveTrampoline(
-        INPUT,
-        argv=['--target_name', 'nplb'])
-    self.assertEqual(EXPECTED_OUTPUT, cmd_str)
-
-  def testTwo(self):
-    """Tests that --target_name used twice resolves to the expected value."""
-    INPUT = run_tests.TRAMPOLINE
-    EXPECTED_OUTPUT = (
-      'python starboard/tools/testing/test_runner.py'
-      ' --target_name nplb --target_name nb_test'
-      ' --platform MY_PLATFORM --config MY_CONFIG')
-    cmd_str = trampoline.ResolveTrampoline(
-        INPUT,
-        argv=['--target_name', 'nplb', '--target_name', 'nb_test'])
-    self.assertEqual(EXPECTED_OUTPUT, cmd_str)
+    self.assertEqual(expected_output, cmd_str)
 
 
 if __name__ == '__main__':

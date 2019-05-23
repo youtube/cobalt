@@ -15,6 +15,16 @@
 # limitations under the License.
 
 
+"""Trampoline resolves a trampoline to a command string."""
+
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+
+
 ################################################################################
 #                                  API                                         #
 ################################################################################
@@ -26,7 +36,8 @@ def RunTrampolineThenExit(trampoline, argv=None):
 
 
 def ResolveTrampoline(trampoline, argv=None):
-  """
+  r"""Resolves the trampoline list and returns a fully resolve strings.
+
   The result of this function call is to return the cmd string with
   the platform, config, device_id resolved to values.
     Example input:
@@ -36,6 +47,13 @@ def ResolveTrampoline(trampoline, argv=None):
     Example Output:
       'python starboard/tools/example/app_launcher_client.py -t cobalt ' + \
       '--platform linux --config devel --device_id IP_ADDRESS'
+
+  Args:
+    trampoline: a list of commands mixed in with unresolved symobls.
+    argv: a list of known resolves symbols to use in the trampoline.
+
+  Returns:
+    A string representing the resolved shell command.
   """
   return _ResolveTrampoline(trampoline, argv)
 
@@ -45,16 +63,9 @@ def ResolveTrampoline(trampoline, argv=None):
 ################################################################################
 
 
-import argparse
-import os
-import sys
-import json
-import subprocess
-
-
 _SELF_DIR = os.path.dirname(__file__)
 _META_FILE = os.path.normpath(
-    os.path.join(_SELF_DIR, '..', '..' ,'metadata.json'))
+    os.path.join(_SELF_DIR, '..', '..', 'metadata.json'))
 with open(_META_FILE) as fd:
   data = fd.read()
   _META_DATA = json.loads(data)
@@ -68,9 +79,14 @@ IS_TEST = _META_DATA.get('comment', None) == 'TEST'
 
 
 def _FindCwd():
-  """Returns the current working directory, which is detected
-  by whether the metadata.json is real (meaning we are in a
-  cobalt archive) or in the source directory."""
+  """Gets the current working directory.
+
+  This is detected by whether the metadata.json is real (meaning we are in a
+  cobalt archive) or in the source directory.
+
+  Returns:
+    current working directory for execution.
+  """
   if IS_TEST:
     p = os.path.join(_SELF_DIR, '..', '..', '..', '..', '..', '..')
   else:
@@ -95,12 +111,13 @@ def _UnQuote(s):
 
 
 def _ResolveTrampoline(trampoline, argv):
+  """Implemention, see ResolveTrampoline() above."""
   if argv is None:
     argv = sys.argv[1:]
   args = _ParseArgs(argv)
   placeholders = {
-    'platform_arg': '--platform %s' % PLATFORM,
-    'config_arg': '--config %s' % CONFIG
+      'platform_arg': '--platform %s' % PLATFORM,
+      'config_arg': '--config %s' % CONFIG
   }
   placeholders['device_id_arg'] = (
       '' if not args.device_id else '--device_id %s' % args.device_id)
@@ -118,10 +135,14 @@ def _ResolveTrampoline(trampoline, argv):
 
 
 def _ParseArgs(argv):
+  """Parses arguments."""
+
   class MyParser(argparse.ArgumentParser):
+
     def error(self, message):
       sys.stderr.write('error: %s\n' % message)
       self.print_help()
+
   formatter_class = argparse.RawDescriptionHelpFormatter
   parser = MyParser(formatter_class=formatter_class)
   parser.add_argument('--device_id', type=str,
