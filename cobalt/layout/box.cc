@@ -730,15 +730,23 @@ void Box::RenderAndAnimate(
     // just add them all to the same composition node.
     RenderAndAnimateContent(&border_node_builder, stacking_context);
   } else {
+    // Otherwise, deal with content specifically so that we can animate the
+    // content offset for UI navigation and/or apply overflow: hidden to the
+    // content but not the background.
     CompositionNode::Builder content_node_builder;
-    // Otherwise, deal with content specifically so that we can apply overflow:
-    // hidden to the content but not the background.
     RenderAndAnimateContent(&content_node_builder, stacking_context);
     if (!content_node_builder.children().empty()) {
-      border_node_builder.AddChild(RenderAndAnimateOverflow(
-          padding_rounded_corners,
-          new CompositionNode(content_node_builder.Pass()),
-          &animate_node_builder, math::Vector2dF(0, 0)));
+      if (overflow_hidden) {
+        border_node_builder.AddChild(RenderAndAnimateOverflow(
+            padding_rounded_corners,
+            new CompositionNode(content_node_builder.Pass()),
+            &animate_node_builder, math::Vector2dF(0, 0)));
+      } else {
+        DCHECK(IsOverflowAnimatedByUiNavigation());
+        border_node_builder.AddChild(RenderAndAnimateUiNavigation(
+            new CompositionNode(content_node_builder.Pass()),
+            &animate_node_builder));
+      }
     }
     // We've already applied overflow hidden, no need to apply it again later.
     overflow_hidden_needs_to_be_applied = false;
@@ -1876,12 +1884,24 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigation(
   // this one. The containing navigation item may not be this box's direct
   // parent.
   auto layout_rect = GetTransformedBorderBoxFromRoot();
-  for (auto parent = parent_; parent != nullptr; parent = parent->parent_) {
-    if (ui_nav_item_->GetContainerItem() == parent->ui_nav_item_) {
-      auto origin = parent->GetTransformedBorderBoxFromRoot().origin();
+
+  // Find this UI nav item's container. It will belong to one of this box's
+  // containing blocks.
+  scoped_refptr<ui_navigation::NavItem> ui_nav_container;
+  for (const ContainerBox* container = GetContainingBlock(); container;
+       container = container->GetContainingBlock()) {
+    if (container->ui_nav_item_ && container->ui_nav_item_->IsContainer()) {
+      ui_nav_container = container->ui_nav_item_;
+      // Set this box's origin relative to its container.
+      auto origin = container->GetTransformedBorderBoxFromRoot().origin();
       layout_rect.Offset(-origin.x(), -origin.y());
       break;
     }
+  }
+
+  // Update the UI nav item's container as needed.
+  if (ui_nav_item_->GetContainerItem() != ui_nav_container) {
+    ui_nav_item_->SetContainerItem(ui_nav_container);
   }
 
   ui_nav_item_->SetSize(layout_rect.width().toFloat(),
