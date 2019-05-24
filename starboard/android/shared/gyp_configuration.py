@@ -57,7 +57,6 @@ class AndroidConfiguration(PlatformConfiguration):
 
     self.android_abi = android_abi
 
-    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
     self.android_home = sdk_utils.GetSdkPath()
     self.android_ndk_home = sdk_utils.GetNdkPath()
 
@@ -217,6 +216,8 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetHostToolchain(self):
     if not self._host_toolchain:
+      if not hasattr(self, 'host_compiler_environment'):
+        self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
       cc_path = self.host_compiler_environment['CC_host'],
       cxx_path = self.host_compiler_environment['CXX_host']
       self._host_toolchain = [
