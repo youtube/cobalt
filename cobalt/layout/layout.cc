@@ -80,6 +80,12 @@ void UpdateComputedStylesAndLayoutBoxTree(
     (*initial_containing_block)->set_blend_background_color(false);
   }
 
+  // Associate the UI navigation root with the initial containing block.
+  if (document->window()) {
+    (*initial_containing_block)->SetUiNavItem(
+        document->window()->GetUiNavRoot());
+  }
+
   // Generate boxes.
   if (document->html()) {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);

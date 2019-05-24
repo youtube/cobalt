@@ -817,8 +817,6 @@ void HTMLElement::UpdateComputedStyleRecursively(
     return;
   }
 
-  RegisterUiNavigationParent();
-
   // Update computed style for this element's descendants. Note that if
   // descendant_computed_styles_valid_ flag is not set, the ancestors should
   // still be considered invalid, which forces the computes styles to be updated
@@ -1652,56 +1650,6 @@ void HTMLElement::UpdateUiNavigationType() {
     ui_nav_item_->SetEnabled(false);
     ui_nav_item_ = nullptr;
   }
-}
-
-void HTMLElement::RegisterUiNavigationParent() {
-  if (!ui_nav_item_) {
-    return;
-  }
-
-  // Register this HTML element's UI navigation item as a content of its parent
-  // UI navigation item. Walk up the containing block chain.
-  // https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
-  scoped_refptr<ui_navigation::NavItem> parent_item;
-  scoped_refptr<cssom::PropertyValue> position = computed_style()->position();
-
-  for (Node* ancestor_node = parent_node();;
-       ancestor_node = ancestor_node->parent_node()) {
-    if (!ancestor_node || position == cssom::KeywordValue::GetFixed()) {
-      if (node_document() && node_document()->window()) {
-        parent_item = node_document()->window()->GetUiNavRoot();
-      }
-      break;
-    }
-
-    Element* ancestor_element = ancestor_node->AsElement();
-    if (!ancestor_element) {
-      continue;
-    }
-
-    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
-    if (!ancestor_html_element) {
-      continue;
-    }
-
-    if (position == cssom::KeywordValue::GetAbsolute() &&
-        ancestor_html_element->computed_style()->position() ==
-            cssom::KeywordValue::GetStatic()) {
-      continue;
-    }
-
-    const scoped_refptr<ui_navigation::NavItem>& potential_parent_item =
-        ancestor_html_element->GetUiNavItem();
-    if (potential_parent_item && potential_parent_item->IsContainer()) {
-      parent_item = potential_parent_item;
-      break;
-    }
-
-    // Look for this ancestor's containing block.
-    position = ancestor_html_element->computed_style()->position();
-  }
-
-  ui_nav_item_->SetContainerItem(parent_item);
 }
 
 void HTMLElement::ClearActiveBackgroundImages() {

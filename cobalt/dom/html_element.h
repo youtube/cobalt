@@ -379,10 +379,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Update the UI navigation item type for this element.
   void UpdateUiNavigationType();
 
-  // Register this element's UI navigation item as a content of its parent
-  // element's UI navigation item.
-  void RegisterUiNavigationParent();
-
   // Clear the list of active background images, and notify the animated image
   // tracker to stop the animations.
   void ClearActiveBackgroundImages();
