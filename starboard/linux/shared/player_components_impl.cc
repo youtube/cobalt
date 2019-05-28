@@ -22,6 +22,7 @@
 #include "starboard/shared/libaom/aom_video_decoder.h"
 #include "starboard/shared/libde265/de265_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
+#include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -40,6 +41,7 @@ namespace filter {
 namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
+ public:
   void CreateAudioComponents(
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
@@ -49,6 +51,21 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
 
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+                              SbDrmSystem drm_system) {
+      scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
+          AudioDecoderImpl::Create(audio_sample_info.codec, audio_sample_info));
+      if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+        return scoped_ptr<filter::AudioDecoder>(audio_decoder_impl.release());
+      }
+      return scoped_ptr<filter::AudioDecoder>();
+    };
+
+    audio_decoder->reset(
+        new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
+                                 audio_parameters.drm_system, decoder_creator));
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
     scoped_ptr<AudioDecoderImpl> audio_decoder_impl(AudioDecoderImpl::Create(
         audio_parameters.audio_codec, audio_parameters.audio_sample_info));
     if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
@@ -56,6 +73,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     } else {
       audio_decoder->reset();
     }
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }
 
