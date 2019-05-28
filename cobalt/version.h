@@ -35,6 +35,6 @@
 //                  release is cut.
 //.
 
-#define COBALT_VERSION "19.android.1"
+#define COBALT_VERSION "19.android.2"
 
 #endif  // COBALT_VERSION_H_
