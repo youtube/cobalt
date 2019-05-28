@@ -197,7 +197,7 @@ public class AudioTrackBridge {
       // This conversion is safe, as only the lower bits will be set, since we
       // called |getTimestamp| without a timebase.
       // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-      audioTimestamp.framePosition = (int) audioTimestamp.framePosition;
+      audioTimestamp.framePosition &= 0x7FFFFFFF;
     } else {
       // Time stamps haven't been updated yet, assume playback hasn't started.
       audioTimestamp.framePosition = 0;
