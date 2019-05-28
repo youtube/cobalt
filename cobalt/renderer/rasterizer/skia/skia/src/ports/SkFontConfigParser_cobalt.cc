@@ -542,14 +542,14 @@ void ParseConfigFile(const char* directory,
   std::unique_ptr<SkStream> file_stream(
       SkStream::MakeFromFile(file_path.c_str()));
   if (file_stream == NULL) {
-    LOG(ERROR) << "---- Failed to open %s", file_path.c_str();
+    LOG(ERROR) << "---- Failed to open " << file_path.c_str();
     return;
   }
 
   sk_sp<SkData> file_data(
       SkData::MakeFromStream(file_stream.get(), file_stream->getLength()));
   if (file_data == NULL) {
-    LOG(ERROR) << "---- Failed to read %s", file_path.c_str();
+    LOG(ERROR) << "---- Failed to read " << file_path.c_str();
     return;
   }
 
