@@ -144,9 +144,8 @@ typedef struct SbUiNavInterface {
   bool (*get_item_focus_vector)(SbUiNavItem item, float* out_x, float* out_y);
 
   // This attaches the given navigation item (which must be a container) to
-  // the specified window. This also sets the item's position and size to
-  // cover the whole window. Navigation items are only interactable if they
-  // are transitively attached to a window.
+  // the specified window. Navigation items are only interactable if they are
+  // transitively attached to a window.
   //
   // A navigation item may only have a SbUiNavItem or SbWindow as its direct
   // container. The navigation item hierarchy is established using
