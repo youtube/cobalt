@@ -20,6 +20,20 @@
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 
+namespace {
+
+// Transform the given blitter-space coordinates into NDC.
+std::pair<float, float> TransformCoords(
+    const int x,
+    const int y,
+    SbBlitterRenderTargetPrivate* render_target) {
+  const float transformed_x = -1 + (2.0f * x) / render_target->width;
+  const float transformed_y = 1 - (2.0f * y) / render_target->height;
+  return std::pair<float, float>(transformed_x, transformed_y);
+}
+
+}  // namespace
+
 bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
   if (!SbBlitterIsContextValid(context)) {
     SB_DLOG(ERROR) << ": Invalid context.";
@@ -39,22 +53,32 @@ bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
   if (scoped_current_context.InitializationError()) {
     return false;
   }
-
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
-
-  // SbBlitterRect's x, y are its upper left corner in a coord plane with (0,0)
-  // at top left. Here, translate to GL's coord plane of (0,0) at bottom left,
-  // and give glScissor() the (x,y) of the rectangle's bottom left corner.
-  GL_CALL(glScissor(
-      rect.x, context->current_render_target->height - rect.y - rect.height,
-      rect.width, rect.height));
-  const float kColorMapper = 255.0;
-  GL_CALL(
-      glClearColor(SbBlitterRFromColor(context->current_color) / kColorMapper,
-                   SbBlitterGFromColor(context->current_color) / kColorMapper,
-                   SbBlitterBFromColor(context->current_color) / kColorMapper,
-                   SbBlitterAFromColor(context->current_color) / kColorMapper));
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+  GL_CALL(glUniform1f(context->blit_uniform, 0.0f));
 
-  return true;
+  std::pair<float, float> lower_left_coord = TransformCoords(
+      rect.x, rect.y + rect.height, context->current_render_target);
+  std::pair<float, float> upper_right_coord = TransformCoords(
+      rect.x + rect.width, rect.y, context->current_render_target);
+  float vertices[] = {lower_left_coord.first,  lower_left_coord.second,
+                      lower_left_coord.first,  upper_right_coord.second,
+                      upper_right_coord.first, lower_left_coord.second,
+                      upper_right_coord.first, upper_right_coord.second};
+  GL_CALL(glVertexAttribPointer(context->kPositionAttribute, 2, GL_FLOAT,
+                                GL_FALSE, 0, vertices));
+  GL_CALL(glEnableVertexAttribArray(context->kPositionAttribute));
+
+  const float kColorMapper = 255.0;
+  GL_CALL(glVertexAttrib4f(
+      context->kColorAttribute,
+      SbBlitterRFromColor(context->current_color) / kColorMapper,
+      SbBlitterGFromColor(context->current_color) / kColorMapper,
+      SbBlitterBFromColor(context->current_color) / kColorMapper,
+      SbBlitterAFromColor(context->current_color) / kColorMapper));
+
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  bool success = glGetError() == GL_NO_ERROR;
+
+  GL_CALL(glDisableVertexAttribArray(context->kPositionAttribute));
+  return success;
 }
