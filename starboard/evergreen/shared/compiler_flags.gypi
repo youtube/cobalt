@@ -111,14 +111,6 @@
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/x86_64',
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/generic',
       '-isystem<(cobalt_repo_root)/third_party/musl/generated/include',
-      # TODO: this is a temporary include dir for the build of the evergreen
-      # platform. This directory contains a copy of /usr/include/X11 and
-      # /usr/include/GL. Before building, a user must create a folder
-      # /usr/include/evergreen_include, and copy /usr/include/X11 and
-      # /usr/include/GL into that folder. You may run:
-      # sudo mkdir /usr/include/evergreen_include && sudo cp -r /usr/include/GL /usr/include/evergreen_include && sudo cp -r /usr/include/X11 /usr/include/evergreen_include
-      # After EGL/GLES is starboardized, this approach will be deprecated.
-      '-isystem/usr/include/evergreen_include',
     ],
     'cflags_cc': [
       '-nostdinc++',
