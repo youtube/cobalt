@@ -812,11 +812,14 @@ class Box : public base::RefCounted<Box> {
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
 
-  // If this box should be controlled by the UI navigation system, then add
-  // an animation to query the UI navigation system for updates.
-  scoped_refptr<render_tree::Node> RenderAndAnimateUiNavigation(
+  // This adds an animation to reflect content scrolling by the UI navigation
+  // system. Call this only if IsOverflowAnimatedByUiNavigation().
+  scoped_refptr<render_tree::Node> RenderAndAnimateUiNavigationContainer(
       const scoped_refptr<render_tree::Node>& node_to_animate,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
+
+  // Configure the box's UI navigation item with the box's position, size, etc.
+  void UpdateUiNavigationItem();
 
   // The css_computed_style_declaration_ member references the
   // cssom::CSSComputedStyleDeclaration object owned by the HTML Element from
