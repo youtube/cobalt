@@ -21,6 +21,7 @@
 #include "starboard/common/optional.h"
 #include "starboard/once.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -193,6 +194,144 @@ starboard::optional<GLuint> GetFramebuffer(
   }
 }
 
+bool EnsureProgramInitialized(SbBlitterContext context) {
+  if (context->program_handle == 0) {
+    context->program_handle = glCreateProgram();
+  }
+
+  return context->program_handle != 0;
+}
+
+bool InitializeShader(GLuint program_handle,
+                      GLuint shader_handle,
+                      const char* shader_source) {
+  int shader_source_length = SbStringGetLength(shader_source);
+  int compile_status;
+  glShaderSource(shader_handle, 1, &shader_source, &shader_source_length);
+  if (glGetError() != GL_NO_ERROR) {
+    SB_DLOG(ERROR) << ": Failed to set shader source code.";
+    return false;
+  }
+  GL_CALL(glCompileShader(shader_handle));
+  GL_CALL(glGetShaderiv(shader_handle, GL_COMPILE_STATUS, &compile_status));
+  if (!compile_status) {
+    SB_DLOG(ERROR) << ": Failed to compile shader.";
+    return false;
+  }
+  glAttachShader(program_handle, shader_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    SB_DLOG(ERROR) << ": Failed to attach shader.";
+    return false;
+  }
+
+  return true;
+}
+
+bool EnsureVertexShaderInitialized(SbBlitterContext context) {
+  if (context->vertex_shader != 0) {
+    return true;
+  }
+
+  context->vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+  if (context->vertex_shader == 0) {
+    SB_DLOG(ERROR) << ": Failed to create vertex shader.";
+    return false;
+  }
+  const char* vertex_shader_source =
+      "attribute vec2 a_position;"
+      "attribute vec2 a_tex_coord;"
+      "attribute vec4 a_color;"
+      "varying vec2 v_tex_coord;"
+      "varying vec4 v_color;"
+      "void main() {"
+      "  gl_Position = vec4(a_position.x, a_position.y, 0, 1);"
+      "  v_tex_coord = a_tex_coord;"
+      "  v_color = a_color;"
+      "}";
+
+  return InitializeShader(context->program_handle, context->vertex_shader,
+                          vertex_shader_source);
+}
+
+bool EnsureFragmentShaderInitialized(SbBlitterContext context) {
+  if (context->fragment_shader != 0) {
+    return true;
+  }
+
+  context->fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+  if (context->fragment_shader == 0) {
+    SB_DLOG(ERROR) << ": Failed to create vertex shader.";
+    return false;
+  }
+  const char* fragment_shader_source =
+      "precision mediump float;"
+      "uniform float blit;"
+      "uniform sampler2D tex;"
+      "varying vec2 v_tex_coord;"
+      "varying vec4 v_color;"
+      "void main() {"
+      "  gl_FragColor = "
+      "      blit * texture2D(tex, v_tex_coord) + (1.0 - blit) * v_color;"
+      "}";
+
+  return InitializeShader(context->program_handle, context->fragment_shader,
+                          fragment_shader_source);
+}
+
+bool EnsureProgramLinked(SbBlitterContext context) {
+  // Blit uniform will only be valid after a successful link.
+  if (context->blit_uniform != -1) {
+    return true;
+  }
+
+  GL_CALL(glBindAttribLocation(context->program_handle,
+                               context->kPositionAttribute, "a_position"));
+  GL_CALL(glBindAttribLocation(context->program_handle,
+                               context->kTexcoordAttribute, "a_tex_coord"));
+  GL_CALL(glBindAttribLocation(context->program_handle,
+                               context->kColorAttribute, "a_color"));
+
+  int link_status;
+  GL_CALL(glLinkProgram(context->program_handle));
+  GL_CALL(
+      glGetProgramiv(context->program_handle, GL_LINK_STATUS, &link_status));
+  if (!link_status) {
+    SB_DLOG(ERROR) << ": Failed to link program.";
+    return false;
+  }
+
+  context->blit_uniform = glGetUniformLocation(context->program_handle, "blit");
+  if (context->blit_uniform == -1) {
+    SB_DLOG(ERROR) << ": Failed to get blit uniform.";
+    return false;
+  }
+
+  return true;
+}
+
+bool EnsureShadersInitialized(SbBlitterContext context) {
+  if (!EnsureProgramInitialized(context)) {
+    SB_DLOG(ERROR) << ": Failed to create program.";
+    return false;
+  }
+  if (!EnsureVertexShaderInitialized(context)) {
+    SB_DLOG(ERROR) << ": Failed to initialize vertex shader.";
+    ResetShaders(context);
+    return false;
+  }
+  if (!EnsureFragmentShaderInitialized(context)) {
+    SB_DLOG(ERROR) << ": Failed to initialize fragment shader.";
+    ResetShaders(context);
+    return false;
+  }
+  if (!EnsureProgramLinked(context)) {
+    ResetShaders(context);
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 const EGLint kContextAttributeList[] = {EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -224,6 +363,23 @@ SbBlitterDeviceRegistry* GetBlitterDeviceRegistry() {
   return s_device_registry;
 }
 
+void ResetShaders(SbBlitterContext context) {
+  if (context->program_handle != 0) {
+    GL_CALL(glDeleteProgram(context->program_handle));
+    context->program_handle = 0;
+  }
+  if (context->vertex_shader != 0) {
+    GL_CALL(glDeleteShader(context->vertex_shader));
+    context->vertex_shader = 0;
+  }
+  if (context->fragment_shader != 0) {
+    GL_CALL(glDeleteShader(context->fragment_shader));
+    context->fragment_shader = 0;
+  }
+
+  context->blit_uniform = -1;
+}
+
 bool MakeCurrent(SbBlitterContext context) {
   if (!EnsureEGLContextInitialized(context)) {
     SB_DLOG(ERROR) << ": Failed to create egl_context.";
@@ -241,6 +397,10 @@ bool MakeCurrent(SbBlitterContext context) {
     SB_DLOG(ERROR) << ": Failed to make the egl surface current.";
     return false;
   }
+  if (!EnsureShadersInitialized(context)) {
+    return false;
+  }
+  GL_CALL(glUseProgram(context->program_handle));
   starboard::optional<GLuint> framebuffer =
       GetFramebuffer(context->current_render_target);
   if (!framebuffer) {
@@ -268,6 +428,7 @@ ScopedCurrentContext::ScopedCurrentContext(SbBlitterContext context)
 ScopedCurrentContext::~ScopedCurrentContext() {
   if (!error_ && !was_current_) {
     starboard::ScopedLock lock(context_->device->mutex);
+    GL_CALL(glUseProgram(0));
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
     EGL_CALL(eglMakeCurrent(context_->device->display, EGL_NO_SURFACE,
                             EGL_NO_SURFACE, EGL_NO_CONTEXT));

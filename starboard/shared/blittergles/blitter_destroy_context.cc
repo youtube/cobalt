@@ -25,6 +25,7 @@ bool SbBlitterDestroyContext(SbBlitterContext context) {
     return false;
   }
 
+  starboard::shared::blittergles::ResetShaders(context);
   if (context->egl_context != EGL_NO_CONTEXT) {
     starboard::ScopedLock lock(context->device->mutex);
 
