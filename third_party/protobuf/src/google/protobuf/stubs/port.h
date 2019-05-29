@@ -48,11 +48,7 @@
 #else
 #include "starboard/memory.h"
 #include "starboard/types.h"
-// This workaround is for protoc auto-generated files which use memset.
-#ifndef memset
-#define memset SbMemorySet
-#endif  // memset
-#endif
+#endif  // STARBOARD
 
 #undef PROTOBUF_LITTLE_ENDIAN
 #if defined(STARBOARD)
