@@ -16,11 +16,6 @@
   'includes': [
     '<(DEPTH)/starboard/stub/stub_sources.gypi',
   ],
-  'variables': {
-    'starboard_platform_dependencies': [
-      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-    ],
-  },
   'targets': [
     {
       'target_name': 'starboard_platform',
@@ -28,15 +23,13 @@
       'sources': [
         '<@(stub_sources)',
         'atomic_public.h',
+        'configuration_public.h',
         'thread_types_public.h',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
-      ],
-      'dependencies': [
-        '<@(starboard_platform_dependencies)',
       ],
     },
   ],
