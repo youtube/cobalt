@@ -24,9 +24,10 @@
 //
 // # GLES Version
 //
-// This API supports the core GLES 2.0 API, and does not include the ability to
-// call into any additional functions introduced in the extended or version 3.0
-// APIs.
+// This API has the ability to support GLES 3.0, however platforms are not
+// required to support anything beyond GLES 2.0. The caller is responsible for
+// ensuring that the functions from GLES 3.0 they are calling from the interface
+// are valid.
 
 #ifndef STARBOARD_GLES_H_
 #define STARBOARD_GLES_H_
@@ -81,6 +82,8 @@ typedef int64_t khronos_int64_t;
 typedef uint64_t khronos_uint64_t;
 
 typedef struct SbGlesInterface {
+  // The following prototypes were adapted from the prototypes declared in
+  // https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h.
   void (*glActiveTexture)(SbGlEnum texture);
   void (*glAttachShader)(SbGlUInt32 program, SbGlUInt32 shader);
   void (*glBindAttribLocation)(SbGlUInt32 program,
@@ -429,6 +432,340 @@ typedef struct SbGlesInterface {
                      SbGlInt32 y,
                      SbGlSizei width,
                      SbGlSizei height);
+
+  // The following prototypes were adapted from the prototypes declared in
+  // https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h.
+  void (*glReadBuffer)(SbGlEnum src);
+  void (*glDrawRangeElements)(SbGlEnum mode,
+                              SbGlUInt32 start,
+                              SbGlUInt32 end,
+                              SbGlSizei count,
+                              SbGlEnum type,
+                              const void* indices);
+  void (*glTexImage3D)(SbGlEnum target,
+                       SbGlInt32 level,
+                       SbGlInt32 internalformat,
+                       SbGlSizei width,
+                       SbGlSizei height,
+                       SbGlSizei depth,
+                       SbGlInt32 border,
+                       SbGlEnum format,
+                       SbGlEnum type,
+                       const void* pixels);
+  void (*glTexSubImage3D)(SbGlEnum target,
+                          SbGlInt32 level,
+                          SbGlInt32 xoffset,
+                          SbGlInt32 yoffset,
+                          SbGlInt32 zoffset,
+                          SbGlSizei width,
+                          SbGlSizei height,
+                          SbGlSizei depth,
+                          SbGlEnum format,
+                          SbGlEnum type,
+                          const void* pixels);
+  void (*glCopyTexSubImage3D)(SbGlEnum target,
+                              SbGlInt32 level,
+                              SbGlInt32 xoffset,
+                              SbGlInt32 yoffset,
+                              SbGlInt32 zoffset,
+                              SbGlInt32 x,
+                              SbGlInt32 y,
+                              SbGlSizei width,
+                              SbGlSizei height);
+  void (*glCompressedTexImage3D)(SbGlEnum target,
+                                 SbGlInt32 level,
+                                 SbGlEnum internalformat,
+                                 SbGlSizei width,
+                                 SbGlSizei height,
+                                 SbGlSizei depth,
+                                 SbGlInt32 border,
+                                 SbGlSizei imageSize,
+                                 const void* data);
+  void (*glCompressedTexSubImage3D)(SbGlEnum target,
+                                    SbGlInt32 level,
+                                    SbGlInt32 xoffset,
+                                    SbGlInt32 yoffset,
+                                    SbGlInt32 zoffset,
+                                    SbGlSizei width,
+                                    SbGlSizei height,
+                                    SbGlSizei depth,
+                                    SbGlEnum format,
+                                    SbGlSizei imageSize,
+                                    const void* data);
+  void (*glGenQueries)(SbGlSizei n, SbGlUInt32* ids);
+  void (*glDeleteQueries)(SbGlSizei n, const SbGlUInt32* ids);
+  SbGlBoolean (*glIsQuery)(SbGlUInt32 id);
+  void (*glBeginQuery)(SbGlEnum target, SbGlUInt32 id);
+  void (*glEndQuery)(SbGlEnum target);
+  void (*glGetQueryiv)(SbGlEnum target, SbGlEnum pname, SbGlInt32* params);
+  void (*glGetQueryObjectuiv)(SbGlUInt32 id,
+                              SbGlEnum pname,
+                              SbGlUInt32* params);
+  SbGlBoolean (*glUnmapBuffer)(SbGlEnum target);
+  void (*glGetBufferPointerv)(SbGlEnum target, SbGlEnum pname, void** params);
+  void (*glDrawBuffers)(SbGlSizei n, const SbGlEnum* bufs);
+  void (*glUniformMatrix2x3fv)(SbGlInt32 location,
+                               SbGlSizei count,
+                               SbGlBoolean transpose,
+                               const SbGlFloat* value);
+  void (*glUniformMatrix3x2fv)(SbGlInt32 location,
+                               SbGlSizei count,
+                               SbGlBoolean transpose,
+                               const SbGlFloat* value);
+  void (*glUniformMatrix2x4fv)(SbGlInt32 location,
+                               SbGlSizei count,
+                               SbGlBoolean transpose,
+                               const SbGlFloat* value);
+  void (*glUniformMatrix4x2fv)(SbGlInt32 location,
+                               SbGlSizei count,
+                               SbGlBoolean transpose,
+                               const SbGlFloat* value);
+  void (*glUniformMatrix3x4fv)(SbGlInt32 location,
+                               SbGlSizei count,
+                               SbGlBoolean transpose,
+                               const SbGlFloat* value);
+  void (*glUniformMatrix4x3fv)(SbGlInt32 location,
+                               SbGlSizei count,
+                               SbGlBoolean transpose,
+                               const SbGlFloat* value);
+  void (*glBlitFramebuffer)(SbGlInt32 srcX0,
+                            SbGlInt32 srcY0,
+                            SbGlInt32 srcX1,
+                            SbGlInt32 srcY1,
+                            SbGlInt32 dstX0,
+                            SbGlInt32 dstY0,
+                            SbGlInt32 dstX1,
+                            SbGlInt32 dstY1,
+                            SbGlBitfield mask,
+                            SbGlEnum filter);
+  void (*glRenderbufferStorageMultisample)(SbGlEnum target,
+                                           SbGlSizei samples,
+                                           SbGlEnum internalformat,
+                                           SbGlSizei width,
+                                           SbGlSizei height);
+  void (*glFramebufferTextureLayer)(SbGlEnum target,
+                                    SbGlEnum attachment,
+                                    SbGlUInt32 texture,
+                                    SbGlInt32 level,
+                                    SbGlInt32 layer);
+  void* (*glMapBufferRange)(SbGlEnum target,
+                            SbGlIntPtr offset,
+                            SbGlSizeiPtr length,
+                            SbGlBitfield access);
+  void (*glFlushMappedBufferRange)(SbGlEnum target,
+                                   SbGlIntPtr offset,
+                                   SbGlSizeiPtr length);
+  void (*glBindVertexArray)(SbGlUInt32 array);
+  void (*glDeleteVertexArrays)(SbGlSizei n, const SbGlUInt32* arrays);
+  void (*glGenVertexArrays)(SbGlSizei n, SbGlUInt32* arrays);
+  SbGlBoolean (*glIsVertexArray)(SbGlUInt32 array);
+  void (*glGetIntegeri_v)(SbGlEnum target, SbGlUInt32 index, SbGlInt32* data);
+  void (*glBeginTransformFeedback)(SbGlEnum primitiveMode);
+  void (*glEndTransformFeedback)(void);
+  void (*glBindBufferRange)(SbGlEnum target,
+                            SbGlUInt32 index,
+                            SbGlUInt32 buffer,
+                            SbGlIntPtr offset,
+                            SbGlSizeiPtr size);
+  void (*glBindBufferBase)(SbGlEnum target,
+                           SbGlUInt32 index,
+                           SbGlUInt32 buffer);
+  void (*glTransformFeedbackVaryings)(SbGlUInt32 program,
+                                      SbGlSizei count,
+                                      const SbGlChar* const* varyings,
+                                      SbGlEnum bufferMode);
+  void (*glGetTransformFeedbackVarying)(SbGlUInt32 program,
+                                        SbGlUInt32 index,
+                                        SbGlSizei bufSize,
+                                        SbGlSizei* length,
+                                        SbGlSizei* size,
+                                        SbGlEnum* type,
+                                        SbGlChar* name);
+  void (*glVertexAttribIPointer)(SbGlUInt32 index,
+                                 SbGlInt32 size,
+                                 SbGlEnum type,
+                                 SbGlSizei stride,
+                                 const void* pointer);
+  void (*glGetVertexAttribIiv)(SbGlUInt32 index,
+                               SbGlEnum pname,
+                               SbGlInt32* params);
+  void (*glGetVertexAttribIuiv)(SbGlUInt32 index,
+                                SbGlEnum pname,
+                                SbGlUInt32* params);
+  void (*glVertexAttribI4i)(SbGlUInt32 index,
+                            SbGlInt32 x,
+                            SbGlInt32 y,
+                            SbGlInt32 z,
+                            SbGlInt32 w);
+  void (*glVertexAttribI4ui)(SbGlUInt32 index,
+                             SbGlUInt32 x,
+                             SbGlUInt32 y,
+                             SbGlUInt32 z,
+                             SbGlUInt32 w);
+  void (*glVertexAttribI4iv)(SbGlUInt32 index, const SbGlInt32* v);
+  void (*glVertexAttribI4uiv)(SbGlUInt32 index, const SbGlUInt32* v);
+  void (*glGetUniformuiv)(SbGlUInt32 program,
+                          SbGlInt32 location,
+                          SbGlUInt32* params);
+  SbGlInt32 (*glGetFragDataLocation)(SbGlUInt32 program, const SbGlChar* name);
+  void (*glUniform1ui)(SbGlInt32 location, SbGlUInt32 v0);
+  void (*glUniform2ui)(SbGlInt32 location, SbGlUInt32 v0, SbGlUInt32 v1);
+  void (*glUniform3ui)(SbGlInt32 location,
+                       SbGlUInt32 v0,
+                       SbGlUInt32 v1,
+                       SbGlUInt32 v2);
+  void (*glUniform4ui)(SbGlInt32 location,
+                       SbGlUInt32 v0,
+                       SbGlUInt32 v1,
+                       SbGlUInt32 v2,
+                       SbGlUInt32 v3);
+  void (*glUniform1uiv)(SbGlInt32 location,
+                        SbGlSizei count,
+                        const SbGlUInt32* value);
+  void (*glUniform2uiv)(SbGlInt32 location,
+                        SbGlSizei count,
+                        const SbGlUInt32* value);
+  void (*glUniform3uiv)(SbGlInt32 location,
+                        SbGlSizei count,
+                        const SbGlUInt32* value);
+  void (*glUniform4uiv)(SbGlInt32 location,
+                        SbGlSizei count,
+                        const SbGlUInt32* value);
+  void (*glClearBufferiv)(SbGlEnum buffer,
+                          SbGlInt32 drawbuffer,
+                          const SbGlInt32* value);
+  void (*glClearBufferuiv)(SbGlEnum buffer,
+                           SbGlInt32 drawbuffer,
+                           const SbGlUInt32* value);
+  void (*glClearBufferfv)(SbGlEnum buffer,
+                          SbGlInt32 drawbuffer,
+                          const SbGlFloat* value);
+  void (*glClearBufferfi)(SbGlEnum buffer,
+                          SbGlInt32 drawbuffer,
+                          SbGlFloat depth,
+                          SbGlInt32 stencil);
+  const SbGlUInt8* (*glGetStringi)(SbGlEnum name, SbGlUInt32 index);
+  void (*glCopyBufferSubData)(SbGlEnum readTarget,
+                              SbGlEnum writeTarget,
+                              SbGlIntPtr readOffset,
+                              SbGlIntPtr writeOffset,
+                              SbGlSizeiPtr size);
+  void (*glGetUniformIndices)(SbGlUInt32 program,
+                              SbGlSizei uniformCount,
+                              const SbGlChar* const* uniformNames,
+                              SbGlUInt32* uniformIndices);
+  void (*glGetActiveUniformsiv)(SbGlUInt32 program,
+                                SbGlSizei uniformCount,
+                                const SbGlUInt32* uniformIndices,
+                                SbGlEnum pname,
+                                SbGlInt32* params);
+  SbGlUInt32 (*glGetUniformBlockIndex)(SbGlUInt32 program,
+                                       const SbGlChar* uniformBlockName);
+  void (*glGetActiveUniformBlockiv)(SbGlUInt32 program,
+                                    SbGlUInt32 uniformBlockIndex,
+                                    SbGlEnum pname,
+                                    SbGlInt32* params);
+  void (*glGetActiveUniformBlockName)(SbGlUInt32 program,
+                                      SbGlUInt32 uniformBlockIndex,
+                                      SbGlSizei bufSize,
+                                      SbGlSizei* length,
+                                      SbGlChar* uniformBlockName);
+  void (*glUniformBlockBinding)(SbGlUInt32 program,
+                                SbGlUInt32 uniformBlockIndex,
+                                SbGlUInt32 uniformBlockBinding);
+  void (*glDrawArraysInstanced)(SbGlEnum mode,
+                                SbGlInt32 first,
+                                SbGlSizei count,
+                                SbGlSizei instancecount);
+  void (*glDrawElementsInstanced)(SbGlEnum mode,
+                                  SbGlSizei count,
+                                  SbGlEnum type,
+                                  const void* indices,
+                                  SbGlSizei instancecount);
+  SbGlSync (*glFenceSync)(SbGlEnum condition, SbGlBitfield flags);
+  SbGlBoolean (*glIsSync)(SbGlSync sync);
+  void (*glDeleteSync)(SbGlSync sync);
+  SbGlEnum (*glClientWaitSync)(SbGlSync sync,
+                               SbGlBitfield flags,
+                               SbGlUInt64 timeout);
+  void (*glWaitSync)(SbGlSync sync, SbGlBitfield flags, SbGlUInt64 timeout);
+  void (*glGetInteger64v)(SbGlEnum pname, SbGlInt64* data);
+  void (*glGetSynciv)(SbGlSync sync,
+                      SbGlEnum pname,
+                      SbGlSizei bufSize,
+                      SbGlSizei* length,
+                      SbGlInt32* values);
+  void (*glGetInteger64i_v)(SbGlEnum target, SbGlUInt32 index, SbGlInt64* data);
+  void (*glGetBufferParameteri64v)(SbGlEnum target,
+                                   SbGlEnum pname,
+                                   SbGlInt64* params);
+  void (*glGenSamplers)(SbGlSizei count, SbGlUInt32* samplers);
+  void (*glDeleteSamplers)(SbGlSizei count, const SbGlUInt32* samplers);
+  SbGlBoolean (*glIsSampler)(SbGlUInt32 sampler);
+  void (*glBindSampler)(SbGlUInt32 unit, SbGlUInt32 sampler);
+  void (*glSamplerParameteri)(SbGlUInt32 sampler,
+                              SbGlEnum pname,
+                              SbGlInt32 param);
+  void (*glSamplerParameteriv)(SbGlUInt32 sampler,
+                               SbGlEnum pname,
+                               const SbGlInt32* param);
+  void (*glSamplerParameterf)(SbGlUInt32 sampler,
+                              SbGlEnum pname,
+                              SbGlFloat param);
+  void (*glSamplerParameterfv)(SbGlUInt32 sampler,
+                               SbGlEnum pname,
+                               const SbGlFloat* param);
+  void (*glGetSamplerParameteriv)(SbGlUInt32 sampler,
+                                  SbGlEnum pname,
+                                  SbGlInt32* params);
+  void (*glGetSamplerParameterfv)(SbGlUInt32 sampler,
+                                  SbGlEnum pname,
+                                  SbGlFloat* params);
+  void (*glVertexAttribDivisor)(SbGlUInt32 index, SbGlUInt32 divisor);
+  void (*glBindTransformFeedback)(SbGlEnum target, SbGlUInt32 id);
+  void (*glDeleteTransformFeedbacks)(SbGlSizei n, const SbGlUInt32* ids);
+  void (*glGenTransformFeedbacks)(SbGlSizei n, SbGlUInt32* ids);
+  SbGlBoolean (*glIsTransformFeedback)(SbGlUInt32 id);
+  void (*glPauseTransformFeedback)(void);
+  void (*glResumeTransformFeedback)(void);
+  void (*glGetProgramBinary)(SbGlUInt32 program,
+                             SbGlSizei bufSize,
+                             SbGlSizei* length,
+                             SbGlEnum* binaryFormat,
+                             void* binary);
+  void (*glProgramBinary)(SbGlUInt32 program,
+                          SbGlEnum binaryFormat,
+                          const void* binary,
+                          SbGlSizei length);
+  void (*glProgramParameteri)(SbGlUInt32 program,
+                              SbGlEnum pname,
+                              SbGlInt32 value);
+  void (*glInvalidateFramebuffer)(SbGlEnum target,
+                                  SbGlSizei numAttachments,
+                                  const SbGlEnum* attachments);
+  void (*glInvalidateSubFramebuffer)(SbGlEnum target,
+                                     SbGlSizei numAttachments,
+                                     const SbGlEnum* attachments,
+                                     SbGlInt32 x,
+                                     SbGlInt32 y,
+                                     SbGlSizei width,
+                                     SbGlSizei height);
+  void (*glTexStorage2D)(SbGlEnum target,
+                         SbGlSizei levels,
+                         SbGlEnum internalformat,
+                         SbGlSizei width,
+                         SbGlSizei height);
+  void (*glTexStorage3D)(SbGlEnum target,
+                         SbGlSizei levels,
+                         SbGlEnum internalformat,
+                         SbGlSizei width,
+                         SbGlSizei height,
+                         SbGlSizei depth);
+  void (*glGetInternalformativ)(SbGlEnum target,
+                                SbGlEnum internalformat,
+                                SbGlEnum pname,
+                                SbGlSizei bufSize,
+                                SbGlInt32* params);
 } SbGlesInterface;
 
 SB_EXPORT SbGlesInterface* SbGetGlesInterface();
@@ -743,6 +1080,330 @@ SB_EXPORT SbGlesInterface* SbGetGlesInterface();
 // https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h.
 #define SB_GL_BGRA_EXT 0x80E1
 #define SB_GL_TEXTURE_EXTERNAL_OES 0x8D65
+
+// Previously defined in
+// https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h.
+#define SB_GL_READ_BUFFER 0x0C02
+#define SB_GL_UNPACK_ROW_LENGTH 0x0CF2
+#define SB_GL_UNPACK_SKIP_ROWS 0x0CF3
+#define SB_GL_UNPACK_SKIP_PIXELS 0x0CF4
+#define SB_GL_PACK_ROW_LENGTH 0x0D02
+#define SB_GL_PACK_SKIP_ROWS 0x0D03
+#define SB_GL_PACK_SKIP_PIXELS 0x0D04
+#define SB_GL_COLOR 0x1800
+#define SB_GL_DEPTH 0x1801
+#define SB_GL_STENCIL 0x1802
+#define SB_GL_RED 0x1903
+#define SB_GL_RGB8 0x8051
+#define SB_GL_RGBA8 0x8058
+#define SB_GL_RGB10_A2 0x8059
+#define SB_GL_TEXTURE_BINDING_3D 0x806A
+#define SB_GL_UNPACK_SKIP_IMAGES 0x806D
+#define SB_GL_UNPACK_IMAGE_HEIGHT 0x806E
+#define SB_GL_TEXTURE_3D 0x806F
+#define SB_GL_TEXTURE_WRAP_R 0x8072
+#define SB_GL_MAX_3D_TEXTURE_SIZE 0x8073
+#define SB_GL_UNSIGNED_INT_2_10_10_10_REV 0x8368
+#define SB_GL_MAX_ELEMENTS_VERTICES 0x80E8
+#define SB_GL_MAX_ELEMENTS_INDICES 0x80E9
+#define SB_GL_TEXTURE_MIN_LOD 0x813A
+#define SB_GL_TEXTURE_MAX_LOD 0x813B
+#define SB_GL_TEXTURE_BASE_LEVEL 0x813C
+#define SB_GL_TEXTURE_MAX_LEVEL 0x813D
+#define SB_GL_MIN 0x8007
+#define SB_GL_MAX 0x8008
+#define SB_GL_DEPTH_COMPONENT24 0x81A6
+#define SB_GL_MAX_TEXTURE_LOD_BIAS 0x84FD
+#define SB_GL_TEXTURE_COMPARE_MODE 0x884C
+#define SB_GL_TEXTURE_COMPARE_FUNC 0x884D
+#define SB_GL_CURRENT_QUERY 0x8865
+#define SB_GL_QUERY_RESULT 0x8866
+#define SB_GL_QUERY_RESULT_AVAILABLE 0x8867
+#define SB_GL_BUFFER_MAPPED 0x88BC
+#define SB_GL_BUFFER_MAP_POINTER 0x88BD
+#define SB_GL_STREAM_READ 0x88E1
+#define SB_GL_STREAM_COPY 0x88E2
+#define SB_GL_STATIC_READ 0x88E5
+#define SB_GL_STATIC_COPY 0x88E6
+#define SB_GL_DYNAMIC_READ 0x88E9
+#define SB_GL_DYNAMIC_COPY 0x88EA
+#define SB_GL_MAX_DRAW_BUFFERS 0x8824
+#define SB_GL_DRAW_BUFFER0 0x8825
+#define SB_GL_DRAW_BUFFER1 0x8826
+#define SB_GL_DRAW_BUFFER2 0x8827
+#define SB_GL_DRAW_BUFFER3 0x8828
+#define SB_GL_DRAW_BUFFER4 0x8829
+#define SB_GL_DRAW_BUFFER5 0x882A
+#define SB_GL_DRAW_BUFFER6 0x882B
+#define SB_GL_DRAW_BUFFER7 0x882C
+#define SB_GL_DRAW_BUFFER8 0x882D
+#define SB_GL_DRAW_BUFFER9 0x882E
+#define SB_GL_DRAW_BUFFER10 0x882F
+#define SB_GL_DRAW_BUFFER11 0x8830
+#define SB_GL_DRAW_BUFFER12 0x8831
+#define SB_GL_DRAW_BUFFER13 0x8832
+#define SB_GL_DRAW_BUFFER14 0x8833
+#define SB_GL_DRAW_BUFFER15 0x8834
+#define SB_GL_MAX_FRAGMENT_UNIFORM_COMPONENTS 0x8B49
+#define SB_GL_MAX_VERTEX_UNIFORM_COMPONENTS 0x8B4A
+#define SB_GL_SAMPLER_3D 0x8B5F
+#define SB_GL_SAMPLER_2D_SHADOW 0x8B62
+#define SB_GL_FRAGMENT_SHADER_DERIVATIVE_HINT 0x8B8B
+#define SB_GL_PIXEL_PACK_BUFFER 0x88EB
+#define SB_GL_PIXEL_UNPACK_BUFFER 0x88EC
+#define SB_GL_PIXEL_PACK_BUFFER_BINDING 0x88ED
+#define SB_GL_PIXEL_UNPACK_BUFFER_BINDING 0x88EF
+#define SB_GL_FLOAT_MAT2x3 0x8B65
+#define SB_GL_FLOAT_MAT2x4 0x8B66
+#define SB_GL_FLOAT_MAT3x2 0x8B67
+#define SB_GL_FLOAT_MAT3x4 0x8B68
+#define SB_GL_FLOAT_MAT4x2 0x8B69
+#define SB_GL_FLOAT_MAT4x3 0x8B6A
+#define SB_GL_SRGB 0x8C40
+#define SB_GL_SRGB8 0x8C41
+#define SB_GL_SRGB8_ALPHA8 0x8C43
+#define SB_GL_COMPARE_REF_TO_TEXTURE 0x884E
+#define SB_GL_MAJOR_VERSION 0x821B
+#define SB_GL_MINOR_VERSION 0x821C
+#define SB_GL_NUM_EXTENSIONS 0x821D
+#define SB_GL_RGBA32F 0x8814
+#define SB_GL_RGB32F 0x8815
+#define SB_GL_RGBA16F 0x881A
+#define SB_GL_RGB16F 0x881B
+#define SB_GL_VERTEX_ATTRIB_ARRAY_INTEGER 0x88FD
+#define SB_GL_MAX_ARRAY_TEXTURE_LAYERS 0x88FF
+#define SB_GL_MIN_PROGRAM_TEXEL_OFFSET 0x8904
+#define SB_GL_MAX_PROGRAM_TEXEL_OFFSET 0x8905
+#define SB_GL_MAX_VARYING_COMPONENTS 0x8B4B
+#define SB_GL_TEXTURE_2D_ARRAY 0x8C1A
+#define SB_GL_TEXTURE_BINDING_2D_ARRAY 0x8C1D
+#define SB_GL_R11F_G11F_B10F 0x8C3A
+#define SB_GL_UNSIGNED_INT_10F_11F_11F_REV 0x8C3B
+#define SB_GL_RGB9_E5 0x8C3D
+#define SB_GL_UNSIGNED_INT_5_9_9_9_REV 0x8C3E
+#define SB_GL_TRANSFORM_FEEDBACK_VARYING_MAX_LENGTH 0x8C76
+#define SB_GL_TRANSFORM_FEEDBACK_BUFFER_MODE 0x8C7F
+#define SB_GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS 0x8C80
+#define SB_GL_TRANSFORM_FEEDBACK_VARYINGS 0x8C83
+#define SB_GL_TRANSFORM_FEEDBACK_BUFFER_START 0x8C84
+#define SB_GL_TRANSFORM_FEEDBACK_BUFFER_SIZE 0x8C85
+#define SB_GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN 0x8C88
+#define SB_GL_RASTERIZER_DISCARD 0x8C89
+#define SB_GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS 0x8C8A
+#define SB_GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS 0x8C8B
+#define SB_GL_INTERLEAVED_ATTRIBS 0x8C8C
+#define SB_GL_SEPARATE_ATTRIBS 0x8C8D
+#define SB_GL_TRANSFORM_FEEDBACK_BUFFER 0x8C8E
+#define SB_GL_TRANSFORM_FEEDBACK_BUFFER_BINDING 0x8C8F
+#define SB_GL_RGBA32UI 0x8D70
+#define SB_GL_RGB32UI 0x8D71
+#define SB_GL_RGBA16UI 0x8D76
+#define SB_GL_RGB16UI 0x8D77
+#define SB_GL_RGBA8UI 0x8D7C
+#define SB_GL_RGB8UI 0x8D7D
+#define SB_GL_RGBA32I 0x8D82
+#define SB_GL_RGB32I 0x8D83
+#define SB_GL_RGBA16I 0x8D88
+#define SB_GL_RGB16I 0x8D89
+#define SB_GL_RGBA8I 0x8D8E
+#define SB_GL_RGB8I 0x8D8F
+#define SB_GL_RED_INTEGER 0x8D94
+#define SB_GL_RGB_INTEGER 0x8D98
+#define SB_GL_RGBA_INTEGER 0x8D99
+#define SB_GL_SAMPLER_2D_ARRAY 0x8DC1
+#define SB_GL_SAMPLER_2D_ARRAY_SHADOW 0x8DC4
+#define SB_GL_SAMPLER_CUBE_SHADOW 0x8DC5
+#define SB_GL_UNSIGNED_INT_VEC2 0x8DC6
+#define SB_GL_UNSIGNED_INT_VEC3 0x8DC7
+#define SB_GL_UNSIGNED_INT_VEC4 0x8DC8
+#define SB_GL_INT_SAMPLER_2D 0x8DCA
+#define SB_GL_INT_SAMPLER_3D 0x8DCB
+#define SB_GL_INT_SAMPLER_CUBE 0x8DCC
+#define SB_GL_INT_SAMPLER_2D_ARRAY 0x8DCF
+#define SB_GL_UNSIGNED_INT_SAMPLER_2D 0x8DD2
+#define SB_GL_UNSIGNED_INT_SAMPLER_3D 0x8DD3
+#define SB_GL_UNSIGNED_INT_SAMPLER_CUBE 0x8DD4
+#define SB_GL_UNSIGNED_INT_SAMPLER_2D_ARRAY 0x8DD7
+#define SB_GL_BUFFER_ACCESS_FLAGS 0x911F
+#define SB_GL_BUFFER_MAP_LENGTH 0x9120
+#define SB_GL_BUFFER_MAP_OFFSET 0x9121
+#define SB_GL_DEPTH_COMPONENT32F 0x8CAC
+#define SB_GL_DEPTH32F_STENCIL8 0x8CAD
+#define SB_GL_FLOAT_32_UNSIGNED_INT_24_8_REV 0x8DAD
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING 0x8210
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE 0x8211
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE 0x8212
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE 0x8213
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE 0x8214
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE 0x8215
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE 0x8216
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE 0x8217
+#define SB_GL_FRAMEBUFFER_DEFAULT 0x8218
+#define SB_GL_FRAMEBUFFER_UNDEFINED 0x8219
+#define SB_GL_DEPTH_STENCIL_ATTACHMENT 0x821A
+#define SB_GL_DEPTH_STENCIL 0x84F9
+#define SB_GL_UNSIGNED_INT_24_8 0x84FA
+#define SB_GL_DEPTH24_STENCIL8 0x88F0
+#define SB_GL_UNSIGNED_NORMALIZED 0x8C17
+#define SB_GL_DRAW_FRAMEBUFFER_BINDING 0x8CA6
+#define SB_GL_READ_FRAMEBUFFER 0x8CA8
+#define SB_GL_DRAW_FRAMEBUFFER 0x8CA9
+#define SB_GL_READ_FRAMEBUFFER_BINDING 0x8CAA
+#define SB_GL_RENDERBUFFER_SAMPLES 0x8CAB
+#define SB_GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER 0x8CD4
+#define SB_GL_MAX_COLOR_ATTACHMENTS 0x8CDF
+#define SB_GL_COLOR_ATTACHMENT1 0x8CE1
+#define SB_GL_COLOR_ATTACHMENT2 0x8CE2
+#define SB_GL_COLOR_ATTACHMENT3 0x8CE3
+#define SB_GL_COLOR_ATTACHMENT4 0x8CE4
+#define SB_GL_COLOR_ATTACHMENT5 0x8CE5
+#define SB_GL_COLOR_ATTACHMENT6 0x8CE6
+#define SB_GL_COLOR_ATTACHMENT7 0x8CE7
+#define SB_GL_COLOR_ATTACHMENT8 0x8CE8
+#define SB_GL_COLOR_ATTACHMENT9 0x8CE9
+#define SB_GL_COLOR_ATTACHMENT10 0x8CEA
+#define SB_GL_COLOR_ATTACHMENT11 0x8CEB
+#define SB_GL_COLOR_ATTACHMENT12 0x8CEC
+#define SB_GL_COLOR_ATTACHMENT13 0x8CED
+#define SB_GL_COLOR_ATTACHMENT14 0x8CEE
+#define SB_GL_COLOR_ATTACHMENT15 0x8CEF
+#define SB_GL_COLOR_ATTACHMENT16 0x8CF0
+#define SB_GL_COLOR_ATTACHMENT17 0x8CF1
+#define SB_GL_COLOR_ATTACHMENT18 0x8CF2
+#define SB_GL_COLOR_ATTACHMENT19 0x8CF3
+#define SB_GL_COLOR_ATTACHMENT20 0x8CF4
+#define SB_GL_COLOR_ATTACHMENT21 0x8CF5
+#define SB_GL_COLOR_ATTACHMENT22 0x8CF6
+#define SB_GL_COLOR_ATTACHMENT23 0x8CF7
+#define SB_GL_COLOR_ATTACHMENT24 0x8CF8
+#define SB_GL_COLOR_ATTACHMENT25 0x8CF9
+#define SB_GL_COLOR_ATTACHMENT26 0x8CFA
+#define SB_GL_COLOR_ATTACHMENT27 0x8CFB
+#define SB_GL_COLOR_ATTACHMENT28 0x8CFC
+#define SB_GL_COLOR_ATTACHMENT29 0x8CFD
+#define SB_GL_COLOR_ATTACHMENT30 0x8CFE
+#define SB_GL_COLOR_ATTACHMENT31 0x8CFF
+#define SB_GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE 0x8D56
+#define SB_GL_MAX_SAMPLES 0x8D57
+#define SB_GL_HALF_FLOAT 0x140B
+#define SB_GL_MAP_READ_BIT 0x0001
+#define SB_GL_MAP_WRITE_BIT 0x0002
+#define SB_GL_MAP_INVALIDATE_RANGE_BIT 0x0004
+#define SB_GL_MAP_INVALIDATE_BUFFER_BIT 0x0008
+#define SB_GL_MAP_FLUSH_EXPLICIT_BIT 0x0010
+#define SB_GL_MAP_UNSYNCHRONIZED_BIT 0x0020
+#define SB_GL_RG 0x8227
+#define SB_GL_RG_INTEGER 0x8228
+#define SB_GL_R8 0x8229
+#define SB_GL_RG8 0x822B
+#define SB_GL_R16F 0x822D
+#define SB_GL_R32F 0x822E
+#define SB_GL_RG16F 0x822F
+#define SB_GL_RG32F 0x8230
+#define SB_GL_R8I 0x8231
+#define SB_GL_R8UI 0x8232
+#define SB_GL_R16I 0x8233
+#define SB_GL_R16UI 0x8234
+#define SB_GL_R32I 0x8235
+#define SB_GL_R32UI 0x8236
+#define SB_GL_RG8I 0x8237
+#define SB_GL_RG8UI 0x8238
+#define SB_GL_RG16I 0x8239
+#define SB_GL_RG16UI 0x823A
+#define SB_GL_RG32I 0x823B
+#define SB_GL_RG32UI 0x823C
+#define SB_GL_VERTEX_ARRAY_BINDING 0x85B5
+#define SB_GL_R8_SNORM 0x8F94
+#define SB_GL_RG8_SNORM 0x8F95
+#define SB_GL_RGB8_SNORM 0x8F96
+#define SB_GL_RGBA8_SNORM 0x8F97
+#define SB_GL_SIGNED_NORMALIZED 0x8F9C
+#define SB_GL_PRIMITIVE_RESTART_FIXED_INDEX 0x8D69
+#define SB_GL_COPY_READ_BUFFER 0x8F36
+#define SB_GL_COPY_WRITE_BUFFER 0x8F37
+#define SB_GL_COPY_READ_BUFFER_BINDING 0x8F36
+#define SB_GL_COPY_WRITE_BUFFER_BINDING 0x8F37
+#define SB_GL_UNIFORM_BUFFER 0x8A11
+#define SB_GL_UNIFORM_BUFFER_BINDING 0x8A28
+#define SB_GL_UNIFORM_BUFFER_START 0x8A29
+#define SB_GL_UNIFORM_BUFFER_SIZE 0x8A2A
+#define SB_GL_MAX_VERTEX_UNIFORM_BLOCKS 0x8A2B
+#define SB_GL_MAX_FRAGMENT_UNIFORM_BLOCKS 0x8A2D
+#define SB_GL_MAX_COMBINED_UNIFORM_BLOCKS 0x8A2E
+#define SB_GL_MAX_UNIFORM_BUFFER_BINDINGS 0x8A2F
+#define SB_GL_MAX_UNIFORM_BLOCK_SIZE 0x8A30
+#define SB_GL_MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS 0x8A31
+#define SB_GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS 0x8A33
+#define SB_GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT 0x8A34
+#define SB_GL_ACTIVE_UNIFORM_BLOCK_MAX_NAME_LENGTH 0x8A35
+#define SB_GL_ACTIVE_UNIFORM_BLOCKS 0x8A36
+#define SB_GL_UNIFORM_TYPE 0x8A37
+#define SB_GL_UNIFORM_SIZE 0x8A38
+#define SB_GL_UNIFORM_NAME_LENGTH 0x8A39
+#define SB_GL_UNIFORM_BLOCK_INDEX 0x8A3A
+#define SB_GL_UNIFORM_OFFSET 0x8A3B
+#define SB_GL_UNIFORM_ARRAY_STRIDE 0x8A3C
+#define SB_GL_UNIFORM_MATRIX_STRIDE 0x8A3D
+#define SB_GL_UNIFORM_IS_ROW_MAJOR 0x8A3E
+#define SB_GL_UNIFORM_BLOCK_BINDING 0x8A3F
+#define SB_GL_UNIFORM_BLOCK_DATA_SIZE 0x8A40
+#define SB_GL_UNIFORM_BLOCK_NAME_LENGTH 0x8A41
+#define SB_GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS 0x8A42
+#define SB_GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES 0x8A43
+#define SB_GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER 0x8A44
+#define SB_GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER 0x8A46
+#define SB_GL_INVALID_INDEX 0xFFFFFFFFu
+#define SB_GL_MAX_VERTEX_OUTPUT_COMPONENTS 0x9122
+#define SB_GL_MAX_FRAGMENT_INPUT_COMPONENTS 0x9125
+#define SB_GL_MAX_SERVER_WAIT_TIMEOUT 0x9111
+#define SB_GL_OBJECT_TYPE 0x9112
+#define SB_GL_SYNC_CONDITION 0x9113
+#define SB_GL_SYNC_STATUS 0x9114
+#define SB_GL_SYNC_FLAGS 0x9115
+#define SB_GL_SYNC_FENCE 0x9116
+#define SB_GL_SYNC_GPU_COMMANDS_COMPLETE 0x9117
+#define SB_GL_UNSIGNALED 0x9118
+#define SB_GL_SIGNALED 0x9119
+#define SB_GL_ALREADY_SIGNALED 0x911A
+#define SB_GL_TIMEOUT_EXPIRED 0x911B
+#define SB_GL_CONDITION_SATISFIED 0x911C
+#define SB_GL_WAIT_FAILED 0x911D
+#define SB_GL_SYNC_FLUSH_COMMANDS_BIT 0x00000001
+#define SB_GL_TIMEOUT_IGNORED 0xFFFFFFFFFFFFFFFFull
+#define SB_GL_VERTEX_ATTRIB_ARRAY_DIVISOR 0x88FE
+#define SB_GL_ANY_SAMPLES_PASSED 0x8C2F
+#define SB_GL_ANY_SAMPLES_PASSED_CONSERVATIVE 0x8D6A
+#define SB_GL_SAMPLER_BINDING 0x8919
+#define SB_GL_RGB10_A2UI 0x906F
+#define SB_GL_TEXTURE_SWIZZLE_R 0x8E42
+#define SB_GL_TEXTURE_SWIZZLE_G 0x8E43
+#define SB_GL_TEXTURE_SWIZZLE_B 0x8E44
+#define SB_GL_TEXTURE_SWIZZLE_A 0x8E45
+#define SB_GL_GREEN 0x1904
+#define SB_GL_BLUE 0x1905
+#define SB_GL_INT_2_10_10_10_REV 0x8D9F
+#define SB_GL_TRANSFORM_FEEDBACK 0x8E22
+#define SB_GL_TRANSFORM_FEEDBACK_PAUSED 0x8E23
+#define SB_GL_TRANSFORM_FEEDBACK_ACTIVE 0x8E24
+#define SB_GL_TRANSFORM_FEEDBACK_BINDING 0x8E25
+#define SB_GL_PROGRAM_BINARY_RETRIEVABLE_HINT 0x8257
+#define SB_GL_PROGRAM_BINARY_LENGTH 0x8741
+#define SB_GL_NUM_PROGRAM_BINARY_FORMATS 0x87FE
+#define SB_GL_PROGRAM_BINARY_FORMATS 0x87FF
+#define SB_GL_COMPRESSED_R11_EAC 0x9270
+#define SB_GL_COMPRESSED_SIGNED_R11_EAC 0x9271
+#define SB_GL_COMPRESSED_RG11_EAC 0x9272
+#define SB_GL_COMPRESSED_SIGNED_RG11_EAC 0x9273
+#define SB_GL_COMPRESSED_RGB8_ETC2 0x9274
+#define SB_GL_COMPRESSED_SRGB8_ETC2 0x9275
+#define SB_GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 0x9276
+#define SB_GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 0x9277
+#define SB_GL_COMPRESSED_RGBA8_ETC2_EAC 0x9278
+#define SB_GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC 0x9279
+#define SB_GL_TEXTURE_IMMUTABLE_FORMAT 0x912F
+#define SB_GL_MAX_ELEMENT_INDEX 0x8D6B
+#define SB_GL_NUM_SAMPLE_COUNTS 0x9380
+#define SB_GL_TEXTURE_IMMUTABLE_LEVELS 0x82DF
 
 #ifdef __cplusplus
 }  // extern "C"
