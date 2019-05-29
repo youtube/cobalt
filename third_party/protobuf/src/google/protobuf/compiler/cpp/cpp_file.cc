@@ -259,6 +259,10 @@ void FileGenerator::GenerateSource(io::Printer* printer) {
     "#include <google/protobuf/stubs/common.h>\n"
     "#include <google/protobuf/stubs/port.h>\n"
     "#include <google/protobuf/stubs/once.h>\n"
+    // Cobalt's starboard porting. We did not guard this part with
+    // #if defined(STARBOARD) because protoc uses native build and STARBOARD
+    // is not defined when compiling it.
+    "#include <google/protobuf/stubs/starboard_poem.h>\n"
     "#include <google/protobuf/io/coded_stream.h>\n"
     "#include <google/protobuf/wire_format_lite_inl.h>\n",
     "filename", file_->name(),
