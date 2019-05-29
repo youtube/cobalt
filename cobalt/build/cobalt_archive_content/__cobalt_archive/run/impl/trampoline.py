@@ -42,8 +42,7 @@ def ResolveTrampoline(trampoline, argv=None):
   the platform, config, device_id resolved to values.
     Example input:
       ['python starboard/tools/example/app_launcher_client.py -t cobalt',
-       '{platform_arg}', '{config_arg}', '{device_id_arg}',
-       '{target_params_arg}']
+       '{platform_arg}', '{config_arg}', '{device_id_arg}']
     Example Output:
       'python starboard/tools/example/app_launcher_client.py -t cobalt ' + \
       '--platform linux --config devel --device_id IP_ADDRESS'
@@ -56,6 +55,12 @@ def ResolveTrampoline(trampoline, argv=None):
     A string representing the resolved shell command.
   """
   return _ResolveTrampoline(trampoline, argv)
+
+
+def RunThenExit(cmd_str, cwd=None):
+  if cwd == None:
+    cwd = _FindCwd()
+  sys.exit(_ShellCmd(cmd_str, cwd=cwd))
 
 
 ################################################################################
@@ -94,7 +99,7 @@ def _FindCwd():
   return os.path.normpath(p)
 
 
-def _ShellCmd(cmd_str, cwd=_FindCwd()):
+def _ShellCmd(cmd_str, cwd):
   sys.stdout.write('in:      %s\n' % os.path.abspath(cwd))
   sys.stdout.write('Calling: %s\n\n' % cmd_str)
   return subprocess.call(cmd_str, cwd=cwd, shell=True,
@@ -113,25 +118,26 @@ def _UnQuote(s):
 def _ResolveTrampoline(trampoline, argv):
   """Implemention, see ResolveTrampoline() above."""
   if argv is None:
-    argv = sys.argv[1:]
-  args = _ParseArgs(argv)
+    argv = sys.argv[2:]
+  known_args, unknown_args = _ParseArgs(argv)
   placeholders = {
       'platform_arg': '--platform %s' % PLATFORM,
       'config_arg': '--config %s' % CONFIG
   }
   placeholders['device_id_arg'] = (
-      '' if not args.device_id else '--device_id %s' % args.device_id)
+      '' if not known_args.device_id
+      else '--device_id %s' % known_args.device_id)
   placeholders['target_params_arg'] = (
-      '' if not args.target_params else
-      '--target_params="%s"' % _UnQuote(args.target_params))
-  if not args.target_name:
+      '' if not known_args.target_params else
+      '--target_params="%s"' % _UnQuote(known_args.target_params))
+  if not known_args.target_name:
     placeholders['target_names_arg'] = ''
   else:
-    targets = ['--target_name ' + name for name in args.target_name]
+    targets = ['--target_name ' + name for name in known_args.target_name]
     placeholders['target_names_arg'] = ' '.join(targets)
   trampoline = [part.format(**placeholders) for part in trampoline]
   trampoline = [t for t in trampoline if t.strip()]
-  return ' '.join(trampoline)
+  return ' '.join(trampoline), unknown_args
 
 
 def _ParseArgs(argv):
@@ -155,6 +161,5 @@ def _ParseArgs(argv):
   parser.add_argument('-t', '--target_name', action='append',
                       help=('Name of executable target. Repeatable for '
                             'multiple targets.'))
-
-  args = parser.parse_args(argv)
+  args = parser.parse_known_args(argv)
   return args
