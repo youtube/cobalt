@@ -58,6 +58,13 @@
               'PROTOBUF_USE_DLLS',
             ],
           },
+          'all_dependent_settings': {
+            'defines': [
+              # This macro must be defined to suppress the use
+              # of dynamic_cast<>, which requires RTTI.
+              'GOOGLE_PROTOBUF_NO_RTTI',
+            ]
+          },
         },
         # This is the full, heavy protobuf lib that's needed for c++ .protos
         # that don't specify the LITE_RUNTIME option.  The protocol
