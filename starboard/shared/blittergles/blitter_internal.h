@@ -65,6 +65,9 @@ class ScopedCurrentContext {
 // current_render_target. Returns true on success, false on failure.
 bool MakeCurrent(SbBlitterContext context);
 
+// Deletes shaders and sets their handles to 0 on the given context object.
+void ResetShaders(SbBlitterContext context);
+
 extern const EGLint kContextAttributeList[];
 
 extern const EGLint kConfigAttributeList[];
@@ -145,6 +148,27 @@ struct SbBlitterContextPrivate {
 
   // Whether or not this context has been set to current or not.
   bool is_current;
+
+  // Represents a connection to the shader program. It is able to toggle between
+  // drawing color versus drawing textures, controlled by the blit uniform.
+  GLuint program_handle;
+
+  GLuint vertex_shader;
+
+  GLuint fragment_shader;
+
+  // Location of the shader uniform that controls fragment color source. If
+  // it is not -1, it means the GL program has been successfully linked.
+  int blit_uniform;
+
+  // Location of the shader attribute "a_position."
+  static const int kPositionAttribute = 0;
+
+  // Location of the shader attribute "a_tex_coord."
+  static const int kTexcoordAttribute = 1;
+
+  // Location of the shader attribute "a_color."
+  static const int kColorAttribute = 2;
 };
 
 struct SbBlitterSurfacePrivate {

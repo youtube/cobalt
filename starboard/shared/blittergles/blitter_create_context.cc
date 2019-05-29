@@ -54,5 +54,11 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
     }
   }
 
+  // Defer creation on program and shader objects.
+  context->program_handle = 0;
+  context->vertex_shader = 0;
+  context->fragment_shader = 0;
+  context->blit_uniform = -1;
+
   return context.release();
 }
