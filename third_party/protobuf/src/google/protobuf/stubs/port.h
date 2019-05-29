@@ -48,22 +48,7 @@
 #else
 #include "starboard/memory.h"
 #include "starboard/types.h"
-// This workaround is for protoc auto-generated files which use memset.
-#if SB_HAS_QUIRK(MEMSET_IN_SYSTEM_HEADERS)
-  namespace std {
-    inline namespace _LIBCPP_NAMESPACE {
-      inline void *SbMemorySet(void* destination, int byte_value,
-                               size_t count) {
-        return ::SbMemorySet(destination, byte_value, count);
-      }
-    }
-  }
-#else
-#ifndef memset
-#define memset SbMemorySet
-#endif  // SB_HAS_QUIRK(MEMSET_IN_SYSTEM_HEADERS)
-#endif  // memset
-#endif
+#endif  // STARBOARD
 
 #undef PROTOBUF_LITTLE_ENDIAN
 #if defined(STARBOARD)
