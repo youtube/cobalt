@@ -26,13 +26,8 @@ class TrampolineTest(unittest.TestCase):
   def setUp(self):
     super(TrampolineTest, self).setUp()
     # Change the trampoline internals for testing purposes.
-    self.prev_platform, trampoline.PLATFORM = trampoline.PLATFORM, 'MY_PLATFORM'
-    self.prev_config, trampoline.CONFIG = trampoline.CONFIG, 'MY_CONFIG'
-
-  def tearDown(self):
-    super(TrampolineTest, self).tearDown()
-    trampoline.PLATFORM = self.prev_platform
-    trampoline.CONFIG = self.prev_config
+    trampoline.PLATFORM = 'MY_PLATFORM'
+    trampoline.CONFIG ='MY_CONFIG'
 
   def testResolvePlatformConfig(self):
     """Tests that a device_id resolves to the expected value."""
@@ -42,7 +37,7 @@ class TrampolineTest(unittest.TestCase):
     ]
     expected_output = (
         'python dummy.py --platform MY_PLATFORM --config MY_CONFIG')
-    cmd_str = trampoline.ResolveTrampoline(tramp, argv=[])
+    cmd_str, _ = trampoline.ResolveTrampoline(tramp, argv=[])
     self.assertEqual(expected_output, cmd_str)
 
   def testResolveDeviceId(self):
@@ -54,7 +49,7 @@ class TrampolineTest(unittest.TestCase):
     expected_output = (
         'python dummy.py --platform MY_PLATFORM --config MY_CONFIG'
         ' --device_id 1234')
-    cmd_str = trampoline.ResolveTrampoline(
+    cmd_str, _ = trampoline.ResolveTrampoline(
         tramp,
         argv=['--device_id', '1234'])
     self.assertEqual(expected_output, cmd_str)
@@ -70,7 +65,7 @@ class TrampolineTest(unittest.TestCase):
         'python dummy.py'
         ' --target_name cobalt --platform MY_PLATFORM'
         ' --config MY_CONFIG --target_params="--url=http://my.server.test"')
-    cmd_str = trampoline.ResolveTrampoline(
+    cmd_str, _ = trampoline.ResolveTrampoline(
         tramp,
         argv=['--target_params', '"--url=http://my.server.test"'])
     self.assertEqual(expected_output, cmd_str)

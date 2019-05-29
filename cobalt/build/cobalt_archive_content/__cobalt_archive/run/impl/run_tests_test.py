@@ -20,7 +20,6 @@
 import sys
 import unittest
 
-import trampoline  # pylint: disable=relative-import,g-bad-import-order,g-import-not-at-top
 sys.path.insert(0, '..')
 import run_tests  # pylint: disable=relative-import,g-bad-import-order,g-import-not-at-top
 
@@ -31,35 +30,25 @@ class RunUnitTestsTrampolineTest(unittest.TestCase):
   def setUp(self):
     """Change the trampoline internals for testing purposes."""
     super(RunUnitTestsTrampolineTest, self).setUp()
-    self.prev_platform, trampoline.PLATFORM = trampoline.PLATFORM, 'MY_PLATFORM'
-    self.prev_config, trampoline.CONFIG = trampoline.CONFIG, 'MY_CONFIG'
-
-  def tearDown(self):
-    super(RunUnitTestsTrampolineTest, self).tearDown()
-    trampoline.PLATFORM = self.prev_platform
-    trampoline.CONFIG = self.prev_config
+    run_tests.trampoline.PLATFORM = 'MY_PLATFORM'
+    run_tests.trampoline.CONFIG = 'MY_CONFIG'
 
   def testOne(self):
     """Tests that --target_name resolves to the expected value."""
-    tramp = run_tests.TRAMPOLINE
     expected_output = (
         'python starboard/tools/testing/test_runner.py'
         ' --target_name nplb --platform MY_PLATFORM --config MY_CONFIG')
-    cmd_str = trampoline.ResolveTrampoline(
-        tramp,
-        argv=['--target_name', 'nplb'])
+    cmd_str = run_tests._ResolveTrampoline(argv=['--target_name', 'nplb'])
     self.assertEqual(expected_output, cmd_str)
 
   def testTwo(self):
     """Tests that --target_name used twice resolves to the expected value."""
-    tramp = run_tests.TRAMPOLINE
     expected_output = (
         'python starboard/tools/testing/test_runner.py'
-        ' --target_name nplb --target_name nb_test'
-        ' --platform MY_PLATFORM --config MY_CONFIG')
-    cmd_str = trampoline.ResolveTrampoline(
-        tramp,
-        argv=['--target_name', 'nplb', '--target_name', 'nb_test'])
+        ' --platform MY_PLATFORM --config MY_CONFIG'
+        ' --target_name nplb --target_name nb_test')
+    argv=['nplb', 'nb_test']
+    cmd_str = run_tests._ResolveTrampoline(argv=argv)
     self.assertEqual(expected_output, cmd_str)
 
 
