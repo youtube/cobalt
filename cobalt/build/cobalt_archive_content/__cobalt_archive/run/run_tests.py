@@ -17,14 +17,22 @@
 
 """A trampoline for running the unit tests from a Cobalt Archive.
 
+   This will invoke starboard/tools/testing/test_runner.py, which runs the
+   specified test with a test filter list for the patform.
 
-   Example: python __cobalt_archive/run/run_tests.py -t nplb -t nb_test
+   Note that this is different from run.py will invoke
+   starboard/tools/example/app_launcher_client.py which does NOT filter any
+   tests.
+
+   Example: python __cobalt_archive/run/run_tests.py nplb nb_test
+
+   Example: python __cobalt_archive/run/run_tests.py (runs all tests)
 """
 
 
 import sys
 sys.path.insert(0, '.')
-import impl.trampoline  # pylint: disable=relative-import,g-import-not-at-top
+from impl import trampoline # pylint: disable=relative-import,g-import-not-at-top
 
 
 TRAMPOLINE = [
@@ -37,5 +45,16 @@ TRAMPOLINE = [
 ]
 
 
+def _ResolveTrampoline(argv=None):
+  if argv == None:
+    argv = sys.argv[1:]
+  resolved_cmd, unresolve_args = trampoline.ResolveTrampoline(
+      TRAMPOLINE, argv=argv)
+  # Interpret all tail args as the target_name param.
+  tail_args = ['--target_name %s' % a for a in unresolve_args]
+  resolved_cmd = ' '.join([resolved_cmd] + tail_args)
+  return resolved_cmd
+
+
 if __name__ == '__main__':
-  impl.trampoline.RunTrampolineThenExit(TRAMPOLINE)
+  trampoline.RunThenExit(_ResolveTrampoline())
