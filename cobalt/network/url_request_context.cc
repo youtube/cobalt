@@ -101,6 +101,9 @@ URLRequestContext::URLRequestContext(
       std::make_unique<net::HttpServerPropertiesImpl>());
 
   net::HttpNetworkSession::Params params;
+#if defined(COBALT_ENABLE_QUIC)
+  params.enable_quic = true;
+#endif
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
   if (ignore_certificate_errors) {
