@@ -20,7 +20,6 @@
 import sys
 import unittest
 
-import trampoline  # pylint: disable=relative-import,g-bad-import-order,g-import-not-at-top
 sys.path.insert(0, '..')
 import run  # pylint: disable=relative-import,g-bad-import-order,g-import-not-at-top
 
@@ -31,25 +30,35 @@ class RunGeneralTrampolineTest(unittest.TestCase):
   def setUp(self):
     """Change the trampoline internals for testing purposes."""
     super(RunGeneralTrampolineTest, self).setUp()
-    self.prev_platform, trampoline.PLATFORM = trampoline.PLATFORM, 'MY_PLATFORM'
-    self.prev_config, trampoline.CONFIG = trampoline.CONFIG, 'MY_CONFIG'
+    run.trampoline.PLATFORM = 'MY_PLATFORM'
+    run.trampoline.CONFIG = 'MY_CONFIG'
 
-  def tearDown(self):
-    super(RunGeneralTrampolineTest, self).tearDown()
-    trampoline.PLATFORM = self.prev_platform
-    trampoline.CONFIG = self.prev_config
-
-  def testGeneral(self):
-    """Tests that target_params resolves to the expected value."""
-    tramp = run.TRAMPOLINE
+  def testOneTarget(self):
+    """Tests that one target gets resolved."""
     expected_output = (
         'python starboard/tools/example/app_launcher_client.py'
-        ' --target_name cobalt --platform MY_PLATFORM --config MY_CONFIG'
+        ' --platform MY_PLATFORM --config MY_CONFIG'
+        ' --target_name cobalt')
+    cmd_str = run._ResolveTrampoline(argv=['cobalt'])
+    self.assertEqual(expected_output, cmd_str)
+
+  def testTwoTargets(self):
+    """Tests that two targets gets resolved."""
+    expected_output = (
+        'python starboard/tools/example/app_launcher_client.py'
+        ' --platform MY_PLATFORM --config MY_CONFIG'
+        ' --target_name cobalt --target_name nplb')
+    cmd_str = run._ResolveTrampoline(argv=['cobalt', 'nplb'])
+    self.assertEqual(expected_output, cmd_str)
+
+  def testTargetParams(self):
+    """Tests that the the target_params gets correctly resolved."""
+    expected_output = (
+        'python starboard/tools/example/app_launcher_client.py'
+        ' --platform MY_PLATFORM --config MY_CONFIG'
         ' --target_params="--url=http://my.server.test"')
-    cmd_str = trampoline.ResolveTrampoline(
-        tramp,
-        argv=['-t', 'cobalt', '--target_params',
-              '"--url=http://my.server.test"'])
+    argv = ['--target_params', '"--url=http://my.server.test"']
+    cmd_str = run._ResolveTrampoline(argv=argv)
     self.assertEqual(expected_output, cmd_str)
 
 

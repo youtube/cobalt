@@ -38,12 +38,15 @@ Example 1: Prints the archive metadata.
   python cobalt_archive_runner.py <ARCHIVE.ZIP>
 
 Example 2:
-  python cobalt_archive_runner.py <ARCHIVE.ZIP> -- run_tests -t nplb
+  python cobalt_archive_runner.py <ARCHIVE.ZIP> -- run_tests nplb
 
 Example 3:
-  python cobalt_archive_runner.py --temp_dir <temp/path> <ARCHIVE.ZIP> -- run_tests -t nplb
+  python cobalt_archive_runner.py <ARCHIVE.ZIP> -- run cobalt
 
 Example 4:
+  python cobalt_archive_runner.py --temp_dir <temp/path> <ARCHIVE.ZIP> -- run_tests nplb
+
+Example 5:
   python cobalt_archive_runner.py --temp_dir <temp/path> <ARCHIVE.ZIP> -- python starboard/tools/testing/test_runner.py <args...>
 """
 )
@@ -131,6 +134,10 @@ def _RunTrampoline(unpack_dir, trampoline, args):
   trampoline_target = _TryGetTrampoline(unpack_dir, trampoline)
   if trampoline_target is None:
     raise IOError('Trampoline %s does not exist.' % trampoline)
+  if args:
+    _Print('Invoking trampoline %s with args %s' % (trampoline, args))
+  else:
+    _Print('Invoking trampoline %s' % trampoline)
   trampoline = ['python', trampoline_target] + args
   cmd_str = ' '.join(trampoline)
   _CallShell(cmd_str, cwd=unpack_dir)
@@ -179,7 +186,7 @@ def main():
     metadata_str = _MetadataToPrettyPrintString(metadata)
     _Print('Archive %s\n%s' % (args.archive, metadata_str))
   cleanup_fcn = []
-  if args.command_arg:
+  if args.command:
     if args.temp_dir:
       temp_dir = args.temp_dir
     else:
@@ -188,7 +195,7 @@ def main():
     if not args.keep:
       cleanup_fcn.append(lambda: _Clean(temp_dir))
   try:
-    if args.command_arg:
+    if args.command:
       _UnpackArchive(args.archive, temp_dir)
       # Try to resolve the command arguments as a trampoline first.
       if _TryGetTrampoline(temp_dir, args.command):

@@ -18,18 +18,17 @@
 """A trampoline that launches starboard/tools/example/app_launcher.py.
 
 
-   Example: python __cobalt_archive/run/run.py -t cobalt
+   Example: python __cobalt_archive/run/run.py cobalt
 """
 
 
 import sys
 sys.path.insert(0, '.')
-import impl.trampoline  # pylint: disable=relative-import,g-import-not-at-top
+from impl import trampoline # pylint: disable=relative-import,g-import-not-at-top
 
 
 TRAMPOLINE = [
     'python starboard/tools/example/app_launcher_client.py',
-    '{target_names_arg}',
     '{platform_arg}',
     '{config_arg}',
     '{device_id_arg}',
@@ -37,5 +36,16 @@ TRAMPOLINE = [
 ]
 
 
+def _ResolveTrampoline(argv=None):
+  if argv == None:
+    argv = sys.argv[1:]
+  resolved_cmd, unresolve_args = trampoline.ResolveTrampoline(
+      TRAMPOLINE, argv=argv)
+  # Interpret all tail args as the target_name param.
+  tail_args = ['--target_name %s' % a for a in unresolve_args]
+  resolved_cmd = ' '.join([resolved_cmd] + tail_args)
+  return resolved_cmd
+
+
 if __name__ == '__main__':
-  impl.trampoline.RunTrampolineThenExit(TRAMPOLINE)
+  trampoline.RunThenExit(_ResolveTrampoline())
