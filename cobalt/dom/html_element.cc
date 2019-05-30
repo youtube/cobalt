@@ -373,8 +373,11 @@ int32 HTMLElement::scroll_width() {
 
   node_document()->DoSynchronousLayout();
 
-  int32 element_scroll_width = static_cast<int32>(
-      layout_boxes_->GetScrollArea(directionality_).width());
+  int32 element_scroll_width = 0;
+  if (layout_boxes_) {
+    element_scroll_width = static_cast<int32>(
+        layout_boxes_->GetScrollArea(directionality_).width());
+  }
 
   // 3. Let viewport width be the width of the viewport excluding the width of
   //    the scroll bar, if any, or zero if there is no viewport.
@@ -406,8 +409,11 @@ int32 HTMLElement::scroll_height() {
 
   node_document()->DoSynchronousLayout();
 
-  int32 element_scroll_height = static_cast<int32>(
-      layout_boxes_->GetScrollArea(directionality_).height());
+  int32 element_scroll_height = 0;
+  if (layout_boxes_) {
+    element_scroll_height = static_cast<int32>(
+        layout_boxes_->GetScrollArea(directionality_).height());
+  }
 
   // 3. Let viewport height be the height of the viewport excluding the height
   //    of the scroll bar, if any, or zero if there is no viewport.
@@ -425,6 +431,184 @@ int32 HTMLElement::scroll_height() {
   //    and terminate these steps.
   // 7. Return the height of the element's scrolling area.
   return element_scroll_height;
+}
+
+// Algorithm for scrollLeft:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollleft
+float HTMLElement::scroll_left() {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate these
+  //    steps.
+  // 3. Let window be the value of document's defaultView attribute.
+  // 4. If window is null, return zero and terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0.0f;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  // 5. If the element is the root element and document is in quirks mode,
+  //    return zero and terminate these steps.
+  // 6. If the element is the root element return the value of scrollX on
+  //    window.
+  // 7. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, return the value of scrollX
+  //    on window.
+
+  // 8. If the element does not have any associated CSS layout box, return zero
+  //    and terminate these steps.
+  if (!layout_boxes_) {
+    return 0.0f;
+  }
+
+  // 9. Return the x-coordinate of the scrolling area at the alignment point
+  //    with the left of the padding edge of the element.
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return 0.0f;
+  }
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  return left;
+}
+
+// Algorithm for scrollTop:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrolltop
+float HTMLElement::scroll_top() {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate these
+  //    steps.
+  // 3. Let window be the value of document's defaultView attribute.
+  // 4. If window is null, return zero and terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0.0f;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  // 5. If the element is the root element and document is in quirks mode,
+  //    return zero and terminate these steps.
+  // 6. If the element is the root element return the value of scrollY on
+  //    window.
+  // 7. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, return the value of scrollY
+  //    on window.
+
+  // 8. If the element does not have any associated CSS layout box, return zero
+  //    and terminate these steps.
+  if (!layout_boxes_) {
+    return 0.0f;
+  }
+
+  // 9. Return the y-coordinate of the scrolling area at the alignment point
+  //    with the top of the padding edge of the element.
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return 0.0f;
+  }
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  return top;
+}
+
+// Algorithm for scrollLeft:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollleft
+void HTMLElement::set_scroll_left(float x) {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let x be the given value.
+  // 2. Normalize non-finite values for x.
+
+  // 3. Let document be the element's node document.
+  // 4. If document is not the active document, terminate these steps.
+  // 5. Let window be the value of document's defaultView attribute.
+  // 6. If window is null, terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  // 7. If the element is the root element and document is in quirks mode,
+  //    terminate these steps.
+  // 8. If the element is the root element invoke scroll() on window with x as
+  //    first argument and scrollY on window as second argument, and terminate
+  //    these steps.
+  // 9. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, invoke scroll() on window
+  //    with x as first argument and scrollY on window as second argument, and
+  //    terminate these steps.
+
+  // 10. If the element does not have any associated CSS layout box, the element
+  //     has no associated scrolling box, or the element has no overflow,
+  //     terminate these steps.
+  if (!layout_boxes_ ||
+      scroll_width() <= layout_boxes_->GetPaddingEdgeWidth() ) {
+    // Make sure the UI navigation container is set to the expected 0.
+    x = 0.0f;
+  }
+
+  // 11. Scroll the element to x,scrollTop, with the scroll behavior being
+  //     "auto".
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return;
+  }
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  ui_nav_item_->SetContentOffset(x, top);
+}
+
+// Algorithm for scrollTop:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrolltop
+void HTMLElement::set_scroll_top(float y) {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let y be the given value.
+  // 2. Normalize non-finite values for y.
+
+  // 3. Let document be the element's node document.
+  // 4. If document is not the active document, terminate these steps.
+  // 5. Let window be the value of document's defaultView attribute.
+  // 6. If window is null, terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  // 7. If the element is the root element and document is in quirks mode,
+  //    terminate these steps.
+  // 8. If the element is the root element invoke scroll() on window with
+  //    scrollX on window as first argument and y as second argument, and
+  //    terminate these steps.
+  // 9. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, invoke scroll() on window
+  //    with scrollX as first argument and y as second argument, and terminate
+  //    these steps.
+
+  // 10. If the element does not have any associated CSS layout box, the element
+  //     has no associated scrolling box, or the element has no overflow,
+  //     terminate these steps.
+  if (!layout_boxes_ ||
+      scroll_height() <= layout_boxes_->GetPaddingEdgeHeight()) {
+    // Make sure the UI navigation container is set to the expected 0.
+    y = 0.0f;
+  }
+
+  // 11. Scroll the element to scrollLeft,y, with the scroll behavior being
+  //     "auto".
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return;
+  }
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  ui_nav_item_->SetContentOffset(left, y);
 }
 
 // Algorithm for offsetParent:

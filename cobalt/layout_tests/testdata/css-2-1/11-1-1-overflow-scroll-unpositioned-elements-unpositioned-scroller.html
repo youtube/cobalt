@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <!--
- | Absolutely positioned elements in a positioned container should be scrolled.
+ | Non-positioned elements in a scroll container that is not positioned
+ | should be scrolled.
  |   https://www.w3.org/TR/CSS21/visufx.html
  -->
 <head>
@@ -19,18 +20,10 @@
       background-color: #000000;
     }
 
-    .container {
-      width: 300px;
-      height: 75px;
-      overflow: hidden;
-      position: relative;
-      background-color: #808080;
-    }
-
     .content {
       width: 50px;
       height: 50px;
-      position: absolute;
+      margin-bottom: 25px;
     }
   </style>
   <script>
@@ -40,12 +33,12 @@
 
     window.onload = function() {
       var scroller = document.getElementById("scroller");
-      scroller.scrollLeft = 50;
-      if (scroller.scrollLeft != 50) {
+      scroller.scrollTop = 25;
+      if (scroller.scrollTop != 25) {
         console.log("FAIL" +
-          "\nValue of: scrollLeft" +
-          "\n  Actual: " + scroller.scrollLeft +
-          "\nExpected: " + 50);
+          "\nValue of: scrollTop" +
+          "\n  Actual: " + scroller.scrollTop +
+          "\nExpected: " + 25);
       } else {
         document.body.style.backgroundColor = "#FFFFFF";
       }
@@ -57,14 +50,9 @@
 </head>
 <body>
   <div id="scroller" class="overflow-scroll">
-    <div class="container">
-      <div class="content"
-           style="background-color: #FF0000; transform: translateX(0px)"></div>
-      <div class="content"
-           style="background-color: #00FF00; transform: translateX(75px)"></div>
-      <div class="content"
-           style="background-color: #0000FF; transform: translateX(150px)"></div>
-    </div>
+    <div class="content" style="background-color: #FF0000"></div>
+    <div class="content" style="background-color: #00FF00"></div>
+    <div class="content" style="background-color: #0000FF"></div>
   </div>
 </body>
 </html>
