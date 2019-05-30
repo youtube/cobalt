@@ -23,6 +23,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/third_party/musl/musl.gyp:c',
+        '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
         '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
         '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
       ],
