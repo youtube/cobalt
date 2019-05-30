@@ -652,10 +652,7 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 #define GL_MAX_RENDERBUFFER_SIZE SB_GL_MAX_RENDERBUFFER_SIZE
 #define GL_INVALID_FRAMEBUFFER_OPERATION SB_GL_INVALID_FRAMEBUFFER_OPERATION
 
-// Previously defined in
-// https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h.
-#define GL_BGRA_EXT SB_GL_BGRA_EXT
-#define GL_TEXTURE_EXTERNAL_OES SB_GL_TEXTURE_EXTERNAL_OES
+#include "cobalt/renderer/gles_ext.h"
 
 #endif  // SB_API_VERSION >= EGL_AND_GL_INTERFACE_VERSION
 
