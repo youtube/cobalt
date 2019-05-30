@@ -27,6 +27,7 @@
     '-Wno-bitwise-op-parentheses',
     '-Wno-shift-op-parentheses',
     '-Wno-shorten-64-to-32',
+    '-Wno-unused-command-line-argument',
   ],
   'cflags_cc': [
     '-nostdinc++',
