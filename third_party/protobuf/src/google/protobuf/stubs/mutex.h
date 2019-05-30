@@ -31,7 +31,11 @@
 #define GOOGLE_PROTOBUF_STUBS_MUTEX_H_
 
 #ifdef GOOGLE_PROTOBUF_NO_THREADLOCAL
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#else
 #include <pthread.h>
+#endif
 #endif
 
 #include <google/protobuf/stubs/macros.h>
@@ -108,16 +112,32 @@ template<typename T>
 class ThreadLocalStorage {
  public:
   ThreadLocalStorage() {
+#if defined(STARBOARD)
+    key_ = SbThreadCreateLocalKey(&ThreadLocalStorage::Delete);
+#else
     pthread_key_create(&key_, &ThreadLocalStorage::Delete);
+#endif
   }
   ~ThreadLocalStorage() {
+#if defined(STARBOARD)
+    SbThreadDestroyLocalKey(key_);
+#else
     pthread_key_delete(key_);
+#endif
   }
   T* Get() {
+#if defined(STARBOARD)
+    T* result = static_cast<T*>(SbThreadGetLocalValue(key_));
+#else
     T* result = static_cast<T*>(pthread_getspecific(key_));
+#endif
     if (result == NULL) {
       result = new T();
+#if defined(STARBOARD)
+      SbThreadSetLocalValue(key_, result);
+#else
       pthread_setspecific(key_, result);
+#endif
     }
     return result;
   }
@@ -125,7 +145,11 @@ class ThreadLocalStorage {
   static void Delete(void* value) {
     delete static_cast<T*>(value);
   }
+#if defined(STARBOARD)
+  SbThreadLocalKey key_;
+#else
   pthread_key_t key_;
+#endif
 
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ThreadLocalStorage);
 };
