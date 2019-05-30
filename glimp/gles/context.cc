@@ -175,6 +175,9 @@ void Context::GetIntegerv(GLenum pname, GLint* params) {
     case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS:
       *params = impl_->GetMaxCombinedTextureImageUnits();
       break;
+    case GL_UNPACK_ALIGNMENT:
+      *params = unpack_alignment_;
+      break;
     default: {
       SB_NOTIMPLEMENTED();
       SetError(GL_INVALID_ENUM);
