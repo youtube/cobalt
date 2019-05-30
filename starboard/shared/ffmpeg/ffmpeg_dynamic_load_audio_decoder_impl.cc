@@ -32,7 +32,6 @@ AudioDecoder* AudioDecoder::Create(
     const SbMediaAudioSampleInfo& audio_sample_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
-    SB_NOTREACHED();
     return NULL;
   }
 
@@ -52,7 +51,7 @@ AudioDecoder* AudioDecoder::Create(
           AudioDecoderImpl<571>::Create(audio_codec, audio_sample_info);
       break;
     default:
-      SB_NOTREACHED() << "Unsupported FFMPEG specialization " << std::hex
+      SB_LOG(WARNING) << "Unsupported FFMPEG specialization " << std::hex
                       << ffmpeg->specialization_version();
       break;
   }
