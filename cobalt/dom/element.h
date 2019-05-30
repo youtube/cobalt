@@ -118,6 +118,14 @@ class Element : public Node {
   // If the element does not have any associated CSS layout box return zero.
   virtual int32 scroll_width() { return 0; }
   virtual int32 scroll_height() { return 0; }
+  virtual float scroll_left() { return 0.0f; }
+  virtual float scroll_top() { return 0.0f; }
+
+  // If the element does not have any associated CSS layout box, the element
+  // has no associated scrolling box, or the element has no overflow, terminate
+  // these steps.
+  virtual void set_scroll_left(float /* x */) {}
+  virtual void set_scroll_top(float /* y */) {}
 
   // Web API: DOM Parsing and Serialization (partial interface)
   //   https://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface

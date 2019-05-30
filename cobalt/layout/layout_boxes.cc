@@ -151,6 +151,12 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
     return math::RectF();
   }
 
+  // Return the cached results if applicable.
+  if (scroll_area_cache_ &&
+      scroll_area_cache_->first == dir) {
+    return scroll_area_cache_->second;
+  }
+
   // Calculate the scroll area. It should be relative to these layout boxes --
   // not to the root.
   math::RectF padding_area;
@@ -217,7 +223,12 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
       right = padding_area.right();
       break;
   }
-  return math::RectF(left, top, right - left, bottom - top);
+
+  // Cache the results to speed up future queries.
+  scroll_area_cache_.emplace(
+      dir,
+      math::RectF(left, top, right - left, bottom - top));
+  return scroll_area_cache_->second;
 }
 
 void LayoutBoxes::InvalidateSizes() {
@@ -229,6 +240,7 @@ void LayoutBoxes::InvalidateSizes() {
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
+  scroll_area_cache_.reset();
 }
 
 void LayoutBoxes::InvalidateCrossReferences() {
@@ -240,6 +252,7 @@ void LayoutBoxes::InvalidateCrossReferences() {
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
+  scroll_area_cache_.reset();
 }
 
 void LayoutBoxes::InvalidateRenderTreeNodes() {

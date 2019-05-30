@@ -166,6 +166,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   int32 scroll_width() override;
   int32 scroll_height() override;
 
+  // These attributes are only partially implemented. They will only work with
+  // elements associated with UI navigation containers.
+  float scroll_left() override;
+  float scroll_top() override;
+  void set_scroll_left(float x) override;
+  void set_scroll_top(float y) override;
+
   // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
   // (partial interface)
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
