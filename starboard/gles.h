@@ -739,11 +739,6 @@ SB_EXPORT SbGlesInterface* SbGetGlesInterface();
 #define SB_GL_MAX_RENDERBUFFER_SIZE 0x84E8
 #define SB_GL_INVALID_FRAMEBUFFER_OPERATION 0x0506
 
-// Previously defined in
-// https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h.
-#define SB_GL_BGRA_EXT 0x80E1
-#define SB_GL_TEXTURE_EXTERNAL_OES 0x8D65
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
