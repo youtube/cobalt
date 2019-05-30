@@ -27,6 +27,8 @@ partial interface Element {
   readonly attribute double clientHeight;
 
   // https://www.w3.org/TR/cssom-view-1/#extension-to-the-element-interface
+  attribute unrestricted double scrollTop;
+  attribute unrestricted double scrollLeft;
   readonly attribute long scrollWidth;
   readonly attribute long scrollHeight;
 };
