@@ -60,6 +60,10 @@ struct SbBlitterDevicePrivate {
   // Mutex to ensure thread-safety in all SbBlitterDevice-related function
   // calls.
   starboard::Mutex mutex;
+
+  // Store a reference to context. Only 1 context is allowed in this
+  // implementation.
+  SbBlitterContextPrivate* context;
 };
 
 struct SbBlitterRenderTargetPrivate {
