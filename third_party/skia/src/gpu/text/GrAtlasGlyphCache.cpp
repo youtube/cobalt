@@ -547,6 +547,9 @@ GrGlyph* GrAtlasTextStrike::generateGlyph(const SkGlyph& skGlyph, GrGlyph::Packe
             return nullptr;
         }
     }
+    if (!GrGlyph::Fits(bounds)) {
+        return nullptr;
+    }
     GrMaskFormat format = get_packed_glyph_mask_format(skGlyph);
 
     GrGlyph* glyph = fPool.make<GrGlyph>();
