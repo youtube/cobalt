@@ -25,7 +25,6 @@
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/gles/gl_call.h"
-#include "starboard/string.h"
 
 namespace {
 
@@ -162,15 +161,18 @@ SbBlitterContextPrivate::SbBlitterContextPrivate(SbBlitterDevice device)
                          starboard::shared::blittergles::kContextAttributeList);
     error_ = egl_context_ == EGL_NO_CONTEXT;
   }
+
+  SB_DCHECK(device->context == kSbBlitterInvalidContext);
+  device->context = this;
 }
 
 SbBlitterContextPrivate::~SbBlitterContextPrivate() {
   if (color_shader_.get() != nullptr) {
     color_shader_.reset();
   }
-  if (egl_context_ != EGL_NO_CONTEXT) {
-    starboard::ScopedLock lock(device->mutex);
 
+  starboard::ScopedLock lock(device->mutex);
+  if (egl_context_ != EGL_NO_CONTEXT) {
     // For now, we assume context is already unbound, as we bind and unbind
     // context after every Blitter API call that uses it.
     // TODO: Optimize eglMakeCurrent calls, so rebinding is not needed for every
@@ -179,9 +181,10 @@ SbBlitterContextPrivate::~SbBlitterContextPrivate() {
   }
 
   if (dummy_surface_ != EGL_NO_SURFACE) {
-    starboard::ScopedLock lock(device->mutex);
     EGL_CALL(eglDestroySurface(device->display, dummy_surface_));
   }
+  SB_DCHECK(device->context == this);
+  device->context = kSbBlitterInvalidContext;
 }
 
 const starboard::shared::blittergles::ColorShaderProgram&
@@ -226,11 +229,10 @@ bool SbBlitterContextPrivate::EnsureDummySurfaceInitialized() {
   return eglGetError() == EGL_SUCCESS;
 }
 
-// This function ensures that the render target has a valid EGLSurface.
-starboard::optional<EGLSurface>
-SbBlitterContextPrivate::GetEGLSurfaceFromRenderTarget() {
-  if (current_render_target->swap_chain != NULL) {
-    return current_render_target->swap_chain->surface;
+starboard::optional<EGLSurface> SbBlitterContextPrivate::GetEGLSurface(
+    SbBlitterRenderTarget render_target) {
+  if (render_target->swap_chain != NULL) {
+    return render_target->swap_chain->surface;
   }
 
   if (!EnsureDummySurfaceInitialized()) {
@@ -242,50 +244,71 @@ SbBlitterContextPrivate::GetEGLSurfaceFromRenderTarget() {
 }
 
 bool SbBlitterContextPrivate::MakeCurrent() {
+  if (!is_current) {
+    return MakeCurrentWithRenderTarget(current_render_target);
+  }
+
+  return true;
+}
+
+bool SbBlitterContextPrivate::MakeCurrentWithRenderTarget(
+    SbBlitterRenderTarget render_target) {
+  starboard::ScopedLock lock(device->mutex);
   if (!EnsureEGLContextInitialized()) {
     SB_DLOG(ERROR) << ": Failed to create egl_context.";
     return false;
   }
-  starboard::optional<EGLSurface> egl_surface = GetEGLSurfaceFromRenderTarget();
+
+  starboard::optional<EGLSurface> egl_surface = GetEGLSurface(render_target);
   if (!egl_surface) {
     return false;
   }
-
   eglMakeCurrent(device->display, *egl_surface, *egl_surface, egl_context_);
   if (eglGetError() != EGL_SUCCESS) {
     SB_DLOG(ERROR) << ": Failed to make the egl surface current.";
     return false;
   }
 
-  starboard::optional<GLuint> framebuffer =
-      GetFramebuffer(current_render_target);
+  starboard::optional<GLuint> framebuffer = GetFramebuffer(render_target);
   if (!framebuffer) {
     return false;
   }
   glBindFramebuffer(GL_FRAMEBUFFER, *framebuffer);
   if (glGetError() != GL_NO_ERROR) {
+    SB_DLOG(ERROR) << ": Failed to bind framebuffer.";
     return false;
   }
-  is_current = true;
-  GL_CALL(glViewport(0, 0, current_render_target->width,
-                     current_render_target->height));
+  GL_CALL(glViewport(0, 0, render_target->width, render_target->height));
 
+  is_current = true;
   return true;
 }
 
 SbBlitterContextPrivate::ScopedCurrentContext::ScopedCurrentContext(
     SbBlitterContext context)
-    : context_(context), error_(false), was_current_(context_->is_current) {
-  if (!context_->is_current) {
-    starboard::ScopedLock lock(context_->device->mutex);
-    error_ = !context_->MakeCurrent();
-  }
+    : context_(context),
+      error_(false),
+      was_current_(context_->is_current),
+      previous_render_target_(context_->current_render_target) {
+  error_ = !context_->MakeCurrent();
+}
+
+SbBlitterContextPrivate::ScopedCurrentContext::ScopedCurrentContext(
+    SbBlitterContext context,
+    SbBlitterRenderTarget render_target)
+    : context_(context),
+      error_(false),
+      was_current_(context_->is_current),
+      previous_render_target_(context_->current_render_target) {
+  error_ = !context_->MakeCurrentWithRenderTarget(render_target);
 }
 
 SbBlitterContextPrivate::ScopedCurrentContext::~ScopedCurrentContext() {
-  if (!error_ && !was_current_) {
-    starboard::ScopedLock lock(context_->device->mutex);
+  if (was_current_) {
+    context_->MakeCurrentWithRenderTarget(previous_render_target_);
+  } else {
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    starboard::ScopedLock lock(context_->device->mutex);
     EGL_CALL(eglMakeCurrent(context_->device->display, EGL_NO_SURFACE,
                             EGL_NO_SURFACE, EGL_NO_CONTEXT));
     context_->is_current = false;

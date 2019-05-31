@@ -74,7 +74,6 @@ bool ColorShaderProgram::Draw(SbBlitterRenderTarget render_target,
                               SbBlitterColor color,
                               SbBlitterRect rect) const {
   GL_CALL(glUseProgram(GetProgramHandle()));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
   std::pair<float, float> lower_left_coord =
       TransformCoords(rect.x, rect.y + rect.height, render_target);
   std::pair<float, float> upper_right_coord =
