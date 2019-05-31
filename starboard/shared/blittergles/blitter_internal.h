@@ -40,34 +40,6 @@ struct SbBlitterDeviceRegistry {
 
 SbBlitterDeviceRegistry* GetBlitterDeviceRegistry();
 
-// Helper class to allow one to create a RAII object that acquires the
-// SbBlitterContext object upon construction and handles binding/unbinding of
-// the egl_context field, as well as initializing fields that have deferred
-// creation.
-class ScopedCurrentContext {
- public:
-  explicit ScopedCurrentContext(SbBlitterContext context);
-  ~ScopedCurrentContext();
-
-  // Returns true if an error occurred during intialization (indicating that
-  // this object is invalid).
-  bool InitializationError() const { return error_; }
-
- private:
-  SbBlitterContext context_;
-  bool error_;
-
-  // Keeps track of whether this context was current on the calling thread.
-  bool was_current_;
-};
-
-// Will call eglMakeCurrent() and glBindFramebuffer() for context's
-// current_render_target. Returns true on success, false on failure.
-bool MakeCurrent(SbBlitterContext context);
-
-// Deletes shaders and sets their handles to 0 on the given context object.
-void ResetShaders(SbBlitterContext context);
-
 extern const EGLint kContextAttributeList[];
 
 extern const EGLint kConfigAttributeList[];
@@ -116,59 +88,6 @@ struct SbBlitterSwapChainPrivate {
   SbBlitterRenderTargetPrivate render_target;
 
   EGLSurface surface;
-};
-
-struct SbBlitterContextPrivate {
-  // Store a reference to the current rendering target.
-  SbBlitterRenderTargetPrivate* current_render_target;
-
-  // Keep track of the device used to create this context.
-  SbBlitterDevicePrivate* device;
-
-  // If we don't have any information about the display window, this field will
-  // be created with a best-guess EGLConfig.
-  EGLContext egl_context;
-
-  // GL framebuffers can use a dummy EGLSurface if there isn't a surface bound
-  // already.
-  EGLSurface dummy_surface;
-
-  // Whether or not blending is enabled on this context.
-  bool blending_enabled;
-
-  // The current color, used to determine the color of fill rectangles and blit
-  // call color modulation.
-  SbBlitterColor current_color;
-
-  // Whether or not blits should be modulated by the current color.
-  bool modulate_blits_with_color;
-
-  // The current scissor rectangle.
-  SbBlitterRect scissor;
-
-  // Whether or not this context has been set to current or not.
-  bool is_current;
-
-  // Represents a connection to the shader program. It is able to toggle between
-  // drawing color versus drawing textures, controlled by the blit uniform.
-  GLuint program_handle;
-
-  GLuint vertex_shader;
-
-  GLuint fragment_shader;
-
-  // Location of the shader uniform that controls fragment color source. If
-  // it is not -1, it means the GL program has been successfully linked.
-  int blit_uniform;
-
-  // Location of the shader attribute "a_position."
-  static const int kPositionAttribute = 0;
-
-  // Location of the shader attribute "a_tex_coord."
-  static const int kTexcoordAttribute = 1;
-
-  // Location of the shader attribute "a_color."
-  static const int kColorAttribute = 2;
 };
 
 struct SbBlitterSurfacePrivate {
