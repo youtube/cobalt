@@ -15,6 +15,7 @@
 #include "starboard/blitter.h"
 
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterSetRenderTarget(SbBlitterContext context,
@@ -32,7 +33,7 @@ bool SbBlitterSetRenderTarget(SbBlitterContext context,
   context->current_render_target = render_target;
   if (context->is_current) {
     starboard::ScopedLock lock(context->device->mutex);
-    return starboard::shared::blittergles::MakeCurrent(context);
+    return context->MakeCurrent();
   }
 
   return true;
