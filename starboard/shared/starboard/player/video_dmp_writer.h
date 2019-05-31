@@ -42,9 +42,8 @@ class VideoDmpWriter {
   static void OnPlayerWriteSample(
       SbPlayer player,
       SbMediaType sample_type,
-      const void* const* sample_buffers,
-      const int* sample_buffer_sizes,
-      int number_of_sample_buffers,
+      const void* sample_buffer,
+      int sample_buffer_size,
       SbTime sample_timestamp,
       const SbMediaVideoSampleInfo* video_sample_info,
       const SbDrmSampleInfo* drm_sample_info);
@@ -55,9 +54,8 @@ class VideoDmpWriter {
                    SbMediaAudioCodec audio_codec,
                    const SbMediaAudioSampleInfo* audio_sample_info);
   void DumpAccessUnit(SbMediaType sample_type,
-                      const void* const* sample_buffers,
-                      const int* sample_buffer_sizes,
-                      int number_of_sample_buffers,
+                      const void* sample_buffer,
+                      int sample_buffer_size,
                       SbTime sample_timestamp,
                       const SbMediaVideoSampleInfo* video_sample_info,
                       const SbDrmSampleInfo* drm_sample_info);

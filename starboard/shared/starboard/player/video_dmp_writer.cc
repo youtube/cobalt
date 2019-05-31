@@ -117,9 +117,8 @@ void VideoDmpWriter::OnPlayerCreate(
 void VideoDmpWriter::OnPlayerWriteSample(
     SbPlayer player,
     SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
+    const void* sample_buffer,
+    int sample_buffer_size,
     SbTime sample_timestamp,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* drm_sample_info) {
@@ -127,9 +126,8 @@ void VideoDmpWriter::OnPlayerWriteSample(
   if (!map->dump_video_data()) {
     return;
   }
-  map->Get(player)->DumpAccessUnit(sample_type, sample_buffers,
-                                   sample_buffer_sizes,
-                                   number_of_sample_buffers, sample_timestamp,
+  map->Get(player)->DumpAccessUnit(sample_type, sample_buffer,
+                                   sample_buffer_size, sample_timestamp,
                                    video_sample_info, drm_sample_info);
 }
 
@@ -159,14 +157,11 @@ void VideoDmpWriter::DumpConfigs(
 
 void VideoDmpWriter::DumpAccessUnit(
     SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
+    const void* sample_buffer,
+    int sample_buffer_size,
     SbTime sample_timestamp,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* drm_sample_info) {
-  SB_DCHECK(number_of_sample_buffers == 1);
-
   if (sample_type == kSbMediaTypeAudio) {
     Write(write_cb_, kRecordTypeAudioAccessUnit);
   } else if (sample_type == kSbMediaTypeVideo) {
@@ -185,9 +180,8 @@ void VideoDmpWriter::DumpAccessUnit(
   } else {
     Write(write_cb_, false);
   }
-  Write(write_cb_, static_cast<uint32_t>(sample_buffer_sizes[0]));
-  Write(write_cb_, sample_buffers[0],
-        static_cast<size_t>(sample_buffer_sizes[0]));
+  Write(write_cb_, static_cast<uint32_t>(sample_buffer_size));
+  Write(write_cb_, sample_buffer, static_cast<size_t>(sample_buffer_size));
 
   if (sample_type == kSbMediaTypeVideo) {
     SB_DCHECK(video_sample_info);
