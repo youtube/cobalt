@@ -27,9 +27,6 @@ void SbPlayerWriteSample2(SbPlayer player,
                           int number_of_sample_infos) {
   SB_DCHECK(number_of_sample_infos == 1);
 
-  const void* sample_buffers[] = {sample_infos->buffer};
-  const int sample_buffer_sizes[] = {sample_infos->buffer_size};
-  int number_of_sample_buffers = 1;
   SbTime sample_timestamp = sample_infos->timestamp;
 #if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
   auto audio_sample_info = sample_infos->audio_sample_info;
@@ -42,22 +39,15 @@ void SbPlayerWriteSample2(SbPlayer player,
     return;
   }
 
-  if (number_of_sample_buffers < 1) {
-    SB_DLOG(WARNING) << "SbPlayerWriteSample() doesn't support"
-                     << " |number_of_sample_buffers| less than one.";
-    return;
-  }
-
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerWriteSample(
-      player, sample_type, sample_buffers, sample_buffer_sizes,
-      number_of_sample_buffers, sample_timestamp, video_sample_info,
-      sample_drm_info);
+      player, sample_type, sample_infos->buffer, sample_infos->buffer_size,
+      sample_timestamp, video_sample_info, sample_drm_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
-  player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
-                      number_of_sample_buffers, sample_timestamp,
+  player->WriteSample(sample_type, sample_infos->buffer,
+                      sample_infos->buffer_size, sample_timestamp,
 #if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
                       audio_sample_info,
 #endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION

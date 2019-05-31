@@ -42,17 +42,6 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
               const SbMediaAudioSampleInfo* audio_sample_info,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
-  InputBuffer(SbMediaType sample_type,
-              SbPlayerDeallocateSampleFunc deallocate_sample_func,
-              SbPlayer player,
-              void* context,
-              const void* const* sample_buffers,
-              const int* sample_buffer_sizes,
-              int number_of_sample_buffers,
-              SbTime sample_timestamp,
-              const SbMediaAudioSampleInfo* audio_sample_info,
-              const SbMediaVideoSampleInfo* video_sample_info,
-              const SbDrmSampleInfo* sample_drm_info);
   ~InputBuffer();
 
   SbMediaType sample_type() const { return sample_type_; }

@@ -110,9 +110,8 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
 
 void SbPlayerPrivate::WriteSample(
     SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
+    const void* sample_buffer,
+    int sample_buffer_size,
     SbTime sample_timestamp,
 #if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
     const SbMediaAudioSampleInfo* audio_sample_info,
@@ -126,15 +125,15 @@ void SbPlayerPrivate::WriteSample(
     frame_height_ = video_sample_info->frame_height;
   }
 
-  starboard::scoped_refptr<InputBuffer> input_buffer = new InputBuffer(
-      sample_type, sample_deallocate_func_, this, context_, sample_buffers,
-      sample_buffer_sizes, number_of_sample_buffers, sample_timestamp,
+  starboard::scoped_refptr<InputBuffer> input_buffer =
+      new InputBuffer(sample_type, sample_deallocate_func_, this, context_,
+                      sample_buffer, sample_buffer_size, sample_timestamp,
 #if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-      audio_sample_info,
+                      audio_sample_info,
 #else  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-      &audio_sample_info_,
+                      &audio_sample_info_,
 #endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-      video_sample_info, sample_drm_info);
+                      video_sample_info, sample_drm_info);
   worker_->WriteSample(input_buffer);
 }
 
