@@ -43,9 +43,8 @@ struct SbPlayerPrivate {
 
   void Seek(SbTime seek_to_time, int ticket);
   void WriteSample(SbMediaType sample_type,
-                   const void* const* sample_buffers,
-                   const int* sample_buffer_sizes,
-                   int number_of_sample_buffers,
+                   const void* sample_buffer,
+                   int sample_buffer_size,
                    SbTime sample_time,
 #if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
                    const SbMediaAudioSampleInfo* audio_sample_info,
