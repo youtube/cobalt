@@ -15,6 +15,7 @@
 #include "starboard/blitter.h"
 
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterSetColor(SbBlitterContext context, SbBlitterColor color) {
