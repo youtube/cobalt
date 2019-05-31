@@ -74,6 +74,8 @@ struct SbBlitterContextPrivate {
   class ScopedCurrentContext {
    public:
     explicit ScopedCurrentContext(SbBlitterContext context);
+    ScopedCurrentContext(SbBlitterContext context,
+                         SbBlitterRenderTarget render_target);
     ~ScopedCurrentContext();
 
     // Returns true if an error occurred during initialization (indicating that
@@ -82,6 +84,7 @@ struct SbBlitterContextPrivate {
 
    private:
     SbBlitterContext context_;
+    SbBlitterRenderTarget previous_render_target_;
     bool error_;
 
     // Keeps track of whether this context was current on the calling thread.
@@ -93,7 +96,11 @@ struct SbBlitterContextPrivate {
 
   bool EnsureDummySurfaceInitialized();
 
-  starboard::optional<EGLSurface> GetEGLSurfaceFromRenderTarget();
+  // Ensures that egl_context_ has a valid EGLSurface to bind to.
+  starboard::optional<EGLSurface> GetEGLSurface(
+      SbBlitterRenderTarget render_target);
+
+  bool MakeCurrentWithRenderTarget(SbBlitterRenderTarget render_target);
 
   // If we don't have any information about the display window, this field will
   // be created with a best-guess EGLConfig.
