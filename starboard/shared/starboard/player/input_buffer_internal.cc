@@ -121,62 +121,6 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
   TryToAssignDrmSampleInfo(sample_drm_info);
 }
 
-InputBuffer::InputBuffer(SbMediaType sample_type,
-                         SbPlayerDeallocateSampleFunc deallocate_sample_func,
-                         SbPlayer player,
-                         void* context,
-                         const void* const* sample_buffers,
-                         const int* sample_buffer_sizes,
-                         int number_of_sample_buffers,
-                         SbTime sample_timestamp,
-                         const SbMediaAudioSampleInfo* audio_sample_info,
-                         const SbMediaVideoSampleInfo* video_sample_info,
-                         const SbDrmSampleInfo* sample_drm_info)
-    : sample_type_(sample_type),
-      deallocate_sample_func_(deallocate_sample_func),
-      player_(player),
-      context_(context),
-      timestamp_(sample_timestamp) {
-  SB_DCHECK(deallocate_sample_func);
-  SB_DCHECK(number_of_sample_buffers > 0);
-
-  if (sample_type_ == kSbMediaTypeAudio) {
-    SB_DCHECK(audio_sample_info);
-    audio_sample_info_ = *audio_sample_info;
-  } else {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
-    SB_DCHECK(video_sample_info);
-    video_sample_info_ = *video_sample_info;
-    if (video_sample_info_.color_metadata) {
-      color_metadata_ = *video_sample_info_.color_metadata;
-      video_sample_info_.color_metadata = &color_metadata_;
-    }
-  }
-  TryToAssignDrmSampleInfo(sample_drm_info);
-
-  if (number_of_sample_buffers == 1) {
-    data_ = static_cast<const uint8_t*>(sample_buffers[0]);
-    size_ = sample_buffer_sizes[0];
-  } else if (number_of_sample_buffers > 1) {
-    // TODO: This simply concatenating multi-part buffers into one large
-    // buffer.  It serves the purpose to test the Cobalt media code work with
-    // multi-part sample buffer but we should proper implement InputBuffer to
-    // ensure that the concatenating of multi-part buffers is handled inside
-    // the renderers or the decoders so the SbPlayer implementation won't use
-    // too much memory.
-    size_ = std::accumulate(sample_buffer_sizes,
-                            sample_buffer_sizes + number_of_sample_buffers, 0);
-    flattened_data_.reserve(size_);
-    for (int i = 0; i < number_of_sample_buffers; ++i) {
-      const uint8_t* data = static_cast<const uint8_t*>(sample_buffers[i]);
-      flattened_data_.insert(flattened_data_.end(), data,
-                             data + sample_buffer_sizes[i]);
-    }
-    DeallocateSampleBuffer(sample_buffers[0]);
-    data_ = flattened_data_.data();
-  }
-}
-
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
 }
