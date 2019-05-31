@@ -572,7 +572,7 @@ void StarboardPlayer::WriteBufferInternal(
   }
 
   const auto& allocations = buffer->allocations();
-  DCHECK_GT(allocations.number_of_buffers(), 0);
+  DCHECK_EQ(allocations.number_of_buffers(), 1);
 
   DecodingBuffers::iterator iter =
       decoding_buffers_.find(allocations.buffers()[0]);
@@ -616,7 +616,6 @@ void StarboardPlayer::WriteBufferInternal(
       drm_info.subsample_count > 0 ? &drm_info : NULL);
 #else   // SB_API_VERSION < 10
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
-  DCHECK_EQ(allocations.number_of_buffers(), 1);
   SbPlayerSampleInfo sample_info = {
     allocations.buffers()[0],
     allocations.buffer_sizes()[0],
