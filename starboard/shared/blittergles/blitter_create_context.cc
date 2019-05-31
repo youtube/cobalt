@@ -27,6 +27,10 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
     SB_DLOG(ERROR) << ": Invalid device.";
     return kSbBlitterInvalidContext;
   }
+  if (SbBlitterIsContextValid(device->context)) {
+    SB_DLOG(ERROR) << ": At most 1 context is allowed.";
+    return kSbBlitterInvalidContext;
+  }
 
   std::unique_ptr<SbBlitterContextPrivate> context(
       new SbBlitterContextPrivate(device));
