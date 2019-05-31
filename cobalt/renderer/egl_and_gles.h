@@ -19,6 +19,12 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
+// Defining COBALT_EGL_AND_GLES_LOGGING enables a greater amount of logging and
+// error reporting with EGL and GLES calls throughout Cobalt. Each invoked
+// function will be logged, and when checks are failed the EGL or GLES error
+// code will be outputted.
+#undef COBALT_EGL_AND_GLES_LOGGING
+
 #if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
 #include "starboard/egl.h"
 #include "starboard/gles.h"
@@ -35,6 +41,32 @@
 #define EGL_CALL_PREFIX
 #define GL_CALL_PREFIX
 #endif  // SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+
+#if defined(COBALT_EGL_AND_GLES_LOGGING)
+#define EGL_DCHECK(x)                                                 \
+  do {                                                                \
+    SB_LOG(INFO) << #x;                                               \
+    const int32_t COBALT_EGL_ERRNO = (EGL_CALL_PREFIX eglGetError()); \
+    SB_DCHECK(COBALT_EGL_ERRNO == EGL_SUCCESS)                        \
+        << #x << " exited with code: " << COBALT_EGL_ERRNO;           \
+  } while (false)
+#define GL_DCHECK(x)                                               \
+  do {                                                             \
+    SB_LOG(INFO) << #x;                                            \
+    const int32_t COBALT_GL_ERRNO = (GL_CALL_PREFIX glGetError()); \
+    SB_DCHECK(COBALT_GL_ERRNO == GL_NO_ERROR)                      \
+        << #x << " exited with code: " << COBALT_GL_ERRNO;         \
+  } while (false)
+#else  // !defined(COBALT_EGL_AND_GLES_LOGGING)
+#define EGL_DCHECK(x)                                          \
+  do {                                                         \
+    SB_DCHECK((EGL_CALL_PREFIX eglGetError()) == EGL_SUCCESS); \
+  } while (false)
+#define GL_DCHECK(x)                                         \
+  do {                                                       \
+    SB_DCHECK((GL_CALL_PREFIX glGetError()) == GL_NO_ERROR); \
+  } while (false)
+#endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
 
 #if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
 namespace cobalt {
@@ -56,21 +88,33 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 }  // namespace cobalt
 #endif  // SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
 
-#define EGL_CALL(x)                                            \
-  do {                                                         \
-    EGL_CALL_PREFIX x;                                         \
-    SB_DCHECK((EGL_CALL_PREFIX eglGetError()) == EGL_SUCCESS); \
+#define EGL_CALL(x)    \
+  do {                 \
+    EGL_CALL_PREFIX x; \
+    EGL_DCHECK(x);     \
   } while (false)
 
+#define GL_CALL(x)    \
+  do {                \
+    GL_CALL_PREFIX x; \
+    GL_DCHECK(x);     \
+  } while (false)
+
+#if defined(COBALT_EGL_AND_GLES_LOGGING)
+#define EGL_CALL_SIMPLE(x)    \
+  ([&]() {                    \
+    SB_LOG(INFO) << #x;       \
+    return EGL_CALL_PREFIX x; \
+  }())
+#define GL_CALL_SIMPLE(x)    \
+  ([&]() {                   \
+    SB_LOG(INFO) << #x;      \
+    return GL_CALL_PREFIX x; \
+  }())
+#else  // !defined(COBALT_EGL_AND_GLES_LOGGING)
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
-
-#define GL_CALL(x)                                           \
-  do {                                                       \
-    GL_CALL_PREFIX x;                                        \
-    SB_DCHECK((GL_CALL_PREFIX glGetError()) == GL_NO_ERROR); \
-  } while (false)
-
 #define GL_CALL_SIMPLE(x) (GL_CALL_PREFIX x)
+#endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
 
 #if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
 
