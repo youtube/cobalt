@@ -146,7 +146,7 @@ void VideoDecoder::InitializeCodec() {
   context_ = de265_new_decoder();
   SB_DCHECK(context_);
 
-  const int kNumberOfThreads = 2;
+  const int kNumberOfThreads = 8;
   de265_error error = de265_start_worker_threads(context_, kNumberOfThreads);
   SB_DCHECK(error == DE265_OK);
 }
@@ -247,13 +247,17 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   int widths[kImagePlanes], heights[kImagePlanes];
   const uint8_t* planes[kImagePlanes] = {};
   int strides[kImagePlanes];
+
+  auto bit_depth = de265_get_bits_per_pixel(image, 0);
+  if (bit_depth != 8 && bit_depth != 10) {
+    SB_DLOG(ERROR) << "Unsupported bit depth " << bit_depth;
+    ReportError(FormatString("Unsupported bit depth %d.", bit_depth));
+    return;
+  }
+
   for (int i = 0; i < kImagePlanes; ++i) {
-    auto bits_per_plane = de265_get_bits_per_pixel(image, i);
-    if (bits_per_plane != 8) {
-      SB_DLOG(ERROR) << "Invalid bits per plane " << bits_per_plane;
-      ReportError(FormatString("Invalid bits per plane %d.", bits_per_plane));
-      return;
-    }
+    SB_DCHECK(bit_depth == de265_get_bits_per_pixel(image, i));
+
     widths[i] = de265_get_image_width(image, i);
     heights[i] = de265_get_image_height(image, i);
     planes[i] = de265_get_image_plane(image, i, strides + i);
@@ -269,7 +273,7 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   // Each component of a pixel takes one byte and they are in their own planes.
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      widths[kYPlane], heights[kYPlane], strides[kYPlane],
+      bit_depth, widths[kYPlane], heights[kYPlane], strides[kYPlane],
       de265_get_image_PTS(image), planes[kYPlane], planes[kUPlane],
       planes[kVPlane]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

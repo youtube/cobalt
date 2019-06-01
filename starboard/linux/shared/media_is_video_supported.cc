@@ -44,13 +44,24 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
                                        ) {
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
+  const auto kSbMediaVideoCodecAv1 = kSbMediaVideoCodecVp10;
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   SB_UNREFERENCED_PARAMETER(profile);
   SB_UNREFERENCED_PARAMETER(level);
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
-    return false;
+    if (bit_depth != 10) {
+      return false;
+    }
+    if (video_codec != kSbMediaVideoCodecAv1 &&
+        video_codec != kSbMediaVideoCodecH265) {
+      return false;
+    }
   }
+
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #if SB_API_VERSION >= 10
 #if SB_HAS(BLITTER)
@@ -64,11 +75,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #endif  // SB_HAS(BLITTER)
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
-  return ((video_codec == kSbMediaVideoCodecVp10 && is_aom_supported()) ||
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
   return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
           video_codec == kSbMediaVideoCodecH264 ||
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
           (video_codec == kSbMediaVideoCodecVp9 && is_vpx_supported())) &&
