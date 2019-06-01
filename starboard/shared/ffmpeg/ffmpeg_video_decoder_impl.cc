@@ -293,9 +293,11 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
 
   int pitch = AlignUp(av_frame_->width, codec_linesize_align[0] * 2);
 
+  const int kBitDepth = 8;
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      av_frame_->width, av_frame_->height, pitch, av_frame_->reordered_opaque,
-      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]);
+      kBitDepth, av_frame_->width, av_frame_->height, pitch,
+      av_frame_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
+      av_frame_->data[2]);
 
   bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
