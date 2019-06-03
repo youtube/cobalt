@@ -416,8 +416,8 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 #endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
-                              "beneath_the_canopy_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_140_aac.dmp",
+                              "beneath_the_canopy_249_opus.dmp"};
 
   static std::vector<const char*> test_params;
 

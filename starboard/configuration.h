@@ -185,10 +185,9 @@
 // for more details.
 #define SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Add an audio adapter between audio renderer and audio decoder, which makes
-// audio decoder support inputs in different frequency and keep generating
-// gapless outputs in specified frequency.
-#define SB_HAS_ADAPTIVE_AUDIO_VERSION SB_EXPERIMENTAL_API_VERSION
+// Refactor SbPlayerSampleInfo, to reuse SbPlayerSampleInfo in filter based
+// player. Add audio and codec info for every sample.
+#define SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Starboard EGL and GLES interface created to abstract these graphics libaries
 // out of Cobalt. To remove the direct inclusion of EGL and GLES system

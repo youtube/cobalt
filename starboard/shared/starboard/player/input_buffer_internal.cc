@@ -87,39 +87,58 @@ std::string GetMixedRepresentation(const uint8_t* data,
 
 }  // namespace
 
-InputBuffer::InputBuffer(SbMediaType sample_type,
-                         SbPlayerDeallocateSampleFunc deallocate_sample_func,
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          SbPlayer player,
                          void* context,
-                         const void* sample_buffer,
-                         int sample_buffer_size,
-                         SbTime sample_timestamp,
-                         const SbMediaAudioSampleInfo* audio_sample_info,
-                         const SbMediaVideoSampleInfo* video_sample_info,
-                         const SbDrmSampleInfo* sample_drm_info)
-    : sample_type_(sample_type),
-      deallocate_sample_func_(deallocate_sample_func),
+                         const SbPlayerSampleInfo& sample_info)
+    : deallocate_sample_func_(deallocate_sample_func),
       player_(player),
       context_(context),
-      data_(static_cast<const uint8_t*>(sample_buffer)),
-      size_(sample_buffer_size),
-      timestamp_(sample_timestamp) {
+      sample_type_(sample_info.type),
+      data_(static_cast<const uint8_t*>(sample_info.buffer)),
+      size_(sample_info.buffer_size),
+      timestamp_(sample_info.timestamp) {
   SB_DCHECK(deallocate_sample_func);
 
   if (sample_type_ == kSbMediaTypeAudio) {
-    SB_DCHECK(audio_sample_info);
-    audio_sample_info_ = *audio_sample_info;
+    audio_sample_info_ = sample_info.audio_sample_info;
   } else {
     SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
-    SB_DCHECK(video_sample_info);
-    video_sample_info_ = *video_sample_info;
+    video_sample_info_ = sample_info.video_sample_info;
+  }
+  TryToAssignDrmSampleInfo(sample_info.drm_info);
+}
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+InputBuffer::InputBuffer(SbMediaType sample_type,
+                         SbPlayerDeallocateSampleFunc dealloate_sample_func,
+                         SbPlayer player,
+                         void* context,
+                         const SbPlayerSampleInfo& sample_info,
+                         const SbMediaAudioSampleInfo* audio_sample_info)
+    : deallocate_sample_func_(dealloate_sample_func),
+      player_(player),
+      context_(context),
+      sample_type_(sample_type),
+      data_(static_cast<const uint8_t*>(sample_info.buffer)),
+      size_(sample_info.buffer_size),
+      timestamp_(sample_info.timestamp) {
+  SB_DCHECK(deallocate_sample_func_);
+
+  if (sample_type_ == kSbMediaTypeVideo) {
+    SB_DCHECK(sample_info.video_sample_info);
+    video_sample_info_ = *sample_info.video_sample_info;
     if (video_sample_info_.color_metadata) {
       color_metadata_ = *video_sample_info_.color_metadata;
       video_sample_info_.color_metadata = &color_metadata_;
     }
+  } else {
+    SB_DCHECK(sample_type_ == kSbMediaTypeAudio && audio_sample_info);
+    audio_sample_info_ = *audio_sample_info;
   }
-  TryToAssignDrmSampleInfo(sample_drm_info);
+  TryToAssignDrmSampleInfo(sample_info.drm_info);
 }
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
@@ -136,22 +155,21 @@ void InputBuffer::SetDecryptedContent(const void* buffer, int size) {
   } else {
     data_ = NULL;
   }
-  size_ = size;
   has_drm_info_ = false;
 }
 
 std::string InputBuffer::ToString() const {
   std::stringstream ss;
   ss << "========== " << (has_drm_info_ ? "encrypted " : "clear ")
-     << (sample_type_ == kSbMediaTypeAudio ? "audio" : "video")
-     << " sample @ timestamp: " << timestamp_ << " in " << size_
+     << (sample_type() == kSbMediaTypeAudio ? "audio" : "video")
+     << " sample @ timestamp: " << timestamp() << " in " << size()
      << " bytes ==========\n";
-  if (sample_type_ == kSbMediaTypeAudio) {
-    ss << audio_sample_info_.samples_per_second << '\n';
+  if (sample_type() == kSbMediaTypeAudio) {
+    ss << audio_sample_info().samples_per_second << '\n';
   } else {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
-    ss << video_sample_info_.frame_width << " x "
-       << video_sample_info_.frame_height << '\n';
+    SB_DCHECK(sample_type() == kSbMediaTypeVideo);
+    ss << video_sample_info().frame_width << " x "
+       << video_sample_info().frame_height << '\n';
   }
   if (has_drm_info_) {
     ss << "iv: "
@@ -166,7 +184,7 @@ std::string InputBuffer::ToString() const {
          << drm_info_.subsample_mapping[i].encrypted_byte_count << "\n";
     }
   }
-  ss << GetMixedRepresentation(data_, size_, 16) << '\n';
+  ss << GetMixedRepresentation(data(), size(), 16) << '\n';
   return ss.str();
 }
 
