@@ -184,9 +184,20 @@ class AudioRendererTest : public ::testing::Test {
 
   scoped_refptr<InputBuffer> CreateInputBuffer(SbTime timestamp) {
     const int kInputBufferSize = 4;
+    SbPlayerSampleInfo sample_info;
+    sample_info.buffer = SbMemoryAllocate(kInputBufferSize);
+    sample_info.buffer_size = kInputBufferSize;
+    sample_info.timestamp = timestamp;
+    sample_info.drm_info = NULL;
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    sample_info.type = kSbMediaTypeAudio;
+    sample_info.audio_sample_info = GetDefaultAudioSampleInfo();
+    return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    sample_info.video_sample_info = NULL;
     return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleCB, NULL, this,
-                           SbMemoryAllocate(kInputBufferSize), kInputBufferSize,
-                           timestamp, &GetDefaultAudioSampleInfo(), NULL, NULL);
+                           sample_info, &GetDefaultAudioSampleInfo());
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   }
 
   scoped_refptr<DecodedAudio> CreateDecodedAudio(SbTime timestamp, int frames) {

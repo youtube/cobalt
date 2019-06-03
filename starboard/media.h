@@ -404,6 +404,10 @@ typedef struct SbMediaColorMetadata {
 // The set of information required by the decoder or player for each video
 // sample.
 typedef struct SbMediaVideoSampleInfo {
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  // The video codec of this sample.
+  SbMediaVideoCodec codec;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   // Indicates whether the associated sample is a key frame (I-frame).
   // Video key frames must always start with SPS and PPS NAL units.
   bool is_key_frame;
@@ -426,7 +430,11 @@ typedef struct SbMediaVideoSampleInfo {
   // described here: https://matroska.org/technical/specs/index.html .
   // This will only be specified on frames where the HDR metadata and
   // color / color space might have changed (e.g. keyframes).
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaColorMetadata color_metadata;
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   SbMediaColorMetadata* color_metadata;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 } SbMediaVideoSampleInfo;
 
 // A structure describing the audio configuration parameters of a single audio
@@ -461,6 +469,10 @@ typedef struct SbMediaAudioConfiguration {
 // The |WAVEFORMATEX| structure is specified at:
 // http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx
 typedef struct SbMediaAudioSampleInfo {
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  // The video codec of this sample.
+  SbMediaAudioCodec codec;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   // The waveform-audio format type code.
   uint16_t format_tag;
 
@@ -491,11 +503,11 @@ typedef struct SbMediaAudioSampleInfo {
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 } SbMediaAudioSampleInfo;
 
-#if SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 // SbMediaAudioHeader is same as SbMediaAudioSampleInfo in old starboard
 // version.
 typedef SbMediaAudioSampleInfo SbMediaAudioHeader;
-#endif  // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 
 #if SB_API_VERSION < 10
 // --- Constants -------------------------------------------------------------

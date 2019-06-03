@@ -221,6 +221,7 @@ SbTime VideoDecoder::GetPrerollTimeout() const {
 void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
+  SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
   if (!first_buffer_received_) {
@@ -229,12 +230,12 @@ void VideoDecoder::WriteInputBuffer(
 
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
-    auto* color_metadata = input_buffer->video_sample_info()->color_metadata;
-    if (color_metadata && !IsIdentity(*color_metadata)) {
+    auto& color_metadata = input_buffer->video_sample_info().color_metadata;
+    if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
-      color_metadata_ = *color_metadata;
+      color_metadata_ = color_metadata;
     }
 
     // Re-initialize the codec now if it was torn down either in |Reset| or

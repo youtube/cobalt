@@ -91,6 +91,12 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           SbMediaAudioSampleInfoWithConfig* audio_sample_info) {
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  Read(read_cb, reverse_byte_order, &audio_sample_info->codec);
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaAudioCodec codec;
+  Read(read_cb, reverse_byte_order, &codec);
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   Read(read_cb, reverse_byte_order, &audio_sample_info->format_tag);
   Read(read_cb, reverse_byte_order, &audio_sample_info->number_of_channels);
   Read(read_cb, reverse_byte_order, &audio_sample_info->samples_per_second);
@@ -117,7 +123,9 @@ void Read(const ReadCB& read_cb,
 }
 
 void Write(const WriteCB& write_cb,
+           SbMediaAudioCodec audio_codec,
            const SbMediaAudioSampleInfo& audio_sample_info) {
+  Write(write_cb, audio_codec);
   Write(write_cb, audio_sample_info.format_tag);
   Write(write_cb, audio_sample_info.number_of_channels);
   Write(write_cb, audio_sample_info.samples_per_second);
@@ -169,20 +177,23 @@ void Write(const WriteCB& write_cb, const SbDrmSampleInfo& drm_sample_info) {
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           SbMediaVideoSampleInfoWithOptionalColorMetadata* video_sample_info) {
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  Read(read_cb, reverse_byte_order, &video_sample_info->codec);
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaVideoCodec codec;
+  Read(read_cb, reverse_byte_order, &codec);
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   Read(read_cb, reverse_byte_order, &video_sample_info->is_key_frame);
   Read(read_cb, reverse_byte_order, &video_sample_info->frame_width);
   Read(read_cb, reverse_byte_order, &video_sample_info->frame_height);
-  bool has_color_metadata;
 
-  Read(read_cb, reverse_byte_order, &has_color_metadata);
-
-  if (!has_color_metadata) {
-    video_sample_info->color_metadata = NULL;
-    return;
-  }
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  auto& color_metadata = video_sample_info->color_metadata;
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   video_sample_info->color_metadata = &video_sample_info->stored_color_metadata;
-
   auto& color_metadata = *video_sample_info->color_metadata;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+
   Read(read_cb, reverse_byte_order, &color_metadata.bits_per_channel);
   Read(read_cb, reverse_byte_order,
        &color_metadata.chroma_subsampling_horizontal);
@@ -225,18 +236,20 @@ void Read(const ReadCB& read_cb,
 }
 
 void Write(const WriteCB& write_cb,
+           SbMediaVideoCodec video_codec,
            const SbMediaVideoSampleInfo& video_sample_info) {
+  Write(write_cb, video_codec);
   Write(write_cb, video_sample_info.is_key_frame);
   Write(write_cb, video_sample_info.frame_width);
   Write(write_cb, video_sample_info.frame_height);
 
-  if (!video_sample_info.color_metadata) {
-    Write(write_cb, false);
-    return;
-  }
-  Write(write_cb, true);
-
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  auto& color_metadata = video_sample_info.color_metadata;
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SB_DCHECK(video_sample_info.color_metadata);
   auto& color_metadata = *video_sample_info.color_metadata;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+
   Write(write_cb, color_metadata.bits_per_channel);
   Write(write_cb, color_metadata.chroma_subsampling_horizontal);
   Write(write_cb, color_metadata.chroma_subsampling_vertical);
