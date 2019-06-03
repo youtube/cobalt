@@ -86,6 +86,10 @@ SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
     const AudioDecoderConfig& audio_decoder_config) {
   SbMediaAudioSampleInfo audio_sample_info;
 
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  audio_sample_info.codec =
+      MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   // TODO: Make this work with non AAC audio.
   audio_sample_info.format_tag = 0x00ff;
   audio_sample_info.number_of_channels =
