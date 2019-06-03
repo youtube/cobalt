@@ -1285,8 +1285,7 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
         (decoder_config.natural_size().width() != natural_size_.width() ||
          decoder_config.natural_size().height() != natural_size_.height());
     natural_size_ = decoder_config.natural_size();
-    player_->UpdateVideoResolution(static_cast<int>(natural_size_.width()),
-                                   static_cast<int>(natural_size_.height()));
+    player_->UpdateVideoConfig(decoder_config);
     if (natural_size_changed) {
       content_size_change_cb_.Run();
     }

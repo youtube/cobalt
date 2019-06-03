@@ -146,6 +146,13 @@ StarboardPlayer::StarboardPlayer(
   DCHECK(set_bounds_helper_);
   DCHECK(video_frame_provider_);
 
+  if (audio_config.IsValidConfig()) {
+    UpdateAudioConfig(audio_config);
+  }
+  if (video_config.IsValidConfig()) {
+    UpdateVideoConfig(video_config);
+  }
+
   output_mode_ = ComputeSbPlayerOutputMode(
       MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
       prefer_decode_to_texture);
@@ -172,13 +179,6 @@ StarboardPlayer::~StarboardPlayer() {
   }
 }
 
-void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
-
-  frame_width_ = frame_width;
-  frame_height_ = frame_height;
-}
-
 void StarboardPlayer::UpdateAudioConfig(
     const AudioDecoderConfig& audio_config) {
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -186,6 +186,28 @@ void StarboardPlayer::UpdateAudioConfig(
 
   audio_config_ = audio_config;
   audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+}
+
+void StarboardPlayer::UpdateVideoConfig(
+    const VideoDecoderConfig& video_config) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(video_config.IsValidConfig());
+
+  video_config_ = video_config;
+  video_sample_info_.frame_width =
+      static_cast<int>(video_config_.natural_size().width());
+  video_sample_info_.frame_height =
+      static_cast<int>(video_config_.natural_size().height());
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  video_sample_info_.codec =
+      MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
+  video_sample_info_.color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  media_color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
+  video_sample_info_.color_metadata = &media_color_metadata;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 }
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
@@ -331,11 +353,11 @@ void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
   SbPlayerInfo2 out_player_info;
   SbPlayerGetInfo2(player_, &out_player_info);
 
-  frame_width_ = out_player_info.frame_width;
-  frame_height_ = out_player_info.frame_height;
+  video_sample_info_.frame_width = out_player_info.frame_width;
+  video_sample_info_.frame_height = out_player_info.frame_height;
 
-  *frame_width = frame_width_;
-  *frame_height = frame_height_;
+  *frame_width = video_sample_info_.frame_width;
+  *frame_height = video_sample_info_.frame_height;
 }
 
 base::TimeDelta StarboardPlayer::GetDuration() {
@@ -495,21 +517,22 @@ void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(task_runner_->BelongsToCurrentThread());
 
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
+  SbMediaVideoCodec video_codec = video_sample_info_.codec;
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-  bool has_audio = audio_config_.IsValidConfig();
-  if (has_audio) {
-    audio_sample_info_ =
-        MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+  if (audio_config_.IsValidConfig()) {
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   }
-
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
   if (video_config_.IsValidConfig()) {
     video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   }
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
-
+  bool has_audio = audio_codec != kSbMediaAudioCodecNone;
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec,
 #if SB_API_VERSION < 10
@@ -582,25 +605,37 @@ void StarboardPlayer::WriteBufferInternal(
     ++iter->second.second;
   }
 
+  auto sample_type = DemuxerStreamTypeToSbMediaType(type);
   SbDrmSampleInfo drm_info;
   SbDrmSubSampleMapping subsample_mapping;
-  bool is_encrypted = buffer->decrypt_config();
-  SbMediaVideoSampleInfo video_info;
-
   drm_info.subsample_count = 0;
-  video_info.is_key_frame = buffer->is_key_frame();
-  video_info.frame_width = frame_width_;
-  video_info.frame_height = frame_height_;
-
-  SbMediaColorMetadata sb_media_color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-  video_info.color_metadata = &sb_media_color_metadata;
-
-  if (is_encrypted) {
+  if (buffer->decrypt_config()) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-  auto sample_type = DemuxerStreamTypeToSbMediaType(type);
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
+
+  SbPlayerSampleInfo sample_info;
+  sample_info.type = sample_type;
+  sample_info.buffer = allocations.buffers()[0];
+  sample_info.buffer_size = allocations.buffer_sizes()[0];
+  sample_info.timestamp = buffer->timestamp().InMicroseconds();
+  if (sample_type == kSbMediaTypeAudio) {
+    sample_info.audio_sample_info = audio_sample_info_;
+  } else {
+    DCHECK(sample_type == kSbMediaTypeVideo);
+    sample_info.video_sample_info = video_sample_info_;
+    sample_info.video_sample_info.is_key_frame = buffer->is_key_frame();
+  }
+  if (drm_info.subsample_count > 0) {
+    sample_info.drm_info = &drm_info;
+  } else {
+    sample_info.drm_info = NULL;
+  }
+  SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
+#else  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  video_sample_info_.is_key_frame = buffer->is_key_frame();
 #if SB_API_VERSION < 10
   SbPlayerWriteSample(
       player_, sample_type,
@@ -612,22 +647,18 @@ void StarboardPlayer::WriteBufferInternal(
 #endif  // SB_API_VERSION >= 6
       allocations.number_of_buffers(),
       SB_TIME_TO_SB_MEDIA_TIME(buffer->timestamp().InMicroseconds()),
-      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
       drm_info.subsample_count > 0 ? &drm_info : NULL);
 #else   // SB_API_VERSION < 10
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
   SbPlayerSampleInfo sample_info = {
-    allocations.buffers()[0],
-    allocations.buffer_sizes()[0],
-    buffer->timestamp().InMicroseconds(),
-#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-    type == DemuxerStream::AUDIO ? &audio_sample_info_ : NULL,
-#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-    type == DemuxerStream::VIDEO ? &video_info : NULL,
-    drm_info.subsample_count > 0 ? &drm_info : NULL
-  };
+      allocations.buffers()[0], allocations.buffer_sizes()[0],
+      buffer->timestamp().InMicroseconds(),
+      type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
+      drm_info.subsample_count > 0 ? &drm_info : NULL};
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #endif  // SB_API_VERSION < 10
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 }
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
