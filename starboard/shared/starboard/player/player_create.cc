@@ -137,7 +137,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
-  VideoDmpWriter::OnPlayerCreate(player, video_codec, audio_codec, drm_system,
+  VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec, drm_system,
                                  audio_sample_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 

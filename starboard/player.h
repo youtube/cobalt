@@ -119,20 +119,29 @@ typedef enum SbPlayerOutputMode {
 
 // Information about the samples to be written into SbPlayerWriteSample2.
 typedef struct SbPlayerSampleInfo {
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaType type;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   // Points to the buffer containing the sample data.
   const void* buffer;
   // Size of the data pointed to by |buffer|.
   int buffer_size;
   // The timestamp of the sample in SbTime.
   SbTime timestamp;
-#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-  // Information about an audio sample. This value is required for audio
-  // samples. Otherwise, it must be |NULL|.
-  const SbMediaAudioSampleInfo* audio_sample_info;
-#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  union {
+    // Information about an audio sample. This value can only be used when
+    // |type| is kSbMediaTypeAudio.
+    SbMediaAudioSampleInfo audio_sample_info;
+    // Information about a video sample. This value can only be used when |type|
+    // is kSbMediaTypeVideo.
+    SbMediaVideoSampleInfo video_sample_info;
+  };
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   // Information about a video sample. This value is required for video samples.
   // Otherwise, it must be |NULL|.
   const SbMediaVideoSampleInfo* video_sample_info;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   // The DRM system related info for the media sample. This value is required
   // for encrypted samples. Otherwise, it must be |NULL|.
   const SbDrmSampleInfo* drm_info;
@@ -355,15 +364,15 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   |SbDrmCreateSystem()|. If the stream does not have encrypted portions,
 //   then |drm_system| may be |kSbDrmSystemInvalid|.
 //
-#if SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 // |audio_header|: |audio_header| is same as |audio_sample_info| in old
 // starboard version.
-#else   // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#else   // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 // |audio_sample_info|: Note that the caller must provide a populated
 //   |audio_sample_info| if the audio codec is |kSbMediaAudioCodecAac|.
 //   Otherwise, |audio_sample_info| can be NULL. See media.h for the format of
 //   the |SbMediaAudioSampleInfo| struct.
-#endif  // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 //   Note that |audio_specific_config| is a pointer and the content it points to
 //   is no longer valid after this function returns.  The implementation has to
@@ -434,11 +443,11 @@ SbPlayerCreate(SbWindow window,
                SbMediaTime duration_pts,
 #endif  // SB_API_VERSION < 10
                SbDrmSystem drm_system,
-#if SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
                const SbMediaAudioHeader* audio_header,
-#else   // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#else   // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
                const SbMediaAudioSampleInfo* audio_sample_info,
-#endif  // SB_API_VERSION < SB_HAS_ADAPTIVE_AUDIO_VERSION
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 #if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
                const char* max_video_capabilities,
 #endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION

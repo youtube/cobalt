@@ -189,14 +189,13 @@ void VideoDecoder::TeardownCodec() {
 void VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-
   SB_DCHECK(input_buffer);
-  const SbMediaVideoSampleInfo* sample_info = input_buffer->video_sample_info();
-  SB_DCHECK(sample_info);
-  if (!context_ || sample_info->frame_width != current_frame_width_ ||
-      sample_info->frame_height != current_frame_height_) {
-    current_frame_width_ = sample_info->frame_width;
-    current_frame_height_ = sample_info->frame_height;
+
+  const SbMediaVideoSampleInfo& sample_info = input_buffer->video_sample_info();
+  if (!context_ || sample_info.frame_width != current_frame_width_ ||
+      sample_info.frame_height != current_frame_height_) {
+    current_frame_width_ = sample_info.frame_width;
+    current_frame_height_ = sample_info.frame_height;
     TeardownCodec();
     InitializeCodec();
   }

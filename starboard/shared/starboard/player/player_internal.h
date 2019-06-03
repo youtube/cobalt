@@ -42,15 +42,12 @@ struct SbPlayerPrivate {
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(SbTime seek_to_time, int ticket);
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  void WriteSample(const SbPlayerSampleInfo& sample_info);
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   void WriteSample(SbMediaType sample_type,
-                   const void* sample_buffer,
-                   int sample_buffer_size,
-                   SbTime sample_time,
-#if SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-                   const SbMediaAudioSampleInfo* audio_sample_info,
-#endif  // SB_API_VERSION >= SB_HAS_ADAPTIVE_AUDIO_VERSION
-                   const SbMediaVideoSampleInfo* video_sample_info,
-                   const SbDrmSampleInfo* sample_drm_info);
+                   const SbPlayerSampleInfo& sample_info);
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   void WriteEndOfStream(SbMediaType stream_type);
   void SetBounds(int z_index, int x, int y, int width, int height);
 
@@ -90,8 +87,10 @@ struct SbPlayerPrivate {
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
-
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   SbMediaAudioSampleInfo audio_sample_info_;
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+
   starboard::Mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   SbTime media_time_ = 0;
