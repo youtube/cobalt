@@ -105,7 +105,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
     ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
     ASSERT_TRUE(
-        dmp_reader_.GetVideoInputBuffer(0)->video_sample_info()->is_key_frame);
+        dmp_reader_.GetVideoInputBuffer(0)->video_sample_info().is_key_frame);
 
     SbPlayerOutputMode output_mode = GetParam().output_mode;
     ASSERT_TRUE(VideoDecoder::OutputModeSupported(
@@ -622,7 +622,7 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   while (gop_size < dmp_reader_.number_of_video_buffers()) {
     if (dmp_reader_.GetVideoInputBuffer(gop_size)
             ->video_sample_info()
-            ->is_key_frame) {
+            .is_key_frame) {
       break;
     }
     ++gop_size;
@@ -657,8 +657,8 @@ std::vector<TestParam> GetSupportedTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
 
-  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
-                              "beneath_the_canopy_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_137_avc.dmp",
+                              "beneath_the_canopy_248_vp9.dmp"};
 
   static std::vector<TestParam> test_params;
 
@@ -684,7 +684,7 @@ std::vector<TestParam> GetSupportedTests() {
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-              video_sample_info->frame_width, video_sample_info->frame_height,
+              video_sample_info.frame_width, video_sample_info.frame_height,
               dmp_reader.video_bitrate(), dmp_reader.video_fps()
 #if SB_API_VERSION >= 10
                                               ,

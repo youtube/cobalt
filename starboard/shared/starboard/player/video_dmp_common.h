@@ -33,6 +33,7 @@ namespace video_dmp {
 // Video dmp file format
 // File: <Byte Order Mark> <Record>*
 //   Byte Order Mark: 0x76543210
+//   Dmp writer version number: 0x00010000
 //   Record: <4 bytes fourcc type> + <4 bytes size> + <|size| bytes binary data>
 //
 //     audio config:
@@ -44,16 +45,18 @@ namespace video_dmp {
 //       fourcc type: 'vcfg'
 //       2 bytes video codec type in SbMediaVideoCodec
 //
-//     audio/video access unit;
+//     audio/video access unit:
 //       fourcc type: 'adat'/'vdat'
 //       <8 bytes time stamp in SbTime>
-//       <4 bytes size of key_id> + |size| bytes of key id
-//       <4 bytes size of iv> + |size| bytes of iv
-//       <4 bytes count> (0 for non-encrypted AU/frame)
-//         (subsample: 4 bytes clear size, 4 bytes encrypted size) * |count|
+//       <1 byte of drm_sample_info_present in bool>
+//         <4 bytes size of key_id> + |size| bytes of key id
+//         <4 bytes size of iv> + |size| bytes of iv
+//         <4 bytes count> (0 for non-encrypted AU/frame)
+//           (subsample: 4 bytes clear size, 4 bytes encrypted size) * |count|
 //       <4 bytes size>
 //         |size| bytes encoded binary data
-//       all members of SbMediaVideoSampleInfo for video access units
+//       all members of SbMediaAudioSampleInfo/SbMediaVideoSampleInfo
+//         for audio/video access units
 
 typedef std::function<int(const void*, int size)> WriteCB;
 typedef std::function<int(void*, int size)> ReadCB;
@@ -105,9 +108,11 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
       const SbMediaVideoSampleInfoWithOptionalColorMetadata& that)
       : SbMediaVideoSampleInfo(that),
         stored_color_metadata(that.stored_color_metadata) {
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
     if (color_metadata) {
       color_metadata = &stored_color_metadata;
     }
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   }
   void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) =
       delete;
@@ -116,6 +121,7 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
 };
 
 const uint32_t kByteOrderMark = 0x76543210;
+const uint32_t kSupportWriterVersion = 0x00001000;
 
 void Read(const ReadCB& read_cb, void* buffer, size_t size);
 
@@ -151,6 +157,7 @@ void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           SbMediaAudioSampleInfoWithConfig* audio_sample_info);
 void Write(const WriteCB& write_cb,
+           SbMediaAudioCodec audio_codec,
            const SbMediaAudioSampleInfo& audio_sample_info);
 
 void Read(const ReadCB& read_cb,
@@ -162,6 +169,7 @@ void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           SbMediaVideoSampleInfoWithOptionalColorMetadata* video_sample_info);
 void Write(const WriteCB& write_cb,
+           SbMediaVideoCodec video_codec,
            const SbMediaVideoSampleInfo& video_sample_info);
 
 }  // namespace video_dmp

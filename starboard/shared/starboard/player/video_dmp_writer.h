@@ -18,6 +18,7 @@
 #include "starboard/file.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
@@ -35,34 +36,28 @@ class VideoDmpWriter {
   ~VideoDmpWriter();
 
   static void OnPlayerCreate(SbPlayer player,
-                             SbMediaVideoCodec video_codec,
                              SbMediaAudioCodec audio_codec,
+                             SbMediaVideoCodec video_codec,
                              SbDrmSystem drm_system,
                              const SbMediaAudioSampleInfo* audio_sample_info);
   static void OnPlayerWriteSample(
       SbPlayer player,
-      SbMediaType sample_type,
-      const void* sample_buffer,
-      int sample_buffer_size,
-      SbTime sample_timestamp,
-      const SbMediaVideoSampleInfo* video_sample_info,
-      const SbDrmSampleInfo* drm_sample_info);
+      const scoped_refptr<InputBuffer>& input_buffer);
   static void OnPlayerDestroy(SbPlayer player);
 
  private:
   void DumpConfigs(SbMediaVideoCodec video_codec,
                    SbMediaAudioCodec audio_codec,
                    const SbMediaAudioSampleInfo* audio_sample_info);
-  void DumpAccessUnit(SbMediaType sample_type,
-                      const void* sample_buffer,
-                      int sample_buffer_size,
-                      SbTime sample_timestamp,
-                      const SbMediaVideoSampleInfo* video_sample_info,
-                      const SbDrmSampleInfo* drm_sample_info);
+  void DumpAccessUnit(const scoped_refptr<InputBuffer>& input_buffer);
   int WriteToFile(const void* buffer, int size);
 
   SbFile file_;
   WriteCB write_cb_;
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaAudioCodec audio_codec_;
+  SbMediaVideoCodec video_codec_;
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 };
 
 }  // namespace video_dmp

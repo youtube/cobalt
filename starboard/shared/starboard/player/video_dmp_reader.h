@@ -58,7 +58,21 @@ class VideoDmpReader {
     std::vector<uint8_t> data_;
   };
 
-  typedef AccessUnit AudioAccessUnit;
+  class AudioAccessUnit : public AccessUnit {
+   public:
+    AudioAccessUnit(SbTime timestamp,
+                    const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
+                    std::vector<uint8_t> data,
+                    const SbMediaAudioSampleInfoWithConfig& audio_sample_info)
+        : AccessUnit(timestamp, drm_sample_info, std::move(data)),
+          audio_sample_info_(audio_sample_info) {}
+    const SbMediaAudioSampleInfo& audio_sample_info() const {
+      return audio_sample_info_;
+    }
+
+   private:
+    SbMediaAudioSampleInfoWithConfig audio_sample_info_;
+  };
 
   class VideoAccessUnit : public AccessUnit {
    public:
