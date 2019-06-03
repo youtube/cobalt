@@ -84,9 +84,8 @@ class StarboardPlayer {
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
-  void UpdateVideoResolution(int frame_width, int frame_height);
-
   void UpdateAudioConfig(const AudioDecoderConfig& audio_config);
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
 
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
@@ -215,8 +214,6 @@ class StarboardPlayer {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   scoped_refptr<CallbackHelper> callback_helper_;
-  AudioDecoderConfig audio_config_;
-  VideoDecoderConfig video_config_;
   const SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
@@ -226,15 +223,19 @@ class StarboardPlayer {
 
   // The following variables are only changed or accessed from the
   // |message_loop_|.
-  int frame_width_ = 1;
-  int frame_height_ = 1;
+  AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
+  SbMediaAudioSampleInfo audio_sample_info_ = {};
+  SbMediaVideoSampleInfo video_sample_info_ = {};
+#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  SbMediaColorMetadata media_color_metadata;
+#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   DecodingBuffers decoding_buffers_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   float volume_ = 1.0f;
   double playback_rate_ = 0.0;
   bool seek_pending_ = false;
   DecoderBufferCache decoder_buffer_cache_;
-  SbMediaAudioSampleInfo audio_sample_info_;
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
