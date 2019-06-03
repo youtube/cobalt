@@ -104,16 +104,6 @@
             'src/string/memset.c',
           ],
         }],
-        # Excluded as they crash on Cobalt Evergreen.
-        ['sb_evergreen != 1', {
-          'sources': [
-            'src/string/memchr.c',
-            'src/string/strchr.c',
-            'src/string/strchrnul.c',
-            'src/string/strcspn.c',
-            'src/string/stpncpy.c',
-          ],
-        }],
       ],
       'sources': [
         'src/ctype/__ctype_b_loc.c',
@@ -376,6 +366,7 @@
         'src/string/explicit_bzero.c',
         'src/string/index.c',
         'src/string/memccpy.c',
+        'src/string/memchr.c',
         'src/string/memcmp.c',
         'src/string/memcpy.c',
         'src/string/memmem.c',
@@ -385,9 +376,13 @@
         'src/string/memset.c',
         'src/string/rindex.c',
         'src/string/stpcpy.c',
+        'src/string/stpncpy.c',
         'src/string/strcat.c',
+        'src/string/strchr.c',
+        'src/string/strchrnul.c',
         'src/string/strcmp.c',
         'src/string/strcpy.c',
+        'src/string/strcspn.c',
         'src/string/strlcat.c',
         'src/string/strlcpy.c',
         'src/string/strlen.c',
