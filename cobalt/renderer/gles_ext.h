@@ -41,8 +41,6 @@
 #define GL_HSL_SATURATION_KHR 0x92AE
 #define GL_HSL_COLOR_KHR 0x92AF
 #define GL_HSL_LUMINOSITY_KHR 0x92B0
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_KHR_blend_equation_advanced
 
 #ifndef GL_KHR_blend_equation_advanced_coherent
@@ -99,8 +97,6 @@
 #define GL_CONTEXT_FLAG_DEBUG_BIT_KHR 0x00000002
 #define GL_STACK_OVERFLOW_KHR 0x0503
 #define GL_STACK_UNDERFLOW_KHR 0x0504
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_KHR_debug
 
 #ifndef GL_KHR_no_error
@@ -112,8 +108,6 @@
 #define GL_KHR_parallel_shader_compile 1
 #define GL_MAX_SHADER_COMPILER_THREADS_KHR 0x91B0
 #define GL_COMPLETION_STATUS_KHR 0x91B1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_KHR_parallel_shader_compile
 
 #ifndef GL_KHR_robust_buffer_access_behavior
@@ -130,8 +124,6 @@
 #define GL_RESET_NOTIFICATION_STRATEGY_KHR 0x8256
 #define GL_NO_RESET_NOTIFICATION_KHR 0x8261
 #define GL_CONTEXT_LOST_KHR 0x0507
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_KHR_robustness
 
 #ifndef GL_KHR_texture_compression_astc_hdr
@@ -176,8 +168,6 @@
 
 #ifndef GL_OES_EGL_image
 #define GL_OES_EGL_image 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_EGL_image
 
 #ifndef GL_OES_EGL_image_external
@@ -217,8 +207,6 @@
 
 #ifndef GL_OES_copy_image
 #define GL_OES_copy_image 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_copy_image
 
 #ifndef GL_OES_depth24
@@ -237,16 +225,10 @@
 
 #ifndef GL_OES_draw_buffers_indexed
 #define GL_OES_draw_buffers_indexed 1
-#define GL_MIN 0x8007
-#define GL_MAX 0x8008
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_draw_buffers_indexed
 
 #ifndef GL_OES_draw_elements_base_vertex
 #define GL_OES_draw_elements_base_vertex 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_draw_elements_base_vertex
 
 #ifndef GL_OES_element_index_uint
@@ -300,8 +282,6 @@
 #define GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS_OES 0x8DA8
 #define GL_FRAMEBUFFER_ATTACHMENT_LAYERED_OES 0x8DA7
 #define GL_REFERENCED_BY_GEOMETRY_SHADER_OES 0x9309
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_geometry_shader
 
 #ifndef GL_OES_get_program_binary
@@ -309,8 +289,6 @@
 #define GL_PROGRAM_BINARY_LENGTH_OES 0x8741
 #define GL_NUM_PROGRAM_BINARY_FORMATS_OES 0x87FE
 #define GL_PROGRAM_BINARY_FORMATS_OES 0x87FF
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_get_program_binary
 
 #ifndef GL_OES_gpu_shader5
@@ -323,8 +301,6 @@
 #define GL_BUFFER_ACCESS_OES 0x88BB
 #define GL_BUFFER_MAPPED_OES 0x88BC
 #define GL_BUFFER_MAP_POINTER_OES 0x88BD
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_mapbuffer
 
 #ifndef GL_OES_packed_depth_stencil
@@ -337,8 +313,6 @@
 #ifndef GL_OES_primitive_bounding_box
 #define GL_OES_primitive_bounding_box 1
 #define GL_PRIMITIVE_BOUNDING_BOX_OES 0x92BE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_primitive_bounding_box
 
 #ifndef GL_OES_required_internalformat
@@ -365,8 +339,6 @@
 #define GL_OES_sample_shading 1
 #define GL_SAMPLE_SHADING_OES 0x8C36
 #define GL_MIN_SAMPLE_SHADING_VALUE_OES 0x8C37
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_sample_shading
 
 #ifndef GL_OES_sample_variables
@@ -457,8 +429,6 @@
 #define GL_TESS_EVALUATION_SHADER_OES 0x8E87
 #define GL_TESS_CONTROL_SHADER_BIT_OES 0x00000008
 #define GL_TESS_EVALUATION_SHADER_BIT_OES 0x00000010
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_tessellation_shader
 
 #ifndef GL_OES_texture_3D
@@ -469,16 +439,12 @@
 #define GL_MAX_3D_TEXTURE_SIZE_OES 0x8073
 #define GL_SAMPLER_3D_OES 0x8B5F
 #define GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_3D_ZOFFSET_OES 0x8CD4
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_texture_3D
 
 #ifndef GL_OES_texture_border_clamp
 #define GL_OES_texture_border_clamp 1
 #define GL_TEXTURE_BORDER_COLOR_OES 0x1004
 #define GL_CLAMP_TO_BORDER_OES 0x812D
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_texture_border_clamp
 
 #ifndef GL_OES_texture_buffer
@@ -497,8 +463,6 @@
 #define GL_UNSIGNED_INT_IMAGE_BUFFER_OES 0x9067
 #define GL_TEXTURE_BUFFER_OFFSET_OES 0x919D
 #define GL_TEXTURE_BUFFER_SIZE_OES 0x919E
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_texture_buffer
 
 #ifndef GL_OES_texture_compression_astc
@@ -572,8 +536,6 @@
 #define GL_SAMPLER_2D_MULTISAMPLE_ARRAY_OES 0x910B
 #define GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY_OES 0x910C
 #define GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY_OES 0x910D
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_texture_storage_multisample_2d_array
 
 #ifndef GL_OES_texture_view
@@ -582,16 +544,11 @@
 #define GL_TEXTURE_VIEW_NUM_LEVELS_OES 0x82DC
 #define GL_TEXTURE_VIEW_MIN_LAYER_OES 0x82DD
 #define GL_TEXTURE_VIEW_NUM_LAYERS_OES 0x82DE
-#define GL_TEXTURE_IMMUTABLE_LEVELS 0x82DF
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_texture_view
 
 #ifndef GL_OES_vertex_array_object
 #define GL_OES_vertex_array_object 1
 #define GL_VERTEX_ARRAY_BINDING_OES 0x85B5
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_vertex_array_object
 
 #ifndef GL_OES_vertex_half_float
@@ -610,8 +567,6 @@
 #define GL_VIEWPORT_SUBPIXEL_BITS_OES 0x825C
 #define GL_VIEWPORT_BOUNDS_RANGE_OES 0x825D
 #define GL_VIEWPORT_INDEX_PROVOKING_VERTEX_OES 0x825F
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OES_viewport_array
 
 #ifndef GL_AMD_compressed_3DC_texture
@@ -635,8 +590,6 @@
 #define GL_MAX_DEPTH_STENCIL_FRAMEBUFFER_SAMPLES_AMD 0x91B5
 #define GL_NUM_SUPPORTED_MULTISAMPLE_MODES_AMD 0x91B6
 #define GL_SUPPORTED_MULTISAMPLE_MODES_AMD 0x91B7
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_AMD_framebuffer_multisample_advanced
 
 #ifndef GL_AMD_performance_monitor
@@ -648,8 +601,6 @@
 #define GL_PERFMON_RESULT_AVAILABLE_AMD 0x8BC4
 #define GL_PERFMON_RESULT_SIZE_AMD 0x8BC5
 #define GL_PERFMON_RESULT_AMD 0x8BC6
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_AMD_performance_monitor
 
 #ifndef GL_AMD_program_binary_Z400
@@ -671,8 +622,6 @@
 #define GL_DRAW_FRAMEBUFFER_ANGLE 0x8CA9
 #define GL_DRAW_FRAMEBUFFER_BINDING_ANGLE 0x8CA6
 #define GL_READ_FRAMEBUFFER_BINDING_ANGLE 0x8CAA
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_ANGLE_framebuffer_blit
 
 #ifndef GL_ANGLE_framebuffer_multisample
@@ -680,15 +629,11 @@
 #define GL_RENDERBUFFER_SAMPLES_ANGLE 0x8CAB
 #define GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_ANGLE 0x8D56
 #define GL_MAX_SAMPLES_ANGLE 0x8D57
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_ANGLE_framebuffer_multisample
 
 #ifndef GL_ANGLE_instanced_arrays
 #define GL_ANGLE_instanced_arrays 1
 #define GL_VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE 0x88FE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_ANGLE_instanced_arrays
 
 #ifndef GL_ANGLE_pack_reverse_row_order
@@ -720,8 +665,6 @@
 #ifndef GL_ANGLE_translated_shader_source
 #define GL_ANGLE_translated_shader_source 1
 #define GL_TRANSLATED_SHADER_SOURCE_LENGTH_ANGLE 0x93A0
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_ANGLE_translated_shader_source
 
 #ifndef GL_APPLE_clip_distance
@@ -743,8 +686,6 @@
 
 #ifndef GL_APPLE_copy_texture_levels
 #define GL_APPLE_copy_texture_levels 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_APPLE_copy_texture_levels
 
 #ifndef GL_APPLE_framebuffer_multisample
@@ -756,8 +697,6 @@
 #define GL_DRAW_FRAMEBUFFER_APPLE 0x8CA9
 #define GL_DRAW_FRAMEBUFFER_BINDING_APPLE 0x8CA6
 #define GL_READ_FRAMEBUFFER_BINDING_APPLE 0x8CAA
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_APPLE_framebuffer_multisample
 
 #ifndef GL_APPLE_rgb_422
@@ -786,8 +725,6 @@
 #define GL_WAIT_FAILED_APPLE 0x911D
 #define GL_SYNC_FLUSH_COMMANDS_BIT_APPLE 0x00000001
 #define GL_TIMEOUT_IGNORED_APPLE 0xFFFFFFFFFFFFFFFFull
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_APPLE_sync
 
 #ifndef GL_APPLE_texture_format_BGRA8888
@@ -851,8 +788,6 @@
 
 #ifndef GL_EXT_EGL_image_storage
 #define GL_EXT_EGL_image_storage 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_EGL_image_storage
 
 #ifndef GL_EXT_YUV_target
@@ -862,8 +797,6 @@
 
 #ifndef GL_EXT_base_instance
 #define GL_EXT_base_instance 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_base_instance
 
 #ifndef GL_EXT_blend_func_extended
@@ -875,8 +808,6 @@
 #define GL_SRC_ALPHA_SATURATE_EXT 0x0308
 #define GL_LOCATION_INDEX_EXT 0x930F
 #define GL_MAX_DUAL_SOURCE_DRAW_BUFFERS_EXT 0x88FC
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_blend_func_extended
 
 #ifndef GL_EXT_blend_minmax
@@ -887,8 +818,6 @@
 
 #ifndef GL_EXT_buffer_storage
 #define GL_EXT_buffer_storage 1
-#define GL_MAP_READ_BIT 0x0001
-#define GL_MAP_WRITE_BIT 0x0002
 #define GL_MAP_PERSISTENT_BIT_EXT 0x0040
 #define GL_MAP_COHERENT_BIT_EXT 0x0080
 #define GL_DYNAMIC_STORAGE_BIT_EXT 0x0100
@@ -896,14 +825,10 @@
 #define GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT_EXT 0x00004000
 #define GL_BUFFER_IMMUTABLE_STORAGE_EXT 0x821F
 #define GL_BUFFER_STORAGE_FLAGS_EXT 0x8220
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_buffer_storage
 
 #ifndef GL_EXT_clear_texture
 #define GL_EXT_clear_texture 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_clear_texture
 
 #ifndef GL_EXT_clip_control
@@ -914,8 +839,6 @@
 #define GL_ZERO_TO_ONE_EXT 0x935F
 #define GL_CLIP_ORIGIN_EXT 0x935C
 #define GL_CLIP_DEPTH_MODE_EXT 0x935D
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_clip_control
 
 #ifndef GL_EXT_clip_cull_distance
@@ -953,8 +876,6 @@
 
 #ifndef GL_EXT_copy_image
 #define GL_EXT_copy_image 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_copy_image
 
 #ifndef GL_EXT_debug_label
@@ -965,15 +886,10 @@
 #define GL_BUFFER_OBJECT_EXT 0x9151
 #define GL_QUERY_OBJECT_EXT 0x9153
 #define GL_VERTEX_ARRAY_OBJECT_EXT 0x9154
-#define GL_TRANSFORM_FEEDBACK 0x8E22
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_debug_label
 
 #ifndef GL_EXT_debug_marker
 #define GL_EXT_debug_marker 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_debug_marker
 
 #ifndef GL_EXT_depth_clamp
@@ -986,8 +902,6 @@
 #define GL_COLOR_EXT 0x1800
 #define GL_DEPTH_EXT 0x1801
 #define GL_STENCIL_EXT 0x1802
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_discard_framebuffer
 
 #ifndef GL_EXT_disjoint_timer_query
@@ -999,8 +913,6 @@
 #define GL_TIME_ELAPSED_EXT 0x88BF
 #define GL_TIMESTAMP_EXT 0x8E28
 #define GL_GPU_DISJOINT_EXT 0x8FBB
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_disjoint_timer_query
 
 #ifndef GL_EXT_draw_buffers
@@ -1039,38 +951,26 @@
 #define GL_COLOR_ATTACHMENT13_EXT 0x8CED
 #define GL_COLOR_ATTACHMENT14_EXT 0x8CEE
 #define GL_COLOR_ATTACHMENT15_EXT 0x8CEF
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_draw_buffers
 
 #ifndef GL_EXT_draw_buffers_indexed
 #define GL_EXT_draw_buffers_indexed 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_draw_buffers_indexed
 
 #ifndef GL_EXT_draw_elements_base_vertex
 #define GL_EXT_draw_elements_base_vertex 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_draw_elements_base_vertex
 
 #ifndef GL_EXT_draw_instanced
 #define GL_EXT_draw_instanced 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_draw_instanced
 
 #ifndef GL_EXT_draw_transform_feedback
 #define GL_EXT_draw_transform_feedback 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_draw_transform_feedback
 
 #ifndef GL_EXT_external_buffer
 #define GL_EXT_external_buffer 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_external_buffer
 
 #ifndef GL_EXT_float_blend
@@ -1116,8 +1016,6 @@
 #define GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS_EXT 0x8DA8
 #define GL_FRAMEBUFFER_ATTACHMENT_LAYERED_EXT 0x8DA7
 #define GL_REFERENCED_BY_GEOMETRY_SHADER_EXT 0x9309
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_geometry_shader
 
 #ifndef GL_EXT_gpu_shader5
@@ -1127,8 +1025,6 @@
 #ifndef GL_EXT_instanced_arrays
 #define GL_EXT_instanced_arrays 1
 #define GL_VERTEX_ATTRIB_ARRAY_DIVISOR_EXT 0x88FE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_instanced_arrays
 
 #ifndef GL_EXT_map_buffer_range
@@ -1139,8 +1035,6 @@
 #define GL_MAP_INVALIDATE_BUFFER_BIT_EXT 0x0008
 #define GL_MAP_FLUSH_EXPLICIT_BIT_EXT 0x0010
 #define GL_MAP_UNSYNCHRONIZED_BIT_EXT 0x0020
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_map_buffer_range
 
 #ifndef GL_EXT_memory_object
@@ -1156,15 +1050,11 @@
 #define GL_DEVICE_UUID_EXT 0x9597
 #define GL_DRIVER_UUID_EXT 0x9598
 #define GL_UUID_SIZE_EXT 16
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_memory_object
 
 #ifndef GL_EXT_memory_object_fd
 #define GL_EXT_memory_object_fd 1
 #define GL_HANDLE_TYPE_OPAQUE_FD_EXT 0x9586
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_memory_object_fd
 
 #ifndef GL_EXT_memory_object_win32
@@ -1178,20 +1068,14 @@
 #define GL_HANDLE_TYPE_D3D12_RESOURCE_EXT 0x958A
 #define GL_HANDLE_TYPE_D3D11_IMAGE_EXT 0x958B
 #define GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT 0x958C
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_memory_object_win32
 
 #ifndef GL_EXT_multi_draw_arrays
 #define GL_EXT_multi_draw_arrays 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_multi_draw_arrays
 
 #ifndef GL_EXT_multi_draw_indirect
 #define GL_EXT_multi_draw_indirect 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_multi_draw_indirect
 
 #ifndef GL_EXT_multisampled_compatibility
@@ -1206,8 +1090,6 @@
 #define GL_RENDERBUFFER_SAMPLES_EXT 0x8CAB
 #define GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_EXT 0x8D56
 #define GL_MAX_SAMPLES_EXT 0x8D57
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_multisampled_render_to_texture
 
 #ifndef GL_EXT_multiview_draw_buffers
@@ -1217,8 +1099,6 @@
 #define GL_DRAW_BUFFER_EXT 0x0C01
 #define GL_READ_BUFFER_EXT 0x0C02
 #define GL_MAX_MULTIVIEW_BUFFERS_EXT 0x90F2
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_multiview_draw_buffers
 
 #ifndef GL_EXT_multiview_tessellation_geometry_shader
@@ -1242,8 +1122,6 @@
 #ifndef GL_EXT_polygon_offset_clamp
 #define GL_EXT_polygon_offset_clamp 1
 #define GL_POLYGON_OFFSET_CLAMP_EXT 0x8E1B
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_polygon_offset_clamp
 
 #ifndef GL_EXT_post_depth_coverage
@@ -1253,8 +1131,6 @@
 #ifndef GL_EXT_primitive_bounding_box
 #define GL_EXT_primitive_bounding_box 1
 #define GL_PRIMITIVE_BOUNDING_BOX_EXT 0x92BE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_primitive_bounding_box
 
 #ifndef GL_EXT_protected_textures
@@ -1281,8 +1157,6 @@
 #define GL_RASTER_FIXED_SAMPLE_LOCATIONS_EXT 0x932A
 #define GL_MULTISAMPLE_RASTERIZATION_ALLOWED_EXT 0x932B
 #define GL_EFFECTIVE_RASTER_SAMPLES_EXT 0x932C
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_raster_multisample
 
 #ifndef GL_EXT_read_format_bgra
@@ -1293,9 +1167,6 @@
 
 #ifndef GL_EXT_render_snorm
 #define GL_EXT_render_snorm 1
-#define GL_R8_SNORM 0x8F94
-#define GL_RG8_SNORM 0x8F95
-#define GL_RGBA8_SNORM 0x8F97
 #define GL_R16_SNORM_EXT 0x8F98
 #define GL_RG16_SNORM_EXT 0x8F99
 #define GL_RGBA16_SNORM_EXT 0x8F9B
@@ -1310,8 +1181,6 @@
 #define GL_RESET_NOTIFICATION_STRATEGY_EXT 0x8256
 #define GL_LOSE_CONTEXT_ON_RESET_EXT 0x8252
 #define GL_NO_RESET_NOTIFICATION_EXT 0x8261
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_robustness
 
 #ifndef GL_EXT_sRGB
@@ -1338,22 +1207,16 @@
 #define GL_LAYOUT_TRANSFER_DST_EXT 0x9593
 #define GL_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_EXT 0x9530
 #define GL_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_EXT 0x9531
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_semaphore
 
 #ifndef GL_EXT_semaphore_fd
 #define GL_EXT_semaphore_fd 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_semaphore_fd
 
 #ifndef GL_EXT_semaphore_win32
 #define GL_EXT_semaphore_win32 1
 #define GL_HANDLE_TYPE_D3D12_FENCE_EXT 0x9594
 #define GL_D3D12_FENCE_VALUE_EXT 0x9595
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_semaphore_win32
 
 #ifndef GL_EXT_separate_shader_objects
@@ -1364,8 +1227,6 @@
 #define GL_ALL_SHADER_BITS_EXT 0xFFFFFFFF
 #define GL_PROGRAM_SEPARABLE_EXT 0x8258
 #define GL_PROGRAM_PIPELINE_BINDING_EXT 0x825A
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_separate_shader_objects
 
 #ifndef GL_EXT_shader_framebuffer_fetch
@@ -1375,8 +1236,6 @@
 
 #ifndef GL_EXT_shader_framebuffer_fetch_non_coherent
 #define GL_EXT_shader_framebuffer_fetch_non_coherent 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_shader_framebuffer_fetch_non_coherent
 
 #ifndef GL_EXT_shader_group_vote
@@ -1412,8 +1271,6 @@
 #define GL_MAX_SHADER_COMBINED_LOCAL_STORAGE_SIZE_EXT 0x9651
 #define GL_FRAMEBUFFER_INCOMPLETE_INSUFFICIENT_SHADER_COMBINED_LOCAL_STORAGE_EXT \
   0x9652
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_shader_pixel_local_storage2
 
 #ifndef GL_EXT_shader_texture_lod
@@ -1437,14 +1294,10 @@
 #define GL_VIRTUAL_PAGE_SIZE_X_EXT 0x9195
 #define GL_VIRTUAL_PAGE_SIZE_Y_EXT 0x9196
 #define GL_VIRTUAL_PAGE_SIZE_Z_EXT 0x9197
-#define GL_TEXTURE_2D_ARRAY 0x8C1A
-#define GL_TEXTURE_3D 0x806F
 #define GL_MAX_SPARSE_TEXTURE_SIZE_EXT 0x9198
 #define GL_MAX_SPARSE_3D_TEXTURE_SIZE_EXT 0x9199
 #define GL_MAX_SPARSE_ARRAY_TEXTURE_LAYERS_EXT 0x919A
 #define GL_SPARSE_TEXTURE_FULL_ARRAY_CUBE_MIPMAPS_EXT 0x91A9
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_sparse_texture
 
 #ifndef GL_EXT_sparse_texture2
@@ -1500,16 +1353,12 @@
 #define GL_TESS_EVALUATION_SHADER_EXT 0x8E87
 #define GL_TESS_CONTROL_SHADER_BIT_EXT 0x00000008
 #define GL_TESS_EVALUATION_SHADER_BIT_EXT 0x00000010
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_tessellation_shader
 
 #ifndef GL_EXT_texture_border_clamp
 #define GL_EXT_texture_border_clamp 1
 #define GL_TEXTURE_BORDER_COLOR_EXT 0x1004
 #define GL_CLAMP_TO_BORDER_EXT 0x812D
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_texture_border_clamp
 
 #ifndef GL_EXT_texture_buffer
@@ -1528,8 +1377,6 @@
 #define GL_UNSIGNED_INT_IMAGE_BUFFER_EXT 0x9067
 #define GL_TEXTURE_BUFFER_OFFSET_EXT 0x919D
 #define GL_TEXTURE_BUFFER_SIZE_EXT 0x919E
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_texture_buffer
 
 #ifndef GL_EXT_texture_compression_astc_decode_mode
@@ -1670,8 +1517,6 @@
 #define GL_LUMINANCE_ALPHA16F_EXT 0x881F
 #define GL_R32F_EXT 0x822E
 #define GL_RG32F_EXT 0x8230
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_texture_storage
 
 #ifndef GL_EXT_texture_type_2_10_10_10_REV
@@ -1685,8 +1530,6 @@
 #define GL_TEXTURE_VIEW_NUM_LEVELS_EXT 0x82DC
 #define GL_TEXTURE_VIEW_MIN_LAYER_EXT 0x82DD
 #define GL_TEXTURE_VIEW_NUM_LAYERS_EXT 0x82DE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_texture_view
 
 #ifndef GL_EXT_unpack_subimage
@@ -1698,8 +1541,6 @@
 
 #ifndef GL_EXT_win32_keyed_mutex
 #define GL_EXT_win32_keyed_mutex 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_win32_keyed_mutex
 
 #ifndef GL_EXT_window_rectangles
@@ -1710,8 +1551,6 @@
 #define GL_WINDOW_RECTANGLE_MODE_EXT 0x8F13
 #define GL_MAX_WINDOW_RECTANGLES_EXT 0x8F14
 #define GL_NUM_WINDOW_RECTANGLES_EXT 0x8F15
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_EXT_window_rectangles
 
 #ifndef GL_FJ_shader_binary_GCCSO
@@ -1721,8 +1560,6 @@
 
 #ifndef GL_IMG_bindless_texture
 #define GL_IMG_bindless_texture 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_IMG_bindless_texture
 
 #ifndef GL_IMG_framebuffer_downsample
@@ -1731,8 +1568,6 @@
 #define GL_NUM_DOWNSAMPLE_SCALES_IMG 0x913D
 #define GL_DOWNSAMPLE_SCALES_IMG 0x913E
 #define GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_SCALE_IMG 0x913F
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_IMG_framebuffer_downsample
 
 #ifndef GL_IMG_multisampled_render_to_texture
@@ -1741,8 +1576,6 @@
 #define GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_IMG 0x9134
 #define GL_MAX_SAMPLES_IMG 0x9135
 #define GL_TEXTURE_SAMPLES_IMG 0x9136
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_IMG_multisampled_render_to_texture
 
 #ifndef GL_IMG_program_binary
@@ -1794,8 +1627,6 @@
 
 #ifndef GL_INTEL_framebuffer_CMAA
 #define GL_INTEL_framebuffer_CMAA 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_INTEL_framebuffer_CMAA
 
 #ifndef GL_INTEL_performance_query
@@ -1820,8 +1651,6 @@
 #define GL_PERFQUERY_COUNTER_NAME_LENGTH_MAX_INTEL 0x94FE
 #define GL_PERFQUERY_COUNTER_DESC_LENGTH_MAX_INTEL 0x94FF
 #define GL_PERFQUERY_GPA_EXTENDED_COUNTERS_INTEL 0x9500
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_INTEL_performance_query
 
 #ifndef GL_MESA_framebuffer_flip_y
@@ -1844,8 +1673,6 @@
 
 #ifndef GL_NV_bindless_texture
 #define GL_NV_bindless_texture 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_bindless_texture
 
 #ifndef GL_NV_blend_equation_advanced
@@ -1899,8 +1726,6 @@
 #define GL_UNCORRELATED_NV 0x9282
 #define GL_VIVIDLIGHT_NV 0x92A6
 #define GL_XOR_NV 0x1506
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_blend_equation_advanced
 
 #ifndef GL_NV_blend_equation_advanced_coherent
@@ -1919,8 +1744,6 @@
 #define GL_VIEWPORT_POSITION_W_SCALE_NV 0x937C
 #define GL_VIEWPORT_POSITION_W_SCALE_X_COEFF_NV 0x937D
 #define GL_VIEWPORT_POSITION_W_SCALE_Y_COEFF_NV 0x937E
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_clip_space_w_scaling
 
 #ifndef GL_NV_compute_shader_derivatives
@@ -1933,8 +1756,6 @@
 #define GL_QUERY_NO_WAIT_NV 0x8E14
 #define GL_QUERY_BY_REGION_WAIT_NV 0x8E15
 #define GL_QUERY_BY_REGION_NO_WAIT_NV 0x8E16
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_conditional_render
 
 #ifndef GL_NV_conservative_raster
@@ -1943,8 +1764,6 @@
 #define GL_SUBPIXEL_PRECISION_BIAS_X_BITS_NV 0x9347
 #define GL_SUBPIXEL_PRECISION_BIAS_Y_BITS_NV 0x9348
 #define GL_MAX_SUBPIXEL_PRECISION_BIAS_BITS_NV 0x9349
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_conservative_raster
 
 #ifndef GL_NV_conservative_raster_pre_snap
@@ -1957,16 +1776,12 @@
 #define GL_CONSERVATIVE_RASTER_MODE_NV 0x954D
 #define GL_CONSERVATIVE_RASTER_MODE_POST_SNAP_NV 0x954E
 #define GL_CONSERVATIVE_RASTER_MODE_PRE_SNAP_TRIANGLES_NV 0x954F
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_conservative_raster_pre_snap_triangles
 
 #ifndef GL_NV_copy_buffer
 #define GL_NV_copy_buffer 1
 #define GL_COPY_READ_BUFFER_NV 0x8F36
 #define GL_COPY_WRITE_BUFFER_NV 0x8F37
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_copy_buffer
 
 #ifndef GL_NV_coverage_sample
@@ -1980,8 +1795,6 @@
 #define GL_COVERAGE_EDGE_FRAGMENTS_NV 0x8ED6
 #define GL_COVERAGE_AUTOMATIC_NV 0x8ED7
 #define GL_COVERAGE_BUFFER_BIT_NV 0x00008000
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_coverage_sample
 
 #ifndef GL_NV_depth_nonlinear
@@ -2024,20 +1837,14 @@
 #define GL_COLOR_ATTACHMENT13_NV 0x8CED
 #define GL_COLOR_ATTACHMENT14_NV 0x8CEE
 #define GL_COLOR_ATTACHMENT15_NV 0x8CEF
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_draw_buffers
 
 #ifndef GL_NV_draw_instanced
 #define GL_NV_draw_instanced 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_draw_instanced
 
 #ifndef GL_NV_draw_vulkan_image
 #define GL_NV_draw_vulkan_image 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_draw_vulkan_image
 
 #ifndef GL_NV_explicit_attrib_location
@@ -2054,8 +1861,6 @@
 #define GL_ALL_COMPLETED_NV 0x84F2
 #define GL_FENCE_STATUS_NV 0x84F3
 #define GL_FENCE_CONDITION_NV 0x84F4
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_fence
 
 #ifndef GL_NV_fill_rectangle
@@ -2067,8 +1872,6 @@
 #define GL_NV_fragment_coverage_to_color 1
 #define GL_FRAGMENT_COVERAGE_TO_COLOR_NV 0x92DD
 #define GL_FRAGMENT_COVERAGE_COLOR_NV 0x92DE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_fragment_coverage_to_color
 
 #ifndef GL_NV_fragment_shader_barycentric
@@ -2085,8 +1888,6 @@
 #define GL_DRAW_FRAMEBUFFER_NV 0x8CA9
 #define GL_DRAW_FRAMEBUFFER_BINDING_NV 0x8CA6
 #define GL_READ_FRAMEBUFFER_BINDING_NV 0x8CAA
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_framebuffer_blit
 
 #ifndef GL_NV_framebuffer_mixed_samples
@@ -2099,8 +1900,6 @@
 #define GL_MIXED_STENCIL_SAMPLES_SUPPORTED_NV 0x9330
 #define GL_COVERAGE_MODULATION_NV 0x9332
 #define GL_COVERAGE_MODULATION_TABLE_SIZE_NV 0x9333
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_framebuffer_mixed_samples
 
 #ifndef GL_NV_framebuffer_multisample
@@ -2108,8 +1907,6 @@
 #define GL_RENDERBUFFER_SAMPLES_NV 0x8CAB
 #define GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_NV 0x8D56
 #define GL_MAX_SAMPLES_NV 0x8D57
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_framebuffer_multisample
 
 #ifndef GL_NV_generate_mipmap_sRGB
@@ -2151,8 +1948,6 @@
 #define GL_FLOAT16_VEC3_NV 0x8FFA
 #define GL_FLOAT16_VEC4_NV 0x8FFB
 #define GL_PATCHES 0x000E
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_gpu_shader5
 
 #ifndef GL_NV_image_formats
@@ -2162,8 +1957,6 @@
 #ifndef GL_NV_instanced_arrays
 #define GL_NV_instanced_arrays 1
 #define GL_VERTEX_ATTRIB_ARRAY_DIVISOR_NV 0x88FE
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_instanced_arrays
 
 #ifndef GL_NV_internalformat_sample_query
@@ -2174,8 +1967,6 @@
 #define GL_SUPERSAMPLE_SCALE_X_NV 0x9372
 #define GL_SUPERSAMPLE_SCALE_Y_NV 0x9373
 #define GL_CONFORMANT_NV 0x9374
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_internalformat_sample_query
 
 #ifndef GL_NV_memory_attachment
@@ -2190,8 +1981,6 @@
 #define GL_DETACHED_BUFFERS_NV 0x95AB
 #define GL_MAX_DETACHED_TEXTURES_NV 0x95AC
 #define GL_MAX_DETACHED_BUFFERS_NV 0x95AD
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_memory_attachment
 
 #ifndef GL_NV_mesh_shader
@@ -2244,8 +2033,6 @@
 #define GL_TASK_SUBROUTINE_UNIFORM_NV 0x957F
 #define GL_ATOMIC_COUNTER_BUFFER_REFERENCED_BY_MESH_SHADER_NV 0x959E
 #define GL_ATOMIC_COUNTER_BUFFER_REFERENCED_BY_TASK_SHADER_NV 0x959F
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_mesh_shader
 
 #ifndef GL_NV_non_square_matrices
@@ -2256,8 +2043,6 @@
 #define GL_FLOAT_MAT3x4_NV 0x8B68
 #define GL_FLOAT_MAT4x2_NV 0x8B69
 #define GL_FLOAT_MAT4x3_NV 0x8B6A
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_non_square_matrices
 
 #ifndef GL_NV_path_rendering
@@ -2415,8 +2200,6 @@
 #define GL_PATH_MAX_PROJECTION_STACK_DEPTH_NV 0x0D38
 #define GL_PATH_TRANSPOSE_PROJECTION_MATRIX_NV 0x84E4
 #define GL_FRAGMENT_INPUT_NV 0x936D
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_path_rendering
 
 #ifndef GL_NV_path_rendering_shared_edge
@@ -2440,15 +2223,11 @@
 #define GL_POINT_NV 0x1B00
 #define GL_LINE_NV 0x1B01
 #define GL_FILL_NV 0x1B02
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_polygon_mode
 
 #ifndef GL_NV_read_buffer
 #define GL_NV_read_buffer 1
 #define GL_READ_BUFFER_NV 0x0C02
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_read_buffer
 
 #ifndef GL_NV_read_buffer_front
@@ -2496,8 +2275,6 @@
 #define GL_PROGRAMMABLE_SAMPLE_LOCATION_NV 0x9341
 #define GL_FRAMEBUFFER_PROGRAMMABLE_SAMPLE_LOCATIONS_NV 0x9342
 #define GL_FRAMEBUFFER_SAMPLE_LOCATION_PIXEL_GRID_NV 0x9343
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_sample_locations
 
 #ifndef GL_NV_sample_mask_override_coverage
@@ -2508,8 +2285,6 @@
 #define GL_NV_scissor_exclusive 1
 #define GL_SCISSOR_TEST_EXCLUSIVE_NV 0x9555
 #define GL_SCISSOR_BOX_EXCLUSIVE_NV 0x9556
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_scissor_exclusive
 
 #ifndef GL_NV_shader_atomic_fp16_vector
@@ -2547,8 +2322,6 @@
 #define GL_SHADING_RATE_SAMPLE_ORDER_DEFAULT_NV 0x95AE
 #define GL_SHADING_RATE_SAMPLE_ORDER_PIXEL_MAJOR_NV 0x95AF
 #define GL_SHADING_RATE_SAMPLE_ORDER_SAMPLE_MAJOR_NV 0x95B0
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_shading_rate_image
 
 #ifndef GL_NV_shadow_samplers_array
@@ -2585,8 +2358,6 @@
 #define GL_VIEWPORT_SUBPIXEL_BITS_NV 0x825C
 #define GL_VIEWPORT_BOUNDS_RANGE_NV 0x825D
 #define GL_VIEWPORT_INDEX_PROVOKING_VERTEX_NV 0x825F
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_viewport_array
 
 #ifndef GL_NV_viewport_array2
@@ -2607,8 +2378,6 @@
 #define GL_VIEWPORT_SWIZZLE_Y_NV 0x9359
 #define GL_VIEWPORT_SWIZZLE_Z_NV 0x935A
 #define GL_VIEWPORT_SWIZZLE_W_NV 0x935B
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_NV_viewport_swizzle
 
 #ifndef GL_OVR_multiview
@@ -2617,8 +2386,6 @@
 #define GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR 0x9632
 #define GL_MAX_VIEWS_OVR 0x9631
 #define GL_FRAMEBUFFER_INCOMPLETE_VIEW_TARGETS_OVR 0x9633
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OVR_multiview
 
 #ifndef GL_OVR_multiview2
@@ -2627,8 +2394,6 @@
 
 #ifndef GL_OVR_multiview_multisampled_render_to_texture
 #define GL_OVR_multiview_multisampled_render_to_texture 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_OVR_multiview_multisampled_render_to_texture
 
 #ifndef GL_QCOM_YUV_texture_gather
@@ -2640,8 +2405,6 @@
 #define GL_ALPHA_TEST_QCOM 0x0BC0
 #define GL_ALPHA_TEST_FUNC_QCOM 0x0BC1
 #define GL_ALPHA_TEST_REF_QCOM 0x0BC2
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_alpha_test
 
 #ifndef GL_QCOM_binning_control
@@ -2654,8 +2417,6 @@
 
 #ifndef GL_QCOM_driver_control
 #define GL_QCOM_driver_control 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_driver_control
 
 #ifndef GL_QCOM_extended_get
@@ -2671,22 +2432,16 @@
 #define GL_TEXTURE_TARGET_QCOM 0x8BDA
 #define GL_TEXTURE_OBJECT_VALID_QCOM 0x8BDB
 #define GL_STATE_RESTORE 0x8BDC
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_extended_get
 
 #ifndef GL_QCOM_extended_get2
 #define GL_QCOM_extended_get2 1
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_extended_get2
 
 #ifndef GL_QCOM_framebuffer_foveated
 #define GL_QCOM_framebuffer_foveated 1
 #define GL_FOVEATION_ENABLE_BIT_QCOM 0x00000001
 #define GL_FOVEATION_SCALED_BIN_METHOD_BIT_QCOM 0x00000002
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_framebuffer_foveated
 
 #ifndef GL_QCOM_perfmon_global_mode
@@ -2697,8 +2452,6 @@
 #ifndef GL_QCOM_shader_framebuffer_fetch_noncoherent
 #define GL_QCOM_shader_framebuffer_fetch_noncoherent 1
 #define GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM 0x96A2
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_shader_framebuffer_fetch_noncoherent
 
 #ifndef GL_QCOM_shader_framebuffer_fetch_rate
@@ -2712,8 +2465,6 @@
 #define GL_TEXTURE_FOVEATED_FEATURE_QUERY_QCOM 0x8BFD
 #define GL_TEXTURE_FOVEATED_NUM_FOCAL_POINTS_QUERY_QCOM 0x8BFE
 #define GL_FRAMEBUFFER_INCOMPLETE_FOVEATION_QCOM 0x8BFF
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_texture_foveated
 
 #ifndef GL_QCOM_texture_foveated_subsampled_layout
@@ -2756,8 +2507,6 @@
 #define GL_MULTISAMPLE_BUFFER_BIT5_QCOM 0x20000000
 #define GL_MULTISAMPLE_BUFFER_BIT6_QCOM 0x40000000
 #define GL_MULTISAMPLE_BUFFER_BIT7_QCOM 0x80000000
-#ifdef GL_GLEXT_PROTOTYPES
-#endif
 #endif  // GL_QCOM_tiled_rendering
 
 #ifndef GL_QCOM_writeonly_rendering
