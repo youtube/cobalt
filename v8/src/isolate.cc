@@ -3027,10 +3027,12 @@ bool Isolate::Init(StartupDeserializer* des) {
   // Quiet the heap NaN if needed on target platform.
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
+#if !V8_OS_STARBOARD
   if (FLAG_trace_turbo) {
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
   }
+#endif  // V8_OS_STARBOARD
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
@@ -3933,6 +3935,7 @@ BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
 }
 
 
+#if !V8_OS_STARBOARD
 std::string Isolate::GetTurboCfgFileName() {
   if (FLAG_trace_turbo_cfg_file == nullptr) {
     std::ostringstream os;
@@ -3942,6 +3945,7 @@ std::string Isolate::GetTurboCfgFileName() {
     return FLAG_trace_turbo_cfg_file;
   }
 }
+#endif  // !V8_OS_STARBOARD
 
 // Heap::detached_contexts tracks detached contexts as pairs
 // (number of GC since the context was detached, the context).
