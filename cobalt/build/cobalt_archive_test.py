@@ -22,6 +22,7 @@ import unittest
 import _env  # pylint: disable=relative-import,unused-import
 import cobalt.build.cobalt_archive as cobalt_archive
 import starboard.build.filelist as filelist
+import starboard.build.filelist_test as filelist_test
 import starboard.build.port_symlink as port_symlink
 from starboard.tools.util import SetupDefaultLoggingConfig
 
@@ -29,10 +30,10 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 class CobaltArchiveTest(unittest.TestCase):
 
   def testFoldIdenticalFiles(self):
-    tf_root = filelist.TempFileSystem('bundler_fold')
+    tf_root = filelist_test.TempFileSystem('bundler_fold')
     tf_root.Clear()
-    tf1 = filelist.TempFileSystem(os.path.join('bundler_fold', '1'))
-    tf2 = filelist.TempFileSystem(os.path.join('bundler_fold', '2'))
+    tf1 = filelist_test.TempFileSystem(os.path.join('bundler_fold', '1'))
+    tf2 = filelist_test.TempFileSystem(os.path.join('bundler_fold', '2'))
     tf1.Make()
     tf2.Make()
     flist = filelist.FileList()
@@ -48,7 +49,7 @@ class CobaltArchiveTest(unittest.TestCase):
 
   def testMakesDeployInfo(self):
     flist = filelist.FileList()
-    tf = filelist.TempFileSystem()
+    tf = filelist_test.TempFileSystem()
     tf.Clear()
     tf.Make()
     bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
@@ -71,7 +72,7 @@ class CobaltArchiveTest(unittest.TestCase):
 
   def testExtractTo(self):
     flist = filelist.FileList()
-    tf = filelist.TempFileSystem()
+    tf = filelist_test.TempFileSystem()
     tf.Clear()
     tf.Make()
     flist.AddSymLink(tf.root_in_tmp, tf.sym_dir)
