@@ -43,26 +43,26 @@ TEST(PerformanceTest, Now) {
 
 TEST(PerformanceTest, NavigationStart) {
   // navigationStart is supposed to return the time, in milliseconds, since
-  // the page was loaded, as described here:
-  //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-navigation-timing-interface
+  // January 1st, 1970 (UTC):
+  //   https://w3c.github.io/navigation-timing/#the-performancetiming-interface
   // We assume (and test) here though that navigationStart time will be set
-  // to the time that the NavigationTiming object was created, since it is
-  // not yet clear how things will be setup to support navigating to new
-  // web pages, and it is immediately useful to have the current functionality
-  // in place.
+  // relative to the time that the NavigationTiming object was created, since
+  // the object will be created at the beginning of a new navigation.
   scoped_refptr<base::SystemMonotonicClock> clock(
       new base::SystemMonotonicClock());
-  base::TimeDelta lower_limit = clock->Now();
+  base::Time lower_limit = base::Time::Now();
 
   scoped_refptr<PerformanceTiming> performance_timing(
       new PerformanceTiming(clock));
 
-  base::TimeDelta upper_limit = clock->Now();
+  base::Time upper_limit = base::Time::Now();
 
   DCHECK_GE(performance_timing->navigation_start(),
-            static_cast<uint64>(lower_limit.InMilliseconds()));
+            static_cast<uint64>(
+                (lower_limit - base::Time::UnixEpoch()).InMilliseconds()));
   DCHECK_LE(performance_timing->navigation_start(),
-            static_cast<uint64>(upper_limit.InMilliseconds()));
+            static_cast<uint64>(
+                (upper_limit - base::Time::UnixEpoch()).InMilliseconds()));
 }
 
 }  // namespace dom
