@@ -616,12 +616,12 @@ void PrintCode(Handle<Code> code, CompilationInfo* info) {
 // files. This change removes file related leaks from //v8.
 #if V8_OS_STARBOARD
 struct TurboCfgFile : public std::ostream {
-  explicit TurboCfgFile(Isolate*) {
+  explicit TurboCfgFile(Isolate*) : std::ostream(nullptr) {
     SB_LOG(WARNING) << "Cannot trace generated TurboFan IR for Starboard.";
   }
 };
 struct TurboJsonFile : public std::ostream {
-  TurboJsonFile(CompilationInfo*, std::ios_base::openmode) {
+  TurboJsonFile(CompilationInfo*, std::ios_base::openmode) : std::ostream(nullptr) {
     SB_LOG(WARNING) << "Cannot trace generated TurboFan IR for Starboard.";
   }
 };
