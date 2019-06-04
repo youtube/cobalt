@@ -295,7 +295,7 @@ class PlatformConfiguration(object):
     """
     return []
 
-  def GetDeployDirs(self):
+  def GetDeployPaths(self):
     """Gets directories that need to be deployed to the device.
 
        Returns:
