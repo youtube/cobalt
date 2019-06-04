@@ -17,7 +17,6 @@
 """Cross-platform unit test runner."""
 
 import cStringIO
-import logging
 import os
 import re
 import signal
@@ -30,6 +29,7 @@ import _env  # pylint: disable=unused-import, relative-import
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
+from starboard.tools import paths
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
 from starboard.tools.util import SetupDefaultLoggingConfig
@@ -538,8 +538,7 @@ class TestRunner(object):
       if self.out_directory:
         out_directory = self.out_directory
       else:
-        out_directory = abstract_launcher.DynamicallyBuildOutDirectory(
-            self.platform, self.config)
+        out_directory = paths.BuildOutputDirectory(self.platform, self.config)
 
       if ninja_flags:
         extra_flags = [ninja_flags]

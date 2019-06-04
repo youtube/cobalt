@@ -16,12 +16,12 @@
 """Abstraction for running Cobalt development tools."""
 
 import abc
-import importlib
 import os
 import sys
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import build
+from starboard.tools import paths
 
 
 def _GetLauncherForPlatform(platform_name):
@@ -39,23 +39,6 @@ def _GetLauncherForPlatform(platform_name):
     return None
   else:
     return gyp_config.GetLauncher()
-
-
-def DynamicallyBuildOutDirectory(platform_name, config):
-  """Constructs the location used to store executable targets/their components.
-
-  Args:
-    platform_name: The platform to run the executable on, ex. "linux-x64x11".
-    config: The build configuration, ex. "qa".
-
-  Returns:
-    The path to the directory containing executables and/or their components.
-  """
-  path = os.path.abspath(
-      os.path.join(
-          os.path.dirname(__file__), os.pardir, os.pardir, "out",
-          "{}_{}".format(platform_name, config)))
-  return path
 
 
 def LauncherFactory(platform_name,
@@ -114,11 +97,15 @@ class AbstractLauncher(object):
     self.target_name = target_name
     self.config = config
     self.device_id = device_id
-    self.out_directory = kwargs.get("out_directory", None)
 
     #  The following pattern makes sure that variables will be initialized
     #  properly whether a kwarg is passed in with a value of None or it
     #  is not passed in at all.
+    out_directory = kwargs.get("out_directory", None)
+    if not out_directory:
+      out_directory = paths.BuildOutputDirectory(platform_name, config)
+    self.out_directory = out_directory
+
     output_file = kwargs.get("output_file", None)
     if not output_file:
       output_file = sys.stdout
@@ -209,10 +196,4 @@ class AbstractLauncher(object):
     Returns:
       The path to an executable target.
     """
-    if self.out_directory:
-      out_directory = self.out_directory
-    else:
-      out_directory = DynamicallyBuildOutDirectory(self.platform_name,
-                                                   self.config)
-
-    return os.path.abspath(os.path.join(out_directory, self.target_name))
+    return os.path.abspath(os.path.join(self.out_directory, self.target_name))
