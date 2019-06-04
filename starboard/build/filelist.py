@@ -37,13 +37,15 @@ class FileList(object):
     self.file_list = []  # List of 2-tuples: file_path, archive_path
     self.symlink_dir_list = []  # Same
 
-  def AddAllFilesInPath(self, root_dir, sub_dir):
-    """Starting at the root path, the sub_directories are searched for files."""
+  def AddAllFilesInPath(self, root_dir, sub_path):
+    """Starting at the root path, the sub_paths are searched for files."""
     all_files = []
     all_symlinks = []
-    if not os.path.isdir(sub_dir):
-      raise IOError('Expected root directory to exist: ' + str(sub_dir))
-    for root, dirs, files in port_symlink.OsWalk(sub_dir):
+    if os.path.isfile(sub_path):
+      self.AddFile(root_dir, sub_path)
+    elif not os.path.isdir(sub_path):
+      raise IOError('Expected root directory to exist: %s' % sub_path)
+    for root, dirs, files in port_symlink.OsWalk(sub_path):
       for f in files:
         full_path = os.path.abspath(os.path.join(root, f))
         all_files.append(full_path)
@@ -54,11 +56,11 @@ class FileList(object):
     for f in all_files + all_symlinks:
       self.AddFile(root_dir, f)
 
-  def AddAllFilesInPaths(self, root_dir, sub_dirs):
+  def AddAllFilesInPaths(self, root_dir, sub_paths):
     if not os.path.isdir(root_dir):
       raise IOError('Expected root directory to exist: ' + str(root_dir))
-    for sub_d in sub_dirs:
-      self.AddAllFilesInPath(root_dir=root_dir, sub_dir=sub_d)
+    for p in sub_paths:
+      self.AddAllFilesInPath(root_dir=root_dir, sub_path=p)
 
   def AddFile(self, root_path, file_path):
     if port_symlink.IsSymLink(file_path):
