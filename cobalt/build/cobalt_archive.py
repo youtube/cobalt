@@ -164,7 +164,7 @@ class CobaltArchive(object):
       # Copy the cobalt_archive_content directory into the root of the archive.
       content_file_list = filelist.FileList()
       content_file_list.AddAllFilesInPath(root_dir=_SRC_CONTENT_PATH,
-                                          sub_dir=_SRC_CONTENT_PATH)
+                                          sub_path=_SRC_CONTENT_PATH)
       for file_path, archive_path in content_file_list.file_list:
         # Skip the fake metadata.json file because the real one
         # is a generated in it's place.
@@ -212,28 +212,34 @@ def _MakeDirs(path):
     os.makedirs(path)
 
 
-def _FindPossibleDeployDirs(build_root):
+def _FindPossibleDeployPaths(build_root):
   """Searches for folders that are likely required for archiving."""
   out = []
-  root_dirs = os.listdir(build_root)
-  for d in root_dirs:
-    if d in ('gen', 'gypfiles', 'obj', 'obj.host'):
+  # Ultimately, this function should not be needed as each platform should
+  # implement GetDeployPaths(). This is stop-gap for platforms that do not
+  # have GetDeployPaths() implemented yet.
+  root_paths = os.listdir(build_root)
+  for p in root_paths:
+    if p in ('gen', 'gypfiles', 'gyp-win-tool', 'obj', 'obj.host'):
       continue
-    d = os.path.join(build_root, d)
-    if os.path.isfile(d):
+    if p.endswith('.pdb'):
+      continue  # Skip pdb files for size (only applies to Windows).
+    p = os.path.join(build_root, p)
+    if os.path.isfile(p):
+      out.append(p)
       continue
-    if port_symlink.IsSymLink(d):
+    if port_symlink.IsSymLink(p):
       continue
-    out.append(os.path.normpath(d))
+    out.append(os.path.normpath(p))
   return out
 
 
-def _GetDeployDirs(platform_name, config):
-  """Either get's the deploy directories or searches for them."""
+def _GetDeployPaths(platform_name, config):
+  """Returns a list of paths that should be included in the archive."""
   try:
     gyp_config = GetPlatformConfig(platform_name)
-    return gyp_config.GetDeployDirs()
-  except NotImplementedError:
+    return gyp_config.GetDeployPaths()
+  except NotImplementedError:  # Abstract class throws NotImplementedError.
     logging.warning(
         '\n********************************************************\n'
         '%s: specific deploy directories not found, auto \n'
@@ -241,7 +247,7 @@ def _GetDeployDirs(platform_name, config):
         '\n********************************************************\n',
         __file__)
     build_root = paths.BuildOutputDirectory(platform_name, config)
-    return _FindPossibleDeployDirs(build_root)
+    return _FindPossibleDeployPaths(build_root)
 
 
 def _MakeCobaltArchiveFromSource(output_archive_path,
@@ -255,16 +261,16 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
   out_directory = paths.BuildOutputDirectory(platform_name, config)
   root_dir = os.path.abspath(os.path.join(out_directory, '..', '..'))
   flist = filelist.FileList()
-  inc_dirs = _GetDeployDirs(platform_name, config)
+  inc_paths = _GetDeployPaths(platform_name, config)
   logging.info('Adding binary files to bundle...')
-  for path in inc_dirs:
+  for path in inc_paths:
     path = os.path.join(out_directory, path)
     if not os.path.exists(path):
       logging.info('Skipping deploy directory %s because it does not exist.',
                    path)
       continue
     logging.info('  adding %s', os.path.abspath(path))
-    flist.AddAllFilesInPath(root_dir=root_dir, sub_dir=path)
+    flist.AddAllFilesInPath(root_dir=root_dir, sub_path=path)
   logging.info('...done')
   launcher_tools_path = os.path.join(
       os.path.dirname(output_archive_path),
@@ -280,7 +286,7 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
                          additional_glob_patterns=[],
                          include_black_box_tests=include_black_box_tests)
     flist.AddAllFilesInPath(root_dir=launcher_tools_path,
-                            sub_dir=launcher_tools_path)
+                            sub_path=launcher_tools_path)
     logging.info('...done')
     logging.info('Making cobalt archive...')
     MakeCobaltArchiveFromFileList(
