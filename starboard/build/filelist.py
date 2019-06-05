@@ -22,7 +22,7 @@ root directory that can be used for creating archives.
 
 """
 
-
+import logging
 import os
 
 import _env  # pylint: disable=relative-import,unused-import
@@ -66,14 +66,14 @@ class FileList(object):
     if port_symlink.IsSymLink(file_path):
       self.AddSymLink(root_path, file_path)
     else:
-      archive_name = os.path.relpath(file_path, root_path)
+      archive_name = _OsGetRelpath(file_path, root_path)
       self.file_list.append([file_path, archive_name])
 
   def AddSymLink(self, relative_dir, link_file):
-    rel_link_path = os.path.relpath(link_file, relative_dir)
+    rel_link_path = _OsGetRelpath(link_file, relative_dir)
     phy_path = port_symlink.ReadSymLink(link_file)
     assert os.path.isdir(phy_path), phy_path
-    rel_phy_path = os.path.relpath(phy_path, relative_dir)
+    rel_phy_path = _OsGetRelpath(phy_path, relative_dir)
     self.symlink_dir_list.append([relative_dir, rel_link_path, rel_phy_path])
 
   def Print(self):
@@ -82,6 +82,13 @@ class FileList(object):
     for s in self.symlink_dir_list:
       print 'Symlink: %s' % s
 
+def _OsGetRelpath(path, start_dir):
+  try:
+    return os.path.relpath(path, start_dir)
+  except ValueError as ve:
+    logging.exception('Error %s while calling os.path.relpath(%s, %s)',
+                       ve, path, start_dir)
+    raise
 
 TYPE_NONE = 'NONE'
 TYPE_SYMLINK_DIR = 'SYMLINK DIR'
