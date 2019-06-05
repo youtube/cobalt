@@ -17,6 +17,7 @@
 
 import json
 import os
+import stat
 import unittest
 
 import _env  # pylint: disable=relative-import,unused-import
@@ -24,7 +25,7 @@ import cobalt.build.cobalt_archive as cobalt_archive
 import starboard.build.filelist as filelist
 import starboard.build.filelist_test as filelist_test
 import starboard.build.port_symlink as port_symlink
-from starboard.tools.util import SetupDefaultLoggingConfig
+from starboard.tools import util
 
 
 class CobaltArchiveTest(unittest.TestCase):
@@ -61,14 +62,15 @@ class CobaltArchiveTest(unittest.TestCase):
     out_dir = os.path.join(tf.root_tmp, 'out')
     car.ExtractTo(out_dir)
     out_metadata_file = os.path.join(out_dir, cobalt_archive._OUT_METADATA_PATH)
-    assert filelist.GetFileType(out_metadata_file) == filelist.TYPE_FILE
+    self.assertEqual(filelist.GetFileType(out_metadata_file),
+                     filelist.TYPE_FILE)
     with open(out_metadata_file) as fd:
       text = fd.read()
       js = json.loads(text)
-      assert js
-      assert js['sdk_version'] == 'fake_sdk'
-      assert js['platform'] == 'fake'
-      assert js['config'] == 'devel'
+      self.assertTrue(js)
+      self.assertEqual(js['sdk_version'], 'fake_sdk')
+      self.assertEqual(js['platform'], 'fake')
+      self.assertEqual(js['config'], 'devel')
 
   def testExtractTo(self):
     flist = filelist.FileList()
@@ -86,14 +88,50 @@ class CobaltArchiveTest(unittest.TestCase):
     car.ExtractTo(out_dir)
     out_from_dir = os.path.join(out_dir, 'from_dir')
     out_from_dir_lnk = os.path.join(out_dir, 'from_dir_lnk')
-    assert filelist.GetFileType(out_from_dir) == filelist.TYPE_DIRECTORY
-    assert filelist.GetFileType(out_from_dir_lnk) == filelist.TYPE_SYMLINK_DIR
+    self.assertEqual(filelist.GetFileType(out_from_dir),
+                     filelist.TYPE_DIRECTORY)
+    self.assertEqual(filelist.GetFileType(out_from_dir_lnk),
+                     filelist.TYPE_SYMLINK_DIR)
     resolved_from_link_path = os.path.join(
         out_dir, port_symlink.ReadSymLink(out_from_dir_lnk))
-    assert(os.path.abspath(out_from_dir) ==
-           os.path.abspath(resolved_from_link_path))
+    self.assertEqual(os.path.abspath(out_from_dir),
+                     os.path.abspath(resolved_from_link_path))
+
+  @unittest.skipIf(port_symlink.IsWindows(), 'Any platform but windows.')
+  def testExecutionAttribute(self):
+    flist = filelist.FileList()
+    tf = filelist_test.TempFileSystem()
+    # Execution bit seems to turn off the read bit, so we just set all
+    # read/write/execute bit for the user.
+    write_flags = stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR
+    os.chmod(tf.test_txt, write_flags)
+    self.assertNotEqual(
+        0, write_flags & cobalt_archive._GetFilePermissions(tf.test_txt))
+    flist.AddFile(tf.root_tmp, tf.test_txt)
+    bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
+    car = cobalt_archive.CobaltArchive(bundle_zip)
+    car.MakeArchive(platform_name='fake',
+                    platform_sdk_version='fake_sdk',
+                    config='devel',
+                    file_list=flist)
+    # Now grab the json file and check that the file appears in the
+    # executable_file list.
+    json_str = car.ReadFile(
+        '__cobalt_archive/finalize_decompression/decompress.json')
+    decompress_dict = json.loads(json_str)
+    executable_files = decompress_dict.get('executable_files')
+    # Expect that the executable file appears in the executable_files.
+    self.assertTrue(executable_files)
+    archive_path = os.path.relpath(tf.test_txt, tf.root_tmp)
+    self.assertIn(archive_path, executable_files)
+    out_dir = os.path.join(tf.root_tmp, 'out')
+    car.ExtractTo(output_dir=out_dir)
+    out_file = os.path.join(out_dir, tf.test_txt)
+    self.assertTrue(os.path.isfile(out_file))
+    perms = cobalt_archive._GetFilePermissions(out_file)
+    self.assertTrue(perms & stat.S_IXUSR)
 
 
 if __name__ == '__main__':
-  SetupDefaultLoggingConfig()
+  util.SetupDefaultLoggingConfig()
   unittest.main(verbosity=2)
