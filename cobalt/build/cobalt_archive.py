@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import random
+import stat
 import subprocess
 import sys
 import time
@@ -132,13 +133,16 @@ class CobaltArchive(object):
     outstream.write('Executing: %s\n' % cmd_str)
     rc = subprocess.call(cmd_str, shell=True, stdout=outstream,
                          stderr=outstream)
-    ok &= rc is 0
+    ok = ok & (rc == 0)
     return ok
 
   def ReadMetaData(self):
-    with zipfile.ZipFile(self.archive_zip_path, 'r', allowZip64=True) as zf:
-      json_str = zf.read(_OUT_METADATA_PATH)
+    json_str = self.ReadFile(_OUT_METADATA_PATH)
     return json.loads(json_str)
+
+  def ReadFile(self, file_path):
+    with zipfile.ZipFile(self.archive_zip_path, 'r', allowZip64=True) as zf:
+      return zf.read(file_path)
 
   def MakeArchive(self,
                   platform_name,
@@ -147,6 +151,7 @@ class CobaltArchive(object):
                   file_list,  # class FileList
                   additional_buildinfo_dict=None):
     """Creates an archive for the given platform and config."""
+    is_windows = port_symlink.IsWindows()
     if additional_buildinfo_dict is None:
       additional_buildinfo_dict = {}
     if config not in GetAllConfigs():
@@ -175,10 +180,16 @@ class CobaltArchive(object):
       zf.writestr(_OUT_METADATA_PATH, build_info_str)
       if file_list.file_list:
         logging.info('  Compressing %d files', len(file_list.file_list))
+
+      executable_files = []
       for file_path, archive_path in file_list.file_list:
-        # TODO: Use and implement _FoldIdenticalFiles() to reduce duplicate
-        # files. This will help platforms like nxswitch which include a lot of
-        # duplicate files for the sdk.
+        if not is_windows:
+          perms = _GetFilePermissions(file_path)
+          if (stat.S_IXUSR) & perms:
+            executable_files.append(archive_path)
+        # TODO(***REMOVED***): Use and implement _FoldIdenticalFiles() to reduce
+        # duplicate files. This will help platforms like nxswitch which include
+        # a lot of duplicate files for the sdk.
         zf.write(file_path, arcname=archive_path)
       if file_list.symlink_dir_list:
         logging.info('  Compressing %d symlinks',
@@ -191,7 +202,8 @@ class CobaltArchive(object):
       symlink_dir_list = [_ToUnixPaths(l) for l in symlink_dir_list]
       decompress_json_str = _JsonDumpPrettyPrint({
           'symlink_dir': symlink_dir_list,
-          'symlink_dir_doc': '[link_dir_path, target_dir_path]'
+          'symlink_dir_doc': '[link_dir_path, target_dir_path]',
+          'executable_files': executable_files,
       })
       zf.writestr(_OUT_DECOMP_JSON, decompress_json_str)
 
@@ -201,6 +213,10 @@ def _ToUnixPaths(path_list):
   for p in path_list:
     out.append(p.replace('\\', '/'))
   return out
+
+
+def _GetFilePermissions(path):
+  return stat.S_IMODE(os.stat(path).st_mode)
 
 
 def _JsonDumpPrettyPrint(data):
