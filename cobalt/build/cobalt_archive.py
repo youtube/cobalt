@@ -486,7 +486,9 @@ def _CreateArgumentParser():
 def main():
   SetupDefaultLoggingConfig()
   parser = _CreateArgumentParser()
-  args = parser.parse_args()
+  args, unknown_args = parser.parse_known_args()
+  if unknown_args:
+    logging.warning('Unknown (ignored) args: %s', unknown_args)
   if args.create:
     _MakeCobaltPlatformArchive(
         platform=args.platform,
