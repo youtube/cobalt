@@ -150,7 +150,7 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
     device), e.g.:
 
     ```
-    adb shell am start --esa args --flag_arg --value_arg=something dev.cobalt.coat
+    adb shell am start --esa args --flag_arg,--value_arg=something dev.cobalt.coat
     ```
 
 1.  To monitor log output, watch logcat in another shell with a filter for
