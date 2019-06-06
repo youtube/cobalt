@@ -19,6 +19,37 @@
   'variables': {
     'has_platform_tests%' : '<!(python ../build/file_exists.py <(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp)',
   },
+  'conditions': [
+    # If 'starboard_platform_tests' is not defined by the platform, then an
+    # empty 'starboard_platform_tests' target is defined.
+    ['has_platform_tests=="False"', {
+      'targets': [
+        {
+          'target_name': 'starboard_platform_tests',
+          'type': '<(gtest_target_type)',
+          'sources': [
+            '<(DEPTH)/starboard/common/test_main.cc',
+           ],
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/testing/gmock.gyp:gmock',
+            '<(DEPTH)/testing/gtest.gyp:gtest',
+          ],
+        },
+        {
+          'target_name': 'starboard_platform_tests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'starboard_platform_tests',
+          ],
+          'variables': {
+            'executable_name': 'starboard_platform_tests',
+          },
+          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+        },
+      ],
+    }],
+  ],
   'targets': [
     {
       # Note that this target must be in a separate GYP file from starboard.gyp,
@@ -43,6 +74,10 @@
         ['has_platform_tests=="True"', {
           'dependencies': [
             '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
+          ],
+        }, {
+          'dependencies': [
+            'starboard_platform_tests',
           ],
         }],
         ['sb_filter_based_player==1', {
