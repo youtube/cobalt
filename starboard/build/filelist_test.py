@@ -111,6 +111,28 @@ class FileListTest(unittest.TestCase):
     self.assertTrue(flist.symlink_dir_list)
     self.assertFalse(flist.file_list)
 
+  def testOsGetRelpathFallback(self):
+    # Tests issue b/134589032
+    path = (
+        'src/out/tmp/cobalt_archive/archive/____app_launcher/third_party/'
+        'web_platform_tests/custom-elements/registering-custom-elements/'
+        'unresolved-element-pseudoclass/'
+        'unresolved-element-pseudoclass-css-test-registered-type-extension-ref'
+        '.html').replace('/', os.sep)
+    root = (
+        'src/out/tmp/cobalt_archive/archive/____app_launcher'
+    ).replace('/', os.sep)
+    expected_result = (
+        '../../../../../../src/out/tmp/cobalt_archive/archive/____app_launcher/'
+        'third_party/web_platform_tests/custom-elements/'
+        'registering-custom-elements/unresolved-element-pseudoclass/'
+        'unresolved-element-pseudoclass-css-test-registered-type-extension-ref'
+        '.html').replace('/', os.sep)
+    rel_path = filelist._FallbackOsGetRelPath(path, start_dir=root)
+    self.assertEqual(expected_result, rel_path)
+    restored_path = os.path.normpath(os.path.join(root, rel_path))
+    self.assertEqual(restored_path, path)
+
 
 if __name__ == '__main__':
   util.SetupDefaultLoggingConfig()
