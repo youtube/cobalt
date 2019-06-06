@@ -82,13 +82,30 @@ class FileList(object):
     for s in self.symlink_dir_list:
       print 'Symlink: %s' % s
 
+
+def _FallbackOsGetRelPath(path, start_dir):
+  path = os.path.normpath(path)
+  start_dir = os.path.normpath(start_dir)
+  common_prefix = os.path.commonprefix([path, start_dir])
+  split_list = common_prefix.split(os.sep)
+  par_dir_list = ['..' for _ in range(len(split_list))]
+  path_list = par_dir_list + path.split(os.sep)
+  return os.path.join(*path_list)
+
+
 def _OsGetRelpath(path, start_dir):
   try:
     return os.path.relpath(path, start_dir)
-  except ValueError as ve:
-    logging.exception('Error %s while calling os.path.relpath(%s, %s)',
-                       ve, path, start_dir)
-    raise
+  except ValueError:
+    try:
+      # Fixes issue b/134589032
+      rel_path = _FallbackOsGetRelPath(path, start_dir)
+      if not os.path.exists(os.path.join(start_dir, rel_path)):
+        raise ValueError('% does not exist.' % os.path.abspath(rel_path))
+    except ValueError as err:
+      logging.exception('Error %s while calling os.path.relpath(%s, %s)',
+                         err, path, start_dir)
+
 
 TYPE_NONE = 'NONE'
 TYPE_SYMLINK_DIR = 'SYMLINK DIR'
