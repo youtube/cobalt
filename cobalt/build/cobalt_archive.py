@@ -550,9 +550,11 @@ def _main():
   parser.add_argument('--in_path', type=str,
                       help='Optional, used for decompress',
                       default=None)
-  args = parser.parse_args()
+  args, unknown_args = parser.parse_known_args()
   if args.unit_test:
     sys.exit(_UnitTest())
+  if unknown_args:
+    logging.warning('Unknown (ignored) args: %s', unknown_args)
   elif args.create:
     _MakeCobaltPlatformArchive(args.platform, args.config, args.out_path)
     sys.exit(0)
