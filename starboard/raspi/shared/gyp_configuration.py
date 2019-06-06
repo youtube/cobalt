@@ -111,5 +111,4 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
       ],
-      'starboard_platform_tests': [test_filter.FILTER_ALL],
   }
