@@ -98,13 +98,20 @@ def _OsGetRelpath(path, start_dir):
     return os.path.relpath(path, start_dir)
   except ValueError:
     try:
-      # Fixes issue b/134589032
-      rel_path = _FallbackOsGetRelPath(path, start_dir)
-      if not os.path.exists(os.path.join(start_dir, rel_path)):
-        raise ValueError('% does not exist.' % os.path.abspath(rel_path))
-    except ValueError as err:
-      logging.exception('Error %s while calling os.path.relpath(%s, %s)',
-                         err, path, start_dir)
+      # Windows: nt paths checks the drive specifier, which is given by the
+      # abspath operation.
+      return os.path.relpath(os.path.abspath(path), os.path.abspath(start_dir))
+    except ValueError:
+      try:
+        # Last resort: do a string comparison to get relative path.
+        # Fixes issue b/134589032
+        rel_path = _FallbackOsGetRelPath(path, start_dir)
+        if not os.path.exists(os.path.join(start_dir, rel_path)):
+          raise ValueError('% does not exist.' % os.path.abspath(rel_path))
+        return rel_path
+      except ValueError as err:
+        logging.exception('Error %s while calling os.path.relpath(%s, %s)',
+                           err, path, start_dir)
 
 
 TYPE_NONE = 'NONE'
