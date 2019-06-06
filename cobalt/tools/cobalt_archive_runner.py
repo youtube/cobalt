@@ -115,12 +115,20 @@ def _UnpackArchive(archive, unpack_dir):
   if not os.path.isfile(archive):
     raise IOError('%s does not exist.' % archive)
   unpack_dir = os.path.abspath(unpack_dir)
-  # Use a shell command so that the user can reproduce any steps.
-  cmd = 'python -m zipfile -e "%s" "%s"' % (archive, unpack_dir)
-  _Print('Unzipping %s -> %s with  \n%s' % (archive, unpack_dir, cmd))
-  if _CallShell(cmd) != 0:
-    raise IOError('Failed to unzip %s' % archive)
-  # Second pass, execute the final decompress, which expands symlinks.
+  _Print('Unzipping %s -> %s' % (archive, unpack_dir))
+  # First pass, unzip all files.
+  with zipfile.ZipFile(archive, 'r', allowZip64=True) as zf:
+    for zinfo in zf.infolist():
+      try:
+        zf.extract(zinfo, path=unpack_dir)
+      except Exception as err:  # pylint: disable=broad-except
+        msg = (
+          'Exception happend during extraction of %s because of error %s'
+          % (zinfo.filename, err)
+        )
+        _Print(msg)
+  # Second pass, execute the final decompress, which expands symlinks and other
+  # file system operations.
   decomp_py = os.path.abspath(os.path.join(unpack_dir, _DECOMPRESS_PY_SUFFIX))
   cmd = 'python "%s"' % decomp_py
   _Print(cmd)
