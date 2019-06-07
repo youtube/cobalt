@@ -39,6 +39,7 @@ from starboard.tools import build
 _ANDROID_NDK_API_LEVEL = '21'
 
 # Packages to install in the Android SDK.
+# We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
     'build-tools;28.0.3',
@@ -47,7 +48,6 @@ _ANDROID_SDK_PACKAGES = [
     'extras;android;m2repository',
     'extras;google;m2repository',
     'lldb;3.1',
-    'ndk-bundle',
     'patcher;v4',
     'platforms;android-28',
     'platform-tools',
@@ -60,6 +60,12 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 # Location from which to download the SDK command-line tools
 # see https://developer.android.com/studio/index.html#command-tools
 _SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
+
+# Location from which to download the Android NDK.
+# see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
+_NDK_ZIP_REVISION = 'android-ndk-r19c'
+_NDK_ZIP_FILE = _NDK_ZIP_REVISION + '-linux-x86_64.zip'
+_NDK_URL = 'https://dl.google.com/android/repository/' + _NDK_ZIP_FILE
 
 _STARBOARD_TOOLCHAINS_DIR = build.GetToolchainsDir()
 
@@ -198,18 +204,33 @@ def _MaybeDownloadAndInstallSdkAndNdk():
       logging.warning('Checking Android SDK.')
       _DownloadInstallOrUpdateSdk()
 
+    ndk_path = GetNdkPath()
     if _ANDROID_NDK_HOME:
-      logging.warning('Warning: Using Android NDK in ANDROID_NDK_HOME,'
-                      ' which is not automatically updated')
-    ndk_revision = _GetInstalledNdkRevision()
-    logging.warning('Using Android NDK version %s', ndk_revision)
+      logging.warning('Warning: ANDROID_NDK_HOME references NDK %s in %s,'
+                      ' which is not automatically updated.',
+                      _GetInstalledNdkRevision(), ndk_path)
 
     if _ANDROID_HOME or _ANDROID_NDK_HOME:
       reply = raw_input(
-          'Do you want to continue using your custom Android tools? [yN]')
+          'Do you want to continue using your custom Android tools? [y/N]')
       if reply.upper() != 'Y':
         sys.exit(1)
+    elif not _CheckStamp(ndk_path):
+      logging.warning('Downloading NDK from %s to %s', _NDK_URL, ndk_path)
+      if os.path.exists(ndk_path):
+        shutil.rmtree(ndk_path)
+      # Download the NDK into _STARBOARD_TOOLCHAINS_DIR and move the top
+      # _NDK_ZIP_REVISION directory that is in the zip to 'ndk-bundle'.
+      ndk_unzip_path = os.path.join(_STARBOARD_TOOLCHAINS_DIR,
+                                    _NDK_ZIP_REVISION)
+      if os.path.exists(ndk_unzip_path):
+        shutil.rmtree(ndk_unzip_path)
+      _DownloadAndUnzipFile(_NDK_URL, _STARBOARD_TOOLCHAINS_DIR)
+      # Move NDK into its proper final place.
+      os.rename(ndk_unzip_path, ndk_path)
+      _UpdateStamp(ndk_path)
 
+    logging.warning('Using Android NDK version %s', _GetInstalledNdkRevision())
   finally:
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_UN)
     os.close(toolchains_dir_fd)
