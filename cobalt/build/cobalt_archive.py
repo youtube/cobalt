@@ -67,6 +67,7 @@ def ReadCobaltArchiveInfo(input_zip_path):
 import argparse
 import hashlib
 import json
+import logging
 import md5
 import os
 import random
