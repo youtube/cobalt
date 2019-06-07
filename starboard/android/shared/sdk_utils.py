@@ -29,15 +29,6 @@ import zipfile
 
 from starboard.tools import build
 
-# The API level of NDK standalone toolchain to install. This should be the
-# minimum API level on which the app is expected to run. If some feature from a
-# newer NDK level is needed, this may be increased with caution.
-# https://developer.android.com/ndk/guides/stable_apis.html
-#
-# Using 24 will lead to missing symbols on API 23 devices.
-# https://github.com/android-ndk/ndk/issues/126
-_ANDROID_NDK_API_LEVEL = '21'
-
 # Packages to install in the Android SDK.
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
@@ -101,14 +92,6 @@ with open(__file__, 'rb') as script:
   _SCRIPT_HASH = hashlib.md5(script.read()).hexdigest()
 
 
-def GetToolsPath(abi):
-  """Returns the path where the NDK standalone toolchain should be."""
-  tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
-  tools_dir = 'android_toolchain_api{}_{}'.format(_ANDROID_NDK_API_LEVEL,
-                                                  tools_arch)
-  return os.path.realpath(os.path.join(_STARBOARD_TOOLCHAINS_DIR, tools_dir))
-
-
 def _CheckStamp(dir_path):
   """Checks that the specified directory is up-to-date with the NDK."""
   stamp_path = os.path.join(dir_path, 'ndk.stamp')
@@ -161,12 +144,6 @@ def _GetInstalledNdkRevision():
     sys.exit(1)
 
 
-def InstallSdkIfNeeded(abi):
-  """Installs appropriate SDK/NDK and NDK standalone tools if needed."""
-  _MaybeDownloadAndInstallSdkAndNdk()
-  _MaybeMakeToolchain(abi)
-
-
 def _DownloadAndUnzipFile(url, destination_path):
   dl_file, dummy_headers = urllib.urlretrieve(url)
   _UnzipFile(dl_file, destination_path)
@@ -180,7 +157,7 @@ def _UnzipFile(zip_path, dest_path):
     os.chmod(os.path.join(dest_path, info.filename), info.external_attr >> 16L)
 
 
-def _MaybeDownloadAndInstallSdkAndNdk():
+def InstallSdkIfNeeded():
   """Download the SDK and NDK if not already available."""
   # Hold an exclusive advisory lock on the _STARBOARD_TOOLCHAINS_DIR, to
   # prevent issues with modification for multiple variants.
@@ -337,33 +314,3 @@ def _DownloadInstallOrUpdateSdk():
       logging.warning('There were no SDK licenses to accept.')
 
   p.wait()
-
-
-def _MaybeMakeToolchain(abi):
-  """Run the NDK's make_standalone_toolchain.py if necessary."""
-  tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
-  tools_path = GetToolsPath(abi)
-  if _CheckStamp(tools_path):
-    logging.info('NDK %s toolchain already at %s', tools_arch,
-                 _GetInstalledNdkRevision())
-    return
-
-  logging.warning('Installing NDK %s toolchain %s in %s', tools_arch,
-                  _GetInstalledNdkRevision(), tools_path)
-
-  if os.path.exists(tools_path):
-    shutil.rmtree(tools_path)
-
-  # Run the NDK script to make the standalone toolchain
-  script_path = os.path.join(GetNdkPath(), 'build', 'tools',
-                             'make_standalone_toolchain.py')
-  args = [
-      script_path, '--arch', tools_arch, '--api', _ANDROID_NDK_API_LEVEL,
-      '--stl', 'libc++', '--install-dir', tools_path
-  ]
-  script_proc = subprocess.Popen(args)
-  rc = script_proc.wait()
-  if rc != 0:
-    raise RuntimeError('%s failed.' % script_path)
-
-  _UpdateStamp(tools_path)
