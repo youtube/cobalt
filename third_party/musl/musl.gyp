@@ -104,6 +104,13 @@
             'src/string/memset.c',
           ],
         }],
+        # Starboardized implementations are only included for Evergreen
+        # to avoid having multiple versions of libc in a binary.
+        ['sb_evergreen == 1', {
+          'sources': [
+            'src/starboard/abort.c',
+          ],
+        }],
       ],
       'sources': [
         'src/ctype/__ctype_b_loc.c',
