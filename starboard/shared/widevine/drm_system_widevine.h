@@ -138,8 +138,9 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   int GetAndResetTicket(const std::string& sb_drm_session_id);
   std::string WvdmSessionIdToSbDrmSessionId(
       const std::string& wvcdm_session_id);
-  std::string SbDrmSessionIdToWvdmSessionId(const void* sb_drm_session_id,
-                                            int sb_drm_session_id_size);
+  bool SbDrmSessionIdToWvdmSessionId(const void* sb_drm_session_id,
+                                     int sb_drm_session_id_size,
+                                     std::string* wvcdm_session_id);
 
   // Generates a special key message to ask for the server certificate.  When
   // the license server receives the request, it will send back the server
