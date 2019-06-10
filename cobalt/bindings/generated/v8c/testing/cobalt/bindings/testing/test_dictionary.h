@@ -39,23 +39,23 @@ namespace testing {
 
 class TestDictionary {
  public:
-  TestDictionary() {
-    has_boolean_member_ = false;
-    boolean_member_ = bool();
-    has_short_clamp_member_ = false;
-    short_clamp_member_ = int16_t();
-    has_long_member_ = false;
-    long_member_ = int32_t();
-    has_double_member_ = false;
-    double_member_ = double();
-    has_string_member_ = false;
-    string_member_ = std::string();
-    has_interface_member_ = false;
-    interface_member_ = scoped_refptr<ArbitraryInterface>();
-    member_with_default_ = 5;
-    has_non_default_member_ = false;
-    non_default_member_ = int32_t();
-    has_any_member_ = false;
+  TestDictionary()
+    : has_boolean_member_(false),
+      boolean_member_(bool()),
+      has_short_clamp_member_(false),
+      short_clamp_member_(int16_t()),
+      has_long_member_(false),
+      long_member_(int32_t()),
+      has_double_member_(false),
+      double_member_(double()),
+      has_string_member_(false),
+      string_member_(std::string()),
+      has_interface_member_(false),
+      interface_member_(scoped_refptr<ArbitraryInterface>()),
+      member_with_default_(5),
+      has_non_default_member_(false),
+      non_default_member_(int32_t()),
+      has_any_member_(false) {
   }
 
   TestDictionary(const TestDictionary& other) {

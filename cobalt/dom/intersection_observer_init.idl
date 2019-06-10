@@ -18,5 +18,5 @@ dictionary IntersectionObserverInit {
   Element?  root = null;
   DOMString rootMargin = "0px";
   // TODO: threshold should by default be 0, according to the spec
-  (double or sequence<double>) threshold;
+  (double or sequence<double>) threshold = 0;
 };
