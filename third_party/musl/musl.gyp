@@ -113,6 +113,8 @@
           'sources': [
             'src/starboard/abort.c',
             'src/starboard/malloc.c',
+            'src/starboard/strtod.c',
+            'src/starboard/strtol.c',
             'src/starboard/vsnprintf.c',
             'src/starboard/vsscanf.c',
             'src/starboard/vswprintf.c',
