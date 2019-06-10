@@ -105,10 +105,15 @@
           ],
         }],
         # Starboardized implementations are only included for Evergreen
-        # to avoid having multiple versions of libc in a binary.
+        # to avoid having multiple versions of libc in a binary. Some
+        # non-Starboardized implementations, such as 'src/stdio/sscanf.c', are
+        # also only included for Evergreen because they are essentially wrappers
+        # around functions that have been Starboardized.
         ['sb_evergreen == 1', {
           'sources': [
             'src/starboard/abort.c',
+            'src/starboard/vsscanf.c',
+            'src/stdio/sscanf.c',
           ],
         }],
       ],
