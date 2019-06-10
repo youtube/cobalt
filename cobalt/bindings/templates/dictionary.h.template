@@ -71,20 +71,31 @@ class {{class_name}} : public {{parent}} {
 {% else %}
 class {{class_name}} {
 {% endif %}
- public:
-  {{class_name}}() {
+{% set initializer_list = [] %}
 {% for member in members %}
 {% if not member.default_value %}
-    has_{{member.name}}_ = false;
+{% do initializer_list.append(("has_" + member.name, "false")) %}
 {% endif %}
 {% if not member.is_script_value %}
 {% if member.default_value %}
-    {{member.name}}_ = {{member.default_value}};
+{% do initializer_list.append((member.name, member.default_value)) %}
 {% else %}
-    {{member.name}}_ = {{member.type}}();
+{% do initializer_list.append((member.name, member.type + "()")) %}
 {% endif %}
 {% endif %}
 {% endfor %}
+{% if initializer_list %}
+{% set formatted_initializer_list = [] %}
+{% for name, value in initializer_list %}
+{% do formatted_initializer_list.append(name + "_(" + value + ")") %}
+{% endfor %}
+ public:
+  {{class_name}}()
+    : {{ formatted_initializer_list|join(',\n      ') }} {
+{% else %}
+ public:
+  {{class_name}}() {
+{% endif %}
   }
 
 {% if parent %}
