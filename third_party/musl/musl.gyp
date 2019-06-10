@@ -112,8 +112,13 @@
         ['sb_evergreen == 1', {
           'sources': [
             'src/starboard/abort.c',
+            'src/starboard/vsnprintf.c',
             'src/starboard/vsscanf.c',
+            'src/starboard/vswprintf.c',
+            'src/stdio/snprintf.c',
             'src/stdio/sscanf.c',
+            'src/stdio/swprintf.c',
+            'src/stdio/vasprintf.c',
           ],
         }],
       ],
