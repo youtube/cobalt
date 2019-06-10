@@ -49,7 +49,7 @@ class TextureEGL {
   // of manually calling gl_
   TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
              const math::Size& size, GLenum format, GLenum target,
-             const base::Closure& delete_function);
+             base::OnceClosure&& delete_function);
 
   // Create a texture from a pre-existing offscreen render target.
   TextureEGL(GraphicsContextEGL* graphics_context,
@@ -91,7 +91,7 @@ class TextureEGL {
 
   // If non-null, will be called upon destruction instead of manually deleting
   // the texture via glDeleteTextures().
-  base::Closure delete_function_;
+  base::OnceClosure delete_function_;
 };
 
 }  // namespace backend
