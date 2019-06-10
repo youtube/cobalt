@@ -39,9 +39,9 @@ namespace testing {
 
 class DictionaryWithDictionaryMember {
  public:
-  DictionaryWithDictionaryMember() {
-    has_nested_dictionary_ = false;
-    nested_dictionary_ = TestDictionary();
+  DictionaryWithDictionaryMember()
+    : has_nested_dictionary_(false),
+      nested_dictionary_(TestDictionary()) {
   }
 
   DictionaryWithDictionaryMember(const DictionaryWithDictionaryMember& other) {
