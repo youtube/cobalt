@@ -338,7 +338,7 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     std::unique_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
         cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
         gl_format, plane.gl_texture_target,
-        base::Bind(&DoNothing, decode_target_ref)));
+        base::BindOnce(&DoNothing, decode_target_ref)));
 
     // If the decode target is specified as UYVY format, then we need to pass
     // this in as supplementary data, as the |texture| object only knows that
