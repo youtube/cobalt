@@ -59,13 +59,13 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
                        const math::Size& size, GLenum format, GLenum target,
-                       const base::Closure& delete_function)
+                       base::OnceClosure&& delete_function)
     : graphics_context_(graphics_context),
       size_(size),
       format_(format),
       gl_handle_(gl_handle),
       target_(target),
-      delete_function_(delete_function) {}
+      delete_function_(std::move(delete_function)) {}
 
 TextureEGL::TextureEGL(
     GraphicsContextEGL* graphics_context,
@@ -127,7 +127,7 @@ TextureEGL::~TextureEGL() {
   }
 
   if (!delete_function_.is_null()) {
-    delete_function_.Run();
+    std::move(delete_function_).Run();
   } else {
     GL_CALL(glDeleteTextures(1, &gl_handle_));
   }
