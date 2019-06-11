@@ -37,6 +37,8 @@
       'type': 'static_library',
       'sources': [
         '<@(starboard_platform_sources)',
+        '<(DEPTH)/starboard/shared/blittergles/blit_shader_program.cc',
+        '<(DEPTH)/starboard/shared/blittergles/blit_shader_program.h',
         '<(DEPTH)/starboard/shared/blittergles/blitter_blit_rect_to_rect.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_context.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_context.h',
