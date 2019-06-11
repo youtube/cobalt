@@ -22,6 +22,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/optional.h"
+#include "starboard/shared/blittergles/blit_shader_program.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/gles/gl_call.h"
@@ -171,6 +172,10 @@ SbBlitterContextPrivate::~SbBlitterContextPrivate() {
     color_shader_.reset();
   }
 
+  if (blit_shader_.get() != nullptr) {
+    blit_shader_.reset();
+  }
+
   starboard::ScopedLock lock(device->mutex);
   if (egl_context_ != EGL_NO_CONTEXT) {
     // For now, we assume context is already unbound, as we bind and unbind
@@ -188,13 +193,22 @@ SbBlitterContextPrivate::~SbBlitterContextPrivate() {
 }
 
 const starboard::shared::blittergles::ColorShaderProgram&
-SbBlitterContextPrivate::GetColorShaderProgram() {
+    SbBlitterContextPrivate::GetColorShaderProgram() {
   SB_DCHECK(is_current);
   if (color_shader_.get() == nullptr) {
     color_shader_.reset(
         new starboard::shared::blittergles::ColorShaderProgram());
   }
   return *color_shader_.get();
+}
+
+const starboard::shared::blittergles::BlitShaderProgram&
+    SbBlitterContextPrivate::GetBlitShaderProgram() {
+  SB_DCHECK(is_current);
+  if (blit_shader_.get() == nullptr) {
+    blit_shader_.reset(new starboard::shared::blittergles::BlitShaderProgram());
+  }
+  return *blit_shader_.get();
 }
 
 // If there's no config set on device at the time of SbBlitterContext

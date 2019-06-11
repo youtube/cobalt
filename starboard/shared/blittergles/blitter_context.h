@@ -24,6 +24,7 @@
 
 #include "starboard/blitter.h"
 #include "starboard/common/optional.h"
+#include "starboard/shared/blittergles/blit_shader_program.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/internal_only.h"
@@ -52,9 +53,13 @@ struct SbBlitterContextPrivate {
   // The current scissor rectangle.
   SbBlitterRect scissor;
 
-  // Creates the shader if it does not already exist.
+  // Creates the color shader if it does not already exist.
   const starboard::shared::blittergles::ColorShaderProgram&
       GetColorShaderProgram();
+
+  // Creates the blit shader if it does not already exist.
+  const starboard::shared::blittergles::BlitShaderProgram&
+      GetBlitShaderProgram();
 
   // Will call eglMakeCurrent() and glBindFramebuffer() for context's
   // current_render_target. Returns true on success, false on failure.
@@ -112,6 +117,9 @@ struct SbBlitterContextPrivate {
 
   std::unique_ptr<starboard::shared::blittergles::ColorShaderProgram>
       color_shader_;
+
+  std::unique_ptr<starboard::shared::blittergles::BlitShaderProgram>
+      blit_shader_;
 
   bool error_;
 };
