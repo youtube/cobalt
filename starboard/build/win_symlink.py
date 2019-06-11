@@ -127,7 +127,6 @@ def _RmtreeShallow(root_dir):
 
 
 def _ReadReparsePointShell(path):
-  path = os.path.abspath(path)
   cmd_parts = ['fsutil', 'reparsepoint', 'query', path]
   try:
     out = subprocess.check_output(cmd_parts)
@@ -169,7 +168,6 @@ def _IsReparsePoint(path):
 
 
 def _CreateReparsePoint(from_folder, link_folder):
-  link_folder = os.path.abspath(link_folder)
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
@@ -179,7 +177,6 @@ def _CreateReparsePoint(from_folder, link_folder):
     FastCreateReparseLink(from_folder, link_folder)
     return
   except OSError as os_err:
-    # The operating system doesn't support the call.
     pass
   except Exception as err:
     print(__file__ + ' unexpected error: ' + str(err) + \
@@ -188,7 +185,7 @@ def _CreateReparsePoint(from_folder, link_folder):
   par_dir = os.path.dirname(link_folder)
   if not os.path.isdir(par_dir):
     os.makedirs(par_dir)
-  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+  cmd_parts = ['cmd', '/c', 'mklink', '/d', link_folder, from_folder]
   subprocess.check_output(cmd_parts)
   if not _IsReparsePoint(link_folder):
     raise OSError('Could not create sym link ' + link_folder + ' to ' + \
