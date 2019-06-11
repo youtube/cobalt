@@ -24,9 +24,7 @@ namespace gles = glimp::gles;
 namespace {
 gles::Context* GetCurrentContext() {
   gles::Context* context = gles::Context::GetTLSCurrentContext();
-  if (!context) {
-    SB_DLOG(WARNING) << "GL ES command issued while no context was current.";
-  }
+  SB_DCHECK(context) << "GL ES command issued while no context was current.";
   return context;
 }
 }
