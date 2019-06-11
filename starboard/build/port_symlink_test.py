@@ -50,16 +50,25 @@ class PortSymlinkTest(unittest.TestCase):
     self.assertTrue(os.path.isdir(self.inner_dir))
 
   def testReadSymlinkNormalDirectory(self):
-    self.assertEqual(None, port_symlink.ReadSymLink(self.from_dir))
+    self.assertIsNone(port_symlink.ReadSymLink(self.from_dir))
 
   def testReadSymlinkNormalFile(self):
-    self.assertEqual(None, port_symlink.ReadSymLink(self.test_txt))
+    self.assertIsNone(port_symlink.ReadSymLink(self.test_txt))
 
   def testSymlinkDir(self):
     self.assertTrue(os.path.exists(self.link_dir))
     self.assertTrue(port_symlink.IsSymLink(self.link_dir))
     from_dir_2 = port_symlink.ReadSymLink(self.link_dir)
     self.assertTrue(_IsSamePath(from_dir_2, self.from_dir))
+
+  def testRelativeSymlinkDir(self):
+    rel_link_dir = os.path.join(self.tmp_dir, 'foo', 'rel_link')
+    rel_dir_path = os.path.relpath(self.from_dir, rel_link_dir)
+    port_symlink.MakeSymLink(rel_dir_path, rel_link_dir)
+    self.assertTrue(port_symlink.IsSymLink(rel_link_dir))
+    link_value = port_symlink.ReadSymLink(rel_link_dir)
+    self.assertIn('..', link_value,
+                  msg='Expected ".." in relative path %s' % link_value)
 
   def testDelSymlink(self):
     link_dir2 = os.path.join(self.tmp_dir, 'link2')
