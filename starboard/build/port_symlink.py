@@ -113,8 +113,6 @@ def _ReadSymLink(link_path):
       path = os.readlink(link_path)
     except OSError:
       path = None
-  if path and '..' in path:
-    path = os.path.abspath(os.path.normpath(os.path.join(link_path, path)))
   return path
 
 
