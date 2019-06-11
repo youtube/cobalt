@@ -16,12 +16,38 @@
 
 #include <GLES2/gl2.h>
 
+#include <functional>
+#include <utility>
+
+#include "starboard/blitter.h"
+#include "starboard/memory.h"
 #include "starboard/shared/gles/gl_call.h"
 #include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
 namespace blittergles {
+
+namespace {
+
+const void TransformCoords(
+    SbBlitterRect rect,
+    float (&vertex_data)[8],
+    int width,
+    int height,
+    std::function<std::pair<float, float>(int, int, int, int)> transform_func) {
+  std::pair<float, float> lower_left_coords =
+      transform_func(rect.x, rect.y + rect.height, width, height);
+  std::pair<float, float> upper_right_coords =
+      transform_func(rect.x + rect.width, rect.y, width, height);
+  float temp[] = {lower_left_coords.first,  lower_left_coords.second,
+                  lower_left_coords.first,  upper_right_coords.second,
+                  upper_right_coords.first, lower_left_coords.second,
+                  upper_right_coords.first, upper_right_coords.second};
+  SbMemoryCopy(vertex_data, temp, sizeof(float) * 8);
+}
+
+}  // namespace
 
 ShaderProgram::~ShaderProgram() {
   GL_CALL(glDeleteProgram(program_handle_));
@@ -53,6 +79,29 @@ void ShaderProgram::InitializeShaders(const char* vertex_shader_source,
   fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
   SB_CHECK(fragment_shader_ != 0);
   InitializeShader(fragment_shader_, fragment_shader_source);
+}
+
+const void ShaderProgram::SetNDC(SbBlitterRect rect,
+                                 int width,
+                                 int height,
+                                 float (&vertex_data)[8]) {
+  TransformCoords(rect, vertex_data, width, height,
+                  [](int x, int y, int width, int height) {
+                    return std::pair<float, float>(-1 + (2.0f * x) / width,
+                                                   1 - (2.0f * y) / height);
+                  });
+}
+
+const void ShaderProgram::SetTexCoords(SbBlitterRect rect,
+                                       int width,
+                                       int height,
+                                       float (&vertex_data)[8]) {
+  TransformCoords(rect, vertex_data, width, height,
+                  [](int x, int y, int width, int height) {
+                    return std::pair<float, float>(
+                        static_cast<float>(x) / width,
+                        1.0f - (static_cast<float>(y) / height));
+                  });
 }
 
 }  // namespace blittergles

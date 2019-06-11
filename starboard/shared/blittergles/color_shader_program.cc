@@ -16,8 +16,6 @@
 
 #include <GLES2/gl2.h>
 
-#include <utility>
-
 #include "starboard/blitter.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/shader_program.h"
@@ -26,20 +24,6 @@
 namespace starboard {
 namespace shared {
 namespace blittergles {
-
-namespace {
-
-// Transform the given blitter-space coordinates into NDC.
-std::pair<float, float> TransformCoords(
-    const int x,
-    const int y,
-    SbBlitterRenderTargetPrivate* render_target) {
-  const float transformed_x = -1 + (2.0f * x) / render_target->width;
-  const float transformed_y = 1 - (2.0f * y) / render_target->height;
-  return std::pair<float, float>(transformed_x, transformed_y);
-}
-
-}  // namespace
 
 ColorShaderProgram::ColorShaderProgram() {
   const char* vertex_shader_source =
@@ -74,14 +58,9 @@ bool ColorShaderProgram::Draw(SbBlitterRenderTarget render_target,
                               SbBlitterColor color,
                               SbBlitterRect rect) const {
   GL_CALL(glUseProgram(GetProgramHandle()));
-  std::pair<float, float> lower_left_coord =
-      TransformCoords(rect.x, rect.y + rect.height, render_target);
-  std::pair<float, float> upper_right_coord =
-      TransformCoords(rect.x + rect.width, rect.y, render_target);
-  float vertices[] = {lower_left_coord.first,  lower_left_coord.second,
-                      lower_left_coord.first,  upper_right_coord.second,
-                      upper_right_coord.first, lower_left_coord.second,
-                      upper_right_coord.first, upper_right_coord.second};
+
+  float vertices[8];
+  SetNDC(rect, render_target->width, render_target->height, vertices);
   GL_CALL(glVertexAttribPointer(kPositionAttribute, 2, GL_FLOAT, GL_FALSE, 0,
                                 vertices));
   GL_CALL(glEnableVertexAttribArray(kPositionAttribute));

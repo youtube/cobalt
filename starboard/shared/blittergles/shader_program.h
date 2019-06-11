@@ -17,6 +17,7 @@
 
 #include <GLES2/gl2.h>
 
+#include "starboard/blitter.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -31,6 +32,20 @@ class ShaderProgram {
                          const char* fragment_shader_source);
 
   GLuint GetProgramHandle() const { return program_handle_; }
+
+  // Fills the given vertices array with the blitter-space rect coordinates
+  // translated into normalized device coordinates (NDC).
+  static const void SetNDC(SbBlitterRect rect,
+                           int width,
+                           int height,
+                           float (&vertex_data)[8]);
+
+  // Fills the given vertices array with the blitter-space rect coordinates
+  // translated into texture uv coordinates.
+  static const void SetTexCoords(SbBlitterRect rect,
+                                 int width,
+                                 int height,
+                                 float (&vertex_data)[8]);
 
  private:
   // Represents the connection to the shader program.
