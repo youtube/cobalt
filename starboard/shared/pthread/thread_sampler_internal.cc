@@ -19,6 +19,7 @@
 #include <semaphore.h>
 #include <signal.h>
 
+#include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
 #include "starboard/thread.h"
