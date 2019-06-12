@@ -7,6 +7,8 @@
 #if !V8_OS_STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
+#else  // V8_OS_STARBOARD
+#include "starboard/system.h"
 #endif  // !V8_OS_STARBOARD
 
 #include <algorithm>

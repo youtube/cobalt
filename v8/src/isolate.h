@@ -28,6 +28,10 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 
 namespace base {
