@@ -21,6 +21,7 @@
 #include "src/base/timezone-cache.h"
 
 #include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
