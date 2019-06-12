@@ -431,8 +431,8 @@ class TestRunner(object):
     return failed_tests
 
   def _GetFilteredTestList(self, target_name):
-    return _FilterTests([target_name], self._GetTestFilters(), self.config).get(
-        target_name, [])
+    return _FilterTests([target_name], self._GetTestFilters(),
+                        self.config).get(target_name, [])
 
   def _ProcessAllTestResults(self, results):
     """Collects and returns output for all selected tests.
@@ -480,7 +480,7 @@ class TestRunner(object):
         failed_test_groups.append(target_name)
 
       print "{}: {}.".format(target_name, test_status)
-      if run_count == 0:
+      if run_count == 0 and error:
         print "  Results not available.  Did the test crash?\n"
         continue
 
