@@ -198,6 +198,7 @@ class TestRunner(object):
                specified_targets,
                target_params,
                out_directory,
+               platform_tests_only,
                application_name=None,
                dry_run=False,
                xml_output_dir=None,
@@ -222,7 +223,7 @@ class TestRunner(object):
     if specified_targets:
       self.test_targets = self._GetSpecifiedTestTargets(specified_targets)
     else:
-      self.test_targets = self._GetTestTargets()
+      self.test_targets = self._GetTestTargets(platform_tests_only)
 
     self.test_env_vars = self._GetAllTestEnvVariables()
 
@@ -252,8 +253,11 @@ class TestRunner(object):
 
     return targets
 
-  def _GetTestTargets(self):
+  def _GetTestTargets(self, platform_tests_only):
     """Collects all test targets for a given platform and configuration.
+
+    Args:
+      platform_only: If True then only the platform tests are fetched.
 
     Returns:
       A mapping from names of test binaries to lists of filters for
@@ -261,7 +265,8 @@ class TestRunner(object):
         empty.
     """
     targets = self._platform_config.GetTestTargets()
-    targets.extend(self._app_config.GetTestTargets())
+    if not platform_tests_only:
+      targets.extend(self._app_config.GetTestTargets())
     targets = list(set(targets))
 
     final_targets = _FilterTests(targets, self._GetTestFilters(), self.config)
@@ -595,6 +600,10 @@ def main():
       action="append",
       help="Name of executable target. Repeatable for multiple targets.")
   arg_parser.add_argument(
+      "--platform_tests_only",
+      action="store_true",
+      help="Runs only a small set of tests involved testing the platform.")
+  arg_parser.add_argument(
       "-a",
       "--application_name",
       default="cobalt",  # TODO: Pass this in explicitly.
@@ -625,8 +634,8 @@ def main():
 
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, target_params, args.out_directory,
-                      args.application_name, args.dry_run, args.xml_output_dir,
-                      args.log_xml_results)
+                      args.platform_tests_only, args.application_name,
+                      args.dry_run, args.xml_output_dir, args.log_xml_results)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.
