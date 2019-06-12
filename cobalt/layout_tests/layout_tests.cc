@@ -63,7 +63,8 @@ void ScreenshotFunction(
     const scoped_refptr<render_tree::Node>& node,
     const base::Optional<math::Rect>& clip_rect,
     const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
-  if (base::MessageLoop::current()->task_runner() != expected_message_loop) {
+  if (expected_message_loop &&
+      !expected_message_loop->BelongsToCurrentThread()) {
     expected_message_loop->PostTask(
         FROM_HERE, base::Bind(&ScreenshotFunction, expected_message_loop,
                               pixel_tester, node, clip_rect, callback));

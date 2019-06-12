@@ -84,8 +84,8 @@ MediaSessionClient::GetAvailableActions() {
 
 void MediaSessionClient::UpdatePlatformPlaybackState(
     MediaSessionPlaybackState state) {
-  if (base::MessageLoop::current()->task_runner() !=
-      media_session_->task_runner_) {
+  DCHECK(media_session_->task_runner_);
+  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
                               base::Unretained(this), state));
@@ -102,8 +102,8 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
 
 void MediaSessionClient::InvokeActionInternal(
     std::unique_ptr<MediaSessionActionDetails::Data> data) {
-  if (base::MessageLoop::current()->task_runner() !=
-      media_session_->task_runner_) {
+  DCHECK(media_session_->task_runner_);
+  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
                               base::Unretained(this), base::Passed(&data)));

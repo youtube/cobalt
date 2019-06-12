@@ -132,6 +132,7 @@ WindowDriver::WindowDriver(
       pointer_buttons_(0),
       pointer_x_(0),
       pointer_y_(0) {
+  DCHECK(window_task_runner_);
   // The WindowDriver may have been created on some arbitrary thread (i.e. the
   // thread that owns the Window). Detach the thread checker so it can be
   // re-bound to the next thread that calls a webdriver API, which should be
@@ -151,7 +152,7 @@ WindowDriver::~WindowDriver() {
 
 ElementDriver* WindowDriver::GetElementDriver(
     const protocol::ElementId& element_id) {
-  if (base::MessageLoop::current()->task_runner() != window_task_runner_) {
+  if (!window_task_runner_->BelongsToCurrentThread()) {
     // It's expected that the WebDriver thread is the only other thread to call
     // this function.
     DCHECK(thread_checker_.CalledOnValidThread());
