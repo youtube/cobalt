@@ -2474,6 +2474,8 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
         '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
+        'net_copy_test_data',
+        'third_party_copy_test_data',
         'http_server',  # This is needed by dial_http_server in net
         'net',
         'test_support',
@@ -2490,21 +2492,40 @@
         'HTTP_CACHE_DISABLED_FOR_STARBOARD',
         'GMOCK_NO_MOVE_MOCK',
       ],
+      'cflags': [
+        # Avoid compiler errors due to conversion from "0x00" to char on Android.
+        '-Wno-narrowing',
+      ],
+    },
+    {
+      'target_name': 'net_copy_test_data',
+      'type': 'none',
       'conditions': [
         ['cobalt_copy_test_data == 1', {
           'variables': {
             'content_test_input_files': [
               '<(DEPTH)/net/data',
-              '<(DEPTH)/net/third_party',
             ],
             'content_test_output_subdir': 'net',
           },
           'includes': [ '../starboard/build/copy_test_data.gypi' ],
         }],
       ],
-      'cflags': [
-        # Avoid compiler errors due to conversion from "0x00" to char on Android.
-        '-Wno-narrowing',
+    },
+    {
+      'target_name': 'third_party_copy_test_data',
+      'type': 'none',
+      'conditions': [
+        ['cobalt_copy_test_data == 1', {
+          'variables': {
+            'content_test_input_files': [
+              '<(DEPTH)/net/third_party/nist-pkits/certs',
+              '<(DEPTH)/net/third_party/nist-pkits/crls',
+            ],
+            'content_test_output_subdir': 'net/third_party/nist-pkits',
+          },
+          'includes': [ '../starboard/build/copy_test_data.gypi' ],
+        }],
       ],
     },
     {
