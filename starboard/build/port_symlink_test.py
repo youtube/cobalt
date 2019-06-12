@@ -24,6 +24,28 @@ from starboard.build import port_symlink
 from starboard.tools import util
 
 
+# Replace this function signature for other implementations of symlink
+# functions.
+def MakeSymLink(*args, **kwargs):
+  return port_symlink.MakeSymLink(*args, **kwargs)
+
+
+def IsSymLink(*args, **kwargs):
+  return port_symlink.IsSymLink(*args, **kwargs)
+
+
+def ReadSymLink(*args, **kwargs):
+  return port_symlink.ReadSymLink(*args, **kwargs)
+
+
+def Rmtree(*args, **kwargs):
+  return port_symlink.Rmtree(*args, **kwargs)
+
+
+def OsWalk(*args, **kwargs):
+  return port_symlink.OsWalk(*args, **kwargs)
+
+
 class PortSymlinkTest(unittest.TestCase):
 
   def setUp(self):
@@ -36,12 +58,12 @@ class PortSymlinkTest(unittest.TestCase):
     _MakeDirs(self.tmp_dir)
     _MakeDirs(self.from_dir)
     _MakeDirs(self.inner_dir)
-    port_symlink.MakeSymLink(self.from_dir, self.link_dir)
+    MakeSymLink(self.from_dir, self.link_dir)
     with open(self.test_txt, 'w') as fd:
       fd.write('hello world')
 
   def tearDown(self):
-    port_symlink.Rmtree(self.tmp_dir)
+    Rmtree(self.tmp_dir)
     super(PortSymlinkTest, self).tearDown()
 
   def testSanity(self):
@@ -50,35 +72,35 @@ class PortSymlinkTest(unittest.TestCase):
     self.assertTrue(os.path.isdir(self.inner_dir))
 
   def testReadSymlinkNormalDirectory(self):
-    self.assertIsNone(port_symlink.ReadSymLink(self.from_dir))
+    self.assertIsNone(ReadSymLink(self.from_dir))
 
   def testReadSymlinkNormalFile(self):
-    self.assertIsNone(port_symlink.ReadSymLink(self.test_txt))
+    self.assertIsNone(ReadSymLink(self.test_txt))
 
   def testSymlinkDir(self):
     self.assertTrue(os.path.exists(self.link_dir))
-    self.assertTrue(port_symlink.IsSymLink(self.link_dir))
-    from_dir_2 = port_symlink.ReadSymLink(self.link_dir)
+    self.assertTrue(IsSymLink(self.link_dir))
+    from_dir_2 = ReadSymLink(self.link_dir)
     self.assertTrue(_IsSamePath(from_dir_2, self.from_dir))
 
   def testRelativeSymlinkDir(self):
     rel_link_dir = os.path.join(self.tmp_dir, 'foo', 'rel_link')
     rel_dir_path = os.path.relpath(self.from_dir, rel_link_dir)
-    port_symlink.MakeSymLink(rel_dir_path, rel_link_dir)
-    self.assertTrue(port_symlink.IsSymLink(rel_link_dir))
-    link_value = port_symlink.ReadSymLink(rel_link_dir)
+    MakeSymLink(rel_dir_path, rel_link_dir)
+    self.assertTrue(IsSymLink(rel_link_dir))
+    link_value = ReadSymLink(rel_link_dir)
     self.assertIn('..', link_value,
                   msg='Expected ".." in relative path %s' % link_value)
 
   def testDelSymlink(self):
     link_dir2 = os.path.join(self.tmp_dir, 'link2')
-    port_symlink.MakeSymLink(self.from_dir, link_dir2)
-    self.assertTrue(port_symlink.IsSymLink(link_dir2))
+    MakeSymLink(self.from_dir, link_dir2)
+    self.assertTrue(IsSymLink(link_dir2))
     port_symlink.DelSymLink(link_dir2)
     self.assertFalse(os.path.exists(link_dir2))
 
   def testRmtreeRemovesLink(self):
-    port_symlink.Rmtree(self.link_dir)
+    Rmtree(self.link_dir)
     self.assertFalse(os.path.exists(self.link_dir))
     self.assertTrue(os.path.exists(self.from_dir))
 
@@ -106,7 +128,7 @@ def _MakeDirs(path):
 
 
 def _PathTypeToString(path):
-  if port_symlink.IsSymLink(path):
+  if IsSymLink(path):
     return 'link'
   if os.path.isdir(path):
     return 'dir'
@@ -115,8 +137,7 @@ def _PathTypeToString(path):
 
 def _GetAllPaths(start_dir, followlinks):
   paths = []
-  for root, dirs, files in port_symlink.OsWalk(start_dir,
-                                               followlinks=followlinks):
+  for root, dirs, files in OsWalk(start_dir, followlinks=followlinks):
     for name in files:
       path = os.path.join(root, name)
       paths.append(path)
