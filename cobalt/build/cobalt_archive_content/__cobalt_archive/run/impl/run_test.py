@@ -17,10 +17,11 @@
 
 """Unit tests the run.py trampoline."""
 
+import os
 import sys
 import unittest
 
-sys.path.insert(0, '..')
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import run  # pylint: disable=relative-import,g-bad-import-order,g-import-not-at-top
 
 
