@@ -37,6 +37,8 @@ class TempFileSystem(object):
   def __init__(self, root_sub_dir='bundler'):
     root_sub_dir = os.path.normpath(root_sub_dir)
     self.root_tmp = os.path.join(tempfile.gettempdir(), root_sub_dir)
+    if os.path.exists(self.root_tmp):
+      port_symlink.Rmtree(self.root_tmp)
     self.root_in_tmp = os.path.join(self.root_tmp, 'in')
     self.test_txt = os.path.join(self.root_in_tmp, 'from_dir', 'test.txt')
     self.sym_dir = os.path.join(self.root_in_tmp, 'from_dir_lnk')
