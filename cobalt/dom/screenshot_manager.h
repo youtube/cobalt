@@ -61,7 +61,7 @@ class ScreenshotManager {
  private:
   void FillScreenshot(
       int64_t token,
-      scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
+      scoped_refptr<base::SingleThreadTaskRunner> expected_task_runner,
       loader::image::EncodedStaticImage::ImageFormat desired_format,
       std::unique_ptr<uint8[]> image_data, const math::Size& dimensions);
 

@@ -63,14 +63,14 @@ void ScreenshotManager::SetEnvironmentSettings(
 
 void ScreenshotManager::FillScreenshot(
     int64_t token,
-    scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
+    scoped_refptr<base::SingleThreadTaskRunner> expected_task_runner,
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     std::unique_ptr<uint8[]> image_data, const math::Size& image_dimensions) {
-  if (base::MessageLoop::current()->task_runner() != expected_message_loop) {
-    expected_message_loop->PostTask(
+  if (expected_task_runner && !expected_task_runner->BelongsToCurrentThread()) {
+    expected_task_runner->PostTask(
         FROM_HERE,
         base::Bind(&ScreenshotManager::FillScreenshot, base::Unretained(this),
-                   token, expected_message_loop, desired_format,
+                   token, expected_task_runner, desired_format,
                    base::Passed(&image_data), image_dimensions));
     return;
   }
