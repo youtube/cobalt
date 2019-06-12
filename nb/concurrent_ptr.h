@@ -31,6 +31,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/memory.h"
+#include "starboard/thread.h"
 #include "starboard/types.h"
 
 namespace nb {
