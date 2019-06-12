@@ -43,6 +43,7 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'timer_hit_after_preload',
     'preload_visibility',
     'suspend_visibility',
+    'signal_handler_doesnt_crash',
 ]
 # These tests only need app launchers with webdriver.
 _TESTS_NO_SIGNAL = [
