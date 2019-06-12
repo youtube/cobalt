@@ -615,7 +615,6 @@ void SetReactionOnUninterestingCalls(const void* mock_obj,
                                      internal::CallReaction reaction)
     GTEST_LOCK_EXCLUDED_(internal::g_gmock_mutex) {
   internal::MutexLock l(&internal::g_gmock_mutex);
-  SbLogRawFormatF("Register mock: %p\n", mock_obj);
   g_uninteresting_call_reaction[mock_obj] = reaction;
 }
 
@@ -647,7 +646,6 @@ void Mock::FailUninterestingCalls(const void* mock_obj)
 void Mock::UnregisterCallReaction(const void* mock_obj)
     GTEST_LOCK_EXCLUDED_(internal::g_gmock_mutex) {
   internal::MutexLock l(&internal::g_gmock_mutex);
-  SbLogRawFormatF("Unregister mock: %p\n", mock_obj);
   g_uninteresting_call_reaction.erase(mock_obj);
 }
 
