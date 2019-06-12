@@ -113,6 +113,26 @@ class FileListTest(unittest.TestCase):
     self.assertTrue(flist.symlink_dir_list)
     self.assertFalse(flist.file_list)
 
+  def testAddRelativeSymlink(self):
+    """Tests the that adding a relative symlink works as expected."""
+    tf = TempFileSystem()
+    tf.Make()
+    flist = filelist.FileList()
+    in2 = os.path.join(tf.root_in_tmp, 'in2')
+    target_path = os.path.relpath(tf.from_dir, in2)
+    # Sanity check that target_path is relative.
+    self.assertIn('..', target_path)
+    port_symlink.MakeSymLink(target_path, in2)
+    self.assertTrue(port_symlink.IsSymLink(in2))
+    read_back_target_path = port_symlink.ReadSymLink(in2)
+    self.assertIn('..', read_back_target_path)
+    flist.AddFile(tf.root_tmp, in2)
+    flist.Print()
+    self.assertTrue(flist.symlink_dir_list)
+    symlink_entry = flist.symlink_dir_list[0][1:]
+    expected = [os.path.join('in', 'in2'), os.path.join('in', 'from_dir')]
+    self.assertEqual(expected, symlink_entry)
+
   def testOsGetRelpathFallback(self):
     # Tests issue b/134589032
     path = (

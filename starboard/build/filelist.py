@@ -71,16 +71,24 @@ class FileList(object):
 
   def AddSymLink(self, relative_dir, link_file):
     rel_link_path = _OsGetRelpath(link_file, relative_dir)
-    phy_path = port_symlink.ReadSymLink(link_file)
-    assert os.path.isdir(phy_path), phy_path
-    rel_phy_path = _OsGetRelpath(phy_path, relative_dir)
-    self.symlink_dir_list.append([relative_dir, rel_link_path, rel_phy_path])
+    target_path = _ResolveSymLink(link_file)
+    assert os.path.exists(target_path)
+    rel_target_path = _OsGetRelpath(target_path, relative_dir)
+    self.symlink_dir_list.append([relative_dir, rel_link_path, rel_target_path])
 
   def Print(self):
     for f in self.file_list:
       print 'File:    %s' % f
     for s in self.symlink_dir_list:
       print 'Symlink: %s' % s
+
+
+def _ResolveSymLink(link_file):
+  target_path = port_symlink.ReadSymLink(link_file)
+  if os.path.exists(target_path):  # Absolute path
+    return target_path
+  else:
+    return os.path.join(link_file, target_path)  # Relative path from link_file.
 
 
 def _FallbackOsGetRelPath(path, start_dir):
