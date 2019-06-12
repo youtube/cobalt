@@ -99,6 +99,7 @@ def _MakeSymLink(from_folder, link_folder):
     from starboard.build import win_symlink
     win_symlink.CreateReparsePoint(from_folder, link_folder)
   else:
+    util.MakeDirs(os.path.dirname(link_folder))
     os.symlink(from_folder, link_folder)
 
 
