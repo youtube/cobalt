@@ -19,6 +19,7 @@
 #include "nb/simple_thread.h"
 #include "starboard/atomic.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Number of threads for the thread test.
