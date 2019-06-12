@@ -51,6 +51,8 @@ class PortSymlinkTest(unittest.TestCase):
   def setUp(self):
     super(PortSymlinkTest, self).setUp()
     self.tmp_dir = os.path.join(tempfile.gettempdir(), 'port_symlink')
+    if os.path.exists(self.tmp_dir):
+      Rmtree(self.tmp_dir)
     self.from_dir = os.path.join(self.tmp_dir, 'from_dir')
     self.test_txt = os.path.join(self.from_dir, 'test.txt')
     self.inner_dir = os.path.join(self.from_dir, 'inner_dir')
