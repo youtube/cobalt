@@ -123,6 +123,7 @@
             'src/starboard/stdio/vswprintf.c',
             'src/starboard/stdlib/strtod.c',
             'src/starboard/stdlib/strtol.c',
+            'src/starboard/time/clock_gettime.c',
             'src/stdio/fprintf.c',
             'src/stdio/snprintf.c',
             'src/stdio/sscanf.c',
