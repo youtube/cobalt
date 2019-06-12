@@ -368,6 +368,10 @@
 # define GTEST_STDLIB_CXX11 1
 #endif
 
+#if defined(STARBOARD)
+// All Cobalt platforms should be able to use C++11 features.
+#define GTEST_STDLIB_CXX11 1
+#endif
 // Only use C++11 library features if the library provides them.
 #if GTEST_STDLIB_CXX11
 # define GTEST_HAS_STD_BEGIN_AND_END_ 1
