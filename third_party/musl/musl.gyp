@@ -115,6 +115,8 @@
           'sources': [
             'src/starboard/abort.c',
             'src/starboard/malloc.c',
+            'src/starboard/memalign.c'
+            'src/starboard/posix_memalign.c',
             'src/starboard/strtod.c',
             'src/starboard/strtol.c',
             'src/starboard/vsnprintf.c',
