@@ -18,6 +18,7 @@
 """Tools for creating and extracting a Cobalt Archive."""
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import logging
@@ -232,8 +233,8 @@ def _FindPossibleDeployPaths(build_root):
   """Searches for folders that are likely required for archiving."""
   out = []
   # Ultimately, this function should not be needed as each platform should
-  # implement GetDeployPaths(). This is stop-gap for platforms that do not
-  # have GetDeployPaths() implemented yet.
+  # implement GetDeployPathPatterns(). This is stop-gap for platforms that do
+  # not have GetDeployPathPatterns() implemented yet.
   root_paths = os.listdir(build_root)
   for p in root_paths:
     if p in ('gen', 'gypfiles', 'gyp-win-tool', 'obj', 'obj.host'):
@@ -250,11 +251,30 @@ def _FindPossibleDeployPaths(build_root):
   return out
 
 
+def _PathMatchesPatterns(file_path, patterns):
+  for p in patterns:
+    if fnmatch.fnmatch(file_path, p):
+      logging.debug('pattern %s matched %s', (p, file_path))
+      return True
+  logging.debug('Skipping %s', file_path)
+  return False
+
+
 def _GetDeployPaths(platform_name, config):
   """Returns a list of paths that should be included in the archive."""
   try:
     gyp_config = GetPlatformConfig(platform_name)
-    return gyp_config.GetDeployPaths()
+    patterns = gyp_config.GetDeployPathPatterns()
+    logging.info('Found platform include patterns: [%s]', ', '.join(patterns))
+    out_directory = paths.BuildOutputDirectory(platform_name, config)
+    out_paths = []
+    for root, dirs, files in port_symlink.OsWalk(out_directory):
+      for f in files:
+        full_path = os.path.join(root, f)
+        file_path = os.path.relpath(full_path, out_directory)
+        if _PathMatchesPatterns(file_path, patterns):
+          out_paths.append(file_path)
+    return out_paths
   except NotImplementedError:  # Abstract class throws NotImplementedError.
     logging.warning(
         '\n********************************************************\n'
@@ -282,7 +302,7 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
   for path in inc_paths:
     path = os.path.join(out_directory, path)
     if not os.path.exists(path):
-      logging.info('Skipping deploy directory %s because it does not exist.',
+      logging.info('Skipping deploy path %s because it does not exist.',
                    path)
       continue
     logging.info('  adding %s', os.path.abspath(path))
