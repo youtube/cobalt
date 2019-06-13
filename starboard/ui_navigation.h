@@ -61,10 +61,17 @@ typedef enum SbUiNavItemType {
   kSbUiNavItemTypeContainer,
 } SbUiNavItemType;
 
+// This represents a 2x3 transform matrix in row-major order.
+//   | a b tx |
+//   | c d ty |
+typedef struct SbUiNavMatrix2x3 {
+  float m[6];
+} SbUiNavMatrix2x3;
+
 // This represents a 4x4 transform matrix in row-major order.
-typedef struct SbUiNavTransform {
+typedef struct SbUiNavMatrix4 {
   float m[16];
-} SbUiNavTransform;
+} SbUiNavMatrix4;
 
 // This structure specifies all the callbacks which the platform UI engine
 // should invoke for various interaction events on navigation items. These
@@ -120,19 +127,22 @@ typedef struct SbUiNavInterface {
   // an item's size is (0,0).
   void (*set_item_size)(SbUiNavItem item, float width, float height);
 
-  // Set the position of the top-left corner for the specified navigation item.
-  // Distance is measured in pixels with the origin being the top-left of the
-  // screen or top-left of the containing item. By default, an item's position
-  // is (0,0).
-  void (*set_item_position)(SbUiNavItem item, float x, float y);
+  // Set the transform for the navigation item and its contents if the item is
+  // a container. This specifies the placement of the item's center within its
+  // container. The transform origin is the center of the item. Distance is
+  // measured in pixels with the origin being the top-left of the item's
+  // container. By default, an item's transform is identity.
+  void (*set_item_transform)(SbUiNavItem item,
+                             const SbUiNavMatrix2x3* transform);
 
-  // Retrieve the local transform matrix for the navigation item. The UI
+  // Retrieve the focus transform matrix for the navigation item. The UI
   // engine may translate, rotate, and/or tilt focus items to reflect user
-  // interaction. Apply this transform to the focus item's vertices (expressed
-  // as offsets from the item center). Return false if the item position
-  // should not be changed (i.e. the transform should be treated as identity).
-  bool (*get_item_local_transform)(SbUiNavItem item,
-      SbUiNavTransform* out_transform);
+  // interaction. This transform should be multiplied with the item's transform
+  // to get its position inside its container. The transform origin is the
+  // center of the item. Return false if the item position should not be
+  // changed (i.e. the transform should be treated as identity).
+  bool (*get_item_focus_transform)(SbUiNavItem item,
+                                   SbUiNavMatrix4* out_transform);
 
   // Retrieve a vector representing the focus location within a focused item.
   // This is used to provide feedback about user input that is too small to
@@ -191,12 +201,14 @@ typedef struct SbUiNavInterface {
   // If |item| is not a container, then this does nothing.
   // By default, the content offset is (0,0).
   void (*set_item_content_offset)(SbUiNavItem item,
-      float content_offset_x, float content_offset_y);
+                                  float content_offset_x,
+                                  float content_offset_y);
 
   // Retrieve the current content offset for the navigation item. If |item| is
   // not a container, then the content offset is (0,0).
   void (*get_item_content_offset)(SbUiNavItem item,
-      float* out_content_offset_x, float* out_content_offset_y);
+                                  float* out_content_offset_x,
+                                  float* out_content_offset_y);
 } SbUiNavInterface;
 
 // --- Constants -------------------------------------------------------------
