@@ -109,6 +109,10 @@ class AndroidConfiguration(PlatformConfiguration):
     })
     return variables
 
+  def GetDeployPathPatterns(self):
+    """example src/out/android-arm64/devel/cobalt.apk"""
+    return ['*.apk']
+
   def GetGeneratorVariables(self, configuration):
     _ = configuration
     generator_variables = {

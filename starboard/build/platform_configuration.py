@@ -295,13 +295,15 @@ class PlatformConfiguration(object):
     """
     return []
 
-  def GetDeployPaths(self):
-    """Gets directories that need to be deployed to the device.
+  def GetDeployPathPatterns(self):
+    """Gets deployment paths patterns for files to be included for deployement.
 
-       Returns:
-         A list of paths within the PRODUCT_DIR (src/out/<PLATFORM>_<CONFIG>)
-         that need to be deployed in order for the platform launcher to run the
-         target executable(s).
+    Example: ['deploy/*.exe', 'content/*']
+
+    Returns:
+      A list of path wildcard patterns within the PRODUCT_DIR
+      (src/out/<PLATFORM>_<CONFIG>) that need to be deployed in order for the
+      platform launcher to run target executable(s).
     """
     raise NotImplementedError()
 
