@@ -208,8 +208,13 @@ def _CreateReparsePoint(from_folder, link_folder):
   par_dir = os.path.dirname(link_folder)
   if not os.path.isdir(par_dir):
     os.makedirs(par_dir)
-  cmd_parts = ['cmd', '/c', 'mklink', '/d', link_folder, from_folder]
-  subprocess.check_output(cmd_parts)
+  try:
+    subprocess.check_output(
+        ['cmd', '/c', 'mklink', '/d', link_folder, from_folder])
+  except subprocess.CalledProcessError as cpe:
+    # Fallback to junction points, which require less privileges to create.
+    subprocess.check_output(
+        ['cmd', '/c', 'mklink', '/j', link_folder, from_folder])
   if not _IsReparsePoint(link_folder):
     raise OSError('Could not create sym link %s to %s' %
                   (link_folder, from_folder))
