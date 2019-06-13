@@ -24,6 +24,7 @@
         '<(DEPTH)/third_party/musl/generated/include',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/common/common.gyp:common',
         '<(DEPTH)/third_party/musl/musl.gyp:c',
       ],
       'cflags': [
@@ -49,6 +50,9 @@
       'defines': [
         # Ensure that __external_threading is used for threading support.
         '_LIBCPP_HAS_THREAD_API_EXTERNAL',
+        # Build libunwind with concurrency built upon Starboard mutexes and
+        # condition variables.
+        '_LIBUNWIND_HAS_STARBOARD_THREADS',
         'LLVM_PATH="<(DEPTH)/third_party/llvm-project/llvm/"',
       ],
       'sources': [
