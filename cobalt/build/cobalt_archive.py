@@ -25,12 +25,12 @@ import logging
 import os
 import random
 import stat
-import subprocess
 import sys
 import time
 import zipfile
 
 import _env  # pylint: disable=relative-import,unused-import
+from cobalt.build import cobalt_archive_extract
 import starboard.build.filelist as filelist
 import starboard.build.port_symlink as port_symlink
 from starboard.tools.app_launcher_packager import CopyAppLauncherTools
@@ -108,8 +108,6 @@ _OUT_ARCHIVE_ROOT = '__cobalt_archive'
 _OUT_FINALIZE_DECOMPRESSION_PATH = '%s/%s' % (_OUT_ARCHIVE_ROOT,
                                               'finalize_decompression')
 _OUT_METADATA_PATH = '%s/%s' % (_OUT_ARCHIVE_ROOT, 'metadata.json')
-_OUT_DECOMP_PY = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
-                            'decompress.py')
 _OUT_DECOMP_JSON = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
                               'decompress.json')
 
@@ -122,20 +120,8 @@ class CobaltArchive(object):
 
   def ExtractTo(self, output_dir, outstream=None):
     """Returns True if all files were extracted, False otherwise."""
-    outstream = outstream if outstream else sys.stdout
-    assert os.path.exists(self.archive_zip_path)
-    logging.info('UNZIPPING %s -> %s', self.archive_zip_path, output_dir)
-    ok = _ExtractFiles(self.archive_zip_path, output_dir, outstream)
-    # Now that all files have been extracted, execute the final decompress
-    # step.
-    decomp_py = os.path.abspath(os.path.join(output_dir, _OUT_DECOMP_PY))
-    assert(os.path.isfile(decomp_py)), decomp_py
-    cmd_str = 'python ' + decomp_py
-    outstream.write('Executing: %s\n' % cmd_str)
-    rc = subprocess.call(cmd_str, shell=True, stdout=outstream,
-                         stderr=outstream)
-    ok = ok & (rc == 0)
-    return ok
+    return cobalt_archive_extract.ExtractTo(
+        self.archive_zip_path, output_dir, outstream)
 
   def ReadMetaData(self):
     json_str = self.ReadFile(_OUT_METADATA_PATH)
@@ -254,7 +240,7 @@ def _FindPossibleDeployPaths(build_root):
 def _PathMatchesPatterns(file_path, patterns):
   for p in patterns:
     if fnmatch.fnmatch(file_path, p):
-      logging.debug('pattern %s matched %s', (p, file_path))
+      logging.debug('pattern %s matched %s', p, file_path)
       return True
   logging.debug('Skipping %s', file_path)
   return False
@@ -268,7 +254,7 @@ def _GetDeployPaths(platform_name, config):
     logging.info('Found platform include patterns: [%s]', ', '.join(patterns))
     out_directory = paths.BuildOutputDirectory(platform_name, config)
     out_paths = []
-    for root, dirs, files in port_symlink.OsWalk(out_directory):
+    for root, _, files in port_symlink.OsWalk(out_directory):
       for f in files:
         full_path = os.path.join(root, f)
         file_path = os.path.relpath(full_path, out_directory)
@@ -409,20 +395,6 @@ def _GenerateBuildInfoStr(platform_name, platform_sdk_version,
   build_info['nonce'] = random.randint(0, 0xffffffffffffffff)
   build_info_str = _JsonDumpPrettyPrint(build_info)
   return build_info_str
-
-
-def _ExtractFiles(input_zip_path, output_dir, outstream):
-  """Returns True if all files were extracted, else False."""
-  all_ok = True
-  with zipfile.ZipFile(input_zip_path, 'r', allowZip64=True) as zf:
-    for zinfo in zf.infolist():
-      try:
-        zf.extract(zinfo, path=output_dir)
-      except Exception as err:  # pylint: disable=broad-except
-        msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
-        outstream.write(msg)
-        all_ok = False
-  return all_ok
 
 
 ################################################################################
