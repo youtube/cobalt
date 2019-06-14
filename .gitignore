@@ -169,7 +169,6 @@ v8.log
 /third_party/boringssl/src
 /third_party/brotli
 /third_party/cacheinvalidation/src
-/third_party/cdm
 /third_party/ce_cdm
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
