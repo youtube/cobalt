@@ -14,8 +14,8 @@
 
 // Write and read are mostly tested in SbStorageReadRecordTest.
 
+#include "starboard/common/storage.h"
 #include "starboard/nplb/storage_helpers.h"
-#include "starboard/storage.h"
 #include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
