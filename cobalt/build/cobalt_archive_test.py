@@ -101,6 +101,7 @@ class CobaltArchiveTest(unittest.TestCase):
   def testExecutionAttribute(self):
     flist = filelist.FileList()
     tf = filelist_test.TempFileSystem()
+    tf.Make()
     # Execution bit seems to turn off the read bit, so we just set all
     # read/write/execute bit for the user.
     write_flags = stat.S_IXUSR | stat.S_IWUSR | stat.S_IRUSR
