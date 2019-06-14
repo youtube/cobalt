@@ -15,8 +15,8 @@
 #ifndef STARBOARD_NPLB_STORAGE_HELPERS_H_
 #define STARBOARD_NPLB_STORAGE_HELPERS_H_
 
+#include "starboard/common/storage.h"
 #include "starboard/memory.h"
-#include "starboard/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

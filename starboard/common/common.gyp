@@ -48,6 +48,8 @@
         'spin_lock.h',
         'state_machine.cc',
         'state_machine.h',
+        'storage.cc',
+        'storage.h',
         'string.h',
         'thread_collision_warner.cc',
         'thread_collision_warner.h',
