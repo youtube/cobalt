@@ -391,7 +391,7 @@ RectLayoutUnit Box::GetTransformedBorderBoxFromContainingBlock(
                       local_border_box_offset.y().toFloat(),
                       box->GetBorderBoxWidth().toFloat(),
                       box->GetBorderBoxHeight().toFloat()),
-          ComputeUiNavFocusForTransform());
+          box->ComputeUiNavFocusForTransform());
       for (int i = 0; i < kNumPoints; ++i) {
         border_box_corners[i] += border_box_translate;
         border_box_corners[i] = transform * border_box_corners[i];
