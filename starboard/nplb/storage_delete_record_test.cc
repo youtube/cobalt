@@ -14,8 +14,8 @@
 
 // Sunny Day cases tested in the read/write tests.
 
+#include "starboard/common/storage.h"
 #include "starboard/nplb/file_helpers.h"
-#include "starboard/storage.h"
 #include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
