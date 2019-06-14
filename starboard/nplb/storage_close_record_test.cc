@@ -14,7 +14,7 @@
 
 // Sunny Day cases tested in the read/write tests.
 
-#include "starboard/storage.h"
+#include "starboard/common/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

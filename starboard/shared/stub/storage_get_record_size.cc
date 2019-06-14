@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/storage.h"
+#include "starboard/common/storage.h"
 
 int64_t SbStorageGetRecordSize(SbStorageRecord /*record*/) {
   return -1;
