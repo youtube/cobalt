@@ -450,6 +450,10 @@ float HTMLElement::scroll_left() {
 
   node_document()->DoSynchronousLayout();
 
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return 0.0f;
+  }
+
   // 5. If the element is the root element and document is in quirks mode,
   //    return zero and terminate these steps.
   // 6. If the element is the root element return the value of scrollX on
@@ -466,9 +470,6 @@ float HTMLElement::scroll_left() {
 
   // 9. Return the x-coordinate of the scrolling area at the alignment point
   //    with the left of the padding edge of the element.
-  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
-    return 0.0f;
-  }
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
   return left;
@@ -491,6 +492,10 @@ float HTMLElement::scroll_top() {
 
   node_document()->DoSynchronousLayout();
 
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return 0.0f;
+  }
+
   // 5. If the element is the root element and document is in quirks mode,
   //    return zero and terminate these steps.
   // 6. If the element is the root element return the value of scrollY on
@@ -507,9 +512,6 @@ float HTMLElement::scroll_top() {
 
   // 9. Return the y-coordinate of the scrolling area at the alignment point
   //    with the top of the padding edge of the element.
-  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
-    return 0.0f;
-  }
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
   return top;
@@ -534,6 +536,10 @@ void HTMLElement::set_scroll_left(float x) {
 
   node_document()->DoSynchronousLayout();
 
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return;
+  }
+
   // 7. If the element is the root element and document is in quirks mode,
   //    terminate these steps.
   // 8. If the element is the root element invoke scroll() on window with x as
@@ -555,9 +561,6 @@ void HTMLElement::set_scroll_left(float x) {
 
   // 11. Scroll the element to x,scrollTop, with the scroll behavior being
   //     "auto".
-  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
-    return;
-  }
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
   ui_nav_item_->SetContentOffset(x, top);
@@ -582,6 +585,10 @@ void HTMLElement::set_scroll_top(float y) {
 
   node_document()->DoSynchronousLayout();
 
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return;
+  }
+
   // 7. If the element is the root element and document is in quirks mode,
   //    terminate these steps.
   // 8. If the element is the root element invoke scroll() on window with
@@ -603,9 +610,6 @@ void HTMLElement::set_scroll_top(float y) {
 
   // 11. Scroll the element to scrollLeft,y, with the scroll behavior being
   //     "auto".
-  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
-    return;
-  }
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
   ui_nav_item_->SetContentOffset(left, y);
