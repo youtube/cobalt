@@ -15,7 +15,10 @@
 
 """Tests win_symlink."""
 
+import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 
@@ -52,7 +55,37 @@ if __name__ == '__main__' and sys.platform == 'win32':
 
   # Makes a unit test available to the unittest.main (through magic).
   class WinSymlinkTest(port_symlink_test.PortSymlinkTest):
-    pass
+
+    def testRmtreeOsWalkDoesNotFollowSymlinks(self):
+      """_RmtreeOsWalk(...) will delete the symlink and not the target."""
+      external_temp_dir = tempfile.mkdtemp()
+      try:
+        external_temp_file = os.path.join(external_temp_dir, 'test.txt')
+        with open(external_temp_file, 'w') as fd:
+          fd.write('HI')
+        link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
+        MakeSymLink(external_temp_file, link_dir)
+        win_symlink._RmtreeOsWalk(self.tmp_dir)
+        # The target file should still exist
+        self.assertTrue(os.path.isfile(external_temp_file))
+      finally:
+        shutil.rmtree(external_temp_dir, ignore_errors=True)
+
+    def testRmtreeCmdShellDoesNotFollowSymlinks(self):
+      """_RmtreeShellCmd(...) will delete the symlink and not the target."""
+      external_temp_dir = tempfile.mkdtemp()
+      try:
+        external_temp_file = os.path.join(external_temp_dir, 'test.txt')
+        with open(external_temp_file, 'w') as fd:
+          fd.write('HI')
+        link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
+        MakeSymLink(external_temp_file, link_dir)
+        win_symlink._RmtreeShellCmd(self.tmp_dir)
+        # The target file should still exist
+        self.assertTrue(os.path.isfile(external_temp_file))
+      finally:
+        shutil.rmtree(external_temp_dir, ignore_errors=True)
+
 
   util.SetupDefaultLoggingConfig()
   unittest.main(verbosity=2)

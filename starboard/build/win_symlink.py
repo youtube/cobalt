@@ -149,6 +149,10 @@ def _RmtreeOsWalk(root_dir):
       logging.exception('Error while deleting: %s', err)
 
 
+def _RmtreeShellCmd(root_dir):
+  subprocess.call(['cmd', '/c', 'rmdir', '/S', '/Q', root_dir])
+
+
 def _RmtreeShallow(root_dir):
   """See RmtreeShallow() for documentation."""
   try:
@@ -157,7 +161,7 @@ def _RmtreeShallow(root_dir):
   except OSError:
     # This fallback will handle very long file. Note that it is VERY slow
     # in comparison to the _RmtreeOsWalk() version.
-    subprocess.call(['cmd', '/c', 'rmdir', '/S', '/Q', root_dir])
+    _RmtreeShellCmd(root_dir)
   if os.path.isdir(root_dir):
     logging.error('Directory %s still exists.', root_dir)
 
