@@ -123,8 +123,8 @@ def _RemoveEmptyDirectory(path):
         time.sleep(.1)
 
 
-def _RmtreeShallow(root_dir):
-  """See RmtreeShallow() for documentation."""
+def _RmtreeOsWalk(root_dir):
+  """Walks the directory structure to delete directories and files."""
   del_dirs = []  # Defer deletion of directories.
   if _IsReparsePoint(root_dir):
     _UnlinkReparsePoint(root_dir)
@@ -147,6 +147,19 @@ def _RmtreeShallow(root_dir):
         shutil.rmtree(d)
     except Exception as err:  # pylint: disable=broad-except
       logging.exception('Error while deleting: %s', err)
+
+
+def _RmtreeShallow(root_dir):
+  """See RmtreeShallow() for documentation."""
+  try:
+    # This can fail if there are very long file names.
+    _RmtreeOsWalk(root_dir)
+  except OSError:
+    # This fallback will handle very long file. Note that it is VERY slow
+    # in comparison to the _RmtreeOsWalk() version.
+    subprocess.call(['cmd', '/c', 'rmdir', '/S', '/Q', root_dir])
+  if os.path.isdir(root_dir):
+    logging.error('Directory %s still exists.', root_dir)
 
 
 def _ReadReparsePointShell(path):
@@ -212,7 +225,7 @@ def _CreateReparsePoint(from_folder, link_folder):
     subprocess.check_output(
         ['cmd', '/c', 'mklink', '/d', link_folder, from_folder],
         stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as cpe:
+  except subprocess.CalledProcessError:
     # Fallback to junction points, which require less privileges to create.
     subprocess.check_output(
         ['cmd', '/c', 'mklink', '/j', link_folder, from_folder])

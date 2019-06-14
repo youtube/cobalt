@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -105,6 +106,21 @@ class PortSymlinkTest(unittest.TestCase):
     Rmtree(self.link_dir)
     self.assertFalse(os.path.exists(self.link_dir))
     self.assertTrue(os.path.exists(self.from_dir))
+
+  def testRmtreeDoesNotFollowSymlinks(self):
+    """Tests that Rmtree(...) will delete the symlink and not the target."""
+    external_temp_dir = tempfile.mkdtemp()
+    try:
+      external_temp_file = os.path.join(external_temp_dir, 'test.txt')
+      with open(external_temp_file, 'w') as fd:
+        fd.write('HI')
+      link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
+      MakeSymLink(external_temp_file, link_dir)
+      Rmtree(self.tmp_dir)
+      # The target file should still exist
+      self.assertTrue(os.path.isfile(external_temp_file))
+    finally:
+      shutil.rmtree(external_temp_file, ignore_errors=True)
 
   def testOsWalk(self):
     paths_nofollow_links = _GetAllPaths(self.tmp_dir, followlinks=False)
