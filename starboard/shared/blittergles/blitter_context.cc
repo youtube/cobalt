@@ -42,31 +42,12 @@ bool SetFramebufferAndTexture(SbBlitterRenderTarget render_target) {
     return false;
   }
 
-  glGenTextures(1, &render_target->surface->color_texture_handle);
-  if (render_target->surface->color_texture_handle == 0) {
+  if (!render_target->surface->EnsureInitialized()) {
     GL_CALL(glDeleteFramebuffers(1, &render_target->framebuffer_handle));
-    SB_DLOG(ERROR) << ": Error creating new texture.";
     return false;
   }
-  glBindTexture(GL_TEXTURE_2D, render_target->surface->color_texture_handle);
-  if (glGetError() != GL_NO_ERROR) {
-    GL_CALL(glDeleteFramebuffers(1, &render_target->framebuffer_handle));
-    GL_CALL(glDeleteTextures(1, &render_target->surface->color_texture_handle));
-    SB_DLOG(ERROR) << ": Error binding new texture.";
-    return false;
-  }
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, render_target->width,
-               render_target->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  if (glGetError() != GL_NO_ERROR) {
-    GL_CALL(glDeleteFramebuffers(1, &render_target->framebuffer_handle));
-    GL_CALL(glDeleteTextures(1, &render_target->surface->color_texture_handle));
-    SB_DLOG(ERROR) << ": Error allocating new texture backing for framebuffer.";
-    return false;
-  }
-
+  GL_CALL(glBindTexture(GL_TEXTURE_2D,
+                        render_target->surface->color_texture_handle));
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                          render_target->surface->color_texture_handle, 0);
   if (glGetError() != GL_NO_ERROR) {

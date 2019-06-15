@@ -44,6 +44,7 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
   surface->info.width = width;
   surface->info.height = height;
   surface->info.format = surface_format;
+  surface->data = NULL;
   std::unique_ptr<SbBlitterRenderTargetPrivate> render_target(
       new SbBlitterRenderTargetPrivate());
   render_target->swap_chain = kSbBlitterInvalidSwapChain;

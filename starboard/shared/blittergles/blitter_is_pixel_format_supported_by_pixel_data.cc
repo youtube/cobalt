@@ -26,5 +26,6 @@ bool SbBlitterIsPixelFormatSupportedByPixelData(
 
   // GL textures can support GL_ALPHA and GL_RGBA.
   return pixel_format == kSbBlitterPixelDataFormatA8 ||
-         pixel_format == kSbBlitterPixelDataFormatRGBA8;
+         SbBlitterPixelDataFormatToSurfaceFormat(pixel_format) ==
+             kSbBlitterSurfaceFormatRGBA8;
 }
