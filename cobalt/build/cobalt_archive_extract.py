@@ -43,6 +43,11 @@ def ExtractTo(archive_zip_path, output_dir, outstream=None):
                     outstream=outstream)
 
 
+def ToWinUncPath(dos_path, encoding=None):
+  """Returns a windows UNC path which enables long path names in win32 apis."""
+  return _ToWinUncPath(dos_path, encoding)
+
+
 ################################################################################
 #                                 IMPL                                         #
 ################################################################################
