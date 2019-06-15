@@ -99,6 +99,7 @@ def _UnzipFiles(input_zip_path, output_dir, outstream):
   with zf_class(input_zip_path, 'r', allowZip64=True) as zf:
     for zinfo in zf.infolist():
       try:
+        logging.debug('Extracting: %s -> %s', zinfo.filename, output_dir)
         zf.extract(zinfo, path=output_dir)
       except Exception as err:  # pylint: disable=broad-except
         msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
