@@ -36,19 +36,33 @@ _DATA_JSON_PATH = os.path.abspath(os.path.join(_SELF_DIR, 'decompress.json'))
 _FULL_PERMISSIONS = 0o777
 
 
-def _DefineOsSymlinkForWin32():
-  """When invoked, this will define the missing os.symlink for Win32."""
+_IS_WINDOWS = sys.platform in ['win32', 'cygwin']
 
-  def _CreateWin32Symlink(source, link_name):
-    cmd = 'mklink /J %s %s' % (link_name, source)
+
+def _CreateWin32Symlink(source, link_name):
+  rc = subprocess.call('mklink /D %s %s' % (link_name, source), shell=True)
+  if rc != 0:
+    # Some older versions of windows require admin permissions for /D style
+    # reparse points. In this case fallback to using /J.
+    cmd = 'mklink /J %s %s' % (link_name, source),
     rc = subprocess.call(cmd, shell=True)
     if rc != 0:
       logging.critical('Error using %s during %s, cwd=%s', rc, cmd, os.getcwd())
-  os.symlink = _CreateWin32Symlink
 
 
-if sys.platform == 'win32':
-  _DefineOsSymlinkForWin32()
+def _CreateSymlink(source, link_name):
+  if _IS_WINDOWS:
+    _CreateWin32Symlink(source, link_name)
+  else:
+    os.symlink(source, link_name)
+
+
+def _MakeDirs(path):
+  if _IS_WINDOWS:
+    # Necessary for long file name support
+    subprocess.check_call('mkdir %s' % path, shell=True)
+  else:
+    os.makedirs(path)
 
 
 def _ExtractSymlinks(cwd, symlink_dir_list):
@@ -62,12 +76,12 @@ def _ExtractSymlinks(cwd, symlink_dir_list):
       link_path = os.path.abspath(link_path)
       real_path = os.path.abspath(real_path)
       if not os.path.exists(real_path):
-        os.makedirs(real_path)
+        _MakeDirs(real_path)
       if not os.path.exists(os.path.dirname(link_path)):
-        os.makedirs(os.path.dirname(link_path))
+        _MakeDirs(os.path.dirname(link_path))
       assert os.path.exists(real_path)
       real_path = os.path.relpath(real_path)
-      os.symlink(real_path, link_path)
+      _CreateSymlink(real_path, link_path)
       if not os.path.exists(real_path):
         logging.critical('Error target folder %s does not exist.',
                          os.path.abspath(real_path))

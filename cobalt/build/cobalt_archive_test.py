@@ -17,14 +17,16 @@
 
 import json
 import os
+import shutil
 import stat
+import subprocess
 import unittest
 
 import _env  # pylint: disable=relative-import,unused-import
-import cobalt.build.cobalt_archive as cobalt_archive
-import starboard.build.filelist as filelist
-import starboard.build.filelist_test as filelist_test
-import starboard.build.port_symlink as port_symlink
+from cobalt.build import cobalt_archive
+from starboard.build import filelist
+from starboard.build import filelist_test
+from starboard.build import port_symlink
 from starboard.tools import util
 
 
@@ -97,6 +99,41 @@ class CobaltArchiveTest(unittest.TestCase):
     self.assertEqual(os.path.abspath(out_from_dir),
                      os.path.abspath(resolved_from_link_path))
 
+  def testExtractFileWithLongFileName(self):
+    """Tests that a long file name can be archived and extracted."""
+    flist = filelist.FileList()
+    tf = filelist_test.TempFileSystem()
+    tf.Clear()
+    tf.Make()
+    self.assertTrue(os.path.exists(tf.root_in_tmp))
+    suffix_path = os.path.join(
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'test.txt'
+    )
+    input_dst = os.path.join(tf.root_in_tmp, suffix_path)
+    out_dir = os.path.join(tf.root_tmp, 'out')
+    output_dst = os.path.join(out_dir, suffix_path)
+    _MoveFileWithLongPath(tf.test_txt, input_dst)
+    self.assertTrue(_LongPathExists(input_dst))
+    flist.AddFile(tf.root_in_tmp, input_dst)
+
+    bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
+    car = cobalt_archive.CobaltArchive(bundle_zip)
+    car.MakeArchive(platform_name='fake',
+                    platform_sdk_version='fake_sdk',
+                    config='devel',
+                    file_list=flist)
+    car.ExtractTo(out_dir)
+    self.assertTrue(_LongPathExists(output_dst))
+
   @unittest.skipIf(port_symlink.IsWindows(), 'Any platform but windows.')
   def testExecutionAttribute(self):
     flist = filelist.FileList()
@@ -128,9 +165,48 @@ class CobaltArchiveTest(unittest.TestCase):
     out_dir = os.path.join(tf.root_tmp, 'out')
     car.ExtractTo(output_dir=out_dir)
     out_file = os.path.join(out_dir, tf.test_txt)
-    self.assertTrue(os.path.isfile(out_file))
+    self.assertTrue(_LongPathExists(out_file))
     perms = cobalt_archive._GetFilePermissions(out_file)
     self.assertTrue(perms & stat.S_IXUSR)
+
+
+def _SilentCall(cmd_str):
+  proc = subprocess.Popen(cmd_str,
+                          shell=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT)
+  (_, _) = proc.communicate()
+  return proc.returncode
+
+
+def _LongPathExists(p):
+  if port_symlink.IsWindows():
+    rc = _SilentCall('dir /s /b "%s"' % p)
+    return rc == 0
+  else:
+    return os.path.isfile(p)
+
+
+def _MoveFileWithLongPath(src_file, dst_file):
+  dst_dir = os.path.dirname(dst_file)
+  if port_symlink.IsWindows():
+    # Work around for file-length path limitations on Windows.
+    src_dir = os.path.dirname(src_file)
+    file_name = os.path.basename(src_file)
+    shell_cmd = 'robocopy "%s" "%s" "%s" /MOV' % (src_dir, dst_dir, file_name)
+    rc = _SilentCall(shell_cmd)
+    if 1 != rc:  # Robocopy returns 1 if a file was copied.
+      raise OSError('File %s was not copied' % src_file)
+    expected_out_file = os.path.join(dst_dir, file_name)
+    if not _LongPathExists(expected_out_file):
+      raise OSError('File did not end up in %s' % dst_dir)
+    return
+  else:
+    if not os.path.isdir(dst_dir):
+      os.makedirs(dst_dir)
+    shutil.move(src_file, dst_file)
+    if not os.path.isfile(dst_file):
+      raise OSError('File did not end up in %s' % dst_dir)
 
 
 if __name__ == '__main__':
