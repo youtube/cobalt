@@ -23,7 +23,7 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "cobalt/storage/store_upgrade/upgrade.h"
-#include "starboard/storage.h"
+#include "starboard/common/storage.h"
 #include "starboard/user.h"
 
 namespace cobalt {
