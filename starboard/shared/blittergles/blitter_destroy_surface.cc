@@ -17,6 +17,7 @@
 #include <GLES2/gl2.h>
 
 #include "starboard/common/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 
@@ -35,6 +36,9 @@ bool SbBlitterDestroySurface(SbBlitterSurface surface) {
           glDeleteFramebuffers(1, &surface->render_target->framebuffer_handle));
     }
     delete surface->render_target;
+  }
+  if (surface->data != NULL) {
+    SbMemoryDeallocate(surface->data);
   }
   delete surface;
   return true;

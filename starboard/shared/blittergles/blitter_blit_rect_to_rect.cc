@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_context.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterBlitRectToRect(SbBlitterContext context,
                              SbBlitterSurface source_surface,
@@ -44,21 +45,26 @@ bool SbBlitterBlitRectToRect(SbBlitterContext context,
   if (src_rect.x < 0 || src_rect.y < 0 ||
       src_rect.x + src_rect.width > source_surface->info.width ||
       src_rect.y + src_rect.height > source_surface->info.height) {
-    SB_DLOG(ERROR) << ": Destination width and height must both be >= 0.";
+    SB_DLOG(ERROR) << ": Source rectangle goes out of source surface's bounds.";
     return false;
   }
-
   if (dst_rect.width == 0 || dst_rect.height == 0) {
     // Outputting to a 0-area rectangle. Trivially succeed.
     return true;
   }
-  if (source_surface->color_texture_handle == 0) {
-    // No bound color texture, so there's nothing to blit. Trivially succeed.
+  if (source_surface->color_texture_handle == 0 &&
+      source_surface->data == NULL) {
+    // No bound color texture and no data, so there's nothing to blit. Trivially
+    // succeed.
     return true;
   }
 
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(context);
   if (scoped_current_context.InitializationError()) {
+    return false;
+  }
+
+  if (!source_surface->EnsureInitialized()) {
     return false;
   }
   const starboard::shared::blittergles::BlitShaderProgram& blit_shader_program =
