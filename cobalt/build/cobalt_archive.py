@@ -177,7 +177,13 @@ class CobaltArchive(object):
         # TODO(***REMOVED***): Use and implement _FoldIdenticalFiles() to reduce
         # duplicate files. This will help platforms like nxswitch which include
         # a lot of duplicate files for the sdk.
-        zf.write(file_path, arcname=archive_path)
+        try:
+          zf.write(file_path, arcname=archive_path)
+        except WindowsError:  # pylint: disable=undefined-variable
+          # Happens for long file path names.
+          zf.write(cobalt_archive_extract.ToWinUncPath(file_path),
+                   arcname=archive_path)
+
       if file_list.symlink_dir_list:
         logging.info('  Compressing %d symlinks',
                      len(file_list.symlink_dir_list))
