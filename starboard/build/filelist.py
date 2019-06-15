@@ -96,9 +96,10 @@ def _FallbackOsGetRelPath(path, start_dir):
   start_dir = os.path.normpath(start_dir)
   common_prefix = os.path.commonprefix([path, start_dir])
   split_list = common_prefix.split(os.sep)
-  par_dir_list = ['..' for _ in range(len(split_list))]
-  path_list = par_dir_list + path.split(os.sep)
-  return os.path.join(*path_list)
+  path_parts = path.split(os.sep)
+  for _ in range(len(split_list)):
+    path_parts = path_parts[1:]
+  return os.path.normpath(os.path.join(*path_parts))
 
 
 def _OsGetRelpath(path, start_dir):
@@ -119,7 +120,7 @@ def _OsGetRelpath(path, start_dir):
         return rel_path
       except ValueError as err:
         logging.exception('Error %s while calling os.path.relpath(%s, %s)',
-                           err, path, start_dir)
+                          err, path, start_dir)
 
 
 TYPE_NONE = 'NONE'
