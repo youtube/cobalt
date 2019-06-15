@@ -13,11 +13,52 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
+#include <memory>
+
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterSurface SbBlitterCreateSurfaceFromPixelData(
     SbBlitterDevice device,
     SbBlitterPixelData pixel_data) {
-  SB_NOTREACHED();
-  return kSbBlitterInvalidSurface;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return kSbBlitterInvalidSurface;
+  }
+  if (!SbBlitterIsPixelDataValid(pixel_data)) {
+    SB_DLOG(ERROR) << ": Unsupported pixel format.";
+    return kSbBlitterInvalidSurface;
+  }
+  if (device != pixel_data->device) {
+    SB_DLOG(ERROR) << ": SbBlitterSurface must be created from the same device "
+                   << "that created the SbBlitterPixelData object.";
+    return kSbBlitterInvalidSurface;
+  }
+  if (pixel_data->data == NULL) {
+    SB_DLOG(ERROR) << ": No pixel data to copy.";
+    return kSbBlitterInvalidSurface;
+  }
+
+  std::unique_ptr<SbBlitterSurfacePrivate> surface(
+      new SbBlitterSurfacePrivate());
+  surface->device = device;
+  surface->info.width = pixel_data->width;
+  surface->info.height = pixel_data->height;
+  surface->info.format =
+      SbBlitterPixelDataFormatToSurfaceFormat(pixel_data->format);
+  surface->render_target = kSbBlitterInvalidRenderTarget;
+
+  // Defer creating a texture, because it requires a bound EGLContext, which is
+  // not uniformly available at this point.
+  surface->color_texture_handle = 0;
+  surface->data = pixel_data->data;
+  starboard::shared::blittergles::ChangeDataFormat(
+      pixel_data->format, kSbBlitterPixelDataFormatRGBA8,
+      SbBlitterGetPixelDataPitchInBytes(pixel_data), pixel_data->height,
+      surface->data);
+
+  delete pixel_data;
+
+  return surface.release();
 }

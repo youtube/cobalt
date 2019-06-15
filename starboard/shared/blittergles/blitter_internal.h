@@ -40,6 +40,13 @@ struct SbBlitterDeviceRegistry {
 
 SbBlitterDeviceRegistry* GetBlitterDeviceRegistry();
 
+// Helper function to change data between Blitter and GL formats.
+void ChangeDataFormat(SbBlitterPixelDataFormat in_format,
+                      SbBlitterPixelDataFormat out_format,
+                      int pitch_in_bytes,
+                      int height,
+                      void* data);
+
 extern const EGLint kContextAttributeList[];
 
 extern const EGLint kConfigAttributeList[];
@@ -106,6 +113,14 @@ struct SbBlitterSurfacePrivate {
 
   // Keep track of the current texture.
   GLuint color_texture_handle;
+
+  // Surfaces may have data if they were created from pixel data, and have not
+  // been converted into textures yet.
+  void* data;
+
+  // Ensures color_texture_handle is initialized, assuming that an EGLContext
+  // and EGLSurface are currently bound.
+  bool EnsureInitialized();
 };
 
 struct SbBlitterPixelDataPrivate {
@@ -116,8 +131,11 @@ struct SbBlitterPixelDataPrivate {
   // The pitch of the pixel data, in bytes.
   int pitch_in_bytes;
 
-  // Surface information including dimensions.
-  SbBlitterSurfaceInfo info;
+  int width;
+
+  int height;
+
+  SbBlitterPixelDataFormat format;
 
   // Points to the pixels.
   void* data;

@@ -41,10 +41,9 @@ SbBlitterPixelData SbBlitterCreatePixelData(
   std::unique_ptr<SbBlitterPixelDataPrivate> pixel_data(
       new SbBlitterPixelDataPrivate());
   pixel_data->device = device;
-  pixel_data->info.width = width;
-  pixel_data->info.height = height;
-  pixel_data->info.format =
-      SbBlitterPixelDataFormatToSurfaceFormat(pixel_format);
+  pixel_data->width = width;
+  pixel_data->height = height;
+  pixel_data->format = pixel_format;
   pixel_data->pitch_in_bytes =
       SbBlitterBytesPerPixelForFormat(pixel_format) * width;
   pixel_data->data = SbMemoryAllocate(height * pixel_data->pitch_in_bytes);
