@@ -39,6 +39,10 @@ class BlitShaderProgram : public ShaderProgram {
   // Clamping is done so the fragment shader doesn't sample beyond the specified
   // src_rect.
   int clamp_uniform_;
+
+  // Location of the shader uniform that determines the color matrix transform
+  // to apply.
+  int color_matrix_uniform_;
 };
 
 }  // namespace blittergles
