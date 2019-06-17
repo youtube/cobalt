@@ -16,8 +16,6 @@
 
 #include <GLES2/gl2.h>
 
-#include <memory>
-
 #include "starboard/blitter.h"
 #include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
@@ -36,6 +34,16 @@ static const int kBlitPositionAttribute = 0;
 // Location of the blit shader attribute "a_tex_coord."
 static const int kTexCoordAttribute = 1;
 
+// When applied to a color vector, this 4x4 identity matrix will not affect it:
+// kIdentityMatrix * [r g b a]^T = [r g b a]^T.
+const float kIdentityMatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0,
+                                   0, 0, 1, 0, 0, 0, 0, 1};
+
+// When applied to a color vector, this 4x4 matrix will fill rgb values with the
+// alpha value: kAlphaMatrix * [r g b a]^T = [a a a a]^T. Note GL matrices are
+// read in column-major order.
+const float kAlphaMatrix[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1};
+
 }  // namespace
 
 BlitShaderProgram::BlitShaderProgram() {
@@ -50,11 +58,13 @@ BlitShaderProgram::BlitShaderProgram() {
   const char* fragment_shader_source =
       "precision mediump float;"
       "uniform sampler2D tex;"
+      "uniform mat4 u_color_matrix;"
       "uniform vec4 u_tex_coord_clamp;"
       "varying vec2 v_tex_coord;"
       "void main() {"
-      "  gl_FragColor = texture2D(tex, "
-      "      clamp(v_tex_coord, u_tex_coord_clamp.xy, u_tex_coord_clamp.zw));"
+      "  vec2 coords = clamp(v_tex_coord, u_tex_coord_clamp.xy, "
+      "                      u_tex_coord_clamp.zw);"
+      "  gl_FragColor = u_color_matrix * texture2D(tex, coords);"
       "}";
   InitializeShaders(vertex_shader_source, fragment_shader_source);
   GL_CALL(glBindAttribLocation(GetProgramHandle(), kBlitPositionAttribute,
@@ -69,7 +79,10 @@ BlitShaderProgram::BlitShaderProgram() {
 
   clamp_uniform_ =
       glGetUniformLocation(GetProgramHandle(), "u_tex_coord_clamp");
+  color_matrix_uniform_ =
+      glGetUniformLocation(GetProgramHandle(), "u_color_matrix");
   SB_CHECK(clamp_uniform_ != -1);
+  SB_CHECK(color_matrix_uniform_ != -1);
 }
 
 bool BlitShaderProgram::Draw(SbBlitterContext context,
@@ -99,6 +112,11 @@ bool BlitShaderProgram::Draw(SbBlitterContext context,
   GL_CALL(glEnableVertexAttribArray(kTexCoordAttribute));
   GL_CALL(glUniform4f(clamp_uniform_, texel_clamps[0], texel_clamps[1],
                       texel_clamps[2], texel_clamps[3]));
+  const float* transform_mat = surface->info.format == kSbBlitterSurfaceFormatA8
+                                   ? kAlphaMatrix
+                                   : kIdentityMatrix;
+  GL_CALL(
+      glUniformMatrix4fv(color_matrix_uniform_, 1, GL_FALSE, transform_mat));
 
   GL_CALL(glActiveTexture(GL_TEXTURE0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->color_texture_handle));
