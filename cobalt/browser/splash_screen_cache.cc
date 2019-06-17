@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "base/hash.h"
 #include "base/optional.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
@@ -50,12 +51,19 @@ bool CreateDirsForKey(const std::string& key) {
 
 }  // namespace
 
-SplashScreenCache::SplashScreenCache() { base::AutoLock lock(lock_); }
+SplashScreenCache::SplashScreenCache() : last_page_hash_(0) {
+  base::AutoLock lock(lock_);
+}
 
 bool SplashScreenCache::CacheSplashScreen(const std::string& key,
                                           const std::string& content) const {
   base::AutoLock lock(lock_);
   if (key.empty()) {
+    return false;
+  }
+
+  // If an identical page was already read from disk, skip writing
+  if (base::Hash(content) == last_page_hash_) {
     return false;
   }
 
@@ -107,6 +115,7 @@ int SplashScreenCache::ReadCachedSplashScreen(
   const int kFileSize = static_cast<int>(info.size);
   result->reset(new char[kFileSize]);
   int result_size = cache_file.ReadAll(result->get(), kFileSize);
+  last_page_hash_ = base::Hash(result->get(), result_size);
   return result_size;
 }
 
