@@ -86,6 +86,7 @@
         'mesh/projection_codec/projection_decoder.h',
         'net_fetcher.cc',
         'net_fetcher.h',
+        'resource_cache.cc',
         'resource_cache.h',
         'switches.cc',
         'switches.h',
