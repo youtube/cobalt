@@ -138,6 +138,7 @@ class CobaltArchive(object):
                   file_list,  # class FileList
                   additional_buildinfo_dict=None):
     """Creates an archive for the given platform and config."""
+    logging.info('Making cobalt archive...')
     is_windows = port_symlink.IsWindows()
     if additional_buildinfo_dict is None:
       additional_buildinfo_dict = {}
@@ -169,7 +170,15 @@ class CobaltArchive(object):
         logging.info('  Compressing %d files', len(file_list.file_list))
 
       executable_files = []
-      for file_path, archive_path in file_list.file_list:
+      n_file_list = len(file_list.file_list)
+      progress_set = set()
+      for i in range(n_file_list):
+        # Logging every 5% increment during compression step.
+        prog = int((float(i)/n_file_list) * 100)
+        if prog not in progress_set:
+          progress_set.add(prog)
+          logging.info('  Compressed %d%%...', prog)
+        file_path, archive_path = file_list.file_list[i]
         if not is_windows:
           perms = _GetFilePermissions(file_path)
           if (stat.S_IXUSR) & perms:
@@ -199,6 +208,7 @@ class CobaltArchive(object):
           'executable_files': executable_files,
       })
       zf.writestr(_OUT_DECOMP_JSON, decompress_json_str)
+      logging.info('Done...')
 
 
 def _ToUnixPaths(path_list):
@@ -268,14 +278,12 @@ def _GetDeployPaths(platform_name, config):
           out_paths.append(file_path)
     return out_paths
   except NotImplementedError:  # Abstract class throws NotImplementedError.
-    logging.warning(
-        '\n********************************************************\n'
-        '%s: specific deploy directories not found, auto \n'
-        'including possible deploy directories from build root.'
-        '\n********************************************************\n',
-        __file__)
+    logging.warning('** AUTO INCLUDE: ** Specific deploy paths were not found '
+                    'so including known possible deploy paths from the '
+                    'platform out directory.')
     build_root = paths.BuildOutputDirectory(platform_name, config)
-    return _FindPossibleDeployPaths(build_root)
+    deploy_paths = _FindPossibleDeployPaths(build_root)
+    return deploy_paths
 
 
 def _MakeCobaltArchiveFromSource(output_archive_path,
@@ -316,7 +324,7 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
     flist.AddAllFilesInPath(root_dir=launcher_tools_path,
                             sub_path=launcher_tools_path)
     logging.info('...done')
-    logging.info('Making cobalt archive...')
+
     MakeCobaltArchiveFromFileList(
         output_archive_path,
         input_file_list=flist,
