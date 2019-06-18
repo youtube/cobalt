@@ -52,9 +52,9 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
   render_target->height = height;
   render_target->device = device;
 
-  // These values are lazily initialized when used.
-  surface->color_texture_handle = 0;
+  // Lazily initialize these two fields.
   render_target->framebuffer_handle = 0;
+  surface->color_texture_handle = 0;
 
   surface->render_target = render_target.release();
   return surface.release();

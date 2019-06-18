@@ -742,6 +742,14 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
   return true;
 }
 
+SbWindow ApplicationX11::GetFirstWindow() {
+  if (windows_.empty()) {
+    return kSbWindowInvalid;
+  }
+
+  return windows_.front();
+}
+
 namespace {
 void CompositeCallback(void* context) {
   ApplicationX11* application = reinterpret_cast<ApplicationX11*>(context);
