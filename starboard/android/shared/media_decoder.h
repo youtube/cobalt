@@ -171,6 +171,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
+  bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
   // Working thread to avoid lengthy decoding work block the player thread.
