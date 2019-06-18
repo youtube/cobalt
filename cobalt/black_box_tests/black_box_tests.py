@@ -50,6 +50,7 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'disable_eval_with_csp',
     'persistent_cookie',
+    'web_debugger',
     'web_platform_tests',
 ]
 # Location of test files.
