@@ -78,6 +78,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   }
 
  private:
+  void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;
