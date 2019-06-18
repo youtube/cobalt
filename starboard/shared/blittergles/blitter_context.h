@@ -97,14 +97,6 @@ struct SbBlitterContextPrivate {
   };
 
  private:
-  bool EnsureEGLContextInitialized();
-
-  bool EnsureDummySurfaceInitialized();
-
-  // Ensures that egl_context_ has a valid EGLSurface to bind to.
-  starboard::optional<EGLSurface> GetEGLSurface(
-      SbBlitterRenderTarget render_target);
-
   bool MakeCurrentWithRenderTarget(SbBlitterRenderTarget render_target);
 
   // If we don't have any information about the display window, this field will
