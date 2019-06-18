@@ -73,7 +73,8 @@ def main(argv):
   if os.path.isdir(options.output_dir):
     _ClearDir(options.output_dir)
 
-  for subdir in options.subdirs:
+  last_link = None
+  for subdir in sorted(options.subdirs):
     src_path = os.path.abspath(
         EscapePath(os.path.join(options.input_dir, subdir)))
     dst_path = os.path.abspath(
@@ -81,6 +82,13 @@ def main(argv):
 
     dst_dir = os.path.dirname(dst_path)
     rel_path = os.path.relpath(src_path, dst_dir)
+
+    # We process subdirs in sorted order so that if there are nested deploy
+    # directories we only create the parent and skip all redundant descendants.
+    if last_link and src_path.startswith(last_link):
+      logging.warning('Redundant deploy content: %s', subdir)
+      continue
+    last_link = src_path
 
     logging.info('%s => %s', dst_path, rel_path)
 
