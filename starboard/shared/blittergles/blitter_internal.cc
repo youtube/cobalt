@@ -18,10 +18,8 @@
 #include <GLES2/gl2.h>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
 #include "starboard/once.h"
 #include "starboard/shared/gles/gl_call.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {

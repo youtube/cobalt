@@ -24,57 +24,6 @@
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 
-namespace {
-struct ConfiguredWindowSurface {
-  EGLConfig config;
-
-  EGLSurface surface;
-};
-
-// This function will search for an EGLConfig that enables a successful
-// eglCreateWindowSurface() and return that config with the created EGLSurface,
-// if successful.
-starboard::optional<ConfiguredWindowSurface> GetConfiguredWindowSurface(
-    EGLDisplay display,
-    EGLNativeWindowType native_window) {
-  // Query for how many configs match desired attributes.
-  EGLint num_configs = 0;
-  EGL_CALL(eglChooseConfig(display,
-                           starboard::shared::blittergles::kConfigAttributeList,
-                           NULL, 0, &num_configs));
-  if (num_configs <= 0) {
-    SB_DLOG(ERROR) << ": Found no matching configs.";
-    return starboard::nullopt;
-  }
-
-  std::unique_ptr<EGLConfig[]> configs(new EGLConfig[num_configs]);
-  eglChooseConfig(display, starboard::shared::blittergles::kConfigAttributeList,
-                  configs.get(), num_configs, &num_configs);
-  if (eglGetError() != EGL_SUCCESS) {
-    SB_DLOG(ERROR) << ": Error getting matching EGLConfigs.";
-    return starboard::nullopt;
-  }
-
-  // Find first config that allows eglCreateWindowSurface().
-  EGLConfig config;
-  EGLSurface surface;
-  ConfiguredWindowSurface result;
-  for (int config_number = 0; config_number < num_configs; ++config_number) {
-    config = configs[config_number];
-    surface = eglCreateWindowSurface(display, config, native_window, NULL);
-    if (eglGetError() == EGL_SUCCESS) {
-      result.config = config;
-      result.surface = surface;
-      return result;
-    }
-  }
-
-  SB_DLOG(ERROR) << ": Couldn't find a config that allows "
-                 << "eglCreateWindowSurface().";
-  return starboard::nullopt;
-}
-}  // namespace
-
 SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
                                                       SbWindow window) {
   if (!SbBlitterIsDeviceValid(device)) {
@@ -92,24 +41,11 @@ SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
       new SbBlitterSwapChainPrivate());
   starboard::ScopedLock lock(device->mutex);
 
-  // If there is no config set on the device,
-  // SbBlitterCreateSwapChainFromWindow() mutates the device object to set the
-  // config.
-  if (device->config == NULL) {
-    starboard::optional<ConfiguredWindowSurface> configuredWindowSurface =
-        GetConfiguredWindowSurface(device->display, native_window);
-    if (!configuredWindowSurface) {
-      return kSbBlitterInvalidSwapChain;
-    }
-    device->config = configuredWindowSurface->config;
-    swap_chain->surface = configuredWindowSurface->surface;
-  } else {
-    swap_chain->surface = eglCreateWindowSurface(
-        device->display, device->config, native_window, NULL);
-    if (eglGetError() != EGL_SUCCESS) {
-      SB_DLOG(ERROR) << ": Failed to create an EGLSurface.";
-      return kSbBlitterInvalidSwapChain;
-    }
+  swap_chain->surface = eglCreateWindowSurface(device->display, device->config,
+                                               native_window, NULL);
+  if (eglGetError() != EGL_SUCCESS) {
+    SB_DLOG(ERROR) << ": Failed to create an EGLSurface.";
+    return kSbBlitterInvalidSwapChain;
   }
 
   eglQuerySurface(device->display, swap_chain->surface, EGL_WIDTH,

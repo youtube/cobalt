@@ -47,6 +47,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
+  SbWindow GetFirstWindow();
 
   // Make the current GL layer and video layer visible.
   void Composite();
