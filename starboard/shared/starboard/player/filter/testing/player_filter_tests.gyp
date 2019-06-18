@@ -19,6 +19,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/adaptive_audio_decoder_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/audio_decoder_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/audio_renderer_internal_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/media_time_provider_impl_test.cc',
