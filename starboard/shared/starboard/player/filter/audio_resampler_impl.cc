@@ -57,6 +57,9 @@ class AudioResamplerImpl : public AudioResampler {
   SbMediaAudioFrameStorageType source_storage_type_;
   SbMediaAudioSampleType destination_sample_type_;
   SbMediaAudioFrameStorageType destination_storage_type_;
+
+  size_t frames_to_resample_ = 0;
+  size_t frames_resampled_ = 0;
 };
 
 }  // namespace
@@ -77,8 +80,11 @@ scoped_ptr<AudioResampler> AudioResampler::Create(
 }
 
 scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
-  int out_num_of_frames = interleaved_resampler_.GetNumberOfCashedFrames();
+  double sample_rate_ratio = interleaved_resampler_.GetSampleRateRatio();
+  int out_num_of_frames =
+      round(frames_to_resample_ / sample_rate_ratio) - frames_resampled_;
   if (out_num_of_frames > 0) {
+    interleaved_resampler_.QueueBuffer(nullptr, 0);
     int channels = interleaved_resampler_.channels();
     int resampled_audio_size = out_num_of_frames * channels * sizeof(float);
     scoped_refptr<DecodedAudio> resampled_audio = new DecodedAudio(
@@ -106,6 +112,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
                              kSbMediaAudioFrameStorageTypeInterleaved);
 
   int num_of_frames = audio_data->frames();
+  frames_to_resample_ += num_of_frames;
   int channels = audio_data->channels();
   int out_num_of_frames = static_cast<int>(
       ceil(num_of_frames / interleaved_resampler_.GetSampleRateRatio()));
@@ -124,6 +131,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
                          audio_data->timestamp(), resampled_audio_size);
     float* dst = reinterpret_cast<float*>(resampled_audio->buffer());
     interleaved_resampler_.Resample(dst, out_num_of_frames);
+    frames_resampled_ += out_num_of_frames;
 
     resampled_audio->SwitchFormatTo(destination_sample_type_,
                                     destination_storage_type_);
