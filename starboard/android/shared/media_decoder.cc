@@ -432,6 +432,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     return false;
   }
 
+  is_output_restricted_ = false;
   return true;
 }
 
@@ -439,6 +440,11 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   SB_DCHECK(status != MEDIA_CODEC_OK);
 
   bool retry = false;
+
+  if (status != MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
+    is_output_restricted_ = false;
+  }
+
   if (status == MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
     // Don't bother logging a try again later status, it happens a lot.
     return;
@@ -448,6 +454,12 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   } else if (status == MEDIA_CODEC_NO_KEY) {
     retry = true;
   } else if (status == MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
+    // TODO: Reduce the retry frequency when output is restricted, or when
+    // queueSecureInputBuffer() is failed in general.
+    if (is_output_restricted_) {
+      return;
+    }
+    is_output_restricted_ = true;
     drm_system_->OnInsufficientOutputProtection();
   } else {
     error_cb_(kSbPlayerErrorDecode,
