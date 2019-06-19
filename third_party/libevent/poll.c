@@ -177,7 +177,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		return (0);
 	}
 #ifndef STARBOARD
-  else if (base->sig.evsignal_caught) {
+	} else if (base->sig.evsignal_caught) {
 		evsignal_process(base);
 	}
 #endif
