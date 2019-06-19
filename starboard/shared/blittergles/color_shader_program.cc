@@ -66,11 +66,12 @@ bool ColorShaderProgram::Draw(SbBlitterRenderTarget render_target,
   GL_CALL(glEnableVertexAttribArray(kPositionAttribute));
 
   const float kColorMapper = 255.0;
-  GL_CALL(glVertexAttrib4f(kColorAttribute,
-                           SbBlitterRFromColor(color) / kColorMapper,
-                           SbBlitterGFromColor(color) / kColorMapper,
-                           SbBlitterBFromColor(color) / kColorMapper,
-                           SbBlitterAFromColor(color) / kColorMapper));
+  float alpha_value = SbBlitterAFromColor(color) / kColorMapper;
+  GL_CALL(glVertexAttrib4f(
+      kColorAttribute,
+      alpha_value * (SbBlitterRFromColor(color) / kColorMapper),
+      alpha_value * (SbBlitterGFromColor(color) / kColorMapper),
+      alpha_value * (SbBlitterBFromColor(color) / kColorMapper), alpha_value));
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   bool success = glGetError() == GL_NO_ERROR;
