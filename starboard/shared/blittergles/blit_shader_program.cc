@@ -19,6 +19,7 @@
 #include "starboard/blitter.h"
 #include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 #include "starboard/shared/blittergles/shader_program.h"
 #include "starboard/shared/gles/gl_call.h"
 

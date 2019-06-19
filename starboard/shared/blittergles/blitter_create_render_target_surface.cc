@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 SbBlitterSurface SbBlitterCreateRenderTargetSurface(
     SbBlitterDevice device,

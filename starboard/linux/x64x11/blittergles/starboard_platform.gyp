@@ -73,6 +73,8 @@
         '<(DEPTH)/starboard/shared/blittergles/blitter_set_modulate_blits_with_color.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_set_render_target.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_set_scissor.cc',
+        '<(DEPTH)/starboard/shared/blittergles/blitter_surface.cc',
+        '<(DEPTH)/starboard/shared/blittergles/blitter_surface.h',
         '<(DEPTH)/starboard/shared/blittergles/color_shader_program.cc',
         '<(DEPTH)/starboard/shared/blittergles/color_shader_program.h',
         '<(DEPTH)/starboard/shared/blittergles/shader_program.cc',
