@@ -31,6 +31,8 @@ bool SbBlitterSetRenderTarget(SbBlitterContext context,
 
   // TODO: Optimize eglMakeCurrent calls.
   context->current_render_target = render_target;
+  context->scissor =
+      SbBlitterMakeRect(0, 0, render_target->width, render_target->height);
   if (context->is_current) {
     return context->MakeCurrent();
   }
