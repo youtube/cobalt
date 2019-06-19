@@ -2,9 +2,15 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.4.13-stable)
+AM_INIT_AUTOMAKE(libevent,1.4.15)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
+
+AC_CONFIG_MACRO_DIR([m4])
+
+AC_CANONICAL_HOST
+
+AC_DEFINE(NUMERIC_VERSION, 0x01040f00, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -23,6 +29,25 @@ if test "$GCC" = yes ; then
         # our sockaddr-handling code in strange ways.
         CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
+
+dnl Libevent 1.4 isn't multithreaded, but some of its functions are
+dnl documented to be reentrant.  If you don't define the right macros
+dnl on some platforms, you get non-reentrant versions of the libc
+dnl functinos (like an errno that's shared by all threads).
+AC_MSG_CHECKING([whether we need extra flags to make libc reentrant])
+case $host in
+   *solaris* | *-osf* | *-hpux* )
+     AC_MSG_RESULT([-D_REENTRANT])
+     CFLAGS="$CFLAGS -D_REENTRANT"
+     ;;
+   *-aix* | *-freebsd* | *-darwin* )
+     AC_MSG_RESULT([-D_THREAD_SAFE])
+     CFLAGS="$CFLAGS -D_THREAD_SAFE"
+     ;;
+   *)
+     AC_MSG_RESULT(no)
+     ;;
+esac
 
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
@@ -223,13 +248,14 @@ main(int argc, char **argv)
         if ((kq = kqueue()) == -1)
 		exit(1);
 
+	memset(&ev, 0, sizeof(ev));
 	ev.ident = fd[[1]];
 	ev.filter = EVFILT_WRITE;
 	ev.flags = EV_ADD | EV_ENABLE;
 	n = kevent(kq, &ev, 1, NULL, 0, NULL);
 	if (n == -1)
 		exit(1);
-	
+
 	read(fd[[0]], buf, sizeof(buf));
 
 	ts.tv_sec = 0;

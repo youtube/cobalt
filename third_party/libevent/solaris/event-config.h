@@ -212,6 +212,13 @@
 /* Define if kqueue works correctly with pipes */
 /* #undef _EVENT_HAVE_WORKING_KQUEUE */
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#define _EVENT_LT_OBJDIR ".libs/"
+
+/* Numeric representation of the version */
+#define _EVENT_NUMERIC_VERSION 0x01040f00
+
 /* Name of package */
 #define _EVENT_PACKAGE "libevent"
 
@@ -226,6 +233,9 @@
 
 /* Define to the one symbol short name of this package. */
 #define _EVENT_PACKAGE_TARNAME ""
+
+/* Define to the home page for this package. */
+#define _EVENT_PACKAGE_URL ""
 
 /* Define to the version of this package. */
 #define _EVENT_PACKAGE_VERSION ""
@@ -249,7 +259,7 @@
 #define _EVENT_TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define _EVENT_VERSION "1.4.13-stable"
+#define _EVENT_VERSION "1.4.15"
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
 /* #undef _EVENT___func__ */

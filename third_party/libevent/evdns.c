@@ -160,6 +160,15 @@ typedef unsigned int uint;
 
 #define CLASS_INET     EVDNS_CLASS_INET
 
+#ifdef HAVE_SETFD
+#define FD_CLOSEONEXEC(x) do { \
+	if (fcntl(x, F_SETFD, 1) == -1) \
+		event_warn("fcntl(%d, F_SETFD)", x); \
+	} while (0)
+#else
+#define FD_CLOSEONEXEC(x) (void)0
+#endif
+
 struct request {
 	u8 *request;  /* the dns packet data */
 	unsigned int request_len;
@@ -1101,20 +1110,12 @@ evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 static u16
 transaction_id_pick(void) {
 	for (;;) {
-		const struct request *req = req_head, *started_at;
 		u16 trans_id = trans_id_function();
 
 		if (trans_id == 0xffff) continue;
-		/* now check to see if that id is already inflight */
-		req = started_at = req_head;
-		if (req) {
-			do {
-				if (req->trans_id == trans_id) break;
-				req = req->next;
-			} while (req != started_at);
-		}
-		/* we didn't find it, so this is a good id */
-		if (req == started_at) return trans_id;
+
+		if (request_find_from_trans_id(trans_id) == NULL)
+			return trans_id;
 	}
 }
 
@@ -2134,7 +2135,8 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
-        evutil_make_socket_nonblocking(ns->socket);
+	FD_CLOSEONEXEC(ns->socket);
+	evutil_make_socket_nonblocking(ns->socket);
 
 	ns->address = address;
 	ns->port = htons(port);
@@ -2706,7 +2708,7 @@ resolv_conf_parse_line(char *const start, int flags) {
 		const char *const nameserver = NEXT_TOKEN;
 		struct in_addr ina;
 
-		if (inet_aton(nameserver, &ina)) {
+		if (nameserver && inet_aton(nameserver, &ina)) {
 			/* address is valid */
 			evdns_nameserver_add(ina.s_addr);
 		}
@@ -2848,7 +2850,7 @@ load_nameservers_with_getnetworkparams(void)
 	IP_ADDR_STRING *ns;
 	GetNetworkParams_fn_t fn;
 
-	if (!(handle = LoadLibrary("iphlpapi.dll"))) {
+	if (!(handle = LoadLibraryA("iphlpapi.dll"))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
 		status = -1;
 		goto done;
@@ -2918,13 +2920,13 @@ config_nameserver_from_reg_key(HKEY key, const char *subkey)
 	DWORD bufsz = 0, type = 0;
 	int status = 0;
 
-	if (RegQueryValueEx(key, subkey, 0, &type, NULL, &bufsz)
+	if (RegQueryValueExA(key, subkey, 0, &type, NULL, &bufsz)
 	    != ERROR_MORE_DATA)
 		return -1;
 	if (!(buf = malloc(bufsz)))
 		return -1;
 
-	if (RegQueryValueEx(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
+	if (RegQueryValueExA(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
 	    == ERROR_SUCCESS && bufsz > 1) {
 		status = evdns_nameserver_ip_add_line(buf);
 	}
@@ -2954,12 +2956,12 @@ load_nameservers_from_registry(void)
 	if (((int)GetVersion()) > 0) { /* NT */
 		HKEY nt_key = 0, interfaces_key = 0;
 
-		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0,
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0,
 				 KEY_READ, &nt_key) != ERROR_SUCCESS) {
 			log(EVDNS_LOG_DEBUG,"Couldn't open nt key, %d",(int)GetLastError());
 			return -1;
 		}
-		r = RegOpenKeyEx(nt_key, "Interfaces", 0,
+		r = RegOpenKeyExA(nt_key, "Interfaces", 0,
 			     KEY_QUERY_VALUE|KEY_ENUMERATE_SUB_KEYS,
 			     &interfaces_key);
 		if (r != ERROR_SUCCESS) {
@@ -2974,7 +2976,7 @@ load_nameservers_from_registry(void)
 		RegCloseKey(nt_key);
 	} else {
 		HKEY win_key = 0;
-		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_9X_KEY, 0,
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_9X_KEY, 0,
 				 KEY_READ, &win_key) != ERROR_SUCCESS) {
 			log(EVDNS_LOG_DEBUG, "Couldn't open registry key, %d", (int)GetLastError());
 			return -1;
