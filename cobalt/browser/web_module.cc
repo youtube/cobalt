@@ -527,9 +527,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       read_cache_callback));
   DCHECK(fetcher_factory_);
 
-  loader_factory_.reset(
-      new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
-                                data.options.loader_thread_priority));
+  DCHECK_LE(0, data.options.encoded_image_cache_capacity);
+  loader_factory_.reset(new loader::LoaderFactory(
+      name_.c_str(), fetcher_factory_.get(), resource_provider_,
+      data.options.encoded_image_cache_capacity,
+      data.options.loader_thread_priority));
 
   animated_image_tracker_.reset(new loader::image::AnimatedImageTracker(
       data.options.animated_image_decode_thread_priority));

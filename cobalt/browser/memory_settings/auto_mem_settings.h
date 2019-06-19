@@ -41,6 +41,7 @@ struct AutoMemSettings {
 
   Type type;
   bool has_blitter;
+  base::Optional<int64_t> cobalt_encoded_image_cache_size_in_bytes;
   base::Optional<int64_t> cobalt_image_cache_size_in_bytes;
   base::Optional<int64_t> javascript_garbage_collection_threshold_in_bytes;
   base::Optional<int64_t> remote_typeface_cache_capacity_in_bytes;

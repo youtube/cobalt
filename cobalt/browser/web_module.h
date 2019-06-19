@@ -136,6 +136,9 @@ class WebModule : public LifecycleObserver {
     // Whether Cobalt is forbidden to render without receiving CSP headers.
     csp::CSPHeaderPolicy require_csp;
 
+    // Encoded image cache capacity in bytes.
+    int encoded_image_cache_capacity;
+
     // Image cache capacity in bytes.
     int image_cache_capacity;
 

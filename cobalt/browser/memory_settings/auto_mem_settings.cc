@@ -199,6 +199,9 @@ AutoMemSettings GetDefaultBuildSettings() {
   AutoMemSettings settings(AutoMemSettings::kTypeBuild);
   settings.has_blitter = HasBlitter();
 
+  settings.cobalt_encoded_image_cache_size_in_bytes =
+      MakeValidIfGreaterThanOrEqualToZero(
+          COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES);
   settings.cobalt_image_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_IMAGE_CACHE_SIZE_IN_BYTES);
   settings.javascript_garbage_collection_threshold_in_bytes =
@@ -239,6 +242,8 @@ AutoMemSettings GetSettings(const base::CommandLine& command_line) {
   AutoMemSettings settings(AutoMemSettings::kTypeCommandLine);
   settings.has_blitter = HasBlitter();
 
+  Set(command_line, &settings.cobalt_encoded_image_cache_size_in_bytes,
+      switches::kEncodedImageCacheSizeInBytes);
   Set(command_line, &settings.cobalt_image_cache_size_in_bytes,
       switches::kImageCacheSizeInBytes);
   Set(command_line, &settings.javascript_garbage_collection_threshold_in_bytes,
