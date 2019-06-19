@@ -139,6 +139,8 @@
         'history.h',
         'html_anchor_element.cc',
         'html_anchor_element.h',
+        'html_audio_element.cc',
+        'html_audio_element.h',
         'html_body_element.cc',
         'html_body_element.h',
         'html_br_element.cc',
