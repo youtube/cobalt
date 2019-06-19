@@ -40,6 +40,8 @@
         'fetcher_factory.h',
         'fetcher.cc',
         'fetcher.h',
+        'fetcher_cache.cc',
+        'fetcher_cache.h',
         'file_fetcher.cc',
         'file_fetcher.h',
         'font/remote_typeface_cache.h',

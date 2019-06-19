@@ -52,6 +52,8 @@ inline static std::unique_ptr<ImageCache> CreateImageCache(
   return std::unique_ptr<ImageCache>(new ImageCache(
       name, cache_capacity, false /*are_loading_retries_enabled*/,
       base::Bind(&loader::LoaderFactory::CreateImageLoader,
+                 base::Unretained(loader_factory)),
+      base::Bind(&loader::LoaderFactory::NotifyResourceRequested,
                  base::Unretained(loader_factory))));
 }
 

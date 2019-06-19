@@ -269,6 +269,25 @@
     # atlases about a quarter of the frame size.
     'offscreen_target_cache_size_in_bytes%': -1,
 
+    # Determines the capacity of the encoded image cache, which manages encoded
+    # images downloaded from a web page. These images are cached within CPU
+    # memory.  This not only reduces network traffic to download the encoded
+    # images, but also allows the downloaded images to be held during suspend.
+    # Note that there is also a cache for the decoded images whose capacity is
+    # specified in |image_cache_size_in_bytes|.  The decoded images are often
+    # cached in the GPU memory and will be released during suspend.
+    #
+    # If a system meet the following requirements:
+    # 1. Has a fast image decoder.
+    # 2. Has enough CPU memory, or has a unified memory architecture that allows
+    #    sharing of CPU and GPU memory.
+    # Then it may consider to set |encoded_image_cache_size_in_bytes| to a much
+    # bigger value, and set the value of |image_cache_size_in_bytes| to a much
+    # smaller value. This allows the app to cache significant more images.
+    #
+    # Set this to 0 can disable the cache completely.
+    'encoded_image_cache_size_in_bytes%': 1024 * 1024,
+
     # Determines the capacity of the image cache, which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.

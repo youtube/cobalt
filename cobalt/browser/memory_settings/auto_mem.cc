@@ -301,6 +301,10 @@ const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
   return remote_typeface_cache_size_in_bytes_.get();
 }
 
+const IntSetting* AutoMem::encoded_image_cache_size_in_bytes() const {
+  return encoded_image_cache_size_in_bytes_.get();
+}
+
 const IntSetting* AutoMem::image_cache_size_in_bytes() const {
   return image_cache_size_in_bytes_.get();
 }
@@ -347,6 +351,7 @@ std::vector<const MemorySetting*> AutoMem::AllMemorySettings() const {
 std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   std::vector<MemorySetting*> all_settings;
   // Keep these in alphabetical order.
+  all_settings.push_back(encoded_image_cache_size_in_bytes_.get());
   all_settings.push_back(image_cache_size_in_bytes_.get());
   all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
   all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
@@ -437,6 +442,14 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
     // This effectively disables the value from being used in the constrainer.
     reduced_gpu_bytes_->set_value(MemorySetting::kUnset, 0);
   }
+
+  // Set the encoded image cache capacity
+  encoded_image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
+      switches::kEncodedImageCacheSizeInBytes,
+      command_line_settings.cobalt_encoded_image_cache_size_in_bytes,
+      build_settings.cobalt_encoded_image_cache_size_in_bytes,
+      kDefaultEncodedImageCacheSize);
+  EnsureValuePositive(encoded_image_cache_size_in_bytes_.get());
 
   // Set the ImageCache
   image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(

@@ -192,12 +192,6 @@ class CachedResource : public CachedResourceBase {
  public:
   typedef typename CacheType::ResourceType ResourceType;
 
-  typedef base::Callback<std::unique_ptr<Loader>(
-      const GURL&, const Origin&, const csp::SecurityCallback&,
-      const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const base::Optional<std::string>&)>&)>
-      CreateLoaderFunction;
-
   // Request fetching and decoding a single resource based on the url.
   CachedResource(
       const GURL& url, const Origin& origin,
@@ -481,12 +475,22 @@ class ResourceCache : public ResourceCacheBase {
   typedef CachedResource<CacheType> CachedResourceType;
   typedef typename CacheType::ResourceType ResourceType;
 
-  typedef
-      typename CachedResourceType::CreateLoaderFunction CreateLoaderFunction;
+  typedef base::Callback<std::unique_ptr<Loader>(
+      const GURL&, const Origin&, const csp::SecurityCallback&,
+      const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
+      const base::Callback<void(const base::Optional<std::string>&)>&)>
+      CreateLoaderFunction;
+
+  // Call this function to notify the caller that this resource is requested.
+  typedef base::Callback<void(const std::string&)>
+      NotifyResourceRequestedFunction;
 
   ResourceCache(const std::string& name, uint32 cache_capacity,
-                bool are_load_retries_enabled,
-                const CreateLoaderFunction& create_loader_function);
+                bool are_loading_retries_enabled,
+                const CreateLoaderFunction& create_loader_function,
+                const NotifyResourceRequestedFunction&
+                    notify_resource_requested_function =
+                        NotifyResourceRequestedFunction());
 
   // |CreateCachedResource| returns CachedResource. If the CachedResource is not
   // in |cached_resource_map_| or its resource is not in
@@ -523,6 +527,7 @@ class ResourceCache : public ResourceCacheBase {
   void ReclaimMemory(uint32 bytes_to_reclaim_down_to, bool log_warning_if_over);
 
   const CreateLoaderFunction create_loader_function_;
+  const NotifyResourceRequestedFunction notify_resource_requested_function_;
 
   // |cached_resource_map_| stores the cached resources that are currently
   // referenced.
@@ -540,11 +545,13 @@ template <typename CacheType>
 ResourceCache<CacheType>::ResourceCache(
     const std::string& name, uint32 cache_capacity,
     bool are_loading_retries_enabled,
-    const CreateLoaderFunction& create_loader_function)
+    const CreateLoaderFunction& create_loader_function,
+    const NotifyResourceRequestedFunction& notify_resource_requested_function)
     : ResourceCacheBase(
           name, cache_capacity, are_loading_retries_enabled,
           base::Bind(&ResourceCache::ReclaimMemory, base::Unretained(this))),
-      create_loader_function_(create_loader_function) {
+      create_loader_function_(create_loader_function),
+      notify_resource_requested_function_(notify_resource_requested_function) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   DCHECK(!create_loader_function_.is_null());
 }
@@ -555,6 +562,10 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
                                                const Origin& origin) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   DCHECK(url.is_valid());
+
+  if (!notify_resource_requested_function_.is_null()) {
+    notify_resource_requested_function_.Run(url.spec());
+  }
 
   // Try to find the resource from |cached_resource_map_|.
   CachedResourceMapIterator cached_resource_iterator =
