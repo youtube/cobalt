@@ -32,6 +32,7 @@
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/layout/vector2d_layout_unit.h"
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector2d.h"
@@ -284,6 +285,9 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
   LayoutUnit GetMarginBoxWidth() const;
   LayoutUnit GetMarginBoxHeight() const;
+
+  math::Matrix3F GetMarginBoxTransformFromContainingBlock(
+      const ContainerBox* containing_block) const;
 
   Vector2dLayoutUnit GetMarginBoxOffsetFromRoot(
       bool transform_forms_root) const;
