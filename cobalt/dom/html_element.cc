@@ -38,6 +38,7 @@
 #include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
+#include "cobalt/dom/html_audio_element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_div_element.h"
@@ -831,6 +832,10 @@ void HTMLElement::OnCSSMutation() {
 }
 
 scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
+  return NULL;
+}
+
+scoped_refptr<HTMLAudioElement> HTMLElement::AsHTMLAudioElement() {
   return NULL;
 }
 
