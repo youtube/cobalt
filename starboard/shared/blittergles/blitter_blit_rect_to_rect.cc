@@ -67,6 +67,7 @@ bool SbBlitterBlitRectToRect(SbBlitterContext context,
   if (!source_surface->EnsureInitialized()) {
     return false;
   }
+  context->PrepareDrawState();
   const starboard::shared::blittergles::BlitShaderProgram& blit_shader_program =
       context->GetBlitShaderProgram();
   return blit_shader_program.Draw(context, source_surface, src_rect, dst_rect);
