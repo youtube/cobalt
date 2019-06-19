@@ -280,6 +280,61 @@ LayoutUnit Box::GetMarginBoxHeight() const {
   return margin_top() + GetBorderBoxHeight() + margin_bottom();
 }
 
+math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
+    const ContainerBox* containing_block) const {
+  math::Matrix3F transform = math::Matrix3F::Identity();
+  if (this == containing_block) {
+    return transform;
+  }
+
+  // Walk up the containing block tree to build the transform matrix.
+  // The logic is similar to using ApplyTransformActionToCoordinate with exit
+  // transform but a matrix is calculated instead; logic analogous to
+  // GetMarginBoxOffsetFromRoot is also factored in.
+  for (const Box* box = this;;) {
+    // Factor in the margin box offset.
+    transform =
+        math::TranslateMatrix(
+            box->margin_box_offset_from_containing_block().x().toFloat(),
+            box->margin_box_offset_from_containing_block().y().toFloat()) *
+        transform;
+
+    // Factor in the box's transform.
+    if (box->IsTransformed()) {
+      Vector2dLayoutUnit transform_rect_offset =
+          box->margin_box_offset_from_containing_block() +
+          box->GetBorderBoxOffsetFromMarginBox();
+      transform =
+          GetCSSTransform(
+              box->computed_style()->transform().get(),
+              box->computed_style()->transform_origin().get(),
+              math::RectF(transform_rect_offset.x().toFloat(),
+                          transform_rect_offset.y().toFloat(),
+                          box->GetBorderBoxWidth().toFloat(),
+                          box->GetBorderBoxHeight().toFloat()),
+              box->ComputeUiNavFocusForTransform()) *
+          transform;
+    }
+
+    const ContainerBox* container = box->GetContainingBlock();
+    if (container == containing_block || container == nullptr) {
+      break;
+    }
+
+    // Convert the transform into the container's coordinate space.
+    Vector2dLayoutUnit containing_block_offset =
+        box->GetContainingBlockOffsetFromItsContentBox(container) +
+        container->GetContentBoxOffsetFromMarginBox();
+    transform = math::TranslateMatrix(
+        containing_block_offset.x().toFloat(),
+        containing_block_offset.y().toFloat()) * transform;
+
+    box = container;
+  }
+
+  return transform;
+}
+
 Vector2dLayoutUnit Box::GetMarginBoxOffsetFromRoot(
     bool transform_forms_root) const {
   Vector2dLayoutUnit containing_block_offset_from_root =
@@ -320,47 +375,20 @@ RectLayoutUnit Box::GetBorderBoxFromRoot(bool transform_forms_root) const {
 }
 
 RectLayoutUnit Box::GetTransformedBorderBoxFromRoot() const {
-  // Initialize the box corners to the border box.
-  RectLayoutUnit border_box =
-      GetBorderBoxFromRoot(true /*transform_forms_root*/);
-  std::vector<math::Vector2dF> box_corners;
-  box_corners.push_back(
-      math::Vector2dF(border_box.x().toFloat(), border_box.y().toFloat()));
-  box_corners.push_back(
-      math::Vector2dF((border_box.x() + border_box.width()).toFloat(),
-                      border_box.y().toFloat()));
-  box_corners.push_back(
-      math::Vector2dF(border_box.x().toFloat(),
-                      (border_box.y() + border_box.height()).toFloat()));
-  box_corners.push_back(
-      math::Vector2dF((border_box.x() + border_box.width()).toFloat(),
-                      (border_box.y() + border_box.height()).toFloat()));
-
-  // Update the coordinates of the 4 corners by walking up to root and removing
-  // any transforms that have been applied.
-  for (const Box* check_box = this; check_box != NULL;
-       check_box = check_box->GetContainingBlock()) {
-    check_box->ApplyTransformActionToCoordinates(kExitTransform, &box_corners);
-  }
-
-  // Generate the new box from the min and max values of all of the corners.
-  math::Vector2dF& current_corner = box_corners[0];
-  math::Vector2dF min_corner(current_corner);
-  math::Vector2dF max_corner(current_corner);
-  for (size_t i = 1; i < 4; ++i) {
-    current_corner = box_corners[i];
-    min_corner.SetToMin(current_corner);
-    max_corner.SetToMax(current_corner);
-  }
-
-  return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
-                        LayoutUnit(max_corner.x() - min_corner.x()),
-                        LayoutUnit(max_corner.y() - min_corner.y()));
+  return GetTransformedBorderBoxFromContainingBlock(nullptr);
 }
 
 RectLayoutUnit Box::GetTransformedBorderBoxFromContainingBlock(
     const ContainerBox* containing_block) const {
-  // Get the untransformed border box corners.
+  // Get the transform for the margin box from the containing block and
+  // add the border box offset to the beginning of the transform.
+  Vector2dLayoutUnit border_box_offset = GetBorderBoxOffsetFromMarginBox();
+  math::Matrix3F transform =
+      GetMarginBoxTransformFromContainingBlock(containing_block) *
+      math::TranslateMatrix(border_box_offset.x().toFloat(),
+                            border_box_offset.y().toFloat());
+
+  // Transform the border box.
   const int kNumPoints = 4;
   math::PointF border_box_corners[kNumPoints] = {
     { 0.0f, 0.0f },
@@ -369,48 +397,11 @@ RectLayoutUnit Box::GetTransformedBorderBoxFromContainingBlock(
     { GetBorderBoxWidth().toFloat(), GetBorderBoxHeight().toFloat() },
   };
 
-  // Walk up the containing block chain and transform the border box corners.
-  const Box* box = this;
-  Vector2dLayoutUnit containing_block_offset;
-
-  while (box != nullptr && box != containing_block) {
-    Vector2dLayoutUnit local_border_box_offset =
-        box->margin_box_offset_from_containing_block() +
-        box->GetBorderBoxOffsetFromMarginBox();
-
-    math::Vector2dF border_box_translate(
-        (containing_block_offset.x() + local_border_box_offset.x()).toFloat(),
-        (containing_block_offset.y() + local_border_box_offset.y()).toFloat());
-
-    // Transform the border box corners.
-    if (box->IsTransformed()) {
-      math::Matrix3F transform = GetCSSTransform(
-          box->computed_style()->transform().get(),
-          box->computed_style()->transform_origin().get(),
-          math::RectF(local_border_box_offset.x().toFloat(),
-                      local_border_box_offset.y().toFloat(),
-                      box->GetBorderBoxWidth().toFloat(),
-                      box->GetBorderBoxHeight().toFloat()),
-          box->ComputeUiNavFocusForTransform());
-      for (int i = 0; i < kNumPoints; ++i) {
-        border_box_corners[i] += border_box_translate;
-        border_box_corners[i] = transform * border_box_corners[i];
-      }
-    } else {
-      for (int i = 0; i < kNumPoints; ++i) {
-        border_box_corners[i] += border_box_translate;
-      }
-    }
-
-    // Determine the offset to transform the border box corners into the
-    // containing block's coordinate system.
-    const ContainerBox* container = box->GetContainingBlock();
-    containing_block_offset =
-        box->GetContainingBlockOffsetFromItsContentBox(container);
-    box = container;
+  for (int i = 0; i < kNumPoints; ++i) {
+    border_box_corners[i] = transform * border_box_corners[i];
   }
 
-  // Generate the new box from the min and max values of all of the corners.
+  // Return the bounding box for the transformed points.
   math::PointF min_corner(border_box_corners[0]);
   math::PointF max_corner(border_box_corners[0]);
   for (int i = 1; i < kNumPoints; ++i) {
