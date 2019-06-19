@@ -67,6 +67,13 @@
           'arch/generic/',
        ],
       },
+      'defines' : [
+        # Enables temporary situation where main cobalt is built with
+        # glibc headers but then linked with some musl components.
+        # Expected to go away when main cobalt is also build with
+        # stand-alone libc++.
+        'COBALT_MUSL_W_GLIBC_HEADERS'
+      ],
       'conditions': [
         ['musl_arch in ["i386", "x86_64", "aarch64"]', {
           'sources': [
@@ -95,15 +102,6 @@
             'src/string/memcpy.c',
             'src/string/memmove.c',
             'src/string/memset.c',
-          ],
-        }],
-        ['sb_evergreen != 1', {
-          'defines' : [
-          # Enables temporary situation where main cobalt is built with
-          # glibc headers but then linked with some musl components.
-          # Expected to go away when main cobalt is also built with
-          # stand-alone libc++.
-          'COBALT_MUSL_W_GLIBC_HEADERS'
           ],
         }],
         # Starboardized implementations are only included for Evergreen
