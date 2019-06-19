@@ -29,6 +29,32 @@
 #include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/internal_only.h"
 
+namespace starboard {
+namespace shared {
+namespace blittergles {
+
+// Describes the current blending state.
+typedef enum BlendState {
+  // Alpha blending only.
+  kBlendStateBlend,
+  // Modulation with current color only.
+  kBlendStateModulateBlits,
+  // Modulation and alpha blending.
+  kBlendStateBlendAndModulate,
+  // Blending disabled.
+  kBlendStateNoEffect,
+} BlendState;
+
+// Describes the type of draw call.
+typedef enum DrawCallType {
+  kDrawCallTypeBlit,
+  kDrawCallTypeFill,
+} DrawCallType;
+
+}  // namespace blittergles
+}  // namespace shared
+}  // namespace starboard
+
 struct SbBlitterContextPrivate {
  public:
   explicit SbBlitterContextPrivate(SbBlitterDevice device);
@@ -70,7 +96,8 @@ struct SbBlitterContextPrivate {
   bool IsValid() const { return !error_; }
 
   // Sets up various states (scissor, blending, modulation) for a draw call.
-  void PrepareDrawState();
+  void PrepareDrawState(
+      starboard::shared::blittergles::DrawCallType draw_call_type);
 
   // Whether or not this context has been set to current or not.
   bool is_current;
@@ -115,6 +142,8 @@ struct SbBlitterContextPrivate {
 
   std::unique_ptr<starboard::shared::blittergles::BlitShaderProgram>
       blit_shader_;
+
+  starboard::shared::blittergles::BlendState current_blend_state_;
 
   bool error_;
 };

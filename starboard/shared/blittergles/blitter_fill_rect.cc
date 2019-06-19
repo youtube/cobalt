@@ -40,7 +40,7 @@ bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
   if (scoped_current_context.InitializationError()) {
     return false;
   }
-  context->PrepareDrawState();
+  context->PrepareDrawState(starboard::shared::blittergles::kDrawCallTypeFill);
   const starboard::shared::blittergles::ColorShaderProgram&
       color_shader_program = context->GetColorShaderProgram();
   return color_shader_program.Draw(context->current_render_target,
