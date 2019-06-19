@@ -1,9 +1,11 @@
-/* Copied from Linux version and changed the features according Android, which
- * is close to Linux */
+/* Copied from Linux version and changed the features according the PNaCl
+ * toolchain for the Non-SFI binary build, which is close to one under the
+ * linux/ directory. The built binary will be running under Linux directly,
+ * actually.
+ */
+
 #ifndef _EVENT_CONFIG_H_
 #define _EVENT_CONFIG_H_
-/* config.h.  Generated from config.h.in by configure.  */
-/* config.h.in.  Generated from configure.in by autoheader.  */
 
 /* Define if clock_gettime is available in libc */
 #define _EVENT_DNS_USE_CPU_CLOCK_FOR_ID 1
@@ -21,10 +23,10 @@
 #define _EVENT_HAVE_DLFCN_H 1
 
 /* Define if your system supports the epoll system calls */
-#define _EVENT_HAVE_EPOLL 1
+/* #undef _EVENT_HAVE_EPOLL */
 
 /* Define to 1 if you have the `epoll_ctl' function. */
-#define _EVENT_HAVE_EPOLL_CTL 1
+/* #undef _EVENT_HAVE_EPOLL_CTL */
 
 /* Define if your system supports event ports */
 /* #undef _EVENT_HAVE_EVENT_PORTS */
@@ -36,7 +38,7 @@
 #define _EVENT_HAVE_FCNTL_H 1
 
 /* Define to 1 if the system has the type `fd_mask'. */
-/* #undef _EVENT_HAVE_FD_MASK 1 */
+#define _EVENT_HAVE_FD_MASK 1
 
 /* Define to 1 if you have the `getaddrinfo' function. */
 #define _EVENT_HAVE_GETADDRINFO 1
@@ -96,13 +98,13 @@
 /* #undef _EVENT_HAVE_PORT_H */
 
 /* Define to 1 if you have the `select' function. */
-#define _EVENT_HAVE_SELECT 1
+/* #undef _EVENT_HAVE_SELECT */
 
 /* Define if F_SETFD is defined in <fcntl.h> */
 #define _EVENT_HAVE_SETFD 1
 
 /* Define to 1 if you have the `sigaction' function. */
-#define _EVENT_HAVE_SIGACTION 1
+/* #undef _EVENT_HAVE_SIGACTION */
 
 /* Define to 1 if you have the `signal' function. */
 #define _EVENT_HAVE_SIGNAL 1
@@ -126,7 +128,7 @@
 #define _EVENT_HAVE_STRING_H 1
 
 /* Define to 1 if you have the `strlcpy' function. */
-#define _EVENT_HAVE_STRLCPY 1
+/* #undef _EVENT_HAVE_STRLCPY */
 
 /* Define to 1 if you have the `strsep' function. */
 #define _EVENT_HAVE_STRSEP 1
@@ -144,13 +146,13 @@
 /* #undef _EVENT_HAVE_SYS_DEVPOLL_H */
 
 /* Define to 1 if you have the <sys/epoll.h> header file. */
-#define _EVENT_HAVE_SYS_EPOLL_H 1
+/* #undef _EVENT_HAVE_SYS_EPOLL_H */
 
 /* Define to 1 if you have the <sys/event.h> header file. */
 /* #undef _EVENT_HAVE_SYS_EVENT_H */
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
-#define _EVENT_HAVE_SYS_IOCTL_H 1
+/* #undef _EVENT_HAVE_SYS_IOCTL_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define _EVENT_HAVE_SYS_PARAM_H 1
@@ -177,16 +179,16 @@
 #define _EVENT_HAVE_TAILQFOREACH 1
 
 /* Define if timeradd is defined in <sys/time.h> */
-#define _EVENT_HAVE_TIMERADD 1
+/* #undef _EVENT_HAVE_TIMERADD */
 
 /* Define if timerclear is defined in <sys/time.h> */
-#define _EVENT_HAVE_TIMERCLEAR 1
+/* #undef _EVENT_HAVE_TIMERCLEAR */
 
 /* Define if timercmp is defined in <sys/time.h> */
-#define _EVENT_HAVE_TIMERCMP 1
+/* #undef _EVENT_HAVE_TIMERCMP */
 
 /* Define if timerisset is defined in <sys/time.h> */
-#define _EVENT_HAVE_TIMERISSET 1
+/* #undef _EVENT_HAVE_TIMERISSET */
 
 /* Define to 1 if the system has the type `uint16_t'. */
 #define _EVENT_HAVE_UINT16_T 1
@@ -217,7 +219,7 @@
 #define _EVENT_NUMERIC_VERSION 0x01040f00
 
 /* Name of package */
-#define _EVENT_PACKAGE "libevent"
+#define _EVENT_PACKAGE "libevent_nacl"
 
 /* Define to the address where bug reports for this package should be sent. */
 #define _EVENT_PACKAGE_BUGREPORT ""
@@ -278,4 +280,11 @@
 
 /* Define to unsigned int if you dont have it */
 /* #undef _EVENT_socklen_t */
+
+/* Work around for __native_client_nonsfi__ build. random() is not provided
+ * by the newlib-based PNaCl toolchain, so here we declare it. Please see also
+ * nacl_nonsfi/random.c for more details.
+ */
+long int random();
+
 #endif
