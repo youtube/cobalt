@@ -106,6 +106,7 @@ SbBlitterContextPrivate::SbBlitterContextPrivate(SbBlitterDevice device)
                           egl_context_));
   color_shader_.reset(new starboard::shared::blittergles::ColorShaderProgram());
   blit_shader_.reset(new starboard::shared::blittergles::BlitShaderProgram());
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
   EGL_CALL(eglMakeCurrent(device->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                           EGL_NO_CONTEXT));
   SB_DCHECK(device->context == kSbBlitterInvalidContext);
@@ -113,6 +114,7 @@ SbBlitterContextPrivate::SbBlitterContextPrivate(SbBlitterDevice device)
 }
 
 SbBlitterContextPrivate::~SbBlitterContextPrivate() {
+  GL_CALL(glDisable(GL_SCISSOR_TEST));
   color_shader_.reset();
   blit_shader_.reset();
 
@@ -174,6 +176,14 @@ bool SbBlitterContextPrivate::MakeCurrentWithRenderTarget(
 
   is_current = true;
   return true;
+}
+
+void SbBlitterContextPrivate::PrepareDrawState() {
+  // We add 1 to compensate for clamping.
+  GL_CALL(glScissor(
+      scissor.x,
+      current_render_target->height - scissor.y - (scissor.height + 1),
+      scissor.width + 1, scissor.height + 1));
 }
 
 SbBlitterContextPrivate::ScopedCurrentContext::ScopedCurrentContext(
