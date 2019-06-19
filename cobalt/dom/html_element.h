@@ -50,6 +50,7 @@ namespace dom {
 
 class DOMStringMap;
 class HTMLAnchorElement;
+class HTMLAudioElement;
 class HTMLBodyElement;
 class HTMLBRElement;
 class HTMLDivElement;
@@ -200,6 +201,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.
   virtual scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement();
+  virtual scoped_refptr<HTMLAudioElement> AsHTMLAudioElement();
   virtual scoped_refptr<HTMLBodyElement> AsHTMLBodyElement();
   virtual scoped_refptr<HTMLBRElement> AsHTMLBRElement();
   virtual scoped_refptr<HTMLDivElement> AsHTMLDivElement();

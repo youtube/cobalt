@@ -88,6 +88,7 @@
         '../dom/focus_event.idl',
         '../dom/history.idl',
         '../dom/html_anchor_element.idl',
+        '../dom/html_audio_element.idl',
         '../dom/html_body_element.idl',
         '../dom/html_br_element.idl',
         '../dom/html_collection.idl',
