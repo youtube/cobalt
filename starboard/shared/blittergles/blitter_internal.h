@@ -101,28 +101,6 @@ struct SbBlitterSwapChainPrivate {
   EGLSurface surface;
 };
 
-struct SbBlitterSurfacePrivate {
-  // Keep track of the device that created this surface.
-  SbBlitterDevicePrivate* device;
-
-  // Surfaces may have a render target depending on the way they were created.
-  SbBlitterRenderTargetPrivate* render_target;
-
-  // Store information about this surface.
-  SbBlitterSurfaceInfo info;
-
-  // Keep track of the current texture.
-  GLuint color_texture_handle;
-
-  // Surfaces may have data if they were created from pixel data, and have not
-  // been converted into textures yet.
-  void* data;
-
-  // Ensures color_texture_handle is initialized, assuming that an EGLContext
-  // and EGLSurface are currently bound.
-  bool EnsureInitialized();
-};
-
 struct SbBlitterPixelDataPrivate {
   // Keep track of the device that was used to create this SbBlitterPixelData
   // object.

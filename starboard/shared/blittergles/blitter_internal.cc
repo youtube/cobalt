@@ -15,15 +15,12 @@
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 #include <EGL/egl.h>
-#include <GLES2/gl2.h>
 
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
-#include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
 namespace shared {
@@ -94,39 +91,6 @@ void SwizzlePixels(SbBlitterPixelDataFormat in_format,
   }
 }
 
-starboard::optional<GLuint> ComputeTextureHandle(SbBlitterSurface surface) {
-  GLuint texture_handle = 0;
-  glGenTextures(1, &texture_handle);
-  if (texture_handle == 0) {
-    SB_DLOG(ERROR) << ": Error creating new texture.";
-    return starboard::nullopt;
-  }
-  glBindTexture(GL_TEXTURE_2D, texture_handle);
-  if (glGetError() != GL_NO_ERROR) {
-    GL_CALL(glDeleteTextures(1, &texture_handle));
-    SB_DLOG(ERROR) << ": Error binding new texture.";
-    return starboard::nullopt;
-  }
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
-  GLint pixel_format =
-      surface->info.format == kSbBlitterSurfaceFormatRGBA8 ? GL_RGBA : GL_ALPHA;
-  GL_CALL(glPixelStorei(GL_PACK_ALIGNMENT, 1));
-  glTexImage2D(GL_TEXTURE_2D, 0, pixel_format, surface->info.width,
-               surface->info.height, 0, pixel_format, GL_UNSIGNED_BYTE,
-               surface->data);
-  if (glGetError() != GL_NO_ERROR) {
-    GL_CALL(glDeleteTextures(1, &texture_handle));
-    SB_DLOG(ERROR) << ": Error allocating new texture backing.";
-    return starboard::nullopt;
-  }
-
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
-  return texture_handle;
-}
-
 }  // namespace
 
 const EGLint kContextAttributeList[] = {EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -181,19 +145,3 @@ void ChangeDataFormat(SbBlitterPixelDataFormat in_format,
 }  // namespace blittergles
 }  // namespace shared
 }  // namespace starboard
-
-bool SbBlitterSurfacePrivate::EnsureInitialized() {
-  if (color_texture_handle != 0) {
-    return true;
-  }
-
-  starboard::optional<GLuint> texture =
-      starboard::shared::blittergles::ComputeTextureHandle(this);
-  color_texture_handle = texture ? *texture : 0;
-  if (texture && data != NULL) {
-    SbMemoryDeallocate(data);
-    data = NULL;
-  }
-
-  return texture.has_engaged();
-}

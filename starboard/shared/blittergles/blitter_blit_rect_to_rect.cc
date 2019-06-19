@@ -16,7 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_context.h"
-#include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 bool SbBlitterBlitRectToRect(SbBlitterContext context,
                              SbBlitterSurface source_surface,
