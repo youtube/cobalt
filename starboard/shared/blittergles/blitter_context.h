@@ -69,6 +69,9 @@ struct SbBlitterContextPrivate {
   // this object is invalid).
   bool IsValid() const { return !error_; }
 
+  // Sets up various states (scissor, blending, modulation) for a draw call.
+  void PrepareDrawState();
+
   // Whether or not this context has been set to current or not.
   bool is_current;
 
