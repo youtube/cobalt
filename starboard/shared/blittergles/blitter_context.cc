@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blit_shader_program.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 #include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/gles/gl_call.h"
 
