@@ -66,7 +66,6 @@
         'src/charconv.cpp',
         'src/chrono.cpp',
         'src/condition_variable.cpp',
-        'src/debug.cpp',
         'src/exception.cpp',
 
         # Remove file system operations
@@ -79,13 +78,11 @@
         'src/future.cpp',
         'src/hash.cpp',
         'src/ios.cpp',
-        'src/iostream.cpp',
         'src/locale.cpp',
         'src/memory.cpp',
         'src/mutex.cpp',
         'src/new.cpp',
         'src/optional.cpp',
-        'src/random.cpp',
         'src/regex.cpp',
         'src/shared_mutex.cpp',
         'src/stdexcept.cpp',
