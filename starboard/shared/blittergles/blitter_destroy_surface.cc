@@ -14,12 +14,8 @@
 
 #include "starboard/blitter.h"
 
-#include <GLES2/gl2.h>
-
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
-#include "starboard/shared/blittergles/blitter_internal.h"
-#include "starboard/shared/gles/gl_call.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 bool SbBlitterDestroySurface(SbBlitterSurface surface) {
   if (!SbBlitterIsSurfaceValid(surface)) {
@@ -27,19 +23,6 @@ bool SbBlitterDestroySurface(SbBlitterSurface surface) {
     return false;
   }
 
-  if (surface->color_texture_handle != 0) {
-    GL_CALL(glDeleteTextures(1, &surface->color_texture_handle));
-  }
-  if (surface->render_target != NULL) {
-    if (surface->render_target->framebuffer_handle != 0) {
-      GL_CALL(
-          glDeleteFramebuffers(1, &surface->render_target->framebuffer_handle));
-    }
-    delete surface->render_target;
-  }
-  if (surface->data != NULL) {
-    SbMemoryDeallocate(surface->data);
-  }
   delete surface;
   return true;
 }

@@ -15,7 +15,7 @@
 #include "starboard/blitter.h"
 
 #include "starboard/common/log.h"
-#include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                              SbBlitterSurfaceInfo* surface_info) {
