@@ -208,6 +208,12 @@ const char kEnableMapToMeshRectanglarHelp[] =
     "video on platforms that do not support stereoscopy natively, letting the "
     "client apply a stereo mesh projection (one that differs for each eye).";
 
+const char kEncodedImageCacheSizeInBytes[] =
+    "encoded_image_cache_size_in_bytes";
+const char kEncodedImageCacheSizeInBytesHelp[] =
+    "Determines the capacity of the encoded image cache which manages encoded "
+    "images downloaded from a web page. The cache uses CPU memory.";
+
 const char kForceMigrationForStoragePartitioning[] =
     "force_migration_for_storage_partitioning";
 const char kForceMigrationForStoragePartitioningHelp[] =
@@ -236,8 +242,8 @@ const char kHelpHelp[] = "Prints help information of cobalt command";
 const char kImageCacheSizeInBytes[] = "image_cache_size_in_bytes";
 const char kImageCacheSizeInBytesHelp[] =
     "Determines the capacity of the image cache which manages image "
-    "surfaces300 downloaded from a web page.  While it depends on the "
-    "platform, often (and ideally) these images are cached within GPU memory.";
+    "surfaces downloaded from a web page.  While it depends on the platform, "
+    "often (and ideally) these images are cached within GPU memory.";
 
 const char kInitialURL[] = "url";
 const char kInitialURLHelp[] =
@@ -403,6 +409,7 @@ std::string HelpMessage() {
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
         {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
+        {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},
         {kFPSPrint, kFPSPrintHelp}, {kFPSOverlay, kFPSOverlayHelp},

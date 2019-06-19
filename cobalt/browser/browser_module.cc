@@ -1762,6 +1762,8 @@ void BrowserModule::ApplyAutoMemSettings() {
   }
 
   // Web Module options.
+  options_.web_module_options.encoded_image_cache_capacity =
+      static_cast<int>(auto_mem_->encoded_image_cache_size_in_bytes()->value());
   options_.web_module_options.image_cache_capacity =
       static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(

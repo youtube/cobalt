@@ -96,6 +96,8 @@ extern const char kDisableJavaScriptJitHelp[];
 extern const char kDisableTimerResolutionLimit[];
 extern const char kDisableTimerResolutionLimitHelp[];
 extern const char kEnableMapToMeshRectanglar[];
+extern const char kEncodedImageCacheSizeInBytes[];
+extern const char kEncodedImageCacheSizeInBytesHelp[];
 extern const char kForceMigrationForStoragePartitioning[];
 extern const char kFPSPrint[];
 extern const char kFPSPrintHelp[];

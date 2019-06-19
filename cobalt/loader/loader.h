@@ -67,7 +67,7 @@ class Loader {
   void LoadComplete(const base::Optional<std::string>& status);
 
  private:
-  class FetcherToDecoderAdapter;
+  class FetcherHandlerToDecoderAdapter;
 
   // Starts the fetch-and-decode.
   void Start();
@@ -76,7 +76,8 @@ class Loader {
   const DecoderCreator decoder_creator_;
 
   std::unique_ptr<Decoder> decoder_;
-  std::unique_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
+  std::unique_ptr<FetcherHandlerToDecoderAdapter>
+      fetcher_handler_to_decoder_adaptor_;
   std::unique_ptr<Fetcher> fetcher_;
 
   base::CancelableClosure fetcher_creator_error_closure_;
