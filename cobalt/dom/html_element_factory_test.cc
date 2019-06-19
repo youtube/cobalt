@@ -54,7 +54,9 @@ class HTMLElementFactoryTest : public ::testing::Test {
  protected:
   HTMLElementFactoryTest()
       : fetcher_factory_(NULL /* network_module */),
-        loader_factory_(&fetcher_factory_, NULL /* resource loader */,
+        loader_factory_("Test" /* name */, &fetcher_factory_,
+                        NULL /* resource loader */,
+                        0 /* encoded_image_cache_capacity */,
                         base::ThreadPriority::DEFAULT),
         dom_parser_(new dom_parser::Parser()),
         dom_stat_tracker_(new DomStatTracker("HTMLElementFactoryTest")),

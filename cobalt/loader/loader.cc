@@ -25,15 +25,15 @@ namespace cobalt {
 namespace loader {
 
 //////////////////////////////////////////////////////////////////
-// Loader::FetcherToDecoderAdapter
+// Loader::FetcherHandlerToDecoderAdapter
 //////////////////////////////////////////////////////////////////
 
 // This class is responsible for passing chunks of data from fetcher to
 // decoder and notifying fetching is done or aborted on error.
-class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
+class Loader::FetcherHandlerToDecoderAdapter : public Fetcher::Handler {
  public:
-  FetcherToDecoderAdapter(Decoder* decoder,
-                          OnCompleteFunction load_complete_callback)
+  FetcherHandlerToDecoderAdapter(Decoder* decoder,
+                                 OnCompleteFunction load_complete_callback)
       : decoder_(decoder), load_complete_callback_(load_complete_callback) {}
 
   // From Fetcher::Handler.
@@ -123,7 +123,7 @@ void Loader::Suspend() {
     fetcher_.reset();
   }
 
-  fetcher_to_decoder_adaptor_.reset();
+  fetcher_handler_to_decoder_adaptor_.reset();
   fetcher_creator_error_closure_.Cancel();
 
   if (!suspendable) {
@@ -155,10 +155,10 @@ void Loader::Start() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_suspended_);
 
-  fetcher_to_decoder_adaptor_.reset(new FetcherToDecoderAdapter(
+  fetcher_handler_to_decoder_adaptor_.reset(new FetcherHandlerToDecoderAdapter(
       decoder_.get(),
       base::Bind(&Loader::LoadComplete, base::Unretained(this))));
-  fetcher_ = fetcher_creator_.Run(fetcher_to_decoder_adaptor_.get());
+  fetcher_ = fetcher_creator_.Run(fetcher_handler_to_decoder_adaptor_.get());
 
   // Post the error callback on the current message loop in case the loader is
   // destroyed in the callback.

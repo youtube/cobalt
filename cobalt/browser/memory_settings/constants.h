@@ -27,6 +27,10 @@ enum MemorySizes {
   // This was experimentally selected.
   kMiscCobaltCpuSizeInBytes = 119 * 1024 * 1024,
 
+  // 1mb of encoded data is enough to avoid downloading new images during
+  // suspend/resume.
+  kDefaultEncodedImageCacheSize = 1024 * 1024,  // 1mb
+
   // Decoding image to multi-plane allows the decoded images to use 3/8 of
   // memory compare to their RGBA counter part due to the more compact nature of
   // the YUV images versus RGBA.  As most images in the image cache are jpegs,

@@ -69,8 +69,9 @@ class HTMLDecoderTest : public ::testing::Test {
 
 HTMLDecoderTest::HTMLDecoderTest()
     : fetcher_factory_(NULL /* network_module */),
-      loader_factory_(&fetcher_factory_, NULL /* ResourceProvider */,
-                      base::ThreadPriority::DEFAULT),
+      loader_factory_(
+          "Test" /* name */, &fetcher_factory_, NULL /* ResourceProvider */,
+          0 /* encoded_image_cache_capacity */, base::ThreadPriority::DEFAULT),
       dom_parser_(new Parser()),
       dom_stat_tracker_(new dom::DomStatTracker("HTMLDecoderTest")),
       html_element_context_(
