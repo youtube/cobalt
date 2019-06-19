@@ -71,6 +71,7 @@ static void http_chunked_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
+static void http_badreq_cb(struct evhttp_request *req, void *arg);
 
 static struct evhttp *
 http_setup(short *pport, struct event_base *base)
@@ -96,6 +97,7 @@ http_setup(short *pport, struct event_base *base)
 	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, NULL);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, NULL);
+	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
 
 	*pport = port;
@@ -377,6 +379,155 @@ http_basic_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+static void
+http_badreq_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *buf = evbuffer_new();
+
+	evhttp_add_header(req->output_headers, "Content-Type", "text/xml; charset=UTF-8");
+	evbuffer_add_printf(buf, "Hello, %s!", "127.0.0.1");
+
+	evhttp_send_reply(req, HTTP_OK, "OK", buf);
+	evbuffer_free(buf);
+}
+
+static void
+http_badreq_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	event_debug(("%s: called (what=%04x, arg=%p)", __func__, what, arg));
+	/* ignore */
+}
+
+static void
+http_badreq_readcb(struct bufferevent *bev, void *arg)
+{
+	const char *what = "Hello, 127.0.0.1";
+	const char *bad_request = "400 Bad Request";
+
+	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
+
+	if (evbuffer_find(bev->input,
+		(const unsigned char *) bad_request, strlen(bad_request)) != NULL) {
+		event_debug(("%s: bad request detected", __func__));
+		test_ok = -10;
+		bufferevent_disable(bev, EV_READ);
+		event_loopexit(NULL);
+		return;
+	}
+
+	if (evbuffer_find(bev->input,
+		(const unsigned char*) what, strlen(what)) != NULL) {
+		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+		enum message_read_status done;
+
+		req->kind = EVHTTP_RESPONSE;
+		done = evhttp_parse_firstline(req, bev->input);
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		done = evhttp_parse_headers(req, bev->input);
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		if (done == 1 &&
+		    evhttp_find_header(req->input_headers,
+			"Content-Type") != NULL)
+			test_ok++;
+
+	out:
+		evhttp_request_free(req);
+		evbuffer_drain(bev->input, EVBUFFER_LENGTH(bev->input));
+	}
+
+	shutdown(bev->ev_read.ev_fd, SHUT_WR);
+}
+
+static void
+http_badreq_successcb(int fd, short what, void *arg)
+{
+	event_debug(("%s: called (what=%04x, arg=%p)", __func__, what, arg));
+	event_loopexit(NULL);
+}
+
+static void
+http_bad_request(void)
+{
+	struct timeval tv;
+	struct bufferevent *bev;
+	int fd;
+	const char *http_request;
+	short port = -1;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing \"Bad Request\" on connection close: ");
+
+	http = http_setup(&port, NULL);
+
+	/* bind to a second socket */
+	if (evhttp_bind_socket(http, "127.0.0.1", port + 1) == -1) {
+		fprintf(stdout, "FAILED (bind)\n");
+		exit(1);
+	}
+
+	/* NULL request test */
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
+	    http_badreq_errorcb, NULL);
+	bufferevent_enable(bev, EV_READ);
+
+	/* real NULL request */
+	http_request = "";
+
+	shutdown(fd, SHUT_WR);
+	timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
+
+	event_dispatch();
+
+	bufferevent_free(bev);
+	EVUTIL_CLOSESOCKET(fd);
+
+	if (test_ok != 0) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Second answer (BAD REQUEST) on connection close */
+
+	/* connect to the second port */
+	fd = http_connect("127.0.0.1", port + 1);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
+	    http_badreq_errorcb, NULL);
+	bufferevent_enable(bev, EV_READ);
+
+	/* first half of the http request */
+	http_request =
+		"GET /badrequest HTTP/1.0\r\n"	\
+		"Connection: Keep-Alive\r\n"	\
+		"\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
+
+	event_dispatch();
+
+	evhttp_free(http);
+
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+}
 static struct evhttp_connection *delayed_client;
 
 static void
@@ -1453,6 +1604,121 @@ http_negative_content_length_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+/*
+ * Testing client reset of server chunked connections
+ */
+
+struct terminate_state {
+	struct evhttp_request *req;
+	struct bufferevent *bev;
+	int fd;
+} terminate_state;
+
+static void
+terminate_chunked_trickle_cb(int fd, short events, void *arg)
+{
+	struct terminate_state *state = arg;
+	struct evbuffer *evb = evbuffer_new();
+	struct timeval tv;
+
+	if (evhttp_request_get_connection(state->req) == NULL) {
+		test_ok = 1;
+		evhttp_request_free(state->req);
+		event_loopexit(NULL);
+		return;
+	}
+
+	evbuffer_add_printf(evb, "%p", evb);
+	evhttp_send_reply_chunk(state->req, evb);
+	evbuffer_free(evb);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 3000;
+	event_once(-1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+}
+
+static void
+terminate_chunked_cb(struct evhttp_request *req, void *arg)
+{
+	struct terminate_state *state = arg;
+	struct timeval tv;
+
+	state->req = req;
+
+	evhttp_send_reply_start(req, HTTP_OK, "OK");
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 3000;
+	event_once(-1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+}
+
+static void
+terminate_chunked_client(int fd, short event, void *arg)
+{
+	struct terminate_state *state = arg;
+	bufferevent_free(state->bev);
+	EVUTIL_CLOSESOCKET(state->fd);
+}
+
+static void
+terminate_readcb(struct bufferevent *bev, void *arg)
+{
+	/* just drop the data */
+	evbuffer_drain(bev->output, -1);
+}
+
+
+static void
+http_terminate_chunked_test(void)
+{
+	struct bufferevent *bev = NULL;
+	struct timeval tv;
+	const char *http_request;
+	short port = -1;
+	int fd = -1;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing Terminated Chunked Connection: ");
+
+	http = http_setup(&port, NULL);
+	evhttp_del_cb(http, "/test");
+	evhttp_set_cb(http, "/test", terminate_chunked_cb, &terminate_state);
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, terminate_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	terminate_state.fd = fd;
+	terminate_state.bev = bev;
+
+	/* first half of the http request */
+	http_request =
+	    "GET /test HTTP/1.1\r\n"
+	    "Host: some\r\n\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	evutil_timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, terminate_chunked_client, &terminate_state,
+	    &tv);
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+
+	if (fd >= 0)
+		EVUTIL_CLOSESOCKET(fd);
+	if (http)
+		evhttp_free(http);
+}
+
 void
 http_suite(void)
 {
@@ -1462,8 +1728,9 @@ http_suite(void)
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);
-	http_close_detection(0 /* with delay */);
+	http_close_detection(0 /* without delay */);
 	http_close_detection(1 /* with delay */);
+	http_bad_request();
 	http_post_test();
 	http_failure_test();
 	http_highport_test();
@@ -1473,4 +1740,5 @@ http_suite(void)
 	http_negative_content_length_test();
 
 	http_chunked_test();
+	http_terminate_chunked_test();
 }

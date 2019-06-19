@@ -7,6 +7,8 @@
 
 #if defined(STARBOARD)
 #include "starboard/event-config.h"
+#elif defined(__native_client_nonsfi__)
+#include "nacl_nonsfi/event-config.h"
 #elif defined(__APPLE__)
 #include "mac/event-config.h"
 #elif defined(ANDROID) || defined(__LB_ANDROID__)
@@ -17,6 +19,8 @@
 #include "freebsd/event-config.h"
 #elif defined(__sun)
 #include "solaris/event-config.h"
+#elif defined(_AIX)
+#include "aix/event-config.h"
 #else
 #error generate event-config.h for your platform
 #endif
