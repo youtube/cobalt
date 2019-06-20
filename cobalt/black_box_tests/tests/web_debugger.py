@@ -173,6 +173,15 @@ class DebuggerConnection(object):
 class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
   """Test interaction with the web debugger over a WebSocket."""
 
+  def setUp(self):
+    platform_vars = self.platform_config.GetVariables(self.device_params.config)
+    if platform_vars['javascript_engine'] != 'v8':
+      self.skipTest('DevTools requires V8')
+
+    cobalt_vars = self.cobalt_config.GetVariables(self.device_params.config)
+    if not cobalt_vars['enable_debugger']:
+      self.skipTest('DevTools is disabled on this platform')
+
   def create_debugger_connection(self, runner):
     devtools_url = runner.GetCval('Cobalt.Server.DevTools')
     parts = list(urlparse.urlsplit(devtools_url))

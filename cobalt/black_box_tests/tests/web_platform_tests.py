@@ -22,7 +22,6 @@ import _env  # pylint: disable=unused-import
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.web_platform_test_server import WebPlatformTestServer
 from starboard.tools import abstract_launcher
-from starboard.tools import build
 from starboard.tools.testing import test_filter
 
 
@@ -37,9 +36,7 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
     with WebPlatformTestServer(binding_address=self.GetBindingAddress()):
       target_params = []
 
-      platform_config = build.GetPlatformConfig(self.device_params.platform)
-      cobalt_config = platform_config.GetApplicationConfiguration('cobalt')
-      filters = cobalt_config.GetWebPlatformTestFilters()
+      filters = self.cobalt_config.GetWebPlatformTestFilters()
 
       if test_filter.DISABLE_TESTING in filters:
         return
