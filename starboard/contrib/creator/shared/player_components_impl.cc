@@ -19,6 +19,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
+#include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -41,10 +42,27 @@ class PlayerComponentsImpl : public PlayerComponents {
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
-    typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
+
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+                              SbDrmSystem drm_system) {
+      typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
+
+      scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
+          AudioDecoderImpl::Create(audio_sample_info.codec, audio_sample_info));
+      if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+        return audio_decoder_impl.PassAs<AudioDecoder>();
+      }
+      return scoped_ptr<AudioDecoder>();
+    };
+
+    audio_decoder->reset(
+        new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
+                                 audio_parameters.drm_system, decoder_creator));
+#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
 
     scoped_ptr<AudioDecoderImpl> audio_decoder_impl(AudioDecoderImpl::Create(
         audio_parameters.audio_codec, audio_parameters.audio_sample_info));
@@ -53,6 +71,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     } else {
       audio_decoder->reset();
     }
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }
 
