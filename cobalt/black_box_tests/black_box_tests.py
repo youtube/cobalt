@@ -30,6 +30,7 @@ from cobalt.black_box_tests import black_box_cobalt_runner
 from cobalt.tools.automated_testing import cobalt_runner
 from proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
+from starboard.tools import build
 
 _PORT_SELECTION_RETRY_LIMIT = 10
 _PORT_SELECTION_RANGE = [5000, 7000]
@@ -74,6 +75,9 @@ class BlackBoxTestCase(unittest.TestCase):
   def __init__(self, *args, **kwargs):
     super(BlackBoxTestCase, self).__init__(*args, **kwargs)
     self.device_params = _device_params
+    self.platform_config = build.GetPlatformConfig(_device_params.platform)
+    self.cobalt_config = self.platform_config.GetApplicationConfiguration(
+        'cobalt')
 
   @classmethod
   def setUpClass(cls):
