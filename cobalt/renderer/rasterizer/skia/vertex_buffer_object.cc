@@ -26,10 +26,8 @@ namespace skia {
 
 VertexBufferObject::VertexBufferObject(
     std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
-    backend::GraphicsContextEGL* cobalt_context, GLenum draw_mode)
-    : vertex_count_(vertices->size()),
-      cobalt_context_(cobalt_context),
-      draw_mode_(draw_mode) {
+    GLenum draw_mode)
+    : vertex_count_(vertices->size()), draw_mode_(draw_mode) {
   std::unique_ptr<float[]> buffer(new float[5 * vertex_count_]);
 
   for (size_t i = 0; i < vertices->size(); i++) {
@@ -53,8 +51,6 @@ VertexBufferObject::VertexBufferObject(
 VertexBufferObject::~VertexBufferObject() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DLOG(INFO) << "Deleted VBO with buffer id " << mesh_vertex_buffer_;
-  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
-      cobalt_context_);
   GL_CALL(glDeleteBuffers(1, &mesh_vertex_buffer_));
 }
 

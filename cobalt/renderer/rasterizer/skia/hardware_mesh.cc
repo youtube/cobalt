@@ -39,8 +39,7 @@ uint32 HardwareMesh::GetEstimatedSizeInBytes() const {
 const VertexBufferObject* HardwareMesh::GetVBO() const {
   if (!vbo_) {
     rasterizer_message_loop_ = base::MessageLoop::current();
-    vbo_.reset(new VertexBufferObject(std::move(vertices_), cobalt_context_,
-                                      draw_mode_));
+    vbo_.reset(new VertexBufferObject(std::move(vertices_), draw_mode_));
   }
 
   return vbo_.get();
@@ -48,21 +47,31 @@ const VertexBufferObject* HardwareMesh::GetVBO() const {
 
 namespace {
 
-void DestroyVBO(std::unique_ptr<VertexBufferObject> vbo) { vbo.reset(); }
+void DestroyVBO(backend::GraphicsContextEGL* cobalt_context,
+                std::unique_ptr<VertexBufferObject> vbo) {
+  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+      cobalt_context);
+  vbo.reset();
+}
 
 }  // namespace
 
 HardwareMesh::~HardwareMesh() {
-  if (rasterizer_message_loop_) {
-    if (rasterizer_message_loop_ != base::MessageLoop::current()) {
-      // Make sure that VBO cleanup always happens on the thread that created
-      // the VBO in the first place.
-      rasterizer_message_loop_->task_runner()->PostTask(
-          FROM_HERE, base::Bind(&DestroyVBO, base::Passed(&vbo_)));
-    } else {
-      vbo_.reset();
-    }
+  if (rasterizer_message_loop_ == base::MessageLoop::current()) {
+    DestroyVBO(cobalt_context_, std::move(vbo_));
+    return;
   }
+
+  DCHECK(rasterizer_message_loop_);
+
+  // Make sure that VBO cleanup always happens on the thread that created
+  // the VBO in the first place.  We are passing cobalt_context_ by pointer
+  // here, but we can assume it will still be alive when DestroyVBO is
+  // executed because this Mesh object must be destroyed before the
+  // rasterizer, and the rasterizer must be destroyed before the GL
+  // context.
+  rasterizer_message_loop_->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&DestroyVBO, cobalt_context_, base::Passed(&vbo_)));
 }
 
 }  // namespace skia
