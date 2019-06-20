@@ -20,7 +20,6 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/mesh.h"
-#include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
@@ -35,14 +34,9 @@ class VertexBufferObject {
   // Creates a VertexBufferObject for the provided vertex list. The vertex list
   // object is destroyed from main memory, and a buffer will be allocated on
   // the GPU with its data.
-  //
-  // We accept a raw pointer to a backend::GraphicsContextEGL here, but this is
-  // safe since we can assume it will still be alive for the lifetime of this
-  // object because the owning Mesh object must be destroyed before the
-  // rasterizer, and the rasterizer must be destroyed before the GL context.
   VertexBufferObject(
       std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
-      backend::GraphicsContextEGL* cobalt_context, GLenum draw_mode);
+      GLenum draw_mode);
   // Cleans up the GPU memory that holds the vertices.
   virtual ~VertexBufferObject();
 
@@ -56,7 +50,6 @@ class VertexBufferObject {
   size_t vertex_count_;
   GLenum draw_mode_;
   GLuint mesh_vertex_buffer_;
-  backend::GraphicsContextEGL* cobalt_context_;
   THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
