@@ -19,7 +19,6 @@
 #include <memory>
 
 #include "base/threading/thread_checker.h"
-
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/media_session/media_session_action_details.h"
 
@@ -63,13 +62,15 @@ class MediaSessionClient {
   // https://wicg.github.io/mediasession/#actions-model
   // Can be invoked from any thread.
   void InvokeAction(MediaSessionAction action) {
-    InvokeActionInternal(std::unique_ptr<MediaSessionActionDetails::Data>(
-        new MediaSessionActionDetails::Data(action)));
+    std::unique_ptr<MediaSessionActionDetails> details(
+        new MediaSessionActionDetails());
+    details->set_action(action);
+    InvokeActionInternal(std::move(details));
   }
 
-  // Invokes a given media session action that takes additional data.
-  void InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data> data) {
-    InvokeActionInternal(std::move(data));
+  // Invokes a given media session action that takes additional details.
+  void InvokeAction(std::unique_ptr<MediaSessionActionDetails> details) {
+    InvokeActionInternal(std::move(details));
   }
 
   // Invoked on the browser thread when any metadata, playback state,
@@ -81,8 +82,7 @@ class MediaSessionClient {
   scoped_refptr<MediaSession> media_session_;
   MediaSessionPlaybackState platform_playback_state_;
 
-  void InvokeActionInternal(
-      std::unique_ptr<MediaSessionActionDetails::Data> data);
+  void InvokeActionInternal(std::unique_ptr<MediaSessionActionDetails> details);
 
   DISALLOW_COPY_AND_ASSIGN(MediaSessionClient);
 };
