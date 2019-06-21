@@ -27,8 +27,10 @@ class ColorShaderProgram : public ShaderProgram {
  public:
   ColorShaderProgram();
 
+  // Method that draws a colored rectangle on the render_target. Color is
+  // specified by the float array containing R G B A in that order.
   bool Draw(SbBlitterRenderTarget render_target,
-            SbBlitterColor color,
+            float (&color_rgba)[4],
             SbBlitterRect rect) const;
 
  private:

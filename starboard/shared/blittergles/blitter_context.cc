@@ -91,7 +91,7 @@ SbBlitterContextPrivate::SbBlitterContextPrivate(SbBlitterDevice device)
       dummy_surface_(EGL_NO_SURFACE),
       blending_enabled(false),
       modulate_blits_with_color(false),
-      current_color(SbBlitterColorFromRGBA(255, 255, 255, 255)),
+      current_rgba{1.0f, 1.0f, 1.0f, 1.0f},
       scissor(SbBlitterMakeRect(0, 0, 0, 0)),
       current_blend_state_(starboard::shared::blittergles::kBlendStateNoEffect),
       error_(false) {
@@ -168,27 +168,29 @@ void SbBlitterContextPrivate::PrepareDrawState(
       new_state = starboard::shared::blittergles::kBlendStateNoEffect;
     }
   }
-
   if (current_blend_state_ == new_state) {
     return;
   }
+
   if (current_blend_state_ ==
       starboard::shared::blittergles::kBlendStateNoEffect) {
     GL_CALL(glEnable(GL_BLEND));
   }
-
-  // TODO: Finish modulation implementation.
   switch (new_state) {
     case starboard::shared::blittergles::kBlendStateBlend: {
       GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
       break;
     }
     case starboard::shared::blittergles::kBlendStateModulateBlits: {
-      SB_NOTIMPLEMENTED();
+      GL_CALL(glBlendFunc(GL_CONSTANT_COLOR, GL_ZERO));
+      GL_CALL(glBlendColor(current_rgba[0], current_rgba[1], current_rgba[2],
+                           current_rgba[3]));
       break;
     }
     case starboard::shared::blittergles::kBlendStateBlendAndModulate: {
-      SB_NOTIMPLEMENTED();
+      GL_CALL(glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA));
+      GL_CALL(glBlendColor(current_rgba[0], current_rgba[1], current_rgba[2],
+                           current_rgba[3]));
       break;
     }
     case starboard::shared::blittergles::kBlendStateNoEffect: {
