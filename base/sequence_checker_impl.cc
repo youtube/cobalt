@@ -37,14 +37,22 @@ SequenceCheckerImpl::SequenceCheckerImpl() : core_(std::make_unique<Core>()) {}
 SequenceCheckerImpl::~SequenceCheckerImpl() = default;
 
 bool SequenceCheckerImpl::CalledOnValidSequence() const {
+#if defined(STARBOARD)
+  starboard::ScopedSpinLock lock(&members_lock_);
+#else   // defined(STARBOARD)
   AutoLock auto_lock(lock_);
+#endif  // defined(STARBOARD)
   if (!core_)
     core_ = std::make_unique<Core>();
   return core_->CalledOnValidSequence();
 }
 
 void SequenceCheckerImpl::DetachFromSequence() {
+#if defined(STARBOARD)
+  starboard::ScopedSpinLock lock(&members_lock_);
+#else   // defined(STARBOARD)
   AutoLock auto_lock(lock_);
+#endif  // defined(STARBOARD)
   core_.reset();
 }
 

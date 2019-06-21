@@ -7,16 +7,23 @@
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace base {
-
 ThreadCheckerImpl::ThreadCheckerImpl() {
+#if defined(STARBOARD)
+  starboard::ScopedSpinLock lock(&members_lock_);
+#else   // defined(STARBOARD)
   AutoLock auto_lock(lock_);
+#endif  // defined(STARBOARD)
   EnsureAssigned();
 }
 
 ThreadCheckerImpl::~ThreadCheckerImpl() = default;
 
 bool ThreadCheckerImpl::CalledOnValidThread() const {
+#if defined(STARBOARD)
+  starboard::ScopedSpinLock lock(&members_lock_);
+#else   // defined(STARBOARD)
   AutoLock auto_lock(lock_);
+#endif  // defined(STARBOARD)
   EnsureAssigned();
 
   // Always return true when called from the task from which this
@@ -38,14 +45,22 @@ bool ThreadCheckerImpl::CalledOnValidThread() const {
 }
 
 void ThreadCheckerImpl::DetachFromThread() {
+#if defined(STARBOARD)
+  starboard::ScopedSpinLock lock(&members_lock_);
+#else   // defined(STARBOARD)
   AutoLock auto_lock(lock_);
+#endif  // defined(STARBOARD)
   thread_id_ = PlatformThreadRef();
   task_token_ = TaskToken();
   sequence_token_ = SequenceToken();
 }
 
 void ThreadCheckerImpl::EnsureAssigned() const {
+#if defined(STARBOARD)
+  SB_DCHECK(members_lock_ == starboard::kSpinLockStateAcquired);
+#else   // defined(STARBOARD)
   lock_.AssertAcquired();
+#endif  // defined(STARBOARD)
   if (!thread_id_.is_null())
     return;
 
