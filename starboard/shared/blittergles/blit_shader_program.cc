@@ -113,12 +113,22 @@ bool BlitShaderProgram::Draw(SbBlitterContext context,
   GL_CALL(glEnableVertexAttribArray(kTexCoordAttribute));
   GL_CALL(glUniform4f(clamp_uniform_, texel_clamps[0], texel_clamps[1],
                       texel_clamps[2], texel_clamps[3]));
-  const float* transform_mat = surface->info.format == kSbBlitterSurfaceFormatA8
-                                   ? kAlphaMatrix
-                                   : kIdentityMatrix;
+
+  const float* transform_mat;
+  const float kAlphaBlitMatrix[16] =
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, context->current_rgba[0],
+       context->current_rgba[1], context->current_rgba[2],
+       context->current_rgba[3]};
+  if (surface->info.format == kSbBlitterSurfaceFormatA8 &&
+      context->modulate_blits_with_color) {
+    transform_mat = kAlphaBlitMatrix;
+  } else if (surface->info.format == kSbBlitterSurfaceFormatA8) {
+    transform_mat = kAlphaMatrix;
+  } else {
+    transform_mat = kIdentityMatrix;
+  }
   GL_CALL(
       glUniformMatrix4fv(color_matrix_uniform_, 1, GL_FALSE, transform_mat));
-
   GL_CALL(glActiveTexture(GL_TEXTURE0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->color_texture_handle));
 

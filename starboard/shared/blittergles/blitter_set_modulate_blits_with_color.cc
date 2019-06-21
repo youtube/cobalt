@@ -13,10 +13,17 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
+
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 
 bool SbBlitterSetModulateBlitsWithColor(SbBlitterContext context,
                                         bool modulate_blits_with_color) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << ": Invalid context.";
+    return false;
+  }
+
+  context->modulate_blits_with_color = modulate_blits_with_color;
+  return true;
 }
