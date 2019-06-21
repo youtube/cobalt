@@ -47,6 +47,9 @@ typedef enum BlendState {
 
 // Describes the type of draw call.
 typedef enum DrawCallType {
+  // Blit call where source surface is A8 format.
+  kDrawCallTypeAlphaBlit,
+  // Blit call where source surface is RGBA8 format.
   kDrawCallTypeBlit,
   kDrawCallTypeFill,
 } DrawCallType;
@@ -69,9 +72,9 @@ struct SbBlitterContextPrivate {
   // Whether or not blending is enabled on this context.
   bool blending_enabled;
 
-  // The current color, used to determine the color of fill rectangles and blit
-  // call color modulation.
-  SbBlitterColor current_color;
+  // The current color stored as pre-multiplied RGBA, used to determine the
+  // color of fill rectangles and blit call color modulation.
+  float current_rgba[4];
 
   // Whether or not blits should be modulated by the current color.
   bool modulate_blits_with_color;

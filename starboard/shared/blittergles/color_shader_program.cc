@@ -55,7 +55,7 @@ ColorShaderProgram::ColorShaderProgram() {
 }
 
 bool ColorShaderProgram::Draw(SbBlitterRenderTarget render_target,
-                              SbBlitterColor color,
+                              float (&color_rgba)[4],
                               SbBlitterRect rect) const {
   GL_CALL(glUseProgram(GetProgramHandle()));
 
@@ -64,14 +64,8 @@ bool ColorShaderProgram::Draw(SbBlitterRenderTarget render_target,
   GL_CALL(glVertexAttribPointer(kPositionAttribute, 2, GL_FLOAT, GL_FALSE, 0,
                                 vertices));
   GL_CALL(glEnableVertexAttribArray(kPositionAttribute));
-
-  const float kColorMapper = 255.0;
-  float alpha_value = SbBlitterAFromColor(color) / kColorMapper;
-  GL_CALL(glVertexAttrib4f(
-      kColorAttribute,
-      alpha_value * (SbBlitterRFromColor(color) / kColorMapper),
-      alpha_value * (SbBlitterGFromColor(color) / kColorMapper),
-      alpha_value * (SbBlitterBFromColor(color) / kColorMapper), alpha_value));
+  GL_CALL(glVertexAttrib4f(kColorAttribute, color_rgba[0], color_rgba[1],
+                           color_rgba[2], color_rgba[3]));
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   bool success = glGetError() == GL_NO_ERROR;
