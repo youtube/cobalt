@@ -44,5 +44,5 @@ bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
   const starboard::shared::blittergles::ColorShaderProgram&
       color_shader_program = context->GetColorShaderProgram();
   return color_shader_program.Draw(context->current_render_target,
-                                   context->current_color, rect);
+                                   context->current_rgba, rect);
 }
