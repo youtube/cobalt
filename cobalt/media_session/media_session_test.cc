@@ -12,33 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/media_session/media_session.h"
 
+#include <memory>
+
+#include "base/message_loop/message_loop.h"
+#include "base/run_loop.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "base/message_loop/message_loop.h"
-#include "base/run_loop.h"
-
-using ::cobalt::script::testing::FakeScriptValue;
 using ::cobalt::script::CallbackResult;
 using ::cobalt::script::ScriptValue;
 using ::cobalt::script::Wrappable;
+using ::cobalt::script::testing::FakeScriptValue;
 
+using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
-using ::testing::_;
 
 namespace cobalt {
 namespace media_session {
@@ -47,8 +45,7 @@ namespace {
 class MockCallbackFunction : public MediaSession::MediaSessionActionHandler {
  public:
   MOCK_CONST_METHOD1(
-      Run, ReturnValue(
-               const scoped_refptr<MediaSessionActionDetails>& action_details));
+      Run, ReturnValue(const MediaSessionActionDetails& action_details));
 };
 
 class MockMediaSessionClient : public MediaSessionClient {
@@ -57,11 +54,15 @@ class MockMediaSessionClient : public MediaSessionClient {
 };
 
 MATCHER_P(SeekTime, time, "") {
-  return arg->action() == kMediaSessionActionSeek && arg->seek_time() == time;
+  return arg.action() == kMediaSessionActionSeekto && arg.seek_time() == time;
 }
 
 MATCHER_P2(SeekOffset, action, offset, "") {
-  return arg->action() == action && arg->seek_offset() == offset;
+  return arg.action() == action && arg.seek_offset() == offset;
+}
+
+MATCHER_P(SeekNoOffset, action, "") {
+  return arg.action() == action && !arg.has_seek_offset();
 }
 
 TEST(MediaSessionTest, MediaSessionTest) {
@@ -179,55 +180,66 @@ TEST(MediaSessionTest, GetAvailableActions) {
 
   session->SetActionHandler(kMediaSessionActionPlay, holder);
 
-  EXPECT_EQ(1, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay,
+            client.GetAvailableActions().to_ulong());
 
   session->SetActionHandler(kMediaSessionActionPause, holder);
 
-  EXPECT_EQ(1, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay,
+            client.GetAvailableActions().to_ulong());
 
-  session->SetActionHandler(kMediaSessionActionSeek, holder);
+  session->SetActionHandler(kMediaSessionActionSeekto, holder);
 
-  EXPECT_EQ(5, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePlaying);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
-  EXPECT_EQ(6, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
-  EXPECT_EQ(6, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
-  EXPECT_EQ(6, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
-  EXPECT_EQ(6, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePaused);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
-  EXPECT_EQ(6, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   session->set_playback_state(kMediaSessionPlaybackStateNone);
 
   EXPECT_EQ(kMediaSessionPlaybackStateNone, client.GetActualPlaybackState());
-  EXPECT_EQ(5, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePaused, client.GetActualPlaybackState());
-  EXPECT_EQ(5, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStateNone);
 
   EXPECT_EQ(kMediaSessionPlaybackStatePaused, client.GetActualPlaybackState());
-  EXPECT_EQ(5, client.GetAvailableActions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
+            client.GetAvailableActions().to_ulong());
 
   run_loop.Run();
 }
@@ -246,37 +258,39 @@ TEST(MediaSessionTest, SeekDetails) {
 
   MockCallbackFunction cf;
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
+  std::unique_ptr<MediaSessionActionDetails> details;
 
-  session->SetActionHandler(kMediaSessionActionSeek, holder);
+  session->SetActionHandler(kMediaSessionActionSeekto, holder);
   session->SetActionHandler(kMediaSessionActionSeekforward, holder);
   session->SetActionHandler(kMediaSessionActionSeekbackward, holder);
 
-  EXPECT_CALL(cf, Run(SeekTime(0.0))).WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(kMediaSessionActionSeek);
-
-  EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 0.0)))
+  EXPECT_CALL(cf, Run(SeekNoOffset(kMediaSessionActionSeekforward)))
       .WillOnce(Return(CallbackResult<void>()));
   client.InvokeAction(kMediaSessionActionSeekforward);
 
-  EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 0.0)))
+  EXPECT_CALL(cf, Run(SeekNoOffset(kMediaSessionActionSeekbackward)))
       .WillOnce(Return(CallbackResult<void>()));
   client.InvokeAction(kMediaSessionActionSeekbackward);
 
   EXPECT_CALL(cf, Run(SeekTime(1.2))).WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
-      new MediaSessionActionDetails::Data(kMediaSessionActionSeek, 1.2)));
+  details.reset(new MediaSessionActionDetails());
+  details->set_action(kMediaSessionActionSeekto);
+  details->set_seek_time(1.2);
+  client.InvokeAction(std::move(details));
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 3.4)))
       .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
-      new MediaSessionActionDetails::Data(kMediaSessionActionSeekforward,
-                                          3.4)));
+  details.reset(new MediaSessionActionDetails());
+  details->set_action(kMediaSessionActionSeekforward);
+  details->set_seek_offset(3.4);
+  client.InvokeAction(std::move(details));
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 5.6)))
       .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
-      new MediaSessionActionDetails::Data(kMediaSessionActionSeekbackward,
-                                          5.6)));
+  details.reset(new MediaSessionActionDetails());
+  details->set_action(kMediaSessionActionSeekbackward);
+  details->set_seek_offset(5.6);
+  client.InvokeAction(std::move(details));
 }
 
 }  // namespace

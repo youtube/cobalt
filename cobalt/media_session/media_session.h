@@ -40,7 +40,7 @@ class MediaSession : public script::Wrappable {
 
  public:
   typedef script::CallbackFunction<void(
-      const scoped_refptr<MediaSessionActionDetails>& action_details)>
+      const MediaSessionActionDetails& action_details)>
       MediaSessionActionHandler;
   typedef script::ScriptValue<MediaSessionActionHandler>
       MediaSessionActionHandlerHolder;
