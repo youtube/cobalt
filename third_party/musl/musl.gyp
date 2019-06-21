@@ -112,6 +112,7 @@
         ['sb_evergreen == 1', {
           'sources': [
             'src/starboard/abort.c',
+            'src/starboard/fflush.c',
             'src/starboard/malloc.c',
             'src/starboard/memalign.c',
             'src/starboard/posix_memalign.c',
