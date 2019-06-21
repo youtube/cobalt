@@ -346,8 +346,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void OnInsertedIntoDocument() override;
   void OnRemovedFromDocument() override;
 
-  void CopyDirectionality(const HTMLElement& other);
-
   // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
   // make stat updates even after its weak pointer to its document has been
   // deleted. This is protected because some derived classes need access to it.
