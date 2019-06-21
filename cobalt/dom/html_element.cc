@@ -789,8 +789,11 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
           ->html_element_factory()
           ->CreateHTMLElement(document, local_name());
   new_html_element->CopyAttributes(*this);
-  new_html_element->CopyDirectionality(*this);
   new_html_element->style_->AssignFrom(*this->style_);
+
+  // Copy cached attributes.
+  new_html_element->tabindex_ = tabindex_;
+  new_html_element->directionality_ = directionality_;
 
   return new_html_element;
 }
@@ -1204,10 +1207,6 @@ HTMLElement::~HTMLElement() {
   style_->set_mutation_observer(NULL);
 }
 
-void HTMLElement::CopyDirectionality(const HTMLElement& other) {
-  directionality_ = other.directionality_;
-}
-
 void HTMLElement::OnInsertedIntoDocument() {
   Node::OnInsertedIntoDocument();
   dom_stat_tracker_->OnHtmlElementInsertedIntoDocument();
@@ -1242,6 +1241,7 @@ void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
+  // Be sure to update HTMLElement::Duplicate() to copy over values as needed.
   if (name == "dir") {
     SetDirectionality(value);
   } else if (name == "tabindex") {
