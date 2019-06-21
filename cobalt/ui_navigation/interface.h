@@ -28,7 +28,8 @@ using NativeItem = SbUiNavItem;
 using NativeItemType = SbUiNavItemType;
 constexpr NativeItemType kNativeItemTypeFocus = kSbUiNavItemTypeFocus;
 constexpr NativeItemType kNativeItemTypeContainer = kSbUiNavItemTypeContainer;
-using NativeTransform = SbUiNavTransform;
+using NativeMatrix2x3 = SbUiNavMatrix2x3;
+using NativeMatrix4 = SbUiNavMatrix4;
 using NativeCallbacks = SbUiNavCallbacks;
 using NativeInterface = SbUiNavInterface;
 #define kNativeItemInvalid kSbUiNavItemInvalid
@@ -43,7 +44,11 @@ enum NativeItemType {
   kNativeItemTypeContainer,
 };
 
-struct NativeTransform {
+struct NativeMatrix2x3 {
+  float m[6];
+}
+
+struct NativeMatrix4 {
   float m[16];
 };
 
@@ -61,16 +66,18 @@ struct NativeInterface {
   void (*set_focus)(NativeItem item);
   void (*set_item_enabled)(NativeItem item, bool enabled);
   void (*set_item_size)(NativeItem item, float width, float height);
-  void (*set_item_position)(NativeItem item, float x, float y);
-  bool (*get_item_local_transform)(NativeItem item,
-      NativeTransform* out_transform);
+  void (*set_item_transform)(NativeItem item, const NativeMatrix2x3* transform);
+  bool (*get_item_focus_transform)(NativeItem item,
+                                   NativeMatrix4* out_transform);
   bool (*get_item_focus_vector)(NativeItem item, float* out_x, float* out_y);
   void (*set_item_container_window)(NativeItem item, SbWindow window);
   void (*set_item_container_item)(NativeItem item, NativeItem container);
   void (*set_item_content_offset)(NativeItem item,
-      float content_offset_x, float content_offset_y);
+                                  float content_offset_x,
+                                  float content_offset_y);
   void (*get_item_content_offset)(NativeItem item,
-      float* out_content_offset_x, float* out_content_offset_y);
+                                  float* out_content_offset_x,
+                                  float* out_content_offset_y);
 };
 
 #define kNativeItemInvalid nullptr
