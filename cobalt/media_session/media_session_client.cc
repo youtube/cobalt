@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/media_session/media_session_client.h"
+
+#include <memory>
 
 namespace cobalt {
 namespace media_session {
@@ -101,23 +101,38 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
 }
 
 void MediaSessionClient::InvokeActionInternal(
-    std::unique_ptr<MediaSessionActionDetails::Data> data) {
+    std::unique_ptr<MediaSessionActionDetails> details) {
+  DCHECK(details->has_action());
+
+  // Some fields should only be set for applicable actions.
+  DCHECK(!details->has_seek_offset() ||
+         details->action() == kMediaSessionActionSeekforward ||
+         details->action() == kMediaSessionActionSeekbackward);
+  DCHECK(!details->has_seek_time() ||
+         details->action() == kMediaSessionActionSeekto);
+  DCHECK(!details->has_fast_seek() ||
+         details->action() == kMediaSessionActionSeekto);
+
+  // Seek times/offsets are non-negative, even for seeking backwards.
+  DCHECK(!details->has_seek_time() || details->seek_time() >= 0.0);
+  DCHECK(!details->has_seek_offset() || details->seek_offset() >= 0.0);
+
   DCHECK(media_session_->task_runner_);
   if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
-                              base::Unretained(this), base::Passed(&data)));
+                              base::Unretained(this), base::Passed(&details)));
     return;
   }
 
   MediaSession::ActionMap::iterator it =
-      media_session_->action_map_.find(data->action());
+      media_session_->action_map_.find(details->action());
 
   if (it == media_session_->action_map_.end()) {
     return;
   }
 
-  it->second->value().Run(new MediaSessionActionDetails(*data));
+  it->second->value().Run(*details);
 }
 
 }  // namespace media_session
