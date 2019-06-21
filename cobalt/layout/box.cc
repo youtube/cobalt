@@ -1911,21 +1911,15 @@ void Box::UpdateUiNavigationItem() {
   // since navigation items have no notion of transforms on nodes, dimensions
   // should be transformed to world space.
 
-  // Determine the position relative to the UI navigation item containing
-  // this one. The containing navigation item may not be this box's direct
-  // parent.
-  auto layout_rect = GetTransformedBorderBoxFromRoot();
-
   // Find this UI nav item's container. It will belong to one of this box's
   // containing blocks.
   scoped_refptr<ui_navigation::NavItem> ui_nav_container;
-  for (const ContainerBox* container = GetContainingBlock(); container;
-       container = container->GetContainingBlock()) {
-    if (container->ui_nav_item_ && container->ui_nav_item_->IsContainer()) {
-      ui_nav_container = container->ui_nav_item_;
-      // Set this box's origin relative to its container.
-      auto origin = container->GetTransformedBorderBoxFromRoot().origin();
-      layout_rect.Offset(-origin.x(), -origin.y());
+  const ContainerBox* containing_block;
+  for (containing_block = GetContainingBlock(); containing_block != nullptr;
+       containing_block = containing_block->GetContainingBlock()) {
+    if (containing_block->ui_nav_item_ &&
+        containing_block->ui_nav_item_->IsContainer()) {
+      ui_nav_container = containing_block->ui_nav_item_;
       break;
     }
   }
@@ -1935,10 +1929,29 @@ void Box::UpdateUiNavigationItem() {
     ui_nav_item_->SetContainerItem(ui_nav_container);
   }
 
-  ui_nav_item_->SetSize(layout_rect.width().toFloat(),
-                        layout_rect.height().toFloat());
-  ui_nav_item_->SetPosition(layout_rect.x().toFloat(),
-                            layout_rect.y().toFloat());
+  // The navigation item corresponds to the border box.
+  SizeLayoutUnit border_box_size = GetClampedBorderBoxSize();
+  ui_nav_item_->SetSize(border_box_size.width().toFloat(),
+                        border_box_size.height().toFloat());
+
+  // Get the border box's transform relative to its containing item. This
+  // dictates the center of the border box relative to its container.
+  Vector2dLayoutUnit border_box_offset = GetBorderBoxOffsetFromMarginBox();
+  math::Matrix3F transform =
+      GetMarginBoxTransformFromContainingBlock(containing_block) *
+      math::TranslateMatrix(border_box_offset.x().toFloat() +
+                            0.5f * border_box_size.width().toFloat(),
+                            border_box_offset.y().toFloat() +
+                            0.5f * border_box_size.height().toFloat());
+  ui_navigation::NativeMatrix2x3 ui_nav_matrix;
+  ui_nav_matrix.m[0] = transform(0, 0);
+  ui_nav_matrix.m[1] = transform(0, 1);
+  ui_nav_matrix.m[2] = transform(0, 2);
+  ui_nav_matrix.m[3] = transform(1, 0);
+  ui_nav_matrix.m[4] = transform(1, 1);
+  ui_nav_matrix.m[5] = transform(1, 2);
+  ui_nav_item_->SetTransform(&ui_nav_matrix);
+
   ui_nav_item_->SetEnabled(true);
 }
 
