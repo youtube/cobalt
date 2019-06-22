@@ -103,7 +103,7 @@ FileFetcher::FileFetcher(const base::FilePath& file_path, Handler* handler,
 }
 
 FileFetcher::~FileFetcher() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (task_runner_ != base::MessageLoop::current()->task_runner()) {
     // In case we are currently in the middle of a fetch (in which case it will
@@ -160,7 +160,7 @@ void FileFetcher::ReadNextChunk() {
 }
 
 void FileFetcher::DidCreateOrOpen(base::File::Error error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (error != base::File::FILE_OK) {
     // File could not be opened at the current search path entry.
     // Try the next, or if we've searched the whole path, signal error.
@@ -177,7 +177,7 @@ void FileFetcher::DidCreateOrOpen(base::File::Error error) {
 
 void FileFetcher::DidRead(base::File::Error error, const char* data,
                           int num_bytes_read) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (error != base::File::FILE_OK) {
     handler()->OnError(this, FileErrorToString(error));

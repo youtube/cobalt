@@ -94,7 +94,7 @@ void DebugDispatcher::SendCommand(const Command& command) {
 }
 
 void DebugDispatcher::DispatchCommand(Command command) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   DomainRegistry::iterator iter = domain_registry_.find(command.GetDomain());
   if (iter != domain_registry_.end() && iter->second.Run(command)) {
@@ -134,7 +134,7 @@ void DebugDispatcher::HandlePause() {
   // (e.g. from DebugWebServer).
 
   // Must be called on the thread of the debug target (WebModule).
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   LOG(INFO) << "JavaScript execution paused.";
   while (is_paused_) {
@@ -213,7 +213,7 @@ bool DebugDispatcher::RunScriptFile(const std::string& filename) {
 
 void DebugDispatcher::SetPaused(bool is_paused) {
   // Must be called on the thread of the debug target (WebModule).
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   is_paused_ = is_paused;
   if (is_paused) {

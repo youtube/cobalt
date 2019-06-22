@@ -57,7 +57,7 @@ class VertexBufferObject {
   GLenum draw_mode_;
   GLuint mesh_vertex_buffer_;
   backend::GraphicsContextEGL* cobalt_context_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
 };

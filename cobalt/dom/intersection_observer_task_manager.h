@@ -60,7 +60,7 @@ class IntersectionObserverTaskManager
   // Notify all intersection observers.
   void NotifyIntersectionObservers();
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   IntersectionObserverSet observer_list_;
   bool intersection_observer_task_queued_;
 };

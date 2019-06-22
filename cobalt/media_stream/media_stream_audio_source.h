@@ -81,7 +81,7 @@ class MediaStreamAudioSource : public MediaStreamSource {
   void DoStopSource() final;
   void StopAudioDeliveryTo(MediaStreamAudioTrack* track);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   base::Closure stop_callback_;
 
   base::WeakPtrFactory<MediaStreamAudioSource> weak_ptr_factory_;

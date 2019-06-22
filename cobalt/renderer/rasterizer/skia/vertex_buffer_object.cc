@@ -51,7 +51,7 @@ VertexBufferObject::VertexBufferObject(
 }
 
 VertexBufferObject::~VertexBufferObject() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DLOG(INFO) << "Deleted VBO with buffer id " << mesh_vertex_buffer_;
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       cobalt_context_);
@@ -59,7 +59,7 @@ VertexBufferObject::~VertexBufferObject() {
 }
 
 void VertexBufferObject::Bind() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, mesh_vertex_buffer_));
 }
 

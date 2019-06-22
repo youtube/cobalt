@@ -88,7 +88,7 @@ class DialServer : public script::Wrappable,
 
   typedef std::map<std::string, scoped_refptr<DialHttpRequestCallbackWrapper> >
       CallbackMap;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   CallbackMap callback_map_[kMethodCount];
 
   scoped_refptr<net::DialServiceProxy> dial_service_proxy_;

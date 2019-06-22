@@ -52,12 +52,12 @@ AudioEncoderFlac::AudioEncoderFlac(int sample_rate)
 }
 
 AudioEncoderFlac::~AudioEncoderFlac() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FLAC__stream_encoder_delete(encoder_);
 }
 
 void AudioEncoderFlac::Encode(const ShellAudioBus* audio_bus) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   DCHECK_EQ(audio_bus->channels(), size_t(1));
   uint32 frames = static_cast<uint32>(audio_bus->frames());
@@ -81,7 +81,7 @@ void AudioEncoderFlac::Encode(const ShellAudioBus* audio_bus) {
 }
 
 void AudioEncoderFlac::Finish() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Finish the encoding. It causes the encoder to encode any data still in
   // its input pipe, and finally reset the encoder to the unintialized state.
@@ -89,14 +89,14 @@ void AudioEncoderFlac::Finish() {
 }
 
 std::string AudioEncoderFlac::GetMimeType() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return std::string(kContentTypeFLAC) +
          base::UintToString(FLAC__stream_encoder_get_sample_rate(encoder_));
 }
 
 std::string AudioEncoderFlac::GetAndClearAvailableEncodedData() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   std::string result = encoded_data_;
   encoded_data_.clear();
@@ -117,7 +117,7 @@ FLAC__StreamEncoderWriteStatus AudioEncoderFlac::WriteCallback(
   AudioEncoderFlac* audio_encoder =
       reinterpret_cast<AudioEncoderFlac*>(client_data);
   DCHECK(audio_encoder);
-  DCHECK(audio_encoder->thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(audio_encoder->thread_checker_);
 
   audio_encoder->encoded_data_.append(reinterpret_cast<const char*>(buffer),
                                       bytes);

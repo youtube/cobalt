@@ -57,7 +57,7 @@ CachedResourceBase::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
 }
 
 CachedResourceBase::~CachedResourceBase() {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
   if (retry_timer_) {
     retry_timer_->Stop();
@@ -74,7 +74,7 @@ bool CachedResourceBase::IsLoadingComplete() {
 
 CachedResourceBase::CallbackListIterator CachedResourceBase::AddCallback(
     CallbackType callback_type, const base::Closure& callback) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
   CallbackList& callback_list = callback_lists_[callback_type];
   callback_list.push_front(callback);
@@ -83,14 +83,14 @@ CachedResourceBase::CallbackListIterator CachedResourceBase::AddCallback(
 
 void CachedResourceBase::RemoveCallback(CallbackType type,
                                         CallbackListIterator iterator) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
   CallbackList& callback_list = callback_lists_[type];
   callback_list.erase(iterator);
 }
 
 void CachedResourceBase::RunCallbacks(CallbackType type) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
   // To avoid the list getting altered in the callbacks.
   CallbackList callback_list = callback_lists_[type];
@@ -109,7 +109,7 @@ void CachedResourceBase::EnableCompletionCallbacks() {
 }
 
 void CachedResourceBase::StartLoading() {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   DCHECK(!loader_);
   DCHECK(!retry_timer_ || !retry_timer_->IsRunning());
 
@@ -117,7 +117,7 @@ void CachedResourceBase::StartLoading() {
 }
 
 void CachedResourceBase::ScheduleLoadingRetry() {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   DCHECK(!loader_);
   DCHECK(!retry_timer_ || !retry_timer_->IsRunning());
 
@@ -143,7 +143,7 @@ void CachedResourceBase::ScheduleLoadingRetry() {
 
 void CachedResourceBase::OnLoadingComplete(
     const base::Optional<std::string>& error) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
   // Success
   if (!error) {
@@ -223,20 +223,20 @@ ResourceCacheBase::ResourceCacheBase(
           "callbacks.") {}
 
 void ResourceCacheBase::SetCapacity(uint32 capacity) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   cache_capacity_ = capacity;
   memory_capacity_in_bytes_ = capacity;
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
 }
 
 void ResourceCacheBase::Purge() {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   ProcessPendingCallbacks();
   reclaim_memory_func_.Run(0, true);
 }
 
 void ResourceCacheBase::ProcessPendingCallbacks() {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   process_pending_callback_timer_.Stop();
 
   // If callbacks are disabled, simply return.
@@ -261,13 +261,13 @@ void ResourceCacheBase::ProcessPendingCallbacks() {
 }
 
 void ResourceCacheBase::DisableCallbacks() {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   are_callbacks_disabled_ = true;
 }
 
 void ResourceCacheBase::NotifyResourceLoadingRetryScheduled(
     CachedResourceBase* cached_resource) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   const std::string& url = cached_resource->url().spec();
 
   // Remove the resource from those currently loading. It'll be re-added once

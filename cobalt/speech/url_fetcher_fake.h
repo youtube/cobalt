@@ -162,7 +162,7 @@ class URLFetcherFake : public net::URLFetcher {
   base::Optional<base::RepeatingTimer> download_timer_;
   net::ProxyServer proxy_server_;
   std::unique_ptr<net::URLFetcherResponseWriter> response_data_writer_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace speech

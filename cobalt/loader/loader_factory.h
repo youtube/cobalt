@@ -98,7 +98,7 @@ class LoaderFactory {
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // Used to create the Fetcher component of the loaders.
   FetcherFactory* fetcher_factory_;

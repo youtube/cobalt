@@ -49,7 +49,7 @@ base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
 
 Font::Font(SkiaTypeface* typeface, SkScalar size)
     : typeface_(typeface), size_(size) {
-  glyph_bounds_thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(glyph_bounds_thread_checker_);
 }
 
 const sk_sp<SkTypeface_Cobalt>& Font::GetSkTypeface() const {
@@ -88,7 +88,7 @@ render_tree::GlyphIndex Font::GetGlyphForCharacter(int32 utf32_character) {
 }
 
 const math::RectF& Font::GetGlyphBounds(render_tree::GlyphIndex glyph) {
-  DCHECK(glyph_bounds_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(glyph_bounds_thread_checker_);
   // Check to see if the glyph falls within the the first 256 glyphs. These
   // characters are part of the primary page and are stored within an array as
   // an optimization.

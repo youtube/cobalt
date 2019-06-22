@@ -20,24 +20,24 @@ namespace cobalt {
 namespace media_stream {
 
 MediaStreamSource::~MediaStreamSource() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(stop_callback_.is_null());
 }
 
 void MediaStreamSource::StopSource() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DoStopSource();
   FinalizeStopSource();
 }
 
 void MediaStreamSource::SetStopCallback(const base::Closure& stop_callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(stop_callback_.is_null());
   stop_callback_ = stop_callback;
 }
 
 void MediaStreamSource::FinalizeStopSource() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::ResetAndRunIfNotNull(&stop_callback_);
 }
 

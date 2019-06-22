@@ -46,7 +46,7 @@ class MediaStreamSource : public base::RefCounted<MediaStreamSource> {
   MediaStreamSource(const MediaStreamSource&) = delete;
   MediaStreamSource& operator=(const MediaStreamSource&) = delete;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   base::Closure stop_callback_;
 };
 

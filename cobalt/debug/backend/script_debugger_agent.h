@@ -46,7 +46,7 @@ class ScriptDebuggerAgent {
   void SendEvent(const std::string& json_event);
 
  private:
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   DebugDispatcher* dispatcher_;
   script::ScriptDebugger* script_debugger_;
 

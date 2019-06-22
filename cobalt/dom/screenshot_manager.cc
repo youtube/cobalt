@@ -74,7 +74,7 @@ void ScreenshotManager::FillScreenshot(
                    base::Passed(&image_data), image_dimensions));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(environment_settings_);
 
   auto iterator = ticket_to_screenshot_promise_map_.find(token);

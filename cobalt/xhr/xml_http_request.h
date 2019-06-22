@@ -249,7 +249,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void CORSPreflightErrorCallback();
   void CORSPreflightSuccessCallback();
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   std::unique_ptr<net::URLFetcher> url_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;

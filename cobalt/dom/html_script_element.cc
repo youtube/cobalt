@@ -153,7 +153,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 void HTMLScriptElement::Prepare() {
   TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(base::MessageLoop::current());
   DCHECK(!loader_ || is_already_started_);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Prepare()");
@@ -436,7 +436,7 @@ void HTMLScriptElement::OnSyncLoadingComplete(
 void HTMLScriptElement::OnContentProduced(
     const loader::Origin& last_url_origin,
     std::unique_ptr<std::string> content) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(load_option_ == 4 || load_option_ == 5);
   DCHECK(content);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnContentProduced()");
@@ -539,7 +539,7 @@ void HTMLScriptElement::OnLoadingComplete(
     const base::Optional<std::string>& error) {
   if (!error) return;
 
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(load_option_ == 4 || load_option_ == 5);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingComplete()");
 
@@ -690,7 +690,7 @@ void HTMLScriptElement::AllowGCAfterLoadComplete() {
 }
 
 void HTMLScriptElement::ReleaseLoader() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(loader_);
   loader_.reset();
 }

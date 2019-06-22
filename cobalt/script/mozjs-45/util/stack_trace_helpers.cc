@@ -64,7 +64,7 @@ JSContext* GetThreadLocalJSContext() {
 
 bool MozjsStackTraceGenerator::GenerateStackTrace(
     int depth, nb::RewindableVector<StackFrame>* out) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   out->rewindAll();
   if (!Valid()) {
     return false;
@@ -75,7 +75,7 @@ bool MozjsStackTraceGenerator::GenerateStackTrace(
 
 bool MozjsStackTraceGenerator::GenerateStackTraceLines(
     int depth, nb::RewindableVector<std::string>* out) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   out->rewindAll();
   nb::RewindableVector<StackFrame>& stack_frames = scratch_data_.stack_frames_;
   if (!GenerateStackTrace(depth, &stack_frames)) {
@@ -93,7 +93,7 @@ bool MozjsStackTraceGenerator::GenerateStackTraceLines(
 
 bool MozjsStackTraceGenerator::GenerateStackTraceString(int depth,
                                                         std::string* out) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   out->assign("");  // Should not deallocate memory.
 
   nb::RewindableVector<StackFrame>& stack_frames = scratch_data_.stack_frames_;
@@ -113,7 +113,7 @@ bool MozjsStackTraceGenerator::GenerateStackTraceString(int depth,
 
 bool MozjsStackTraceGenerator::GenerateStackTraceString(int depth, char* buff,
                                                         size_t buff_size) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SbMemorySet(buff, 0, buff_size);
   std::string& scratch_symbol = scratch_data_.symbol_;
 

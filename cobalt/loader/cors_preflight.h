@@ -92,7 +92,7 @@ class CORSPreflight : public net::URLFetcherDelegate {
   net::URLFetcher::RequestType method_;
   const network::NetworkModule* network_module_;
   std::unique_ptr<net::URLFetcher> url_fetcher_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   net::HttpRequestHeaders headers_;
   std::string origin_;
   base::Closure error_callback_;

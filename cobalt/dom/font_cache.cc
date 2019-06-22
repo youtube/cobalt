@@ -57,7 +57,7 @@ FontCache::FontCache(render_tree::ResourceProvider** resource_provider,
       document_location_(document_location) {}
 
 void FontCache::SetFontFaceMap(std::unique_ptr<FontFaceMap> font_face_map) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // If nothing has changed, then there's nothing to update. Just return.
   if (*font_face_map == *font_face_map_) {
     return;
@@ -95,7 +95,7 @@ void FontCache::SetFontFaceMap(std::unique_ptr<FontFaceMap> font_face_map) {
 }
 
 void FontCache::PurgeCachedResources() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   requested_remote_typeface_cache_.clear();
 
   // Remove all font lists that are unreferenced outside of the cache and reset
@@ -125,7 +125,7 @@ void FontCache::PurgeCachedResources() {
 }
 
 void FontCache::ProcessInactiveFontListsAndFonts() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::TimeTicks current_time = base::TimeTicks::Now();
   if ((current_time - last_inactive_process_time_).InMilliseconds() >
       kInactiveProcessTimeIntervalMs) {
@@ -137,7 +137,7 @@ void FontCache::ProcessInactiveFontListsAndFonts() {
 
 const scoped_refptr<dom::FontList>& FontCache::GetFontList(
     const FontListKey& font_list_key) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FontListInfo& font_list_info = font_list_map_[font_list_key];
   if (font_list_info.font_list.get() == NULL) {
     font_list_info.font_list = new FontList(this, font_list_key);
@@ -147,7 +147,7 @@ const scoped_refptr<dom::FontList>& FontCache::GetFontList(
 
 const scoped_refptr<render_tree::Font>& FontCache::GetFontFromTypefaceAndSize(
     const scoped_refptr<render_tree::Typeface>& typeface, float size) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FontKey font_key(typeface->GetId(), size);
   // Check to see if the font is already in the cache. If it is not, then
   // create it from the typeface and size and add it to the cache.
@@ -161,7 +161,7 @@ const scoped_refptr<render_tree::Font>& FontCache::GetFontFromTypefaceAndSize(
 scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     const std::string& family, render_tree::FontStyle style, float size,
     FontListFont::State* state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
   if (font_face_map_iterator != font_face_map_->end()) {
     // Retrieve the font face style set entry that most closely matches the
@@ -204,14 +204,14 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
 FontCache::CharacterFallbackTypefaceMap&
 FontCache::GetCharacterFallbackTypefaceMap(
     const render_tree::FontStyle& style) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return character_fallback_typeface_maps_[CharacterFallbackKey(style)];
 }
 
 const scoped_refptr<render_tree::Typeface>&
 FontCache::GetCharacterFallbackTypeface(int32 utf32_character,
                                         const render_tree::FontStyle& style) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(resource_provider());
   return GetCachedLocalTypeface(
       resource_provider()->GetCharacterFallbackTypeface(utf32_character, style,
@@ -426,7 +426,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFontByFaceName(
 }
 
 void FontCache::OnRemoteTypefaceLoadEvent(const GURL& url) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   RequestedRemoteTypefaceMap::iterator requested_remote_typeface_iterator =
       requested_remote_typeface_cache_.find(url);
   if (requested_remote_typeface_iterator !=

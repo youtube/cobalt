@@ -516,8 +516,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::MessageLoop::TYPE_UI,
       static_cast<base::MessageLoop*>(base::MessageLoop::current())->type());
 
-  network_event_thread_checker_.DetachFromThread();
-  application_event_thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(network_event_thread_checker_);
+  DETACH_FROM_THREAD(application_event_thread_checker_);
 
   RegisterUserLogs();
 
@@ -990,7 +990,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 
 void Application::OnApplicationEvent(SbEventType event_type) {
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
-  DCHECK(application_event_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
   switch (event_type) {
     case kSbEventTypeStop:
       DLOG(INFO) << "Got quit event.";

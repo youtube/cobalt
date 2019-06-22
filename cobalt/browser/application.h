@@ -124,8 +124,8 @@ class Application {
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.
-  base::ThreadChecker network_event_thread_checker_;
-  base::ThreadChecker application_event_thread_checker_;
+  THREAD_CHECKER(network_event_thread_checker_);
+  THREAD_CHECKER(application_event_thread_checker_);
 
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
