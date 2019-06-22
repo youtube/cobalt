@@ -132,25 +132,25 @@ SynchronizedRunLoopObserver::SynchronizedRunLoopObserver(base::Lock& lock)
 }
 
 SynchronizedRunLoopObserver::~SynchronizedRunLoopObserver() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!lock_acquired_);
 }
 
 void SynchronizedRunLoopObserver::AddToCurrentRunLoop(const CFStringRef mode) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   CFRunLoopAddObserver(CFRunLoopGetCurrent(), observer_.get(), mode);
 }
 
 void SynchronizedRunLoopObserver::RemoveFromCurrentRunLoop(
     const CFStringRef mode) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   CFRunLoopRemoveObserver(CFRunLoopGetCurrent(), observer_.get(), mode);
 }
 
 void SynchronizedRunLoopObserver::RunLoopObserverCallBack(
     CFRunLoopObserverRef observer,
     CFRunLoopActivity activity) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Acquire the lock when a source has been signaled and going to be fired.
   // In the context of the proxy resolver that happens when the proxy for a
   // given URL has been resolved and the callback function that handles the

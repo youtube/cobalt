@@ -52,7 +52,7 @@ EmbeddedTestServer::EmbeddedTestServer(Type type)
       port_(0),
       cert_(CERT_OK),
       weak_factory_(this) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (!is_using_ssl_)
     return;
@@ -60,7 +60,7 @@ EmbeddedTestServer::EmbeddedTestServer(Type type)
 }
 
 EmbeddedTestServer::~EmbeddedTestServer() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (Started() && !ShutdownAndWaitUntilComplete()) {
     LOG(ERROR) << "EmbeddedTestServer failed to shut down.";
@@ -187,7 +187,7 @@ void EmbeddedTestServer::StartAcceptingConnections() {
 }
 
 bool EmbeddedTestServer::ShutdownAndWaitUntilComplete() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return PostTaskToIOThreadAndWait(base::Bind(
       &EmbeddedTestServer::ShutdownOnIOThread, base::Unretained(this)));

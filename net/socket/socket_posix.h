@@ -97,7 +97,7 @@ class NET_EXPORT_PRIVATE SocketPosix
   // Detachs from the current thread, to allow the socket to be transferred to
   // a new thread. Should only be called when the object is no longer used by
   // the old thread.
-  void DetachFromThread();
+  DETACH_FROM_THREAD(void);
 
   SocketDescriptor socket_fd() const { return socket_fd_; }
 
