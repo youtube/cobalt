@@ -247,7 +247,7 @@ class KeySystemsImpl : public KeySystems {
   SupportedCodecs video_codec_mask_;
 
   // Makes sure all methods are called from the same thread.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(KeySystemsImpl);
 };
@@ -301,7 +301,7 @@ EmeCodec KeySystemsImpl::GetCodecForString(const std::string& codec) const {
 }
 
 void KeySystemsImpl::InitializeUMAInfo() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(key_system_name_for_uma_map_.empty());
 
   std::vector<KeySystemInfoForUMA> key_systems_info_for_uma;
@@ -324,7 +324,7 @@ void KeySystemsImpl::UpdateIfNeeded() {
 }
 
 void KeySystemsImpl::UpdateSupportedKeySystems() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   key_system_properties_map_.clear();
 
   std::vector<std::unique_ptr<KeySystemProperties>> key_systems_properties;
@@ -341,7 +341,7 @@ void KeySystemsImpl::UpdateSupportedKeySystems() {
 
 void KeySystemsImpl::AddSupportedKeySystems(
     std::vector<std::unique_ptr<KeySystemProperties>>* key_systems) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(key_system_properties_map_.empty());
 
   for (auto& properties : *key_systems) {
@@ -431,7 +431,7 @@ void KeySystemsImpl::AddSupportedKeySystems(
 // Only this function should modify |mime_type_to_codec_mask_map_|.
 void KeySystemsImpl::RegisterMimeType(const std::string& mime_type,
                                       EmeCodec codecs_mask) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!mime_type_to_codec_mask_map_.count(mime_type));
   DCHECK(IsValidMimeTypeCodecsCombination(mime_type, codecs_mask));
 
@@ -443,7 +443,7 @@ void KeySystemsImpl::RegisterMimeType(const std::string& mime_type,
 // Only audio/ or video/ MIME types with their respective codecs are allowed.
 bool KeySystemsImpl::IsValidMimeTypeCodecsCombination(
     const std::string& mime_type, SupportedCodecs codecs_mask) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!codecs_mask) return false;
   if (base::StartsWith(mime_type, "audio/", base::CompareCase::SENSITIVE))
     return !(codecs_mask & ~audio_codec_mask_);
@@ -455,7 +455,7 @@ bool KeySystemsImpl::IsValidMimeTypeCodecsCombination(
 
 bool KeySystemsImpl::IsSupportedInitDataType(
     const std::string& key_system, EmeInitDataType init_data_type) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -468,7 +468,7 @@ bool KeySystemsImpl::IsSupportedInitDataType(
 
 std::string KeySystemsImpl::GetKeySystemNameForUMA(
     const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemNameForUMAMap::const_iterator iter =
       key_system_name_for_uma_map_.find(key_system);
@@ -479,7 +479,7 @@ std::string KeySystemsImpl::GetKeySystemNameForUMA(
 }
 
 bool KeySystemsImpl::UseAesDecryptor(const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -492,7 +492,7 @@ bool KeySystemsImpl::UseAesDecryptor(const std::string& key_system) const {
 
 #if defined(ENABLE_PEPPER_CDMS)
 std::string KeySystemsImpl::GetPepperType(const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -510,7 +510,7 @@ std::string KeySystemsImpl::GetPepperType(const std::string& key_system) const {
 
 void KeySystemsImpl::AddCodecMask(EmeMediaType media_type,
                                   const std::string& codec, uint32_t mask) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!codec_string_map_.count(codec));
   codec_string_map_[codec] = static_cast<EmeCodec>(mask);
   if (media_type == EmeMediaType::AUDIO) {
@@ -526,7 +526,7 @@ void KeySystemsImpl::AddMimeTypeCodecMask(const std::string& mime_type,
 }
 
 bool KeySystemsImpl::IsSupportedKeySystem(const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (!key_system_properties_map_.count(key_system)) return false;
 
@@ -537,7 +537,7 @@ EmeConfigRule KeySystemsImpl::GetContentTypeConfigRule(
     const std::string& key_system, EmeMediaType media_type,
     const std::string& container_mime_type,
     const std::vector<std::string>& codecs) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Make sure the container MIME type matches |media_type|.
   switch (media_type) {
@@ -601,7 +601,7 @@ EmeConfigRule KeySystemsImpl::GetContentTypeConfigRule(
 EmeConfigRule KeySystemsImpl::GetRobustnessConfigRule(
     const std::string& key_system, EmeMediaType media_type,
     const std::string& requested_robustness) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -615,7 +615,7 @@ EmeConfigRule KeySystemsImpl::GetRobustnessConfigRule(
 
 EmeSessionTypeSupport KeySystemsImpl::GetPersistentLicenseSessionSupport(
     const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -628,7 +628,7 @@ EmeSessionTypeSupport KeySystemsImpl::GetPersistentLicenseSessionSupport(
 
 EmeSessionTypeSupport KeySystemsImpl::GetPersistentReleaseMessageSessionSupport(
     const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -641,7 +641,7 @@ EmeSessionTypeSupport KeySystemsImpl::GetPersistentReleaseMessageSessionSupport(
 
 EmeFeatureSupport KeySystemsImpl::GetPersistentStateSupport(
     const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);
@@ -654,7 +654,7 @@ EmeFeatureSupport KeySystemsImpl::GetPersistentStateSupport(
 
 EmeFeatureSupport KeySystemsImpl::GetDistinctiveIdentifierSupport(
     const std::string& key_system) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
       key_system_properties_map_.find(key_system);

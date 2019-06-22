@@ -43,7 +43,7 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
 }
 
 void WebSocketImpl::ResetWebSocketEventDelegate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   delegate_ = NULL;
 }
 
@@ -55,7 +55,7 @@ void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
     return;
   }
   DCHECK(network_module_->url_request_context_getter());
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   origin_ = origin;
 
   DLOG(INFO) << "Connecting to websocket at " << url.spec();
@@ -153,7 +153,7 @@ void WebSocketImpl::OnHandshakeComplete(
 
 void WebSocketImpl::OnWebSocketConnected(
     const std::string &selected_subprotocol) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (delegate_) {
     delegate_->OnConnected(selected_subprotocol);
   }
@@ -161,7 +161,7 @@ void WebSocketImpl::OnWebSocketConnected(
 
 void WebSocketImpl::OnWebSocketDisconnected(bool was_clean, uint16 code,
                                             const std::string &reason) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (delegate_) {
     delegate_->OnDisconnected(was_clean, code, reason);
   }
@@ -169,7 +169,7 @@ void WebSocketImpl::OnWebSocketDisconnected(bool was_clean, uint16 code,
 
 void WebSocketImpl::OnWebSocketReceivedData(
     bool is_text_frame, scoped_refptr<net::IOBufferWithSize> data) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (delegate_) {
     delegate_->OnReceivedData(is_text_frame, data);
   }

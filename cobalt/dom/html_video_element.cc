@@ -95,7 +95,7 @@ scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(
 }
 
 scoped_refptr<VideoFrameProvider> HTMLVideoElement::GetVideoFrameProvider() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return player() ? player()->GetVideoFrameProvider() : NULL;
 }
 

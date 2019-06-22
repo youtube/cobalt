@@ -33,12 +33,12 @@ XMLDecoder::XMLDecoder(
 XMLDecoder::~XMLDecoder() {}
 
 void XMLDecoder::DecodeChunk(const char* data, size_t size) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   libxml_xml_parser_wrapper_->DecodeChunk(data, size);
 }
 
 void XMLDecoder::Finish() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   libxml_xml_parser_wrapper_->Finish();
   if (!load_complete_callback_.is_null()) {
     load_complete_callback_.Run(base::nullopt);

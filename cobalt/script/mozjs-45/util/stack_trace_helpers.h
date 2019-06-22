@@ -98,7 +98,7 @@ class MozjsStackTraceGenerator
   };
   Scratch scratch_data_;
   // Checks that each instance can only be used within the same thread.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 // This should only be accessed by a scoped object.

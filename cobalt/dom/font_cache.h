@@ -326,7 +326,7 @@ class FontCache {
   base::TimeTicks last_inactive_process_time_;
 
   // Thread checker used to verify safe thread usage of the font cache.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // Font cache's corresponding document's location object. It can provide
   // document's origin.

@@ -80,7 +80,7 @@ class Loader {
   std::unique_ptr<Fetcher> fetcher_;
 
   base::CancelableClosure fetcher_creator_error_closure_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   const OnCompleteFunction on_load_complete_;
   const OnDestructionFunction on_destruction_;

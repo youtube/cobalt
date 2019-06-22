@@ -91,7 +91,7 @@ class H5vccAccountManager : public script::Wrappable,
   std::vector<std::unique_ptr<AccessTokenCallbackReference>> pending_callbacks_;
 
   // Thread checker for the thread that creates this instance.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // The message loop that the H5vccAccountManager was created on. The public
   // interface must be called from this message loop, and callbacks will be

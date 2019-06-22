@@ -71,7 +71,7 @@ class ScreenshotManager {
       std::unordered_map<int64_t,
                          std::unique_ptr<InterfacePromiseValue::Reference>>;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   script::EnvironmentSettings* environment_settings_ = nullptr;
   TicketToPromiseMap ticket_to_screenshot_promise_map_;
   ProvideScreenshotFunctionCallback screenshot_function_callback_;

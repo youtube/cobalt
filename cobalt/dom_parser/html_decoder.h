@@ -70,7 +70,7 @@ class HTMLDecoder : public loader::Decoder {
   // of libxml2's SAX parser.
   std::unique_ptr<LibxmlHTMLParserWrapper> libxml_html_parser_wrapper_;
   scoped_refptr<dom::Document> document_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // If Cobalt user forbids rendering Cobalt without csp headers.
   const csp::CSPHeaderPolicy require_csp_;

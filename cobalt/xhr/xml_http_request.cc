@@ -190,7 +190,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
 
 void XMLHttpRequest::Abort() {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-abort()-method
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Cancel any in-flight request and set error flag.
   TerminateRequest();
   bool abort_is_no_op =
@@ -213,7 +213,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
                           script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("XHR");
 
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   State previous_state = state_;
 
@@ -300,7 +300,7 @@ void XMLHttpRequest::SetRequestHeader(const std::string& header,
 void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
                                       script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-overridemimetype
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (state_ == kLoading || state_ == kDone) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -329,7 +329,7 @@ void XMLHttpRequest::Send(const base::Optional<RequestBodyType>& request_body,
                           script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Step 1
   if (state_ != kOpened) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
@@ -427,7 +427,7 @@ void XMLHttpRequest::Fetch(const FetchUpdateCallbackArg& fetch_callback,
 base::Optional<std::string> XMLHttpRequest::GetResponseHeader(
     const std::string& header) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getresponseheader()-method
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (state_ == kUnsent || state_ == kOpened || error_) {
     return base::nullopt;
@@ -452,7 +452,7 @@ base::Optional<std::string> XMLHttpRequest::GetResponseHeader(
 
 std::string XMLHttpRequest::GetAllResponseHeaders() {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getallresponseheaders()-method
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string output;
 
   if (state_ == kUnsent || state_ == kOpened || error_) {
@@ -581,7 +581,7 @@ std::string XMLHttpRequest::response_type(
 
 void XMLHttpRequest::set_timeout(uint32 timeout) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-timeout-attribute
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   timeout_ms_ = timeout;
   if (timeout_ms_ == 0) {
@@ -617,7 +617,7 @@ scoped_refptr<XMLHttpRequestUpload> XMLHttpRequest::upload() {
 }
 
 void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   http_status_ = source->GetResponseCode();
   // Don't handle a response without headers.
@@ -712,7 +712,7 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(
     const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
     int64_t /*current_network_bytes*/) {
   TRACK_MEMORY_SCOPE("XHR");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_NE(state_, kDone);
 
   auto* download_data_writer =
@@ -749,7 +749,7 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(
 }
 
 void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (source->GetResponseHeaders()) {
     if (source->GetResponseHeaders()->IsRedirect(NULL)) {
       // To do CORS Check and Send potential preflight, we used
@@ -804,7 +804,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* /*source*/,
                                               int64 current_val,
                                               int64 total_val) {
   TRACK_MEMORY_SCOPE("XHR");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (upload_complete_) {
     return;
   }
@@ -848,7 +848,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* /*source*/,
 }
 
 void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GURL new_url = url_fetcher_->GetURL();
   // Since we moved redirect from url_request to here, we also need to
   // handle redirecting too many times.
@@ -929,7 +929,7 @@ void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
 }
 
 XMLHttpRequest::~XMLHttpRequest() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   dom::GlobalStats::GetInstance()->Remove(this);
 }
 
@@ -951,7 +951,7 @@ void XMLHttpRequest::TerminateRequest() {
 void XMLHttpRequest::HandleRequestError(
     XMLHttpRequest::RequestErrorType request_error_type) {
   // https://www.w3.org/TR/XMLHttpRequest/#timeout-error
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DLOG_IF(INFO, verbose())
       << __FUNCTION__ << " (" << RequestErrorTypeName(request_error_type)
       << ") " << *this << std::endl
@@ -983,7 +983,7 @@ void XMLHttpRequest::HandleRequestError(
 }
 
 void XMLHttpRequest::OnTimeout() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!stop_timeout_) {
     HandleRequestError(kTimeoutError);
   }

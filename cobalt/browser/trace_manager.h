@@ -64,7 +64,7 @@ class TraceManager {
   // Whether input tracing is enabled.
   bool input_tracing_enabled_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // This object can be set to start a trace if a hotkey (like F3) is pressed.
   // While initialized, it means that a trace is on-going.
   scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;

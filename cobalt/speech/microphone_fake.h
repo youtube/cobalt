@@ -48,7 +48,7 @@ class MicrophoneFake : public Microphone {
   const char* Label() override;
 
  private:
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   bool read_data_from_file_;
   std::vector<base::FilePath> file_paths_;

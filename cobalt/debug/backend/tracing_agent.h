@@ -49,7 +49,7 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
   DebugDispatcher* dispatcher_;
   script::ScriptDebugger* script_debugger_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   bool tracing_started_;
   size_t collected_size_;

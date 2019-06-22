@@ -53,7 +53,7 @@ class MutationObserverTaskManager : public script::Traceable {
   // Notify all mutation observers.
   void NotifyMutationObservers();
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   MutationObserverSet observers_;
   bool task_posted_;
 };

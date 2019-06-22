@@ -33,7 +33,7 @@ ReferencedObjectMap::ReferencedObjectMap(JSContext* context)
 void ReferencedObjectMap::AddReferencedObject(Wrappable* wrappable,
                                               JS::HandleValue referee) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!referee.isNullOrUndefined());
   DCHECK(referee.isGCThing());
 
@@ -49,7 +49,7 @@ void ReferencedObjectMap::AddReferencedObject(Wrappable* wrappable,
 
 void ReferencedObjectMap::RemoveReferencedObject(Wrappable* wrappable,
                                                  JS::HandleValue referee) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto pair_range = referenced_objects_.equal_range(wrappable);
   for (auto it = pair_range.first; it != pair_range.second; ++it) {
     JS::RootedValue element(context_, it->second.GetValue());
@@ -65,7 +65,7 @@ void ReferencedObjectMap::RemoveReferencedObject(Wrappable* wrappable,
 
 void ReferencedObjectMap::TraceReferencedObjects(JSTracer* trace,
                                                  Wrappable* wrappable) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto pair_range = referenced_objects_.equal_range(wrappable);
   for (auto it = pair_range.first; it != pair_range.second; ++it) {
     it->second.Trace(trace);
@@ -73,7 +73,7 @@ void ReferencedObjectMap::TraceReferencedObjects(JSTracer* trace,
 }
 
 void ReferencedObjectMap::RemoveNullReferences() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (auto it = referenced_objects_.begin(); it != referenced_objects_.end();
        /*Incremented in the loop */) {
     if (it->second.WasCollected()) {

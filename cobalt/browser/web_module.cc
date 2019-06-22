@@ -280,7 +280,7 @@ class WebModule::Impl {
   void OnCspPolicyChanged();
 
   scoped_refptr<script::GlobalEnvironment> global_environment() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return global_environment_;
   }
 
@@ -307,7 +307,7 @@ class WebModule::Impl {
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   std::string name_;
 
@@ -740,7 +740,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 }
 
 WebModule::Impl::~Impl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   is_running_ = false;
   global_environment_->SetReportEvalCallback(base::Closure());
@@ -788,7 +788,7 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
                                        const scoped_refptr<dom::Event>& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::Impl::InjectInputEvent()",
                "event", event->type().c_str());
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
 
@@ -819,7 +819,7 @@ void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
 }
 
 void WebModule::Impl::InjectOnScreenKeyboardShownEvent(int ticket) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
@@ -828,7 +828,7 @@ void WebModule::Impl::InjectOnScreenKeyboardShownEvent(int ticket) {
 }
 
 void WebModule::Impl::InjectOnScreenKeyboardHiddenEvent(int ticket) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
@@ -837,7 +837,7 @@ void WebModule::Impl::InjectOnScreenKeyboardHiddenEvent(int ticket) {
 }
 
 void WebModule::Impl::InjectOnScreenKeyboardFocusedEvent(int ticket) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
@@ -846,7 +846,7 @@ void WebModule::Impl::InjectOnScreenKeyboardFocusedEvent(int ticket) {
 }
 
 void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
@@ -857,7 +857,7 @@ void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
     int ticket) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
@@ -894,7 +894,7 @@ void WebModule::Impl::InjectWheelEvent(scoped_refptr<dom::Element> element,
 void WebModule::Impl::ExecuteJavascript(
     const std::string& script_utf8, const base::SourceLocation& script_location,
     base::WaitableEvent* got_result, std::string* result, bool* out_succeeded) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(script_runner_);
 
@@ -913,13 +913,13 @@ void WebModule::Impl::ExecuteJavascript(
 }
 
 void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(window_);
   window_->DestroyTimers();
 }
 
 void WebModule::Impl::OnRanAnimationFrameCallbacks() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   // Notify the stat tracker that the animation frame callbacks have finished.
   // This may end the current event being tracked.
@@ -929,7 +929,7 @@ void WebModule::Impl::OnRanAnimationFrameCallbacks() {
 
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
 
   last_render_tree_produced_time_ = base::TimeTicks::Now();
@@ -964,7 +964,7 @@ void WebModule::Impl::OnRenderTreeRasterized(
 void WebModule::Impl::ProcessOnRenderTreeRasterized(
     const base::TimeTicks& produced_time,
     const base::TimeTicks& rasterized_time) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   web_module_stat_tracker_->OnRenderTreeRasterized(produced_time,
                                                    rasterized_time);
   if (produced_time >= last_render_tree_produced_time_) {
@@ -977,7 +977,7 @@ void WebModule::Impl::CancelSynchronousLoads() {
 }
 
 void WebModule::Impl::OnCspPolicyChanged() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->document());
@@ -995,7 +995,7 @@ void WebModule::Impl::OnCspPolicyChanged() {
 
 bool WebModule::Impl::ReportScriptError(
     const script::ErrorReport& error_report) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   return window_->ReportScriptError(error_report);
@@ -1005,7 +1005,7 @@ bool WebModule::Impl::ReportScriptError(
 void WebModule::Impl::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id,
     std::unique_ptr<webdriver::WindowDriver>* window_driver_out) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_weak_);
@@ -1023,7 +1023,7 @@ void WebModule::Impl::CreateWindowDriver(
 
 #if defined(ENABLE_DEBUGGER)
 void WebModule::Impl::WaitForWebDebugger() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(debug_module_);
   LOG(WARNING) << "\n-------------------------------------"
                   "\n Waiting for web debugger to connect "
@@ -1036,7 +1036,7 @@ void WebModule::Impl::WaitForWebDebugger() {
 
 void WebModule::Impl::InjectCustomWindowAttributes(
     const Options::InjectedWindowAttributes& attributes) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(global_environment_);
 
   for (Options::InjectedWindowAttributes::const_iterator iter =
@@ -1192,7 +1192,7 @@ void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
 
 void WebModule::Impl::ReduceMemory() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::ReduceMemory()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!is_running_) {
     return;
   }
@@ -1214,7 +1214,7 @@ void WebModule::Impl::GetJavaScriptHeapStatistics(
     const JavaScriptHeapStatisticsCallback& callback) {
   TRACE_EVENT0("cobalt::browser",
                "WebModule::Impl::GetJavaScriptHeapStatistics()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   script::HeapStatistics heap_statistics =
       javascript_engine_->GetHeapStatistics();
   callback.Run(heap_statistics);
@@ -1240,7 +1240,7 @@ void WebModule::Impl::LogScriptError(
 }
 
 void WebModule::Impl::InjectBeforeUnloadEvent() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (window_ && window_->HasEventListener(base::Tokens::beforeunload())) {
     window_->DispatchEvent(new dom::Event(base::Tokens::beforeunload()));
   } else if (!on_before_unload_fired_but_not_handled_.is_null()) {
@@ -1249,7 +1249,7 @@ void WebModule::Impl::InjectBeforeUnloadEvent() {
 }
 
 void WebModule::Impl::InjectCaptionSettingsChangedEvent() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   system_caption_settings_->OnCaptionSettingsChanged();
 }
 
