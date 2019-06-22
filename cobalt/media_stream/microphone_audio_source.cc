@@ -108,7 +108,7 @@ void MicrophoneAudioSource::OnDataCompletion() {
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnDataCompletion, this));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DLOG(INFO) << "Microphone is closed.";
   StopSource();
 
@@ -123,7 +123,7 @@ void MicrophoneAudioSource::OnMicrophoneOpen() {
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneOpen, this));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!successful_open_callback_.is_null()) {
     successful_open_callback_.Run();
   }
@@ -138,7 +138,7 @@ void MicrophoneAudioSource::OnMicrophoneError(
                               error, error_message));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   std::string microphone_error_category;
   switch (error) {

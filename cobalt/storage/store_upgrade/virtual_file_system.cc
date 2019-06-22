@@ -50,7 +50,7 @@ int VirtualFileSystem::GetCurrentVersion() {
 VirtualFileSystem::VirtualFileSystem() {}
 
 VirtualFileSystem::~VirtualFileSystem() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::AutoLock lock(file_table_lock_);
   ClearFileTable();
 }
@@ -87,7 +87,7 @@ void VirtualFileSystem::Delete(const std::string& filename) {
 }
 
 int VirtualFileSystem::Serialize(uint8* buffer, bool dry_run) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::AutoLock lock(file_table_lock_);
   uint8* original = buffer;
 
@@ -182,7 +182,7 @@ bool VirtualFileSystem::Deserialize(const uint8* buffer, int buffer_size_in) {
 }
 
 void VirtualFileSystem::ClearFileTable() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   file_table_lock_.AssertAcquired();
   for (FileTable::iterator it = table_.begin(); it != table_.end(); ++it) {
     delete it->second;

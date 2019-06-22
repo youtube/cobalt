@@ -115,7 +115,7 @@ class CORSPreflightCache : public base::RefCounted<CORSPreflightCache> {
   std::priority_queue<ExpirationHeapEntry, std::vector<ExpirationHeapEntry>,
                       ExpirationMinHeapComparator>
       expiration_time_heap_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace loader

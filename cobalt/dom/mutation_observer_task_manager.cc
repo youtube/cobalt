@@ -24,7 +24,7 @@ namespace dom {
 
 void MutationObserverTaskManager::OnMutationObserverCreated(
     MutationObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(observers_.find(observer) == observers_.end());
   TRACE_EVENT0("cobalt::dom",
                "MutationObserverTaskManager::OnMutationObserverCreated()");
@@ -33,7 +33,7 @@ void MutationObserverTaskManager::OnMutationObserverCreated(
 
 void MutationObserverTaskManager::OnMutationObserverDestroyed(
     MutationObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(observers_.find(observer) != observers_.end());
   TRACE_EVENT0("cobalt::dom",
                "MutationObserverTaskManager::OnMutationObserverDestroyed()");
@@ -41,7 +41,7 @@ void MutationObserverTaskManager::OnMutationObserverDestroyed(
 }
 
 void MutationObserverTaskManager::QueueMutationObserverMicrotask() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0("cobalt::dom",
                "MutationObserverTaskManager::QueueMutationObserverMicrotask()");
 
@@ -68,7 +68,7 @@ void MutationObserverTaskManager::TraceMembers(script::Tracer* tracer) {
 void MutationObserverTaskManager::NotifyMutationObservers() {
   TRACE_EVENT0("cobalt::dom",
                "MutationObserverTaskManager::NotifyMutationObservers()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(task_posted_);
   DCHECK(base::MessageLoop::current());
   // https://www.w3.org/TR/dom/#notify-mutation-observers

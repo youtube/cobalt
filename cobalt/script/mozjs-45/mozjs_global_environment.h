@@ -179,7 +179,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
                               const char* filename);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // Flag indicating when the destructor is called.
   bool destructing_ = false;
   JSContext* context_;

@@ -22,12 +22,12 @@ namespace cobalt {
 namespace media_stream {
 
 MediaStreamAudioSource::~MediaStreamAudioSource() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(stop_callback_.is_null());
 }
 
 bool MediaStreamAudioSource::ConnectToTrack(MediaStreamAudioTrack* track) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(track);
 
   // Try to start the source, if has not been permanently stopped.
@@ -79,13 +79,13 @@ MediaStreamAudioSource::MediaStreamAudioSource()
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {}
 
 void MediaStreamAudioSource::DoStopSource() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   EnsureSourceIsStopped();
   is_stopped_ = true;
 }
 
 void MediaStreamAudioSource::StopAudioDeliveryTo(MediaStreamAudioTrack* track) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   bool did_remove_last_track = deliverer_.RemoveConsumer(track);
   // Per spec at: https://www.w3.org/TR/mediacapture-streams/#mediastreamtrack
   // "When all tracks using a source have been stopped or ended by some other

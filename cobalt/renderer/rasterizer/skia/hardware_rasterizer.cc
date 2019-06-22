@@ -120,7 +120,7 @@ class HardwareRasterizer::Impl {
   scoped_refptr<render_tree::Image> ConvertRenderTreeToImage(
       const scoped_refptr<render_tree::Node>& root);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   backend::GraphicsContextEGL* graphics_context_;
   std::unique_ptr<render_tree::ResourceProvider> resource_provider_;
@@ -670,7 +670,7 @@ void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target,
     const Options& options) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   scoped_refptr<backend::RenderTargetEGL> render_target_egl(
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
@@ -718,14 +718,14 @@ void HardwareRasterizer::Impl::Submit(
 
 void HardwareRasterizer::Impl::SubmitOffscreen(
     const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   RasterizeRenderTreeToCanvas(render_tree, canvas, kBottomLeft_GrSurfaceOrigin);
 }
 
 void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   scoped_refptr<backend::RenderTargetEGL> render_target_egl(
       base::polymorphic_downcast<backend::RenderTargetEGL*>(

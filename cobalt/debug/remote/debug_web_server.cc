@@ -137,7 +137,7 @@ DebugWebServer::DebugWebServer(
 
   // Start the Http server thread and create the server on that thread.
   // Thread checker will be attached to that thread in |StartServer|.
-  thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(thread_checker_);
   const size_t stack_size = 0;
   http_server_thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, stack_size));
@@ -156,7 +156,7 @@ DebugWebServer::~DebugWebServer() {
 
 void DebugWebServer::OnHttpRequest(int connection_id,
                                    const net::HttpServerRequestInfo& info) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DLOG(INFO) << "Got HTTP request: " << connection_id << ": " << info.path;
 
   // TODO: Requests for / or /json (listing of discoverable pages)
@@ -209,7 +209,7 @@ void DebugWebServer::OnHttpRequest(int connection_id,
 
 void DebugWebServer::OnWebSocketRequest(
     int connection_id, const net::HttpServerRequestInfo& info) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string path = info.path;
   DLOG(INFO) << "Got web socket request [" << connection_id << "]: " << path;
 
@@ -222,7 +222,7 @@ void DebugWebServer::OnWebSocketRequest(
 
 void DebugWebServer::OnWebSocketMessage(int connection_id,
                                         const std::string& json) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(connection_id, websocket_id_);
 
   // Parse the json string to get id, method and params.
@@ -334,7 +334,7 @@ int DebugWebServer::GetLocalAddress(std::string* out) const {
 }
 
 void DebugWebServer::StartServer(int port) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Create http server
   const base::Optional<std::string> ip_addr = GetLocalIpAddress();
@@ -366,7 +366,7 @@ void DebugWebServer::StartServer(int port) {
 }
 
 void DebugWebServer::StopServer() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   server_ = NULL;
 }
 

@@ -43,7 +43,7 @@ class MozjsExceptionState : public ExceptionState {
   // would not be able to match the descriptiveness of the SpiderMonkey
   // exception).
   void SetExceptionAlreadySet(JSContext* context) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!is_exception_set_);
     DCHECK(JS_IsExceptionPending(context));
     is_exception_set_ = true;
@@ -55,7 +55,7 @@ class MozjsExceptionState : public ExceptionState {
  private:
   bool is_exception_set_;
   JSContext* context_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace mozjs

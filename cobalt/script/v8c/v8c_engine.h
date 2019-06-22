@@ -54,7 +54,7 @@ class V8cEngine : public JavaScriptEngine {
   // |v8::Isolate|.
   static const int kIsolateDataIndex = 0;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // An isolated instance of the V8 engine.
   v8::Isolate* isolate_;

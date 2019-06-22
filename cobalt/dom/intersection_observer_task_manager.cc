@@ -29,7 +29,7 @@ IntersectionObserverTaskManager::~IntersectionObserverTaskManager() {}
 
 void IntersectionObserverTaskManager::OnIntersectionObserverCreated(
     IntersectionObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(observer_list_.find(observer) == observer_list_.end());
   TRACE_EVENT0(
       "cobalt::dom",
@@ -39,7 +39,7 @@ void IntersectionObserverTaskManager::OnIntersectionObserverCreated(
 
 void IntersectionObserverTaskManager::OnIntersectionObserverDestroyed(
     IntersectionObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(observer_list_.find(observer) != observer_list_.end());
   TRACE_EVENT0(
       "cobalt::dom",
@@ -48,7 +48,7 @@ void IntersectionObserverTaskManager::OnIntersectionObserverDestroyed(
 }
 
 void IntersectionObserverTaskManager::QueueIntersectionObserverTask() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0(
       "cobalt::dom",
       "IntersectionObserverTaskManager::QueueIntersectionObserverTask()");
@@ -75,7 +75,7 @@ void IntersectionObserverTaskManager::UpdateIntersectionObservations() {
   TRACE_EVENT0(
       "cobalt::dom",
       "IntersectionObserverTaskManager::UpdateIntersectionObservations()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // https://www.w3.org/TR/intersection-observer/#update-intersection-observations-algo
   // To run the update intersection observations steps for a Document document
@@ -93,7 +93,7 @@ void IntersectionObserverTaskManager::TraceMembers(script::Tracer* tracer) {
 }
 
 void IntersectionObserverTaskManager::NotifyIntersectionObservers() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0(
       "cobalt::dom",
       "IntersectionObserverTaskManager::NotifyIntersectionObservers()");

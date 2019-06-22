@@ -55,7 +55,7 @@ JSONObject TracingAgent::Freeze() {
 }
 
 void TracingAgent::End(const Command& command) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest, "Tracing not started");
     return;
@@ -67,7 +67,7 @@ void TracingAgent::End(const Command& command) {
 }
 
 void TracingAgent::Start(const Command& command) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest,
                               "Tracing already started");

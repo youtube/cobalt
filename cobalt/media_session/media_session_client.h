@@ -77,7 +77,7 @@ class MediaSessionClient {
   virtual void OnMediaSessionChanged() = 0;
 
  private:
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   scoped_refptr<MediaSession> media_session_;
   MediaSessionPlaybackState platform_playback_state_;
 

@@ -35,34 +35,34 @@ AnimatedImageTracker::AnimatedImageTracker(
 
 AnimatedImageTracker::~AnimatedImageTracker() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 void AnimatedImageTracker::IncreaseURLCount(const GURL& url) {
   TRACE_EVENT0("cobalt::loader::image",
                "AnimatedImageTracker::IncreaseURLCount()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   current_url_counts_[url]++;
 }
 
 void AnimatedImageTracker::DecreaseURLCount(const GURL& url) {
   TRACE_EVENT0("cobalt::loader::image",
                "AnimatedImageTracker::DecreaseURLCount()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_GT(current_url_counts_[url], 0);
   current_url_counts_[url]--;
 }
 
 void AnimatedImageTracker::RecordImage(
     const GURL& url, loader::image::AnimatedImage* animated_image) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(animated_image);
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
   image_map_[url] = animated_image;
 }
 
 void AnimatedImageTracker::ProcessRecordedImages() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0("cobalt::loader::image",
                "AnimatedImageTracker::ProcessRecordedImages()");
   for (URLToIntMap::iterator it = current_url_counts_.begin();
@@ -97,7 +97,7 @@ void AnimatedImageTracker::ProcessRecordedImages() {
 
 void AnimatedImageTracker::OnDisplayStart(
     loader::image::AnimatedImage* animated_image) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(animated_image);
   TRACE_EVENT0("cobalt::loader::image",
                "AnimatedImageTracker::OnDisplayStart()");
@@ -106,7 +106,7 @@ void AnimatedImageTracker::OnDisplayStart(
 
 void AnimatedImageTracker::OnDisplayEnd(
     loader::image::AnimatedImage* animated_image) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(animated_image);
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::OnDisplayEnd()");
   animated_image->Stop();

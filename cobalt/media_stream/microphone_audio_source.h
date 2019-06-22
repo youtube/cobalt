@@ -87,7 +87,7 @@ class MicrophoneAudioSource : public MediaStreamAudioSource {
 
   speech::MicrophoneManager microphone_manager_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   friend class base::RefCounted<MicrophoneAudioSource>;
 };
