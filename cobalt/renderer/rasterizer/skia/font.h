@@ -93,7 +93,7 @@ class Font : public render_tree::Font {
   std::bitset<kPrimaryPageSize> primary_page_glyph_bounds_bits_;
   std::unique_ptr<math::RectF[]> primary_page_glyph_bounds_;
   GlyphToBoundsMap glyph_to_bounds_map_;
-  base::ThreadChecker glyph_bounds_thread_checker_;
+  THREAD_CHECKER(glyph_bounds_thread_checker_);
 };
 
 }  // namespace skia

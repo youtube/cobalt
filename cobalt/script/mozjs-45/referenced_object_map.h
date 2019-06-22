@@ -48,7 +48,7 @@ class ReferencedObjectMap {
   typedef base::hash_multimap<const Wrappable*, WeakHeapObject>
       ReferencedObjectMultiMap;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   JSContext* const context_;
   ReferencedObjectMultiMap referenced_objects_;
 };

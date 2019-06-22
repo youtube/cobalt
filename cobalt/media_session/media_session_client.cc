@@ -20,7 +20,7 @@ namespace cobalt {
 namespace media_session {
 
 MediaSessionPlaybackState MediaSessionClient::GetActualPlaybackState() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Per https://wicg.github.io/mediasession/#guessed-playback-state
   // - If the "declared playback state" is "playing", then return "playing"
@@ -49,7 +49,7 @@ MediaSessionPlaybackState MediaSessionClient::GetActualPlaybackState() {
 
 MediaSessionClient::AvailableActionsSet
 MediaSessionClient::GetAvailableActions() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // "Available actions" are determined based on active media session
   // and supported media session actions.
   // Note for cobalt, there's only one window/tab so there's only one

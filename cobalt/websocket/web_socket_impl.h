@@ -111,7 +111,7 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
   void OnWebSocketDisconnected(bool was_clean, uint16 code,
                                const std::string& reason);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   std::vector<std::string> desired_sub_protocols_;
   network::NetworkModule* network_module_;

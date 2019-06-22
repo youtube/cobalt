@@ -109,7 +109,7 @@ class CachedResourceBase
         reset_resource_func_(reset_resource_func),
         are_loading_retries_enabled_func_(are_loading_retries_enabled_func),
         on_resource_loaded_(on_resource_loaded) {
-    DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   }
 
   CachedResourceBase(
@@ -128,7 +128,7 @@ class CachedResourceBase
         reset_resource_func_(reset_resource_func),
         are_loading_retries_enabled_func_(are_loading_retries_enabled_func),
         on_resource_loaded_(on_resource_loaded) {
-    DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
     StartLoading();
   }
 
@@ -156,7 +156,7 @@ class CachedResourceBase
   // Notify the loading error.
   void OnLoadingComplete(const base::Optional<std::string>& error);
 
-  base::ThreadChecker cached_resource_thread_checker_;
+  THREAD_CHECKER(cached_resource_thread_checker_);
 
   const GURL url_;
   const Origin origin_;
@@ -240,11 +240,11 @@ class CachedResource : public CachedResourceBase {
   void OnContentProduced(const scoped_refptr<ResourceType>& resource);
 
   bool HasResource() const {
-    DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
     return resource_ != nullptr;
   }
   void ResetResource() {
-    DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
     resource_ = nullptr;
   }
 
@@ -296,14 +296,14 @@ CachedResource<CacheType>::CachedResource(
 template <typename CacheType>
 scoped_refptr<typename CacheType::ResourceType>
 CachedResource<CacheType>::TryGetResource() {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   return resource_;
 }
 
 template <typename CacheType>
 void CachedResource<CacheType>::OnContentProduced(
     const scoped_refptr<ResourceType>& resource) {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   DCHECK(!resource_);
 
   resource_ = resource;
@@ -404,7 +404,7 @@ class ResourceCacheBase {
     return are_loading_retries_enabled_;
   }
 
-  base::ThreadChecker resource_cache_thread_checker_;
+  THREAD_CHECKER(resource_cache_thread_checker_);
 
   // The name of this resource cache object, useful while debugging.
   const std::string name_;
@@ -532,7 +532,7 @@ ResourceCache<CacheType>::ResourceCache(
           name, cache_capacity, are_loading_retries_enabled,
           base::Bind(&ResourceCache::ReclaimMemory, base::Unretained(this))),
       create_loader_function_(create_loader_function) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   DCHECK(!create_loader_function_.is_null());
 }
 
@@ -540,7 +540,7 @@ template <typename CacheType>
 scoped_refptr<CachedResource<CacheType>>
 ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
                                                const Origin& origin) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   DCHECK(url.is_valid());
 
   // Try to find the resource from |cached_resource_map_|.
@@ -601,7 +601,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
 template <typename CacheType>
 std::unique_ptr<Loader> ResourceCache<CacheType>::StartLoadingResource(
     CachedResourceType* cached_resource) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   const std::string& url = cached_resource->url().spec();
 
   // The resource should not already be in either of the loading sets.
@@ -635,7 +635,7 @@ std::unique_ptr<Loader> ResourceCache<CacheType>::StartLoadingResource(
 template <typename CacheType>
 void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
     CachedResourceType* cached_resource, CallbackType callback_type) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   const std::string& url = cached_resource->url().spec();
 
   if (cached_resource->TryGetResource()) {
@@ -675,7 +675,7 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
 template <typename CacheType>
 void ResourceCache<CacheType>::NotifyResourceDestroyed(
     CachedResourceType* cached_resource) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   const std::string& url = cached_resource->url().spec();
 
   cached_resource_map_.erase(url);
@@ -718,7 +718,7 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
 template <typename CacheType>
 void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
                                              bool log_warning_if_over) {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
 
   while (memory_size_in_bytes_ > bytes_to_reclaim_down_to &&
          !unreference_cached_resource_map_.empty()) {

@@ -44,7 +44,7 @@ class MozjsEngine : public JavaScriptEngine {
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                bool is_compartment, void* data);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // Top-level object that represents the JavaScript engine.
   JSRuntime* runtime_;

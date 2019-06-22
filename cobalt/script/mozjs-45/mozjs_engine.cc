@@ -158,24 +158,24 @@ MozjsEngine::MozjsEngine(const Options& options) : options_(options) {
 }
 
 MozjsEngine::~MozjsEngine() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   JS_DestroyRuntime(runtime_);
 }
 
 scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return new MozjsGlobalEnvironment(runtime_);
 }
 
 void MozjsEngine::CollectGarbage() {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CollectGarbage()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   JS_GC(runtime_);
 }
 
 void MozjsEngine::AdjustAmountOfExternalAllocatedMemory(int64_t bytes) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // |force_gc_heuristic_| is only incremented, never decremented.  See its
   // declaration in the header for details.
   force_gc_heuristic_ += (bytes > 0) ? bytes : 0;
@@ -186,13 +186,13 @@ void MozjsEngine::AdjustAmountOfExternalAllocatedMemory(int64_t bytes) {
 }
 
 bool MozjsEngine::RegisterErrorHandler(ErrorHandler handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   error_handler_ = handler;
   return true;
 }
 
 HeapStatistics MozjsEngine::GetHeapStatistics() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // There is unfortunately no easy way to get used vs total in SpiderMonkey,
   // so just return total bytes allocated for both.
   size_t total_heap_size = MemoryAllocatorReporter::Get()->GetTotalHeapSize();
@@ -204,7 +204,7 @@ bool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op,
                                   void* data) {
   JSRuntime* runtime = JS_GetRuntime(context);
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
-  DCHECK(engine->thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(engine->thread_checker_);
   if (context_op == JSCONTEXT_NEW) {
     DCHECK(engine->context_ == nullptr);
     engine->context_ = context;
@@ -241,7 +241,7 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                    bool is_compartment, void* data) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::FinalizeCallback()");
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
-  DCHECK(engine->thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(engine->thread_checker_);
   if (status == JSFINALIZE_GROUP_START && engine->context_) {
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(engine->context_);

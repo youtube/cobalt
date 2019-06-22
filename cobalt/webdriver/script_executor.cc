@@ -93,7 +93,7 @@ scoped_refptr<ScriptExecutor> ScriptExecutor::Create(
 bool ScriptExecutor::Execute(
     const scoped_refptr<ScriptExecutorParams>& params,
     ScriptExecutorResult::ResultHandler* result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   scoped_refptr<ScriptExecutorResult> executor_result(
       new ScriptExecutorResult(result_handler));
   return ExecuteInternal(params, executor_result);
@@ -101,13 +101,13 @@ bool ScriptExecutor::Execute(
 
 void ScriptExecutor::set_execute_script_harness(
     const ExecuteFunctionCallbackHolder& callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   execute_callback_.emplace(this, callback);
 }
 
 const ScriptExecutor::ExecuteFunctionCallbackHolder*
 ScriptExecutor::execute_script_harness() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (execute_callback_) {
     return &(execute_callback_->referenced_value());
   } else {
@@ -116,14 +116,14 @@ ScriptExecutor::execute_script_harness() {
 }
 
 scoped_refptr<dom::Element> ScriptExecutor::IdToElement(const std::string& id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(element_mapping_);
   return element_mapping_->IdToElement(protocol::ElementId(id));
 }
 
 std::string ScriptExecutor::ElementToId(
     const scoped_refptr<dom::Element>& element) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(element_mapping_);
   return element_mapping_->ElementToId(element).id();
 }
@@ -131,7 +131,7 @@ std::string ScriptExecutor::ElementToId(
 bool ScriptExecutor::ExecuteInternal(
     const scoped_refptr<ScriptExecutorParams>& params,
     const scoped_refptr<ScriptExecutorResult>& result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(params);
   DCHECK(result_handler);
   ExecuteFunctionCallback::ReturnValue callback_result =

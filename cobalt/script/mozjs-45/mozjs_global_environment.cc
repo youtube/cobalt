@@ -178,14 +178,14 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
 }
 
 MozjsGlobalEnvironment::~MozjsGlobalEnvironment() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   JS_RemoveExtraGCRootsTracer(JS_GetRuntime(context_), TraceFunction, this);
   destructing_ = true;
 }
 
 void MozjsGlobalEnvironment::CreateGlobalObject() {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!global_object_proxy_);
 
   // The global object is automatically rooted unless the
@@ -217,7 +217,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
@@ -248,7 +248,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<Wrappable>& owning_object,
     base::Optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
   JS::AutoSaveExceptionState auto_save_exception_state(context_);
@@ -265,7 +265,7 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
     const scoped_refptr<SourceCode>& source_code,
     JS::MutableHandleValue out_result) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(global_object_proxy_);
   MozjsSourceCode* mozjs_source_code =
       base::polymorphic_downcast<MozjsSourceCode*>(source_code.get());
@@ -326,7 +326,7 @@ void MozjsGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,
 }
 
 std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   nb::RewindableVector<StackFrame> stack_frames;
   util::GetStackTrace(context_, max_frames, &stack_frames);
   return stack_frames.InternalData();
@@ -334,7 +334,7 @@ std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
 
 void MozjsGlobalEnvironment::PreventGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
@@ -353,7 +353,7 @@ void MozjsGlobalEnvironment::PreventGarbageCollection(
 
 void MozjsGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // AllowGarbageCollection is unnecessary when the environment is destroyed.
   if (destructing_) return;
@@ -380,19 +380,19 @@ void MozjsGlobalEnvironment::RemoveRoot(Traceable* traceable) {
 }
 
 void MozjsGlobalEnvironment::DisableEval(const std::string& message) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   eval_disabled_message_.emplace(message);
   eval_enabled_ = false;
 }
 
 void MozjsGlobalEnvironment::EnableEval() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   eval_disabled_message_ = base::nullopt;
   eval_enabled_ = true;
 }
 
 void MozjsGlobalEnvironment::DisableJit() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   JS::RuntimeOptionsRef(context_)
       .setBaseline(false)
       .setIon(false)
@@ -402,13 +402,13 @@ void MozjsGlobalEnvironment::DisableJit() {
 
 void MozjsGlobalEnvironment::SetReportEvalCallback(
     const base::Closure& report_eval) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   report_eval_ = report_eval;
 }
 
 void MozjsGlobalEnvironment::SetReportErrorCallback(
     const ReportErrorCallback& report_error_callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   report_error_callback_ = report_error_callback;
 }
 
@@ -573,7 +573,7 @@ void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
 
 void MozjsGlobalEnvironment::ReportError(const char* message,
                                          JSErrorReport* report) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   JS::RootedValue exception(context_);
   ::JS_GetPendingException(context_, &exception);
 

@@ -103,7 +103,7 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
 }
 
 Loader::~Loader() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (!on_destruction_.is_null()) {
     on_destruction_.Run(this);
@@ -113,7 +113,7 @@ Loader::~Loader() {
 }
 
 void Loader::Suspend() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_suspended_);
 
   is_suspended_ = true;
@@ -132,7 +132,7 @@ void Loader::Suspend() {
 }
 
 void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_suspended_);
 
   is_suspended_ = false;
@@ -142,7 +142,7 @@ void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 bool Loader::DidFailFromTransientError() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return fetcher_ && fetcher_->did_fail_from_transient_error();
 }
 
@@ -152,7 +152,7 @@ void Loader::LoadComplete(const base::Optional<std::string>& error) {
 }
 
 void Loader::Start() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_suspended_);
 
   fetcher_to_decoder_adaptor_.reset(new FetcherToDecoderAdapter(

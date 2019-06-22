@@ -70,12 +70,12 @@ loader::LoadResponseType HTMLDecoder::OnResponseStarted(
 }
 
 void HTMLDecoder::DecodeChunk(const char* data, size_t size) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   libxml_html_parser_wrapper_->DecodeChunk(data, size);
 }
 
 void HTMLDecoder::Finish() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   libxml_html_parser_wrapper_->Finish();
   if (!load_complete_callback_.is_null()) {
     load_complete_callback_.Run(base::nullopt);

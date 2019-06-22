@@ -25,7 +25,7 @@ namespace skia {
 
 SkiaTypeface::SkiaTypeface(const sk_sp<SkTypeface_Cobalt>& typeface)
     : typeface_(typeface) {
-  character_glyph_thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(character_glyph_thread_checker_);
 }
 
 const sk_sp<SkTypeface_Cobalt>& SkiaTypeface::GetSkTypeface() const {
@@ -47,7 +47,7 @@ scoped_refptr<render_tree::Font> SkiaTypeface::CreateFontWithSize(
 
 render_tree::GlyphIndex SkiaTypeface::GetGlyphForCharacter(
     int32 utf32_character) {
-  DCHECK(character_glyph_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(character_glyph_thread_checker_);
   // If the character falls within the first 256 characters (Latin-1), then
   // simply check the primary page for the glyph.
   if (utf32_character < kPrimaryPageSize) {
