@@ -110,14 +110,14 @@ class NetworkChangeNotifier::NetworkChangeCalculator
         pending_connection_type_(CONNECTION_NONE) {}
 
   void Init() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(g_network_change_notifier);
     AddConnectionTypeObserver(this);
     AddIPAddressObserver(this);
   }
 
   ~NetworkChangeCalculator() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(g_network_change_notifier);
     RemoveConnectionTypeObserver(this);
     RemoveIPAddressObserver(this);
@@ -125,7 +125,7 @@ class NetworkChangeNotifier::NetworkChangeCalculator
 
   // NetworkChangeNotifier::IPAddressObserver implementation.
   void OnIPAddressChanged() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     base::TimeDelta delay = last_announced_connection_type_ == CONNECTION_NONE
         ? params_.ip_address_offline_delay_ : params_.ip_address_online_delay_;
     // Cancels any previous timer.
@@ -134,7 +134,7 @@ class NetworkChangeNotifier::NetworkChangeCalculator
 
   // NetworkChangeNotifier::ConnectionTypeObserver implementation.
   void OnConnectionTypeChanged(ConnectionType type) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     pending_connection_type_ = type;
     base::TimeDelta delay = last_announced_connection_type_ == CONNECTION_NONE
         ? params_.connection_type_offline_delay_
@@ -145,7 +145,7 @@ class NetworkChangeNotifier::NetworkChangeCalculator
 
  private:
   void Notify() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     // Don't bother signaling about dead connections.
     if (have_announced_ &&
         (last_announced_connection_type_ == CONNECTION_NONE) &&

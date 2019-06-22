@@ -207,7 +207,7 @@ class NET_EXPORT_PRIVATE ThroughputAnalyzer {
   // network quality. Set to true only for tests.
   bool use_localhost_requests_for_tests_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   NetLogWithSource net_log_;
 

@@ -24,13 +24,13 @@ NetworkQualityStore::NetworkQualityStore() : weak_ptr_factory_(this) {
 }
 
 NetworkQualityStore::~NetworkQualityStore() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 void NetworkQualityStore::Add(
     const nqe::internal::NetworkID& network_id,
     const nqe::internal::CachedNetworkQuality& cached_network_quality) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_LE(cached_network_qualities_.size(),
             static_cast<size_t>(kMaximumNetworkQualityCacheSize));
 
@@ -66,7 +66,7 @@ void NetworkQualityStore::Add(
 bool NetworkQualityStore::GetById(
     const nqe::internal::NetworkID& network_id,
     nqe::internal::CachedNetworkQuality* cached_network_quality) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // First check if an exact match can be found.
   for (auto it = cached_network_qualities_.begin();
@@ -168,7 +168,7 @@ bool NetworkQualityStore::GetById(
 
 void NetworkQualityStore::AddNetworkQualitiesCacheObserver(
     NetworkQualitiesCacheObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   network_qualities_cache_observer_list_.AddObserver(observer);
 
   // Notify the |observer| on the next message pump since |observer| may not
@@ -180,13 +180,13 @@ void NetworkQualityStore::AddNetworkQualitiesCacheObserver(
 
 void NetworkQualityStore::RemoveNetworkQualitiesCacheObserver(
     NetworkQualitiesCacheObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   network_qualities_cache_observer_list_.RemoveObserver(observer);
 }
 
 void NetworkQualityStore::NotifyCacheObserverIfPresent(
     NetworkQualitiesCacheObserver* observer) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (!network_qualities_cache_observer_list_.HasObserver(observer))
     return;
