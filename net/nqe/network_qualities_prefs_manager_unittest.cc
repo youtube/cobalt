@@ -32,13 +32,13 @@ class TestPrefDelegate : public NetworkQualitiesPrefsManager::PrefDelegate {
       : write_count_(0), read_count_(0), value_(new base::DictionaryValue) {}
 
   ~TestPrefDelegate() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     value_->Clear();
     EXPECT_EQ(0U, value_->size());
   }
 
   void SetDictionaryValue(const base::DictionaryValue& value) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     write_count_++;
     value_.reset(value.DeepCopy());
@@ -46,19 +46,19 @@ class TestPrefDelegate : public NetworkQualitiesPrefsManager::PrefDelegate {
   }
 
   std::unique_ptr<base::DictionaryValue> GetDictionaryValue() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     read_count_++;
     return value_->CreateDeepCopy();
   }
 
   size_t write_count() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return write_count_;
   }
 
   size_t read_count() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return read_count_;
   }
 

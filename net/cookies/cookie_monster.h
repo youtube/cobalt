@@ -647,7 +647,7 @@ class NET_EXPORT CookieMonster : public CookieStore {
 
   bool persist_session_cookies_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<CookieMonster> weak_ptr_factory_;
 
