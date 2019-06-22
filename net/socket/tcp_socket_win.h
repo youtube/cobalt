@@ -106,7 +106,7 @@ class NET_EXPORT TCPSocketWin : public base::win::ObjectWatcher::Delegate {
   // Detachs from the current thread, to allow the socket to be transferred to
   // a new thread. Should only be called when the object is no longer used by
   // the old thread.
-  void DetachFromThread();
+  DETACH_FROM_THREAD(void);
 
   // Marks the start/end of a series of connect attempts for logging purpose.
   //

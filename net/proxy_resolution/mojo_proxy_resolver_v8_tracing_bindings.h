@@ -33,22 +33,22 @@ class MojoProxyResolverV8TracingBindings
 
   // ProxyResolverV8Tracing::Bindings overrides.
   void Alert(const base::string16& message) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     client_->Alert(base::UTF16ToUTF8(message));
   }
 
   void OnError(int line_number, const base::string16& message) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     client_->OnError(line_number, base::UTF16ToUTF8(message));
   }
 
   HostResolver* GetHostResolver() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return &host_resolver_;
   }
 
   NetLogWithSource GetNetLogWithSource() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return NetLogWithSource();
   }
 
@@ -56,7 +56,7 @@ class MojoProxyResolverV8TracingBindings
   // HostResolverMojo::Impl override.
   void ResolveDns(std::unique_ptr<HostResolver::RequestInfo> request_info,
                   interfaces::HostResolverRequestClientPtr client) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     client_->ResolveDns(std::move(request_info), std::move(client));
   }
 

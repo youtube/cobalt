@@ -121,7 +121,7 @@ int UDPServerSocket::SetDiffServCodePoint(DiffServCodePoint dscp) {
 }
 
 void UDPServerSocket::DetachFromThread() {
-  socket_.DetachFromThread();
+  DETACH_FROM_THREAD(socket_);
 }
 
 void UDPServerSocket::UseNonBlockingIO() {
