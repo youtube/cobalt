@@ -39,7 +39,7 @@ using ::cobalt::media_session::MediaSessionClient;
 using ::cobalt::media_session::MediaSessionPlaybackState;
 using ::cobalt::media_session::kMediaSessionActionPause;
 using ::cobalt::media_session::kMediaSessionActionPlay;
-using ::cobalt::media_session::kMediaSessionActionSeek;
+using ::cobalt::media_session::kMediaSessionActionSeekto;
 using ::cobalt::media_session::kMediaSessionActionSeekbackward;
 using ::cobalt::media_session::kMediaSessionActionSeekforward;
 using ::cobalt::media_session::kMediaSessionActionPrevioustrack;
@@ -89,7 +89,7 @@ jlong MediaSessionActionsToPlaybackStateActions(
   if (actions[kMediaSessionActionSeekforward]) {
     result |= kPlaybackStateActionFastForward;
   }
-  if (actions[kMediaSessionActionSeek]) {
+  if (actions[kMediaSessionActionSeekto]) {
     result |= kPlaybackStateActionSeekTo;
   }
   return result;
@@ -129,7 +129,7 @@ MediaSessionAction PlaybackStateActionToMediaSessionAction(jlong action) {
       result = kMediaSessionActionSeekforward;
       break;
     case kPlaybackStateActionSeekTo:
-      result = kMediaSessionActionSeek;
+      result = kMediaSessionActionSeekto;
       break;
     default:
       SB_NOTREACHED() << "Unsupported MediaSessionAction 0x"
@@ -182,11 +182,14 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     SbMutexAcquire(&mutex);
 
     if (active_client != NULL) {
-      MediaSessionAction cobalt_action =
-          PlaybackStateActionToMediaSessionAction(action);
-      active_client->InvokeAction(std::unique_ptr<MediaSessionActionDetails::Data>(
-          new MediaSessionActionDetails::Data(cobalt_action,
-                                              seek_ms / 1000.0)));
+      std::unique_ptr<MediaSessionActionDetails> details(
+          new MediaSessionActionDetails());
+      details->set_action(PlaybackStateActionToMediaSessionAction(action));
+      // CobaltMediaSession.java only sets seek_ms for SeekTo (not ff/rew).
+      if (details->action() == kMediaSessionActionSeekto) {
+        details->set_seek_time(seek_ms / 1000.0);
+      }
+      active_client->InvokeAction(std::move(details));
     }
 
     SbMutexRelease(&mutex);
