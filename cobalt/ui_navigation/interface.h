@@ -46,7 +46,7 @@ enum NativeItemType {
 
 struct NativeMatrix2x3 {
   float m[6];
-}
+};
 
 struct NativeMatrix4 {
   float m[16];
