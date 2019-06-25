@@ -66,8 +66,6 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void Finish() override;
 
-  float GetMinimumFramesPerSecond() override;
-
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.
   class ScopedMakeCurrent {
@@ -174,9 +172,6 @@ class GraphicsContextEGL : public GraphicsContext {
   static const int kBlitTexcoordAttribute = 1;
   GLuint blit_program_;
   GLuint blit_vertex_buffer_;
-
-  // Custom EGL extension to allow platforms to request a minimum frame rate.
-  EGLint (*get_minimum_frames_per_second_)(EGLDisplay display) = nullptr;
 
   // Lazily evaluate whether we need to do a vertical flip when calling
   // glReadPixels(), and cache the result here when that question is answered.
