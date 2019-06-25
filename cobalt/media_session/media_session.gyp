@@ -21,11 +21,13 @@
       'target_name': 'media_session',
       'type': 'static_library',
       'sources': [
-        'media_session.h',
-        'media_session.cc',
         'media_metadata.h',
-        'media_session_client.h',
+        'media_session.cc',
+        'media_session.h',
         'media_session_client.cc',
+        'media_session_client.h',
+        'media_session_state.cc',
+        'media_session_state.h',
       ],
       'conditions': [
         ['custom_media_session_client == 0', {

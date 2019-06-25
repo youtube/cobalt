@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,14 +15,17 @@
 // MediaSession interface
 // https://wicg.github.io/mediasession
 
-callback MediaSessionActionHandler = void(MediaSessionActionDetails details);
+dictionary MediaPositionState {
 
-interface MediaSession {
-  attribute MediaMetadata? metadata;
+  // Positive duration in seconds of the current media. Positive infinity can be
+  // used to indicate media without a defined end such as live playback.
+  required double duration;
 
-  attribute MediaSessionPlaybackState playbackState;
+  // Coefficient of the current playback rate (1.0 is normal forward playback).
+  // May be negative for reverse playback. Should not be 0.
+  double playbackRate = 1.0;
 
-  void setActionHandler(MediaSessionAction action, MediaSessionActionHandler? handler);
-
-  void setPositionState(MediaPositionState? state);
+  // The last reported playback position in seconds. It should always be
+  // positive.
+  double position = 0.0;
 };
