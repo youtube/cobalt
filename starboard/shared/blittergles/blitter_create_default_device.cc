@@ -20,6 +20,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/optional.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 #include "starboard/shared/x11/application_x11.h"
@@ -92,15 +93,13 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
 
   std::unique_ptr<SbBlitterDevicePrivate> device(new SbBlitterDevicePrivate());
   device->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  if (eglGetError() != EGL_SUCCESS) {
+  if (device->display == EGL_NO_DISPLAY) {
     SB_DLOG(ERROR) << ": Failed to get EGL display connection.";
-    device.reset();
     return kSbBlitterInvalidDevice;
   }
   eglInitialize(device->display, NULL, NULL);
   if (eglGetError() != EGL_SUCCESS) {
     SB_DLOG(ERROR) << ": Failed to initialize device.";
-    device.reset();
     return kSbBlitterInvalidDevice;
   }
 
@@ -110,8 +109,16 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
   }
   device->config = *config;
 
-  device->context = kSbBlitterInvalidContext;
   device_registry->default_device = device.release();
+  std::unique_ptr<SbBlitterContextPrivate> context(
+      new SbBlitterContextPrivate(device_registry->default_device));
+  if (!context->IsValid()) {
+    return kSbBlitterInvalidDevice;
+  }
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock context_lock(context_registry->mutex);
+  context_registry->context = context.release();
 
   return device_registry->default_device;
 }

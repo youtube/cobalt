@@ -15,12 +15,16 @@
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
 
 #include <memory>
 
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
+#include "starboard/shared/blittergles/blitter_context.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
+#include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
 namespace shared {
@@ -145,3 +149,37 @@ void ChangeDataFormat(SbBlitterPixelDataFormat in_format,
 }  // namespace blittergles
 }  // namespace shared
 }  // namespace starboard
+
+bool SbBlitterRenderTargetPrivate::SetFramebuffer() {
+  SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context;
+  glGenFramebuffers(1, &framebuffer_handle);
+  if (framebuffer_handle == 0) {
+    SB_DLOG(ERROR) << ": Error creating new framebuffer.";
+    return false;
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle));
+    SB_DLOG(ERROR) << ": Error binding framebuffer.";
+    return false;
+  }
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->color_texture_handle));
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                         surface->color_texture_handle, 0);
+  if (glGetError() != GL_NO_ERROR) {
+    GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle));
+    GL_CALL(glDeleteTextures(1, &surface->color_texture_handle));
+    SB_DLOG(ERROR) << ": Error drawing empty image to framebuffer.";
+    return false;
+  }
+
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle));
+    GL_CALL(glDeleteTextures(1, &surface->color_texture_handle));
+    SB_DLOG(ERROR) << ": Failed to create framebuffer.";
+    return false;
+  }
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+  return true;
+}
