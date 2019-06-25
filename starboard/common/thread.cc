@@ -21,9 +21,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/semaphore.h"
-#include "starboard/thread.h"
-#include "starboard/time.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -35,6 +32,11 @@ struct Thread::Data {
   Semaphore join_sema_;
   optional<Thread::Options> options_;
 };
+
+Thread::Options::Options()
+    : stack_size(0),  // Signal for default stack size.
+      priority_(kSbThreadNoPriority),
+      joinable(true) {}
 
 Thread::Thread(const std::string& name) {
   d_.reset(new Thread::Data);

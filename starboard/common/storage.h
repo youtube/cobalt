@@ -20,14 +20,12 @@
 #ifndef STARBOARD_COMMON_STORAGE_H_
 #define STARBOARD_COMMON_STORAGE_H_
 
+#include <string>
+
 #include "starboard/configuration.h"
 #include "starboard/storage.h"
 #include "starboard/types.h"
 #include "starboard/user.h"
-
-#ifdef __cplusplus
-
-#include <string>
 
 namespace starboard {
 
@@ -61,7 +59,5 @@ class StorageRecord {
 };
 
 }  // namespace starboard
-
-#endif  // __cpluplus
 
 #endif  // STARBOARD_COMMON_STORAGE_H_

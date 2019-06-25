@@ -126,22 +126,21 @@ namespace starboard {
 // used. During the unit tests is used another class that doesn't "DCHECK"
 // in case of collision (check thread_collision_warner_unittests.cc)
 struct AsserterBase {
-  virtual ~AsserterBase() {}
+  virtual ~AsserterBase();
   virtual void warn() = 0;
 };
 
 struct DCheckAsserter : public AsserterBase {
-  virtual ~DCheckAsserter() {}
+  virtual ~DCheckAsserter();
   virtual void warn();
 };
 
 class ThreadCollisionWarner {
  public:
   // The parameter asserter is there only for test purpose
-  ThreadCollisionWarner(AsserterBase* asserter = new DCheckAsserter())
-      : valid_thread_id_(0), counter_(0), asserter_(asserter) {}
+  ThreadCollisionWarner(AsserterBase* asserter = new DCheckAsserter());
 
-  ~ThreadCollisionWarner() { delete asserter_; }
+  ~ThreadCollisionWarner();
 
   // This class is meant to be used through the macro
   // DFAKE_SCOPED_LOCK_THREAD_LOCKED
@@ -150,11 +149,9 @@ class ThreadCollisionWarner {
   // from one thread
   class Check {
    public:
-    explicit Check(ThreadCollisionWarner* warner) : warner_(warner) {
-      warner_->EnterSelf();
-    }
+    explicit Check(ThreadCollisionWarner* warner);
 
-    ~Check() {}
+    ~Check();
 
    private:
     ThreadCollisionWarner* warner_;

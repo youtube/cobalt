@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"

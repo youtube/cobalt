@@ -37,10 +37,12 @@ static SB_C_INLINE int PoemAbs(int x) {
 
 #if !defined(POEM_NO_EMULATION)
 
-#include "starboard/common/string.h"
 #include "starboard/system.h"
 #ifdef __cplusplus
 #include <string>
+#include "starboard/common/string.h"
+#else
+#include "starboard/string.h"
 #endif
 
 // number conversion functions

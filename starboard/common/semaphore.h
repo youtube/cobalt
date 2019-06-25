@@ -55,58 +55,6 @@ class Semaphore {
   SB_DISALLOW_COPY_AND_ASSIGN(Semaphore);
 };
 
-////////////////////////// Implementation /////////////////////////////////////
-
-inline Semaphore::Semaphore() : mutex_(), condition_(mutex_), permits_(0) {}
-
-inline Semaphore::Semaphore(int initial_thread_permits)
-    : mutex_(), condition_(mutex_), permits_(initial_thread_permits) {}
-
-inline Semaphore::~Semaphore() {}
-
-inline void Semaphore::Put() {
-  ScopedLock lock(mutex_);
-  ++permits_;
-  condition_.Signal();
-}
-
-inline void Semaphore::Take() {
-  ScopedLock lock(mutex_);
-  while (permits_ <= 0) {
-    condition_.Wait();
-  }
-  --permits_;
-}
-
-inline bool Semaphore::TakeTry() {
-  ScopedLock lock(mutex_);
-  if (permits_ <= 0) {
-    return false;
-  }
-  --permits_;
-  return true;
-}
-
-inline bool Semaphore::TakeWait(SbTime wait_us) {
-  if (wait_us <= 0) {
-    return TakeTry();
-  }
-  SbTime expire_time = SbTimeGetMonotonicNow() + wait_us;
-  ScopedLock lock(mutex_);
-  while (permits_ <= 0) {
-    SbTime remaining_wait_time = expire_time - SbTimeGetMonotonicNow();
-    if (remaining_wait_time <= 0) {
-      return false;  // Timed out.
-    }
-    bool was_signaled = condition_.WaitTimed(remaining_wait_time);
-    if (!was_signaled) {
-      return false;  // Timed out.
-    }
-  }
-  --permits_;
-  return true;
-}
-
 }  // namespace starboard.
 
 #endif  // STARBOARD_COMMON_SEMAPHORE_H_
