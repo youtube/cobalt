@@ -331,11 +331,11 @@ void Pipeline::RasterizeCurrentTree() {
   bool force_rasterize = submit_even_if_render_tree_is_unchanged_ ||
       fps_overlay_update_pending_;
 
-  float minimum_fps = graphics_context_ ?
-      graphics_context_->GetMinimumFramesPerSecond() : 0;
-  if (minimum_fps > 0) {
+  float maximum_frame_interval_milliseconds = graphics_context_ ?
+      graphics_context_->GetMaximumFrameIntervalInMilliseconds() : -1.0f;
+  if (maximum_frame_interval_milliseconds >= 0.0f) {
     base::TimeDelta max_time_between_rasterize =
-        base::TimeDelta::FromSecondsD(1.0 / minimum_fps);
+        base::TimeDelta::FromMillisecondsD(maximum_frame_interval_milliseconds);
     if (start_rasterize_time - last_rasterize_time_ >
         max_time_between_rasterize) {
       force_rasterize = true;
