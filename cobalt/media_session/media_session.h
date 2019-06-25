@@ -17,18 +17,19 @@
 
 #include <map>
 
-#include "cobalt/media_session/media_metadata.h"
-
 #include "base/containers/small_map.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "cobalt/media_session/media_metadata.h"
+#include "cobalt/media_session/media_position_state.h"
 #include "cobalt/media_session/media_session_action.h"
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_playback_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -64,12 +65,14 @@ class MediaSession : public script::Wrappable {
 
   void set_metadata(scoped_refptr<MediaMetadata> value);
 
-  MediaSessionPlaybackState playback_state() const { return state_; }
+  MediaSessionPlaybackState playback_state() const { return playback_state_; }
 
   void set_playback_state(MediaSessionPlaybackState state);
 
   void SetActionHandler(MediaSessionAction action,
                         const MediaSessionActionHandlerHolder& handler);
+
+  void SetPositionState(base::Optional<MediaPositionState> state);
 
   DEFINE_WRAPPABLE_TYPE(MediaSession);
   void TraceMembers(script::Tracer* tracer) override;
@@ -78,12 +81,19 @@ class MediaSession : public script::Wrappable {
   void MaybeQueueChangeTask();
   void OnChanged();
 
+  // Returns a time representing right now - may be overridden for testing.
+  virtual SbTimeMonotonic GetMonotonicNow() const {
+    return SbTimeGetMonotonicNow();
+  }
+
   ActionMap action_map_;
   MediaSessionClient* media_session_client_;
   scoped_refptr<MediaMetadata> metadata_;
-  MediaSessionPlaybackState state_;
+  MediaSessionPlaybackState playback_state_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   bool is_change_task_queued_;
+  SbTimeMonotonic last_position_updated_time_;
+  base::Optional<MediaPositionState> media_position_state_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSession);
 };
