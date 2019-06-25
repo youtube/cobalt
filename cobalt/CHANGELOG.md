@@ -38,6 +38,12 @@ This document records all notable changes made to Cobalt since the last release.
    `MediaSessionActionDetails` dictionary rather than an inner `Data` class when
    invoking actions. (see: https://wicg.github.io/mediasession)
 
+- **MediaSession supports setPositionState() function**
+
+  MediaSession now supports the newly specified `setPositionState()` function.
+  `MediaSessionClient` now provides an immutable `MediaSessionState` object
+  that may be copied and queried on any thread to get a coherent view of
+  attributes set by the the web app on the `MediaSession`.
 
 ## Version 19
  - **Add support for V8 JavaScript Engine**

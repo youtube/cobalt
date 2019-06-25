@@ -21,6 +21,8 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/media_session/media_session_action_details.h"
+#include "cobalt/media_session/media_session_state.h"
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -28,10 +30,14 @@ namespace media_session {
 // Base class for a platform-level implementation of MediaSession.
 // Platforms should subclass this to connect MediaSession to their platform.
 class MediaSessionClient {
+  friend class MediaSession;
+
  public:
-  typedef std::bitset<kMediaSessionActionNumActions> AvailableActionsSet;
-  MediaSessionClient()
-      : media_session_(new MediaSession(this)),
+  MediaSessionClient() : MediaSessionClient(new MediaSession(this)) {}
+
+  // Injectable MediaSession for tests.
+  explicit MediaSessionClient(scoped_refptr<MediaSession> media_session)
+      : media_session_(media_session),
         platform_playback_state_(kMediaSessionPlaybackStateNone) {}
 
   virtual ~MediaSessionClient() {}
@@ -41,16 +47,6 @@ class MediaSessionClient {
 
   // Retrieves the singleton MediaSession associated with this client.
   scoped_refptr<MediaSession>& GetMediaSession() { return media_session_; }
-
-  // Retrieves the current actual playback state.
-  // https://wicg.github.io/mediasession/#actual-playback-state
-  // Must be called on the browser thread.
-  MediaSessionPlaybackState GetActualPlaybackState();
-
-  // Retrieves the set of currently available mediasession actions
-  // per "media session actions update algorithm"
-  // https://wicg.github.io/mediasession/#actions-model
-  AvailableActionsSet GetAvailableActions();
 
   // Sets the platform's current playback state. This is used to compute
   // the "guessed playback state"
@@ -73,14 +69,24 @@ class MediaSessionClient {
     InvokeActionInternal(std::move(details));
   }
 
-  // Invoked on the browser thread when any metadata, playback state,
-  // or supported session actions change.
-  virtual void OnMediaSessionChanged() = 0;
+  // Returns a copy of the current MediaSessionState.
+  MediaSessionState GetMediaSessionState();
+
+  // Invoked on the browser thread when any metadata, position state, playback
+  // state, or supported session actions change.
+  virtual void OnMediaSessionStateChanged(
+      const MediaSessionState& session_state) = 0;
 
  private:
   THREAD_CHECKER(thread_checker_);
   scoped_refptr<MediaSession> media_session_;
+  MediaSessionState session_state_;
   MediaSessionPlaybackState platform_playback_state_;
+
+  void UpdateMediaSessionState();
+  void GetMediaSessionStateInternal(MediaSessionState* session_state);
+  MediaSessionPlaybackState ComputeActualPlaybackState() const;
+  MediaSessionState::AvailableActionsSet ComputeAvailableActions() const;
 
   void InvokeActionInternal(std::unique_ptr<MediaSessionActionDetails> details);
 

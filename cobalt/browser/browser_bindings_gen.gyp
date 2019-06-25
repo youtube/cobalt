@@ -273,6 +273,7 @@
         '../media_capture/recording_state.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
+        '../media_session/media_position_state.idl',
         '../media_session/media_session_action.idl',
         '../media_session/media_session_action_details.idl',
         '../media_session/media_session_playback_state.idl',
