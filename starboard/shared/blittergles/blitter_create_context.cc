@@ -27,17 +27,16 @@ SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device) {
     SB_DLOG(ERROR) << ": Invalid device.";
     return kSbBlitterInvalidContext;
   }
-  if (SbBlitterIsContextValid(device->context)) {
-    SB_DLOG(ERROR) << ": At most 1 context is allowed.";
+
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock lock(context_registry->mutex);
+
+  if (context_registry->in_use) {
+    SB_DLOG(ERROR) << ": This implementation allows <= 1 SbBlitterContext.";
     return kSbBlitterInvalidContext;
   }
 
-  std::unique_ptr<SbBlitterContextPrivate> context(
-      new SbBlitterContextPrivate(device));
-
-  if (!context->IsValid()) {
-    return kSbBlitterInvalidContext;
-  }
-
-  return context.release();
+  context_registry->in_use = true;
+  return context_registry->context;
 }

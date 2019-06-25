@@ -21,7 +21,7 @@
 #include <GLES2/gl2.h>
 
 #include "starboard/blitter.h"
-#include "starboard/common/mutex.h"
+#include "starboard/common/recursive_mutex.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -66,11 +66,7 @@ struct SbBlitterDevicePrivate {
 
   // Mutex to ensure thread-safety in all SbBlitterDevice-related function
   // calls.
-  starboard::Mutex mutex;
-
-  // Store a reference to context. Only 1 context is allowed in this
-  // implementation.
-  SbBlitterContextPrivate* context;
+  starboard::RecursiveMutex mutex;
 };
 
 struct SbBlitterRenderTargetPrivate {
@@ -93,6 +89,9 @@ struct SbBlitterRenderTargetPrivate {
 
   // Keep track of the current GL framebuffer.
   GLuint framebuffer_handle;
+
+  // Sets framebuffer_handle and binds the texture from the surface field to it.
+  bool SetFramebuffer();
 };
 
 struct SbBlitterSwapChainPrivate {

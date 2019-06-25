@@ -19,8 +19,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
-#include "starboard/common/scoped_ptr.h"
+#include "starboard/common/recursive_mutex.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 
@@ -39,7 +38,7 @@ SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
       (EGLNativeWindowType)SbWindowGetPlatformHandle(window);
   std::unique_ptr<SbBlitterSwapChainPrivate> swap_chain(
       new SbBlitterSwapChainPrivate());
-  starboard::ScopedLock lock(device->mutex);
+  starboard::ScopedRecursiveLock lock(device->mutex);
 
   swap_chain->surface = eglCreateWindowSurface(device->display, device->config,
                                                native_window, NULL);

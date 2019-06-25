@@ -79,16 +79,13 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
     return false;
   }
 
-  // A surface without an intialized texture handle nor data has neither
-  // pixel data nor any draw calls issued on it. Therefore, it must be an
-  // empty surface.
-  if (surface->color_texture_handle == 0 && surface->data == NULL) {
-    return true;
-  }
-
   if (surface->render_target != NULL) {
+    starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+        starboard::shared::blittergles::GetBlitterContextRegistry();
+    starboard::ScopedLock lock(context_registry->mutex);
+
     SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(
-        surface->device->context, surface->render_target);
+        context_registry->context, surface->render_target);
 
     GL_CALL(glFinish());
     return CopyPixels(pixel_format, surface->info.height, surface->info.width,
@@ -102,18 +99,14 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
   dummy_render_target->width = surface->info.width;
   dummy_render_target->height = surface->info.height;
   dummy_render_target->device = surface->device;
+  dummy_render_target->SetFramebuffer();
 
-  SbBlitterContext context;
-  std::unique_ptr<SbBlitterContextPrivate> dummy_context;
-  if (surface->device->context == kSbBlitterInvalidContext) {
-    dummy_context.reset(new SbBlitterContextPrivate(surface->device));
-    context = dummy_context.get();
-  } else {
-    context = surface->device->context;
-  }
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock lock(context_registry->mutex);
 
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(
-      context, dummy_render_target.get());
+      context_registry->context, dummy_render_target.get());
 
   GL_CALL(glFinish());
   bool success =

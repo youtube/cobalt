@@ -35,13 +35,9 @@ struct SbBlitterSurfacePrivate {
   // Keep track of the current texture.
   GLuint color_texture_handle;
 
-  // Surfaces may have data if they were created from pixel data, and have not
-  // been converted into textures yet.
-  void* data;
-
-  // Ensures color_texture_handle is initialized, assuming that an EGLContext
-  // and EGLSurface are currently bound.
-  bool EnsureInitialized();
+  // Sets the color_texture_handle field. If pixel_data is not null, will
+  // deallocate after texture creation success.
+  bool SetTexture(void* pixel_data);
 };
 
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_SURFACE_H_
