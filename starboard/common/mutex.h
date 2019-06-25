@@ -21,7 +21,6 @@
 #include "starboard/mutex.h"
 #include "starboard/thread_types.h"
 
-#ifdef __cplusplus
 namespace starboard {
 
 // Inline class wrapper for SbMutex.
@@ -83,6 +82,5 @@ class ScopedTryLock {
 };
 
 }  // namespace starboard
-#endif
 
 #endif  // STARBOARD_COMMON_MUTEX_H_

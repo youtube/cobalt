@@ -56,7 +56,7 @@ namespace starboard {
 //   EXPECT_TRUE(!my_int_optional);
 //
 struct nullopt_t {
-  nullopt_t() {}
+  nullopt_t();
 };
 extern const nullopt_t nullopt;
 
@@ -83,7 +83,7 @@ extern const nullopt_t nullopt;
 //   EXPECT_EQ(3, my_foo->y());
 //
 struct in_place_t {
-  in_place_t() {}
+  in_place_t();
 };
 extern const in_place_t in_place;
 
@@ -408,7 +408,6 @@ optional<T> make_optional(const T& value) {
 }  // namespace starboard
 
 namespace std {
-
 template <typename T>
 struct hash<::starboard::optional<T> > {
  public:
@@ -424,7 +423,6 @@ template <typename T>
 void swap(::starboard::optional<T>& lhs, ::starboard::optional<T>& rhs) {
   lhs.swap(rhs);
 }
-
 }  // namespace std
 
 #endif  // STARBOARD_COMMON_OPTIONAL_H_

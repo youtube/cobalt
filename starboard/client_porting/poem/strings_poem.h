@@ -21,7 +21,7 @@
 
 #if !defined(POEM_NO_EMULATION)
 
-#include "starboard/common/string.h"
+#include "starboard/string.h"
 
 #undef strcasecmp
 #define strcasecmp(s1, s2) SbStringCompareNoCase(s1, s2)

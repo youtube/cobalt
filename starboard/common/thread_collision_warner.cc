@@ -11,9 +11,27 @@
 
 namespace starboard {
 
+AsserterBase::~AsserterBase() {}
+
+DCheckAsserter::~DCheckAsserter() {}
+
 void DCheckAsserter::warn() {
   SB_NOTREACHED() << "Thread Collision";
 }
+
+ThreadCollisionWarner::ThreadCollisionWarner(AsserterBase* asserter)
+    : valid_thread_id_(0), counter_(0), asserter_(asserter) {}
+
+ThreadCollisionWarner::~ThreadCollisionWarner() {
+  delete asserter_;
+}
+
+ThreadCollisionWarner::Check::Check(ThreadCollisionWarner* warner)
+    : warner_(warner) {
+  warner_->EnterSelf();
+}
+
+ThreadCollisionWarner::Check::~Check() {}
 
 static SbAtomic32 CurrentThread() {
   const SbThreadId current_thread_id = SbThreadGetId();

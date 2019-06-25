@@ -14,8 +14,6 @@
 
 #include "starboard/common/storage.h"
 
-#ifdef __cplusplus
-
 namespace starboard {
 
 StorageRecord::StorageRecord()
@@ -97,5 +95,3 @@ void StorageRecord::Initialize() {
 }
 
 }  // namespace starboard
-
-#endif  // __cplusplus
