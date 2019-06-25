@@ -18,6 +18,8 @@
       'target_name': 'renderer_backend',
       'type': 'static_library',
       'sources': [
+        'graphics_context.cc',
+        'graphics_context.h',
         'render_target.cc',
         'render_target.h',
       ],

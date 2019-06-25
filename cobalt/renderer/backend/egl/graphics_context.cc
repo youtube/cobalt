@@ -82,11 +82,6 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
     ANNOTATE_SCOPED_MEMORY_LEAK;
     ComputeReadPixelsNeedVerticalFlip();
   }
-
-  get_minimum_frames_per_second_ =
-      reinterpret_cast<decltype(get_minimum_frames_per_second_)>(
-          EGL_CALL_SIMPLE(
-              eglGetProcAddress("eglGetMinimumFramesPerSecondCOBALT")));
 }
 
 GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
@@ -491,14 +486,6 @@ std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
 void GraphicsContextEGL::Finish() {
   ScopedMakeCurrent scoped_current_context(this);
   GL_CALL(glFinish());
-}
-
-float GraphicsContextEGL::GetMinimumFramesPerSecond() {
-  if (get_minimum_frames_per_second_) {
-    return get_minimum_frames_per_second_(display_);
-  } else {
-    return 0;
-  }
 }
 
 void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
