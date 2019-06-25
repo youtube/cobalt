@@ -119,13 +119,16 @@ bool BlitShaderProgram::Draw(SbBlitterContext context,
       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, context->current_rgba[0],
        context->current_rgba[1], context->current_rgba[2],
        context->current_rgba[3]};
-  if (surface->info.format == kSbBlitterSurfaceFormatA8 &&
-      context->modulate_blits_with_color) {
-    transform_mat = kAlphaBlitMatrix;
-  } else if (surface->info.format == kSbBlitterSurfaceFormatA8) {
-    transform_mat = kAlphaMatrix;
+  const float kBlitMatrix[16] = {context->current_rgba[0], 0, 0, 0, 0,
+                                 context->current_rgba[1], 0, 0, 0, 0,
+                                 context->current_rgba[2], 0, 0, 0, 0,
+                                 context->current_rgba[3]};
+  if (surface->info.format == kSbBlitterSurfaceFormatA8) {
+    transform_mat =
+        context->modulate_blits_with_color ? kAlphaBlitMatrix : kAlphaMatrix;
   } else {
-    transform_mat = kIdentityMatrix;
+    transform_mat =
+        context->modulate_blits_with_color ? kBlitMatrix : kIdentityMatrix;
   }
   GL_CALL(
       glUniformMatrix4fv(color_matrix_uniform_, 1, GL_FALSE, transform_mat));
