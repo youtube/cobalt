@@ -93,7 +93,7 @@ SbBlitterContextPrivate::SbBlitterContextPrivate(SbBlitterDevice device)
       modulate_blits_with_color(false),
       current_rgba{1.0f, 1.0f, 1.0f, 1.0f},
       scissor(SbBlitterMakeRect(0, 0, 0, 0)),
-      current_blend_state_(starboard::shared::blittergles::kBlendStateNoEffect),
+      gl_blend_enabled_(false),
       error_(false) {
   starboard::ScopedLock lock(device->mutex);
   egl_context_ =
@@ -108,6 +108,7 @@ SbBlitterContextPrivate::SbBlitterContextPrivate(SbBlitterDevice device)
   color_shader_.reset(new starboard::shared::blittergles::ColorShaderProgram());
   blit_shader_.reset(new starboard::shared::blittergles::BlitShaderProgram());
   GL_CALL(glEnable(GL_SCISSOR_TEST));
+  GL_CALL(glDisable(GL_BLEND));
   EGL_CALL(eglMakeCurrent(device->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                           EGL_NO_CONTEXT));
   SB_DCHECK(device->context == kSbBlitterInvalidContext);
@@ -144,66 +145,22 @@ const starboard::shared::blittergles::BlitShaderProgram&
   return *blit_shader_.get();
 }
 
-void SbBlitterContextPrivate::PrepareDrawState(
-    starboard::shared::blittergles::DrawCallType draw_call_type) {
+void SbBlitterContextPrivate::PrepareDrawState() {
   GL_CALL(glScissor(
       scissor.x,
       current_render_target->height - scissor.y - (scissor.height + 1),
       scissor.width + 1, scissor.height + 1));
 
-  starboard::shared::blittergles::BlendState new_state;
-  bool modulate_with_color =
-      modulate_blits_with_color &&
-      draw_call_type == starboard::shared::blittergles::kDrawCallTypeBlit;
-  if (blending_enabled) {
-    if (modulate_with_color) {
-      new_state = starboard::shared::blittergles::kBlendStateBlendAndModulate;
-    } else {
-      new_state = starboard::shared::blittergles::kBlendStateBlend;
-    }
-  } else {
-    if (modulate_with_color) {
-      new_state = starboard::shared::blittergles::kBlendStateModulateBlits;
-    } else {
-      new_state = starboard::shared::blittergles::kBlendStateNoEffect;
-    }
-  }
-  if (current_blend_state_ == new_state) {
+  // Don't force unnecessary blend state changes.
+  if (gl_blend_enabled_ == blending_enabled) {
     return;
-  }
-
-  if (current_blend_state_ ==
-      starboard::shared::blittergles::kBlendStateNoEffect) {
+  } else if (blending_enabled) {
     GL_CALL(glEnable(GL_BLEND));
+    GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
+  } else {
+    GL_CALL(glDisable(GL_BLEND));
   }
-  switch (new_state) {
-    case starboard::shared::blittergles::kBlendStateBlend: {
-      GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
-      break;
-    }
-    case starboard::shared::blittergles::kBlendStateModulateBlits: {
-      GL_CALL(glBlendFunc(GL_CONSTANT_COLOR, GL_ZERO));
-      GL_CALL(glBlendColor(current_rgba[0], current_rgba[1], current_rgba[2],
-                           current_rgba[3]));
-      break;
-    }
-    case starboard::shared::blittergles::kBlendStateBlendAndModulate: {
-      GL_CALL(glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA));
-      GL_CALL(glBlendColor(current_rgba[0], current_rgba[1], current_rgba[2],
-                           current_rgba[3]));
-      break;
-    }
-    case starboard::shared::blittergles::kBlendStateNoEffect: {
-      GL_CALL(glDisable(GL_BLEND));
-      break;
-    }
-    default: {
-      SB_DLOG(ERROR) << ": Undefined draw state.";
-      SB_NOTREACHED();
-    }
-  }
-
-  current_blend_state_ = new_state;
+  gl_blend_enabled_ = blending_enabled;
 }
 
 bool SbBlitterContextPrivate::MakeCurrent() {
