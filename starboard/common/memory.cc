@@ -19,6 +19,7 @@
 #include "starboard/shared/starboard/memory_reporter_internal.h"
 
 namespace {
+
 inline void* SbMemoryAllocateImpl(size_t size);
 inline void* SbMemoryAllocateAlignedImpl(size_t alignment, size_t size);
 inline void* SbMemoryReallocateImpl(void* memory, size_t size);
@@ -29,7 +30,8 @@ SbMemoryReporter* s_memory_reporter = NULL;
 
 bool LeakTraceEnabled();               // True when leak tracing enabled.
 bool StarboardAllowsMemoryTracking();  // True when build enabled.
-}  // namespace.
+
+}  // namespace
 
 bool SbMemorySetReporter(SbMemoryReporter* reporter) {
   // TODO: We should run a runtime test here with a test memory
@@ -155,7 +157,7 @@ void SbMemoryReporterReportUnmappedMemory(const void* memory, size_t size) {
 #endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
-namespace {  // anonymous namespace.
+namespace {
 
 inline void SbReportAllocation(const void* memory, size_t size) {
 #if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
@@ -228,4 +230,5 @@ bool StarboardAllowsMemoryTracking() {
   return false;
 #endif
 }
+
 }  // namespace

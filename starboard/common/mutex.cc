@@ -16,7 +16,6 @@
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
-#ifdef __cplusplus
 namespace starboard {
 
 Mutex::Mutex() : mutex_() {
@@ -105,4 +104,3 @@ bool ScopedTryLock::is_locked() const {
 }
 
 }  // namespace starboard
-#endif

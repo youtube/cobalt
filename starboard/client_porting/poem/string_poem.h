@@ -20,8 +20,8 @@
 #if defined(STARBOARD)
 
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 
 #ifdef __cplusplus
 

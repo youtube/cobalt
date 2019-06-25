@@ -190,7 +190,7 @@
 //   http://llvm.org/bugs/show_bug.cgi?id=11528
 //
 // The workaround is to explicitly declare your copy constructor.
-//
+
 #define MOVE_ONLY_TYPE_FOR_CPP_03(type, rvalue_type)   \
  private:                                              \
   struct rvalue_type {                                 \

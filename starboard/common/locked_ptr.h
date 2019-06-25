@@ -19,7 +19,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 
-#ifdef __cplusplus
 namespace starboard {
 
 // This class adds thread-safety to any class.  Note when using LockedPtr<T>,
@@ -106,6 +105,5 @@ class LockedPtr {
 };
 
 }  // namespace starboard
-#endif  // __cplusplus
 
 #endif  // STARBOARD_COMMON_LOCKED_PTR_H_

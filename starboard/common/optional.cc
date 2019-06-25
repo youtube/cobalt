@@ -15,6 +15,8 @@
 #include "starboard/common/optional.h"
 
 namespace starboard {
+nullopt_t::nullopt_t() {}
+in_place_t::in_place_t() {}
 const nullopt_t nullopt;
 const in_place_t in_place;
 }  // namespace starboard
