@@ -67,11 +67,7 @@ bool SbBlitterBlitRectToRect(SbBlitterContext context,
   if (!source_surface->EnsureInitialized()) {
     return false;
   }
-  starboard::shared::blittergles::DrawCallType draw_call_type =
-      source_surface->info.format == kSbBlitterSurfaceFormatA8
-          ? starboard::shared::blittergles::kDrawCallTypeAlphaBlit
-          : starboard::shared::blittergles::kDrawCallTypeBlit;
-  context->PrepareDrawState(draw_call_type);
+  context->PrepareDrawState();
   const starboard::shared::blittergles::BlitShaderProgram& blit_shader_program =
       context->GetBlitShaderProgram();
   return blit_shader_program.Draw(context, source_surface, src_rect, dst_rect);
