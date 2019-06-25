@@ -25,9 +25,6 @@
 #include "starboard/string.h"
 
 #if SB_API_VERSION < SB_MOVE_FORMAT_STRING_VERSION
-#ifdef __cplusplus
-
-extern "C++" {
 
 #include <string>
 #include <vector>
@@ -56,9 +53,7 @@ SB_C_INLINE std::string FormatString(const char* format, ...) {
 }
 
 }  // namespace starboard
-}  // extern "C++"
 
-#endif  // __cplusplus
 #endif  // SB_API_VERSION < SB_MOVE_FORMAT_STRING_VERSION
 
 #endif  // STARBOARD_COMMON_STRING_H_

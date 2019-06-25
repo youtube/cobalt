@@ -30,10 +30,6 @@
 #include "starboard/time.h"
 #include "starboard/types.h"
 
-#ifndef __cplusplus
-#error "Only C++ files can include this header."
-#endif
-
 namespace starboard {
 
 // Synchronized, blocking queue, based on starboard::ConditionVariable. This
