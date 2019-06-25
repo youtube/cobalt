@@ -130,7 +130,8 @@ api/response/response-error.html,PASS
 # Fails because implementation is a polyfill.
 api/response/response-idl.html,DISABLE
 api/response/response-init-001.html,PASS
-api/response/response-init-002.html,PASS
+# Fails because Blob, FormData, and URLSearchParams are not supported.
+api/response/response-init-002.html,DISABLE
 api/response/response-static-error.html,PASS
 api/response/response-static-redirect.html,PASS
 api/response/response-stream-disturbed-1.html,PASS
