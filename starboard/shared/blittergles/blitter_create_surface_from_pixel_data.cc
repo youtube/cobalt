@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/blitter_surface.h"
 
@@ -49,15 +50,14 @@ SbBlitterSurface SbBlitterCreateSurfaceFromPixelData(
   surface->info.format =
       SbBlitterPixelDataFormatToSurfaceFormat(pixel_data->format);
   surface->render_target = kSbBlitterInvalidRenderTarget;
-
-  // Defer creating a texture, because it requires a bound EGLContext, which is
-  // not uniformly available at this point.
   surface->color_texture_handle = 0;
-  surface->data = pixel_data->data;
   starboard::shared::blittergles::ChangeDataFormat(
       pixel_data->format, kSbBlitterPixelDataFormatRGBA8,
       SbBlitterGetPixelDataPitchInBytes(pixel_data), pixel_data->height,
-      surface->data);
+      pixel_data->data);
+  if (!surface->SetTexture(pixel_data->data)) {
+    return kSbBlitterInvalidSurface;
+  }
 
   delete pixel_data;
 
