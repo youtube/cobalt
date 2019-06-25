@@ -52,21 +52,12 @@ bool SbBlitterBlitRectToRect(SbBlitterContext context,
     // Outputting to a 0-area rectangle. Trivially succeed.
     return true;
   }
-  if (source_surface->color_texture_handle == 0 &&
-      source_surface->data == NULL) {
-    // No bound color texture and no data, so there's nothing to blit. Trivially
-    // succeed.
-    return true;
-  }
 
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(context);
   if (scoped_current_context.InitializationError()) {
     return false;
   }
 
-  if (!source_surface->EnsureInitialized()) {
-    return false;
-  }
   context->PrepareDrawState();
   const starboard::shared::blittergles::BlitShaderProgram& blit_shader_program =
       context->GetBlitShaderProgram();

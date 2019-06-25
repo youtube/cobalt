@@ -23,11 +23,31 @@
 #include <memory>
 
 #include "starboard/blitter.h"
-#include "starboard/common/optional.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/blittergles/blit_shader_program.h"
-#include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/internal_only.h"
+
+namespace starboard {
+namespace shared {
+namespace blittergles {
+
+struct SbBlitterContextRegistry {
+  // This implementation only supports a single context, so we remember it here.
+  SbBlitterContextPrivate* context;
+
+  // Need a mutex to set a maximum of 1 SbBlitterContexts, regardless of thread.
+  starboard::Mutex mutex;
+
+  // Only 1 context is allowed to be in use at 1 time.
+  bool in_use;
+};
+
+SbBlitterContextRegistry* GetBlitterContextRegistry();
+
+}  // namespace blittergles
+}  // namespace shared
+}  // namespace starboard
 
 struct SbBlitterContextPrivate {
  public:
@@ -81,6 +101,7 @@ struct SbBlitterContextPrivate {
   // creation.
   class ScopedCurrentContext {
    public:
+    ScopedCurrentContext();
     explicit ScopedCurrentContext(SbBlitterContext context);
     ScopedCurrentContext(SbBlitterContext context,
                          SbBlitterRenderTarget render_target);

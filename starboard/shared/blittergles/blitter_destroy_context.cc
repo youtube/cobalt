@@ -14,11 +14,8 @@
 
 #include "starboard/blitter.h"
 
-#include <EGL/egl.h>
-
 #include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_context.h"
-#include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterDestroyContext(SbBlitterContext context) {
   if (!SbBlitterIsContextValid(context)) {
@@ -26,6 +23,12 @@ bool SbBlitterDestroyContext(SbBlitterContext context) {
     return false;
   }
 
-  delete context;
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock lock(context_registry->mutex);
+
+  context_registry->in_use = false;
+  context = kSbBlitterInvalidContext;
+
   return true;
 }
