@@ -14,12 +14,14 @@
 
 #include "cobalt/media_session/media_session_client.h"
 
+#include <algorithm>
 #include <memory>
 
 namespace cobalt {
 namespace media_session {
 
-MediaSessionPlaybackState MediaSessionClient::GetActualPlaybackState() {
+MediaSessionPlaybackState MediaSessionClient::ComputeActualPlaybackState()
+    const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Per https://wicg.github.io/mediasession/#guessed-playback-state
@@ -47,8 +49,8 @@ MediaSessionPlaybackState MediaSessionClient::GetActualPlaybackState() {
   return kMediaSessionPlaybackStateNone;
 }
 
-MediaSessionClient::AvailableActionsSet
-MediaSessionClient::GetAvailableActions() {
+MediaSessionState::AvailableActionsSet
+MediaSessionClient::ComputeAvailableActions() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // "Available actions" are determined based on active media session
   // and supported media session actions.
@@ -58,7 +60,8 @@ MediaSessionClient::GetAvailableActions() {
   //
   // Note that this is essentially the "media session actions update algorithm"
   // inverted.
-  AvailableActionsSet result = AvailableActionsSet();
+  MediaSessionState::AvailableActionsSet result =
+      MediaSessionState::AvailableActionsSet();
 
   for (MediaSession::ActionMap::iterator it =
            media_session_->action_map_.begin();
@@ -66,7 +69,7 @@ MediaSessionClient::GetAvailableActions() {
     result[it->first] = true;
   }
 
-  switch (GetActualPlaybackState()) {
+  switch (ComputeActualPlaybackState()) {
     case kMediaSessionPlaybackStatePlaying:
       // "If the active media session’s actual playback state is playing, remove
       // play from available actions."
@@ -92,11 +95,9 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
     return;
   }
 
-  MediaSessionPlaybackState prev_actual_state = GetActualPlaybackState();
   platform_playback_state_ = state;
-
-  if (prev_actual_state != GetActualPlaybackState()) {
-    OnMediaSessionChanged();
+  if (session_state_.actual_playback_state() != ComputeActualPlaybackState()) {
+    UpdateMediaSessionState();
   }
 }
 
@@ -133,6 +134,47 @@ void MediaSessionClient::InvokeActionInternal(
   }
 
   it->second->value().Run(*details);
+}
+
+MediaSessionState MediaSessionClient::GetMediaSessionState() {
+  MediaSessionState session_state;
+  GetMediaSessionStateInternal(&session_state);
+  return session_state;
+}
+
+void MediaSessionClient::GetMediaSessionStateInternal(
+    MediaSessionState* session_state) {
+  DCHECK(media_session_->task_runner_);
+  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
+    media_session_->task_runner_->PostBlockingTask(
+        FROM_HERE,
+        base::Bind(&MediaSessionClient::GetMediaSessionStateInternal,
+                   base::Unretained(this), base::Unretained(session_state)));
+    return;
+  }
+
+  *session_state = session_state_;
+}
+
+void MediaSessionClient::UpdateMediaSessionState() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  scoped_refptr<MediaMetadata> session_metadata(media_session_->metadata());
+  base::Optional<MediaMetadataInit> metadata;
+  if (session_metadata) {
+    metadata.emplace();
+    metadata->set_title(session_metadata->title());
+    metadata->set_artist(session_metadata->artist());
+    metadata->set_album(session_metadata->album());
+    metadata->set_artwork(session_metadata->artwork());
+  }
+  session_state_ = MediaSessionState(
+      metadata,
+      media_session_->last_position_updated_time_,
+      media_session_->media_position_state_,
+      ComputeActualPlaybackState(),
+      ComputeAvailableActions());
+  OnMediaSessionStateChanged(session_state_);
 }
 
 }  // namespace media_session
