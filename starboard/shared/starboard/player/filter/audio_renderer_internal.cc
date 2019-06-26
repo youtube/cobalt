@@ -470,6 +470,9 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
       total_frames_consumed_by_sink_ - silence_frames_consumed_on_sink_thread_);
   underflow_ |=
       frames_in_buffer_on_sink_thread_ < kFramesInBufferBeginUnderflow;
+  if (is_eos_reached_on_sink_thread_) {
+    underflow_ = false;
+  }
   is_playing_on_sink_thread_ = !paused_ && !seeking_ && !underflow_;
   offset_in_frames_on_sink_thread_ = (total_frames_consumed_by_sink_ +
                                       silence_frames_consumed_on_sink_thread_) %
@@ -598,7 +601,6 @@ void AudioRenderer::ProcessAudioData() {
           seeking_ = false;
           Schedule(prerolled_cb_);
         }
-        underflow_ = false;
       }
 
       resampled_audio = resampler_->WriteEndOfStream();
