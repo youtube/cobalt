@@ -20,6 +20,13 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+const SbThreadPriority kAllThreadPriorities[] = {
+    kSbThreadPriorityLowest,  kSbThreadPriorityLow,
+    kSbThreadPriorityNormal,  kSbThreadPriorityHigh,
+    kSbThreadPriorityHighest, kSbThreadPriorityRealTime,
+    kSbThreadNoPriority,
+};
+
 TEST(SbThreadCreateTest, SunnyDay) {
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
@@ -67,6 +74,30 @@ TEST(SbThreadCreateTest, SunnyDayWithPriorities) {
     void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(thread, &result));
     EXPECT_EQ(nplb::kSomeContextPlusOne, result);
+  }
+}
+
+void* CreateNestedThreadFunc(void* context) {
+  for (auto thread_priority : kAllThreadPriorities) {
+    SbThread thread = SbThreadCreate(
+        0, thread_priority, kSbThreadNoAffinity, true, nplb::kThreadName,
+        nplb::AddOneEntryPoint, nplb::kSomeContext);
+    EXPECT_TRUE(SbThreadIsValid(thread));
+    void* result = NULL;
+    EXPECT_TRUE(SbThreadJoin(thread, &result));
+    EXPECT_EQ(nplb::kSomeContextPlusOne, result);
+  }
+  return NULL;
+}
+
+TEST(SbThreadCreateTest, SunnyDayWithNestedPriorities) {
+  for (auto thread_priority : kAllThreadPriorities) {
+    SbThread thread = SbThreadCreate(
+        0, thread_priority, kSbThreadNoAffinity, true, nplb::kThreadName,
+        CreateNestedThreadFunc, nplb::kSomeContext);
+    EXPECT_TRUE(SbThreadIsValid(thread));
+    void* result = NULL;
+    EXPECT_TRUE(SbThreadJoin(thread, &result));
   }
 }
 
