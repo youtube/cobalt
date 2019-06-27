@@ -56,6 +56,9 @@ void DummyErrorFunc(SbPlayer player,
 SbMediaAudioSampleInfo GetDefaultAudioSampleInfo() {
   SbMediaAudioSampleInfo audio_sample_info;
 
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  audio_sample_info.codec = kSbMediaAudioCodecAac;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   audio_sample_info.format_tag = 0xff;
   audio_sample_info.number_of_channels = 2;
   audio_sample_info.samples_per_second = 22050;
@@ -381,6 +384,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     for (int j = 0; j < SB_ARRAY_SIZE_INT(kOutputModes); ++j) {
       for (int k = 0; k < SB_ARRAY_SIZE_INT(kAudioCodecs); ++k) {
         for (int l = 0; l < SB_ARRAY_SIZE_INT(kVideoCodecs); ++l) {
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+          audio_sample_info.codec = kAudioCodecs[k];
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
           created_players.push_back(SbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_sample_info,
