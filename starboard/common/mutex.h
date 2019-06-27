@@ -18,7 +18,9 @@
 #ifndef STARBOARD_COMMON_MUTEX_H_
 #define STARBOARD_COMMON_MUTEX_H_
 
+#include "starboard/common/log.h"
 #include "starboard/mutex.h"
+#include "starboard/thread.h"
 #include "starboard/thread_types.h"
 
 #ifdef __cplusplus
@@ -27,30 +29,65 @@ namespace starboard {
 // Inline class wrapper for SbMutex.
 class Mutex {
  public:
-  Mutex();
-  ~Mutex();
+  Mutex() : mutex_() {
+    SbMutexCreate(&mutex_);
+    debugInit();
+  }
 
-  void Acquire() const;
-  bool AcquireTry() const;
-  void Release() const;
-  void DCheckAcquired() const;
+  ~Mutex() { SbMutexDestroy(&mutex_); }
+
+  void Acquire() const {
+    debugPreAcquire();
+    SbMutexAcquire(&mutex_);
+    debugSetAcquired();
+  }
+  bool AcquireTry() const {
+    bool ok = SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+    if (ok) {
+      debugSetAcquired();
+    }
+    return ok;
+  }
+
+  void Release() const {
+    debugSetReleased();
+    SbMutexRelease(&mutex_);
+  }
+
+  void DCheckAcquired() const {
+#ifdef _DEBUG
+    SB_DCHECK(currrent_thread_acquired_ == SbThreadGetCurrent());
+#endif  // _DEBUG
+  }
 
  private:
 #ifdef _DEBUG
-  void debugInit();
-  void debugSetReleased() const;
-  void debugPreAcquire() const;
-  void debugSetAcquired() const;
-  mutable SbThread current_thread_acquired_;
+  void debugInit() { currrent_thread_acquired_ = kSbThreadInvalid; }
+  void debugSetReleased() const {
+    SbThread current_thread = SbThreadGetCurrent();
+    SB_DCHECK(currrent_thread_acquired_ == current_thread);
+    currrent_thread_acquired_ = kSbThreadInvalid;
+  }
+  void debugPreAcquire() const {
+    // Check that the mutex is not held by the current thread.
+    SbThread current_thread = SbThreadGetCurrent();
+    SB_DCHECK(currrent_thread_acquired_ != current_thread);
+  }
+  void debugSetAcquired() const {
+    // Check that the thread has already not been held.
+    SB_DCHECK(currrent_thread_acquired_ == kSbThreadInvalid);
+    currrent_thread_acquired_ = SbThreadGetCurrent();
+  }
+  mutable SbThread currrent_thread_acquired_;
 #else
-  void debugInit();
-  void debugSetReleased() const;
-  void debugPreAcquire() const;
-  void debugSetAcquired() const;
+  void debugInit() {}
+  void debugSetReleased() const {}
+  void debugPreAcquire() const {}
+  void debugSetAcquired() const {}
 #endif
 
   friend class ConditionVariable;
-  SbMutex* mutex() const;
+  SbMutex* mutex() const { return &mutex_; }
   mutable SbMutex mutex_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(Mutex);
@@ -59,8 +96,9 @@ class Mutex {
 // Scoped lock holder that works on starboard::Mutex.
 class ScopedLock {
  public:
-  explicit ScopedLock(const Mutex& mutex);
-  ~ScopedLock();
+  explicit ScopedLock(const Mutex& mutex) : mutex_(mutex) { mutex_.Acquire(); }
+
+  ~ScopedLock() { mutex_.Release(); }
 
  private:
   const Mutex& mutex_;
@@ -71,10 +109,17 @@ class ScopedLock {
 // instead of Acquire().
 class ScopedTryLock {
  public:
-  explicit ScopedTryLock(const Mutex& mutex);
-  ~ScopedTryLock();
+  explicit ScopedTryLock(const Mutex& mutex) : mutex_(mutex) {
+    is_locked_ = mutex_.AcquireTry();
+  }
 
-  bool is_locked() const;
+  ~ScopedTryLock() {
+    if (is_locked_) {
+      mutex_.Release();
+    }
+  }
+
+  bool is_locked() const { return is_locked_; }
 
  private:
   const Mutex& mutex_;
