@@ -17,8 +17,10 @@
 #include <windows.h>  // Has to go first.
 #include <crtdbg.h>
 #include <dbghelp.h>
+#include <sstream>
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/win32/file_internal.h"

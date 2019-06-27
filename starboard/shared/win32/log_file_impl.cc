@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/file.h"
