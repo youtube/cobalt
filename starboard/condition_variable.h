@@ -19,7 +19,6 @@
 #ifndef STARBOARD_CONDITION_VARIABLE_H_
 #define STARBOARD_CONDITION_VARIABLE_H_
 
-#include "starboard/common/mutex.h"
 #include "starboard/export.h"
 #include "starboard/thread_types.h"
 #include "starboard/time.h"

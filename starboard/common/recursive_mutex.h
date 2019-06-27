@@ -15,11 +15,9 @@
 #ifndef STARBOARD_COMMON_RECURSIVE_MUTEX_H_
 #define STARBOARD_COMMON_RECURSIVE_MUTEX_H_
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 namespace starboard {
 
@@ -53,65 +51,16 @@ class RecursiveMutex {
   SB_DISALLOW_COPY_AND_ASSIGN(RecursiveMutex);
 };
 
-////////////////////////// Implementation /////////////////////////////////////
-
-inline RecursiveMutex::RecursiveMutex()
-    : owner_id_(kSbThreadInvalidId), recurse_count_(0) {}
-
-inline RecursiveMutex::~RecursiveMutex() {}
-
-inline void RecursiveMutex::Acquire() {
-  SbThreadId current_thread = SbThreadGetId();
-  if (owner_id_ == current_thread) {
-    recurse_count_++;
-    SB_DCHECK(recurse_count_ > 0);
-    return;
-  }
-  mutex_.Acquire();
-  owner_id_ = current_thread;
-  recurse_count_ = 1;
-}
-
-inline void RecursiveMutex::Release() {
-  SB_DCHECK(owner_id_ == SbThreadGetId());
-  if (owner_id_ == SbThreadGetId()) {
-    SB_DCHECK(0 < recurse_count_);
-    recurse_count_--;
-    if (recurse_count_ == 0) {
-      owner_id_ = kSbThreadInvalidId;
-      mutex_.Release();
-    }
-  }
-}
-
-inline bool RecursiveMutex::AcquireTry() {
-  SbThreadId current_thread = SbThreadGetId();
-  if (owner_id_ == current_thread) {
-    recurse_count_++;
-    SB_DCHECK(recurse_count_ > 0);
-    return true;
-  }
-  if (!mutex_.AcquireTry()) {
-    return false;
-  }
-  owner_id_ = current_thread;
-  recurse_count_ = 1;
-  return true;
-}
-
 class ScopedRecursiveLock {
  public:
-  explicit ScopedRecursiveLock(RecursiveMutex& mutex) : mutex_(mutex) {
-    mutex_.Acquire();
-  }
-
-  ~ScopedRecursiveLock() { mutex_.Release(); }
+  explicit ScopedRecursiveLock(RecursiveMutex& mutex);
+  ~ScopedRecursiveLock();
 
  private:
   RecursiveMutex& mutex_;
   SB_DISALLOW_COPY_AND_ASSIGN(ScopedRecursiveLock);
 };
 
-}  // namespace starboard.
+}  // namespace starboard
 
 #endif  // STARBOARD_COMMON_RECURSIVE_MUTEX_H_
