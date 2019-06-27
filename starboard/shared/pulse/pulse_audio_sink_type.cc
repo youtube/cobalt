@@ -27,7 +27,6 @@
 #include "starboard/shared/pulse/pulse_dynamic_load_dispatcher.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/thread.h"
 #include "starboard/time.h"
 
 namespace starboard {
