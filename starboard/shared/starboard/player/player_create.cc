@@ -60,6 +60,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #if SB_API_VERSION < 10
   SB_UNREFERENCED_PARAMETER(duration_pts);
 #endif  // SB_API_VERSION < 10
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  if (audio_sample_info) {
+    SB_DCHECK(audio_sample_info->codec == audio_codec);
+  }
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)

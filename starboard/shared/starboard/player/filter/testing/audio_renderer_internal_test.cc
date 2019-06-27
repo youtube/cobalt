@@ -237,6 +237,9 @@ class AudioRendererTest : public ::testing::Test {
   static const SbMediaAudioSampleInfo& GetDefaultAudioSampleInfo() {
     static SbMediaAudioSampleInfo audio_sample_info = {};
 
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    audio_sample_info.codec = kSbMediaAudioCodecAac;
+#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
     audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
     audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
     audio_sample_info.bits_per_sample = 32;
