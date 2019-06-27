@@ -266,22 +266,34 @@ void V8cScriptDebugger::consoleAPIMessage(
   SB_UNREFERENCED_PARAMETER(contextGroupId);
   SB_UNREFERENCED_PARAMETER(trace);
 
-  std::stringstream log;
+  std::string source;
   if (url.length()) {
-    log << '[' << FromStringView(url) << ", Line " << lineNumber << ", Col "
-        << columnNumber << ']';
+    std::ostringstream oss;
+    oss << ": " << FromStringView(url) << ", Line " << lineNumber << ", Col "
+       << columnNumber;
+    source = oss.str();
   }
-  log << FromStringView(message);
 
+  std::string msg(FromStringView(message));
   switch (level) {
+    case v8::Isolate::kMessageLog:
+      LOG(INFO) << "[console.log()" << source << "] " << msg;
+      break;
+    case v8::Isolate::kMessageDebug:
+      LOG(INFO) << "[console.debug()" << source << "] " << msg;
+      break;
+    case v8::Isolate::kMessageInfo:
+      LOG(INFO) << "[console.info()" << source << "] " << msg;
+      break;
     case v8::Isolate::kMessageError:
-      LOG(ERROR) << log.str();
+      LOG(ERROR) << "[console.error()" << source << "] " << msg;
       break;
     case v8::Isolate::kMessageWarning:
-      LOG(WARNING) << log.str();
+      LOG(WARNING) << "[console.warn()" << source << "] " << msg;
       break;
-    default:
-      LOG(INFO) << log.str();
+    case v8::Isolate::kMessageAll:
+      NOTIMPLEMENTED() << "Invalid MessageErrorLevel";
+      break;
   }
 }
 
