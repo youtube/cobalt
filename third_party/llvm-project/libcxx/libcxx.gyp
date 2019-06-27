@@ -22,6 +22,8 @@
         '<(DEPTH)/third_party/llvm-project/libcxxabi/include',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/common/common.gyp:common',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
         '<(DEPTH)/third_party/musl/musl.gyp:c',
         '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
         '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
@@ -49,9 +51,9 @@
         '-Wno-unused-command-line-argument',
         '-fPIC',
       ],
-      'defines' : [
-        '_LIBCPP_HAS_MUSL_LIBC',
+      'defines': [
         '_LIBCPP_BUILDING_LIBRARY',
+        '_LIBCPP_HAS_MUSL_LIBC',
         # This macro is used to build libcxxabi with libunwind.
         'LIBCXX_BUILDING_LIBCXXABI',
       ],
