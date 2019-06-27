@@ -101,7 +101,7 @@
         'defines': [
           'LIBCXXABI_USE_LLVM_UNWINDER',
         ],
-      },
+      }
     }
   ]
 }
