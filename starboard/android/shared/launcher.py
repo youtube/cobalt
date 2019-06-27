@@ -363,6 +363,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
       am_monitor.Shutdown()
       self.killed.set()
       run_timer.Stop()
+      if logcat_process.poll() is None:
+        # This could happen when using SIGINT to kill the launcher
+        # (e.g. when using starboard/tools/example/app_launcher_client.py).
+        sys.stderr.write('Logcat process is still running. Killing it now.\n')
+        logcat_process.kill()
 
     return return_code
 
