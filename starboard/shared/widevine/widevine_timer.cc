@@ -14,7 +14,6 @@
 
 #include "starboard/shared/widevine/widevine_timer.h"
 
-#include "starboard/common/log.h"
 #include "starboard/time.h"
 
 namespace starboard {

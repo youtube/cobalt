@@ -14,8 +14,6 @@
 
 #include "starboard/nplb/audio_sink_helpers.h"
 
-#include "starboard/common/log.h"
-
 namespace starboard {
 namespace nplb {
 
