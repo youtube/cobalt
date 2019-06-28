@@ -15,7 +15,6 @@
 #include "cobalt/dom/element.h"
 
 #include <algorithm>
-#include <ctime>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_util.h"
@@ -625,24 +624,53 @@ void Element::CollectStyleSheetsOfElementAndDescendants(
   }
 }
 
-void Element::RegisterIntersectionObserverTarget(
-    const scoped_refptr<IntersectionObserver>& observer) {
-  if (!intersection_observer_target_) {
-    intersection_observer_target_ = std::unique_ptr<IntersectionObserverTarget>(
-        new IntersectionObserverTarget(this));
+void Element::RegisterIntersectionObserverRoot(IntersectionObserver* observer) {
+  EnsureIntersectionObserverModuleInitialized();
+  element_intersection_observer_module_->RegisterIntersectionObserverForRoot(
+      observer);
+}
+
+void Element::UnregisterIntersectionObserverRoot(
+    IntersectionObserver* observer) {
+  if (element_intersection_observer_module_) {
+    element_intersection_observer_module_
+        ->UnregisterIntersectionObserverForRoot(observer);
   }
-  intersection_observer_target_->RegisterIntersectionObserver(observer);
+}
+
+void Element::RegisterIntersectionObserverTarget(
+    IntersectionObserver* observer) {
+  EnsureIntersectionObserverModuleInitialized();
+  element_intersection_observer_module_->RegisterIntersectionObserverForTarget(
+      observer);
 }
 
 void Element::UnregisterIntersectionObserverTarget(
-    const scoped_refptr<IntersectionObserver>& observer) {
-  intersection_observer_target_->UnregisterIntersectionObserver(observer);
+    IntersectionObserver* observer) {
+  element_intersection_observer_module_
+      ->UnregisterIntersectionObserverForTarget(observer);
 }
 
-void Element::UpdateIntersectionObservationsForTarget(
-    const scoped_refptr<IntersectionObserver>& observer) {
-  intersection_observer_target_->UpdateIntersectionObservationsForTarget(
-      observer);
+ElementIntersectionObserverModule::LayoutIntersectionObserverRootVector
+Element::GetLayoutIntersectionObserverRoots() {
+  ElementIntersectionObserverModule::LayoutIntersectionObserverRootVector
+      layout_roots;
+  if (element_intersection_observer_module_) {
+    layout_roots = element_intersection_observer_module_
+                       ->GetLayoutIntersectionObserverRootsForElement();
+  }
+  return layout_roots;
+}
+
+ElementIntersectionObserverModule::LayoutIntersectionObserverTargetVector
+Element::GetLayoutIntersectionObserverTargets() {
+  ElementIntersectionObserverModule::LayoutIntersectionObserverTargetVector
+      layout_targets;
+  if (element_intersection_observer_module_) {
+    layout_targets = element_intersection_observer_module_
+                         ->GetLayoutIntersectionObserverTargetsForElement();
+  }
+  return layout_targets;
 }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
@@ -693,6 +721,14 @@ std::string Element::GetDebugName() {
 void Element::HTMLParseError(const std::string& error) {
   // TODO: Report line / column number.
   LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
+}
+
+void Element::EnsureIntersectionObserverModuleInitialized() {
+  if (!element_intersection_observer_module_) {
+    element_intersection_observer_module_ =
+        std::unique_ptr<ElementIntersectionObserverModule>(
+            new ElementIntersectionObserverModule(this));
+  }
 }
 
 }  // namespace dom
