@@ -110,8 +110,26 @@
         # also only included for Evergreen because they are essentially wrappers
         # around functions that have been Starboardized.
         ['sb_evergreen == 1', {
+          # The directories here are prepended to the existing list of
+          # directories to include. This is important to note since the order in the
+          # list determines how files are resolved.
+          'include_dirs+': [
+            'src/starboard/internal',
+            'src/time',
+          ],
           'sources': [
+            'src/locale/strcoll.c',
+            'src/locale/strxfrm.c',
+            'src/locale/wcscoll.c',
+            'src/locale/wcsxfrm.c',
+            'src/starboard/ctype/__ctype_get_mb_cur_max.c',
             'src/starboard/exit/abort.c',
+            'src/starboard/locale/freelocale.c',
+            'src/starboard/locale/langinfo.c',
+            'src/starboard/locale/localeconv.c',
+            'src/starboard/locale/newlocale.c',
+            'src/starboard/locale/setlocale.c',
+            'src/starboard/locale/uselocale.c',
             'src/starboard/malloc/malloc.c',
             'src/starboard/malloc/memalign.c',
             'src/starboard/malloc/posix_memalign.c',
@@ -123,6 +141,7 @@
             'src/starboard/stdio/vswprintf.c',
             'src/starboard/stdlib/strtod.c',
             'src/starboard/stdlib/strtol.c',
+            'src/starboard/time/__tz.c',
             'src/starboard/time/clock_gettime.c',
             'src/stdio/fprintf.c',
             'src/stdio/snprintf.c',
@@ -130,6 +149,10 @@
             'src/stdio/swprintf.c',
             'src/stdio/vasprintf.c',
             'src/stdio/vsprintf.c',
+            'src/time/__month_to_secs.c',
+            'src/time/__tm_to_secs.c',
+            'src/time/__year_to_secs.c',
+            'src/time/strftime.c',
           ],
         }],
       ],
