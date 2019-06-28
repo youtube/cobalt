@@ -45,7 +45,6 @@ class LayoutBoxes : public dom::LayoutBoxes {
   float GetBorderEdgeTop() const override;
   float GetBorderEdgeWidth() const override;
   float GetBorderEdgeHeight() const override;
-  math::Vector2dF GetBorderEdgeOffsetFromContainingBlock() const override;
 
   float GetBorderLeftWidth() const override;
   float GetBorderTopWidth() const override;
@@ -56,12 +55,6 @@ class LayoutBoxes : public dom::LayoutBoxes {
   math::Vector2dF GetPaddingEdgeOffset() const override;
   float GetPaddingEdgeWidth() const override;
   float GetPaddingEdgeHeight() const override;
-  math::Vector2dF GetPaddingEdgeOffsetFromContainingBlock() const override;
-
-  math::Vector2dF GetContentEdgeOffset() const override;
-  float GetContentEdgeWidth() const override;
-  float GetContentEdgeHeight() const override;
-  math::Vector2dF GetContentEdgeOffsetFromContainingBlock() const override;
 
   math::RectF GetScrollArea(dom::Directionality dir) const override;
 

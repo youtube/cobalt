@@ -15,6 +15,7 @@
 #ifndef COBALT_LAYOUT_USED_STYLE_H_
 #define COBALT_LAYOUT_USED_STYLE_H_
 
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -280,6 +281,50 @@ class UsedBorderRadiusProvider : public cssom::NotReachedPropertyValueVisitor {
   const math::SizeF frame_size_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedBorderRadiusProvider);
+};
+
+class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedLengthValueProvider(LayoutUnit percentage_base,
+                                   bool calc_permitted = false)
+      : percentage_base_(percentage_base), calc_permitted_(calc_permitted) {}
+
+  void VisitLength(cssom::LengthValue* length) override {
+    depends_on_containing_block_ = false;
+
+    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+    used_length_ = LayoutUnit(length->value());
+  }
+
+  void VisitPercentage(cssom::PercentageValue* percentage) override {
+    depends_on_containing_block_ = true;
+    used_length_ = percentage->value() * percentage_base_;
+  }
+
+  void VisitCalc(cssom::CalcValue* calc) override {
+    if (!calc_permitted_) {
+      NOTREACHED();
+    }
+    depends_on_containing_block_ = true;
+    used_length_ = LayoutUnit(calc->length_value()->value()) +
+                   calc->percentage_value()->value() * percentage_base_;
+  }
+
+  bool depends_on_containing_block() const {
+    return depends_on_containing_block_;
+  }
+  const base::Optional<LayoutUnit>& used_length() const { return used_length_; }
+
+ protected:
+  bool depends_on_containing_block_;
+
+ private:
+  const LayoutUnit percentage_base_;
+  const bool calc_permitted_;
+
+  base::Optional<LayoutUnit> used_length_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
 };
 
 class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
