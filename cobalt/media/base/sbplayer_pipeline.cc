@@ -193,7 +193,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable base::Lock lock_;
 
   // Amount of available buffered data.  Set by filters.
-  Ranges<int64> buffered_byte_ranges_;
   Ranges<TimeDelta> buffered_time_ranges_;
 
   // True when AddBufferedByteRange() has been called more recently than
@@ -608,12 +607,14 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
 
 Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
   base::AutoLock auto_lock(lock_);
-  Ranges<TimeDelta> time_ranges;
 
 #if SB_HAS(PLAYER_WITH_URL)
+  Ranges<TimeDelta> time_ranges;
+
   if (!player_) {
     return time_ranges;
   }
+
   if (is_url_based_) {
     base::TimeDelta media_time;
     base::TimeDelta buffer_start_time;
@@ -650,22 +651,7 @@ Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-  for (size_t i = 0; i < buffered_time_ranges_.size(); ++i) {
-    time_ranges.Add(buffered_time_ranges_.start(i),
-                    buffered_time_ranges_.end(i));
-  }
-  NOTIMPLEMENTED_LOG_ONCE();
-  /*if (clock_->Duration() == TimeDelta() || total_bytes_ == 0)
-    return time_ranges;
-  for (size_t i = 0; i < buffered_byte_ranges_.size(); ++i) {
-    TimeDelta start = TimeForByteOffset_Locked(buffered_byte_ranges_.start(i));
-    TimeDelta end = TimeForByteOffset_Locked(buffered_byte_ranges_.end(i));
-    // Cap approximated buffered time at the length of the video.
-    end = std::min(end, clock_->Duration());
-    time_ranges.Add(start, end);
-  }*/
-
-  return time_ranges;
+  return buffered_time_ranges_;
 }
 
 TimeDelta SbPlayerPipeline::GetMediaDuration() const {
