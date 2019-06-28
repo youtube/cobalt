@@ -93,6 +93,18 @@ void UpdateComputedStylesAndLayoutBoxTree(
         LayoutStatTracker::kStopWatchTypeBoxGeneration,
         base::StopWatch::kAutoStartOn, layout_stat_tracker);
 
+    // If the implicit root is a root for any observers, the initial containing
+    // block should reference the corresponding IntersectionObserverRoots.
+    dom::HTMLElement* html_element =
+        document->document_element()->AsHTMLElement();
+    BoxIntersectionObserverModule::IntersectionObserverRootVector roots =
+        html_element->GetLayoutIntersectionObserverRoots();
+    BoxIntersectionObserverModule::IntersectionObserverTargetVector targets =
+        html_element->GetLayoutIntersectionObserverTargets();
+    (*initial_containing_block)
+        ->AddIntersectionObserverRootsAndTargets(std::move(roots),
+                                                 std::move(targets));
+
     ScopedParagraph scoped_paragraph(
         new Paragraph(locale, (*initial_containing_block)->base_direction(),
                       Paragraph::DirectionalEmbeddingStack(),

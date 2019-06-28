@@ -23,7 +23,6 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
-#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -38,7 +37,6 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/translate_function.h"
-#include "cobalt/cssom/used_style.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/animations/animate_node.h"
@@ -52,8 +50,6 @@ namespace cobalt {
 namespace layout {
 
 namespace {
-
-typedef cssom::UsedLengthValueProvider<LayoutUnit> UsedLengthValueProvider;
 
 struct BackgroundImageTransformData {
   BackgroundImageTransformData(

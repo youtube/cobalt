@@ -81,13 +81,23 @@ IntersectionObserver::IntersectionObserver(
 }
 
 IntersectionObserver::~IntersectionObserver() {
-  task_manager()->OnIntersectionObserverDestroyed(this);
+  if (root_) {
+    root_->UnregisterIntersectionObserverRoot(this);
+  }
+  if (intersection_observer_task_manager_) {
+    intersection_observer_task_manager_->OnIntersectionObserverDestroyed(this);
+  }
 }
 
-script::Sequence<double> const IntersectionObserver::thresholds() {
+void IntersectionObserver::set_layout_root(
+    const scoped_refptr<layout::IntersectionObserverRoot>& layout_root) {
+  layout_root_ = layout_root;
+}
+
+script::Sequence<double> IntersectionObserver::thresholds() const {
   script::Sequence<double> result;
 
-  for (std::vector<double>::iterator it = thresholds_.begin();
+  for (std::vector<double>::const_iterator it = thresholds_.begin();
        it != thresholds_.end(); ++it) {
     result.push_back(*it);
   }
@@ -101,7 +111,7 @@ void IntersectionObserver::Observe(const scoped_refptr<Element>& target) {
     NOTREACHED();
     return;
   }
-  target->RegisterIntersectionObserverTarget(base::WrapRefCounted(this));
+  target->RegisterIntersectionObserverTarget(this);
   TrackObservationTarget(target);
 }
 
@@ -112,7 +122,7 @@ void IntersectionObserver::Unobserve(const scoped_refptr<Element>& target) {
     NOTREACHED();
     return;
   }
-  target->UnregisterIntersectionObserverTarget(base::WrapRefCounted(this));
+  target->UnregisterIntersectionObserverTarget(this);
   UntrackObservationTarget(target);
 }
 
@@ -125,7 +135,7 @@ void IntersectionObserver::Disconnect() {
        it != observation_targets_.end(); ++it) {
     Element* target = it->get();
     if (target != NULL) {
-      target->UnregisterIntersectionObserverTarget(base::WrapRefCounted(this));
+      target->UnregisterIntersectionObserverTarget(this);
     }
   }
   observation_targets_.clear();
@@ -146,21 +156,8 @@ void IntersectionObserver::QueueIntersectionObserverEntry(
   TRACE_EVENT0("cobalt::dom",
                "IntersectionObserver::QueueIntersectionObserverEntry()");
   queued_entries_.push_back(entry);
-  task_manager()->QueueIntersectionObserverTask();
-}
-
-void IntersectionObserver::UpdateObservationTargets() {
-  TRACE_EVENT0("cobalt::dom",
-               "IntersectionObserver::UpdateObservationTargets()");
-  // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers-algo
-  // Step 2 of "run the update intersection observations steps" algorithm:
-  //     1. Let rootBounds be observer's root intersection rectangle.
-  //     2. For each target in observer's internal [[ObservationTargets]] slot,
-  //        processed in the same order that observe() was called on each
-  //        target, run a set of subtasks (subtasks are implemented in
-  //        IntersectionObserverRegistration::Update):
-  for (auto target : observation_targets_) {
-    target->UpdateIntersectionObservationsForTarget(this);
+  if (intersection_observer_task_manager_) {
+    intersection_observer_task_manager_->QueueIntersectionObserverTask();
   }
 }
 
@@ -188,31 +185,13 @@ void IntersectionObserver::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(queued_entries_);
 }
 
-IntersectionObserverTaskManager* IntersectionObserver::task_manager() {
-  return root_->owner_document()->intersection_observer_task_manager();
-}
-
 void IntersectionObserver::InitIntersectionObserverInternal(
     script::EnvironmentSettings* settings,
     const IntersectionObserverCallbackArg& callback,
     const IntersectionObserverInit& options,
     script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/intersection-observer/#intersection-observer-interface
-  // 1. Let this be a new IntersectionObserver object
-  // 2. Set this's internal [[callback]] slot to callback.
-  callback_.reset(new ScriptCallback(callback, this));
-
-  // 3. Set this.root to options.root.
-  if (options.root()) {
-    root_ = options.root();
-  } else {
-    root_ = base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                ->window()
-                ->document()
-                ->document_element();
-  }
-
-  // 4. Attempt to parse a root margin from options.rootMargin. If a list is
+  // Attempt to parse a root margin from options.rootMargin. If a list is
   // returned, set this's internal [[rootMargin]] slot to that. Otherwise, throw
   // a SyntaxError exception.
   // https://www.w3.org/TR/intersection-observer/#parse-a-root-margin
@@ -237,12 +216,9 @@ void IntersectionObserver::InitIntersectionObserverInternal(
         "Not able to parse IntersectionObserver root margin.");
   }
 
-  // 5. Let thresholds be a list equal to options.threshold.
-  // 6. If any value in thresholds is less than 0.0 or greater than 1.0, throw a
+  // Let thresholds be a list equal to options.threshold.
+  // If any value in thresholds is less than 0.0 or greater than 1.0, throw a
   // RangeError exception.
-  // 7. Sort thresholds in ascending order.
-  // 8. If thresholds is empty, append 0 to thresholds.
-  // 9. Set this.thresholds to thresholds.
   ThresholdType threshold = options.threshold();
   if (threshold.IsType<double>()) {
     if (threshold.AsType<double>() < 0 || threshold.AsType<double>() > 1) {
@@ -266,13 +242,33 @@ void IntersectionObserver::InitIntersectionObserverInternal(
       }
       thresholds_.push_back(*it);
     }
+    // Sort thresholds in ascending order.
     sort(thresholds_.begin(), thresholds_.end());
   }
+  // If thresholds is empty, append 0 to thresholds.
+
   if (thresholds_.empty()) {
     thresholds_.push_back(0);
   }
 
-  task_manager()->OnIntersectionObserverCreated(this);
+  // Set this's internal [[callback]] slot to callback.
+  callback_.reset(new ScriptCallback(callback, this));
+
+  // Set this.root to options.root.
+  if (options.root()) {
+    root_ = base::AsWeakPtr(options.root().get());
+  } else {
+    root_ =
+        base::AsWeakPtr(base::polymorphic_downcast<dom::DOMSettings*>(settings)
+                            ->window()
+                            ->document()
+                            ->document_element()
+                            .get());
+  }
+  root_->RegisterIntersectionObserverRoot(this);
+  intersection_observer_task_manager_ =
+      root_->owner_document()->intersection_observer_task_manager();
+  intersection_observer_task_manager_->OnIntersectionObserverCreated(this);
 }
 
 void IntersectionObserver::TrackObservationTarget(
@@ -288,7 +284,7 @@ void IntersectionObserver::TrackObservationTarget(
     }
     ++it;
   }
-  observation_targets_.push_back(base::WrapRefCounted(target.get()));
+  observation_targets_.push_back(base::AsWeakPtr(target.get()));
 }
 
 void IntersectionObserver::UntrackObservationTarget(

@@ -26,6 +26,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/layout/base_direction.h"
+#include "cobalt/layout/box_intersection_observer_module.h"
 #include "cobalt/layout/insets_layout_unit.h"
 #include "cobalt/layout/layout_stat_tracker.h"
 #include "cobalt/layout/layout_unit.h"
@@ -643,6 +644,14 @@ class Box : public base::RefCounted<Box> {
     ui_nav_item_ = item;
   }
 
+  void AddIntersectionObserverRootsAndTargets(
+      BoxIntersectionObserverModule::IntersectionObserverRootVector&& roots,
+      BoxIntersectionObserverModule::IntersectionObserverTargetVector&&
+          targets);
+  bool ContainsIntersectionObserverRoot(
+      const scoped_refptr<IntersectionObserverRoot>& intersection_observer_root)
+      const;
+
  protected:
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
@@ -926,6 +935,9 @@ class Box : public base::RefCounted<Box> {
 
   // UI navigation items are used to help animate certain elements.
   scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
+
+  std::unique_ptr<BoxIntersectionObserverModule>
+      box_intersection_observer_module_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
