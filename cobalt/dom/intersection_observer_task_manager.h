@@ -48,10 +48,6 @@ class IntersectionObserverTaskManager
   // posted.
   void QueueIntersectionObserverTask();
 
-  // Update intersection observer registrations for intersection observers whose
-  // root is in the DOM tree of document
-  void UpdateIntersectionObservations();
-
   void TraceMembers(script::Tracer* tracer) override;
 
  private:

@@ -89,11 +89,6 @@ float LayoutBoxes::GetBorderEdgeHeight() const {
   return GetBoundingBorderRectangle().height();
 }
 
-math::Vector2dF LayoutBoxes::GetBorderEdgeOffsetFromContainingBlock() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetBorderBoxOffsetFromContainingBlock();
-}
-
 float LayoutBoxes::GetBorderLeftWidth() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()->border_left_width().toFloat();
@@ -128,33 +123,6 @@ float LayoutBoxes::GetPaddingEdgeWidth() const {
 float LayoutBoxes::GetPaddingEdgeHeight() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()->GetPaddingBoxHeight().toFloat();
-}
-
-math::Vector2dF LayoutBoxes::GetPaddingEdgeOffsetFromContainingBlock() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxOffsetFromContainingBlock();
-}
-
-math::Vector2dF LayoutBoxes::GetContentEdgeOffset() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetContentBoxOffsetFromRoot(
-      false /*transform_forms_root*/);
-}
-
-float LayoutBoxes::GetContentEdgeWidth() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->width().toFloat();
-}
-
-float LayoutBoxes::GetContentEdgeHeight() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->height().toFloat();
-}
-
-math::Vector2dF LayoutBoxes::GetContentEdgeOffsetFromContainingBlock() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetContentBoxOffsetFromContainingBlockContentBox(
-      boxes_.front()->GetContainingBlock());
 }
 
 math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
