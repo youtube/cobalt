@@ -128,7 +128,15 @@ typedef struct SbPlayerSampleInfo {
   int buffer_size;
   // The timestamp of the sample in SbTime.
   SbTime timestamp;
+
 #if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+  // Side data for the input when available.  Side data can be any additional
+  // data associated with the input data that is specified in the container.
+  // For example, it can be the BlockAdditional data in the webm container, as
+  // specified in https://www.webmproject.org/docs/container/#BlockAdditional.
+  const uint8_t* side_data;
+  size_t side_data_size;
+
   union {
     // Information about an audio sample. This value can only be used when
     // |type| is kSbMediaTypeAudio.
