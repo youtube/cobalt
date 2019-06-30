@@ -20,72 +20,12 @@
 
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
-
-namespace {
-
-std::string GetHexRepresentation(const uint8_t* data, int size) {
-  const char kBinToHex[] = "0123456789abcdef";
-
-  std::string result;
-
-  for (int i = 0; i < size; ++i) {
-    result += kBinToHex[data[i] / 16];
-    result += kBinToHex[data[i] % 16];
-    if (i != size - 1) {
-      result += ' ';
-    }
-  }
-
-  return result;
-}
-
-std::string GetStringRepresentation(const uint8_t* data, int size) {
-  std::string result;
-
-  for (int i = 0; i < size; ++i) {
-    if (std::isspace(data[i])) {
-      result += ' ';
-    } else if (std::isprint(data[i])) {
-      result += data[i];
-    } else {
-      result += '?';
-    }
-  }
-
-  return result;
-}
-
-std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line) {
-  std::string result;
-
-  for (int i = 0; i < size; i += bytes_per_line) {
-    if (i + bytes_per_line <= size) {
-      result += GetHexRepresentation(data + i, bytes_per_line);
-      result += " | ";
-      result += GetStringRepresentation(data + i, bytes_per_line);
-      result += '\n';
-    } else {
-      int bytes_left = size - i;
-      result += GetHexRepresentation(data + i, bytes_left);
-      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
-      result += " | ";
-      result += GetStringRepresentation(data + i, bytes_left);
-      result += std::string(bytes_per_line - bytes_left, ' ');
-      result += '\n';
-    }
-  }
-
-  return result;
-}
-
-}  // namespace
 
 #if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
@@ -108,6 +48,10 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
     video_sample_info_ = sample_info.video_sample_info;
   }
   TryToAssignDrmSampleInfo(sample_info.drm_info);
+  if (sample_info.side_data_size > 0) {
+    side_data_.assign(sample_info.side_data,
+                      sample_info.side_data + sample_info.side_data_size);
+  }
 }
 #else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
 InputBuffer::InputBuffer(SbMediaType sample_type,
@@ -183,6 +127,12 @@ std::string InputBuffer::ToString() const {
       ss << "\t" << drm_info_.subsample_mapping[i].clear_byte_count << ", "
          << drm_info_.subsample_mapping[i].encrypted_byte_count << "\n";
     }
+  }
+  if (!side_data_.empty()) {
+    ss << "side data: "
+       << GetHexRepresentation(side_data_.data(),
+                               static_cast<int>(side_data_.size()))
+       << '\n';
   }
   ss << GetMixedRepresentation(data(), size(), 16) << '\n';
   return ss.str();

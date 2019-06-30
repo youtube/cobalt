@@ -59,7 +59,7 @@ static void DeallocateSampleFunc(SbPlayer player,
 
 SbPlayerSampleInfo ConvertToPlayerSampleInfo(
     const VideoDmpReader::AudioAccessUnit& audio_unit) {
-  SbPlayerSampleInfo sample_info;
+  SbPlayerSampleInfo sample_info = {};
   sample_info.buffer = audio_unit.data().data();
   sample_info.buffer_size = static_cast<int>(audio_unit.data().size());
   sample_info.timestamp = audio_unit.timestamp();
@@ -75,7 +75,7 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
 
 SbPlayerSampleInfo ConvertToPlayerSampleInfo(
     const VideoDmpReader::VideoAccessUnit& video_unit) {
-  SbPlayerSampleInfo sample_info;
+  SbPlayerSampleInfo sample_info = {};
   sample_info.buffer = video_unit.data().data();
   sample_info.buffer_size = static_cast<int>(video_unit.data().size());
   sample_info.timestamp = video_unit.timestamp();
