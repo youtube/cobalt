@@ -184,7 +184,7 @@ class AudioRendererTest : public ::testing::Test {
 
   scoped_refptr<InputBuffer> CreateInputBuffer(SbTime timestamp) {
     const int kInputBufferSize = 4;
-    SbPlayerSampleInfo sample_info;
+    SbPlayerSampleInfo sample_info = {};
     sample_info.buffer = SbMemoryAllocate(kInputBufferSize);
     sample_info.buffer_size = kInputBufferSize;
     sample_info.timestamp = timestamp;

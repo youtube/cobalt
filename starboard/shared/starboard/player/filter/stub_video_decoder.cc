@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 
+#include "starboard/shared/starboard/media/media_util.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -43,6 +45,16 @@ size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {
 void StubVideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
+
+  auto& video_sample_info = input_buffer->video_sample_info();
+  if (video_sample_info.is_key_frame) {
+    if (!video_sample_info_ ||
+        video_sample_info_.value() != video_sample_info) {
+      SB_LOG(ERROR) << "New video sample info: " << video_sample_info;
+      video_sample_info_ = video_sample_info;
+    }
+  }
+
   decoder_status_cb_(kNeedMoreInput, new VideoFrame(input_buffer->timestamp()));
 }
 
