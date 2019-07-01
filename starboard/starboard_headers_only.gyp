@@ -33,6 +33,7 @@
         'character.h',
         'condition_variable.h',
         'configuration.h',
+        'cpu_features.h',
         'decode_target.h',
         'directory.h',
         'double.h',

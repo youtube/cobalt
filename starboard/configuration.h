@@ -197,6 +197,10 @@
 // previous behavior and directly include the system EGL and GLES libraries.
 #define SB_EGL_AND_GLES_INTERFACE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add support for exposing CPU features, including architecture information
+// and processor capabilities flags. The API is defined in cpu_features.h.
+#define SB_CPU_FEATURES_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -714,7 +718,8 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
-    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API version."
+    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API " \
+        "version."
 #endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #else   // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
