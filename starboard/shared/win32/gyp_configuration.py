@@ -168,7 +168,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
   __FILTERED_TESTS = {
       'nplb': [
           # Windows encounters some issue with FakeGraphicsContextProvider.
-          'SbMediaSetAudioWriteDurationTests.*',
+          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*',
       ],
       'player_filter_tests': [
           # TODO: debug these failures.
