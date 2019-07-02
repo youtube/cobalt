@@ -12,14 +12,13 @@
 // string as fragments of it become available (e.g. as HPACK block fragments
 // are received for decoding by HpackEntryDecoder).
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <iosfwd>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

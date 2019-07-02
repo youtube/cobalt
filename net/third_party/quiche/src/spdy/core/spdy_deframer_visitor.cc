@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "starboard/types.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;

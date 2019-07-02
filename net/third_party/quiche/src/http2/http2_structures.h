@@ -25,8 +25,6 @@
 // its fields optionally appear in the HEADERS frame, but the struct is called
 // Http2PriorityFields.
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <ostream>
 
@@ -34,6 +32,7 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

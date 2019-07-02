@@ -17,10 +17,6 @@
 // for some such errors to be considered as just stream errors in some cases,
 // this implementation treats them all as connection errors.
 
-#include <stddef.h>
-
-#include <cstdint>
-
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
@@ -40,6 +36,7 @@
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/window_update_payload_decoder.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

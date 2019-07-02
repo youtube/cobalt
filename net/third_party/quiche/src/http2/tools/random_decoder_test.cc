@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <memory>
 

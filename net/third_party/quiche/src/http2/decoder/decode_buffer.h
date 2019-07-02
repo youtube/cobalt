@@ -12,14 +12,13 @@
 // instance as part of decoding the entire buffer before returning to its own
 // caller.
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <cstdint>
 
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 class DecodeBufferSubset;

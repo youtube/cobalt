@@ -9,14 +9,13 @@
 // literal (name or value) except when necessary (e.g. when split across two
 // or more HPACK block fragments).
 
-#include <stddef.h>
-
 #include <ostream>
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

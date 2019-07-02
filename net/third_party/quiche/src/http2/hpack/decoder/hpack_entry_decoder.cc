@@ -4,14 +4,13 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder.h"
 
-#include <stddef.h>
-
 #include <cstdint>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace {

@@ -10,8 +10,6 @@
 
 // TODO(jamessynge): Move more methods into .cc file.
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -25,6 +23,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

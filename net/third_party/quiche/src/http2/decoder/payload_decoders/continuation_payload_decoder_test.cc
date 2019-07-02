@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/continuation_payload_decoder.h"
 
-#include <stddef.h>
-
 #include <type_traits>
 
 #include "base/logging.h"
@@ -18,6 +16,7 @@
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

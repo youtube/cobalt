@@ -10,6 +10,8 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 
+#include "starboard/memory.h"
+
 namespace http2 {
 
 // Http2FrameHeader decoding:
@@ -76,7 +78,7 @@ void DoDecode(Http2PingFields* out, DecodeBuffer* b) {
   DCHECK_NE(nullptr, out);
   DCHECK_NE(nullptr, b);
   DCHECK_LE(Http2PingFields::EncodedSize(), b->Remaining());
-  memcpy(out->opaque_bytes, b->cursor(), Http2PingFields::EncodedSize());
+  SbMemoryCopy(out->opaque_bytes, b->cursor(), Http2PingFields::EncodedSize());
   b->AdvanceCursor(Http2PingFields::EncodedSize());
 }
 

@@ -10,8 +10,6 @@
 // for the decoding of a single entry; call Clear() between decoding successive
 // entries or use a distinct HpackEntryCollector for each entry.
 
-#include <stddef.h>
-
 #include <iosfwd>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,6 +19,7 @@
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

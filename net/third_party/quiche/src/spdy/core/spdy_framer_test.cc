@@ -29,6 +29,9 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 using ::http2::Http2DecoderAdapter;
 using ::testing::_;
@@ -69,7 +72,8 @@ MATCHER_P(IsFrameUnionOf, frame_list, "") {
                  << "higher total frame length than non-incremental method.";
       return false;
     }
-    if (memcmp(arg.data() + size_verified, frame.data(), frame.size())) {
+    if (SbMemoryCompare(arg.data() + size_verified, frame.data(),
+                        frame.size())) {
       CompareCharArraysWithHexError(
           "Header serialization methods should be equivalent: ",
           reinterpret_cast<unsigned char*>(arg.data() + size_verified),
@@ -475,7 +479,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
       DLOG(FATAL) << "Attempted to init header streaming with "
                   << "invalid control frame type: " << header_control_type;
     }
-    memset(header_buffer_.get(), 0, header_buffer_size_);
+    SbMemorySet(header_buffer_.get(), 0, header_buffer_size_);
     header_buffer_length_ = 0;
     header_stream_id_ = stream_id;
     header_control_type_ = header_control_type;
@@ -2517,7 +2521,7 @@ TEST_P(SpdyFramerTest, CreateUnknown) {
   const char kDescription[] = "Unknown frame";
   const uint8_t kType = 0xaf;
   const uint8_t kFlags = 0x11;
-  const uint8_t kLength = strlen(kDescription);
+  const uint8_t kLength = SbStringGetLength(kDescription);
   const unsigned char kFrameData[] = {
       0x00,   0x00, kLength,        // Length: 13
       kType,                        //   Type: undefined
@@ -3126,7 +3130,8 @@ TEST_P(SpdyFramerTest, ProcessDataFrameWithPadding) {
 
   // Send the frame header.
   EXPECT_CALL(visitor,
-              OnDataFrameHeader(1, kPaddingLen + strlen(data_payload), false));
+              OnDataFrameHeader(
+                  1, kPaddingLen + SbStringGetLength(data_payload), false));
   CHECK_EQ(kDataFrameMinimumSize,
            deframer_.ProcessInput(frame.data(), kDataFrameMinimumSize));
   CHECK_EQ(deframer_.state(),
@@ -3585,7 +3590,7 @@ TEST_P(SpdyFramerTest, ExpectContinuationReceiveControlFrame) {
 
 TEST_P(SpdyFramerTest, ReadGarbage) {
   unsigned char garbage_frame[256];
-  memset(garbage_frame, ~0, sizeof(garbage_frame));
+  SbMemorySet(garbage_frame, ~0, sizeof(garbage_frame));
   TestSpdyVisitor visitor(SpdyFramer::DISABLE_COMPRESSION);
   visitor.SimulateInFramer(garbage_frame, sizeof(garbage_frame));
   EXPECT_EQ(1, visitor.error_count_);
@@ -4658,7 +4663,8 @@ TEST_P(SpdyFramerTest, ProcessAllInput) {
   EXPECT_EQ(Http2DecoderAdapter::SPDY_READY_FOR_FRAME, deframer_.state());
   EXPECT_EQ(1, visitor->headers_frame_count_);
   EXPECT_EQ(1, visitor->data_frame_count_);
-  EXPECT_EQ(strlen(four_score), static_cast<unsigned>(visitor->data_bytes_));
+  EXPECT_EQ(SbStringGetLength(four_score),
+            static_cast<unsigned>(visitor->data_bytes_));
 }
 
 // Test that SpdyFramer stops after processing a full frame if
@@ -4738,7 +4744,8 @@ TEST_P(SpdyFramerTest, ProcessAtMostOneFrame) {
     // and none of the second frame.
 
     EXPECT_EQ(1, visitor->data_frame_count_);
-    EXPECT_EQ(strlen(four_score), static_cast<unsigned>(visitor->data_bytes_));
+    EXPECT_EQ(SbStringGetLength(four_score),
+              static_cast<unsigned>(visitor->data_bytes_));
     EXPECT_EQ(0, visitor->headers_frame_count_);
   }
 }

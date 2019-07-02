@@ -5,10 +5,9 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_PREFIXED_BUFFER_READER_H_
 #define QUICHE_SPDY_CORE_SPDY_PREFIXED_BUFFER_READER_H_
 
-#include <stddef.h>
-
 #include "net/third_party/quiche/src/spdy/core/spdy_pinnable_buffer_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "starboard/types.h"
 
 namespace spdy {
 

@@ -16,8 +16,6 @@
 // http://httpwg.org/specs/rfc7541.html#index.address.space
 // http://httpwg.org/specs/rfc7540.html#HeaderBlock
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <vector>
 
@@ -25,6 +23,7 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_containers.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

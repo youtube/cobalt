@@ -7,14 +7,13 @@
 
 // Supports tests of decoding HPACK strings.
 
-#include <stddef.h>
-
 #include <iosfwd>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

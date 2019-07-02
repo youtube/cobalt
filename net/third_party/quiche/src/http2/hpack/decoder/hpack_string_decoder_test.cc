@@ -17,6 +17,11 @@
 
 using ::testing::AssertionResult;
 
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4838)
+#endif
+
 namespace http2 {
 namespace test {
 namespace {
