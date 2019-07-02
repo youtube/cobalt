@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
+#include "starboard/memory.h"
 
 namespace spdy {
 namespace test {
@@ -96,7 +97,7 @@ void SetFrameLength(SpdySerializedFrame* frame, size_t length) {
   CHECK_GT(1u << 14, length);
   {
     int32_t wire_length = SpdyHostToNet32(length);
-    memcpy(frame->data(), reinterpret_cast<char*>(&wire_length) + 1, 3);
+    SbMemoryCopy(frame->data(), reinterpret_cast<char*>(&wire_length) + 1, 3);
   }
 }
 

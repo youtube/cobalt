@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test_utils_prod.h"
+#include "starboard/memory.h"
 
 namespace spdy {
 

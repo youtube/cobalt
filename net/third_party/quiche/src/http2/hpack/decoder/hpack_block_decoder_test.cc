@@ -83,7 +83,11 @@ class HpackBlockDecoderTest : public RandomDecoderTest {
 
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.2.1
 TEST_F(HpackBlockDecoderTest, SpecExample_C_2_1) {
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateSoleLiteralNameValueHeader(
         HpackEntryType::kIndexedLiteralHeader, false, "custom-key", false,
         "custom-header"));
@@ -104,7 +108,11 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_2_1) {
 
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.2.2
 TEST_F(HpackBlockDecoderTest, SpecExample_C_2_2) {
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateSoleLiteralValueHeader(
         HpackEntryType::kUnindexedLiteralHeader, 4, false, "/sample/path"));
   };
@@ -123,7 +131,11 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_2_2) {
 
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.2.3
 TEST_F(HpackBlockDecoderTest, SpecExample_C_2_3) {
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateSoleLiteralNameValueHeader(
         HpackEntryType::kNeverIndexedLiteralHeader, false, "password", false,
         "secret"));
@@ -143,7 +155,11 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_2_3) {
 
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.2.4
 TEST_F(HpackBlockDecoderTest, SpecExample_C_2_4) {
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateSoleIndexedHeader(2));
   };
   const char hpack_example[] = R"(
@@ -181,7 +197,11 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_3_1) {
   expected.ExpectIndexedHeader(4);
   expected.ExpectNameIndexAndLiteralValue(HpackEntryType::kIndexedLiteralHeader,
                                           1, false, "www.example.com");
+#if defined(STARBOARD)
   NoArgValidator do_check = [expected, this]() {
+#else
+  auto do_check = [expected, this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.VerifyEq(expected));
   };
   EXPECT_TRUE(DecodeHpackExampleAndValidateSeveralWays(
@@ -231,7 +251,11 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_5_1) {
                                           "Mon, 21 Oct 2013 20:13:21 GMT");
   expected.ExpectNameIndexAndLiteralValue(HpackEntryType::kIndexedLiteralHeader,
                                           46, false, "https://www.example.com");
+#if defined(STARBOARD)
   NoArgValidator do_check = [expected, this]() {
+#else
+  auto do_check = [expected, this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.VerifyEq(expected));
   };
   EXPECT_TRUE(DecodeHpackExampleAndValidateSeveralWays(
@@ -281,7 +305,11 @@ TEST_F(HpackBlockDecoderTest, Computed) {
   HpackBlockBuilder hbb;
   expected.AppendToHpackBlockBuilder(&hbb);
 
+#if defined(STARBOARD)
   NoArgValidator do_check = [expected, this]() {
+#else
+  auto do_check = [expected, this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.VerifyEq(expected));
   };
   EXPECT_TRUE(

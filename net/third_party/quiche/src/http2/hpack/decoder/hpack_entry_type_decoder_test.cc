@@ -40,7 +40,11 @@ TEST_F(HpackEntryTypeDecoderTest, DynamicTableSizeUpdate) {
     HpackBlockBuilder bb;
     bb.AppendDynamicTableSizeUpdate(size);
     DecodeBuffer db(bb.buffer());
+#if defined(STARBOARD)
+    NoArgValidator validator = [size, this]() -> AssertionResult {
+#else
     auto validator = [size, this]() -> AssertionResult {
+#endif
       VERIFY_EQ(HpackEntryType::kDynamicTableSizeUpdate, decoder_.entry_type());
       VERIFY_EQ(size, decoder_.varint());
       return AssertionSuccess();
@@ -67,7 +71,11 @@ TEST_F(HpackEntryTypeDecoderTest, HeaderWithIndex) {
       HpackBlockBuilder bb;
       bb.AppendEntryTypeAndVarint(entry_type, index);
       DecodeBuffer db(bb.buffer());
+#if defined(STARBOARD)
+      NoArgValidator validator = [entry_type, index, this]() -> AssertionResult {
+#else
       auto validator = [entry_type, index, this]() -> AssertionResult {
+#endif
         VERIFY_EQ(entry_type, decoder_.entry_type());
         VERIFY_EQ(index, decoder_.varint());
         return AssertionSuccess();

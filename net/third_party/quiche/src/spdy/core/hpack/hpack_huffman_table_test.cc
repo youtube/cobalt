@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "starboard/types.h"
 
 namespace spdy {
 

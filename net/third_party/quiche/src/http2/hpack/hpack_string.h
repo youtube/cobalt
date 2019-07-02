@@ -10,13 +10,12 @@
 // handling strings to be encoded with HPACK, or decoded from HPACK, such as
 // a ref-counted string.
 
-#include <stddef.h>
-
 #include <iosfwd>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

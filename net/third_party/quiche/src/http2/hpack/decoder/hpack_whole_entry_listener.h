@@ -9,12 +9,11 @@
 #ifndef QUICHE_HTTP2_HPACK_DECODER_HPACK_WHOLE_ENTRY_LISTENER_H_
 #define QUICHE_HTTP2_HPACK_DECODER_HPACK_WHOLE_ENTRY_LISTENER_H_
 
-#include <stddef.h>
-
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_string_buffer.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

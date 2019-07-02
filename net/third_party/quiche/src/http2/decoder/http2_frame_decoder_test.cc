@@ -23,6 +23,11 @@
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
 
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4838)
+#endif
+
 namespace http2 {
 namespace test {
 class Http2FrameDecoderPeer {
@@ -135,7 +140,11 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   AssertionResult DecodePayloadAndValidateSeveralWays(
       Http2StringPiece payload,
       const FrameParts& expected) {
+#if defined(STARBOARD)
+    Validator validator = [&expected, this](const DecodeBuffer& input,
+#else
     auto validator = [&expected, this](const DecodeBuffer& input,
+#endif
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeDone);
       VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
@@ -179,7 +188,11 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   template <size_t N>
   AssertionResult DecodePayloadExpectingError(const char (&buf)[N],
                                               const FrameParts& expected) {
+#if defined(STARBOARD)
+    Validator validator = [&expected, this](const DecodeBuffer& input,
+#else
     auto validator = [&expected, this](const DecodeBuffer& input,
+#endif
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeError);
       VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
@@ -842,7 +855,11 @@ TEST_F(Http2FrameDecoderTest, BeyondMaximum) {
                           2);
   FrameParts expected(header);
   expected.SetHasFrameSizeError(true);
+#if defined(STARBOARD)
+  Validator validator = [&expected, this](const DecodeBuffer& input,
+#else
   auto validator = [&expected, this](const DecodeBuffer& input,
+#endif
                                      DecodeStatus status) -> AssertionResult {
     VERIFY_EQ(status, DecodeStatus::kDecodeError);
     // The decoder detects this error after decoding the header, and without

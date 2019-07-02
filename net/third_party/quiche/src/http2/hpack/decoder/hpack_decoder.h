@@ -19,8 +19,6 @@
 // from its failure to pay attention to previous errors, but should we
 // spend time to do that?
 
-#include <stddef.h>
-
 #include <cstdint>
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -31,6 +29,8 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_buffer.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

@@ -8,8 +8,6 @@
 // FramePartsCollector is a base class for Http2FrameDecoderListener
 // implementations that create one FrameParts instance for each decoded frame.
 
-#include <stddef.h>
-
 #include <memory>
 #include <vector>
 
@@ -17,6 +15,7 @@
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

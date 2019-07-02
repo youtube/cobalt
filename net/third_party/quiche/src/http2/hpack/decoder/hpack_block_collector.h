@@ -13,8 +13,6 @@
 // supports comparing two HpackBlockCollector instances (i.e. an expected and
 // an actual), or a sole HPACK entry against an expected value.
 
-#include <stddef.h>
-
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"

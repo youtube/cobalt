@@ -10,8 +10,6 @@
 // info that a test expects to be recorded during the decoding of a frame
 // with the actual recorded value (i.e. by providing a comparator).
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <vector>
 
@@ -23,6 +21,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_optional.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

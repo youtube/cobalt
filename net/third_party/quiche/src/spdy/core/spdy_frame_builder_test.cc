@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "starboard/memory.h"
 
 namespace spdy {
 
@@ -26,11 +27,11 @@ TEST(SpdyFrameBuilderTest, GetWritableBuffer) {
   const size_t kBuilderSize = 10;
   SpdyFrameBuilder builder(kBuilderSize);
   char* writable_buffer = builder.GetWritableBuffer(kBuilderSize);
-  memset(writable_buffer, ~1, kBuilderSize);
+  SbMemorySet(writable_buffer, ~1, kBuilderSize);
   EXPECT_TRUE(builder.Seek(kBuilderSize));
   SpdySerializedFrame frame(builder.take());
   char expected[kBuilderSize];
-  memset(expected, ~1, kBuilderSize);
+  SbMemorySet(expected, ~1, kBuilderSize);
   EXPECT_EQ(SpdyStringPiece(expected, kBuilderSize),
             SpdyStringPiece(frame.data(), kBuilderSize));
 }
@@ -43,11 +44,11 @@ TEST(SpdyFrameBuilderTest, GetWritableOutput) {
   SpdyFrameBuilder builder(kBuilderSize, &output);
   size_t actual_size = 0;
   char* writable_buffer = builder.GetWritableOutput(kBuilderSize, &actual_size);
-  memset(writable_buffer, ~1, kBuilderSize);
+  SbMemorySet(writable_buffer, ~1, kBuilderSize);
   EXPECT_TRUE(builder.Seek(kBuilderSize));
   SpdySerializedFrame frame(output.Begin(), kBuilderSize, false);
   char expected[kBuilderSize];
-  memset(expected, ~1, kBuilderSize);
+  SbMemorySet(expected, ~1, kBuilderSize);
   EXPECT_EQ(SpdyStringPiece(expected, kBuilderSize),
             SpdyStringPiece(frame.data(), kBuilderSize));
 }
