@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/threading/thread_checker.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node_channel_count_mode.h"
 #include "cobalt/audio/audio_node_channel_interpretation.h"
@@ -54,7 +55,8 @@ class AudioNode : public dom::EventTarget {
 
   // Web API: AudioNode
   //
-  // The AudioContext which owns this AudioNode.
+  // The AudioContext which owns this AudioNode. This function may only be
+  // called on the MainWebModule thread.
   scoped_refptr<AudioContext> context() const;
 
   // The number of inputs feeding into the AudioNode. For source nodes, this
@@ -145,6 +147,7 @@ class AudioNode : public dom::EventTarget {
   AudioNodeChannelCountMode channel_count_mode_;
   AudioNodeChannelInterpretation channel_interpretation_;
 
+  THREAD_CHECKER(thread_checker_);
   DISALLOW_COPY_AND_ASSIGN(AudioNode);
 };
 
