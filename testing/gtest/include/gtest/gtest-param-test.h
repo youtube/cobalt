@@ -1439,6 +1439,12 @@ internal::CartesianProductHolder10<Generator1, Generator2, Generator3,
 
 }  // namespace testing
 
+// INSTANTIATE_TEST_CASE_P has been replaced by INSTANTIATE_TEST_SUITE_P in the
+// new googletest library.
+#if defined(STARBOARD)
+#define INSTANTIATE_TEST_SUITE_P INSTANTIATE_TEST_CASE_P
+#endif
+
 #endif  // GTEST_HAS_PARAM_TEST
 
 #endif  // GTEST_INCLUDE_GTEST_GTEST_PARAM_TEST_H_
