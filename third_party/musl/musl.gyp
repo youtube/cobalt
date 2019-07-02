@@ -115,10 +115,12 @@
           # list determines how files are resolved.
           'include_dirs+': [
             'src/starboard/internal',
+            'src/errno',
             'src/time',
           ],
           'sources': [
             'src/starboard/ctype/__ctype_get_mb_cur_max.c',
+            'src/starboard/errno/__errno_location.c',
             'src/starboard/exit/abort.c',
             'src/starboard/locale/freelocale.c',
             'src/starboard/locale/langinfo.c',
@@ -142,10 +144,15 @@
             'src/starboard/time/__tz.c',
             'src/starboard/time/clock_gettime.c',
 
+            'src/errno/strerror.c',
             'src/exit/assert.c',
             'src/locale/strcoll.c',
+            'src/locale/strcoll.c',
+            'src/locale/strxfrm.c',
             'src/locale/strxfrm.c',
             'src/locale/wcscoll.c',
+            'src/locale/wcscoll.c',
+            'src/locale/wcsxfrm.c',
             'src/locale/wcsxfrm.c',
             'src/stdio/fprintf.c',
             'src/stdio/printf.c',
@@ -157,6 +164,7 @@
             'src/stdlib/abs.c',
             'src/stdlib/labs.c',
             'src/stdlib/llabs.c',
+            'src/string/strerror_r.c',
             'src/time/__month_to_secs.c',
             'src/time/__tm_to_secs.c',
             'src/time/__year_to_secs.c',

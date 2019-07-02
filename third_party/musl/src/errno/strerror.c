@@ -26,7 +26,11 @@ char *__strerror_l(int e, locale_t loc)
 	}
 	for (i=0; errid[i] && errid[i] != e; i++);
 	for (s=errmsg; i; s++, i--) for (; *s; s++);
+#if defined(STARBOARD)
+	return s;
+#else   // !defined(STARBOARD)
 	return (char *)LCTRANS(s, LC_MESSAGES, loc);
+#endif  // defined(STARBOARD)
 }
 
 char *strerror(int e)
