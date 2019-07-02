@@ -20,6 +20,7 @@
 #include "net/third_party/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_session.h"
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
@@ -103,7 +104,7 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
     server_session_.reset(server_session);
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
-    EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_))
+    EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_, _))
         .Times(testing::AnyNumber());
     crypto_test_utils::FakeServerOptions options;
     options.token_binding_params = QuicTagVector{kTB10};
@@ -188,7 +189,7 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
   ParsedQuicVersionVector supported_versions_ = AllSupportedVersions();
 };
 
-INSTANTIATE_TEST_CASE_P(Tests, QuicCryptoServerStreamTest, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests, QuicCryptoServerStreamTest, testing::Bool());
 
 TEST_P(QuicCryptoServerStreamTest, NotInitiallyConected) {
   Initialize();
@@ -213,6 +214,11 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
   EXPECT_TRUE(server_stream()->handshake_confirmed());
 }
 
+// Cobalt does not support TLSHandshaker and it is disabled right now.
+// TLSHanshaker is enabled by FLAGS_quic_supports_tls_handshake.
+// m74 TLSHandshaker depends on updated boringSSL(compared to m70) which has
+// standard QUIC APIs.
+#if !defined(COBALT_QUIC46)
 TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
   FLAGS_quic_supports_tls_handshake = true;
   client_options_.only_tls_versions = true;
@@ -228,6 +234,7 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
   EXPECT_TRUE(server_stream()->encryption_established());
   EXPECT_TRUE(server_stream()->handshake_confirmed());
 }
+#endif
 
 TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
   Initialize();
@@ -277,8 +284,8 @@ TEST_P(QuicCryptoServerStreamTest, StatelessRejectAfterCHLO) {
   ASSERT_TRUE(client_state->has_server_designated_connection_id());
   const QuicConnectionId server_designated_connection_id =
       client_state->GetNextServerDesignatedConnectionId();
-  const QuicConnectionId expected_id =
-      server_connection_->random_generator()->RandUint64();
+  const QuicConnectionId expected_id = QuicUtils::CreateRandomConnectionId(
+      server_connection_->random_generator());
   EXPECT_EQ(expected_id, server_designated_connection_id);
   EXPECT_FALSE(client_state->has_server_designated_connection_id());
   ASSERT_TRUE(client_state->IsComplete(QuicWallTime::FromUNIXSeconds(0)));
@@ -308,8 +315,8 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterStatelessHandshake) {
   ASSERT_TRUE(client_state->has_server_designated_connection_id());
   const QuicConnectionId server_designated_connection_id =
       client_state->GetNextServerDesignatedConnectionId();
-  const QuicConnectionId expected_id =
-      server_connection_->random_generator()->RandUint64();
+  const QuicConnectionId expected_id = QuicUtils::CreateRandomConnectionId(
+      server_connection_->random_generator());
   EXPECT_EQ(expected_id, server_designated_connection_id);
   EXPECT_FALSE(client_state->has_server_designated_connection_id());
   ASSERT_TRUE(client_state->IsComplete(QuicWallTime::FromUNIXSeconds(0)));
@@ -488,28 +495,6 @@ TEST_P(QuicCryptoServerStreamTest, DoesPeerSupportStatelessRejects) {
       QuicCryptoServerStreamPeer::DoesPeerSupportStatelessRejects(message_));
 }
 
-TEST_P(QuicCryptoServerStreamTest, TokenBindingNegotiated) {
-  Initialize();
-
-  client_options_.token_binding_params = QuicTagVector{kTB10, kP256};
-  CompleteCryptoHandshake();
-  EXPECT_EQ(
-      kTB10,
-      server_stream()->crypto_negotiated_params().token_binding_key_param);
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
-}
-
-TEST_P(QuicCryptoServerStreamTest, NoTokenBindingWithoutClientSupport) {
-  Initialize();
-
-  CompleteCryptoHandshake();
-  EXPECT_EQ(
-      0u, server_stream()->crypto_negotiated_params().token_binding_key_param);
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
-}
-
 class QuicCryptoServerStreamTestWithFailingProofSource
     : public QuicCryptoServerStreamTest {
  public:
@@ -518,9 +503,9 @@ class QuicCryptoServerStreamTestWithFailingProofSource
             std::unique_ptr<FailingProofSource>(new FailingProofSource)) {}
 };
 
-INSTANTIATE_TEST_CASE_P(MoreTests,
-                        QuicCryptoServerStreamTestWithFailingProofSource,
-                        testing::Bool());
+INSTANTIATE_TEST_SUITE_P(MoreTests,
+                         QuicCryptoServerStreamTestWithFailingProofSource,
+                         testing::Bool());
 
 TEST_P(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
   Initialize();
@@ -552,9 +537,9 @@ class QuicCryptoServerStreamTestWithFakeProofSource
   QuicCryptoServerConfigPeer crypto_config_peer_;
 };
 
-INSTANTIATE_TEST_CASE_P(YetMoreTests,
-                        QuicCryptoServerStreamTestWithFakeProofSource,
-                        testing::Bool());
+INSTANTIATE_TEST_SUITE_P(YetMoreTests,
+                         QuicCryptoServerStreamTestWithFakeProofSource,
+                         testing::Bool());
 
 // Regression test for b/35422225, in which multiple CHLOs arriving on the same
 // connection in close succession could cause a crash, especially when the use

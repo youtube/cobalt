@@ -1,7 +1,7 @@
 // Copyright (c) 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // A send algorithm that adds pacing on top of an another send algorithm.
 // It uses the underlying sender's pacing rate to schedule packets.
 // It also takes into consideration the expected granularity of the underlying
@@ -95,7 +95,7 @@ class QUIC_EXPORT_PRIVATE PacingSender {
 
   // If the next send time is within alarm_granularity_, send immediately.
   // TODO(fayang): Remove alarm_granularity_ when deprecating
-  // FLAGS_quic_restart_flag_quic_offload_pacing_to_usps2.
+  // quic_offload_pacing_to_usps2 flag.
   QuicTime::Delta alarm_granularity_;
 
   // Indicates whether pacing throttles the sending. If true, make up for lost

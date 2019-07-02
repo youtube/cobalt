@@ -28,8 +28,7 @@ class MockEncrypter : public quic::QuicEncrypter {
   bool SetKey(quic::QuicStringPiece key) override;
   bool SetNoncePrefix(quic::QuicStringPiece nonce_prefix) override;
   bool SetIV(quic::QuicStringPiece iv) override;
-  bool EncryptPacket(quic::QuicTransportVersion version,
-                     quic::QuicPacketNumber packet_number,
+  bool EncryptPacket(uint64_t packet_number,
                      quic::QuicStringPiece associated_data,
                      quic::QuicStringPiece plaintext,
                      char* output,

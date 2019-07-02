@@ -7,7 +7,6 @@
 
 #include <cstddef>
 
-#include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "net/third_party/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
@@ -36,8 +35,7 @@ class QUIC_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   bool SetIV(QuicStringPiece iv) override;
   bool SetPreliminaryKey(QuicStringPiece key) override;
   bool SetDiversificationNonce(const DiversificationNonce& nonce) override;
-  bool DecryptPacket(QuicTransportVersion version,
-                     QuicPacketNumber packet_number,
+  bool DecryptPacket(uint64_t packet_number,
                      QuicStringPiece associated_data,
                      QuicStringPiece ciphertext,
                      char* output,

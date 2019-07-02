@@ -10,7 +10,7 @@
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
-#include "net/third_party/spdy/core/spdy_header_block.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Combine;
@@ -26,15 +26,22 @@ class QpackRoundTripTest
   QpackRoundTripTest()
       : encoding_fragment_mode_(std::get<0>(GetParam())),
         decoding_fragment_mode_(std::get<1>(GetParam())) {}
+  ~QpackRoundTripTest() override = default;
 
   spdy::SpdyHeaderBlock EncodeThenDecode(
       const spdy::SpdyHeaderBlock& header_list) {
+    NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
+    NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
     QuicString encoded_header_block = QpackEncode(
+        &decoder_stream_error_delegate, &encoder_stream_sender_delegate,
         FragmentModeToFragmentSizeGenerator(encoding_fragment_mode_),
         &header_list);
 
     TestHeadersHandler handler;
-    QpackDecode(&handler,
+    NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
+    NoopDecoderStreamSenderDelegate decoder_stream_sender_delegate;
+    QpackDecode(&encoder_stream_error_delegate, &decoder_stream_sender_delegate,
+                &handler,
                 FragmentModeToFragmentSizeGenerator(decoding_fragment_mode_),
                 encoded_header_block);
 
@@ -49,7 +56,7 @@ class QpackRoundTripTest
   const FragmentMode decoding_fragment_mode_;
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ,
     QpackRoundTripTest,
     Combine(Values(FragmentMode::kSingleChunk, FragmentMode::kOctetByOctet),

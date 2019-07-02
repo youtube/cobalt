@@ -2656,14 +2656,16 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
       base::ThreadTaskRunnerHandle::OverrideForTesting(test_task_runner);
 
   // Resolve "host1".
-  HostResolver::RequestInfo info(HostPortPair("host1", 70));
-  Request* req = CreateRequest(info, DEFAULT_PRIORITY);
-  EXPECT_THAT(req->Resolve(), IsError(ERR_IO_PENDING));
+  ResolveHostResponseHelper response(resolver_->CreateRequest(
+      HostPortPair("host1", 70), NetLogWithSource(), base::nullopt));
+  EXPECT_FALSE(response.complete());
 
   resolver_proc->WaitForNAttemptsToBeBlocked(1);
+  EXPECT_FALSE(response.complete());
 
   test_task_runner->FastForwardBy(unresponsive_delay + kSleepFudgeFactor);
   resolver_proc->WaitForNAttemptsToBeBlocked(2);
+  EXPECT_FALSE(response.complete());
 
   test_task_runner->FastForwardBy(unresponsive_delay * retry_factor +
                                   kSleepFudgeFactor);
@@ -2673,9 +2675,9 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
 
   // Resolve returns -4 to indicate that 3rd attempt has resolved the host.
   // Since we're using a TestMockTimeTaskRunner, the RunLoop stuff in
-  // WaitForResult will fail if it actually has to wait, but unless there's an
+  // result_error() will fail if it actually has to wait, but unless there's an
   // error, the result should be immediately ready by this point.
-  EXPECT_EQ(-4, req->WaitForResult());
+  EXPECT_EQ(-4, response.result_error());
 
   // We should be done with retries, but make sure none erroneously happen.
   test_task_runner->FastForwardUntilNoTasksRemain();

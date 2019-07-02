@@ -12,50 +12,31 @@
 // Usage: quic_packet_printer server|client <hex dump of packet>
 //
 // Example input:
-// quic_packet_printer server 0c6b810308320f24c004a939a38a2e3fd6ca589917f200400
-// 201b80b0100501c0700060003023d0000001c00556e656e637279707465642073747265616d2
-// 064617461207365656e
+// quic_packet_printer server 0c6b810308320f24c004a939a38a2e3fd6ca589917f200400201b80b0100501c0700060003023d0000001c00556e656e637279707465642073747265616d2064617461207365656e
 //
 // Example output:
 // OnPacket
 // OnUnauthenticatedPublicHeader
-// OnUnauthenticatedHeader: { connection_id: 13845207862000976235,
-// connection_id_length:8, packet_number_length:1, multipath_flag: 0,
-// reset_flag: 0, version_flag: 0, path_id: , packet_number: 4}
+// OnUnauthenticatedHeader: { connection_id: 13845207862000976235, connection_id_length:8, packet_number_length:1, multipath_flag: 0, reset_flag: 0, version_flag: 0, path_id: , packet_number: 4 }
 // OnDecryptedPacket
 // OnPacketHeader
-// OnAckFrame:  largest_observed: 1 ack_delay_time: 3000
-// missing_packets: [  ] is_truncated: 0 received_packets: [ 1 at 466016  ]
+// OnAckFrame:  largest_observed: 1 ack_delay_time: 3000 missing_packets: [  ] is_truncated: 0 received_packets: [ 1 at 466016  ]
 // OnStopWaitingFrame
-// OnConnectionCloseFrame: error_code { 61 } error_details { Unencrypted stream
-// data seen }
+// OnConnectionCloseFrame: error_code { 61 } error_details { Unencrypted stream data seen }
 
 // clang-format on
 
 #include <iostream>
-#include <string>
 
-#include "base/command_line.h"
-#include "base/strings/utf_string_conversions.h"
 #include "net/third_party/quic/core/quic_framer.h"
 #include "net/third_party/quic/core/quic_utils.h"
+#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 
-using std::string;
-
-// If set, specify the QUIC version to use.
-string FLAGS_quic_version = "";
-
-namespace {
-
-string ArgToString(base::CommandLine::StringType arg) {
-#if defined(OS_WIN)
-  return base::UTF16ToASCII(arg);
-#else
-  return arg;
-#endif
-}
-}  // namespace
+DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
+                              quic_version,
+                              "",
+                              "If set, specify the QUIC version to use.");
 
 namespace quic {
 
@@ -67,7 +48,8 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnError: " << QuicErrorCodeToString(framer->error())
               << " detail: " << framer->detailed_error() << "\n";
   }
-  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override {
+  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
+                                 PacketHeaderFormat form) override {
     framer_->set_version(received_version);
     std::cerr << "OnProtocolVersionMismatch: "
               << ParsedQuicVersionToString(received_version) << "\n";
@@ -97,6 +79,9 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   bool OnPacketHeader(const QuicPacketHeader& header) override {
     std::cerr << "OnPacketHeader\n";
     return true;
+  }
+  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {
+    std::cerr << "OnCoalescedPacket\n";
   }
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     std::cerr << "OnStreamFrame: " << frame;
@@ -160,6 +145,11 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnNewConnectionIdFrame: " << frame;
     return true;
   }
+  bool OnRetireConnectionIdFrame(
+      const QuicRetireConnectionIdFrame& frame) override {
+    std::cerr << "OnRetireConnectionIdFrame: " << frame;
+    return true;
+  }
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override {
     std::cerr << "OnNewTokenFrame: " << frame;
     return true;
@@ -217,40 +207,35 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
 }  // namespace quic
 
 int main(int argc, char* argv[]) {
-  base::CommandLine::Init(argc, argv);
-  base::CommandLine* line = base::CommandLine::ForCurrentProcess();
-  const base::CommandLine::StringVector& args = line->GetArgs();
+  const char* usage = "Usage: quic_packet_printer client|server <hex>";
+  std::vector<quic::QuicString> args =
+      quic::QuicParseCommandLineFlags(usage, argc, argv);
 
-  if (args.size() != 3) {
-    std::cerr << "Missing argument " << argc << ". (Usage: " << argv[0]
-              << " client|server <hex>\n";
+  if (args.size() < 2) {
+    quic::QuicPrintCommandLineFlagHelp(usage);
     return 1;
   }
 
-  if (line->HasSwitch("quic_version")) {
-    FLAGS_quic_version = line->GetSwitchValueASCII("quic_version");
-  }
-
-  string perspective_string = ArgToString(args[0]);
+  quic::QuicString perspective_string = args[0];
   quic::Perspective perspective;
   if (perspective_string == "client") {
     perspective = quic::Perspective::IS_CLIENT;
   } else if (perspective_string == "server") {
     perspective = quic::Perspective::IS_SERVER;
   } else {
-    std::cerr << "Invalid perspective. " << perspective_string
-              << " Usage: " << args[0] << " client|server <hex>\n";
+    std::cerr << "Invalid perspective" << std::endl;
+    quic::QuicPrintCommandLineFlagHelp(usage);
     return 1;
   }
-  string hex = quic::QuicTextUtils::HexDecode(argv[2]);
+  quic::QuicString hex = quic::QuicTextUtils::HexDecode(args[1]);
   quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
   // Fake a time since we're not actually generating acks.
   quic::QuicTime start(quic::QuicTime::Zero());
   quic::QuicFramer framer(versions, start, perspective);
-  if (!FLAGS_quic_version.empty()) {
+  if (!GetQuicFlag(FLAGS_quic_version).empty()) {
     for (quic::ParsedQuicVersion version : versions) {
       if (quic::QuicVersionToString(version.transport_version) ==
-          FLAGS_quic_version) {
+          GetQuicFlag(FLAGS_quic_version)) {
         framer.set_version(version);
       }
     }

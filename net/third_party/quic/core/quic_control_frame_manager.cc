@@ -17,9 +17,7 @@ QuicControlFrameManager::QuicControlFrameManager(QuicSession* session)
     : last_control_frame_id_(kInvalidControlFrameId),
       least_unacked_(1),
       least_unsent_(1),
-      session_(session),
-      donot_retransmit_old_window_updates_(
-          GetQuicReloadableFlag(quic_donot_retransmit_old_window_update2)) {}
+      session_(session) {}
 
 QuicControlFrameManager::~QuicControlFrameManager() {
   while (!control_frames_.empty()) {
@@ -28,18 +26,22 @@ QuicControlFrameManager::~QuicControlFrameManager() {
   }
 }
 
+void QuicControlFrameManager::WriteOrBufferQuicFrame(QuicFrame frame) {
+  const bool had_buffered_frames = HasBufferedFrames();
+  control_frames_.emplace_back(frame);
+  if (had_buffered_frames) {
+    return;
+  }
+  WriteBufferedFrames();
+}
+
 void QuicControlFrameManager::WriteOrBufferRstStream(
     QuicStreamId id,
     QuicRstStreamErrorCode error,
     QuicStreamOffset bytes_written) {
   QUIC_DVLOG(1) << "Writing RST_STREAM_FRAME";
-  const bool had_buffered_frames = HasBufferedFrames();
-  control_frames_.emplace_back((QuicFrame(new QuicRstStreamFrame(
+  WriteOrBufferQuicFrame((QuicFrame(new QuicRstStreamFrame(
       ++last_control_frame_id_, id, error, bytes_written))));
-  if (had_buffered_frames) {
-    return;
-  }
-  WriteBufferedFrames();
 }
 
 void QuicControlFrameManager::WriteOrBufferGoAway(
@@ -47,37 +49,43 @@ void QuicControlFrameManager::WriteOrBufferGoAway(
     QuicStreamId last_good_stream_id,
     const QuicString& reason) {
   QUIC_DVLOG(1) << "Writing GOAWAY_FRAME";
-  const bool had_buffered_frames = HasBufferedFrames();
-  control_frames_.emplace_back(QuicFrame(new QuicGoAwayFrame(
+  WriteOrBufferQuicFrame(QuicFrame(new QuicGoAwayFrame(
       ++last_control_frame_id_, error, last_good_stream_id, reason)));
-  if (had_buffered_frames) {
-    return;
-  }
-  WriteBufferedFrames();
 }
 
 void QuicControlFrameManager::WriteOrBufferWindowUpdate(
     QuicStreamId id,
     QuicStreamOffset byte_offset) {
   QUIC_DVLOG(1) << "Writing WINDOW_UPDATE_FRAME";
-  const bool had_buffered_frames = HasBufferedFrames();
-  control_frames_.emplace_back(QuicFrame(
+  WriteOrBufferQuicFrame(QuicFrame(
       new QuicWindowUpdateFrame(++last_control_frame_id_, id, byte_offset)));
-  if (had_buffered_frames) {
-    return;
-  }
-  WriteBufferedFrames();
 }
 
 void QuicControlFrameManager::WriteOrBufferBlocked(QuicStreamId id) {
   QUIC_DVLOG(1) << "Writing BLOCKED_FRAME";
-  const bool had_buffered_frames = HasBufferedFrames();
-  control_frames_.emplace_back(
+  WriteOrBufferQuicFrame(
       QuicFrame(new QuicBlockedFrame(++last_control_frame_id_, id)));
-  if (had_buffered_frames) {
-    return;
-  }
-  WriteBufferedFrames();
+}
+
+void QuicControlFrameManager::WriteOrBufferStreamIdBlocked(QuicStreamId id) {
+  QUIC_DVLOG(1) << "Writing STREAM_ID_BLOCKED Frame";
+  QUIC_CODE_COUNT(stream_id_blocked_transmits);
+  WriteOrBufferQuicFrame(
+      QuicFrame(QuicStreamIdBlockedFrame(++last_control_frame_id_, id)));
+}
+
+void QuicControlFrameManager::WriteOrBufferMaxStreamId(QuicStreamId id) {
+  QUIC_DVLOG(1) << "Writing MAX_STREAM_ID Frame";
+  QUIC_CODE_COUNT(max_stream_id_transmits);
+  WriteOrBufferQuicFrame(
+      QuicFrame(QuicMaxStreamIdFrame(++last_control_frame_id_, id)));
+}
+
+void QuicControlFrameManager::WriteOrBufferStopSending(uint16_t code,
+                                                       QuicStreamId stream_id) {
+  QUIC_DVLOG(1) << "Writing STOP_SENDING_FRAME";
+  WriteOrBufferQuicFrame(QuicFrame(
+      new QuicStopSendingFrame(++last_control_frame_id_, stream_id, code)));
 }
 
 void QuicControlFrameManager::WritePing() {
@@ -100,14 +108,11 @@ void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
         << "Send or retransmit a control frame with invalid control frame id";
     return;
   }
-  if (donot_retransmit_old_window_updates_ &&
-      frame.type == WINDOW_UPDATE_FRAME) {
+  if (frame.type == WINDOW_UPDATE_FRAME) {
     QuicStreamId stream_id = frame.window_update_frame->stream_id;
     if (QuicContainsKey(window_update_frames_, stream_id) &&
         id > window_update_frames_[stream_id]) {
       // Consider the older window update of the same stream as acked.
-      QUIC_FLAG_COUNT(
-          quic_reloadable_flag_quic_donot_retransmit_old_window_update2);
       OnControlFrameIdAcked(window_update_frames_[stream_id]);
     }
     window_update_frames_[stream_id] = id;
@@ -123,7 +128,6 @@ void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
     session_->connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, "Try to send control frames out of order",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    RecordInternalErrorLocation(QUIC_CONTROL_FRAME_MANAGER_CONTROL_FRAME_SENT);
     return;
   }
   ++least_unsent_;
@@ -134,8 +138,7 @@ bool QuicControlFrameManager::OnControlFrameAcked(const QuicFrame& frame) {
   if (!OnControlFrameIdAcked(id)) {
     return false;
   }
-  if (donot_retransmit_old_window_updates_ &&
-      frame.type == WINDOW_UPDATE_FRAME) {
+  if (frame.type == WINDOW_UPDATE_FRAME) {
     QuicStreamId stream_id = frame.window_update_frame->stream_id;
     if (QuicContainsKey(window_update_frames_, stream_id) &&
         window_update_frames_[stream_id] == id) {
@@ -156,7 +159,6 @@ void QuicControlFrameManager::OnControlFrameLost(const QuicFrame& frame) {
     session_->connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, "Try to mark unsent control frame as lost",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    RecordInternalErrorLocation(QUIC_CONTROL_FRAME_MANAGER_CONTROL_FRAME_LOST);
     return;
   }
   if (id < least_unacked_ ||
@@ -220,8 +222,6 @@ bool QuicControlFrameManager::RetransmitControlFrame(const QuicFrame& frame) {
     session_->connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, "Try to retransmit unsent control frame",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    RecordInternalErrorLocation(
-        QUIC_CONTROL_FRAME_MANAGER_RETRANSMIT_CONTROL_FRAME);
     return false;
   }
   if (id < least_unacked_ ||

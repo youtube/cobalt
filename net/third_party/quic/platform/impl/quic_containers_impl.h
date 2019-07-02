@@ -5,6 +5,7 @@
 #ifndef NET_THIRD_PARTY_QUIC_PLATFORM_IMPL_QUIC_CONTAINERS_IMPL_H_
 #define NET_THIRD_PARTY_QUIC_PLATFORM_IMPL_QUIC_CONTAINERS_IMPL_H_
 
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -16,27 +17,33 @@
 
 namespace quic {
 
+// The default hasher used by hash tables.
+template <typename Key>
+using QuicDefaultHasherImpl = std::hash<Key>;
+
 // TODO(mpw): s/std::unordered_map/gtl::node_hash_map/ once node_hash_map is
 //   PG3-compatible.
 template <typename Key,
           typename Value,
-          typename Hash = typename std::unordered_map<Key, Value>::hasher,
-          typename Eq = typename std::unordered_map<Key, Value>::key_equal,
+          typename Hash,
+          typename Eq =
+              typename std::unordered_map<Key, Value, Hash>::key_equal,
           typename Alloc =
-              typename std::unordered_map<Key, Value>::allocator_type>
+              typename std::unordered_map<Key, Value, Hash>::allocator_type>
 using QuicUnorderedMapImpl = std::unordered_map<Key, Value, Hash, Eq, Alloc>;
 
 // TODO(mpw): s/std::unordered_set/gtl::node_hash_set/ once node_hash_set is
 //   PG3-compatible.
 template <typename Key,
-          typename Hash = typename std::unordered_set<Key>::hasher,
-          typename Eq = typename std::unordered_set<Key>::key_equal,
-          typename Alloc = typename std::unordered_set<Key>::allocator_type>
+          typename Hash,
+          typename Eq = typename std::unordered_set<Key, Hash>::key_equal,
+          typename Alloc =
+              typename std::unordered_set<Key, Hash>::allocator_type>
 using QuicUnorderedSetImpl = std::unordered_set<Key, Hash, Eq, Alloc>;
 
 // A map which offers insertion-ordered iteration.
-template <typename Key, typename Value>
-using QuicLinkedHashMapImpl = net::linked_hash_map<Key, Value>;
+template <typename Key, typename Value, typename Hash>
+using QuicLinkedHashMapImpl = net::linked_hash_map<Key, Value, Hash>;
 
 // A map which is faster than (for example) hash_map for a certain number of
 // unique key-value-pair elements, and upgrades itself to unordered_map when

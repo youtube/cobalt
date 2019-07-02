@@ -287,7 +287,7 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     error_response_info_ = transport_socket_handle_->ssl_error_response_info();
   } else if (result == ERR_PROXY_AUTH_REQUESTED ||
-             result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
+             result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT) {
     StreamSocket* socket = transport_socket_handle_->socket();
     ProxyClientSocket* tunnel_socket = static_cast<ProxyClientSocket*>(socket);
     error_response_info_ = *tunnel_socket->GetConnectResponseInfo();

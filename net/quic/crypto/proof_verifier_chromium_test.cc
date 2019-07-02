@@ -20,6 +20,7 @@
 #include "net/cert/multi_log_ct_verifier.h"
 #include "net/cert/x509_util.h"
 #include "net/http/transport_security_state.h"
+#include "net/http/transport_security_state_test_util.h"
 #include "net/quic/crypto/proof_source_chromium.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/ct_test_util.h"
@@ -36,6 +37,8 @@ namespace net {
 namespace test {
 
 namespace {
+
+const char kCTAndPKPHost[] = "pkp-expect-ct.preloaded.test";
 
 // CertVerifier that will fail the test if it is ever called.
 class FailsTestCertVerifier : public CertVerifier {
@@ -153,7 +156,7 @@ class ProofVerifierChromiumTest : public ::testing::Test {
                       base::FilePath());
     std::string signature;
     source.GetProof(quic::QuicSocketAddress(), kTestHostname, kTestConfig,
-                    quic::QUIC_VERSION_35, kTestChloHash,
+                    quic::QUIC_VERSION_39, kTestChloHash,
                     std::make_unique<SignatureSaver>(&signature));
     return signature;
   }
@@ -209,7 +212,7 @@ TEST_F(ProofVerifierChromiumTest, FailsIfCertFails) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -229,7 +232,7 @@ TEST_F(ProofVerifierChromiumTest, ValidSCTList) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, ct::GetSCTListForTesting(), kTestEmptySCT,
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -249,7 +252,7 @@ TEST_F(ProofVerifierChromiumTest, InvalidSCTList) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, ct::GetSCTListWithInvalidSCT(), kTestEmptySCT,
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -267,7 +270,7 @@ TEST_F(ProofVerifierChromiumTest, FailsIfSignatureFails) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, kTestConfig, verify_context_.get(),
       &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -297,7 +300,7 @@ TEST_F(ProofVerifierChromiumTest, PreservesEVIfAllowed) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -333,7 +336,7 @@ TEST_F(ProofVerifierChromiumTest, StripsEVIfNotAllowed) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -375,7 +378,7 @@ TEST_F(ProofVerifierChromiumTest, CTEVHistogramNonCompliant) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -421,7 +424,7 @@ TEST_F(ProofVerifierChromiumTest, CTEVHistogramCompliant) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -464,7 +467,7 @@ TEST_F(ProofVerifierChromiumTest, IsFatalErrorNotSetForNonFatalError) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -497,7 +500,7 @@ TEST_F(ProofVerifierChromiumTest, IsFatalErrorSetForFatalError) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -520,10 +523,17 @@ TEST_F(ProofVerifierChromiumTest, PKPEnforced) {
   MockCertVerifier dummy_verifier;
   dummy_verifier.AddResultForCert(test_cert.get(), dummy_result, OK);
 
+  transport_security_state_.EnableStaticPinsForTesting();
+  ScopedTransportSecurityStateSource scoped_security_state_source;
+
+#if defined(STARBOARD)
+  // Cobalt does not enable static transport security states so we have to
+  // enable the PKP here dynamically.
   HashValueVector pin_hashes = MakeHashValueVector(0x02);
   transport_security_state_.AddHPKP(
-      kTestHostname, base::Time::Now() + base::TimeDelta::FromSeconds(10000),
+      kCTAndPKPHost, base::Time::Now() + base::TimeDelta::FromSeconds(10000),
       true, pin_hashes, GURL());
+#endif
 
   ProofVerifierChromium proof_verifier(&dummy_verifier, &ct_policy_enforcer_,
                                        &transport_security_state_,
@@ -532,7 +542,7 @@ TEST_F(ProofVerifierChromiumTest, PKPEnforced) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kCTAndPKPHost, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -561,10 +571,17 @@ TEST_F(ProofVerifierChromiumTest, PKPBypassFlagSet) {
   MockCertVerifier dummy_verifier;
   dummy_verifier.AddResultForCert(test_cert.get(), dummy_result, OK);
 
-  HashValueVector expected_hashes = MakeHashValueVector(0x02);
+  transport_security_state_.EnableStaticPinsForTesting();
+  ScopedTransportSecurityStateSource scoped_security_state_source;
+
+#if defined(STARBOARD)
+  // Cobalt does not enable static transport security states so we have to
+  // enable the PKP here dynamically.
+  HashValueVector pin_hashes = MakeHashValueVector(0x02);
   transport_security_state_.AddHPKP(
-      kTestHostname, base::Time::Now() + base::TimeDelta::FromSeconds(10000),
-      true, expected_hashes, GURL());
+      kCTAndPKPHost, base::Time::Now() + base::TimeDelta::FromSeconds(10000),
+      true, pin_hashes, GURL());
+#endif
 
   ProofVerifierChromium proof_verifier(&dummy_verifier, &ct_policy_enforcer_,
                                        &transport_security_state_,
@@ -573,7 +590,7 @@ TEST_F(ProofVerifierChromiumTest, PKPBypassFlagSet) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kCTAndPKPHost, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -619,7 +636,7 @@ TEST_F(ProofVerifierChromiumTest, CTIsRequired) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -671,7 +688,7 @@ TEST_F(ProofVerifierChromiumTest, CTIsRequiredHistogramNonCompliant) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -722,7 +739,7 @@ TEST_F(ProofVerifierChromiumTest, CTIsRequiredHistogramCompliant) {
     std::unique_ptr<DummyProofVerifierCallback> callback(
         new DummyProofVerifierCallback);
     quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
         kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
         verify_context_.get(), &error_details_, &details_, std::move(callback));
     ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -741,7 +758,7 @@ TEST_F(ProofVerifierChromiumTest, CTIsRequiredHistogramCompliant) {
     std::unique_ptr<DummyProofVerifierCallback> callback(
         new DummyProofVerifierCallback);
     quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
         kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
         verify_context_.get(), &error_details_, &details_, std::move(callback));
     ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -779,7 +796,7 @@ TEST_F(ProofVerifierChromiumTest, CTIsNotRequiredHistogram) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -787,7 +804,7 @@ TEST_F(ProofVerifierChromiumTest, CTIsNotRequiredHistogram) {
   histograms.ExpectTotalCount(kHistogramName, 0);
 }
 
-// Test that CT is considered even when HPKP fails.
+// Test that CT is considered even when PKP fails.
 TEST_F(ProofVerifierChromiumTest, PKPAndCTBothTested) {
   scoped_refptr<X509Certificate> test_cert = GetTestServerCertificate();
   ASSERT_TRUE(test_cert);
@@ -801,11 +818,18 @@ TEST_F(ProofVerifierChromiumTest, PKPAndCTBothTested) {
   MockCertVerifier dummy_verifier;
   dummy_verifier.AddResultForCert(test_cert.get(), dummy_result, OK);
 
-  // Set up HPKP.
+  // Set up PKP.
+  transport_security_state_.EnableStaticPinsForTesting();
+  ScopedTransportSecurityStateSource scoped_security_state_source;
+
+#if defined(STARBOARD)
+  // Cobalt does not enable static transport security states so we have to
+  // enable the PKP here dynamically.
   HashValueVector pin_hashes = MakeHashValueVector(0x02);
   transport_security_state_.AddHPKP(
-      kTestHostname, base::Time::Now() + base::TimeDelta::FromSeconds(10000),
+      kCTAndPKPHost, base::Time::Now() + base::TimeDelta::FromSeconds(10000),
       true, pin_hashes, GURL());
+#endif
 
   // Set up CT.
   MockRequireCTDelegate require_ct_delegate;
@@ -813,7 +837,7 @@ TEST_F(ProofVerifierChromiumTest, PKPAndCTBothTested) {
   EXPECT_CALL(require_ct_delegate, IsCTRequiredForHost(_, _, _))
       .WillRepeatedly(Return(TransportSecurityState::RequireCTDelegate::
                                  CTRequirementLevel::NOT_REQUIRED));
-  EXPECT_CALL(require_ct_delegate, IsCTRequiredForHost(kTestHostname, _, _))
+  EXPECT_CALL(require_ct_delegate, IsCTRequiredForHost(kCTAndPKPHost, _, _))
       .WillRepeatedly(Return(TransportSecurityState::RequireCTDelegate::
                                  CTRequirementLevel::REQUIRED));
   EXPECT_CALL(ct_policy_enforcer_, CheckCompliance(_, _, _))
@@ -827,7 +851,7 @@ TEST_F(ProofVerifierChromiumTest, PKPAndCTBothTested) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kCTAndPKPHost, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
   ASSERT_EQ(quic::QUIC_FAILURE, status);
@@ -871,7 +895,7 @@ TEST_F(ProofVerifierChromiumTest, CTComplianceStatusHistogram) {
     std::unique_ptr<DummyProofVerifierCallback> callback(
         new DummyProofVerifierCallback);
     quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
         kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
         verify_context_.get(), &error_details_, &details_, std::move(callback));
     ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -892,7 +916,7 @@ TEST_F(ProofVerifierChromiumTest, CTComplianceStatusHistogram) {
     std::unique_ptr<DummyProofVerifierCallback> callback(
         new DummyProofVerifierCallback);
     quic::QuicAsyncStatus status = proof_verifier.VerifyProof(
-        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+        kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
         kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
         verify_context_.get(), &error_details_, &details_, std::move(callback));
     ASSERT_EQ(quic::QUIC_SUCCESS, status);
@@ -936,7 +960,7 @@ TEST_F(ProofVerifierChromiumTest, CTRequirementsFlagNotMet) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
 
@@ -978,7 +1002,7 @@ TEST_F(ProofVerifierChromiumTest, CTRequirementsFlagMet) {
   std::unique_ptr<DummyProofVerifierCallback> callback(
       new DummyProofVerifierCallback);
   proof_verifier.VerifyProof(
-      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_35,
+      kTestHostname, kTestPort, kTestConfig, quic::QUIC_VERSION_39,
       kTestChloHash, certs_, kTestEmptySCT, GetTestSignature(),
       verify_context_.get(), &error_details_, &details_, std::move(callback));
 

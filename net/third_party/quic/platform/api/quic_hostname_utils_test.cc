@@ -58,14 +58,28 @@ TEST_F(QuicHostnameUtilsTest, NormalizeHostname) {
           "www.google.com........",
           "www.google.com",
       },
+      {
+          "",
+          "",
+      },
+      {
+          ".",
+          "",
+      },
+      {
+          "........",
+          "",
+      },
+      {
+          "\xe5\x85\x89.google.com",
+          "xn--54q.google.com",
+      },
   };
   // clang-format on
 
   for (size_t i = 0; i < QUIC_ARRAYSIZE(tests); ++i) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), "%s", tests[i].input);
     EXPECT_EQ(QuicString(tests[i].expected),
-              QuicHostnameUtils::NormalizeHostname(buf));
+              QuicHostnameUtils::NormalizeHostname(tests[i].input));
   }
 }
 

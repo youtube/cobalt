@@ -5,6 +5,7 @@
 #include "net/third_party/quic/test_tools/quic_packet_creator_peer.h"
 
 #include "net/third_party/quic/core/quic_packet_creator.h"
+#include "net/third_party/quic/core/quic_types.h"
 
 namespace quic {
 namespace test {
@@ -42,9 +43,27 @@ QuicPacketNumberLength QuicPacketCreatorPeer::GetPacketNumberLength(
   return creator->GetPacketNumberLength();
 }
 
+// static
+QuicVariableLengthIntegerLength
+QuicPacketCreatorPeer::GetRetryTokenLengthLength(QuicPacketCreator* creator) {
+  return creator->GetRetryTokenLengthLength();
+}
+
+// static
+QuicVariableLengthIntegerLength QuicPacketCreatorPeer::GetLengthLength(
+    QuicPacketCreator* creator) {
+  return creator->GetLengthLength();
+}
+
 void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,
-                                            QuicPacketNumber s) {
-  creator->packet_.packet_number = s;
+                                            uint64_t s) {
+  DCHECK_NE(0u, s);
+  creator->packet_.packet_number = QuicPacketNumber(s);
+}
+
+// static
+void QuicPacketCreatorPeer::ClearPacketNumber(QuicPacketCreator* creator) {
+  creator->packet_.packet_number.Clear();
 }
 
 // static
@@ -73,7 +92,7 @@ SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
   DCHECK(creator->queued_frames_.empty());
   DCHECK(!frames.empty());
   for (const QuicFrame& frame : frames) {
-    bool success = creator->AddFrame(frame, false);
+    bool success = creator->AddFrame(frame, false, NOT_RETRANSMISSION);
     DCHECK(success);
   }
   creator->SerializePacket(buffer, buffer_len);
@@ -89,6 +108,14 @@ OwningSerializedPacketPointer
 QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
     QuicPacketCreator* creator) {
   return creator->SerializeConnectivityProbingPacket();
+}
+
+// static
+OwningSerializedPacketPointer
+QuicPacketCreatorPeer::SerializePathChallengeConnectivityProbingPacket(
+    QuicPacketCreator* creator,
+    QuicPathFrameBuffer* payload) {
+  return creator->SerializePathChallengeConnectivityProbingPacket(payload);
 }
 
 // static

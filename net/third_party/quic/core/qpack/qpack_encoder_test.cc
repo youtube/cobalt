@@ -11,6 +11,8 @@
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::Eq;
+using ::testing::StrictMock;
 using ::testing::Values;
 
 namespace quic {
@@ -18,28 +20,33 @@ namespace test {
 namespace {
 
 class QpackEncoderTest : public QuicTestWithParam<FragmentMode> {
- public:
+ protected:
   QpackEncoderTest() : fragment_mode_(GetParam()) {}
+  ~QpackEncoderTest() override = default;
 
   QuicString Encode(const spdy::SpdyHeaderBlock* header_list) {
-    return QpackEncode(FragmentModeToFragmentSizeGenerator(fragment_mode_),
-                       header_list);
+    return QpackEncode(
+        &decoder_stream_error_delegate_, &encoder_stream_sender_delegate_,
+        FragmentModeToFragmentSizeGenerator(fragment_mode_), header_list);
   }
+
+  StrictMock<MockDecoderStreamErrorDelegate> decoder_stream_error_delegate_;
+  NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate_;
 
  private:
   const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_CASE_P(,
-                        QpackEncoderTest,
-                        Values(FragmentMode::kSingleChunk,
-                               FragmentMode::kOctetByOctet));
+INSTANTIATE_TEST_SUITE_P(,
+                         QpackEncoderTest,
+                         Values(FragmentMode::kSingleChunk,
+                                FragmentMode::kOctetByOctet));
 
 TEST_P(QpackEncoderTest, Empty) {
   spdy::SpdyHeaderBlock header_list;
   QuicString output = Encode(&header_list);
 
-  EXPECT_TRUE(output.empty());
+  EXPECT_EQ(QuicTextUtils::HexDecode("0000"), output);
 }
 
 TEST_P(QpackEncoderTest, EmptyName) {
@@ -47,7 +54,7 @@ TEST_P(QpackEncoderTest, EmptyName) {
   header_list[""] = "foo";
   QuicString output = Encode(&header_list);
 
-  EXPECT_EQ(QuicTextUtils::HexDecode("208294e7"), output);
+  EXPECT_EQ(QuicTextUtils::HexDecode("0000208294e7"), output);
 }
 
 TEST_P(QpackEncoderTest, EmptyValue) {
@@ -55,7 +62,7 @@ TEST_P(QpackEncoderTest, EmptyValue) {
   header_list["foo"] = "";
   QuicString output = Encode(&header_list);
 
-  EXPECT_EQ(QuicTextUtils::HexDecode("2a94e700"), output);
+  EXPECT_EQ(QuicTextUtils::HexDecode("00002a94e700"), output);
 }
 
 TEST_P(QpackEncoderTest, EmptyNameAndValue) {
@@ -63,7 +70,7 @@ TEST_P(QpackEncoderTest, EmptyNameAndValue) {
   header_list[""] = "";
   QuicString output = Encode(&header_list);
 
-  EXPECT_EQ(QuicTextUtils::HexDecode("2000"), output);
+  EXPECT_EQ(QuicTextUtils::HexDecode("00002000"), output);
 }
 
 TEST_P(QpackEncoderTest, Simple) {
@@ -71,7 +78,7 @@ TEST_P(QpackEncoderTest, Simple) {
   header_list["foo"] = "bar";
   QuicString output = Encode(&header_list);
 
-  EXPECT_EQ(QuicTextUtils::HexDecode("2a94e703626172"), output);
+  EXPECT_EQ(QuicTextUtils::HexDecode("00002a94e703626172"), output);
 }
 
 TEST_P(QpackEncoderTest, Multiple) {
@@ -83,6 +90,7 @@ TEST_P(QpackEncoderTest, Multiple) {
 
   EXPECT_EQ(
       QuicTextUtils::HexDecode(
+          "0000"                // prefix
           "2a94e703626172"      // foo: bar
           "27005a5a5a5a5a5a5a"  // 7 octet long header name, the smallest number
                                 // that does not fit on a 3-bit prefix.
@@ -99,30 +107,59 @@ TEST_P(QpackEncoderTest, StaticTable) {
   {
     spdy::SpdyHeaderBlock header_list;
     header_list[":method"] = "GET";
-    header_list["accept-encoding"] = "gzip, deflate";
-    header_list["cache-control"] = "";
+    header_list["accept-encoding"] = "gzip, deflate, br";
+    header_list["location"] = "";
 
     QuicString output = Encode(&header_list);
-    EXPECT_EQ(QuicTextUtils::HexDecode("c2d0d8"), output);
+    EXPECT_EQ(QuicTextUtils::HexDecode("0000d1dfcc"), output);
   }
   {
     spdy::SpdyHeaderBlock header_list;
     header_list[":method"] = "POST";
-    header_list["accept-encoding"] = "brotli";
-    header_list["cache-control"] = "foo";
+    header_list["accept-encoding"] = "compress";
+    header_list["location"] = "foo";
 
     QuicString output = Encode(&header_list);
-    DLOG(INFO) << QuicTextUtils::HexEncode(output);
-    EXPECT_EQ(QuicTextUtils::HexDecode("c35f01858ec3a6837f5f098294e7"), output);
+    EXPECT_EQ(QuicTextUtils::HexDecode("0000d45f108621e9aec2a11f5c8294e7"),
+              output);
   }
   {
     spdy::SpdyHeaderBlock header_list;
-    header_list[":method"] = "CONNECT";
+    header_list[":method"] = "TRACE";
     header_list["accept-encoding"] = "";
 
     QuicString output = Encode(&header_list);
-    EXPECT_EQ(QuicTextUtils::HexDecode("5207434f4e4e4543545f0100"), output);
+    EXPECT_EQ(QuicTextUtils::HexDecode("00005f000554524143455f1000"), output);
   }
+}
+
+TEST_P(QpackEncoderTest, SimpleIndexed) {
+  spdy::SpdyHeaderBlock header_list;
+  header_list[":path"] = "/";
+
+  QpackEncoder encoder(&decoder_stream_error_delegate_,
+                       &encoder_stream_sender_delegate_);
+  auto progressive_encoder =
+      encoder.EncodeHeaderList(/* stream_id = */ 1, &header_list);
+  EXPECT_TRUE(progressive_encoder->HasNext());
+
+  // This indexed header field takes exactly three bytes:
+  // two for the prefix, one for the indexed static entry.
+  QuicString output;
+  progressive_encoder->Next(3, &output);
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0000c1"), output);
+  EXPECT_FALSE(progressive_encoder->HasNext());
+}
+
+TEST_P(QpackEncoderTest, DecoderStreamError) {
+  EXPECT_CALL(decoder_stream_error_delegate_,
+              OnDecoderStreamError(Eq("Encoded integer too large.")));
+
+  QpackEncoder encoder(&decoder_stream_error_delegate_,
+                       &encoder_stream_sender_delegate_);
+  encoder.DecodeDecoderStreamData(
+      QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 
 }  // namespace

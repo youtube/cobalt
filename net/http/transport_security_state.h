@@ -560,6 +560,12 @@ class NET_EXPORT TransportSecurityState {
   // Expect-CT reports.
   void ClearReportCachesForTesting();
 
+#if defined(COBALT_QUIC46)
+  // For unit tests only.
+  void EnableStaticPinsForTesting() { enable_static_pins_ = true; }
+  bool has_dynamic_pkp_state() const { return !enabled_pkp_hosts_.empty(); }
+#endif
+
  private:
   friend class TransportSecurityStateTest;
   friend class TransportSecurityStateStaticFuzzer;

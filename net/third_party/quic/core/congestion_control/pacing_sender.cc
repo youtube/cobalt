@@ -26,8 +26,7 @@ PacingSender::PacingSender()
       alarm_granularity_(QuicTime::Delta::FromMilliseconds(1)),
       pacing_limited_(false) {
   if (GetQuicReloadableFlag(quic_donot_reset_ideal_next_packet_send_time)) {
-    QUIC_FLAG_COUNT(
-        quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_donot_reset_ideal_next_packet_send_time);
   }
 }
 

@@ -22,7 +22,7 @@
 
 namespace quic {
 
-QuicStreamSequencer::QuicStreamSequencer(QuicStream* quic_stream)
+QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
     : stream_(quic_stream),
       buffered_frames_(kStreamReceiveWindowLimit),
       close_offset_(std::numeric_limits<QuicStreamOffset>::max()),
@@ -47,12 +47,23 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       return;
     }
   }
+  OnFrameData(byte_offset, data_len, frame.data_buffer);
+}
+
+void QuicStreamSequencer::OnCryptoFrame(const QuicCryptoFrame& frame) {
+  ++num_frames_received_;
+  OnFrameData(frame.offset, frame.data_length, frame.data_buffer);
+}
+
+void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
+                                      size_t data_len,
+                                      const char* data_buffer) {
   const size_t previous_readable_bytes = buffered_frames_.ReadableBytes();
   size_t bytes_written;
   QuicString error_details;
   QuicErrorCode result = buffered_frames_.OnStreamData(
-      byte_offset, QuicStringPiece(frame.data_buffer, frame.data_length),
-      &bytes_written, &error_details);
+      byte_offset, QuicStringPiece(data_buffer, data_len), &bytes_written,
+      &error_details);
   if (result != QUIC_NO_ERROR) {
     QuicString details = QuicStrCat(
         "Stream ", stream_->id(), ": ", QuicErrorCodeToString(result), ": ",
@@ -79,8 +90,7 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       // Readable bytes has changed, let stream decide if to inform application
       // or not.
       if (stop_reading_when_level_triggered_ && ignore_read_data_) {
-        QUIC_FLAG_COUNT(
-            quic_reloadable_flag_quic_stop_reading_when_level_triggered);
+        QUIC_RELOADABLE_FLAG_COUNT(quic_stop_reading_when_level_triggered);
         FlushBufferedFrames();
       } else {
         stream_->OnDataAvailable();
@@ -144,6 +154,11 @@ int QuicStreamSequencer::GetReadableRegions(IOVEC* iov, size_t iov_len) const {
 bool QuicStreamSequencer::GetReadableRegion(IOVEC* iov) const {
   DCHECK(!blocked_);
   return buffered_frames_.GetReadableRegion(iov);
+}
+
+bool QuicStreamSequencer::PrefetchNextRegion(IOVEC* iov) {
+  DCHECK(!blocked_);
+  return buffered_frames_.PrefetchNextRegion(iov);
 }
 
 void QuicStreamSequencer::Read(QuicString* buffer) {

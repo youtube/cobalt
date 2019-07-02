@@ -12,7 +12,7 @@
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
 
@@ -22,7 +22,12 @@ class QuicSpdyClientSession;
 // SPDY response.
 class QuicSpdyClientStream : public QuicSpdyStream {
  public:
-  QuicSpdyClientStream(QuicStreamId id, QuicSpdyClientSession* session);
+  QuicSpdyClientStream(QuicStreamId id,
+                       QuicSpdyClientSession* session,
+                       StreamType type);
+  QuicSpdyClientStream(PendingStream pending,
+                       QuicSpdyClientSession* spdy_session,
+                       StreamType type);
   QuicSpdyClientStream(const QuicSpdyClientStream&) = delete;
   QuicSpdyClientStream& operator=(const QuicSpdyClientStream&) = delete;
   ~QuicSpdyClientStream() override;
@@ -43,7 +48,7 @@ class QuicSpdyClientStream : public QuicSpdyStream {
                            const QuicHeaderList& header_list) override;
 
   // QuicStream implementation called by the session when there's data for us.
-  void OnDataAvailable() override;
+  void OnBodyAvailable() override;
 
   // Serializes the headers and body, sends it to the server, and
   // returns the number of bytes sent.

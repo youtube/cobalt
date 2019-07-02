@@ -5,8 +5,11 @@
 #include "net/third_party/quic/core/quic_utils.h"
 
 #include "net/third_party/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quic/core/quic_connection_id.h"
+#include "net/third_party/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
+#include "net/third_party/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -138,15 +141,66 @@ TEST_F(QuicUtilsTest, RetransmissionTypeToPacketState) {
 }
 
 TEST_F(QuicUtilsTest, IsIetfPacketHeader) {
+  // IETF QUIC short header
   uint8_t first_byte = 0;
   EXPECT_TRUE(QuicUtils::IsIetfPacketHeader(first_byte));
+  EXPECT_TRUE(QuicUtils::IsIetfPacketShortHeader(first_byte));
 
+  // IETF QUIC long header
+  first_byte |= (FLAGS_LONG_HEADER | FLAGS_DEMULTIPLEXING_BIT);
+  EXPECT_TRUE(QuicUtils::IsIetfPacketHeader(first_byte));
+  EXPECT_FALSE(QuicUtils::IsIetfPacketShortHeader(first_byte));
+
+  // IETF QUIC long header, version negotiation.
+  first_byte = 0;
   first_byte |= FLAGS_LONG_HEADER;
   EXPECT_TRUE(QuicUtils::IsIetfPacketHeader(first_byte));
+  EXPECT_FALSE(QuicUtils::IsIetfPacketShortHeader(first_byte));
 
+  // GQUIC
   first_byte = 0;
   first_byte |= PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID;
   EXPECT_FALSE(QuicUtils::IsIetfPacketHeader(first_byte));
+  EXPECT_FALSE(QuicUtils::IsIetfPacketShortHeader(first_byte));
+}
+
+TEST_F(QuicUtilsTest, RandomConnectionId) {
+  MockRandom random(33);
+  QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(&random);
+  EXPECT_EQ(connection_id.length(), sizeof(uint64_t));
+    char connection_id_bytes[sizeof(uint64_t)];
+    random.RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
+    EXPECT_EQ(connection_id,
+              QuicConnectionId(static_cast<char*>(connection_id_bytes),
+                               QUIC_ARRAYSIZE(connection_id_bytes)));
+  EXPECT_NE(connection_id, EmptyQuicConnectionId());
+  EXPECT_NE(connection_id, TestConnectionId());
+  EXPECT_NE(connection_id, TestConnectionId(1));
+}
+
+TEST_F(QuicUtilsTest, VariableLengthConnectionId) {
+  EXPECT_FALSE(
+      QuicUtils::VariableLengthConnectionIdAllowedForVersion(QUIC_VERSION_39));
+  EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
+      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_39), QUIC_VERSION_39));
+  EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
+      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_99), QUIC_VERSION_99));
+  EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_39),
+            EmptyQuicConnectionId());
+  EXPECT_FALSE(QuicUtils::IsConnectionIdValidForVersion(EmptyQuicConnectionId(),
+                                                        QUIC_VERSION_39));
+}
+
+TEST_F(QuicUtilsTest, StatelessResetToken) {
+  QuicConnectionId connection_id1a = test::TestConnectionId(1);
+  QuicConnectionId connection_id1b = test::TestConnectionId(1);
+  QuicConnectionId connection_id2 = test::TestConnectionId(2);
+  QuicUint128 token1a = QuicUtils::GenerateStatelessResetToken(connection_id1a);
+  QuicUint128 token1b = QuicUtils::GenerateStatelessResetToken(connection_id1b);
+  QuicUint128 token2 = QuicUtils::GenerateStatelessResetToken(connection_id2);
+  EXPECT_EQ(token1a, token1b);
+  EXPECT_NE(token1a, token2);
+  EXPECT_EQ(token1a, MakeQuicUint128(0, 1));
 }
 
 }  // namespace

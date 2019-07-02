@@ -69,7 +69,7 @@ class QuicTraceVisitor : public QuicConnectionDebugVisitor {
   const QuicTime start_time_;
 };
 
-};  // namespace quic
+}  // namespace quic
 
 #endif  // QUIC_TRACE_DISABLED
 

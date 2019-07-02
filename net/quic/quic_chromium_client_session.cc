@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
@@ -15,12 +16,15 @@
 #include "base/single_thread_task_runner.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "base/time/tick_clock.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/values.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_activity_monitor.h"
+#include "net/base/url_util.h"
 #include "net/http/transport_security_state.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source_type.h"
@@ -40,6 +44,8 @@
 #include "net/ssl/ssl_info.h"
 #include "net/third_party/quic/core/http/quic_client_promised_info.h"
 #include "net/third_party/quic/core/http/spdy_utils.h"
+#include "net/third_party/quic/core/quic_utils.h"
+#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
@@ -69,12 +75,6 @@ const int kDefaultRTTMilliSecs = 300;
 // The maximum size of uncompressed QUIC headers that will be allowed.
 const size_t kMaxUncompressedHeaderSize = 256 * 1024;
 
-// The maximum time allowed to have no retransmittable packets on the wire
-// (after sending the first retransmittable packet) if
-// |migrate_session_early_v2_| is true. PING frames will be sent as needed to
-// enforce this.
-const size_t kDefaultRetransmittableOnWireTimeoutMillisecs = 100;
-
 // Histograms for tracking down the crashes from http://crbug.com/354669
 // Note: these values must be kept in sync with the corresponding values in:
 // tools/metrics/histograms/histograms.xml
@@ -103,12 +103,9 @@ void RecordUnexpectedNotGoingAway(Location location) {
                             NUM_LOCATIONS);
 }
 
-std::unique_ptr<base::Value> NetLogQuicConnectionMigrationTriggerCallback(
-    std::string trigger,
-    NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("trigger", trigger);
-  return std::move(dict);
+NetLogParametersCallback NetLogQuicConnectionMigrationTriggerCallback(
+    const char* trigger) {
+  return NetLog::StringCallback("trigger", trigger);
 }
 
 std::unique_ptr<base::Value> NetLogQuicConnectionMigrationFailureCallback(
@@ -116,7 +113,7 @@ std::unique_ptr<base::Value> NetLogQuicConnectionMigrationFailureCallback(
     std::string reason,
     NetLogCaptureMode capture_mode) {
   std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("connection_id", base::NumberToString(connection_id));
+  dict->SetString("connection_id", connection_id.ToString());
   dict->SetString("reason", reason);
   return std::move(dict);
 }
@@ -125,7 +122,19 @@ std::unique_ptr<base::Value> NetLogQuicConnectionMigrationSuccessCallback(
     quic::QuicConnectionId connection_id,
     NetLogCaptureMode capture_mode) {
   std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("connection_id", base::NumberToString(connection_id));
+  dict->SetString("connection_id", connection_id.ToString());
+  return std::move(dict);
+}
+
+std::unique_ptr<base::Value> NetLogProbingResultCallback(
+    NetworkChangeNotifier::NetworkHandle network,
+    const quic::QuicSocketAddress* peer_address,
+    bool is_success,
+    NetLogCaptureMode capture_mode) {
+  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+  dict->SetString("network", base::NumberToString(network));
+  dict->SetString("peer address", peer_address->ToString());
+  dict->SetBoolean("is_success", is_success);
   return std::move(dict);
 }
 
@@ -161,7 +170,7 @@ void RecordHandshakeState(HandshakeState state) {
 
 std::string ConnectionMigrationCauseToString(ConnectionMigrationCause cause) {
   switch (cause) {
-    case UNKNOWN:
+    case UNKNOWN_CAUSE:
       return "Unknown";
     case ON_NETWORK_CONNECTED:
       return "OnNetworkConnected";
@@ -572,8 +581,8 @@ void QuicChromiumClientSession::StreamRequest::OnRequestCompleteFailure(
     // Avoid re-entrancy if the callback calls into the session.
     base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
-        base::Bind(&QuicChromiumClientSession::StreamRequest::DoCallback,
-                   weak_factory_.GetWeakPtr(), rv));
+        base::BindOnce(&QuicChromiumClientSession::StreamRequest::DoCallback,
+                       weak_factory_.GetWeakPtr(), rv));
   }
 }
 
@@ -668,13 +677,16 @@ QuicChromiumClientSession::QuicChromiumClientSession(
     bool require_confirmation,
     bool migrate_session_early_v2,
     bool migrate_sessions_on_network_change_v2,
-    bool go_away_on_path_degrading,
     NetworkChangeNotifier::NetworkHandle default_network,
+    quic::QuicTime::Delta retransmittable_on_wire_timeout,
+    bool migrate_idle_session,
+    base::TimeDelta idle_migration_period,
     base::TimeDelta max_time_on_non_default_network,
     int max_migrations_to_non_default_network_on_write_error,
     int max_migrations_to_non_default_network_on_path_degrading,
     int yield_after_packets,
     quic::QuicTime::Delta yield_after_duration,
+    bool go_away_on_path_degrading,
     bool headers_include_h2_stream_dependency,
     int cert_verify_flags,
     const quic::QuicConfig& config,
@@ -684,16 +696,21 @@ QuicChromiumClientSession::QuicChromiumClientSession(
     base::TimeTicks dns_resolution_end_time,
     quic::QuicClientPushPromiseIndex* push_promise_index,
     ServerPushDelegate* push_delegate,
+    const base::TickClock* tick_clock,
     base::SequencedTaskRunner* task_runner,
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
     NetLog* net_log)
-    : quic::QuicSpdyClientSessionBase(connection, push_promise_index, config),
+    : quic::QuicSpdyClientSessionBase(connection,
+                                      push_promise_index,
+                                      config,
+                                      connection->supported_versions()),
       session_key_(session_key),
       require_confirmation_(require_confirmation),
       migrate_session_early_v2_(migrate_session_early_v2),
       migrate_session_on_network_change_v2_(
           migrate_sessions_on_network_change_v2),
-      go_away_on_path_degrading_(go_away_on_path_degrading),
+      migrate_idle_session_(migrate_idle_session),
+      idle_migration_period_(idle_migration_period),
       max_time_on_non_default_network_(max_time_on_non_default_network),
       max_migrations_to_non_default_network_on_write_error_(
           max_migrations_to_non_default_network_on_write_error),
@@ -704,8 +721,11 @@ QuicChromiumClientSession::QuicChromiumClientSession(
       clock_(clock),
       yield_after_packets_(yield_after_packets),
       yield_after_duration_(yield_after_duration),
+      go_away_on_path_degrading_(go_away_on_path_degrading),
       most_recent_path_degrading_timestamp_(base::TimeTicks()),
       most_recent_network_disconnected_timestamp_(base::TimeTicks()),
+      tick_clock_(tick_clock),
+      most_recent_stream_close_time_(tick_clock_->NowTicks()),
       most_recent_write_error_(0),
       most_recent_write_error_timestamp_(base::TimeTicks()),
       stream_factory_(stream_factory),
@@ -730,7 +750,7 @@ QuicChromiumClientSession::QuicChromiumClientSession(
       bytes_pushed_and_unclaimed_count_(0),
       probing_manager_(this, task_runner_),
       retry_migrate_back_count_(0),
-      current_connection_migration_cause_(UNKNOWN),
+      current_connection_migration_cause_(UNKNOWN_CAUSE),
       send_packet_after_migration_(false),
       wait_for_new_network_(false),
       ignore_read_error_(false),
@@ -742,6 +762,7 @@ QuicChromiumClientSession::QuicChromiumClientSession(
   // on at the same time.
   DCHECK(!(migrate_session_early_v2_ && go_away_on_path_degrading_));
   default_network_ = default_network;
+  auto* socket_raw = socket.get();
   sockets_.push_back(std::move(socket));
   packet_readers_.push_back(std::make_unique<QuicChromiumPacketReader>(
       sockets_.back().get(), clock, this, yield_after_packets,
@@ -760,7 +781,7 @@ QuicChromiumClientSession::QuicChromiumClientSession(
       base::Bind(NetLogQuicClientSessionCallback, &session_key.server_id(),
                  cert_verify_flags, require_confirmation_));
   IPEndPoint address;
-  if (socket && socket->GetLocalAddress(&address) == OK &&
+  if (socket_raw && socket_raw->GetLocalAddress(&address) == OK &&
       address.GetFamily() == ADDRESS_FAMILY_IPV6) {
     connection->SetMaxPacketLength(connection->max_packet_length() -
                                    kAdditionalOverheadForIPv6);
@@ -769,8 +790,7 @@ QuicChromiumClientSession::QuicChromiumClientSession(
   connect_timing_.dns_end = dns_resolution_end_time;
   if (migrate_session_early_v2_) {
     connection->set_retransmittable_on_wire_timeout(
-        quic::QuicTime::Delta::FromMilliseconds(
-            kDefaultRetransmittableOnWireTimeoutMillisecs));
+        retransmittable_on_wire_timeout);
   }
 }
 
@@ -801,7 +821,6 @@ QuicChromiumClientSession::~QuicChromiumClientSession() {
   if (connection()->connected()) {
     // Ensure that the connection is closed by the time the session is
     // destroyed.
-    RecordInternalErrorLocation(quic::QUIC_CHROMIUM_CLIENT_SESSION_DESTRUCTOR);
     connection()->CloseConnection(quic::QUIC_INTERNAL_ERROR,
                                   "session torn down",
                                   quic::ConnectionCloseBehavior::SILENT_CLOSE);
@@ -895,24 +914,27 @@ void QuicChromiumClientSession::Initialize() {
   set_max_uncompressed_header_bytes(kMaxUncompressedHeaderSize);
 }
 
-size_t QuicChromiumClientSession::WriteHeaders(
+size_t QuicChromiumClientSession::WriteHeadersOnHeadersStream(
     quic::QuicStreamId id,
     spdy::SpdyHeaderBlock headers,
     bool fin,
     spdy::SpdyPriority priority,
     quic::QuicReferenceCountedPointer<quic::QuicAckListenerInterface>
-        ack_notifier_delegate) {
+        ack_listener) {
   spdy::SpdyStreamId parent_stream_id = 0;
   int weight = 0;
   bool exclusive = false;
+
   if (headers_include_h2_stream_dependency_) {
     priority_dependency_state_.OnStreamCreation(id, priority, &parent_stream_id,
                                                 &weight, &exclusive);
   } else {
     weight = spdy::Spdy3PriorityToHttp2Weight(priority);
   }
-  return WriteHeadersImpl(id, std::move(headers), fin, weight, parent_stream_id,
-                          exclusive, std::move(ack_notifier_delegate));
+
+  return WriteHeadersOnHeadersStreamImpl(id, std::move(headers), fin,
+                                         parent_stream_id, weight, exclusive,
+                                         std::move(ack_listener));
 }
 
 void QuicChromiumClientSession::UnregisterStreamPriority(quic::QuicStreamId id,
@@ -1006,14 +1028,22 @@ int QuicChromiumClientSession::TryCreateStream(StreamRequest* request) {
     return ERR_CONNECTION_CLOSED;
   }
 
-  if (GetNumOpenOutgoingStreams() < max_open_outgoing_streams()) {
+  bool can_open_next;
+  if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
+      connection()->transport_version() != quic::QUIC_VERSION_99) {
+    can_open_next = (GetNumOpenOutgoingStreams() <
+                     stream_id_manager().max_open_outgoing_streams());
+  } else {
+    can_open_next = CanOpenNextOutgoingBidirectionalStream();
+  }
+  if (can_open_next) {
     request->stream_ =
         CreateOutgoingReliableStreamImpl(request->traffic_annotation())
             ->CreateHandle();
     return OK;
   }
 
-  request->pending_start_time_ = base::TimeTicks::Now();
+  request->pending_start_time_ = tick_clock_->NowTicks();
   stream_requests_.push_back(request);
   UMA_HISTOGRAM_COUNTS_1000("Net.QuicSession.NumPendingStreamRequests",
                             stream_requests_.size());
@@ -1030,15 +1060,25 @@ void QuicChromiumClientSession::CancelRequest(StreamRequest* request) {
   }
 }
 
-bool QuicChromiumClientSession::ShouldCreateOutgoingDynamicStream() {
+bool QuicChromiumClientSession::ShouldCreateOutgoingBidirectionalStream() {
   if (!crypto_stream_->encryption_established()) {
     DVLOG(1) << "Encryption not active so no outgoing stream created.";
     return false;
   }
-  if (GetNumOpenOutgoingStreams() >= max_open_outgoing_streams()) {
-    DVLOG(1) << "Failed to create a new outgoing stream. "
-             << "Already " << GetNumOpenOutgoingStreams() << " open.";
-    return false;
+  if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
+      connection()->transport_version() != quic::QUIC_VERSION_99) {
+    if (GetNumOpenOutgoingStreams() >=
+        stream_id_manager().max_open_outgoing_streams()) {
+      DVLOG(1) << "Failed to create a new outgoing stream. "
+               << "Already " << GetNumOpenOutgoingStreams() << " open.";
+      return false;
+    }
+  } else {
+    if (!CanOpenNextOutgoingBidirectionalStream()) {
+      DVLOG(1) << "Failed to create a new outgoing stream. "
+               << "Already " << GetNumOpenOutgoingStreams() << " open.";
+      return false;
+    }
   }
   if (goaway_received()) {
     DVLOG(1) << "Failed to create a new outgoing stream. "
@@ -1052,14 +1092,25 @@ bool QuicChromiumClientSession::ShouldCreateOutgoingDynamicStream() {
   return true;
 }
 
+bool QuicChromiumClientSession::ShouldCreateOutgoingUnidirectionalStream() {
+  NOTREACHED() << "Try to create outgoing unidirectional streams";
+  return false;
+}
+
 bool QuicChromiumClientSession::WasConnectionEverUsed() {
   const quic::QuicConnectionStats& stats = connection()->GetStats();
   return stats.bytes_sent > 0 || stats.bytes_received > 0;
 }
 
 QuicChromiumClientStream*
-QuicChromiumClientSession::CreateOutgoingDynamicStream() {
+QuicChromiumClientSession::CreateOutgoingBidirectionalStream() {
   NOTREACHED() << "CreateOutgoingReliableStreamImpl should be called directly";
+  return nullptr;
+}
+
+QuicChromiumClientStream*
+QuicChromiumClientSession::CreateOutgoingUnidirectionalStream() {
+  NOTREACHED() << "Try to create outgoing unidirectional stream";
   return nullptr;
 }
 
@@ -1068,7 +1119,8 @@ QuicChromiumClientSession::CreateOutgoingReliableStreamImpl(
     const NetworkTrafficAnnotationTag& traffic_annotation) {
   DCHECK(connection()->connected());
   QuicChromiumClientStream* stream = new QuicChromiumClientStream(
-      GetNextOutgoingStreamId(), this, net_log_, traffic_annotation);
+      GetNextOutgoingBidirectionalStreamId(), this, quic::BIDIRECTIONAL,
+      net_log_, traffic_annotation);
   ActivateStream(base::WrapUnique(stream));
   ++num_total_streams_;
   UMA_HISTOGRAM_COUNTS_1M("Net.QuicSession.NumOpenStreams",
@@ -1110,15 +1162,12 @@ bool QuicChromiumClientSession::GetSSLInfo(SSLInfo* ssl_info) const {
   // numbers begin with a stray 0x03, so mask them off.
   quic::QuicTag aead = crypto_stream_->crypto_negotiated_params().aead;
   uint16_t cipher_suite;
-  int security_bits;
   switch (aead) {
     case quic::kAESG:
       cipher_suite = TLS1_CK_AES_128_GCM_SHA256 & 0xffff;
-      security_bits = 128;
       break;
     case quic::kCC20:
       cipher_suite = TLS1_CK_CHACHA20_POLY1305_SHA256 & 0xffff;
-      security_bits = 256;
       break;
     default:
       NOTREACHED();
@@ -1142,6 +1191,27 @@ bool QuicChromiumClientSession::GetSSLInfo(SSLInfo* ssl_info) const {
       return false;
   }
 
+  // QUIC-Crypto always uses RSA-PSS or ECDSA with SHA-256.
+  //
+  // TODO(nharper): This will no longer be true in TLS 1.3. This logic, and
+  // likely the rest of this logic, will want some adjustments for QUIC with TLS
+  // 1.3.
+  size_t unused;
+  X509Certificate::PublicKeyType key_type;
+  X509Certificate::GetPublicKeyInfo(ssl_info->cert->cert_buffer(), &unused,
+                                    &key_type);
+  switch (key_type) {
+    case X509Certificate::kPublicKeyTypeRSA:
+      ssl_info->peer_signature_algorithm = SSL_SIGN_RSA_PSS_RSAE_SHA256;
+      break;
+    case X509Certificate::kPublicKeyTypeECDSA:
+      ssl_info->peer_signature_algorithm = SSL_SIGN_ECDSA_SECP256R1_SHA256;
+      break;
+    default:
+      NOTREACHED();
+      return false;
+  }
+
   ssl_info->public_key_hashes = cert_verify_result_->public_key_hashes;
   ssl_info->is_issued_by_known_root =
       cert_verify_result_->is_issued_by_known_root;
@@ -1150,7 +1220,6 @@ bool QuicChromiumClientSession::GetSSLInfo(SSLInfo* ssl_info) const {
   ssl_info->connection_status = ssl_connection_status;
   ssl_info->client_cert_sent = false;
   ssl_info->channel_id_sent = crypto_stream_->WasChannelIDSent();
-  ssl_info->security_bits = security_bits;
   ssl_info->handshake_type = SSLInfo::HANDSHAKE_FULL;
   ssl_info->pinning_failure_log = pinning_failure_log_;
   ssl_info->is_fatal_cert_error = is_fatal_cert_error_;
@@ -1161,7 +1230,7 @@ bool QuicChromiumClientSession::GetSSLInfo(SSLInfo* ssl_info) const {
 }
 
 int QuicChromiumClientSession::CryptoConnect(CompletionOnceCallback callback) {
-  connect_timing_.connect_start = base::TimeTicks::Now();
+  connect_timing_.connect_start = tick_clock_->NowTicks();
   RecordHandshakeState(STATE_STARTED);
   DCHECK(flow_controller());
 
@@ -1169,7 +1238,7 @@ int QuicChromiumClientSession::CryptoConnect(CompletionOnceCallback callback) {
     return ERR_QUIC_HANDSHAKE_FAILED;
 
   if (IsCryptoHandshakeConfirmed()) {
-    connect_timing_.connect_end = base::TimeTicks::Now();
+    connect_timing_.connect_end = tick_clock_->NowTicks();
     return OK;
   }
 
@@ -1206,10 +1275,10 @@ bool QuicChromiumClientSession::CanPool(const std::string& hostname,
                               hostname);
 }
 
-bool QuicChromiumClientSession::ShouldCreateIncomingDynamicStream(
+bool QuicChromiumClientSession::ShouldCreateIncomingStream(
     quic::QuicStreamId id) {
   if (!connection()->connected()) {
-    LOG(DFATAL) << "ShouldCreateIncomingDynamicStream called when disconnected";
+    LOG(DFATAL) << "ShouldCreateIncomingStream called when disconnected";
     return false;
   }
   if (goaway_received()) {
@@ -1220,19 +1289,23 @@ bool QuicChromiumClientSession::ShouldCreateIncomingDynamicStream(
   if (going_away_) {
     return false;
   }
-  if (id % 2 != 0) {
+  if (quic::QuicUtils::IsClientInitiatedStreamId(
+          connection()->transport_version(), id) ||
+      (connection()->transport_version() == quic::QUIC_VERSION_99 &&
+       quic::QuicUtils::IsBidirectionalStreamId(id))) {
     LOG(WARNING) << "Received invalid push stream id " << id;
     connection()->CloseConnection(
-        quic::QUIC_INVALID_STREAM_ID, "Server created odd numbered stream",
+        quic::QUIC_INVALID_STREAM_ID,
+        "Server created non write unidirectional stream",
         quic::ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
   return true;
 }
 
-QuicChromiumClientStream*
-QuicChromiumClientSession::CreateIncomingDynamicStream(quic::QuicStreamId id) {
-  if (!ShouldCreateIncomingDynamicStream(id)) {
+QuicChromiumClientStream* QuicChromiumClientSession::CreateIncomingStream(
+    quic::QuicStreamId id) {
+  if (!ShouldCreateIncomingStream(id)) {
     return nullptr;
   }
   net::NetworkTrafficAnnotationTag traffic_annotation =
@@ -1260,58 +1333,102 @@ QuicChromiumClientSession::CreateIncomingDynamicStream(quic::QuicStreamId id) {
   return CreateIncomingReliableStreamImpl(id, traffic_annotation);
 }
 
+QuicChromiumClientStream* QuicChromiumClientSession::CreateIncomingStream(
+    quic::PendingStream pending) {
+  net::NetworkTrafficAnnotationTag traffic_annotation =
+      net::DefineNetworkTrafficAnnotation(
+          "quic_chromium_incoming_pending_session", R"(
+      semantics {
+        sender: "Quic Chromium Client Session Pending Stream"
+        description:
+          "When a web server needs to push a response to a client, an incoming "
+          "stream is created to reply to the client with pushed message instead "
+          "of a message from the network."
+        trigger:
+          "A request by a server to push a response to the client."
+        data: "This stream is only used to receive data from the server."
+        destination: OTHER
+        destination_other:
+          "The web server pushing the response."
+      }
+      policy {
+        cookies_allowed: NO
+        setting: "This feature cannot be disabled in settings."
+        policy_exception_justification:
+          "Essential for network access."
+      }
+  )");
+  return CreateIncomingReliableStreamImpl(std::move(pending),
+                                          traffic_annotation);
+}
+
 QuicChromiumClientStream*
 QuicChromiumClientSession::CreateIncomingReliableStreamImpl(
     quic::QuicStreamId id,
     const NetworkTrafficAnnotationTag& traffic_annotation) {
   DCHECK(connection()->connected());
 
-  QuicChromiumClientStream* stream =
-      new QuicChromiumClientStream(id, this, net_log_, traffic_annotation);
-  stream->CloseWriteSide();
+  QuicChromiumClientStream* stream = new QuicChromiumClientStream(
+      id, this, quic::READ_UNIDIRECTIONAL, net_log_, traffic_annotation);
+  ActivateStream(base::WrapUnique(stream));
+  ++num_total_streams_;
+  return stream;
+}
+
+QuicChromiumClientStream*
+QuicChromiumClientSession::CreateIncomingReliableStreamImpl(
+    quic::PendingStream pending,
+    const NetworkTrafficAnnotationTag& traffic_annotation) {
+  DCHECK(connection()->connected());
+
+  QuicChromiumClientStream* stream = new QuicChromiumClientStream(
+      std::move(pending), this, quic::READ_UNIDIRECTIONAL, net_log_,
+      traffic_annotation);
   ActivateStream(base::WrapUnique(stream));
   ++num_total_streams_;
   return stream;
 }
 
 void QuicChromiumClientSession::CloseStream(quic::QuicStreamId stream_id) {
+  most_recent_stream_close_time_ = tick_clock_->NowTicks();
   quic::QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream) {
     logger_->UpdateReceivedFrameCounts(stream_id, stream->num_frames_received(),
                                        stream->num_duplicate_frames_received());
-    if (stream_id % 2 == 0) {
-      // Stream with even stream is initiated by server for PUSH.
+    if (quic::QuicUtils::IsServerInitiatedStreamId(
+            connection()->transport_version(), stream_id)) {
       bytes_pushed_count_ += stream->stream_bytes_read();
     }
   }
   quic::QuicSpdySession::CloseStream(stream_id);
-  OnClosedStream();
 }
 
 void QuicChromiumClientSession::SendRstStream(
     quic::QuicStreamId id,
     quic::QuicRstStreamErrorCode error,
     quic::QuicStreamOffset bytes_written) {
-  quic::QuicStream* stream = GetOrCreateStream(id);
-  if (stream) {
-    if (id % 2 == 0) {
-      // Stream with even stream is initiated by server for PUSH.
-      bytes_pushed_count_ += stream->stream_bytes_read();
+  if (quic::QuicUtils::IsServerInitiatedStreamId(
+          connection()->transport_version(), id)) {
+    StreamHandler handler = GetOrCreateStreamImpl(id, /*may_buffer=*/true);
+    if (handler.is_pending) {
+      bytes_pushed_count_ += handler.pending->stream_bytes_read();
+    } else if (handler.stream) {
+      bytes_pushed_count_ += handler.stream->stream_bytes_read();
     }
   }
+
   quic::QuicSpdySession::SendRstStream(id, error, bytes_written);
-  OnClosedStream();
 }
 
-void QuicChromiumClientSession::OnClosedStream() {
-  if (GetNumOpenOutgoingStreams() < max_open_outgoing_streams() &&
-      !stream_requests_.empty() && crypto_stream_->encryption_established() &&
-      !goaway_received() && !going_away_ && connection()->connected()) {
+void QuicChromiumClientSession::OnCanCreateNewOutgoingStream() {
+  if (CanOpenNextOutgoingBidirectionalStream() && !stream_requests_.empty() &&
+      crypto_stream_->encryption_established() && !goaway_received() &&
+      !going_away_ && connection()->connected()) {
     StreamRequest* request = stream_requests_.front();
     // TODO(ckrasic) - analyze data and then add logic to mark QUIC
     // broken if wait times are excessive.
     UMA_HISTOGRAM_TIMES("Net.QuicSession.PendingStreamsWaitTime",
-                        base::TimeTicks::Now() - request->pending_start_time_);
+                        tick_clock_->NowTicks() - request->pending_start_time_);
     stream_requests_.pop_front();
     request->OnRequestCompleteSuccess(
         CreateOutgoingReliableStreamImpl(request->traffic_annotation())
@@ -1372,7 +1489,7 @@ void QuicChromiumClientSession::OnCryptoHandshakeEvent(
 
     // Update |connect_end| only when handshake is confirmed. This should also
     // take care of any failed 0-RTT request.
-    connect_timing_.connect_end = base::TimeTicks::Now();
+    connect_timing_.connect_end = tick_clock_->NowTicks();
     DCHECK_LE(connect_timing_.connect_start, connect_timing_.connect_end);
     UMA_HISTOGRAM_TIMES(
         "Net.QuicSession.HandshakeConfirmedTime",
@@ -1382,7 +1499,7 @@ void QuicChromiumClientSession::OnCryptoHandshakeEvent(
     if (!connect_timing_.dns_end.is_null()) {
       UMA_HISTOGRAM_TIMES(
           "Net.QuicSession.HostResolution.HandshakeConfirmedTime",
-          base::TimeTicks::Now() - connect_timing_.dns_end);
+          tick_clock_->NowTicks() - connect_timing_.dns_end);
     }
 
     auto it = handles_.begin();
@@ -1434,7 +1551,6 @@ void QuicChromiumClientSession::OnGoAway(const quic::QuicGoAwayFrame& frame) {
 void QuicChromiumClientSession::OnRstStream(
     const quic::QuicRstStreamFrame& frame) {
   quic::QuicSession::OnRstStream(frame);
-  OnClosedStream();
 }
 
 void QuicChromiumClientSession::OnConnectionClosed(
@@ -1443,8 +1559,37 @@ void QuicChromiumClientSession::OnConnectionClosed(
     quic::ConnectionCloseSource source) {
   DCHECK(!connection()->connected());
   logger_->OnConnectionClosed(error, error_details, source);
+  bool is_google_host = HasGoogleHost(GURL("https://" + session_key_.host()));
   if (source == quic::ConnectionCloseSource::FROM_PEER) {
+    if (error == quic::QUIC_PUBLIC_RESET) {
+      // is_from_google_server will be true if the received EPID is
+      // kEPIDGoogleFrontEnd or kEPIDGoogleFrontEnd0.
+      const bool is_from_google_server =
+          error_details.find(base::StringPrintf(
+              "From %s", quic::kEPIDGoogleFrontEnd)) != std::string::npos;
+
+      if (IsCryptoHandshakeConfirmed()) {
+        UMA_HISTOGRAM_BOOLEAN(
+            "Net.QuicSession.ClosedByPublicReset.HandshakeConfirmed",
+            is_from_google_server);
+      } else {
+        UMA_HISTOGRAM_BOOLEAN("Net.QuicSession.ClosedByPublicReset",
+                              is_from_google_server);
+      }
+
+      if (is_from_google_server) {
+        UMA_HISTOGRAM_COUNTS_100(
+            "Net.QuicSession.NumMigrationsExercisedBeforePublicReset",
+            sockets_.size() - 1);
+      }
+    }
     if (IsCryptoHandshakeConfirmed()) {
+      if (is_google_host) {
+        base::UmaHistogramSparse(
+            "Net.QuicSession.ConnectionCloseErrorCodeServerGoogle."
+            "HandshakeConfirmed",
+            error);
+      }
       base::UmaHistogramSparse(
           "Net.QuicSession.ConnectionCloseErrorCodeServer.HandshakeConfirmed",
           error);
@@ -1455,10 +1600,20 @@ void QuicChromiumClientSession::OnConnectionClosed(
       if (num_streams > 0)
         histogram->AddCount(error, num_streams);
     }
+    if (is_google_host) {
+      base::UmaHistogramSparse(
+          "Net.QuicSession.ConnectionCloseErrorCodeServerGoogle", error);
+    }
     base::UmaHistogramSparse("Net.QuicSession.ConnectionCloseErrorCodeServer",
                              error);
   } else {
     if (IsCryptoHandshakeConfirmed()) {
+      if (is_google_host) {
+        base::UmaHistogramSparse(
+            "Net.QuicSession.ConnectionCloseErrorCodeClientGoogle."
+            "HandshakeConfirmed",
+            error);
+      }
       base::UmaHistogramSparse(
           "Net.QuicSession.ConnectionCloseErrorCodeClient.HandshakeConfirmed",
           error);
@@ -1475,8 +1630,20 @@ void QuicChromiumClientSession::OnConnectionClosed(
             connection()->IsPathDegrading());
       }
     }
+    if (is_google_host) {
+      base::UmaHistogramSparse(
+          "Net.QuicSession.ConnectionCloseErrorCodeClientGoogle", error);
+    }
     base::UmaHistogramSparse("Net.QuicSession.ConnectionCloseErrorCodeClient",
                              error);
+    if (error == quic::QUIC_TOO_MANY_RTOS) {
+      UMA_HISTOGRAM_COUNTS_1000(
+          "Net.QuicSession.ClosedByRtoAtClient.ReceivedPacketCount",
+          connection()->GetStats().packets_received);
+      UMA_HISTOGRAM_COUNTS_1000(
+          "Net.QuicSession.ClosedByRtoAtClient.SentPacketCount",
+          connection()->GetStats().packets_sent);
+    }
   }
 
   if (error == quic::QUIC_NETWORK_IDLE_TIMEOUT) {
@@ -1602,9 +1769,9 @@ int QuicChromiumClientSession::HandleWriteError(
   // Post a task to migrate the session onto a new network.
   task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&QuicChromiumClientSession::MigrateSessionOnWriteError,
-                 weak_factory_.GetWeakPtr(), error_code,
-                 connection()->writer()));
+      base::BindOnce(&QuicChromiumClientSession::MigrateSessionOnWriteError,
+                     weak_factory_.GetWeakPtr(), error_code,
+                     connection()->writer()));
 
   // Store packet in the session since the actual migration and packet rewrite
   // can happen via this posted task or via an async network notification.
@@ -1625,7 +1792,7 @@ void QuicChromiumClientSession::MigrateSessionOnWriteError(
   if (writer != connection()->writer())
     return;
 
-  most_recent_write_error_timestamp_ = base::TimeTicks::Now();
+  most_recent_write_error_timestamp_ = tick_clock_->NowTicks();
   most_recent_write_error_ = error_code;
 
   if (stream_factory_ == nullptr) {
@@ -1639,8 +1806,24 @@ void QuicChromiumClientSession::MigrateSessionOnWriteError(
 
   current_connection_migration_cause_ = ON_WRITE_ERROR;
 
-  if (!IsSessionMigratable(/*close_session_if_not_migratable*/ false)) {
-    // Close the connection if migration failed. Do not cause a
+  if (migrate_idle_session_ && CheckIdleTimeExceedsIdleMigrationPeriod())
+    return;
+
+  if (!migrate_idle_session_ && GetNumActiveStreams() == 0 &&
+      GetNumDrainingStreams() == 0) {
+    // connection close packet to be sent since socket may be borked.
+    connection()->CloseConnection(quic::QUIC_PACKET_WRITE_ERROR,
+                                  "Write error for non-migratable session",
+                                  quic::ConnectionCloseBehavior::SILENT_CLOSE);
+    return;
+  }
+
+  // Do not migrate if connection migration is disabled.
+  if (config()->DisableConnectionMigration()) {
+    HistogramAndLogMigrationFailure(
+        net_log_, MIGRATION_STATUS_DISABLED_BY_CONFIG, connection_id(),
+        "Migration disabled by config");
+    // Close the connection since migration was disabled. Do not cause a
     // connection close packet to be sent since socket may be borked.
     connection()->CloseConnection(quic::QUIC_PACKET_WRITE_ERROR,
                                   "Write error for non-migratable session",
@@ -1665,10 +1848,10 @@ void QuicChromiumClientSession::MigrateSessionOnWriteError(
           max_migrations_to_non_default_network_on_write_error_) {
     HistogramAndLogMigrationFailure(
         net_log_, MIGRATION_STATUS_ON_WRITE_ERROR_DISABLED, connection_id(),
-        "Exceeds maximum number of migrations on write errpr");
+        "Exceeds maximum number of migrations on write error");
     connection()->CloseConnection(
         quic::QUIC_PACKET_WRITE_ERROR,
-        "Too many migration for write error for the same network",
+        "Too many migrations for write error for the same network",
         quic::ConnectionCloseBehavior::SILENT_CLOSE);
     return;
   }
@@ -1678,7 +1861,7 @@ void QuicChromiumClientSession::MigrateSessionOnWriteError(
       net_log_.net_log(), NetLogSourceType::QUIC_CONNECTION_MIGRATION);
   migration_net_log.BeginEvent(
       NetLogEventType::QUIC_CONNECTION_MIGRATION_TRIGGERED,
-      base::Bind(&NetLogQuicConnectionMigrationTriggerCallback, "WriteError"));
+      NetLogQuicConnectionMigrationTriggerCallback("WriteError"));
   MigrationResult result =
       Migrate(new_network, connection()->peer_address().impl().socket_address(),
               /*close_session_on_error=*/false, migration_net_log);
@@ -1715,8 +1898,8 @@ void QuicChromiumClientSession::OnNoNewNetwork() {
   // Post a task to maybe close the session if the alarm fires.
   task_runner_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&QuicChromiumClientSession::OnMigrationTimeout,
-                 weak_factory_.GetWeakPtr(), sockets_.size()),
+      base::BindOnce(&QuicChromiumClientSession::OnMigrationTimeout,
+                     weak_factory_.GetWeakPtr(), sockets_.size()),
       base::TimeDelta::FromSeconds(kWaitTimeForNewNetworkSecs));
 }
 
@@ -1743,8 +1926,9 @@ void QuicChromiumClientSession::OnMigrationTimeout(size_t num_sockets) {
                       quic::ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
-void QuicChromiumClientSession::OnProbeNetworkSucceeded(
+void QuicChromiumClientSession::OnProbeSucceeded(
     NetworkChangeNotifier::NetworkHandle network,
+    const quic::QuicSocketAddress& peer_address,
     const quic::QuicSocketAddress& self_address,
     std::unique_ptr<DatagramClientSocket> socket,
     std::unique_ptr<QuicChromiumPacketWriter> writer,
@@ -1753,10 +1937,24 @@ void QuicChromiumClientSession::OnProbeNetworkSucceeded(
   DCHECK(writer);
   DCHECK(reader);
 
-  net_log_.AddEvent(
-      NetLogEventType::QUIC_CONNECTION_CONNECTIVITY_PROBING_SUCCEEDED,
-      NetLog::Int64Callback("network", network));
+  net_log_.AddEvent(NetLogEventType::QUIC_SESSION_CONNECTIVITY_PROBING_FINISHED,
+                    base::Bind(&NetLogProbingResultCallback, network,
+                               &peer_address, /*is_success=*/true));
 
+  if (network != NetworkChangeNotifier::kInvalidNetworkHandle) {
+    OnProbeNetworkSucceeded(network, peer_address, self_address,
+                            std::move(socket), std::move(writer),
+                            std::move(reader));
+  }
+}
+
+void QuicChromiumClientSession::OnProbeNetworkSucceeded(
+    NetworkChangeNotifier::NetworkHandle network,
+    const quic::QuicSocketAddress& peer_address,
+    const quic::QuicSocketAddress& self_address,
+    std::unique_ptr<DatagramClientSocket> socket,
+    std::unique_ptr<QuicChromiumPacketWriter> writer,
+    std::unique_ptr<QuicChromiumPacketReader> reader) {
   LogProbeResultToHistogram(current_connection_migration_cause_, true);
 
   // Remove |this| as the old packet writer's delegate. Write error on old
@@ -1769,15 +1967,20 @@ void QuicChromiumClientSession::OnProbeNetworkSucceeded(
   connection()->SetSelfAddress(self_address);
 
   // Close streams that are not migratable to the probed |network|.
-  // If session then becomes idle, close the connection.
   ResetNonMigratableStreams();
-  if (GetNumActiveStreams() == 0 && GetNumDrainingStreams() == 0) {
+
+  if (!migrate_idle_session_ && GetNumActiveStreams() == 0 &&
+      GetNumDrainingStreams() == 0) {
+    // If idle sessions won't be migrated, close the connection.
     CloseSessionOnErrorLater(
         ERR_NETWORK_CHANGED,
         quic::QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS,
         quic::ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
+
+  if (migrate_idle_session_ && CheckIdleTimeExceedsIdleMigrationPeriod())
+    return;
 
   // Migrate to the probed socket immediately: socket, writer and reader will
   // be acquired by connection and used as default on success.
@@ -1794,33 +1997,43 @@ void QuicChromiumClientSession::OnProbeNetworkSucceeded(
   if (network == default_network_) {
     DVLOG(1) << "Client successfully migrated to default network.";
     CancelMigrateBackToDefaultNetworkTimer();
-  } else {
-    DVLOG(1) << "Client successfully got off default network after "
-             << "successful probing network: " << network << ".";
-    current_migrations_to_non_default_network_on_path_degrading_++;
-    if (!migrate_back_to_default_timer_.IsRunning()) {
-      current_connection_migration_cause_ = ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
-      // Session gets off the |default_network|, stay on |network| for now but
-      // try to migrate back to default network after 1 second.
-      StartMigrateBackToDefaultNetworkTimer(
-          base::TimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
-    }
+    return;
+  }
+
+  DVLOG(1) << "Client successfully got off default network after "
+           << "successful probing network: " << network << ".";
+  current_migrations_to_non_default_network_on_path_degrading_++;
+  if (!migrate_back_to_default_timer_.IsRunning()) {
+    current_connection_migration_cause_ = ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
+    // Session gets off the |default_network|, stay on |network| for now but
+    // try to migrate back to default network after 1 second.
+    StartMigrateBackToDefaultNetworkTimer(
+        base::TimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
   }
 }
 
-void QuicChromiumClientSession::OnProbeNetworkFailed(
-    NetworkChangeNotifier::NetworkHandle network) {
-  net_log_.AddEvent(
-      NetLogEventType::QUIC_CONNECTION_CONNECTIVITY_PROBING_FAILED,
-      NetLog::Int64Callback("network", network));
+void QuicChromiumClientSession::OnProbeFailed(
+    NetworkChangeNotifier::NetworkHandle network,
+    const quic::QuicSocketAddress& peer_address) {
+  net_log_.AddEvent(NetLogEventType::QUIC_SESSION_CONNECTIVITY_PROBING_FINISHED,
+                    base::Bind(&NetLogProbingResultCallback, network,
+                               &peer_address, /*is_success=*/false));
 
+  if (network != NetworkChangeNotifier::kInvalidNetworkHandle)
+    OnProbeNetworkFailed(network, peer_address);
+}
+
+void QuicChromiumClientSession::OnProbeNetworkFailed(
+    NetworkChangeNotifier::NetworkHandle network,
+    const quic::QuicSocketAddress& peer_address) {
   LogProbeResultToHistogram(current_connection_migration_cause_, false);
-  // Probing failure for default network can be ignored.
-  DVLOG(1) << "Connectivity probing failed on NetworkHandle " << network;
+  // Probing failure can be ignored.
+  DVLOG(1) << "Connectivity probing failed on <network: " << network
+           << ", peer_address: " << peer_address.ToString() << ">.";
   DVLOG_IF(1, network == default_network_ &&
                   GetDefaultSocket()->GetBoundNetwork() != default_network_)
-      << "Client probing failed on the default network, QUIC still "
-         "using non-default network.";
+      << "Client probing failed on the default network, still using "
+         "non-default network.";
 }
 
 bool QuicChromiumClientSession::OnSendConnectivityProbingPacket(
@@ -1851,7 +2064,7 @@ void QuicChromiumClientSession::OnNetworkConnected(
       current_migrations_to_non_default_network_on_write_error_++;
     // |wait_for_new_network_| is true, there was no working network previously.
     // |network| is now the only possible candidate, migrate immediately.
-    MigrateImmediately(network);
+    MigrateNetworkImmediately(network);
   } else {
     // The connection is path degrading.
     DCHECK(connection()->IsPathDegrading());
@@ -1869,7 +2082,7 @@ void QuicChromiumClientSession::OnNetworkDisconnectedV2(
   LogMetricsOnNetworkDisconnected();
 
   // Stop probing the disconnected network if there is one.
-  probing_manager_.CancelProbing(disconnected_network);
+  probing_manager_.CancelProbing(disconnected_network, peer_address());
   if (disconnected_network == default_network_) {
     DVLOG(1) << "Default network: " << default_network_ << " is disconnected.";
     default_network_ = NetworkChangeNotifier::kInvalidNetworkHandle;
@@ -1906,7 +2119,7 @@ void QuicChromiumClientSession::OnNetworkDisconnectedV2(
 
   // Current network is being disconnected, migrate immediately to the
   // alternative network.
-  MigrateImmediately(new_network);
+  MigrateNetworkImmediately(new_network);
 }
 
 void QuicChromiumClientSession::OnNetworkMadeDefault(
@@ -1944,16 +2157,39 @@ void QuicChromiumClientSession::OnNetworkMadeDefault(
   StartMigrateBackToDefaultNetworkTimer(base::TimeDelta());
 }
 
-void QuicChromiumClientSession::MigrateImmediately(
+void QuicChromiumClientSession::MigrateNetworkImmediately(
     NetworkChangeNotifier::NetworkHandle network) {
-  // We have no choice but to migrate to |network|. If any error encoutered,
-  // close the session. When migration succeeds: if we are no longer on the
-  // default interface, start timer to migrate back to the default network;
-  // otherwise, we are now on default networ, cancel timer to migrate back
-  // to the defautlt network if it is running.
+  // There is no choice but to migrate to |network|. If any error encoutered,
+  // close the session. When migration succeeds:
+  // - if no longer on the default network, start timer to migrate back;
+  // - otherwise, it's brought to default network, cancel the running timer to
+  //   migrate back.
 
-  if (!IsSessionMigratable(/*close_session_if_not_migratable=*/true))
+  if (!migrate_idle_session_ && GetNumActiveStreams() == 0 &&
+      GetNumDrainingStreams() == 0) {
+    HistogramAndLogMigrationFailure(net_log_,
+                                    MIGRATION_STATUS_NO_MIGRATABLE_STREAMS,
+                                    connection_id(), "No active streams");
+    CloseSessionOnErrorLater(
+        ERR_NETWORK_CHANGED,
+        quic::QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS,
+        quic::ConnectionCloseBehavior::SILENT_CLOSE);
     return;
+  }
+
+  if (migrate_idle_session_ && CheckIdleTimeExceedsIdleMigrationPeriod())
+    return;
+
+  // Do not migrate if connection migration is disabled.
+  if (config()->DisableConnectionMigration()) {
+    HistogramAndLogMigrationFailure(
+        net_log_, MIGRATION_STATUS_DISABLED_BY_CONFIG, connection_id(),
+        "Migration disabled by config");
+    CloseSessionOnErrorLater(ERR_NETWORK_CHANGED,
+                             quic::QUIC_CONNECTION_MIGRATION_DISABLED_BY_CONFIG,
+                             quic::ConnectionCloseBehavior::SILENT_CLOSE);
+    return;
+  }
 
   if (network == GetDefaultSocket()->GetBoundNetwork()) {
     HistogramAndLogMigrationFailure(net_log_, MIGRATION_STATUS_ALREADY_MIGRATED,
@@ -1963,7 +2199,7 @@ void QuicChromiumClientSession::MigrateImmediately(
   }
 
   // Cancel probing on |network| if there is any.
-  probing_manager_.CancelProbing(network);
+  probing_manager_.CancelProbing(network, peer_address());
 
   MigrationResult result =
       Migrate(network, connection()->peer_address().impl().socket_address(),
@@ -1971,15 +2207,16 @@ void QuicChromiumClientSession::MigrateImmediately(
   if (result == MigrationResult::FAILURE)
     return;
 
-  if (network != default_network_) {
-    // TODO(zhongyi): reconsider this, maybe we just want to hear back
-    // We are forced to migrate to |network|, probably |default_network_| is
-    // not working, start to migrate back to default network after 1 secs.
-    StartMigrateBackToDefaultNetworkTimer(
-        base::TimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
-  } else {
+  if (network == default_network_) {
     CancelMigrateBackToDefaultNetworkTimer();
+    return;
   }
+
+  // TODO(zhongyi): reconsider this, maybe we just want to hear back
+  // We are forced to migrate to |network|, probably |default_network_| is
+  // not working, start to migrate back to default network after 1 secs.
+  StartMigrateBackToDefaultNetworkTimer(
+      base::TimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
 }
 
 void QuicChromiumClientSession::OnWriteError(int error_code) {
@@ -2012,7 +2249,6 @@ void QuicChromiumClientSession::OnWriteUnblocked() {
       SendPing();
     }
   }
-  return;
 }
 
 void QuicChromiumClientSession::OnPathDegrading() {
@@ -2032,7 +2268,7 @@ void QuicChromiumClientSession::OnPathDegrading() {
   net_log_.AddEvent(
       NetLogEventType::QUIC_CONNECTION_MIGRATION_ON_PATH_DEGRADING);
   if (most_recent_path_degrading_timestamp_ == base::TimeTicks())
-    most_recent_path_degrading_timestamp_ = base::TimeTicks::Now();
+    most_recent_path_degrading_timestamp_ = tick_clock_->NowTicks();
 
   if (!stream_factory_)
     return;
@@ -2078,20 +2314,17 @@ void QuicChromiumClientSession::OnPathDegrading() {
       net_log_.net_log(), NetLogSourceType::QUIC_CONNECTION_MIGRATION);
   migration_net_log.BeginEvent(
       NetLogEventType::QUIC_CONNECTION_MIGRATION_TRIGGERED,
-      base::Bind(&NetLogQuicConnectionMigrationTriggerCallback,
-                 "PathDegrading"));
-  // Probe alternative network, session will migrate to the probed
+      NetLogQuicConnectionMigrationTriggerCallback("PathDegrading"));
+  // Probe the alternative network, session will migrate to the probed
   // network and decide whether it wants to migrate back to the default
   // network on success.
-  StartProbeNetwork(alternate_network,
-                    connection()->peer_address().impl().socket_address(),
-                    migration_net_log);
+  StartProbeNetwork(alternate_network, peer_address(), migration_net_log);
   migration_net_log.EndEvent(
       NetLogEventType::QUIC_CONNECTION_MIGRATION_TRIGGERED);
 }
 
-bool QuicChromiumClientSession::HasOpenDynamicStreams() const {
-  return quic::QuicSession::HasOpenDynamicStreams() ||
+bool QuicChromiumClientSession::ShouldKeepConnectionAlive() const {
+  return quic::QuicSpdySession::ShouldKeepConnectionAlive() ||
          GetNumDrainingOutgoingStreams() > 0;
 }
 
@@ -2141,16 +2374,13 @@ void QuicChromiumClientSession::CloseSessionOnError(
     quic::QuicErrorCode quic_error,
     quic::ConnectionCloseBehavior behavior) {
   base::UmaHistogramSparse("Net.QuicSession.CloseSessionOnError", -net_error);
-  if (quic_error == quic::QUIC_INTERNAL_ERROR) {
-    RecordInternalErrorLocation(
-        quic::QUIC_CHROMIUM_CLIENT_SESSION_CLOSE_SESSION_ON_ERROR);
-  }
 
   if (!callback_.is_null()) {
     base::ResetAndReturn(&callback_).Run(net_error);
   }
+
   CloseAllStreams(net_error);
-  CloseAllHandles(net_error);
+
   net_log_.AddEvent(NetLogEventType::QUIC_SESSION_CLOSE_ON_ERROR,
                     NetLog::IntCallback("net_error", net_error));
 
@@ -2158,6 +2388,7 @@ void QuicChromiumClientSession::CloseSessionOnError(
     connection()->CloseConnection(quic_error, "net error", behavior);
   DCHECK(!connection()->connected());
 
+  CloseAllHandles(net_error);
   NotifyFactoryOfSessionClosed();
 }
 
@@ -2223,14 +2454,15 @@ void QuicChromiumClientSession::NotifyRequestsOfConfirmation(int net_error) {
 
 ProbingResult QuicChromiumClientSession::StartProbeNetwork(
     NetworkChangeNotifier::NetworkHandle network,
-    IPEndPoint peer_address,
+    const quic::QuicSocketAddress& peer_address,
     const NetLogWithSource& migration_net_log) {
   if (!stream_factory_)
     return ProbingResult::FAILURE;
 
   CHECK_NE(NetworkChangeNotifier::kInvalidNetworkHandle, network);
 
-  if (GetNumActiveStreams() == 0 && GetNumDrainingStreams() == 0) {
+  if (!migrate_idle_session_ && GetNumActiveStreams() == 0 &&
+      GetNumDrainingStreams() == 0) {
     HistogramAndLogMigrationFailure(migration_net_log,
                                     MIGRATION_STATUS_NO_MIGRATABLE_STREAMS,
                                     connection_id(), "No active streams");
@@ -2241,6 +2473,9 @@ ProbingResult QuicChromiumClientSession::StartProbeNetwork(
     return ProbingResult::DISABLED_WITH_IDLE_SESSION;
   }
 
+  if (migrate_idle_session_ && CheckIdleTimeExceedsIdleMigrationPeriod())
+    return ProbingResult::DISABLED_WITH_IDLE_SESSION;
+
   // Abort probing if connection migration is disabled by config.
   if (config()->DisableConnectionMigration()) {
     DVLOG(1) << "Client disables probing network with connection migration "
@@ -2248,23 +2483,19 @@ ProbingResult QuicChromiumClientSession::StartProbeNetwork(
     HistogramAndLogMigrationFailure(
         migration_net_log, MIGRATION_STATUS_DISABLED_BY_CONFIG, connection_id(),
         "Migration disabled by config");
-    // TODO(zhongyi): do we want to close the session?
     return ProbingResult::DISABLED_BY_CONFIG;
   }
 
   // Check if probing manager is probing the same path.
-  if (probing_manager_.IsUnderProbing(
-          network,
-          quic::QuicSocketAddress(quic::QuicSocketAddressImpl(peer_address)))) {
+  if (probing_manager_.IsUnderProbing(network, peer_address))
     return ProbingResult::PENDING;
-  }
 
   // Create and configure socket on |network|.
   std::unique_ptr<DatagramClientSocket> probing_socket =
       stream_factory_->CreateSocket(net_log_.net_log(), net_log_.source());
-  if (stream_factory_->ConfigureSocket(probing_socket.get(), peer_address,
-                                       network,
-                                       session_key_.socket_tag()) != OK) {
+  if (stream_factory_->ConfigureSocket(
+          probing_socket.get(), peer_address.impl().socket_address(), network,
+          session_key_.socket_tag()) != OK) {
     HistogramAndLogMigrationFailure(
         migration_net_log, MIGRATION_STATUS_INTERNAL_ERROR, connection_id(),
         "Socket configuration failed");
@@ -2289,11 +2520,9 @@ ProbingResult QuicChromiumClientSession::StartProbeNetwork(
   int timeout_ms = rtt_ms * 2;
 
   probing_manager_.StartProbing(
-      network,
-      quic::QuicSocketAddress(quic::QuicSocketAddressImpl(peer_address)),
-      std::move(probing_socket), std::move(probing_writer),
-      std::move(probing_reader), base::TimeDelta::FromMilliseconds(timeout_ms),
-      net_log_);
+      network, peer_address, std::move(probing_socket),
+      std::move(probing_writer), std::move(probing_reader),
+      base::TimeDelta::FromMilliseconds(timeout_ms), net_log_);
   return ProbingResult::PENDING;
 }
 
@@ -2330,14 +2559,11 @@ void QuicChromiumClientSession::TryMigrateBackToDefaultNetwork(
   // the same network, this will be a no-op. Otherwise, previous probe
   // will be cancelled and manager starts to probe |default_network_|
   // immediately.
-  ProbingResult result = StartProbeNetwork(
-      default_network_, connection()->peer_address().impl().socket_address(),
-      net_log_);
+  ProbingResult result =
+      StartProbeNetwork(default_network_, peer_address(), net_log_);
 
-  if (result == ProbingResult::DISABLED_WITH_IDLE_SESSION) {
-    // |this| session has been closed due to idle session.
+  if (result == ProbingResult::DISABLED_WITH_IDLE_SESSION)
     return;
-  }
 
   if (result != ProbingResult::PENDING) {
     // Session is not allowed to migrate, mark session as going away, cancel
@@ -2372,35 +2598,26 @@ void QuicChromiumClientSession::MaybeRetryMigrateBackToDefaultNetwork() {
   TryMigrateBackToDefaultNetwork(retry_migrate_back_timeout);
 }
 
-bool QuicChromiumClientSession::IsSessionMigratable(
-    bool close_session_if_not_migratable) {
-  // Close idle sessions.
-  if (GetNumActiveStreams() == 0 && GetNumDrainingStreams() == 0) {
-    HistogramAndLogMigrationFailure(net_log_,
-                                    MIGRATION_STATUS_NO_MIGRATABLE_STREAMS,
-                                    connection_id(), "No active streams");
-    if (close_session_if_not_migratable) {
-      CloseSessionOnErrorLater(
-          ERR_NETWORK_CHANGED,
-          quic::QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS,
-          quic::ConnectionCloseBehavior::SILENT_CLOSE);
-    }
+bool QuicChromiumClientSession::CheckIdleTimeExceedsIdleMigrationPeriod() {
+  if (!migrate_idle_session_)
+    return false;
+
+  if (GetNumActiveStreams() != 0 || GetNumDrainingStreams() != 0) {
     return false;
   }
 
-  // Do not migrate sessions where connection migration is disabled.
-  if (config()->DisableConnectionMigration()) {
-    HistogramAndLogMigrationFailure(
-        net_log_, MIGRATION_STATUS_DISABLED_BY_CONFIG, connection_id(),
-        "Migration disabled by config");
-    if (close_session_if_not_migratable) {
-      CloseSessionOnErrorLater(
-          ERR_NETWORK_CHANGED,
-          quic::QUIC_CONNECTION_MIGRATION_DISABLED_BY_CONFIG,
-          quic::ConnectionCloseBehavior::SILENT_CLOSE);
-    }
+  // There are no active/drainning streams, check the last stream's finish time.
+  if (tick_clock_->NowTicks() - most_recent_stream_close_time_ <
+      idle_migration_period_) {
+    // Still within the idle migration period.
     return false;
   }
+
+  HistogramAndLogMigrationFailure(
+      net_log_, MIGRATION_STATUS_IDLE_MIGRATION_TIMEOUT, connection_id(),
+      "Ilde migration period exceeded");
+  CloseSessionOnErrorLater(ERR_NETWORK_CHANGED, quic::QUIC_NETWORK_IDLE_TIMEOUT,
+                           quic::ConnectionCloseBehavior::SILENT_CLOSE);
   return true;
 }
 
@@ -2425,7 +2642,7 @@ void QuicChromiumClientSession::ResetNonMigratableStreams() {
 
 void QuicChromiumClientSession::LogMetricsOnNetworkDisconnected() {
   if (most_recent_path_degrading_timestamp_ != base::TimeTicks()) {
-    most_recent_network_disconnected_timestamp_ = base::TimeTicks::Now();
+    most_recent_network_disconnected_timestamp_ = tick_clock_->NowTicks();
     base::TimeDelta degrading_duration =
         most_recent_network_disconnected_timestamp_ -
         most_recent_path_degrading_timestamp_;
@@ -2454,7 +2671,7 @@ void QuicChromiumClientSession::LogMetricsOnNetworkMadeDefault() {
     if (most_recent_network_disconnected_timestamp_ != base::TimeTicks()) {
       // NetworkDiscconected happens before NetworkMadeDefault, the platform
       // is dropping WiFi.
-      base::TimeTicks now = base::TimeTicks::Now();
+      base::TimeTicks now = tick_clock_->NowTicks();
       base::TimeDelta disconnection_duration =
           now - most_recent_network_disconnected_timestamp_;
       base::TimeDelta degrading_duration =
@@ -2484,7 +2701,7 @@ void QuicChromiumClientSession::LogConnectionMigrationResultToHistogram(
       "Net.QuicSession.ConnectionMigration." +
       ConnectionMigrationCauseToString(current_connection_migration_cause_);
   base::UmaHistogramEnumeration(histogram_name, status, MIGRATION_STATUS_MAX);
-  current_connection_migration_cause_ = UNKNOWN;
+  current_connection_migration_cause_ = UNKNOWN_CAUSE;
 }
 
 void QuicChromiumClientSession::LogHandshakeStatusOnConnectionMigrationSignal()
@@ -2531,13 +2748,13 @@ std::unique_ptr<base::Value> QuicChromiumClientSession::GetInfoAsValue(
   std::unique_ptr<base::ListValue> stream_list(new base::ListValue());
   for (DynamicStreamMap::const_iterator it = dynamic_streams().begin();
        it != dynamic_streams().end(); ++it) {
-    stream_list->AppendString(base::UintToString(it->second->id()));
+    stream_list->AppendString(base::NumberToString(it->second->id()));
   }
   dict->Set("active_streams", std::move(stream_list));
 
   dict->SetInteger("total_streams", num_total_streams_);
   dict->SetString("peer_address", peer_address().ToString());
-  dict->SetString("connection_id", base::NumberToString(connection_id()));
+  dict->SetString("connection_id", connection_id().ToString());
   dict->SetBoolean("connected", connection()->connected());
   const quic::QuicConnectionStats& stats = connection()->GetStats();
   dict->SetInteger("packets_sent", stats.packets_sent);
@@ -2546,8 +2763,8 @@ std::unique_ptr<base::Value> QuicChromiumClientSession::GetInfoAsValue(
   SSLInfo ssl_info;
 
   std::unique_ptr<base::ListValue> alias_list(new base::ListValue());
-  for (auto it = aliases.begin(); it != aliases.end(); it++) {
-    alias_list->AppendString(it->ToString());
+  for (const auto& alias : aliases) {
+    alias_list->AppendString(alias.ToString());
   }
   dict->Set("aliases", std::move(alias_list));
 
@@ -2626,8 +2843,8 @@ void QuicChromiumClientSession::NotifyFactoryOfSessionClosedLater() {
   DCHECK(!connection()->connected());
   task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&QuicChromiumClientSession::NotifyFactoryOfSessionClosed,
-                 weak_factory_.GetWeakPtr()));
+      base::BindOnce(&QuicChromiumClientSession::NotifyFactoryOfSessionClosed,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void QuicChromiumClientSession::NotifyFactoryOfSessionClosed() {
@@ -2653,11 +2870,11 @@ MigrationResult QuicChromiumClientSession::Migrate(
     return MigrationResult::FAILURE;
 
   if (network != NetworkChangeNotifier::kInvalidNetworkHandle) {
-    // This is a migration attempt from connection migration. Close
-    // streams that are not migratable to |network|. If session then becomes
-    // idle, close the connection if |close_session_on_error| is true.
+    // This is a migration attempt from connection migration.
     ResetNonMigratableStreams();
-    if (GetNumActiveStreams() == 0 && GetNumDrainingStreams() == 0) {
+    if (!migrate_idle_session_ && GetNumActiveStreams() == 0 &&
+        GetNumDrainingStreams() == 0) {
+      // If idle sessions can not be migrated, close the session if needed.
       if (close_session_on_error) {
         CloseSessionOnErrorLater(
             ERR_NETWORK_CHANGED,
@@ -2754,8 +2971,8 @@ bool QuicChromiumClientSession::MigrateToSocket(
   // socket. This avoids reentrancy issues if there is a write error
   // on the write to the new socket.
   task_runner_->PostTask(
-      FROM_HERE, base::Bind(&QuicChromiumClientSession::WriteToNewSocket,
-                            weak_factory_.GetWeakPtr()));
+      FROM_HERE, base::BindOnce(&QuicChromiumClientSession::WriteToNewSocket,
+                                weak_factory_.GetWeakPtr()));
   return true;
 }
 

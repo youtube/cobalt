@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quic/test_tools/simulator/simulator.h"
+
 #include "net/third_party/quic/core/crypto/quic_random.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 
@@ -18,7 +19,11 @@ Simulator::Simulator()
       alarm_factory_.CreateAlarm(new RunForDelegate(&run_for_should_stop_)));
 }
 
-Simulator::~Simulator() {}
+Simulator::~Simulator() {
+  // Ensure that Actor under run_for_alarm_ is removed before Simulator data
+  // structures are destructed.
+  run_for_alarm_.reset();
+}
 
 Simulator::Clock::Clock() : now_(kStartTime) {}
 
@@ -43,6 +48,21 @@ void Simulator::AddActor(Actor* actor) {
   // Ensure that the object was actually placed into the map.
   DCHECK(emplace_times_result.second);
   DCHECK(emplace_names_result.second);
+}
+
+void Simulator::RemoveActor(Actor* actor) {
+  auto scheduled_time_it = scheduled_times_.find(actor);
+  auto actor_names_it = actor_names_.find(actor->name());
+  DCHECK(scheduled_time_it != scheduled_times_.end());
+  DCHECK(actor_names_it != actor_names_.end());
+
+  QuicTime scheduled_time = scheduled_time_it->second;
+  if (scheduled_time != QuicTime::Infinite()) {
+    Unschedule(actor);
+  }
+
+  scheduled_times_.erase(scheduled_time_it);
+  actor_names_.erase(actor_names_it);
 }
 
 void Simulator::Schedule(Actor* actor, QuicTime new_time) {

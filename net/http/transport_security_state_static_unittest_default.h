@@ -9,10 +9,9 @@
 // For Cobalt, we just copied the generated file from Chomium instead of
 // generating it at build time.
 
-#include <stdint.h>
-
 #include "base/stl_util.h"
 #include "net/http/transport_security_state_source.h"
+#include "starboard/types.h"
 
 static const char kSPKIHash_GoodPin1[] =
     "\x36\x7f\x23\x93\x90\x72\xe1\x59\x2a\xe8\x17\x8e\x55\x9e\xd1\xec"

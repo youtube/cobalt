@@ -42,9 +42,9 @@
 //
 //  // Read into a IOVEC array with total capacity of 120 bytes.
 //  char dest[120];
-//  IOVEC iovecs[3]{IOVEC{dest, 40}, IOVEC{dest + 40, 40},
+//  IOVEC IOVECs[3]{IOVEC{dest, 40}, IOVEC{dest + 40, 40},
 //                  IOVEC{dest + 80, 40}};
-//  size_t read = buffer.Readv(iovecs, 3);
+//  size_t read = buffer.Readv(IOVECs, 3);
 //
 //  // Get single readable region.
 //  IOVEC iov;
@@ -64,8 +64,11 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "net/third_party/quic/core/quic_interval_set.h"
 #include "net/third_party/quic/core/quic_packets.h"
+#include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "net/third_party/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 
@@ -89,6 +92,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   explicit QuicStreamSequencerBuffer(size_t max_capacity_bytes);
   QuicStreamSequencerBuffer(const QuicStreamSequencerBuffer&) = delete;
+  QuicStreamSequencerBuffer(QuicStreamSequencerBuffer&&) = default;
   QuicStreamSequencerBuffer& operator=(const QuicStreamSequencerBuffer&) =
       delete;
   ~QuicStreamSequencerBuffer();
@@ -127,6 +131,15 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Fills in one IOVEC with data from the next readable region.
   // Returns false if there is no readable region available.
   bool GetReadableRegion(IOVEC* iov) const;
+
+  // Called to return the next region that has not been returned by this method
+  // previously.
+  // If this method is to be used along with Readv() or MarkConsumed(), make
+  // sure that they are consuming less data than is read by this method.
+  // This method only returns reference of underlying data. The caller is
+  // responsible for copying and consuming the data.
+  // Returns true if the data is read, false otherwise.
+  bool PrefetchNextRegion(IOVEC* iov);
 
   // Called after GetReadableRegions() to free up |bytes_used| space if these
   // bytes are processed.
@@ -172,7 +185,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // block or missing data has been reached.
   // If the block at |block_index| contains no buffered data, the block
   // should be retired.
-  // Return false on success, or false otherwise.
+  // Returns true on success, or false otherwise.
   bool RetireBlockIfEmpty(size_t block_index);
 
   // Calculate the capacity of block at specified index.
@@ -224,6 +237,12 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   // Currently received data.
   QuicIntervalSet<QuicStreamOffset> bytes_received_;
+
+  // Total number of bytes that have been prefetched.
+  QuicStreamOffset total_bytes_prefetched_;
+
+  // Latched value of --quic_faster_interval_add_in_sequence_buffer.
+  const bool faster_interval_add_in_sequence_buffer_;
 };
 }  // namespace quic
 

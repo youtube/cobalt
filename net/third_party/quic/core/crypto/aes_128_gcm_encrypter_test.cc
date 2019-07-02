@@ -220,7 +220,7 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
 TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
   QuicString key = QuicTextUtils::HexDecode("d95a145250826c25a77b6a84fd4d34fc");
   QuicString iv = QuicTextUtils::HexDecode("50c4431ebb18283448e276e2");
-  QuicPacketNumber packet_num = 0x13278f44;
+  uint64_t packet_num = 0x13278f44;
   QuicString aad =
       QuicTextUtils::HexDecode("875d49f64a70c9cbe713278f44ff000005");
   QuicString pt = QuicTextUtils::HexDecode("aa0003a250bd000000000001");
@@ -233,8 +233,8 @@ TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
   Aes128GcmEncrypter encrypter;
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetIV(iv));
-  ASSERT_TRUE(encrypter.EncryptPacket(QUIC_VERSION_43, packet_num, aad, pt,
-                                      out.data(), &out_size, out.size()));
+  ASSERT_TRUE(encrypter.EncryptPacket(packet_num, aad, pt, out.data(),
+                                      &out_size, out.size()));
   EXPECT_EQ(out_size, out.size());
   test::CompareCharArraysWithHexError("ciphertext", out.data(), out.size(),
                                       ct.data(), ct.size());

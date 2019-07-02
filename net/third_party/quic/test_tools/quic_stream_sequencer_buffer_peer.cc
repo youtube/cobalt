@@ -4,7 +4,6 @@
 
 #include "net/third_party/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 
-#include "net/test/gtest_util.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
