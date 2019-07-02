@@ -31,12 +31,13 @@ namespace shared {
 namespace cobalt {
 
 using ::cobalt::media_session::MediaImage;
-using ::cobalt::media_session::MediaMetadata;
+using ::cobalt::media_session::MediaMetadataInit;
 using ::cobalt::media_session::MediaSession;
 using ::cobalt::media_session::MediaSessionAction;
 using ::cobalt::media_session::MediaSessionActionDetails;
 using ::cobalt::media_session::MediaSessionClient;
 using ::cobalt::media_session::MediaSessionPlaybackState;
+using ::cobalt::media_session::MediaSessionState;
 using ::cobalt::media_session::kMediaSessionActionPause;
 using ::cobalt::media_session::kMediaSessionActionPlay;
 using ::cobalt::media_session::kMediaSessionActionSeekto;
@@ -69,7 +70,7 @@ const jlong kPlaybackStateActionSeekTo = 1 << 8;
 // Converts a MediaSessionClient::AvailableActions bitset into
 // a android.media.session.PlaybackState jlong bitset.
 jlong MediaSessionActionsToPlaybackStateActions(
-    const MediaSessionClient::AvailableActionsSet& actions) {
+    const MediaSessionState::AvailableActionsSet& actions) {
   jlong result = 0;
   if (actions[kMediaSessionActionPause]) {
     result |= kPlaybackStateActionPause;
@@ -227,11 +228,12 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     SbMutexRelease(&mutex);
   }
 
-  void OnMediaSessionChanged() override {
+  void OnMediaSessionStateChanged(
+      const MediaSessionState& session_state) override {
     JniEnvExt* env = JniEnvExt::Get();
 
-    jint playback_state =
-        MediaSessionPlaybackStateToPlaybackState(GetActualPlaybackState());
+    jint playback_state = MediaSessionPlaybackStateToPlaybackState(
+        session_state.actual_playback_state());
 
     SbOnce(&once_flag, OnceInit);
     SbMutexAcquire(&mutex);
@@ -248,27 +250,26 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     }
     SbMutexRelease(&mutex);
 
-    jlong playback_state_actions =
-        MediaSessionActionsToPlaybackStateActions(GetAvailableActions());
-
-    scoped_refptr<MediaSession> media_session(GetMediaSession());
-    scoped_refptr<MediaMetadata> media_metadata(media_session->metadata());
+    jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
+        session_state.available_actions());
 
     ScopedLocalJavaRef<jstring> j_title;
     ScopedLocalJavaRef<jstring> j_artist;
     ScopedLocalJavaRef<jstring> j_album;
     ScopedLocalJavaRef<jobjectArray> j_artwork;
 
-    if (media_metadata) {
-      j_title.Reset(
-          env->NewStringStandardUTFOrAbort(media_metadata->title().c_str()));
-      j_artist.Reset(
-          env->NewStringStandardUTFOrAbort(media_metadata->artist().c_str()));
-      j_album.Reset(
-          env->NewStringStandardUTFOrAbort(media_metadata->album().c_str()));
+    if (session_state.has_metadata()) {
+      const MediaMetadataInit& media_metadata(session_state.metadata().value());
 
-      const MediaImageSequence& artwork(media_metadata->artwork());
-      if (!artwork.empty()) {
+      j_title.Reset(
+          env->NewStringStandardUTFOrAbort(media_metadata.title().c_str()));
+      j_artist.Reset(
+          env->NewStringStandardUTFOrAbort(media_metadata.artist().c_str()));
+      j_album.Reset(
+          env->NewStringStandardUTFOrAbort(media_metadata.album().c_str()));
+
+      if (media_metadata.has_artwork()) {
+        const MediaImageSequence& artwork(media_metadata.artwork());
         ScopedLocalJavaRef<jclass> media_image_class(
             env->FindClassExtOrAbort("dev/cobalt/media/MediaImage"));
         jmethodID media_image_constructor = env->GetMethodID(
