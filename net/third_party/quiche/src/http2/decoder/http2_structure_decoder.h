@@ -50,7 +50,11 @@ class HTTP2_EXPORT_PRIVATE Http2StructureDecoder {
       DoDecode(out, db);
       return true;
     }
+#if defined(STARBOARD)
+    IncompleteStart(db, static_cast<uint32_t>(S::EncodedSize()));
+#else
     IncompleteStart(db, S::EncodedSize());
+#endif
     return false;
   }
 
@@ -58,7 +62,11 @@ class HTTP2_EXPORT_PRIVATE Http2StructureDecoder {
   bool Resume(S* out, DecodeBuffer* db) {
     DVLOG(2) << __func__ << "@" << this << ": offset_=" << offset_
              << "; db->Remaining=" << db->Remaining();
+#if defined(STARBOARD)
+    if (ResumeFillingBuffer(db, static_cast<uint32_t>(S::EncodedSize()))) {
+#else
     if (ResumeFillingBuffer(db, S::EncodedSize())) {
+#endif
       // We have the whole thing now.
       DVLOG(2) << __func__ << "@" << this << "    offset_=" << offset_
                << "    Ready to decode from buffer_.";
@@ -86,7 +94,12 @@ class HTTP2_EXPORT_PRIVATE Http2StructureDecoder {
       *remaining_payload -= S::EncodedSize();
       return DecodeStatus::kDecodeDone;
     }
+#if defined(STARBOARD)
+    return IncompleteStart(db, remaining_payload,
+                           static_cast<uint32_t>(S::EncodedSize()));
+#else
     return IncompleteStart(db, remaining_payload, S::EncodedSize());
+#endif
   }
 
   template <class S>

@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "starboard/types.h"
 
 namespace spdy {
 namespace test {

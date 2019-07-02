@@ -9,8 +9,6 @@
 // not mean decompressing Huffman encoded strings, just identifying the length,
 // encoding and contents for a listener.
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <cstdint>
 
@@ -22,6 +20,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
+#include "starboard/types.h"
 
 namespace http2 {
 
@@ -163,7 +162,7 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
     }
     return false;
   }
-
+  
   // Returns true if the listener wants the decoding to continue, and
   // false otherwise, in which case status set.
   template <class Listener>

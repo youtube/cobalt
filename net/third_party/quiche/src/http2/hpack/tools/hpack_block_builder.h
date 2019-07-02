@@ -15,14 +15,13 @@
 // the EXPECT* will need to be removed or replaced with DCHECKs. And of course
 // the support for very large varints will not be needed in production code.
 
-#include <stddef.h>
-
 #include <cstdint>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

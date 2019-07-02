@@ -18,8 +18,6 @@
 // used only for Http2FrameHeader, and the other pair only for structures in the
 // frame payload.
 
-#include <stddef.h>
-
 #include <cstdint>
 
 #include "base/logging.h"
@@ -34,6 +32,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "starboard/types.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;

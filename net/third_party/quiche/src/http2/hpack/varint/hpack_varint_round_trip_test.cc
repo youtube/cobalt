@@ -7,8 +7,6 @@
 // Test HpackVarintDecoder against data encoded via HpackBlockBuilder,
 // which uses HpackVarintEncoder under the hood.
 
-#include <stddef.h>
-
 #include <iterator>
 #include <set>
 #include <vector>
@@ -19,6 +17,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "starboard/types.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;

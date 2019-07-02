@@ -5,10 +5,9 @@
 #ifndef QUICHE_HTTP2_TOOLS_RANDOM_UTIL_H_
 #define QUICHE_HTTP2_TOOLS_RANDOM_UTIL_H_
 
-#include <stddef.h>
-
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

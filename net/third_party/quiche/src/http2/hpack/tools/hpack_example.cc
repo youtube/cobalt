@@ -4,11 +4,11 @@
 
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_example.h"
 
-#include <ctype.h>
-
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "starboard/types.h"
+#include "starboard/character.h"
 
 namespace http2 {
 namespace test {
@@ -25,7 +25,7 @@ void HpackExampleToStringOrDie(Http2StringPiece example, Http2String* output) {
       example.remove_prefix(2);
       continue;
     }
-    if (isspace(c0)) {
+    if (SbCharacterIsSpace(c0)) {
       example.remove_prefix(1);
       continue;
     }

@@ -12,10 +12,6 @@
 // TODO(jamessynge): Since FrameDecoderState has far more than state in it,
 // rename to FrameDecoderHelper, or similar.
 
-#include <stddef.h>
-
-#include <cstdint>
-
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
@@ -24,6 +20,7 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {
@@ -165,7 +162,11 @@ class HTTP2_EXPORT_PRIVATE FrameDecoderState {
   // size structures and padding, including the Pad Length field, are decoded.
   void ConsumePayload(size_t amount) {
     DCHECK_LE(amount, remaining_payload_);
+#if defined(STARBOARD)
+    remaining_payload_ -= static_cast<uint32_t>(amount);
+#else
     remaining_payload_ -= amount;
+#endif
   }
 
   // Reads the Pad Length field into remaining_padding_, and appropriately sets

@@ -4,13 +4,12 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/unknown_payload_decoder.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

@@ -12,8 +12,6 @@
 #ifndef QUICHE_HTTP2_HPACK_DECODER_HPACK_DECODER_STATE_H_
 #define QUICHE_HTTP2_HPACK_DECODER_HPACK_DECODER_STATE_H_
 
-#include <stddef.h>
-
 #include <cstdint>
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_listener.h"
@@ -23,6 +21,7 @@
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

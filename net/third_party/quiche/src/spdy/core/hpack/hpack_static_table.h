@@ -7,6 +7,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "starboard/types.h"
 
 namespace spdy {
 

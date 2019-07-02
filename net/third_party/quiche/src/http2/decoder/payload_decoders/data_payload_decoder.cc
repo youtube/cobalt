@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/data_payload_decoder.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "base/macros.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -14,6 +12,7 @@
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

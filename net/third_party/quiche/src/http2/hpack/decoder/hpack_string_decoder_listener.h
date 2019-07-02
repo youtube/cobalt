@@ -10,9 +10,8 @@
 // logs before calling another HpackStringDecoderListener implementation.
 // For now these are only used by tests, so placed in the test namespace.
 
-#include <stddef.h>
-
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

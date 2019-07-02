@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
+#include "starboard/memory.h"
 
 namespace spdy {
 
@@ -100,7 +101,7 @@ bool SpdyFrameReader::ReadUInt24(uint32_t* result) {
 
   // Read into result.
   *result = 0;
-  memcpy(reinterpret_cast<char*>(result) + 1, data_ + ofs_, 3);
+  SbMemoryCopy(reinterpret_cast<char*>(result) + 1, data_ + ofs_, 3);
   *result = SpdyNetToHost32(*result);
 
   // Iterate.
@@ -163,7 +164,7 @@ bool SpdyFrameReader::ReadBytes(void* result, size_t size) {
   }
 
   // Read into result.
-  memcpy(result, data_ + ofs_, size);
+  SbMemoryCopy(result, data_ + ofs_, size);
 
   // Iterate.
   ofs_ += size;

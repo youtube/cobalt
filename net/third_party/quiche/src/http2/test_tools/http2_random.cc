@@ -2,6 +2,7 @@
 
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/chacha.h"
 #include "third_party/boringssl/src/include/openssl/rand.h"
 
@@ -19,7 +20,7 @@ Http2Random::Http2Random() {
 Http2Random::Http2Random(Http2StringPiece key) {
   Http2String decoded_key = Http2HexDecode(key);
   CHECK_EQ(sizeof(key_), decoded_key.size());
-  memcpy(key_, decoded_key.data(), sizeof(key_));
+  SbMemoryCopy(key_, decoded_key.data(), sizeof(key_));
 }
 
 Http2String Http2Random::Key() const {
@@ -27,7 +28,7 @@ Http2String Http2Random::Key() const {
 }
 
 void Http2Random::FillRandom(void* buffer, size_t buffer_size) {
-  memset(buffer, 0, buffer_size);
+  SbMemorySet(buffer, 0, buffer_size);
   uint8_t* buffer_u8 = reinterpret_cast<uint8_t*>(buffer);
   CRYPTO_chacha_20(buffer_u8, buffer_u8, buffer_size, key_, kZeroNonce,
                    counter_++);

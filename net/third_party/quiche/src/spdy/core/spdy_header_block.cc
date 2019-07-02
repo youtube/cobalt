@@ -15,6 +15,8 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace spdy {
 namespace {
@@ -387,12 +389,12 @@ size_t Join(char* dst,
   }
   auto* original_dst = dst;
   auto it = fragments.begin();
-  memcpy(dst, it->data(), it->size());
+  SbMemoryCopy(dst, it->data(), it->size());
   dst += it->size();
   for (++it; it != fragments.end(); ++it) {
-    memcpy(dst, separator.data(), separator.size());
+    SbMemoryCopy(dst, separator.data(), separator.size());
     dst += separator.size();
-    memcpy(dst, it->data(), it->size());
+    SbMemoryCopy(dst, it->data(), it->size());
     dst += it->size();
   }
   return dst - original_dst;

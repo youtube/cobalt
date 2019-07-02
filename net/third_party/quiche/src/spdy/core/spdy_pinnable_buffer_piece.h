@@ -5,12 +5,11 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_PINNABLE_BUFFER_PIECE_H_
 #define QUICHE_SPDY_CORE_SPDY_PINNABLE_BUFFER_PIECE_H_
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "starboard/types.h"
 
 namespace spdy {
 
