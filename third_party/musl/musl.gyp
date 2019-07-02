@@ -135,6 +135,8 @@
             'src/starboard/malloc/posix_memalign.c',
             'src/starboard/stdio/fflush.c',
             'src/starboard/stdio/fputc.c',
+            'src/starboard/stdio/stderr.c',
+            'src/starboard/stdio/stdout.c',
             'src/starboard/stdio/vfprintf.c',
             'src/starboard/stdio/vsnprintf.c',
             'src/starboard/stdio/vsscanf.c',
