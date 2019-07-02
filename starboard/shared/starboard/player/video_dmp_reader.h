@@ -112,6 +112,9 @@ class VideoDmpReader {
   SbMediaAudioSampleInfo GetAudioSampleInfo(size_t index) const;
 
  private:
+  VideoDmpReader(const VideoDmpReader&) = delete;
+  VideoDmpReader& operator=(const VideoDmpReader&) = delete;
+
   void Parse();
   AudioAccessUnit ReadAudioAccessUnit();
   VideoAccessUnit ReadVideoAccessUnit();
