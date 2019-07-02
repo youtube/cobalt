@@ -36,7 +36,8 @@ AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
       task_runner_(base::MessageLoop::current()->task_runner()),
       state_(kNone),
       read_index_(0),
-      buffer_source_added_(false) {
+      buffer_source_added_(false),
+      sample_rate_(context->sample_rate()) {
   AudioLock::AutoLock lock(audio_lock());
 
   AddOutput(new AudioNodeOutput(this));
@@ -55,10 +56,10 @@ void AudioBufferSourceNode::set_buffer(
 
   buffer_ = buffer;
 
-  if (buffer_->sample_rate() != context()->sample_rate()) {
+  if (buffer_->sample_rate() != sample_rate_) {
     interleaved_resampler_ =
         std::unique_ptr<InterleavedSincResampler>(new InterleavedSincResampler(
-            buffer_->sample_rate() / context()->sample_rate(),
+            buffer_->sample_rate() / sample_rate_,
             static_cast<int32>(buffer_->audio_bus()->channels())));
   }
 
@@ -175,8 +176,8 @@ std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
 
   // Queue frames.
   while (!interleaved_resampler_->HasEnoughData(number_of_frames)) {
-    int32 frames_to_queue = static_cast<int32>(ceil(
-        number_of_frames * buffer_->sample_rate() / context()->sample_rate()));
+    int32 frames_to_queue = static_cast<int32>(
+        ceil(number_of_frames * buffer_->sample_rate() / sample_rate_));
 
     frames_to_queue = std::min(frames_to_queue, frames_to_end);
 

@@ -200,7 +200,7 @@ class AudioContext : public dom::EventTarget {
   // associate the WeakPtr with the constructing thread.
   base::WeakPtr<AudioContext> weak_this_;
 
-  float sample_rate_;
+  const float sample_rate_;
   double current_time_;
 
   scoped_refptr<AudioLock> audio_lock_;
