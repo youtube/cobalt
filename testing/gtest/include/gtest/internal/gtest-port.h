@@ -1478,6 +1478,7 @@ void SetInjectableArgvs(const ::std::vector<testing::internal::string>*
 class Mutex {
  public:
   Mutex() { SbMutexCreate(&mutex_); }
+  ~Mutex() {SbMutexDestroy(&mutex_); }
   void Lock() { SbMutexAcquire(&mutex_); }
   void Unlock() { SbMutexRelease(&mutex_); }
   void AssertHeld() const {}
