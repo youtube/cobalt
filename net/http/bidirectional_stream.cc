@@ -31,7 +31,7 @@
 #include "net/spdy/spdy_log_util.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config.h"
-#include "net/third_party/spdy/core/spdy_header_block.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "url/gurl.h"
 
@@ -430,7 +430,7 @@ void BidirectionalStream::OnHttpsProxyTunnelResponse(
     std::unique_ptr<HttpStream> stream) {
   DCHECK(stream_request_);
 
-  NotifyFailed(ERR_HTTPS_PROXY_TUNNEL_RESPONSE);
+  NotifyFailed(ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT);
 }
 
 void BidirectionalStream::OnQuicBroken() {}

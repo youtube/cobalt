@@ -4,8 +4,9 @@
 
 #include "net/third_party/quic/platform/impl/quic_epoll_clock.h"
 
+#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
-#include "net/third_party/quic/test_tools/fake_epoll_server.h"
+#include "net/tools/epoll_server/fake_epoll_server.h"
 
 namespace quic {
 namespace test {
@@ -42,6 +43,38 @@ TEST_F(QuicEpollClockTest, NowInUsec) {
 
   epoll_server.AdvanceBy(5);
   EXPECT_EQ(1000005, (clock.Now() - QuicTime::Zero()).ToMicroseconds());
+}
+
+TEST_F(QuicEpollClockTest, MonotonicityWithRealEpollClock) {
+  SetQuicReloadableFlag(quic_monotonic_epoll_clock, true);
+  net::EpollServer epoll_server;
+  QuicEpollClock clock(&epoll_server);
+
+  quic::QuicTime last_now = clock.Now();
+  for (int i = 0; i < 1e5; ++i) {
+    quic::QuicTime now = clock.Now();
+
+    ASSERT_LE(last_now, now);
+
+    last_now = now;
+  }
+}
+
+TEST_F(QuicEpollClockTest, MonotonicityWithFakeEpollClock) {
+  FakeEpollServer epoll_server;
+  QuicEpollClock clock(&epoll_server);
+
+  epoll_server.set_now_in_usec(100);
+  quic::QuicTime last_now = clock.Now();
+
+  epoll_server.set_now_in_usec(90);
+  quic::QuicTime now = clock.Now();
+
+  if (GetQuicReloadableFlag(quic_monotonic_epoll_clock)) {
+    ASSERT_EQ(last_now, now);
+  } else {
+    ASSERT_GT(last_now, now);
+  }
 }
 
 }  // namespace test

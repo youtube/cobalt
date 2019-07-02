@@ -9,7 +9,7 @@
 namespace quic {
 
 QuicSimpleDispatcher::QuicSimpleDispatcher(
-    const QuicConfig& config,
+    const QuicConfig* config,
     const QuicCryptoServerConfig* crypto_config,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
@@ -31,9 +31,8 @@ int QuicSimpleDispatcher::GetRstErrorCount(
   auto it = rst_error_map_.find(error_code);
   if (it == rst_error_map_.end()) {
     return 0;
-  } else {
-    return it->second;
   }
+  return it->second;
 }
 
 void QuicSimpleDispatcher::OnRstStreamReceived(
@@ -49,15 +48,17 @@ void QuicSimpleDispatcher::OnRstStreamReceived(
 QuicServerSessionBase* QuicSimpleDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,
-    QuicStringPiece /*alpn*/) {
+    QuicStringPiece /*alpn*/,
+    const ParsedQuicVersion& version) {
   // The QuicServerSessionBase takes ownership of |connection| below.
   QuicConnection* connection = new QuicConnection(
       connection_id, client_address, helper(), alarm_factory(), writer(),
-      /* owns_writer= */ false, Perspective::IS_SERVER, GetSupportedVersions());
+      /* owns_writer= */ false, Perspective::IS_SERVER,
+      ParsedQuicVersionVector{version});
 
   QuicServerSessionBase* session = new QuicSimpleServerSession(
-      config(), connection, this, session_helper(), crypto_config(),
-      compressed_certs_cache(), quic_simple_server_backend_);
+      config(), GetSupportedVersions(), connection, this, session_helper(),
+      crypto_config(), compressed_certs_cache(), quic_simple_server_backend_);
   session->Initialize();
   return session;
 }

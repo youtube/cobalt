@@ -183,15 +183,15 @@ QuicAlarm* QuicConnectionPeer::GetMtuDiscoveryAlarm(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetRetransmittableOnWireAlarm(
-    QuicConnection* connection) {
-  return connection->retransmittable_on_wire_alarm_.get();
-}
-
-// static
 QuicAlarm* QuicConnectionPeer::GetPathDegradingAlarm(
     QuicConnection* connection) {
   return connection->path_degrading_alarm_.get();
+}
+
+// static
+QuicAlarm* QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
+    QuicConnection* connection) {
+  return connection->process_undecryptable_packets_alarm_.get();
 }
 
 // static
@@ -257,27 +257,40 @@ void QuicConnectionPeer::SetNextMtuProbeAt(QuicConnection* connection,
 
 // static
 void QuicConnectionPeer::SetAckMode(QuicConnection* connection,
-                                    QuicConnection::AckMode ack_mode) {
-  connection->ack_mode_ = ack_mode;
+                                    AckMode ack_mode) {
+  if (connection->received_packet_manager_.decide_when_to_send_acks()) {
+    connection->received_packet_manager_.ack_mode_ = ack_mode;
+  } else {
+    connection->ack_mode_ = ack_mode;
+  }
 }
 
 // static
 void QuicConnectionPeer::SetFastAckAfterQuiescence(
     QuicConnection* connection,
     bool fast_ack_after_quiescence) {
-  connection->fast_ack_after_quiescence_ = fast_ack_after_quiescence;
+  if (connection->received_packet_manager_.decide_when_to_send_acks()) {
+    connection->received_packet_manager_.fast_ack_after_quiescence_ =
+        fast_ack_after_quiescence;
+  } else {
+    connection->fast_ack_after_quiescence_ = fast_ack_after_quiescence;
+  }
 }
 
 // static
 void QuicConnectionPeer::SetAckDecimationDelay(QuicConnection* connection,
                                                float ack_decimation_delay) {
-  connection->ack_decimation_delay_ = ack_decimation_delay;
+  if (connection->received_packet_manager_.decide_when_to_send_acks()) {
+    connection->received_packet_manager_.ack_decimation_delay_ =
+        ack_decimation_delay;
+  } else {
+    connection->ack_decimation_delay_ = ack_decimation_delay;
+  }
 }
 
 // static
-bool QuicConnectionPeer::HasRetransmittableFrames(
-    QuicConnection* connection,
-    QuicPacketNumber packet_number) {
+bool QuicConnectionPeer::HasRetransmittableFrames(QuicConnection* connection,
+                                                  uint64_t packet_number) {
   return QuicSentPacketManagerPeer::HasRetransmittableFrames(
       GetSentPacketManager(connection), packet_number);
 }
@@ -318,6 +331,24 @@ void QuicConnectionPeer::SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
     size_t new_value) {
   connection->max_consecutive_num_packets_with_no_retransmittable_frames_ =
       new_value;
+}
+
+// static
+void QuicConnectionPeer::SetNoVersionNegotiation(QuicConnection* connection,
+                                                 bool no_version_negotiation) {
+  *const_cast<bool*>(&connection->no_version_negotiation_) =
+      no_version_negotiation;
+}
+
+// static
+bool QuicConnectionPeer::SupportsReleaseTime(QuicConnection* connection) {
+  return connection->supports_release_time_;
+}
+
+// static
+QuicConnection::PacketContent QuicConnectionPeer::GetCurrentPacketContent(
+    QuicConnection* connection) {
+  return connection->current_packet_content_;
 }
 
 }  // namespace test

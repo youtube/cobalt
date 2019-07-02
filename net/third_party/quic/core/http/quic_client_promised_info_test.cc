@@ -9,6 +9,7 @@
 #include "base/macros.h"
 #include "net/third_party/quic/core/http/quic_spdy_client_session.h"
 #include "net/third_party/quic/core/http/spdy_utils.h"
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
@@ -31,9 +32,11 @@ namespace {
 class MockQuicSpdyClientSession : public QuicSpdyClientSession {
  public:
   explicit MockQuicSpdyClientSession(
+      const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicClientPushPromiseIndex* push_promise_index)
       : QuicSpdyClientSession(DefaultQuicConfig(),
+                              supported_versions,
                               connection,
                               QuicServerId("example.com", 443, false),
                               &crypto_config_,
@@ -68,9 +71,12 @@ class QuicClientPromisedInfoTest : public QuicTest {
       : connection_(new StrictMock<MockQuicConnection>(&helper_,
                                                        &alarm_factory_,
                                                        Perspective::IS_CLIENT)),
-        session_(connection_, &push_promise_index_),
+        session_(connection_->supported_versions(),
+                 connection_,
+                 &push_promise_index_),
         body_("hello world"),
-        promise_id_(kInvalidStreamId) {
+        promise_id_(
+            QuicUtils::GetInvalidStreamId(connection_->transport_version())) {
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_.Initialize();
 
@@ -78,8 +84,9 @@ class QuicClientPromisedInfoTest : public QuicTest {
     headers_["content-length"] = "11";
 
     stream_ = QuicMakeUnique<QuicSpdyClientStream>(
-        QuicSpdySessionPeer::GetNthClientInitiatedStreamId(session_, 0),
-        &session_);
+        GetNthClientInitiatedBidirectionalStreamId(
+            connection_->transport_version(), 0),
+        &session_, BIDIRECTIONAL);
     stream_visitor_ = QuicMakeUnique<StreamVisitor>();
     stream_->set_visitor(stream_visitor_.get());
 
@@ -92,8 +99,8 @@ class QuicClientPromisedInfoTest : public QuicTest {
     promise_url_ = SpdyUtils::GetPromisedUrlFromHeaders(push_promise_);
 
     client_request_ = push_promise_.Clone();
-    promise_id_ =
-        QuicSpdySessionPeer::GetNthServerInitiatedStreamId(session_, 0);
+    promise_id_ = GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 0);
   }
 
   class StreamVisitor : public QuicSpdyClientStream::Visitor {

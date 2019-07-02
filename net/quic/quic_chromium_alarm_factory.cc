@@ -47,7 +47,7 @@ class QuicChromeAlarm : public quic::QuicAlarm {
     }
     task_runner_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&QuicChromeAlarm::OnAlarm, weak_factory_.GetWeakPtr()),
+        base::BindOnce(&QuicChromeAlarm::OnAlarm, weak_factory_.GetWeakPtr()),
         base::TimeDelta::FromMicroseconds(delay_us));
     task_deadline_ = deadline();
   }

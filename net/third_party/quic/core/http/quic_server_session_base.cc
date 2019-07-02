@@ -7,6 +7,7 @@
 #include "net/third_party/quic/core/proto/cached_network_parameters.pb.h"
 #include "net/third_party/quic/core/quic_connection.h"
 #include "net/third_party/quic/core/quic_stream.h"
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
@@ -17,19 +18,19 @@ namespace quic {
 
 QuicServerSessionBase::QuicServerSessionBase(
     const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection,
     Visitor* visitor,
     QuicCryptoServerStream::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache)
-    : QuicSpdySession(connection, visitor, config),
+    : QuicSpdySession(connection, visitor, config, supported_versions),
       crypto_config_(crypto_config),
       compressed_certs_cache_(compressed_certs_cache),
       helper_(helper),
       bandwidth_resumption_enabled_(false),
       bandwidth_estimate_sent_to_client_(QuicBandwidth::Zero()),
-      last_scup_time_(QuicTime::Zero()),
-      last_scup_packet_number_(0) {}
+      last_scup_time_(QuicTime::Zero()) {}
 
 QuicServerSessionBase::~QuicServerSessionBase() {}
 
@@ -53,11 +54,6 @@ void QuicServerSessionBase::OnConfigNegotiated() {
       ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWMX);
   bandwidth_resumption_enabled_ =
       last_bandwidth_resumption || max_bandwidth_resumption;
-
-  if (connection()->transport_version() < QUIC_VERSION_35) {
-    set_server_push_enabled(
-        ContainsQuicTag(config()->ReceivedConnectionOptions(), kSPSH));
-  }
 
   // If the client has provided a bandwidth estimate from the same serving
   // region as this server, then decide whether to use the data for bandwidth
@@ -110,9 +106,15 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
   int64_t srtt_ms =
       sent_packet_manager.GetRttStats()->smoothed_rtt().ToMilliseconds();
   int64_t now_ms = (now - last_scup_time_).ToMilliseconds();
-  int64_t packets_since_last_scup =
-      connection()->sent_packet_manager().GetLargestSentPacket() -
-      last_scup_packet_number_;
+  int64_t packets_since_last_scup = 0;
+  const QuicPacketNumber largest_sent_packet =
+      connection()->sent_packet_manager().GetLargestSentPacket();
+  if (largest_sent_packet.IsInitialized()) {
+    packets_since_last_scup =
+        last_scup_packet_number_.IsInitialized()
+            ? largest_sent_packet - last_scup_packet_number_
+            : largest_sent_packet.ToUint64();
+  }
   if (now_ms < (kMinIntervalBetweenServerConfigUpdatesRTTs * srtt_ms) ||
       now_ms < kMinIntervalBetweenServerConfigUpdatesMs ||
       packets_since_last_scup < kMinPacketsBetweenServerConfigUpdates) {
@@ -192,13 +194,14 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
       connection()->sent_packet_manager().GetLargestSentPacket();
 }
 
-bool QuicServerSessionBase::ShouldCreateIncomingDynamicStream(QuicStreamId id) {
+bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
   if (!connection()->connected()) {
-    QUIC_BUG << "ShouldCreateIncomingDynamicStream called when disconnected";
+    QUIC_BUG << "ShouldCreateIncomingStream called when disconnected";
     return false;
   }
 
-  if (id % 2 == 0) {
+  if (QuicUtils::IsServerInitiatedStreamId(connection()->transport_version(),
+                                           id)) {
     QUIC_DLOG(INFO) << "Invalid incoming even stream_id:" << id;
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Client created even numbered stream",
@@ -208,24 +211,52 @@ bool QuicServerSessionBase::ShouldCreateIncomingDynamicStream(QuicStreamId id) {
   return true;
 }
 
-bool QuicServerSessionBase::ShouldCreateOutgoingDynamicStream() {
+bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
   if (!connection()->connected()) {
-    QUIC_BUG << "ShouldCreateOutgoingDynamicStream called when disconnected";
+    QUIC_BUG
+        << "ShouldCreateOutgoingBidirectionalStream called when disconnected";
     return false;
   }
   if (!crypto_stream_->encryption_established()) {
     QUIC_BUG << "Encryption not established so no outgoing stream created.";
     return false;
   }
-  if (!GetQuicFlag(FLAGS_quic_use_common_stream_check)) {
-    if (GetNumOpenOutgoingStreams() >= max_open_outgoing_streams()) {
+
+  if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
+      connection()->transport_version() != QUIC_VERSION_99) {
+    if (GetNumOpenOutgoingStreams() >=
+        stream_id_manager().max_open_outgoing_streams()) {
       VLOG(1) << "No more streams should be created. "
               << "Already " << GetNumOpenOutgoingStreams() << " open.";
       return false;
     }
   }
-  QUIC_FLAG_COUNT_N(quic_use_common_stream_check, 2, 2);
-  return CanOpenNextOutgoingStream();
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_common_stream_check, 2, 2);
+  return CanOpenNextOutgoingBidirectionalStream();
+}
+
+bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
+  if (!connection()->connected()) {
+    QUIC_BUG
+        << "ShouldCreateOutgoingUnidirectionalStream called when disconnected";
+    return false;
+  }
+  if (!crypto_stream_->encryption_established()) {
+    QUIC_BUG << "Encryption not established so no outgoing stream created.";
+    return false;
+  }
+
+  if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
+      connection()->transport_version() != QUIC_VERSION_99) {
+    if (GetNumOpenOutgoingStreams() >=
+        stream_id_manager().max_open_outgoing_streams()) {
+      VLOG(1) << "No more streams should be created. "
+              << "Already " << GetNumOpenOutgoingStreams() << " open.";
+      return false;
+    }
+  }
+
+  return CanOpenNextOutgoingUnidirectionalStream();
 }
 
 QuicCryptoServerStreamBase* QuicServerSessionBase::GetMutableCryptoStream() {

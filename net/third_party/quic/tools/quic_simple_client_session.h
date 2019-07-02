@@ -13,12 +13,14 @@ namespace quic {
 class QuicSimpleClientSession : public QuicSpdyClientSession {
  public:
   QuicSimpleClientSession(const QuicConfig& config,
+                          const ParsedQuicVersionVector& supported_versions,
                           QuicConnection* connection,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
                           QuicClientPushPromiseIndex* push_promise_index,
                           bool drop_response_body)
       : QuicSpdyClientSession(config,
+                              supported_versions,
                               connection,
                               server_id,
                               crypto_config,

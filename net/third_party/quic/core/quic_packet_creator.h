@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Accumulates frames for the next packet until more frames no longer fit or
 // it's time to create a packet from them.
 
@@ -18,6 +18,7 @@
 #include "net/third_party/quic/core/quic_framer.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_pending_retransmission.h"
+#include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -55,6 +56,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicPacketCreator(QuicConnectionId connection_id,
                     QuicFramer* framer,
                     DelegateInterface* delegate);
+  QuicPacketCreator(QuicConnectionId connection_id,
+                    QuicFramer* framer,
+                    QuicRandom* random,
+                    DelegateInterface* delegate);
   QuicPacketCreator(const QuicPacketCreator&) = delete;
   QuicPacketCreator& operator=(const QuicPacketCreator&) = delete;
 
@@ -83,6 +88,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       bool include_version,
       bool include_diversification_nonce,
       QuicPacketNumberLength packet_number_length,
+      QuicVariableLengthIntegerLength retry_token_length_length,
+      QuicVariableLengthIntegerLength length_length,
       QuicStreamOffset offset);
 
   // Returns false and flushes all pending frames if current open packet is
@@ -95,7 +102,16 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                    QuicStreamOffset offset,
                    bool fin,
                    bool needs_full_padding,
+                   TransmissionType transmission_type,
                    QuicFrame* frame);
+
+  // Creates a CRYPTO frame that fits into the current packet (which must be
+  // empty) and adds it to the packet.
+  bool ConsumeCryptoData(EncryptionLevel level,
+                         size_t write_length,
+                         QuicStreamOffset offset,
+                         TransmissionType transmission_type,
+                         QuicFrame* frame);
 
   // Returns true if current open packet can accommodate more stream frames of
   // stream |id| at |offset| and data length |data_size|, false otherwise.
@@ -103,7 +119,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                              QuicStreamOffset offset,
                              size_t data_size);
 
-  // Returns true if current open packet can accomoodate a message frame of
+  // Returns true if current open packet can accommodate a message frame of
   // |length|.
   bool HasRoomForMessageFrame(QuicByteCount length);
 
@@ -126,6 +142,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                                      QuicStreamOffset iov_offset,
                                      QuicStreamOffset stream_offset,
                                      bool fin,
+                                     TransmissionType transmission_type,
                                      size_t* num_bytes_consumed);
 
   // Returns true if there are frames pending to be serialized.
@@ -158,18 +175,34 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Tries to add |frame| to the packet creator's list of frames to be
   // serialized. If the frame does not fit into the current packet, flushes the
   // packet and returns false.
-  bool AddSavedFrame(const QuicFrame& frame);
+  bool AddSavedFrame(const QuicFrame& frame,
+                     TransmissionType transmission_type);
 
   // Identical to AddSavedFrame, but allows the frame to be padded.
-  bool AddPaddedSavedFrame(const QuicFrame& frame);
+  bool AddPaddedSavedFrame(const QuicFrame& frame,
+                           TransmissionType transmission_type);
 
   // Creates a version negotiation packet which supports |supported_versions|.
   std::unique_ptr<QuicEncryptedPacket> SerializeVersionNegotiationPacket(
       bool ietf_quic,
       const ParsedQuicVersionVector& supported_versions);
 
-  // Creates a connectivity probing packet.
+  // Creates a connectivity probing packet for versions prior to version 99.
   OwningSerializedPacketPointer SerializeConnectivityProbingPacket();
+
+  // Create connectivity probing request and response packets using PATH
+  // CHALLENGE and PATH RESPONSE frames, respectively, for version 99/IETF QUIC.
+  // SerializePathChallengeConnectivityProbingPacket will pad the packet to be
+  // MTU bytes long.
+  OwningSerializedPacketPointer SerializePathChallengeConnectivityProbingPacket(
+      QuicPathFrameBuffer* payload);
+
+  // If |is_padded| is true then SerializePathResponseConnectivityProbingPacket
+  // will pad the packet to be MTU bytes long, else it will not pad the packet.
+  // |payloads| is cleared.
+  OwningSerializedPacketPointer SerializePathResponseConnectivityProbingPacket(
+      const QuicDeque<QuicPathFrameBuffer>& payloads,
+      const bool is_padded);
 
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
@@ -180,6 +213,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns length of source connection ID to send over the wire.
   QuicConnectionIdLength GetSourceConnectionIdLength() const;
 
+  // Sets whether the connection ID should be sent over the wire.
+  void SetConnectionIdIncluded(QuicConnectionIdIncluded connection_id_included);
+
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level) {
     packet_.encryption_level = level;
@@ -188,8 +224,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // packet number of the last created packet, or 0 if no packets have been
   // created.
   QuicPacketNumber packet_number() const { return packet_.packet_number; }
-
-  void SetConnectionIdLength(QuicConnectionIdLength length);
 
   QuicByteCount max_packet_length() const { return max_packet_length_; }
 
@@ -216,8 +250,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets transmission type of next constructed packets.
   void SetTransmissionType(TransmissionType type);
 
-  // Sets long header type of next constructed packets.
-  void SetLongHeaderType(QuicLongHeaderType type);
+  // Sets the retry token to be sent over the wire in v99 IETF Initial packets.
+  void SetRetryToken(QuicStringPiece retry_token);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetLargestMessagePayload() const;
@@ -230,12 +264,18 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     can_set_transmission_type_ = can_set_transmission_type;
   }
 
+  bool ShouldSetTransmissionTypeForNextFrame() const {
+    return can_set_transmission_type_ && set_transmission_type_for_next_frame_;
+  }
+
   QuicByteCount pending_padding_bytes() const { return pending_padding_bytes_; }
+
+  QuicTransportVersion transport_version() const {
+    return framer_->transport_version();
+  }
 
  private:
   friend class test::QuicPacketCreatorPeer;
-
-  static bool ShouldRetransmit(const QuicFrame& frame);
 
   // Creates a stream frame which fits into the current open packet. If
   // |write_length| is 0 and fin is true, the expected behavior is to consume
@@ -247,12 +287,22 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                          bool fin,
                          QuicFrame* frame);
 
+  // Creates a CRYPTO frame which fits into the current open packet. Returns
+  // false if there isn't enough room in the current open packet for a CRYPTO
+  // frame, and true if there is.
+  bool CreateCryptoFrame(EncryptionLevel level,
+                         size_t write_length,
+                         QuicStreamOffset offset,
+                         QuicFrame* frame);
+
   void FillPacketHeader(QuicPacketHeader* header);
 
   // Adds a |frame| if there is space and returns false and flushes all pending
   // frames if there isn't room. If |save_retransmittable_frames| is true,
   // saves the |frame| in the next SerializedPacket.
-  bool AddFrame(const QuicFrame& frame, bool save_retransmittable_frames);
+  bool AddFrame(const QuicFrame& frame,
+                bool save_retransmittable_frames,
+                TransmissionType transmission_type);
 
   // Adds a padding frame to the current packet (if there is space) when (1)
   // current packet needs full padding or (2) there are pending paddings.
@@ -283,6 +333,24 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // function instead.
   QuicPacketNumberLength GetPacketNumberLength() const;
 
+  // Returns whether the destination connection ID is sent over the wire.
+  QuicConnectionIdIncluded GetDestinationConnectionIdIncluded() const;
+
+  // Returns whether the source connection ID is sent over the wire.
+  QuicConnectionIdIncluded GetSourceConnectionIdIncluded() const;
+
+  // Returns length of the retry token variable length integer to send over the
+  // wire. Is non-zero for v99 IETF Initial packets.
+  QuicVariableLengthIntegerLength GetRetryTokenLengthLength() const;
+
+  // Returns the retry token to send over the wire, only sent in
+  // v99 IETF Initial packets.
+  QuicStringPiece GetRetryToken() const;
+
+  // Returns length of the length variable length integer to send over the
+  // wire. Is non-zero for v99 IETF Initial, 0-RTT or Handshake packets.
+  QuicVariableLengthIntegerLength GetLengthLength() const;
+
   // Returns true if |frame| starts with CHLO.
   bool StreamFrameStartsWithChlo(const QuicStreamFrame& frame) const;
 
@@ -293,6 +361,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;
   QuicFramer* framer_;
+  QuicRandom* random_;
 
   // Controls whether version should be included while serializing the packet.
   // send_version_in_packet_ should never be read directly, use
@@ -305,9 +374,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Maximum length including headers and encryption (UDP payload length.)
   QuicByteCount max_packet_length_;
   size_t max_plaintext_size_;
-  // Length of connection_id to send over the wire. connection_id_length_ should
-  // never be read directly, use GetConnectionIdLength() instead.
-  QuicConnectionIdLength connection_id_length_;
+  // Whether the connection_id is sent over the wire.
+  QuicConnectionIdIncluded connection_id_included_;
 
   // Frames to be added to the next SerializedPacket
   QuicFrames queued_frames_;
@@ -321,8 +389,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Packet used to invoke OnSerializedPacket.
   SerializedPacket packet_;
 
-  // Long header type of next constructed packets.
-  QuicLongHeaderType long_header_type_;
+  // Retry token to send over the wire in v99 IETF Initial packets.
+  QuicString retry_token_;
 
   // Pending padding bytes to send. Pending padding bytes will be sent in next
   // packet(s) (after all other frames) if current constructed packet does not
@@ -337,6 +405,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // If true, packet_'s transmission type is only set by
   // SetPacketTransmissionType and does not get cleared in ClearPacket.
   bool can_set_transmission_type_;
+
+  // Latched value of --quic_set_transmission_type_for_next_frame. Don't use
+  // this variable directly, use ShouldSetTransmissionTypeForNextFrame instead.
+  bool set_transmission_type_for_next_frame_;
 };
 
 }  // namespace quic

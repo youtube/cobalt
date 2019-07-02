@@ -7,7 +7,7 @@
 #include <limits>
 
 #include "net/third_party/quic/platform/api/quic_endian.h"
-#include "net/third_party/spdy/core/spdy_alt_svc_wire_format.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,7 +38,7 @@ TEST(QuicHttpUtilsTest, ConvertQuicPriorityToRequestPriority) {
 
 TEST(QuicHttpUtilsTest, FilterSupportedAltSvcVersions) {
   quic::QuicTransportVersionVector supported_versions = {
-      quic::QUIC_VERSION_35, quic::QUIC_VERSION_39, quic::QUIC_VERSION_44};
+      quic::QUIC_VERSION_46, quic::QUIC_VERSION_39, quic::QUIC_VERSION_44};
 
   std::vector<uint32_t> alt_svc_versions_google = {quic::QUIC_VERSION_44,
                                                    quic::QUIC_VERSION_43};

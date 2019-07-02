@@ -16,7 +16,7 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
   QuicStopSendingFrame();
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                        QuicStreamId stream_id,
-                       uint16_t application_error_code);
+                       QuicApplicationErrorCode application_error_code);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,

@@ -92,11 +92,6 @@ bool QuicCryptoClientStream::WasChannelIDSourceCallbackRun() const {
   return handshaker_->WasChannelIDSourceCallbackRun();
 }
 
-QuicLongHeaderType QuicCryptoClientStream::GetLongHeaderType(
-    QuicStreamOffset offset) const {
-  return handshaker_->GetLongHeaderType(offset);
-}
-
 QuicString QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }

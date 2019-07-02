@@ -9,8 +9,6 @@
 #include "url/gurl.h"
 #include "url/url_canon.h"
 
-using std::string;
-
 namespace quic {
 
 // static
@@ -21,16 +19,18 @@ bool QuicHostnameUtilsImpl::IsValidSNI(QuicStringPiece sni) {
   // would consider valid. By far the most common hostname character NOT
   // accepted by the above spec is '_'.
   url::CanonHostInfo host_info;
-  string canonicalized_host(net::CanonicalizeHost(sni.as_string(), &host_info));
+  std::string canonicalized_host(
+      net::CanonicalizeHost(sni.as_string(), &host_info));
   return !host_info.IsIPAddress() &&
          net::IsCanonicalizedHostCompliant(canonicalized_host) &&
-         sni.find_last_of('.') != string::npos;
+         sni.find_last_of('.') != std::string::npos;
 }
 
 // static
-char* QuicHostnameUtilsImpl::NormalizeHostname(char* hostname) {
+QuicString QuicHostnameUtilsImpl::NormalizeHostname(QuicStringPiece hostname) {
   url::CanonHostInfo host_info;
-  string host(net::CanonicalizeHost(hostname, &host_info));
+  std::string host(net::CanonicalizeHost(
+      base::StringPiece(hostname.data(), hostname.size()), &host_info));
 
   // Walk backwards over the string, stopping at the first trailing dot.
   size_t host_end = host.length();
@@ -43,10 +43,7 @@ char* QuicHostnameUtilsImpl::NormalizeHostname(char* hostname) {
     host.erase(host_end, host.length() - host_end);
   }
 
-  SbMemoryCopy(hostname, host.c_str(), host.length());
-  hostname[host.length()] = '\0';
-
-  return hostname;
+  return host;
 }
 
 }  // namespace quic

@@ -10,11 +10,11 @@
 #include "net/third_party/quic/core/crypto/channel_id.h"
 #include "net/third_party/quic/core/crypto/common_cert_set.h"
 #include "net/third_party/quic/core/crypto/crypto_handshake.h"
-#include "net/third_party/quic/core/crypto/crypto_server_config_protobuf.h"
 #include "net/third_party/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quic/core/crypto/quic_random.h"
+#include "net/third_party/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quic/core/quic_crypto_stream.h"
@@ -311,10 +311,11 @@ class FullChloGenerator {
           result) {
     result_ = result;
     crypto_config_->ProcessClientHello(
-        result_, /*reject_only=*/false, /*connection_id=*/1, server_addr_,
+        result_, /*reject_only=*/false, TestConnectionId(1), server_addr_,
         client_addr_, AllSupportedVersions().front(), AllSupportedVersions(),
-        /*use_stateless_rejects=*/true, /*server_designated_connection_id=*/0,
-        clock_, QuicRandom::GetInstance(), compressed_certs_cache_, params_,
+        /*use_stateless_rejects=*/true,
+        /*server_designated_connection_id=*/TestConnectionId(2), clock_,
+        QuicRandom::GetInstance(), compressed_certs_cache_, params_,
         signed_config_, /*total_framing_overhead=*/50, kDefaultMaxPacketSize,
         GetProcessClientHelloCallback());
   }
@@ -386,9 +387,9 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             PacketSavingConnection* client_conn,
                             QuicCryptoClientStream* client,
                             const FakeServerOptions& options) {
-  PacketSavingConnection* server_conn =
-      new PacketSavingConnection(helper, alarm_factory, Perspective::IS_SERVER,
-                                 client_conn->supported_versions());
+  PacketSavingConnection* server_conn = new PacketSavingConnection(
+      helper, alarm_factory, Perspective::IS_SERVER,
+      ParsedVersionOfIndex(client_conn->supported_versions(), 0));
 
   QuicCryptoServerConfig crypto_config(
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
@@ -400,9 +401,9 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                                  server_conn->random_generator(),
                                  &crypto_config, options);
 
-  TestQuicSpdyServerSession server_session(server_conn, *server_quic_config,
-                                           &crypto_config,
-                                           &compressed_certs_cache);
+  TestQuicSpdyServerSession server_session(
+      server_conn, *server_quic_config, client_conn->supported_versions(),
+      &crypto_config, &compressed_certs_cache);
   server_session.OnSuccessfulVersionNegotiation(
       client_conn->supported_versions().front());
   EXPECT_CALL(*server_session.helper(),
@@ -410,7 +411,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                                    testing::_, testing::_))
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_session.helper(),
-              GenerateConnectionIdForReject(testing::_))
+              GenerateConnectionIdForReject(testing::_, testing::_))
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
@@ -460,7 +461,8 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
     crypto_config.tb_key_params = options.token_binding_params;
   }
   TestQuicSpdyClientSession client_session(client_conn, DefaultQuicConfig(),
-                                           server_id, &crypto_config);
+                                           supported_versions, server_id,
+                                           &crypto_config);
 
   EXPECT_CALL(client_session, OnProofValid(testing::_))
       .Times(testing::AnyNumber());
@@ -509,9 +511,19 @@ void SendHandshakeMessageToStream(QuicCryptoStream* stream,
                                   const CryptoHandshakeMessage& message,
                                   Perspective perspective) {
   const QuicData& data = message.GetSerialized();
-  QuicStreamFrame frame(kCryptoStreamId, false, stream->stream_bytes_read(),
-                        data.AsStringPiece());
-  stream->OnStreamFrame(frame);
+  QuicSession* session = QuicStreamPeer::session(stream);
+  if (session->connection()->transport_version() < QUIC_VERSION_47) {
+    QuicStreamFrame frame(QuicUtils::GetCryptoStreamId(
+                              session->connection()->transport_version()),
+                          false, stream->crypto_bytes_read(),
+                          data.AsStringPiece());
+    stream->OnStreamFrame(frame);
+  } else {
+    EncryptionLevel level = session->connection()->last_decrypted_level();
+    QuicCryptoFrame frame(level, stream->BytesReadOnLevel(level),
+                          data.AsStringPiece());
+    stream->OnCryptoFrame(frame);
+  }
 }
 
 void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
@@ -540,6 +552,9 @@ void CommunicateHandshakeMessagesAndRunCallbacks(
       callback_source->RunPendingCallbacks();
     }
 
+    if (client->handshake_confirmed() && server->handshake_confirmed()) {
+      break;
+    }
     ASSERT_GT(server_conn->encrypted_packets_.size(), server_i);
     QUIC_LOG(INFO) << "Processing "
                    << server_conn->encrypted_packets_.size() - server_i
@@ -586,7 +601,7 @@ QuicString GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag) {
 
 uint64_t LeafCertHashForTesting() {
   QuicReferenceCountedPointer<ProofSource::Chain> chain;
-  QuicSocketAddress server_address;
+  QuicSocketAddress server_address(QuicIpAddress::Any4(), 42);
   QuicCryptoProof proof;
   std::unique_ptr<ProofSource> proof_source(ProofSourceForTesting());
 
@@ -721,7 +736,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   QuicFramer* server_framer = QuicConnectionPeer::GetFramer(
       QuicStreamPeer::session(server)->connection());
   const QuicEncrypter* client_encrypter(
-      QuicFramerPeer::GetEncrypter(client_framer, ENCRYPTION_INITIAL));
+      QuicFramerPeer::GetEncrypter(client_framer, ENCRYPTION_ZERO_RTT));
   const QuicDecrypter* client_decrypter(
       QuicStreamPeer::session(client)->connection()->decrypter());
   const QuicEncrypter* client_forward_secure_encrypter(
@@ -729,7 +744,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   const QuicDecrypter* client_forward_secure_decrypter(
       QuicStreamPeer::session(client)->connection()->alternative_decrypter());
   const QuicEncrypter* server_encrypter(
-      QuicFramerPeer::GetEncrypter(server_framer, ENCRYPTION_INITIAL));
+      QuicFramerPeer::GetEncrypter(server_framer, ENCRYPTION_ZERO_RTT));
   const QuicDecrypter* server_decrypter(
       QuicStreamPeer::session(server)->connection()->decrypter());
   const QuicEncrypter* server_forward_secure_encrypter(
@@ -780,8 +795,6 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   EXPECT_TRUE(server->ExportKeyingMaterial(kSampleLabel, kSampleContext,
                                            kSampleOutputLength,
                                            &server_key_extraction));
-  EXPECT_TRUE(client->ExportTokenBindingKeyingMaterial(&client_tb_ekm));
-  EXPECT_TRUE(server->ExportTokenBindingKeyingMaterial(&server_tb_ekm));
 
   CompareCharArraysWithHexError("client write key", client_encrypter_key.data(),
                                 client_encrypter_key.length(),
@@ -911,110 +924,62 @@ ChannelIDSource* ChannelIDSourceForTesting() {
   return new TestChannelIDSource();
 }
 
-void MovePacketsForTlsHandshake(PacketSavingConnection* source_conn,
-                                size_t* inout_packet_index,
-                                QuicCryptoStream* dest_stream,
-                                PacketSavingConnection* dest_conn,
-                                Perspective dest_perspective) {
-  SimpleQuicFramer framer(source_conn->supported_versions(), dest_perspective);
-  std::vector<std::unique_ptr<QuicStreamFrame>> stream_frames;
-  std::vector<std::vector<char>> buffers;
-
-  QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
-
-  SimpleQuicFramer null_encryption_framer(source_conn->supported_versions(),
-                                          dest_perspective);
-  size_t index = *inout_packet_index;
-  for (; index < source_conn->encrypted_packets_.size(); index++) {
-    if (!framer.ProcessPacket(*source_conn->encrypted_packets_[index])) {
-      // The framer will be unable to decrypt forward-secure packets sent after
-      // the handshake is complete. Don't treat them as handshake packets.
-      break;
-    }
-    // Try to process the packet with a framer that only has the NullDecrypter
-    // for decryption. If ProcessPacket succeeds, that means the packet was
-    // encrypted with the NullEncrypter. With the TLS handshaker in use, no
-    // packets should ever be encrypted with the NullEncrypter, instead they're
-    // encrypted with an obfuscation cipher based on QUIC version and connection
-    // ID.
-    ASSERT_FALSE(null_encryption_framer.ProcessPacket(
-        *source_conn->encrypted_packets_[index]))
-        << "No TLS packets should be encrypted with the NullEncrypter";
-
-    for (const auto& stream_frame : framer.stream_frames()) {
-      // The stream frames from SimpleQuicFramer::stream_frames() are only valid
-      // until the next call to ProcessPacket. This copies the stream frames to
-      // |stream_frames|, including making a copy of the data buffer, since a
-      // QuicStreamFrame does not own the data it points to.
-      std::vector<char> buffer(stream_frame->data_length);
-      SbMemoryCopy(buffer.data(), stream_frame->data_buffer,
-                   stream_frame->data_length);
-      auto frame = QuicMakeUnique<QuicStreamFrame>(
-          stream_frame->stream_id, stream_frame->fin, stream_frame->offset,
-          QuicStringPiece(buffer.data(), buffer.size()));
-      stream_frames.push_back(std::move(frame));
-      buffers.push_back(std::move(buffer));
-    }
-  }
-  *inout_packet_index = index;
-  QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
-
-  for (const auto& stream_frame : stream_frames) {
-    dest_conn->OnStreamFrame(*stream_frame);
-  }
-}
-
 void MovePackets(PacketSavingConnection* source_conn,
                  size_t* inout_packet_index,
                  QuicCryptoStream* dest_stream,
                  PacketSavingConnection* dest_conn,
                  Perspective dest_perspective) {
-  if (dest_stream->handshake_protocol() == PROTOCOL_TLS1_3) {
-    MovePacketsForTlsHandshake(source_conn, inout_packet_index, dest_stream,
-                               dest_conn, dest_perspective);
-    return;
-  }
   SimpleQuicFramer framer(source_conn->supported_versions(), dest_perspective);
-  CryptoFramer crypto_framer;
-  CryptoFramerVisitor crypto_visitor;
 
-  // In order to properly test the code we need to perform encryption and
-  // decryption so that the crypters latch when expected. The crypters are in
-  // |dest_conn|, but we don't want to try and use them there. Instead we swap
-  // them into |framer|, perform the decryption with them, and then swap ther
-  // back.
-  QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
-
-  crypto_framer.set_visitor(&crypto_visitor);
+  SimpleQuicFramer null_encryption_framer(source_conn->supported_versions(),
+                                          dest_perspective);
 
   size_t index = *inout_packet_index;
   for (; index < source_conn->encrypted_packets_.size(); index++) {
+    // In order to properly test the code we need to perform encryption and
+    // decryption so that the crypters latch when expected. The crypters are in
+    // |dest_conn|, but we don't want to try and use them there. Instead we swap
+    // them into |framer|, perform the decryption with them, and then swap ther
+    // back.
+    QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
     if (!framer.ProcessPacket(*source_conn->encrypted_packets_[index])) {
       // The framer will be unable to decrypt forward-secure packets sent after
       // the handshake is complete. Don't treat them as handshake packets.
       break;
     }
+    QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
+    dest_conn->OnDecryptedPacket(framer.last_decrypted_level());
 
-    for (const auto& stream_frame : framer.stream_frames()) {
-      ASSERT_TRUE(crypto_framer.ProcessInput(QuicStringPiece(
-          stream_frame->data_buffer, stream_frame->data_length)));
-      ASSERT_FALSE(crypto_visitor.error());
+    if (dest_stream->handshake_protocol() == PROTOCOL_TLS1_3) {
+      // Try to process the packet with a framer that only has the NullDecrypter
+      // for decryption. If ProcessPacket succeeds, that means the packet was
+      // encrypted with the NullEncrypter. With the TLS handshaker in use, no
+      // packets should ever be encrypted with the NullEncrypter, instead
+      // they're encrypted with an obfuscation cipher based on QUIC version and
+      // connection ID.
+      ASSERT_FALSE(null_encryption_framer.ProcessPacket(
+          *source_conn->encrypted_packets_[index]))
+          << "No TLS packets should be encrypted with the NullEncrypter";
     }
+
+    // Since we're using QuicFramers separate from the connections to move
+    // packets, the QuicConnection never gets notified about what level the last
+    // packet was decrypted at. This is needed by TLS to know what encryption
+    // level was used for the data it's receiving, so we plumb this information
+    // from the SimpleQuicFramer back into the connection.
+    dest_conn->OnDecryptedPacket(framer.last_decrypted_level());
+
     QuicConnectionPeer::SetCurrentPacket(
         dest_conn, source_conn->encrypted_packets_[index]->AsStringPiece());
+    for (const auto& stream_frame : framer.stream_frames()) {
+      dest_stream->OnStreamFrame(*stream_frame);
+    }
+    for (const auto& crypto_frame : framer.crypto_frames()) {
+      dest_stream->OnCryptoFrame(*crypto_frame);
+    }
   }
   *inout_packet_index = index;
 
-  QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
-
-  ASSERT_EQ(0u, crypto_framer.InputBytesRemaining());
-
-  for (const CryptoHandshakeMessage& message : crypto_visitor.messages()) {
-    SendHandshakeMessageToStream(dest_stream, message,
-                                 dest_perspective == Perspective::IS_SERVER
-                                     ? Perspective::IS_CLIENT
-                                     : Perspective::IS_SERVER);
-  }
   QuicConnectionPeer::SetCurrentPacket(dest_conn, QuicStringPiece(nullptr, 0));
 }
 
@@ -1051,11 +1016,8 @@ QuicString GenerateClientNonceHex(const QuicClock* clock,
   QuicStringPiece orbit;
   CHECK(msg->GetStringPiece(kORBT, &orbit));
   QuicString nonce;
-  CryptoUtils::GenerateNonce(
-      clock->WallNow(), QuicRandom::GetInstance(),
-      QuicStringPiece(reinterpret_cast<const char*>(orbit.data()),
-                      sizeof(orbit.size())),
-      &nonce);
+  CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
+                             &nonce);
   return ("#" + QuicTextUtils::HexEncode(nonce));
 }
 

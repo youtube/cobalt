@@ -4,12 +4,11 @@
 
 #include "net/third_party/quic/core/quic_stream_sequencer_buffer.h"
 
-#include "base/format_macros.h"
 #include "net/third_party/quic/core/quic_constants.h"
+#include "net/third_party/quic/core/quic_interval.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/third_party/quic/platform/api/quic_interval.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
@@ -34,7 +33,10 @@ QuicStreamSequencerBuffer::QuicStreamSequencerBuffer(size_t max_capacity_bytes)
     : max_buffer_capacity_bytes_(max_capacity_bytes),
       blocks_count_(CalculateBlockCount(max_capacity_bytes)),
       total_bytes_read_(0),
-      blocks_(nullptr) {
+      blocks_(nullptr),
+      total_bytes_prefetched_(0),
+      faster_interval_add_in_sequence_buffer_(
+          GetQuicReloadableFlag(quic_faster_interval_add_in_sequence_buffer)) {
   Clear();
 }
 
@@ -81,7 +83,6 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
   if (starting_offset + size > total_bytes_read_ + max_buffer_capacity_bytes_ ||
       starting_offset + size < starting_offset) {
     *error_details = "Received data beyond available range.";
-    RecordInternalErrorLocation(QUIC_STREAM_SEQUENCER_BUFFER);
     return QUIC_INTERNAL_ERROR;
   }
   if (bytes_received_.Empty() ||
@@ -89,20 +90,33 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
       bytes_received_.IsDisjoint(QuicInterval<QuicStreamOffset>(
           starting_offset, starting_offset + size))) {
     // Optimization for the typical case, when all data is newly received.
-    if (!bytes_received_.Empty() &&
-        starting_offset == bytes_received_.rbegin()->max()) {
-      // Extend the right edge of last interval.
-      // TODO(fayang): Encapsulate this into a future version of QuicIntervalSet
-      // if this is more efficient than Add.
-      const_cast<QuicInterval<QuicPacketNumber>*>(&(*bytes_received_.rbegin()))
-          ->SetMax(starting_offset + size);
-    } else {
-      bytes_received_.Add(starting_offset, starting_offset + size);
+    if (faster_interval_add_in_sequence_buffer_) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_faster_interval_add_in_sequence_buffer);
+      bytes_received_.AddOptimizedForAppend(starting_offset,
+                                            starting_offset + size);
       if (bytes_received_.Size() >= kMaxNumDataIntervalsAllowed) {
         // This frame is going to create more intervals than allowed. Stop
         // processing.
         *error_details = "Too many data intervals received for this stream.";
         return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
+      }
+    } else {
+      if (!bytes_received_.Empty() &&
+          starting_offset == bytes_received_.rbegin()->max()) {
+        // Extend the right edge of last interval.
+        // TODO(fayang): Encapsulate this into a future version of
+        // QuicIntervalSet if this is more efficient than Add.
+        const_cast<QuicInterval<QuicStreamOffset>*>(
+            &(*bytes_received_.rbegin()))
+            ->SetMax(starting_offset + size);
+      } else {
+        bytes_received_.Add(starting_offset, starting_offset + size);
+        if (bytes_received_.Size() >= kMaxNumDataIntervalsAllowed) {
+          // This frame is going to create more intervals than allowed. Stop
+          // processing.
+          *error_details = "Too many data intervals received for this stream.";
+          return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
+        }
       }
     }
     size_t bytes_copy = 0;
@@ -227,7 +241,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const IOVEC* dest_iov,
   *bytes_read = 0;
   for (size_t i = 0; i < dest_count && ReadableBytes() > 0; ++i) {
     char* dest = reinterpret_cast<char*>(dest_iov[i].iov_base);
-    CHECK_NE(dest, nullptr);
+    DCHECK(dest != nullptr);
     size_t dest_remaining = dest_iov[i].iov_len;
     while (dest_remaining > 0 && ReadableBytes() > 0) {
       size_t block_idx = NextBlockToRead();
@@ -237,7 +251,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const IOVEC* dest_iov,
           ReadableBytes(), block_capacity - start_offset_in_block);
       size_t bytes_to_copy =
           std::min<size_t>(bytes_available_in_block, dest_remaining);
-      DCHECK_GT(bytes_to_copy, 0UL);
+      DCHECK_GT(bytes_to_copy, 0u);
       if (blocks_[block_idx] == nullptr || dest == nullptr) {
         *error_details = QuicStrCat(
             "QuicStreamSequencerBuffer error:"
@@ -274,6 +288,8 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const IOVEC* dest_iov,
       }
     }
   }
+  total_bytes_prefetched_ =
+      std::max(total_bytes_prefetched_, total_bytes_read_);
 
   return QUIC_NO_ERROR;
 }
@@ -317,7 +333,7 @@ int QuicStreamSequencerBuffer::GetReadableRegions(struct IOVEC* iov,
   int iov_used = 1;
   size_t block_idx = (start_block_idx + iov_used) % blocks_count_;
   while (block_idx != end_block_idx && iov_used < iov_count) {
-    DCHECK_NE(static_cast<BufferBlock*>(nullptr), blocks_[block_idx]);
+    DCHECK(nullptr != blocks_[block_idx]);
     iov[iov_used].iov_base = blocks_[block_idx]->buffer;
     iov[iov_used].iov_len = GetBlockCapacity(block_idx);
     QUIC_DVLOG(1) << "Got block with index: " << block_idx;
@@ -327,7 +343,7 @@ int QuicStreamSequencerBuffer::GetReadableRegions(struct IOVEC* iov,
 
   // Deal with last block if |iov| can hold more.
   if (iov_used < iov_count) {
-    DCHECK_NE(static_cast<BufferBlock*>(nullptr), blocks_[block_idx]);
+    DCHECK(nullptr != blocks_[block_idx]);
     iov[iov_used].iov_base = blocks_[end_block_idx]->buffer;
     iov[iov_used].iov_len = end_block_offset + 1;
     QUIC_DVLOG(1) << "Got last block with index: " << end_block_idx;
@@ -338,6 +354,31 @@ int QuicStreamSequencerBuffer::GetReadableRegions(struct IOVEC* iov,
 
 bool QuicStreamSequencerBuffer::GetReadableRegion(IOVEC* iov) const {
   return GetReadableRegions(iov, 1) == 1;
+}
+
+bool QuicStreamSequencerBuffer::PrefetchNextRegion(IOVEC* iov) {
+  DCHECK(iov != nullptr);
+
+  if (total_bytes_prefetched_ == FirstMissingByte()) {
+    return false;
+  }
+
+  size_t start_block_idx = GetBlockIndex(total_bytes_prefetched_);
+  size_t start_block_offset = GetInBlockOffset(total_bytes_prefetched_);
+  QuicStreamOffset readable_offset_end = FirstMissingByte() - 1;
+  size_t end_block_offset = GetInBlockOffset(readable_offset_end);
+  size_t end_block_idx = GetBlockIndex(readable_offset_end);
+
+  if (start_block_idx != end_block_idx) {
+    iov->iov_base = blocks_[start_block_idx]->buffer + start_block_offset;
+    iov->iov_len = GetBlockCapacity(start_block_idx) - start_block_offset;
+    total_bytes_prefetched_ += iov->iov_len;
+    return true;
+  }
+  iov->iov_base = blocks_[end_block_idx]->buffer + start_block_offset;
+  iov->iov_len = end_block_offset - start_block_offset + 1;
+  total_bytes_prefetched_ += iov->iov_len;
+  return true;
 }
 
 bool QuicStreamSequencerBuffer::MarkConsumed(size_t bytes_used) {
@@ -360,6 +401,8 @@ bool QuicStreamSequencerBuffer::MarkConsumed(size_t bytes_used) {
       RetireBlockIfEmpty(block_idx);
     }
   }
+  total_bytes_prefetched_ =
+      std::max(total_bytes_read_, total_bytes_prefetched_);
   return true;
 }
 

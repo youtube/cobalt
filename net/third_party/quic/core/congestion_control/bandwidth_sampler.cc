@@ -18,9 +18,7 @@ BandwidthSampler::BandwidthSampler()
       total_bytes_sent_at_last_acked_packet_(0),
       last_acked_packet_sent_time_(QuicTime::Zero()),
       last_acked_packet_ack_time_(QuicTime::Zero()),
-      last_sent_packet_(0),
       is_app_limited_(false),
-      end_of_app_limited_phase_(0),
       connection_state_map_() {}
 
 BandwidthSampler::~BandwidthSampler() {}
@@ -120,11 +118,18 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // always larger than the time of the previous packet, otherwise division by
   // zero or integer underflow can occur.
   if (ack_time <= sent_packet.last_acked_packet_ack_time) {
-    QUIC_LOG(DFATAL)
-        << "Time of the previously acked packet:"
-        << sent_packet.last_acked_packet_ack_time.ToDebuggingValue()
-        << " is larger than the ack time of the current packet:"
-        << ack_time.ToDebuggingValue();
+    // TODO(wub): Compare this code count before and after fixing clock jitter
+    // issue.
+    if (sent_packet.last_acked_packet_ack_time == sent_packet.sent_time) {
+      // This is the 1st packet after quiescense.
+      QUIC_CODE_COUNT_N(quic_prev_ack_time_larger_than_current_ack_time, 1, 2);
+    } else {
+      QUIC_CODE_COUNT_N(quic_prev_ack_time_larger_than_current_ack_time, 2, 2);
+    }
+    QUIC_LOG(ERROR) << "Time of the previously acked packet:"
+                    << sent_packet.last_acked_packet_ack_time.ToDebuggingValue()
+                    << " is larger than the ack time of the current packet:"
+                    << ack_time.ToDebuggingValue();
     return BandwidthSample();
   }
   QuicBandwidth ack_rate = QuicBandwidth::FromBytesAndTimeDelta(

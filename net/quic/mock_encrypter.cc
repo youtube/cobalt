@@ -30,8 +30,7 @@ bool MockEncrypter::SetIV(QuicStringPiece iv) {
   return iv.empty();
 }
 
-bool MockEncrypter::EncryptPacket(QuicTransportVersion version,
-                                  QuicPacketNumber /*packet_number*/,
+bool MockEncrypter::EncryptPacket(uint64_t /*packet_number*/,
                                   QuicStringPiece associated_data,
                                   QuicStringPiece plaintext,
                                   char* output,

@@ -8,10 +8,9 @@
 
 // Cobalt copied this file from Chromium directly.
 
-#include <stdint.h>
-
 #include "base/stl_util.h"
 #include "net/http/transport_security_state_source.h"
+#include "starboard/types.h"
 
 static const char kSPKIHash_TestSPKI1[] =
     "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01"

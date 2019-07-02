@@ -21,7 +21,6 @@ void MockQuicData::AddRead(IoMode mode,
       MockRead(mode, packet->data(), packet->length(), sequence_number_++));
   packets_.push_back(std::move(packet));
 }
-
 void MockQuicData::AddRead(IoMode mode, int rv) {
   reads_.push_back(MockRead(mode, rv, sequence_number_++));
 }

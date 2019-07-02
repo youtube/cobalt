@@ -5,9 +5,17 @@
 #ifndef NET_THIRD_PARTY_QUIC_PLATFORM_IMPL_QUIC_FLAG_UTILS_IMPL_H_
 #define NET_THIRD_PARTY_QUIC_PLATFORM_IMPL_QUIC_FLAG_UTILS_IMPL_H_
 
-#define QUIC_FLAG_COUNT_IMPL(flag) \
-  DVLOG(1) << "FLAG_" #flag ": " << FLAGS_##flag
-#define QUIC_FLAG_COUNT_N_IMPL(flag, instance, total) QUIC_FLAG_COUNT_IMPL(flag)
+#include "base/logging.h"
+
+#define QUIC_RELOADABLE_FLAG_COUNT_IMPL(flag) \
+  DVLOG(2) << "FLAG_" #flag ": " << FLAGS_quic_reloadable_flag_##flag
+#define QUIC_RELOADABLE_FLAG_COUNT_N_IMPL(flag, instance, total) \
+  QUIC_RELOADABLE_FLAG_COUNT_IMPL(flag)
+
+#define QUIC_RESTART_FLAG_COUNT_IMPL(flag) \
+  DVLOG(2) << "FLAG_" #flag ": " << FLAGS_quic_restart_flag_##flag
+#define QUIC_RESTART_FLAG_COUNT_N_IMPL(flag, instance, total) \
+  QUIC_RESTART_FLAG_COUNT_IMPL(flag)
 
 #define QUIC_CODE_COUNT_IMPL(name) \
   do {                             \

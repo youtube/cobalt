@@ -13,9 +13,10 @@
 #include "base/values.h"
 #include "net/http/http_auth_controller.h"
 #include "net/http/http_response_headers.h"
-#include "net/http/proxy_connect_redirect_http_stream.h"
 #include "net/log/net_log_source.h"
+#include "net/http/proxy_connect_redirect_http_stream.h"
 #include "net/log/net_log_source_type.h"
+#include "net/quic/quic_http_utils.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
@@ -36,7 +37,6 @@ QuicProxyClientSocket::QuicProxyClientSocket(
       endpoint_(endpoint),
       auth_(auth_controller),
       user_agent_(user_agent),
-      redirect_has_load_timing_info_(false),
       net_log_(net_log),
       weak_factory_(this) {
   DCHECK(stream_->IsOpen());
@@ -59,15 +59,15 @@ const HttpResponseInfo* QuicProxyClientSocket::GetConnectResponseInfo() const {
   return response_.headers.get() ? &response_ : nullptr;
 }
 
-std::unique_ptr<HttpStream>
-QuicProxyClientSocket::CreateConnectResponseStream() {
-  return std::make_unique<ProxyConnectRedirectHttpStream>(
-      redirect_has_load_timing_info_ ? &redirect_load_timing_info_ : nullptr);
-}
-
 const scoped_refptr<HttpAuthController>&
 QuicProxyClientSocket::GetAuthController() const {
   return auth_;
+}
+
+// QUIC46
+std::unique_ptr<HttpStream>
+QuicProxyClientSocket::CreateConnectResponseStream() {
+  return std::make_unique<ProxyConnectRedirectHttpStream>(nullptr);
 }
 
 int QuicProxyClientSocket::RestartWithAuth(CompletionOnceCallback callback) {
@@ -75,7 +75,7 @@ int QuicProxyClientSocket::RestartWithAuth(CompletionOnceCallback callback) {
   // stream may not be reused and a new QuicProxyClientSocket must be
   // created (possibly on top of the same QUIC Session).
   next_state_ = STATE_DISCONNECTED;
-  return OK;
+  return ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH;
 }
 
 bool QuicProxyClientSocket::IsUsingSpdy() const {
@@ -85,6 +85,14 @@ bool QuicProxyClientSocket::IsUsingSpdy() const {
 NextProto QuicProxyClientSocket::GetProxyNegotiatedProtocol() const {
   return kProtoQUIC;
 }
+
+// Ignore priority changes, just use priority of initial request. Since multiple
+// requests are pooled on the QuicProxyClientSocket, reprioritization doesn't
+// really work.
+//
+// TODO(mmenke):  Use a single priority value for all QuicProxyClientSockets,
+// regardless of what priority they're created with.
+void QuicProxyClientSocket::SetStreamPriority(RequestPriority priority) {}
 
 // Sends a HEADERS frame to the proxy with a CONNECT request
 // for the specified endpoint.  Waits for the server to send back
@@ -407,10 +415,8 @@ int QuicProxyClientSocket::DoReadReplyComplete(int result) {
       // If we can't, fail the tunnel connection.
       if (!SanitizeProxyRedirect(&response_))
         return ERR_TUNNEL_CONNECTION_FAILED;
-      redirect_has_load_timing_info_ =
-          GetLoadTimingInfo(&redirect_load_timing_info_);
       next_state_ = STATE_DISCONNECTED;
-      return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
+      return ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT;
 
     case 407:  // Proxy Authentication Required
       next_state_ = STATE_CONNECT_COMPLETE;

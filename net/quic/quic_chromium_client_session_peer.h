@@ -28,7 +28,7 @@ class QuicChromiumClientSessionPeer {
   static uint64_t GetPushedAndUnclaimedBytesCount(
       QuicChromiumClientSession* session);
 
-  static QuicChromiumClientStream* CreateOutgoingDynamicStream(
+  static QuicChromiumClientStream* CreateOutgoingStream(
       QuicChromiumClientSession* session);
 
  private:

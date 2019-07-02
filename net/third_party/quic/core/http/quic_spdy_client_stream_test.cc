@@ -33,9 +33,11 @@ namespace {
 class MockQuicSpdyClientSession : public QuicSpdyClientSession {
  public:
   explicit MockQuicSpdyClientSession(
+      const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicClientPushPromiseIndex* push_promise_index)
       : QuicSpdyClientSession(DefaultQuicConfig(),
+                              supported_versions,
                               connection,
                               QuicServerId("example.com", 443, false),
                               &crypto_config_,
@@ -53,15 +55,19 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
   QuicCryptoClientConfig crypto_config_;
 };
 
-class QuicSpdyClientStreamTest : public QuicTest {
+class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   class StreamVisitor;
 
   QuicSpdyClientStreamTest()
-      : connection_(new StrictMock<MockQuicConnection>(&helper_,
-                                                       &alarm_factory_,
-                                                       Perspective::IS_CLIENT)),
-        session_(connection_, &push_promise_index_),
+      : connection_(
+            new StrictMock<MockQuicConnection>(&helper_,
+                                               &alarm_factory_,
+                                               Perspective::IS_CLIENT,
+                                               SupportedVersions(GetParam()))),
+        session_(connection_->supported_versions(),
+                 connection_,
+                 &push_promise_index_),
         body_("hello world") {
     session_.Initialize();
 
@@ -69,8 +75,9 @@ class QuicSpdyClientStreamTest : public QuicTest {
     headers_["content-length"] = "11";
 
     stream_ = QuicMakeUnique<QuicSpdyClientStream>(
-        QuicSpdySessionPeer::GetNthClientInitiatedStreamId(session_, 0),
-        &session_);
+        GetNthClientInitiatedBidirectionalStreamId(
+            connection_->transport_version(), 0),
+        &session_, BIDIRECTIONAL);
     stream_visitor_ = QuicMakeUnique<StreamVisitor>();
     stream_->set_visitor(stream_visitor_.get());
   }
@@ -91,9 +98,14 @@ class QuicSpdyClientStreamTest : public QuicTest {
   std::unique_ptr<StreamVisitor> stream_visitor_;
   SpdyHeaderBlock headers_;
   QuicString body_;
+  HttpEncoder encoder_;
 };
 
-TEST_F(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicSpdyClientStreamTest,
+                         ::testing::ValuesIn(AllSupportedVersions()));
+
+TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
   headers_[":status"] = "200 ok";
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
@@ -105,18 +117,25 @@ TEST_F(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
   EXPECT_EQ(QUIC_BAD_APPLICATION_PAYLOAD, stream_->stream_error());
 }
 
-TEST_F(QuicSpdyClientStreamTest, TestFraming) {
+TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+  QuicString header = QuicString(buffer.get(), header_length);
+  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
+                        ? header + body_
+                        : body_;
   stream_->OnStreamFrame(
-      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, body_));
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
   EXPECT_EQ(200, stream_->response_code());
   EXPECT_EQ(body_, stream_->data());
 }
 
-TEST_F(QuicSpdyClientStreamTest, TestFraming100Continue) {
+TEST_P(QuicSpdyClientStreamTest, TestFraming100Continue) {
   headers_[":status"] = "100";
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
@@ -129,18 +148,26 @@ TEST_F(QuicSpdyClientStreamTest, TestFraming100Continue) {
   EXPECT_EQ("", stream_->data());
 }
 
-TEST_F(QuicSpdyClientStreamTest, TestFramingOnePacket) {
+TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+  QuicString header = QuicString(buffer.get(), header_length);
+  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
+                        ? header + body_
+                        : body_;
   stream_->OnStreamFrame(
-      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, body_));
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
   EXPECT_EQ(200, stream_->response_code());
   EXPECT_EQ(body_, stream_->data());
 }
 
-TEST_F(QuicSpdyClientStreamTest, DISABLED_TestFramingExtraData) {
+TEST_P(QuicSpdyClientStreamTest,
+       QUIC_TEST_DISABLED_IN_CHROME(TestFramingExtraData)) {
   QuicString large_body = "hello world!!!!!!";
 
   auto headers = AsHeaderList(headers_);
@@ -150,17 +177,24 @@ TEST_F(QuicSpdyClientStreamTest, DISABLED_TestFramingExtraData) {
   EXPECT_EQ(QUIC_STREAM_NO_ERROR, stream_->stream_error());
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
   EXPECT_EQ(200, stream_->response_code());
-
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
+  QuicString header = QuicString(buffer.get(), header_length);
+  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
+                        ? header + large_body
+                        : large_body;
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
+
   stream_->OnStreamFrame(
-      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, large_body));
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
 
   EXPECT_NE(QUIC_STREAM_NO_ERROR, stream_->stream_error());
 }
 
-TEST_F(QuicSpdyClientStreamTest, ReceivingTrailers) {
+TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // Test that receiving trailing headers, containing a final offset, results in
   // the stream being closed at that byte offset.
 
@@ -182,8 +216,15 @@ TEST_F(QuicSpdyClientStreamTest, ReceivingTrailers) {
 
   // Now send the body, which should close the stream as the FIN has been
   // received, as well as all data.
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+  QuicString header = QuicString(buffer.get(), header_length);
+  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
+                        ? header + body_
+                        : body_;
   stream_->OnStreamFrame(
-      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, body_));
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_TRUE(stream_->reading_stopped());
 }
 

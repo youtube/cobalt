@@ -4,6 +4,7 @@
 
 #include "net/third_party/quic/test_tools/simple_session_notifier.h"
 
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
@@ -103,35 +104,55 @@ TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
   InSequence s;
   // Send crypto data [0, 1024) in ENCRYPTION_NONE.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_NONE);
-  EXPECT_CALL(connection_, SendStreamData(1, 1024, 0, NO_FIN))
+  EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
+                                              connection_.transport_version()),
+                                          1024, 0, NO_FIN))
       .WillOnce(Return(QuicConsumedData(1024, false)));
-  notifier_.WriteOrBufferData(1, 1024, NO_FIN);
-  // Send crypto data [1024, 2048) in ENCRYPTION_INITIAL.
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-  EXPECT_CALL(connection_, SendStreamData(1, 1024, 1024, NO_FIN))
+  notifier_.WriteOrBufferData(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version()), 1024,
+      NO_FIN);
+  // Send crypto data [1024, 2048) in ENCRYPTION_ZERO_RTT.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
+                                              connection_.transport_version()),
+                                          1024, 1024, NO_FIN))
       .WillOnce(Return(QuicConsumedData(1024, false)));
-  notifier_.WriteOrBufferData(1, 1024, NO_FIN);
+  notifier_.WriteOrBufferData(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version()), 1024,
+      NO_FIN);
   // Ack [1024, 2048).
-  QuicStreamFrame stream_frame(1, false, 1024, 1024);
+  QuicStreamFrame stream_frame(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+      1024, 1024);
   notifier_.OnFrameAcked(QuicFrame(stream_frame), QuicTime::Delta::Zero());
-  EXPECT_TRUE(notifier_.StreamIsWaitingForAcks(1));
+  EXPECT_TRUE(notifier_.StreamIsWaitingForAcks(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version())));
   // Neuters unencrypted data.
   notifier_.NeuterUnencryptedData();
-  EXPECT_FALSE(notifier_.StreamIsWaitingForAcks(1));
+  EXPECT_FALSE(notifier_.StreamIsWaitingForAcks(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version())));
 }
 
 TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
   InSequence s;
   // Send crypto data [0, 1024) in ENCRYPTION_NONE.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_NONE);
-  EXPECT_CALL(connection_, SendStreamData(1, 1024, 0, NO_FIN))
+  EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
+                                              connection_.transport_version()),
+                                          1024, 0, NO_FIN))
       .WillOnce(Return(QuicConsumedData(1024, false)));
-  notifier_.WriteOrBufferData(1, 1024, NO_FIN);
-  // Send crypto data [1024, 2048) in ENCRYPTION_INITIAL.
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-  EXPECT_CALL(connection_, SendStreamData(1, 1024, 1024, NO_FIN))
+  notifier_.WriteOrBufferData(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version()), 1024,
+      NO_FIN);
+  // Send crypto data [1024, 2048) in ENCRYPTION_ZERO_RTT.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
+                                              connection_.transport_version()),
+                                          1024, 1024, NO_FIN))
       .WillOnce(Return(QuicConsumedData(1024, false)));
-  notifier_.WriteOrBufferData(1, 1024, NO_FIN);
+  notifier_.WriteOrBufferData(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version()), 1024,
+      NO_FIN);
   // Send stream 3 [0, 1024) and connection is blocked.
   EXPECT_CALL(connection_, SendStreamData(3, 1024, 0, FIN))
       .WillOnce(Return(QuicConsumedData(512, false)));
@@ -144,7 +165,9 @@ TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
   notifier_.WriteOrBufferRstStream(5, QUIC_ERROR_PROCESSING_STREAM, 1024);
 
   // Lost crypto data [500, 1500) and stream 3 [0, 512).
-  QuicStreamFrame frame1(1, false, 500, 1000);
+  QuicStreamFrame frame1(
+      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 500,
+      1000);
   QuicStreamFrame frame2(3, false, 0, 512);
   notifier_.OnFrameLost(QuicFrame(frame1));
   notifier_.OnFrameLost(QuicFrame(frame2));
@@ -152,9 +175,13 @@ TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
   // Connection becomes writable.
   // Lost crypto data gets retransmitted as [500, 1024) and [1024, 1500), as
   // they are in different encryption levels.
-  EXPECT_CALL(connection_, SendStreamData(1, 524, 500, NO_FIN))
+  EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
+                                              connection_.transport_version()),
+                                          524, 500, NO_FIN))
       .WillOnce(Return(QuicConsumedData(524, false)));
-  EXPECT_CALL(connection_, SendStreamData(1, 476, 1024, NO_FIN))
+  EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
+                                              connection_.transport_version()),
+                                          476, 1024, NO_FIN))
       .WillOnce(Return(QuicConsumedData(476, false)));
   // Lost stream 3 data gets retransmitted.
   EXPECT_CALL(connection_, SendStreamData(3, 512, 0, NO_FIN))

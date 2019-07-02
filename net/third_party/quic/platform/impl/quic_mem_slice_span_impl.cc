@@ -4,6 +4,7 @@
 
 #include "net/third_party/quic/platform/impl/quic_mem_slice_span_impl.h"
 
+#include "net/third_party/quic/core/frames/quic_message_frame.h"
 #include "net/third_party/quic/core/quic_stream_send_buffer.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 
@@ -39,6 +40,27 @@ QuicByteCount QuicMemSliceSpanImpl::SaveMemSlicesInSendBuffer(
         QuicMemSlice(QuicMemSliceImpl(buffers_[i], lengths_[i])));
   }
   return saved_length;
+}
+
+void QuicMemSliceSpanImpl::SaveMemSlicesAsMessageData(
+    QuicMessageFrame* message_frame) {
+  for (size_t i = 0; i < num_buffers_; ++i) {
+    if (lengths_[i] == 0) {
+      // Skip empty buffer.
+      continue;
+    }
+    message_frame->message_length += lengths_[i];
+    message_frame->message_data.push_back(
+        QuicMemSlice(QuicMemSliceImpl(buffers_[i], lengths_[i])));
+  }
+}
+
+QuicByteCount QuicMemSliceSpanImpl::total_length() {
+  QuicByteCount length = 0;
+  for (size_t i = 0; i < num_buffers_; ++i) {
+    length += lengths_[i];
+  }
+  return length;
 }
 
 }  // namespace quic

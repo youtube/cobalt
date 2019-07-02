@@ -19,6 +19,8 @@
 
 namespace net {
 
+void ProxyClientSocket::SetStreamPriority(RequestPriority priority) {}
+
 // static
 void ProxyClientSocket::BuildTunnelRequest(
     const HostPortPair& endpoint,

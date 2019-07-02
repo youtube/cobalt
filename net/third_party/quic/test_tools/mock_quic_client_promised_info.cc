@@ -4,7 +4,6 @@
 
 #include "net/third_party/quic/test_tools/mock_quic_client_promised_info.h"
 
-
 namespace quic {
 namespace test {
 

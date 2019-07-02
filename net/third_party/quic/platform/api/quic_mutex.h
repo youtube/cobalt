@@ -5,7 +5,6 @@
 #ifndef NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_MUTEX_H_
 #define NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_MUTEX_H_
 
-#include "base/macros.h"
 #include "net/third_party/quic/platform/impl/quic_mutex_impl.h"
 
 namespace quic {

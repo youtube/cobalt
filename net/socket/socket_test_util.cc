@@ -251,14 +251,6 @@ StaticSocketDataProvider::StaticSocketDataProvider(
     base::span<const MockWrite> writes)
     : helper_(reads, writes) {}
 
-#ifdef STARBOARD
-StaticSocketDataProvider::StaticSocketDataProvider(
-    const std::vector<MockRead>& reads,
-    const std::vector<MockWrite>& writes)
-    : helper_(base::span<const MockRead>(reads.data(), reads.size()),
-              base::span<const MockWrite>(writes.data(), writes.size())) {}
-#endif
-
 StaticSocketDataProvider::~StaticSocketDataProvider() = default;
 
 void StaticSocketDataProvider::Pause() {

@@ -140,6 +140,14 @@ class MockHostResolverBase
   // ResolveAllPending().
   bool has_pending_requests() const { return !requests_.empty(); }
 
+#if defined(COBALT_QUIC46)
+  // Returns the request with the given id.
+  RequestImpl* request(size_t id);
+
+  // Returns the priority of the request with the given id.
+  RequestPriority request_priority(size_t id);
+#endif
+
   // The number of times that Resolve() has been called.
   size_t num_resolve() const {
     return num_resolve_;

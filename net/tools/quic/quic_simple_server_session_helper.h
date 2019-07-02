@@ -20,6 +20,7 @@ class QuicSimpleServerSessionHelper
   ~QuicSimpleServerSessionHelper() override;
 
   quic::QuicConnectionId GenerateConnectionIdForReject(
+      quic::QuicTransportVersion /*version*/,
       quic::QuicConnectionId /*connection_id*/) const override;
 
   bool CanAcceptClientHello(const quic::CryptoHandshakeMessage& message,
