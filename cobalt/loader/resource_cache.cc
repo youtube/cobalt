@@ -56,18 +56,6 @@ CachedResourceBase::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
   }
 }
 
-CachedResourceBase::~CachedResourceBase() {
-  DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
-
-  if (retry_timer_) {
-    retry_timer_->Stop();
-  }
-
-  for (int i = 0; i < kCallbackTypeCount; ++i) {
-    DCHECK(callback_lists_[i].empty());
-  }
-}
-
 bool CachedResourceBase::IsLoadingComplete() {
   return !loader_ && !retry_timer_;
 }
