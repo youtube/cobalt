@@ -29,6 +29,9 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 namespace spdy {
 
 // A stream ID is a 31-bit entity.
@@ -890,7 +893,7 @@ class SPDY_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
       : SpdyFrameIR(stream_id),
         type_(type),
         flags_(flags),
-        length_(payload.size()),
+        length_(static_cast<int>(payload.size())),
         payload_(std::move(payload)) {}
   SpdyUnknownIR(const SpdyUnknownIR&) = delete;
   SpdyUnknownIR& operator=(const SpdyUnknownIR&) = delete;
@@ -980,7 +983,7 @@ class SPDY_EXPORT_PRIVATE SpdySerializedFrame {
     } else {
       // Otherwise, we need to make a copy to give to the caller.
       buffer = new char[size_];
-      memcpy(buffer, frame_, size_);
+      SbMemoryCopy(buffer, frame_, size_);
     }
     *this = SpdySerializedFrame();
     return buffer;

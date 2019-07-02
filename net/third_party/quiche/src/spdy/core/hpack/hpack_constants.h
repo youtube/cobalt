@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "starboard/types.h"
 
 // All section references below are to
 // https://httpwg.org/specs/rfc7540.html and
@@ -34,10 +35,20 @@ struct HpackHuffmanSymbol {
 // An entry in the static table. Must be a POD in order to avoid static
 // initializers, i.e. no user-defined constructors or destructors.
 struct HpackStaticEntry {
+#if defined(STARBOARD)
+  // Some C++11 compiler need to invoke copy-constructor on this class
+  // when bracket-initializing a std::vector<HpackStaticEntry>, so we
+  // have to drop the const qualifier to enable that.
+  const char* name;
+  size_t name_len;
+  const char* value;
+  size_t value_len;
+#else
   const char* const name;
   const size_t name_len;
   const char* const value;
   const size_t value_len;
+#endif
 };
 
 class HpackHuffmanTable;

@@ -7,8 +7,6 @@
 
 // Base class for testing concrete payload decoder classes.
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -24,6 +22,7 @@
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {
@@ -191,7 +190,11 @@ class AbstractPayloadDecoderTest : public PayloadDecoderBaseTest {
   AssertionResult DecodePayloadAndValidateSeveralWays(
       Http2StringPiece payload,
       const FrameParts& expected) {
+#if defined(STARBOARD)
+    NoArgValidator validator = [&expected, this]() -> AssertionResult {
+#else
     auto validator = [&expected, this]() -> AssertionResult {
+#endif
       VERIFY_FALSE(listener_.IsInProgress());
       VERIFY_EQ(1u, listener_.size());
       VERIFY_AND_RETURN_SUCCESS(expected.VerifyEquals(*listener_.frame(0)));

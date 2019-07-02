@@ -8,8 +8,6 @@
 // HpackDecoderAdapter uses http2::HpackDecoder to decode HPACK blocks into
 // HTTP/2 header lists as outlined in http://tools.ietf.org/html/rfc7541.
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <memory>
 
@@ -24,6 +22,7 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "starboard/types.h"
 
 namespace spdy {
 namespace test {

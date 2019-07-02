@@ -5,8 +5,6 @@
 #ifndef QUICHE_SPDY_CORE_HTTP2_FRAME_DECODER_ADAPTER_H_
 #define QUICHE_SPDY_CORE_HTTP2_FRAME_DECODER_ADAPTER_H_
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <memory>
 
@@ -18,6 +16,7 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "starboard/types.h"
 
 namespace spdy {
 
@@ -376,7 +375,8 @@ class SPDY_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called when padding length field is received on a DATA frame.
   // |stream_id| The stream receiving data.
   // |value| The value of the padding length field.
-  virtual void OnStreamPadLength(SpdyStreamId stream_id, size_t value) {}
+  virtual void OnStreamPadLength(SpdyStreamId /*stream_id*/, size_t /*value*/) {
+  }
 
   // Called when padding is received (the trailing octets, not pad_len field) on
   // a DATA frame.

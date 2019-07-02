@@ -21,6 +21,11 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
+#include "starboard/types.h"
+
+#if SB_IS(COMPILER_MSVC)
+#pragma warning(disable : 4838)
+#endif
 
 namespace spdy {
 namespace test {

@@ -5,8 +5,6 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_HEADER_BLOCK_H_
 #define QUICHE_SPDY_CORE_SPDY_HEADER_BLOCK_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <memory>
 #include <utility>

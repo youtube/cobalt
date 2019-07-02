@@ -13,14 +13,13 @@
 // especially w.r.t memory mgmt, and the EXPECT* will need to be removed or
 // replaced with DCHECKs.
 
-#include <stddef.h>  // for size_t
-
 #include <cstdint>
 
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "starboard/types.h"
 
 namespace http2 {
 namespace test {

@@ -6,6 +6,7 @@
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/memory.h"
 
 namespace spdy {
 namespace test {
@@ -32,7 +33,7 @@ TEST(ArrayOutputBufferTest, WriteAndReset) {
   ASSERT_GT(size, 1);
   ASSERT_NE(nullptr, dst);
   const int64_t written = size / 2;
-  memset(dst, 'x', written);
+  SbMemorySet(dst, 'x', written);
   buffer.AdvanceWritePtr(written);
 
   // The buffer should be partially used.

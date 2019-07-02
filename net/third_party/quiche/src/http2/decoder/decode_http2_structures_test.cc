@@ -7,8 +7,6 @@
 // Tests decoding all of the fixed size HTTP/2 structures (i.e. those defined
 // in net/third_party/quiche/src/http2/http2_structures.h).
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -19,8 +17,14 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
+#include "starboard/types.h"
 
 using ::testing::AssertionResult;
+
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4838)
+#endif
 
 namespace http2 {
 namespace test {

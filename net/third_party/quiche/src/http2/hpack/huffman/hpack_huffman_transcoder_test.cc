@@ -4,8 +4,6 @@
 
 // A test of roundtrips through the encoder and decoder.
 
-#include <stddef.h>
-
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
@@ -15,6 +13,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "starboard/types.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -80,7 +79,11 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
       VERIFY_EQ(encoded, expected_huffman);
     }
     input_bytes_expected_ = encoded.size();
+#ifdef STARBOARD
+    NoArgValidator validator = [plain, this]() -> AssertionResult {
+#else
     auto validator = [plain, this]() -> AssertionResult {
+#endif
       VERIFY_EQ(output_buffer_.size(), plain.size());
       VERIFY_EQ(output_buffer_, plain);
       return AssertionSuccess();

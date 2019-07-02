@@ -6,14 +6,13 @@
 
 // Test HpackVarintDecoder against hardcoded data.
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_arraysize.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "starboard/types.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;

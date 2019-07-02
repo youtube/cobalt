@@ -5,9 +5,11 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_block_decoder.h"
 
 #include <cstdint>
+#include <sstream>
 
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

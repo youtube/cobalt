@@ -9,8 +9,6 @@
 // DVLOG so that the logging does not slow down production code when things are
 // working OK.
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <cstring>
 #include <utility>
@@ -35,6 +33,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "starboard/types.h"
 
 using ::spdy::ExtensionVisitorInterface;
 using ::spdy::HpackDecoderAdapter;

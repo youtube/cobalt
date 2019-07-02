@@ -26,13 +26,11 @@
 // including in the frame header's flags and stream_id fields, which will have
 // been cleared before the methods below are called.
 
-#include <stddef.h>
-
-#include <cstdint>
 #include <type_traits>
 
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "starboard/types.h"
 
 namespace http2 {
 

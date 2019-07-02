@@ -17,6 +17,11 @@
 
 using ::testing::AssertionResult;
 
+#if SB_IS(COMPILER_MSVC)
+// Converting 0x12 to char.
+#pragma warning(disable : 4838)
+#endif
+
 namespace http2 {
 namespace test {
 namespace {
@@ -58,7 +63,11 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
   {
     const char input[] = {'\x82'};  // == Index 2 ==
     DecodeBuffer b(input);
+#if defined(STARBOARD)
+    NoArgValidator do_check = [this]() {
+#else
     auto do_check = [this]() {
+#endif
       VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(2));
     };
     EXPECT_TRUE(
@@ -69,7 +78,11 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
   {
     const char input[] = {'\xfe'};  // == Index 126 ==
     DecodeBuffer b(input);
+#if defined(STARBOARD)
+    NoArgValidator do_check = [this]() {
+#else
     auto do_check = [this]() {
+#endif
       VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(126));
     };
     EXPECT_TRUE(
@@ -80,7 +93,11 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
   {
     const char input[] = {'\xff', '\x00'};  // == Index 127 ==
     DecodeBuffer b(input);
+#if defined(STARBOARD)
+    NoArgValidator do_check = [this]() {
+#else
     auto do_check = [this]() {
+#endif
       VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(127));
     };
     EXPECT_TRUE(
@@ -95,7 +112,11 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Various) {
     HpackBlockBuilder hbb;
     hbb.AppendIndexedHeader(ndx);
 
+#if defined(STARBOARD)
+    NoArgValidator do_check = [this, ndx]() {
+#else
     auto do_check = [this, ndx]() {
+#endif
       VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(ndx));
     };
     EXPECT_TRUE(
@@ -111,7 +132,11 @@ TEST_F(HpackEntryDecoderTest, IndexedLiteralValue_Literal) {
       "\x0d"            // Value length (13)
       "custom-header";  // Value
   DecodeBuffer b(input, sizeof input - 1);
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralValueHeader(
         HpackEntryType::kIndexedLiteralHeader, 0x40, false, "custom-header"));
   };
@@ -128,7 +153,11 @@ TEST_F(HpackEntryDecoderTest, IndexedLiteralNameValue_Literal) {
       "custom-header";  // Value
 
   DecodeBuffer b(input, sizeof input - 1);
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralNameValueHeader(
         HpackEntryType::kIndexedLiteralHeader, false, "custom-key", false,
         "custom-header"));
@@ -141,7 +170,11 @@ TEST_F(HpackEntryDecoderTest, DynamicTableSizeUpdate_Literal) {
   // Size update, length 31.
   const char input[] = "\x3f\x00";
   DecodeBuffer b(input, 2);
+#if defined(STARBOARD)
+  NoArgValidator do_check = [this]() {
+#else
   auto do_check = [this]() {
+#endif
     VERIFY_AND_RETURN_SUCCESS(collector_.ValidateDynamicTableSizeUpdate(31));
   };
   EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
@@ -171,7 +204,11 @@ TEST_P(HpackLiteralEntryDecoderTest, RandNameIndexAndLiteralValue) {
     HpackBlockBuilder hbb;
     hbb.AppendNameIndexAndLiteralValue(entry_type_, ndx,
                                        value_is_huffman_encoded, value);
+#if defined(STARBOARD)
+    NoArgValidator do_check = [this, ndx, value_is_huffman_encoded,
+#else
     auto do_check = [this, ndx, value_is_huffman_encoded,
+#endif
                      value]() -> AssertionResult {
       VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralValueHeader(
           entry_type_, ndx, value_is_huffman_encoded, value));
@@ -193,7 +230,11 @@ TEST_P(HpackLiteralEntryDecoderTest, RandLiteralNameAndValue) {
     HpackBlockBuilder hbb;
     hbb.AppendLiteralNameAndValue(entry_type_, name_is_huffman_encoded, name,
                                   value_is_huffman_encoded, value);
+#if defined(STARBOARD)
+    NoArgValidator do_check = [this, name_is_huffman_encoded, name,
+#else
     auto do_check = [this, name_is_huffman_encoded, name,
+#endif
                      value_is_huffman_encoded, value]() -> AssertionResult {
       VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralNameValueHeader(
           entry_type_, name_is_huffman_encoded, name, value_is_huffman_encoded,

@@ -5,8 +5,6 @@
 #ifndef QUICHE_SPDY_CORE_HPACK_HPACK_ENCODER_H_
 #define QUICHE_SPDY_CORE_HPACK_HPACK_ENCODER_H_
 
-#include <stddef.h>
-
 #include <functional>
 #include <map>
 #include <memory>
@@ -20,6 +18,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "starboard/types.h"
 
 // An HpackEncoder encodes header sets as outlined in
 // http://tools.ietf.org/html/rfc7541.

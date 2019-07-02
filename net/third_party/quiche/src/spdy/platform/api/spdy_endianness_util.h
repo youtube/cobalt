@@ -5,9 +5,8 @@
 #ifndef QUICHE_SPDY_PLATFORM_API_SPDY_ENDIANNESS_UTIL_H_
 #define QUICHE_SPDY_PLATFORM_API_SPDY_ENDIANNESS_UTIL_H_
 
-#include <stdint.h>
-
 #include "net/spdy/platform/impl/spdy_endianness_util_impl.h"
+#include "starboard/types.h"
 
 namespace spdy {
 

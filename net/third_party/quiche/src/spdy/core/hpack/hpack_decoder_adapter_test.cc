@@ -6,8 +6,6 @@
 
 // Tests of HpackDecoderAdapter.
 
-#include <stdint.h>
-
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -26,6 +24,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "starboard/types.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackString;
