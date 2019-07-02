@@ -20,7 +20,7 @@ void RecordAltSvcFormat(AltSvcFormat format) {
   UMA_HISTOGRAM_ENUMERATION("Net.QuicAltSvcFormat", format, ALTSVC_FORMAT_MAX);
 }
 
-};  // namespace
+}  // namespace
 
 spdy::SpdyPriority ConvertRequestPriorityToQuicPriority(
     const RequestPriority priority) {

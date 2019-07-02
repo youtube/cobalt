@@ -1,7 +1,7 @@
 // Copyright (c) 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Some helpers for quic crypto
 
 #ifndef NET_THIRD_PARTY_QUIC_CORE_CRYPTO_CRYPTO_UTILS_H_
@@ -72,21 +72,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
     DiversificationNonce* nonce_;
   };
 
-  // Implements the QHKDF-Expand function defined in section 5.2.3 of
-  // draft-ietf-quic-tls-09. The QHKDF-Expand function takes 3 explicit
-  // arguments, as well as an implicit PRF which is the hash function negotiated
-  // by TLS. This PRF is passed in as |prf|; the explicit arguments to
-  // QHKDF-Expand - Secret, Label, and Length - are passed in as |secret|,
-  // |label|, and |out_len|, respectively.
-  static std::vector<uint8_t> QhkdfExpand(const EVP_MD* prf,
-                                          const std::vector<uint8_t>& secret,
-                                          const QuicString& label,
-                                          size_t out_len);
-
   // SetKeyAndIV derives the key and IV from the given packet protection secret
   // |pp_secret| and sets those fields on the given QuicCrypter |*crypter|.
   // This follows the derivation described in section 7.3 of RFC 8446, except
-  // using QhkdfExpand in place of HKDF-Expand-Label.
+  // with the label prefix in HKDF-Expand-Label changed from "tls13 " to "quic "
+  // as described in draft-ietf-quic-tls-14, section 5.1.
   static void SetKeyAndIV(const EVP_MD* prf,
                           const std::vector<uint8_t>& pp_secret,
                           QuicCrypter* crypter);
@@ -100,6 +90,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // decrypter (put in |*crypters|) to use for this packet protection, as well
   // as setting the key and IV on those crypters.
   static void CreateTlsInitialCrypters(Perspective perspective,
+                                       QuicTransportVersion version,
                                        QuicConnectionId connection_id,
                                        CrypterPair* crypters);
 
@@ -211,6 +202,27 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   static void HashHandshakeMessage(const CryptoHandshakeMessage& message,
                                    QuicString* output,
                                    Perspective perspective);
+
+ private:
+  // Implements the HKDF-Expand-Label function as defined in section 7.1 of RFC
+  // 8446, except that it uses "quic " as the prefix instead of "tls13 ", as
+  // specified by draft-ietf-quic-tls-14. The HKDF-Expand-Label function takes 4
+  // explicit arguments (Secret, Label, Context, and Length), as well as
+  // implicit PRF which is the hash function negotiated by TLS. Its use in QUIC
+  // (as needed by the QUIC stack, instead of as used internally by the TLS
+  // stack) is only for deriving initial secrets for obfuscation and for
+  // calculating packet protection keys and IVs from the corresponding packet
+  // protection secret. Neither of these uses need a Context (a zero-length
+  // context is provided), so this argument is omitted here.
+  //
+  // The implicit PRF is explicitly passed into HkdfExpandLabel as |prf|; the
+  // Secret, Label, and Length are passed in as |secret|, |label|, and
+  // |out_len|, respectively. The resulting expanded secret is returned.
+  static std::vector<uint8_t> HkdfExpandLabel(
+      const EVP_MD* prf,
+      const std::vector<uint8_t>& secret,
+      const QuicString& label,
+      size_t out_len);
 };
 
 }  // namespace quic

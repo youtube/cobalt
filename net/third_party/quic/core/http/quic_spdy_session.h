@@ -12,11 +12,16 @@
 #include "net/third_party/quic/core/http/quic_header_list.h"
 #include "net/third_party/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quic/core/qpack/qpack_decoder.h"
+#include "net/third_party/quic/core/qpack/qpack_decoder_stream_sender.h"
+#include "net/third_party/quic/core/qpack/qpack_encoder.h"
+#include "net/third_party/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quic/core/quic_session.h"
+#include "net/third_party/quic/core/quic_versions.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/spdy/core/http2_frame_decoder_adapter.h"
+#include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
 namespace quic {
 
@@ -44,18 +49,36 @@ class QUIC_EXPORT_PRIVATE QuicHpackDebugVisitor {
 };
 
 // A QUIC session with a headers stream.
-class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
+class QUIC_EXPORT_PRIVATE QuicSpdySession
+    : public QuicSession,
+      public QpackEncoder::DecoderStreamErrorDelegate,
+      public QpackEncoderStreamSender::Delegate,
+      public QpackDecoder::EncoderStreamErrorDelegate,
+      public QpackDecoderStreamSender::Delegate {
  public:
   // Does not take ownership of |connection| or |visitor|.
   QuicSpdySession(QuicConnection* connection,
                   QuicSession::Visitor* visitor,
-                  const QuicConfig& config);
+                  const QuicConfig& config,
+                  const ParsedQuicVersionVector& supported_versions);
   QuicSpdySession(const QuicSpdySession&) = delete;
   QuicSpdySession& operator=(const QuicSpdySession&) = delete;
 
   ~QuicSpdySession() override;
 
   void Initialize() override;
+
+  // QpackEncoder::DecoderStreamErrorDelegate implementation.
+  void OnDecoderStreamError(QuicStringPiece error_message) override;
+
+  // QpackEncoderStreamSender::Delegate implemenation.
+  void WriteEncoderStreamData(QuicStringPiece data) override;
+
+  // QpackDecoder::EncoderStreamErrorDelegate implementation.
+  void OnEncoderStreamError(QuicStringPiece error_message) override;
+
+  // QpackDecoderStreamSender::Delegate implementation.
+  void WriteDecoderStreamData(QuicStringPiece data) override;
 
   // Called by |headers_stream_| when headers with a priority have been
   // received for a stream.  This method will only be called for server streams.
@@ -78,7 +101,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
                                    size_t frame_len,
                                    const QuicHeaderList& header_list);
 
-  // Callbed by |headers_stream_| when a PRIORITY frame has been received for a
+  // Called by |headers_stream_| when a PRIORITY frame has been received for a
   // stream. This method will only be called for server streams.
   virtual void OnPriorityFrame(QuicStreamId stream_id,
                                spdy::SpdyPriority priority);
@@ -90,7 +113,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // If |fin| is true, then no more data will be sent for the stream |id|.
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
-  virtual size_t WriteHeaders(
+  virtual size_t WriteHeadersOnHeadersStream(
       QuicStreamId id,
       spdy::SpdyHeaderBlock headers,
       bool fin,
@@ -115,6 +138,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // Sends SETTINGS_MAX_HEADER_LIST_SIZE SETTINGS frame.
   size_t SendMaxHeaderListSize(size_t value);
 
+  QpackEncoder* qpack_encoder();
+  QpackDecoder* qpack_decoder();
   QuicHeadersStream* headers_stream() { return headers_stream_.get(); }
 
   bool server_push_enabled() const { return server_push_enabled_; }
@@ -135,29 +160,36 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   }
 
  protected:
-  // Override CreateIncomingDynamicStream() and CreateOutgoingDynamicStream()
-  // with QuicSpdyStream return type to make sure that all data streams are
-  // QuicSpdyStreams.
-  QuicSpdyStream* CreateIncomingDynamicStream(QuicStreamId id) override = 0;
-  QuicSpdyStream* CreateOutgoingDynamicStream() override = 0;
+  // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
+  // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
+  // make sure that all data streams are QuicSpdyStreams.
+  QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override = 0;
+  QuicSpdyStream* CreateIncomingStream(PendingStream pending) override = 0;
+  virtual QuicSpdyStream* CreateOutgoingBidirectionalStream() = 0;
+  virtual QuicSpdyStream* CreateOutgoingUnidirectionalStream() = 0;
 
   QuicSpdyStream* GetSpdyDataStream(const QuicStreamId stream_id);
 
   // If an incoming stream can be created, return true.
-  virtual bool ShouldCreateIncomingDynamicStream(QuicStreamId id) = 0;
+  virtual bool ShouldCreateIncomingStream(QuicStreamId id) = 0;
 
-  // If an outgoing stream can be created, return true.
-  virtual bool ShouldCreateOutgoingDynamicStream() = 0;
+  // If an outgoing bidirectional/unidirectional stream can be created, return
+  // true.
+  virtual bool ShouldCreateOutgoingBidirectionalStream() = 0;
+  virtual bool ShouldCreateOutgoingUnidirectionalStream() = 0;
 
-  // This was formerly QuicHeadersStream::WriteHeaders.  Needs to be
-  // separate from QuicSpdySession::WriteHeaders because tests call
-  // this but mock the latter.
-  size_t WriteHeadersImpl(
+  // Returns true if there are open HTTP requests.
+  bool ShouldKeepConnectionAlive() const override;
+
+  // Overridden to buffer incoming streams for version 99.
+  bool ShouldBufferIncomingStream(QuicStreamId id) const override;
+
+  size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id,
       spdy::SpdyHeaderBlock headers,
       bool fin,
-      int weight,
       QuicStreamId parent_stream_id,
+      int weight,
       bool exclusive,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
@@ -218,6 +250,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession : public QuicSession {
   // Called when the size of the compressed frame payload is available.
   void OnCompressedFrameSize(size_t frame_len);
 
+  std::unique_ptr<QpackEncoder> qpack_encoder_;
+  std::unique_ptr<QpackDecoder> qpack_decoder_;
+
+  // TODO(123528590): Remove this member.
   std::unique_ptr<QuicHeadersStream> headers_stream_;
 
   // The maximum size of a header block that will be accepted from the peer,

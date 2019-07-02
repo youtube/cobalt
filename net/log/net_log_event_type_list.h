@@ -1670,12 +1670,22 @@ EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_CONNECT)
 // will be attempted soon.
 EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_RETRY_ON_ALTERNATE_NETWORK)
 
+// This event indicates that the stale host result is used to try connecting.
+EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_STALE_HOST_TRIED_ON_CONNECTION)
+
+// Deprecated in QUIC46
 // This event indicates that the stale host resolution has failed.
 EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_STALE_HOST_RESOLUTION_FAILED)
+
+// QUIC46
+// This event indicates that stale host was not used to try connecting.
+EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_STALE_HOST_NOT_USED_ON_CONNECTION)
 
 // This event indicates that the stale host doesn't match with fresh host.
 EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_STALE_HOST_RESOLUTION_NO_MATCH)
 
+// This event indicates that stale host matches with fresh resolution.
+EVENT_TYPE(QUIC_STREAM_FACTORY_JOB_STALE_HOST_RESOLUTION_MATCHED)
 // ------------------------------------------------------------------------
 // quic::QuicSession
 // ------------------------------------------------------------------------
@@ -1977,6 +1987,16 @@ EVENT_TYPE(QUIC_SESSION_PUSH_PROMISE_RECEIVED)
 //   }
 EVENT_TYPE(QUIC_SESSION_CLOSED)
 
+#if defined(COBALT_QUIC46)
+// Records that QUIC connectivity probe finished on the following path:
+//  {
+//     "network": <ID of the network probed>
+//     "peer address:" <Peer address probed>
+//     "is_success:" <Whether the connectivity probe succeeded>
+//  }
+EVENT_TYPE(QUIC_SESSION_CONNECTIVITY_PROBING_FINISHED)
+#endif
+
 // ------------------------------------------------------------------------
 // QuicHttpStream
 // ------------------------------------------------------------------------
@@ -2126,6 +2146,42 @@ EVENT_TYPE(QUIC_CONNECTION_MIGRATION_FAILURE_AFTER_PROBING)
 
 // Records a QUIC connection migration success after probing.
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_SUCCESS_AFTER_PROBING)
+// QUIC46
+// ------------------------------------------------------------------------
+// QuicConnectivityProbingManager
+// ------------------------------------------------------------------------
+
+// Records that QUIC connectivity probing manager starts probing for the
+// following path:
+//  {
+//     "network": <ID of the network being probed>
+//     "peer_address": <Peer address being probed>
+//     "initial_timeout_ms": <Initial timeout in milliseconds>
+//  }
+EVENT_TYPE(QUIC_CONNECTIVITY_PROBING_MANAGER_START_PROBING)
+
+// Records that QUIC connectivity probing manager cancels probing for the
+// following path:
+//  {
+//     "network": <ID of the network being probed>
+//     "peer_address": <Peer address being probed>
+//  }
+EVENT_TYPE(QUIC_CONNECTIVITY_PROBING_MANAGER_CANCEL_PROBING)
+
+// Records that QUIC connectivity probing manager sends a probe.
+//  {
+//     "retry_count": <Number of the trial to send probe>
+//  }
+EVENT_TYPE(QUIC_CONNECTIVITY_PROBING_MANAGER_PROBE_SENT)
+
+// Records that QUIC connectivity probing manager receives a probe on the
+// following path:
+//  {
+//     "network": <ID of the network being probed>
+//     "self_address": <Self address on the probed path>
+//     "peer_address": <Peer address on the probed path>
+//  }
+EVENT_TYPE(QUIC_CONNECTIVITY_PROBING_MANAGER_PROBE_RECEIVED)
 // ------------------------------------------------------------------------
 // HttpStreamParser
 // ------------------------------------------------------------------------

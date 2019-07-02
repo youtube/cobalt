@@ -14,10 +14,10 @@
 #include "net/third_party/quic/platform/api/quic_containers.h"
 #include "net/third_party/quic/platform/api/quic_mutex.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/quic/platform/api/quic_url.h"
 #include "net/third_party/quic/tools/quic_backend_response.h"
 #include "net/third_party/quic/tools/quic_simple_server_backend.h"
-#include "net/third_party/spdy/core/spdy_framer.h"
+#include "net/third_party/quic/tools/quic_url.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
 
@@ -56,7 +56,6 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
    protected:
     void HandleXOriginalUrl();
-    void HandlePushUrls(const std::vector<QuicStringPiece>& push_urls);
     QuicStringPiece RemoveScheme(QuicStringPiece url);
 
     QuicString file_name_;
@@ -69,7 +68,6 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
    private:
     QuicStringPiece host_;
     QuicStringPiece path_;
-    QuicMemoryCacheBackend* cache_;
   };
 
   QuicMemoryCacheBackend();
@@ -126,6 +124,12 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
       QuicStringPiece response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
+  void AddStopSendingResponse(QuicStringPiece host,
+                              QuicStringPiece path,
+                              spdy::SpdyHeaderBlock response_headers,
+                              QuicStringPiece response_body,
+                              uint16_t stop_sending_code);
+
   // Sets a default response in case of cache misses.  Takes ownership of
   // 'response'.
   void AddDefaultResponse(QuicBackendResponse* response);
@@ -154,7 +158,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
                        QuicBackendResponse::SpecialResponseType response_type,
                        spdy::SpdyHeaderBlock response_headers,
                        QuicStringPiece response_body,
-                       spdy::SpdyHeaderBlock response_trailers);
+                       spdy::SpdyHeaderBlock response_trailers,
+                       uint16_t stop_sending_code);
 
   QuicString GetKey(QuicStringPiece host, QuicStringPiece path) const;
 

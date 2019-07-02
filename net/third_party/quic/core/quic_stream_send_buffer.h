@@ -5,9 +5,10 @@
 #ifndef NET_THIRD_PARTY_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 #define NET_THIRD_PARTY_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 
-#include "net/base/iovec.h"
 #include "net/third_party/quic/core/frames/quic_stream_frame.h"
+#include "net/third_party/quic/core/quic_interval_set.h"
 #include "net/third_party/quic/platform/api/quic_containers.h"
+#include "net/third_party/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quic/platform/api/quic_mem_slice.h"
 
 namespace quic {
@@ -59,7 +60,13 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
  public:
   explicit QuicStreamSendBuffer(QuicBufferAllocator* allocator);
   QuicStreamSendBuffer(const QuicStreamSendBuffer& other) = delete;
+#if defined(STARBOARD)
+  // Some (not good enough) compilers need to use move constructor during
+  // initialization of some owners of QuicStreamSendBuffer.
+  QuicStreamSendBuffer(QuicStreamSendBuffer&& other) = default;
+#else
   QuicStreamSendBuffer(QuicStreamSendBuffer&& other) = delete;
+#endif
   ~QuicStreamSendBuffer();
 
   // Save |data_length| of data starts at |iov_offset| in |iov| to send buffer.

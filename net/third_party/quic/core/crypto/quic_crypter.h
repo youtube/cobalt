@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   // must be used when using IETF QUIC; SetNoncePrefix must be used when using
   // Google QUIC.
   //
-  // The nonce is constructed as follows (draft-ietf-quic-tls section 5.3):
+  // The nonce is constructed as follows (draft-ietf-quic-tls-14 section 5.2):
   //
   //    <---------------- max(8, N_MIN) bytes ----------------->
   //   +--------------------------------------------------------+

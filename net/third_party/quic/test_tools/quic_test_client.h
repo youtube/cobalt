@@ -15,6 +15,7 @@
 #include "net/third_party/quic/core/quic_packet_creator.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/platform/api/quic_containers.h"
+#include "net/third_party/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quic/tools/quic_client.h"
@@ -35,19 +36,19 @@ class MockableQuicClient : public QuicClient {
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const ParsedQuicVersionVector& supported_versions,
-                     net::EpollServer* epoll_server);
+                     QuicEpollServer* epoll_server);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     net::EpollServer* epoll_server);
+                     QuicEpollServer* epoll_server);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     net::EpollServer* epoll_server,
+                     QuicEpollServer* epoll_server,
                      std::unique_ptr<ProofVerifier> proof_verifier);
   MockableQuicClient(const MockableQuicClient&) = delete;
   MockableQuicClient& operator=(const MockableQuicClient&) = delete;
@@ -69,7 +70,9 @@ class MockableQuicClient : public QuicClient {
   const MockableQuicClientEpollNetworkHelper* mockable_network_helper() const;
 
  private:
-  QuicConnectionId override_connection_id_;  // ConnectionId to use, if nonzero
+  // ConnectionId to use, if connection_id_overridden_
+  QuicConnectionId override_connection_id_;
+  bool connection_id_overridden_;
   CachedNetworkParameters cached_network_paramaters_;
 };
 
@@ -254,7 +257,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   void WaitForWriteToFlush();
 
-  net::EpollServer* epoll_server() { return &epoll_server_; }
+  QuicEpollServer* epoll_server() { return &epoll_server_; }
 
   size_t num_requests() const { return num_requests_; }
 
@@ -278,6 +281,44 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   void Initialize();
 
   void set_client(MockableQuicClient* client) { client_.reset(client); }
+
+  // Given |uri|, populates the fields in |headers| for a simple GET
+  // request. If |uri| is a relative URL, the QuicServerId will be
+  // use to specify the authority.
+  bool PopulateHeaderBlockFromUrl(const QuicString& uri,
+                                  spdy::SpdyHeaderBlock* headers);
+
+  // Waits for a period of time that is long enough to receive all delayed acks
+  // sent by peer.
+  void WaitForDelayedAcks();
+
+  QuicSpdyClientStream* latest_created_stream() {
+    return latest_created_stream_;
+  }
+
+ protected:
+  QuicTestClient();
+  QuicTestClient(const QuicTestClient&) = delete;
+  QuicTestClient& operator=(const QuicTestClient&) = delete;
+
+ private:
+  class TestClientDataToResend : public QuicClient::QuicDataToResend {
+   public:
+    TestClientDataToResend(
+        std::unique_ptr<spdy::SpdyHeaderBlock> headers,
+        QuicStringPiece body,
+        bool fin,
+        QuicTestClient* test_client,
+        QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+
+    ~TestClientDataToResend() override;
+
+    void Resend() override;
+
+   protected:
+    QuicTestClient* test_client_;
+    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;
+  };
 
   // PerStreamState of a stream is updated when it is closed.
   struct PerStreamState {
@@ -306,40 +347,6 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
     int64_t response_body_size;
   };
 
-  // Given |uri|, populates the fields in |headers| for a simple GET
-  // request. If |uri| is a relative URL, the QuicServerId will be
-  // use to specify the authority.
-  bool PopulateHeaderBlockFromUrl(const QuicString& uri,
-                                  spdy::SpdyHeaderBlock* headers);
-
-  // Waits for a period of time that is long enough to receive all delayed acks
-  // sent by peer.
-  void WaitForDelayedAcks();
-
- protected:
-  QuicTestClient();
-  QuicTestClient(const QuicTestClient&) = delete;
-  QuicTestClient& operator=(const QuicTestClient&) = delete;
-
- private:
-  class TestClientDataToResend : public QuicClient::QuicDataToResend {
-   public:
-    TestClientDataToResend(
-        std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-        QuicStringPiece body,
-        bool fin,
-        QuicTestClient* test_client,
-        QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
-
-    ~TestClientDataToResend() override;
-
-    void Resend() override;
-
-   protected:
-    QuicTestClient* test_client_;
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;
-  };
-
   bool HaveActiveStream();
 
   // Read oldest received response and remove it from closed_stream_states_.
@@ -353,7 +360,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // tracking its state.
   void SetLatestCreatedStream(QuicSpdyClientStream* stream);
 
-  net::EpollServer epoll_server_;
+  QuicEpollServer epoll_server_;
   std::unique_ptr<MockableQuicClient> client_;  // The actual client
   QuicSpdyClientStream* latest_created_stream_;
   std::map<QuicStreamId, QuicSpdyClientStream*> open_streams_;

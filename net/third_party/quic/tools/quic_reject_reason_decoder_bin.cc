@@ -7,28 +7,27 @@
 
 #include <iostream>
 
-#include "base/command_line.h"
-#include "base/strings/string_number_conversions.h"
 #include "net/third_party/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quic/core/crypto/crypto_utils.h"
+#include "net/third_party/quic/platform/api/quic_flags.h"
+#include "net/third_party/quic/platform/api/quic_text_utils.h"
 
-using base::CommandLine;
-using quic::HandshakeFailureReason;
 using quic::CryptoUtils;
+using quic::HandshakeFailureReason;
 using quic::MAX_FAILURE_REASON;
 
 int main(int argc, char* argv[]) {
-  CommandLine::Init(argc, argv);
-  CommandLine* line = CommandLine::ForCurrentProcess();
-  const CommandLine::StringVector& args = line->GetArgs();
+  const char* usage = "Usage: quic_reject_reason_decoder <packed_reason>";
+  std::vector<quic::QuicString> args =
+      quic::QuicParseCommandLineFlags(usage, argc, argv);
 
   if (args.size() != 1) {
-    std::cerr << "Missing argument (Usage: " << argv[0] << " <packed_reason>\n";
+    std::cerr << usage << std::endl;
     return 1;
   }
 
   uint32_t packed_error = 0;
-  if (!base::StringToUint(args[0], &packed_error)) {
+  if (!quic::QuicTextUtils::StringToUint32(args[0], &packed_error)) {
     std::cerr << "Unable to parse: " << args[0] << "\n";
     return 2;
   }

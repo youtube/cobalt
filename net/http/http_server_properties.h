@@ -21,8 +21,8 @@
 #include "net/third_party/quic/core/quic_bandwidth.h"
 #include "net/third_party/quic/core/quic_server_id.h"
 #include "net/third_party/quic/core/quic_versions.h"
-#include "net/third_party/spdy/core/spdy_framer.h"  // TODO(willchan): Reconsider this.
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"  // TODO(willchan): Reconsider this.
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "starboard/types.h"
 #include "url/scheme_host_port.h"
 

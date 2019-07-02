@@ -13,7 +13,7 @@
 #include "net/base/net_export.h"
 #include "net/http/http_request_info.h"
 #include "net/spdy/spdy_session_key.h"
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "url/gurl.h"
 
 namespace net {

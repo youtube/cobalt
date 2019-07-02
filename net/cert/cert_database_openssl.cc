@@ -12,6 +12,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/openssl_private_key_store.h"
 #include "net/base/x509_certificate.h"
+#include "starboard/types.h"
 
 namespace net {
 

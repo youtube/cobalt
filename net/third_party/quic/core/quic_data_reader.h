@@ -32,6 +32,10 @@ namespace quic {
 // called after failure, as they will also fail immediately.
 class QUIC_EXPORT_PRIVATE QuicDataReader {
  public:
+  // Constructs a reader using NETWORK_BYTE_ORDER endianness.
+  // Caller must provide an underlying buffer to work on.
+  QuicDataReader(const char* data, const size_t len);
+  // Constructs a reader using the specified endianness.
   // Caller must provide an underlying buffer to work on.
   QuicDataReader(const char* data, const size_t len, Endianness endianness);
   QuicDataReader(const QuicDataReader&) = delete;
@@ -72,14 +76,10 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // Returns true on success, false otherwise.
   bool ReadStringPiece(QuicStringPiece* result, size_t len);
 
-  // Reads connection ID represented as 64-bit unsigned integer into the given
-  // output parameter.
+  // Reads connection ID into the given output parameter.
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  // TODO(fayang): Remove this method and use ReadUInt64() once deprecating
-  // quic_restart_flag_quic_rw_cid_in_big_endian and QuicDataReader has a mode
-  // indicating reading in little/big endian.
-  bool ReadConnectionId(uint64_t* connection_id);
+  bool ReadConnectionId(QuicConnectionId* connection_id, uint8_t length);
 
   // Reads tag represented as 32-bit unsigned integer into given output
   // parameter. Tags are in big endian on the wire (e.g., CHLO is
@@ -101,7 +101,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // This should be kept in mind when handling memory management!
   //
   // DOES NOT forward the internal iterator.
-  QuicStringPiece PeekRemainingPayload();
+  QuicStringPiece PeekRemainingPayload() const;
 
   // Reads a given number of bytes into the given buffer. The buffer
   // must be of adequate size.
@@ -113,8 +113,18 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // Read*() calls.
   bool IsDoneReading() const;
 
+  // Returns the length in bytes of a variable length integer based on the next
+  // two bits available. Returns 1, 2, 4, or 8 on success, and 0 on failure.
+  QuicVariableLengthIntegerLength PeekVarInt62Length();
+
   // Returns the number of bytes remaining to be read.
   size_t BytesRemaining() const;
+
+  // Truncates the reader down by reducing its internal length.
+  // If called immediately after calling this, BytesRemaining will
+  // return |truncation_length|. If truncation_length is less than the
+  // current value of BytesRemaining, this does nothing and returns false.
+  bool TruncateRemaining(size_t truncation_length);
 
   // Returns the next byte that to be read. Must not be called when there are no
   // bytes to be read.
@@ -154,7 +164,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   const char* data_;
 
   // The length of the data buffer that we're reading from.
-  const size_t len_;
+  size_t len_;
 
   // The location of the next read from our data buffer.
   size_t pos_;

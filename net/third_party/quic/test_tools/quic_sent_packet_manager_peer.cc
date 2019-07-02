@@ -8,6 +8,7 @@
 #include "net/third_party/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_sent_packet_manager.h"
+#include "net/third_party/quic/test_tools/quic_unacked_packet_map_peer.h"
 
 namespace quic {
 namespace test {
@@ -41,7 +42,8 @@ bool QuicSentPacketManagerPeer::GetUseNewRto(
 void QuicSentPacketManagerPeer::SetPerspective(
     QuicSentPacketManager* sent_packet_manager,
     Perspective perspective) {
-  sent_packet_manager->perspective_ = perspective;
+  QuicUnackedPacketMapPeer::SetPerspective(
+      &sent_packet_manager->unacked_packets_, perspective);
 }
 
 // static
@@ -85,18 +87,19 @@ bool QuicSentPacketManagerPeer::HasPendingPackets(
 // static
 bool QuicSentPacketManagerPeer::IsRetransmission(
     QuicSentPacketManager* sent_packet_manager,
-    QuicPacketNumber packet_number) {
+    uint64_t packet_number) {
   DCHECK(HasRetransmittableFrames(sent_packet_manager, packet_number));
   if (!HasRetransmittableFrames(sent_packet_manager, packet_number)) {
     return false;
   }
   if (sent_packet_manager->session_decides_what_to_write()) {
     return sent_packet_manager->unacked_packets_
-               .GetTransmissionInfo(packet_number)
+               .GetTransmissionInfo(QuicPacketNumber(packet_number))
                .transmission_type != NOT_RETRANSMISSION;
   }
   for (auto transmission_info : sent_packet_manager->unacked_packets_) {
-    if (transmission_info.retransmission == packet_number) {
+    if (transmission_info.retransmission.IsInitialized() &&
+        transmission_info.retransmission == QuicPacketNumber(packet_number)) {
       return true;
     }
   }
@@ -106,9 +109,10 @@ bool QuicSentPacketManagerPeer::IsRetransmission(
 // static
 void QuicSentPacketManagerPeer::MarkForRetransmission(
     QuicSentPacketManager* sent_packet_manager,
-    QuicPacketNumber packet_number,
+    uint64_t packet_number,
     TransmissionType transmission_type) {
-  sent_packet_manager->MarkForRetransmission(packet_number, transmission_type);
+  sent_packet_manager->MarkForRetransmission(QuicPacketNumber(packet_number),
+                                             transmission_type);
 }
 
 // static
@@ -198,16 +202,17 @@ void QuicSentPacketManagerPeer::SetUsingPacing(
 // static
 bool QuicSentPacketManagerPeer::IsUnacked(
     QuicSentPacketManager* sent_packet_manager,
-    QuicPacketNumber packet_number) {
-  return sent_packet_manager->unacked_packets_.IsUnacked(packet_number);
+    uint64_t packet_number) {
+  return sent_packet_manager->unacked_packets_.IsUnacked(
+      QuicPacketNumber(packet_number));
 }
 
 // static
 bool QuicSentPacketManagerPeer::HasRetransmittableFrames(
     QuicSentPacketManager* sent_packet_manager,
-    QuicPacketNumber packet_number) {
+    uint64_t packet_number) {
   return sent_packet_manager->unacked_packets_.HasRetransmittableFrames(
-      packet_number);
+      QuicPacketNumber(packet_number));
 }
 
 // static

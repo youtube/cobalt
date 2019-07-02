@@ -14,7 +14,7 @@
 #include "net/third_party/quic/core/quic_stream.h"
 #include "net/third_party/quic/platform/api/quic_containers.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
-#include "net/third_party/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
 
@@ -43,7 +43,8 @@ class QUIC_EXPORT_PRIVATE QuicHeadersStream : public QuicStream {
   bool OnStreamFrameAcked(QuicStreamOffset offset,
                           QuicByteCount data_length,
                           bool fin_acked,
-                          QuicTime::Delta ack_delay_time) override;
+                          QuicTime::Delta ack_delay_time,
+                          QuicByteCount* newly_acked_length) override;
 
   void OnStreamFrameRetransmitted(QuicStreamOffset offset,
                                   QuicByteCount data_length,

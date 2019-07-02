@@ -40,11 +40,10 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
     TOO_MANY_CONNECTIONS  // Too many connections stored up in the store.
   };
 
-  // A packets with client/server address.
   struct QUIC_EXPORT_PRIVATE BufferedPacket {
     BufferedPacket(std::unique_ptr<QuicReceivedPacket> packet,
-                   QuicSocketAddress server_address,
-                   QuicSocketAddress client_address);
+                   QuicSocketAddress self_address,
+                   QuicSocketAddress peer_address);
     BufferedPacket(BufferedPacket&& other);
 
     BufferedPacket& operator=(BufferedPacket&& other);
@@ -52,8 +51,8 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
     ~BufferedPacket();
 
     std::unique_ptr<QuicReceivedPacket> packet;
-    QuicSocketAddress server_address;
-    QuicSocketAddress client_address;
+    QuicSocketAddress self_address;
+    QuicSocketAddress peer_address;
   };
 
   // A queue of BufferedPackets for a connection.
@@ -71,9 +70,14 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
     QuicString alpn;
     // Indicating whether this is an IETF QUIC connection.
     bool ietf_quic;
+    // If buffered_packets contains the CHLO, it is the version of the CHLO.
+    // Otherwise, it is the version of the first packet in |buffered_packets|.
+    ParsedQuicVersion version;
   };
 
-  typedef QuicLinkedHashMap<QuicConnectionId, BufferedPacketList>
+  typedef QuicLinkedHashMap<QuicConnectionId,
+                            BufferedPacketList,
+                            QuicConnectionIdHash>
       BufferedPacketMap;
 
   class QUIC_EXPORT_PRIVATE VisitorInterface {
@@ -96,13 +100,16 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
   QuicBufferedPacketStore& operator=(const QuicBufferedPacketStore&) = delete;
 
   // Adds a copy of packet into packet queue for given connection.
+  // TODO(danzh): Consider to split this method to EnqueueChlo() and
+  // EnqueueDataPacket().
   EnqueuePacketResult EnqueuePacket(QuicConnectionId connection_id,
                                     bool ietf_quic,
                                     const QuicReceivedPacket& packet,
-                                    QuicSocketAddress server_address,
-                                    QuicSocketAddress client_address,
+                                    QuicSocketAddress self_address,
+                                    QuicSocketAddress peer_address,
                                     bool is_chlo,
-                                    const QuicString& alpn);
+                                    const QuicString& alpn,
+                                    const ParsedQuicVersion& version);
 
   // Returns true if there are any packets buffered for |connection_id|.
   bool HasBufferedPackets(QuicConnectionId connection_id) const;
@@ -162,7 +169,8 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
 
   // Keeps track of connection with CHLO buffered up already and the order they
   // arrive.
-  QuicLinkedHashMap<QuicConnectionId, bool> connections_with_chlo_;
+  QuicLinkedHashMap<QuicConnectionId, bool, QuicConnectionIdHash>
+      connections_with_chlo_;
 };
 
 }  // namespace quic

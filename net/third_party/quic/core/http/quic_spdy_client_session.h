@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // A client specific QuicSession subclass.
 
 #ifndef NET_THIRD_PARTY_QUIC_CORE_HTTP_QUIC_SPDY_CLIENT_SESSION_H_
@@ -26,6 +26,7 @@ class QuicSpdyClientSession : public QuicSpdyClientSessionBase {
   // Takes ownership of |connection|. Caller retains ownership of
   // |promised_by_url|.
   QuicSpdyClientSession(const QuicConfig& config,
+                        const ParsedQuicVersionVector& supported_versions,
                         QuicConnection* connection,
                         const QuicServerId& server_id,
                         QuicCryptoClientConfig* crypto_config,
@@ -37,7 +38,8 @@ class QuicSpdyClientSession : public QuicSpdyClientSessionBase {
   void Initialize() override;
 
   // QuicSession methods:
-  QuicSpdyClientStream* CreateOutgoingDynamicStream() override;
+  QuicSpdyClientStream* CreateOutgoingBidirectionalStream() override;
+  QuicSpdyClientStream* CreateOutgoingUnidirectionalStream() override;
   QuicCryptoClientStreamBase* GetMutableCryptoStream() override;
   const QuicCryptoClientStreamBase* GetCryptoStream() const override;
 
@@ -64,20 +66,24 @@ class QuicSpdyClientSession : public QuicSpdyClientSessionBase {
 
  protected:
   // QuicSession methods:
-  QuicSpdyStream* CreateIncomingDynamicStream(QuicStreamId id) override;
+  QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;
+  QuicSpdyStream* CreateIncomingStream(PendingStream pending) override;
   // If an outgoing stream can be created, return true.
-  bool ShouldCreateOutgoingDynamicStream() override;
+  bool ShouldCreateOutgoingBidirectionalStream() override;
+  bool ShouldCreateOutgoingUnidirectionalStream() override;
 
   // If an incoming stream can be created, return true.
-  bool ShouldCreateIncomingDynamicStream(QuicStreamId id) override;
+  // TODO(fayang): move this up to QuicSpdyClientSessionBase.
+  bool ShouldCreateIncomingStream(QuicStreamId id) override;
 
   // Create the crypto stream. Called by Initialize().
   virtual std::unique_ptr<QuicCryptoClientStreamBase> CreateQuicCryptoStream();
 
-  // Unlike CreateOutgoingDynamicStream, which applies a bunch of sanity checks,
-  // this simply returns a new QuicSpdyClientStream. This may be used by
-  // subclasses which want to use a subclass of QuicSpdyClientStream for streams
-  // but wish to use the sanity checks in CreateOutgoingDynamicStream.
+  // Unlike CreateOutgoingBidirectionalStream, which applies a bunch of
+  // sanity checks, this simply returns a new QuicSpdyClientStream. This may be
+  // used by subclasses which want to use a subclass of QuicSpdyClientStream for
+  // streams but wish to use the sanity checks in
+  // CreateOutgoingBidirectionalStream.
   virtual std::unique_ptr<QuicSpdyClientStream> CreateClientStream();
 
   const QuicServerId& server_id() { return server_id_; }

@@ -58,8 +58,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
     NOT_IN_RECOVERY,
     // Allow an extra outstanding byte for each byte acknowledged.
     CONSERVATION,
-    // Allow 1.5 extra outstanding bytes for each byte acknowledged.
-    MEDIUM_GROWTH,
     // Allow two extra outstanding bytes for each byte acknowledged (slow
     // start).
     GROWTH
@@ -265,7 +263,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   QuicPacketNumber last_sent_packet_;
   // Acknowledgement of any packet after |current_round_trip_end_| will cause
   // the round trip counter to advance.
-  QuicPacketCount current_round_trip_end_;
+  QuicPacketNumber current_round_trip_end_;
 
   // The filter that tracks the maximum bandwidth over the multiple recent
   // round-trips.
@@ -369,8 +367,12 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool slower_startup_;
   // When true, disables packet conservation in STARTUP.
   bool rate_based_startup_;
-  // Used as the initial packet conservation mode when first entering recovery.
-  RecoveryState initial_conservation_in_startup_;
+  // When non-zero, decreases the rate in STARTUP by the total number of bytes
+  // lost in STARTUP divided by CWND.
+  uint8_t startup_rate_reduction_multiplier_;
+  // Sum of bytes lost in STARTUP.
+  QuicByteCount startup_bytes_lost_;
+
   // When true, add the most recent ack aggregation measurement during STARTUP.
   bool enable_ack_aggregation_during_startup_;
   // When true, expire the windowed ack aggregation values in STARTUP when

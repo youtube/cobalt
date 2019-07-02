@@ -5,8 +5,6 @@
 #ifndef NET_QUIC_QUIC_HTTP_STREAM_H_
 #define NET_QUIC_QUIC_HTTP_STREAM_H_
 
-#ifndef QUIC_DISABLED_FOR_STARBOARD
-
 #include <list>
 #include <string>
 #include <vector>
@@ -224,7 +222,5 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
 };
 
 }  // namespace net
-
-#endif  // QUIC_DISABLED_FOR_STARBOARD
 
 #endif  // NET_QUIC_QUIC_HTTP_STREAM_H_

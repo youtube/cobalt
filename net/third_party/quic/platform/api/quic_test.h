@@ -17,4 +17,11 @@ using QuicTestWithParam = QuicTestWithParamImpl<T>;
 // Class which needs to be instantiated in tests which use threads.
 using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
 
+#define QUIC_TEST_DISABLED_IN_CHROME(name) \
+  QUIC_TEST_DISABLED_IN_CHROME_IMPL(name)
+
+inline std::string QuicGetTestMemoryCachePath() {
+  return QuicGetTestMemoryCachePathImpl();
+}
+
 #endif  // NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_TEST_H_

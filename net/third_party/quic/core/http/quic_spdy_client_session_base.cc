@@ -6,7 +6,7 @@
 
 #include "net/third_party/quic/core/http/quic_client_promised_info.h"
 #include "net/third_party/quic/core/http/spdy_utils.h"
-#include "net/third_party/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
@@ -18,10 +18,12 @@ namespace quic {
 QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(
     QuicConnection* connection,
     QuicClientPushPromiseIndex* push_promise_index,
-    const QuicConfig& config)
-    : QuicSpdySession(connection, nullptr, config),
+    const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions)
+    : QuicSpdySession(connection, nullptr, config, supported_versions),
       push_promise_index_(push_promise_index),
-      largest_promised_stream_id_(kInvalidStreamId) {}
+      largest_promised_stream_id_(
+          QuicUtils::GetInvalidStreamId(connection->transport_version())) {}
 
 QuicSpdyClientSessionBase::~QuicSpdyClientSessionBase() {
   //  all promised streams for this session
@@ -61,17 +63,16 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
     QuicStreamId promised_stream_id,
     size_t frame_len,
     const QuicHeaderList& header_list) {
-  if (GetQuicReloadableFlag(quic_check_stream_nonstatic_on_promised_headers)) {
-    QUIC_FLAG_COUNT(
-        quic_reloadable_flag_quic_check_stream_nonstatic_on_promised_headers);
-    if (QuicContainsKey(static_streams(), stream_id)) {
-      connection()->CloseConnection(
-          QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
+  if (QuicContainsKey(static_streams(), stream_id)) {
+    connection()->CloseConnection(
+        QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
   }
-  if (promised_stream_id != kInvalidStreamId &&
+  if (promised_stream_id !=
+          QuicUtils::GetInvalidStreamId(connection()->transport_version()) &&
+      largest_promised_stream_id_ !=
+          QuicUtils::GetInvalidStreamId(connection()->transport_version()) &&
       promised_stream_id <= largest_promised_stream_id_) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,

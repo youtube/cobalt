@@ -5,6 +5,7 @@
 #include "net/third_party/quic/platform/impl/quic_socket_utils.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <linux/net_tstamp.h>
 #include <netinet/in.h>
 #include <string.h>
@@ -14,6 +15,7 @@
 #include <string>
 
 #include "net/third_party/quic/core/quic_packets.h"
+#include "net/third_party/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
@@ -28,6 +30,73 @@
 using std::string;
 
 namespace quic {
+
+QuicMsgHdr::QuicMsgHdr(const char* buffer,
+                       size_t buf_len,
+                       const QuicSocketAddress& peer_address,
+                       char* cbuf,
+                       size_t cbuf_size)
+    : iov_{const_cast<char*>(buffer), buf_len},
+      cbuf_(cbuf),
+      cbuf_size_(cbuf_size),
+      cmsg_(nullptr) {
+  // Only support unconnected sockets.
+  DCHECK(peer_address.IsInitialized());
+
+  raw_peer_address_ = peer_address.generic_address();
+  hdr_.msg_name = &raw_peer_address_;
+  hdr_.msg_namelen = raw_peer_address_.ss_family == AF_INET
+                         ? sizeof(sockaddr_in)
+                         : sizeof(sockaddr_in6);
+
+  hdr_.msg_iov = &iov_;
+  hdr_.msg_iovlen = 1;
+  hdr_.msg_flags = 0;
+
+  hdr_.msg_control = nullptr;
+  hdr_.msg_controllen = 0;
+}
+
+void QuicMsgHdr::SetIpInNextCmsg(const QuicIpAddress& self_address) {
+  if (!self_address.IsInitialized()) {
+    return;
+  }
+
+  if (self_address.IsIPv4()) {
+    QuicSocketUtils::SetIpInfoInCmsgData(
+        self_address, GetNextCmsgData<in_pktinfo>(IPPROTO_IP, IP_PKTINFO));
+  } else {
+    QuicSocketUtils::SetIpInfoInCmsgData(
+        self_address, GetNextCmsgData<in6_pktinfo>(IPPROTO_IPV6, IPV6_PKTINFO));
+  }
+}
+
+void* QuicMsgHdr::GetNextCmsgDataInternal(int cmsg_level,
+                                          int cmsg_type,
+                                          size_t data_size) {
+  // msg_controllen needs to be increased first, otherwise CMSG_NXTHDR will
+  // return nullptr.
+  hdr_.msg_controllen += CMSG_SPACE(data_size);
+  DCHECK_LE(hdr_.msg_controllen, cbuf_size_);
+
+  if (cmsg_ == nullptr) {
+    DCHECK_EQ(nullptr, hdr_.msg_control);
+    SbMemorySet(cbuf_, 0, cbuf_size_);
+    hdr_.msg_control = cbuf_;
+    cmsg_ = CMSG_FIRSTHDR(&hdr_);
+  } else {
+    DCHECK_NE(nullptr, hdr_.msg_control);
+    cmsg_ = CMSG_NXTHDR(&hdr_, cmsg_);
+  }
+
+  DCHECK_NE(nullptr, cmsg_) << "Insufficient control buffer space";
+
+  cmsg_->cmsg_len = CMSG_LEN(data_size);
+  cmsg_->cmsg_level = cmsg_level;
+  cmsg_->cmsg_type = cmsg_type;
+
+  return CMSG_DATA(cmsg_);
+}
 
 // static
 void QuicSocketUtils::GetAddressAndTimestampFromMsghdr(
@@ -154,9 +223,9 @@ int QuicSocketUtils::ReadPacket(int fd,
   hdr.msg_flags = 0;
 
   struct cmsghdr* cmsg = reinterpret_cast<struct cmsghdr*>(cbuf);
-  cmsg->cmsg_len = arraysize(cbuf);
+  cmsg->cmsg_len = QUIC_ARRAYSIZE(cbuf);
   hdr.msg_control = cmsg;
-  hdr.msg_controllen = arraysize(cbuf);
+  hdr.msg_controllen = QUIC_ARRAYSIZE(cbuf);
 
   int bytes_read = recvmsg(fd, &hdr, 0);
 
@@ -171,7 +240,7 @@ int QuicSocketUtils::ReadPacket(int fd,
 
   if (hdr.msg_flags & MSG_CTRUNC) {
     QUIC_BUG << "Incorrectly set control length: " << hdr.msg_controllen
-             << ", expected " << arraysize(cbuf);
+             << ", expected " << QUIC_ARRAYSIZE(cbuf);
     return -1;
   }
 
@@ -271,6 +340,40 @@ WriteResult QuicSocketUtils::WritePacket(
                          ? WRITE_STATUS_BLOCKED
                          : WRITE_STATUS_ERROR,
                      errno);
+}
+
+// static
+WriteResult QuicSocketUtils::WritePacket(int fd, const QuicMsgHdr& hdr) {
+  int rc;
+  do {
+    rc = sendmsg(fd, hdr.hdr(), 0);
+  } while (rc < 0 && errno == EINTR);
+  if (rc >= 0) {
+    return WriteResult(WRITE_STATUS_OK, rc);
+  }
+  return WriteResult((errno == EAGAIN || errno == EWOULDBLOCK)
+                         ? WRITE_STATUS_BLOCKED
+                         : WRITE_STATUS_ERROR,
+                     errno);
+}
+
+// static
+void QuicSocketUtils::SetIpInfoInCmsgData(const QuicIpAddress& self_address,
+                                          void* cmsg_data) {
+  DCHECK(self_address.IsInitialized());
+  const QuicString& address_str = self_address.ToPackedString();
+  if (self_address.IsIPv4()) {
+    in_pktinfo* pktinfo = static_cast<in_pktinfo*>(cmsg_data);
+    pktinfo->ipi_ifindex = 0;
+    SbMemoryCopy(&pktinfo->ipi_spec_dst, address_str.c_str(),
+                 address_str.length());
+  } else if (self_address.IsIPv6()) {
+    in6_pktinfo* pktinfo = static_cast<in6_pktinfo*>(cmsg_data);
+    SbMemoryCopy(&pktinfo->ipi6_addr, address_str.c_str(),
+                 address_str.length());
+  } else {
+    QUIC_BUG << "Unrecognized IPAddress";
+  }
 }
 
 // static

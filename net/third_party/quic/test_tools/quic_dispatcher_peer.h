@@ -51,17 +51,19 @@ class QuicDispatcherPeer {
       QuicDispatcher* dispatcher,
       size_t num_session_allowed);
 
-  static void SendPublicReset(QuicDispatcher* dispatcher,
-                              const QuicSocketAddress& server_address,
-                              const QuicSocketAddress& client_address,
-                              QuicConnectionId connection_id);
+  static void SendPublicReset(
+      QuicDispatcher* dispatcher,
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address,
+      QuicConnectionId connection_id,
+      bool ietf_quic,
+      std::unique_ptr<QuicPerPacketContext> packet_context);
 
-  static std::unique_ptr<QuicDispatcher::PerPacketContext> GetPerPacketContext(
+  static std::unique_ptr<QuicPerPacketContext> GetPerPacketContext(
       QuicDispatcher* dispatcher);
 
-  static void RestorePerPacketContext(
-      QuicDispatcher* dispatcher,
-      std::unique_ptr<QuicDispatcher::PerPacketContext>);
+  static void RestorePerPacketContext(QuicDispatcher* dispatcher,
+                                      std::unique_ptr<QuicPerPacketContext>);
 };
 
 }  // namespace test
