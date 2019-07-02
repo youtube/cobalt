@@ -202,7 +202,6 @@ class AdaptiveAudioDecoderTest
   }
 
   vector<VideoDmpReader> dmp_readers_;
-  scoped_ptr<AudioDecoder> audio_decoder_;
   scoped_refptr<DecodedAudio> last_decoded_audio_;
   int num_of_output_frames_ = 0;
   int output_sample_rate_;
@@ -263,6 +262,7 @@ class AdaptiveAudioDecoderTest
   }
 
   JobQueue job_queue_;
+  scoped_ptr<AudioDecoder> audio_decoder_;
 
   Mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
