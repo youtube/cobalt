@@ -28,6 +28,7 @@ AudioNode::AudioNode(AudioContext* context)
       channel_interpretation_(kAudioNodeChannelInterpretationSpeakers) {}
 
 AudioNode::~AudioNode() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AudioLock::AutoLock lock(audio_lock());
 
   RemoveAllInputs();
@@ -35,6 +36,7 @@ AudioNode::~AudioNode() {
 }
 
 scoped_refptr<AudioContext> AudioNode::context() const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return audio_context_;
 }
 
