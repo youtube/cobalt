@@ -129,10 +129,9 @@ class CachedResourceBase
         are_loading_retries_enabled_func_(are_loading_retries_enabled_func),
         on_resource_loaded_(on_resource_loaded) {
     DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
-    StartLoading();
   }
 
-  virtual ~CachedResourceBase();
+  virtual ~CachedResourceBase() {}
 
   // Called by |CachedResourceLoadedCallbackHandler|.
   CallbackListIterator AddCallback(CallbackType callback_type,
@@ -223,7 +222,19 @@ class CachedResource : public CachedResourceBase {
       const base::Callback<void(CachedResource*, CallbackType)>&
           on_resource_loaded);
 
-  ~CachedResource() { on_resource_destroyed_.Run(this); }
+  ~CachedResource() override {
+    if (retry_timer_) {
+      retry_timer_->Stop();
+    }
+
+    on_resource_destroyed_.Run(this);
+
+    for (int i = 0; i < kCallbackTypeCount; ++i) {
+      DCHECK(callback_lists_[i].empty());
+    }
+
+    loader_.reset();
+  }
 
   // If the resource is available in the cache, simply returns the resource. If
   // the resource loader is in loading status or encounters an error, still
@@ -271,7 +282,9 @@ CachedResource<CacheType>::CachedResource(
           base::Bind(&CachedResource::ResetResource, base::Unretained(this)),
           are_loading_retries_enabled_func,
           base::Bind(on_resource_loaded, base::Unretained(this))),
-      on_resource_destroyed_(on_resource_destroyed) {}
+      on_resource_destroyed_(on_resource_destroyed) {
+  StartLoading();
+}
 
 template <typename CacheType>
 CachedResource<CacheType>::CachedResource(
