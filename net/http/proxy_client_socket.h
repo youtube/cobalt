@@ -11,6 +11,7 @@
 #include "base/macros.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/request_priority.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
 
@@ -57,6 +58,9 @@ class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
 
   // Returns the protocol negotiated with the proxy.
   virtual NextProto GetProxyNegotiatedProtocol() const = 0;
+
+  // Set the priority of the underlying stream (for SPDY and QUIC)
+  virtual void SetStreamPriority(RequestPriority priority);
 
  protected:
   // The HTTP CONNECT method for establishing a tunnel connection is documented

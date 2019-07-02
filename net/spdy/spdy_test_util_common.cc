@@ -31,8 +31,8 @@
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_stream.h"
 #include "net/test/gtest_util.h"
-#include "net/third_party/spdy/core/spdy_alt_svc_wire_format.h"
-#include "net/third_party/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request_job_factory_impl.h"
 #include "starboard/memory.h"
@@ -398,7 +398,7 @@ HttpNetworkSession::Context SpdySessionDependencies::CreateSessionContext(
     SpdySessionDependencies* session_deps) {
   HttpNetworkSession::Context context;
   context.client_socket_factory = session_deps->socket_factory.get();
-  context.host_resolver = session_deps->host_resolver.get();
+  context.host_resolver = session_deps->GetHostResolver();
   context.cert_verifier = session_deps->cert_verifier.get();
   context.channel_id_service = session_deps->channel_id_service.get();
   context.transport_security_state =

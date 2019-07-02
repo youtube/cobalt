@@ -107,6 +107,12 @@ enum {
   // This bit is set if stale_revalidate_time is stored.
   RESPONSE_INFO_HAS_STALENESS = 1 << 24,
 
+#if defined(COBALT_QUIC46)
+
+  // This bit is set if the response has a peer signature algorithm.
+  RESPONSE_INFO_HAS_PEER_SIGNATURE_ALGORITHM = 1 << 25,
+#endif
+
   // TODO(darin): Add other bits to indicate alternate request methods.
   // For now, we don't support storing those.
 };
@@ -279,6 +285,20 @@ bool HttpResponseInfo::InitFromPickle(const base::Pickle& pickle,
 
   ssl_info.pkp_bypassed = (flags & RESPONSE_INFO_PKP_BYPASSED) != 0;
 
+#if defined(COBALT_QUIC46)
+  // Read peer_signature_algorithm.
+  if (flags & RESPONSE_INFO_HAS_PEER_SIGNATURE_ALGORITHM) {
+    int peer_signature_algorithm;
+    if (!iter.ReadInt(&peer_signature_algorithm) ||
+        !base::IsValueInRangeForNumericType<uint16_t>(
+            peer_signature_algorithm)) {
+      return false;
+    }
+    ssl_info.peer_signature_algorithm =
+        base::checked_cast<uint16_t>(peer_signature_algorithm);
+  }
+#endif
+
   return true;
 }
 
@@ -295,6 +315,10 @@ void HttpResponseInfo::Persist(base::Pickle* pickle,
       flags |= RESPONSE_INFO_HAS_KEY_EXCHANGE_GROUP;
     if (ssl_info.connection_status != 0)
       flags |= RESPONSE_INFO_HAS_SSL_CONNECTION_STATUS;
+#if defined(COBALT_QUIC46)
+    if (ssl_info.peer_signature_algorithm != 0)
+      flags |= RESPONSE_INFO_HAS_PEER_SIGNATURE_ALGORITHM;
+#endif
   }
   if (vary_data.is_valid())
     flags |= RESPONSE_INFO_HAS_VARY_DATA;
@@ -394,6 +418,9 @@ bool HttpResponseInfo::DidUseQuic() const {
     case CONNECTION_INFO_QUIC_43:
     case CONNECTION_INFO_QUIC_44:
     case CONNECTION_INFO_QUIC_45:
+    // QUIC46
+    case CONNECTION_INFO_QUIC_46:
+    case CONNECTION_INFO_QUIC_47:
     case CONNECTION_INFO_QUIC_99:
       return true;
     case NUM_OF_CONNECTION_INFOS:
@@ -455,6 +482,11 @@ std::string HttpResponseInfo::ConnectionInfoToString(
       return "http/2+quic/44";
     case CONNECTION_INFO_QUIC_45:
       return "http/2+quic/45";
+    // QUIC46
+    case CONNECTION_INFO_QUIC_46:
+      return "http/2+quic/46";
+    case CONNECTION_INFO_QUIC_47:
+      return "http/2+quic/47";
     case CONNECTION_INFO_QUIC_99:
       return "http/2+quic/99";
     case CONNECTION_INFO_HTTP0_9:

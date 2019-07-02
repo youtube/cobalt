@@ -5,7 +5,6 @@
 #ifndef NET_THIRD_PARTY_QUIC_TEST_TOOLS_MOCK_RANDOM_H_
 #define NET_THIRD_PARTY_QUIC_TEST_TOOLS_MOCK_RANDOM_H_
 
-#include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "net/third_party/quic/core/crypto/quic_random.h"
 

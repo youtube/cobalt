@@ -31,7 +31,7 @@
 #include "net/third_party/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 using spdy::kV3HighestPriority;
 using spdy::Spdy3PriorityToHttp2Weight;
@@ -80,10 +80,6 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
 
   // QuicCryptoStream implementation
-  QuicLongHeaderType GetLongHeaderType(
-      QuicStreamOffset /*offset*/) const override {
-    return HANDSHAKE;
-  }
   bool encryption_established() const override {
     return encryption_established_;
   }
@@ -97,6 +93,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
 
   MOCK_METHOD0(OnCanWrite, void());
+
+  bool HasPendingCryptoRetransmission() override { return false; }
 
   MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
 
@@ -118,12 +116,15 @@ class TestHeadersStream : public QuicHeadersStream {
 
 class TestStream : public QuicSpdyStream {
  public:
-  TestStream(QuicStreamId id, QuicSpdySession* session)
-      : QuicSpdyStream(id, session) {}
+  TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
+      : QuicSpdyStream(id, session, type) {}
+
+  TestStream(PendingStream pending, QuicSpdySession* session, StreamType type)
+      : QuicSpdyStream(std::move(pending), session, type) {}
 
   using QuicStream::CloseWriteSide;
 
-  void OnDataAvailable() override {}
+  void OnBodyAvailable() override {}
 
   MOCK_METHOD0(OnCanWrite, void());
   MOCK_METHOD3(RetransmitStreamData,
@@ -135,7 +136,10 @@ class TestStream : public QuicSpdyStream {
 class TestSession : public QuicSpdySession {
  public:
   explicit TestSession(QuicConnection* connection)
-      : QuicSpdySession(connection, nullptr, DefaultQuicConfig()),
+      : QuicSpdySession(connection,
+                        nullptr,
+                        DefaultQuicConfig(),
+                        CurrentSupportedVersions()),
         crypto_stream_(this),
         writev_consumes_all_data_(false) {
     Initialize();
@@ -154,31 +158,55 @@ class TestSession : public QuicSpdySession {
     return &crypto_stream_;
   }
 
-  TestStream* CreateOutgoingDynamicStream() override {
-    TestStream* stream = new TestStream(GetNextOutgoingStreamId(), this);
+  TestStream* CreateOutgoingBidirectionalStream() override {
+    TestStream* stream = new TestStream(GetNextOutgoingBidirectionalStreamId(),
+                                        this, BIDIRECTIONAL);
     ActivateStream(QuicWrapUnique(stream));
     return stream;
   }
 
-  TestStream* CreateIncomingDynamicStream(QuicStreamId id) override {
+  TestStream* CreateOutgoingUnidirectionalStream() override {
+    TestStream* stream = new TestStream(GetNextOutgoingUnidirectionalStreamId(),
+                                        this, WRITE_UNIDIRECTIONAL);
+    ActivateStream(QuicWrapUnique(stream));
+    return stream;
+  }
+
+  TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
-    if (GetNumOpenIncomingStreams() + 1 > max_open_incoming_streams()) {
+    if (GetNumOpenIncomingStreams() + 1 >
+            max_open_incoming_bidirectional_streams() &&
+        connection()->transport_version() != QUIC_VERSION_99) {
       connection()->CloseConnection(
           QUIC_TOO_MANY_OPEN_STREAMS, "Too many streams!",
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       return nullptr;
     } else {
-      TestStream* stream = new TestStream(id, this);
+      TestStream* stream = new TestStream(
+          id, this,
+          DetermineStreamType(id, connection()->transport_version(),
+                              perspective(), /*is_incoming=*/true,
+                              BIDIRECTIONAL));
       ActivateStream(QuicWrapUnique(stream));
       return stream;
     }
   }
 
-  bool ShouldCreateIncomingDynamicStream(QuicStreamId /*id*/) override {
-    return true;
+  TestStream* CreateIncomingStream(PendingStream pending) override {
+    QuicStreamId id = pending.id();
+    TestStream* stream =
+        new TestStream(std::move(pending), this,
+                       DetermineStreamType(
+                           id, connection()->transport_version(), perspective(),
+                           /*is_incoming=*/true, BIDIRECTIONAL));
+    ActivateStream(QuicWrapUnique(stream));
+    return stream;
   }
 
-  bool ShouldCreateOutgoingDynamicStream() override { return true; }
+  bool ShouldCreateIncomingStream(QuicStreamId /*id*/) override { return true; }
+
+  bool ShouldCreateOutgoingBidirectionalStream() override { return true; }
+  bool ShouldCreateOutgoingUnidirectionalStream() override { return true; }
 
   bool IsClosedStream(QuicStreamId id) {
     return QuicSession::IsClosedStream(id);
@@ -213,7 +241,8 @@ class TestSession : public QuicSpdySession {
 
   QuicConsumedData SendStreamData(QuicStream* stream) {
     struct IOVEC iov;
-    if (stream->id() != kCryptoStreamId &&
+    if (stream->id() !=
+            QuicUtils::GetCryptoStreamId(connection()->transport_version()) &&
         connection()->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
       this->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
@@ -236,9 +265,8 @@ class TestSession : public QuicSpdySession {
   }
 
   using QuicSession::closed_streams;
-  using QuicSession::next_outgoing_stream_id;
-  using QuicSession::PostProcessAfterData;
   using QuicSession::zombie_streams;
+  using QuicSpdySession::ShouldBufferIncomingStream;
 
  private:
   StrictMock<TestCryptoStream> crypto_stream_;
@@ -247,6 +275,15 @@ class TestSession : public QuicSpdySession {
 };
 
 class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
+ public:
+  bool ClearMaxStreamIdControlFrame(const QuicFrame& frame) {
+    if (frame.type == MAX_STREAM_ID_FRAME) {
+      DeleteFrame(&const_cast<QuicFrame&>(frame));
+      return true;
+    }
+    return false;
+  }
+
  protected:
   explicit QuicSpdySessionTestBase(Perspective perspective)
       : connection_(
@@ -293,7 +330,9 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CheckClosedStreams() {
-    for (QuicStreamId i = kCryptoStreamId; i < 100; i++) {
+    for (QuicStreamId i =
+             QuicUtils::GetCryptoStreamId(connection_->transport_version());
+         i < 100; i++) {
       if (!QuicContainsKey(closed_streams_, i)) {
         EXPECT_FALSE(session_.IsClosedStream(i)) << " stream id: " << i;
       } else {
@@ -303,8 +342,15 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CloseStream(QuicStreamId id) {
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+    if (!IsVersion99()) {
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+    } else {
+      // V99 has two frames, RST_STREAM and STOP_SENDING
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .Times(2)
+          .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+    }
     EXPECT_CALL(*connection_, OnStreamReset(id, _));
     session_.CloseStream(id);
     closed_streams_.insert(id);
@@ -314,15 +360,20 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return connection_->transport_version();
   }
 
-  QuicStreamId GetNthClientInitiatedId(int n) {
-    return QuicSpdySessionPeer::GetNthClientInitiatedStreamId(session_, n);
+  bool IsVersion99() const { return transport_version() == QUIC_VERSION_99; }
+
+  QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
+    return GetNthClientInitiatedBidirectionalStreamId(transport_version(), n);
   }
 
-  QuicStreamId GetNthServerInitiatedId(int n) {
-    return QuicSpdySessionPeer::GetNthServerInitiatedStreamId(session_, n);
+  QuicStreamId GetNthServerInitiatedBidirectionalId(int n) {
+    return GetNthServerInitiatedBidirectionalStreamId(
+        connection_->transport_version(), n);
   }
 
-  QuicStreamId NextId() { return QuicSpdySessionPeer::NextStreamId(session_); }
+  QuicStreamId IdDelta() {
+    return QuicUtils::StreamIdDelta(connection_->transport_version());
+  }
 
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
@@ -338,9 +389,27 @@ class QuicSpdySessionTestServer : public QuicSpdySessionTestBase {
       : QuicSpdySessionTestBase(Perspective::IS_SERVER) {}
 };
 
-INSTANTIATE_TEST_CASE_P(Tests,
-                        QuicSpdySessionTestServer,
-                        ::testing::ValuesIn(AllSupportedVersions()));
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicSpdySessionTestServer,
+                         ::testing::ValuesIn(AllSupportedVersions()));
+
+TEST_P(QuicSpdySessionTestServer, ShouldBufferIncomingStreamUnidirectional) {
+  if (!IsVersion99()) {
+    return;
+  }
+  EXPECT_TRUE(session_.ShouldBufferIncomingStream(
+      QuicUtils::GetFirstUnidirectionalStreamId(
+          connection_->transport_version(), Perspective::IS_CLIENT)));
+}
+
+TEST_P(QuicSpdySessionTestServer, ShouldBufferIncomingStreamBidirectional) {
+  if (!IsVersion99()) {
+    return;
+  }
+  EXPECT_FALSE(session_.ShouldBufferIncomingStream(
+      QuicUtils::GetFirstBidirectionalStreamId(connection_->transport_version(),
+                                               Perspective::IS_CLIENT)));
+}
 
 TEST_P(QuicSpdySessionTestServer, PeerAddress) {
   EXPECT_EQ(QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort),
@@ -348,7 +417,7 @@ TEST_P(QuicSpdySessionTestServer, PeerAddress) {
 }
 
 TEST_P(QuicSpdySessionTestServer, SelfAddress) {
-  EXPECT_EQ(QuicSocketAddress(), session_.self_address());
+  EXPECT_TRUE(session_.self_address().IsInitialized());
 }
 
 TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
@@ -360,36 +429,43 @@ TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamDefault) {
   // Ensure that no streams are initially closed.
-  for (QuicStreamId i = kCryptoStreamId; i < 100; i++) {
+  for (QuicStreamId i =
+           QuicUtils::GetCryptoStreamId(connection_->transport_version());
+       i < 100; i++) {
     EXPECT_FALSE(session_.IsClosedStream(i)) << "stream id: " << i;
   }
 }
 
 TEST_P(QuicSpdySessionTestServer, AvailableStreams) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(9) != nullptr);
-  // Both 5 and 7 should be available.
-  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(&session_, 5));
-  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(&session_, 7));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(7) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(5) != nullptr);
+  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+                  GetNthClientInitiatedBidirectionalId(2)) != nullptr);
+  // Both client initiated streams with smaller stream IDs are available.
+  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
+      &session_, GetNthClientInitiatedBidirectionalId(0)));
+  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
+      &session_, GetNthClientInitiatedBidirectionalId(1)));
+  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+                  GetNthClientInitiatedBidirectionalId(1)) != nullptr);
+  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+                  GetNthClientInitiatedBidirectionalId(0)) != nullptr);
 }
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamLocallyCreated) {
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  EXPECT_EQ(GetNthServerInitiatedId(0), stream2->id());
-  QuicSpdyStream* stream4 = session_.CreateOutgoingDynamicStream();
-  EXPECT_EQ(GetNthServerInitiatedId(1), stream4->id());
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  EXPECT_EQ(GetNthServerInitiatedBidirectionalId(0), stream2->id());
+  QuicSpdyStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  EXPECT_EQ(GetNthServerInitiatedBidirectionalId(1), stream4->id());
 
   CheckClosedStreams();
-  CloseStream(GetNthServerInitiatedId(0));
+  CloseStream(GetNthServerInitiatedBidirectionalId(0));
   CheckClosedStreams();
-  CloseStream(GetNthServerInitiatedId(1));
+  CloseStream(GetNthServerInitiatedBidirectionalId(1));
   CheckClosedStreams();
 }
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamPeerCreated) {
-  QuicStreamId stream_id1 = GetNthClientInitiatedId(0);
-  QuicStreamId stream_id2 = GetNthClientInitiatedId(1);
+  QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
+  QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
   session_.GetOrCreateDynamicStream(stream_id1);
   session_.GetOrCreateDynamicStream(stream_id2);
 
@@ -406,22 +482,63 @@ TEST_P(QuicSpdySessionTestServer, IsClosedStreamPeerCreated) {
 }
 
 TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
-  session_.GetOrCreateDynamicStream(stream_id);
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_NE(nullptr,
-            session_.GetOrCreateDynamicStream(
-                stream_id + 2 * (session_.max_open_incoming_streams() - 1)));
+  if (IsVersion99()) {
+    // For IETF QUIC, we should be able to obtain the max allowed
+    // stream ID, the next ID should fail. Since the actual limit
+    // is not the number of open streams, we allocate the max and the max+2.
+    // Get the max allowed stream ID, this should succeed.
+    EXPECT_NE(nullptr,
+              session_.GetOrCreateDynamicStream(
+                  QuicSessionPeer::v99_streamid_manager(
+                      dynamic_cast<QuicSession*>(&session_))
+                      ->actual_max_allowed_incoming_bidirectional_stream_id()));
+    EXPECT_NE(
+        nullptr,
+        session_.GetOrCreateDynamicStream(
+            QuicSessionPeer::v99_streamid_manager(
+                dynamic_cast<QuicSession*>(&session_))
+                ->actual_max_allowed_incoming_unidirectional_stream_id()));
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
+    // Get the (max allowed stream ID)++, this should fail.
+    EXPECT_EQ(nullptr,
+              session_.GetOrCreateDynamicStream(
+                  QuicSessionPeer::v99_streamid_manager(
+                      dynamic_cast<QuicSession*>(&session_))
+                      ->actual_max_allowed_incoming_bidirectional_stream_id() +
+                  IdDelta()));
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
+    EXPECT_EQ(nullptr,
+              session_.GetOrCreateDynamicStream(
+                  QuicSessionPeer::v99_streamid_manager(
+                      dynamic_cast<QuicSession*>(&session_))
+                      ->actual_max_allowed_incoming_unidirectional_stream_id() +
+                  IdDelta()));
+  } else {
+    QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+    session_.GetOrCreateDynamicStream(stream_id);
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+    EXPECT_NE(
+        nullptr,
+        session_.GetOrCreateDynamicStream(
+            stream_id +
+            IdDelta() *
+                (session_.max_open_incoming_bidirectional_streams() - 1)));
+  }
 }
 
 TEST_P(QuicSpdySessionTestServer, TooManyAvailableStreams) {
-  QuicStreamId stream_id1 = GetNthClientInitiatedId(0);
+  QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
   QuicStreamId stream_id2;
   EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id1));
   // A stream ID which is too large to create.
-  stream_id2 = GetNthClientInitiatedId(2 * session_.MaxAvailableStreams() + 4);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_TOO_MANY_AVAILABLE_STREAMS, _, _));
+  stream_id2 = GetNthClientInitiatedBidirectionalId(
+      2 * session_.MaxAvailableBidirectionalStreams() + 4);
+  if (IsVersion99()) {
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
+  } else {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_TOO_MANY_AVAILABLE_STREAMS, _, _));
+  }
   EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id2));
 }
 
@@ -429,12 +546,14 @@ TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
   // When max_open_streams_ is 200, should be able to create 200 streams
   // out-of-order, that is, creating the one with the largest stream ID first.
   QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   // Create one stream.
   session_.GetOrCreateDynamicStream(stream_id);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  // Create the largest stream ID of a threatened total of 200 streams.
-  session_.GetOrCreateDynamicStream(stream_id + 2 * (200 - 1));
+  // Stream count is 200, GetNth... starts counting at 0, so the 200'th stream
+  // is 199.
+  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+                         GetNthClientInitiatedBidirectionalId(199)));
 }
 
 TEST_P(QuicSpdySessionTestServer,
@@ -444,7 +563,7 @@ TEST_P(QuicSpdySessionTestServer,
     return;
   }
 
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId closed_stream_id = stream2->id();
   // Close the stream.
   EXPECT_CALL(*connection_, SendControlFrame(_));
@@ -458,9 +577,9 @@ TEST_P(QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer, OnCanWrite) {
   session_.set_writev_consumes_all_data(true);
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
   session_.MarkConnectionLevelWriteBlocked(stream6->id());
@@ -487,9 +606,9 @@ TEST_P(QuicSpdySessionTestServer, OnCanWrite) {
 
 TEST_P(QuicSpdySessionTestServer, TestBatchedWrites) {
   session_.set_writev_consumes_all_data(true);
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
   session_.set_writev_consumes_all_data(true);
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
@@ -552,6 +671,11 @@ TEST_P(QuicSpdySessionTestServer, TestBatchedWrites) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
+  if (IsVersion99()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillRepeatedly(Invoke(
+            this, &QuicSpdySessionTestServer::ClearMaxStreamIdControlFrame));
+  }
   // Encryption needs to be established before data can be sent.
   CryptoHandshakeMessage msg;
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
@@ -564,9 +688,9 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
 
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
   session_.MarkConnectionLevelWriteBlocked(stream6->id());
@@ -604,9 +728,9 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteCongestionControlBlocks) {
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
 
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
   session_.MarkConnectionLevelWriteBlocked(stream6->id());
@@ -653,11 +777,9 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteWriterBlocks) {
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
   EXPECT_CALL(*writer, IsWriteBlocked()).WillRepeatedly(Return(true));
-  EXPECT_CALL(*writer, IsWriteBlockedDataBuffered())
-      .WillRepeatedly(Return(true));
   EXPECT_CALL(*writer, WritePacket(_, _, _, _, _)).Times(0);
 
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
 
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
 
@@ -673,19 +795,20 @@ TEST_P(QuicSpdySessionTestServer, BufferedHandshake) {
   EXPECT_FALSE(session_.HasPendingHandshake());  // Default value.
 
   // Test that blocking other streams does not change our status.
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
   EXPECT_FALSE(session_.HasPendingHandshake());
 
-  TestStream* stream3 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream3 = session_.CreateOutgoingBidirectionalStream();
   session_.MarkConnectionLevelWriteBlocked(stream3->id());
   EXPECT_FALSE(session_.HasPendingHandshake());
 
   // Blocking (due to buffering of) the Crypto stream is detected.
-  session_.MarkConnectionLevelWriteBlocked(kCryptoStreamId);
+  session_.MarkConnectionLevelWriteBlocked(
+      QuicUtils::GetCryptoStreamId(connection_->transport_version()));
   EXPECT_TRUE(session_.HasPendingHandshake());
 
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
   session_.MarkConnectionLevelWriteBlocked(stream4->id());
   EXPECT_TRUE(session_.HasPendingHandshake());
 
@@ -717,9 +840,9 @@ TEST_P(QuicSpdySessionTestServer, BufferedHandshake) {
 
 TEST_P(QuicSpdySessionTestServer, OnCanWriteWithClosedStream) {
   session_.set_writev_consumes_all_data(true);
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
   session_.MarkConnectionLevelWriteBlocked(stream6->id());
@@ -755,11 +878,12 @@ TEST_P(QuicSpdySessionTestServer,
 
   // Mark the crypto and headers streams as write blocked, we expect them to be
   // allowed to write later.
-  session_.MarkConnectionLevelWriteBlocked(kCryptoStreamId);
+  session_.MarkConnectionLevelWriteBlocked(
+      QuicUtils::GetCryptoStreamId(connection_->transport_version()));
 
   // Create a data stream, and although it is write blocked we never expect it
   // to be allowed to write as we are connection level flow control blocked.
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   session_.MarkConnectionLevelWriteBlocked(stream->id());
   EXPECT_CALL(*stream, OnCanWrite()).Times(0);
 
@@ -770,7 +894,8 @@ TEST_P(QuicSpdySessionTestServer,
   QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
   TestHeadersStream* headers_stream = new TestHeadersStream(&session_);
   QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
-  session_.MarkConnectionLevelWriteBlocked(kHeadersStreamId);
+  session_.MarkConnectionLevelWriteBlocked(
+      QuicUtils::GetHeadersStreamId(connection_->transport_version()));
   EXPECT_CALL(*headers_stream, OnCanWrite());
 
   // After the crypto and header streams perform a write, the connection will be
@@ -782,7 +907,7 @@ TEST_P(QuicSpdySessionTestServer,
 }
 
 TEST_P(QuicSpdySessionTestServer, SendGoAway) {
-  if (transport_version() == QUIC_VERSION_99) {
+  if (IsVersion99()) {
     // GoAway frames are not in version 99
     return;
   }
@@ -806,6 +931,11 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
 }
 
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
+  if (IsVersion99()) {
+    // TODO(b/118808809): Enable this test for version 99 when GOAWAY is
+    // supported.
+    return;
+  }
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
@@ -814,8 +944,13 @@ TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
 }
 
 TEST_P(QuicSpdySessionTestServer, InvalidGoAway) {
+  if (IsVersion99()) {
+    // TODO(b/118808809): Enable this test for version 99 when GOAWAY is
+    // supported.
+    return;
+  }
   QuicGoAwayFrame go_away(kInvalidControlFrameId, QUIC_PEER_GOING_AWAY,
-                          session_.next_outgoing_stream_id(), "");
+                          session_.next_outgoing_bidirectional_stream_id(), "");
   session_.OnGoAway(go_away);
 }
 
@@ -829,15 +964,14 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
   QuicSocketAddress new_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort + 1);
 
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, new_peer_address, _))
-      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   EXPECT_CALL(*connection_,
-              SendConnectivityProbingPacket(nullptr, new_peer_address))
-      .WillOnce(
-          Invoke(connection_,
-                 &MockQuicConnection::ReallySendConnectivityProbingPacket));
+              SendConnectivityProbingResponsePacket(new_peer_address));
+  if (IsVersion99()) {
+    // Need to explicitly do this to emulate the reception of a PathChallenge,
+    // which stores its payload for use in generating the response.
+    connection_->OnPathChallengeFrame(
+        QuicPathChallengeFrame(0, {{0, 1, 2, 3, 4, 5, 6, 7}}));
+  }
   session_.OnConnectivityProbeReceived(session_.self_address(),
                                        new_peer_address);
   EXPECT_EQ(old_peer_address, session_.peer_address());
@@ -854,16 +988,39 @@ TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 
 TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
   // Send two bytes of payload.
-  QuicStreamFrame data1(GetNthClientInitiatedId(0), false, 0,
+  QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                         QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(GetNthClientInitiatedId(0), _));
-  QuicRstStreamFrame rst1(kInvalidControlFrameId, GetNthClientInitiatedId(0),
+  if (!IsVersion99()) {
+    // For version99, OnStreamReset gets called because of the STOP_SENDING,
+    // below. EXPECT the call there.
+    EXPECT_CALL(*connection_,
+                OnStreamReset(GetNthClientInitiatedBidirectionalId(0), _));
+  }
+  QuicRstStreamFrame rst1(kInvalidControlFrameId,
+                          GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   session_.OnRstStream(rst1);
+
+  // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
+  // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes a
+  // one-way close.
+  if (IsVersion99()) {
+    // Only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(
+        kInvalidControlFrameId, GetNthClientInitiatedBidirectionalId(0),
+        static_cast<QuicApplicationErrorCode>(QUIC_ERROR_PROCESSING_STREAM));
+    // Expect the RESET_STREAM that is generated in response to receiving a
+    // STOP_SENDING.
+    EXPECT_CALL(*connection_,
+                OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
+                              QUIC_ERROR_PROCESSING_STREAM));
+    session_.OnStopSendingFrame(stop_sending);
+  }
+
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
   // Connection should remain alive.
   EXPECT_TRUE(connection_->connected());
@@ -871,7 +1028,9 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
   // Send two bytes of payload.
-  QuicStreamFrame data1(kCryptoStreamId, true, 0, QuicStringPiece("HT"));
+  QuicStreamFrame data1(
+      QuicUtils::GetCryptoStreamId(connection_->transport_version()), true, 0,
+      QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
@@ -881,8 +1040,10 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
 
 TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
   // Send two bytes of payload.
-  QuicRstStreamFrame rst1(kInvalidControlFrameId, kCryptoStreamId,
-                          QUIC_ERROR_PROCESSING_STREAM, 0);
+  QuicRstStreamFrame rst1(
+      kInvalidControlFrameId,
+      QuicUtils::GetCryptoStreamId(connection_->transport_version()),
+      QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
@@ -892,7 +1053,9 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameInvalidStreamId) {
   // Send two bytes of payload.
-  QuicStreamFrame data1(kInvalidStreamId, true, 0, QuicStringPiece("HT"));
+  QuicStreamFrame data1(
+      QuicUtils::GetInvalidStreamId(connection_->transport_version()), true, 0,
+      QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Recevied data for an invalid stream",
@@ -902,8 +1065,10 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameInvalidStreamId) {
 
 TEST_P(QuicSpdySessionTestServer, OnRstStreamInvalidStreamId) {
   // Send two bytes of payload.
-  QuicRstStreamFrame rst1(kInvalidControlFrameId, kInvalidStreamId,
-                          QUIC_ERROR_PROCESSING_STREAM, 0);
+  QuicRstStreamFrame rst1(
+      kInvalidControlFrameId,
+      QuicUtils::GetInvalidStreamId(connection_->transport_version()),
+      QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Recevied data for an invalid stream",
@@ -920,13 +1085,13 @@ TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
   session_.set_writev_consumes_all_data(true);
 
   // Create a stream, and send enough data to make it flow control blocked.
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicString body(kMinimumFlowControlSendWindow, '.');
   EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AtLeast(1));
-  stream2->WriteOrBufferBody(body, false, nullptr);
+  stream2->WriteOrBufferBody(body, false);
   EXPECT_TRUE(stream2->flow_controller()->IsBlocked());
   EXPECT_TRUE(session_.IsConnectionFlowControlBlocked());
   EXPECT_TRUE(session_.IsStreamFlowControlBlocked());
@@ -944,6 +1109,11 @@ TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 
 TEST_P(QuicSpdySessionTestServer,
        HandshakeUnblocksFlowControlBlockedCryptoStream) {
+  if (GetParam().transport_version >= QUIC_VERSION_47) {
+    // QUIC version 47 onwards uses CRYPTO frames for the handshake, so this
+    // test doesn't make sense for those versions.
+    return;
+  }
   // Test that if the crypto stream is flow control blocked, then if the SHLO
   // contains a larger send window offset, the stream becomes unblocked.
   session_.set_writev_consumes_all_data(true);
@@ -956,8 +1126,13 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_FALSE(headers_stream->flow_controller()->IsBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+  if (IsVersion99()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+  } else {
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+  }
   for (QuicStreamId i = 0;
        !crypto_stream->flow_controller()->IsBlocked() && i < 1000u; i++) {
     EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
@@ -982,8 +1157,9 @@ TEST_P(QuicSpdySessionTestServer,
   // send window.
   CryptoHandshakeMessage msg;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
-  EXPECT_TRUE(
-      QuicSessionPeer::IsStreamWriteBlocked(&session_, kCryptoStreamId));
+  EXPECT_TRUE(QuicSessionPeer::IsStreamWriteBlocked(
+      &session_,
+      QuicUtils::GetCryptoStreamId(connection_->transport_version())));
   // Stream is now unblocked and will no longer have buffered data.
   EXPECT_FALSE(crypto_stream->flow_controller()->IsBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
@@ -1021,12 +1197,14 @@ TEST_P(QuicSpdySessionTestServer,
     EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
     headers["header"] = QuicStrCat(random.RandUint64(), random.RandUint64(),
                                    random.RandUint64());
-    session_.WriteHeaders(stream_id, headers.Clone(), true, 0, nullptr);
-    stream_id += 2;
+    session_.WriteHeadersOnHeadersStream(stream_id, headers.Clone(), true, 0,
+                                         nullptr);
+    stream_id += IdDelta();
   }
   // Write once more to ensure that the headers stream has buffered data. The
   // random headers may have exactly filled the flow control window.
-  session_.WriteHeaders(stream_id, std::move(headers), true, 0, nullptr);
+  session_.WriteHeadersOnHeadersStream(stream_id, std::move(headers), true, 0,
+                                       nullptr);
   EXPECT_TRUE(headers_stream->HasBufferedData());
 
   EXPECT_TRUE(headers_stream->flow_controller()->IsBlocked());
@@ -1045,8 +1223,9 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   EXPECT_TRUE(headers_stream->HasBufferedData());
-  EXPECT_TRUE(
-      QuicSessionPeer::IsStreamWriteBlocked(&session_, kHeadersStreamId));
+  EXPECT_TRUE(QuicSessionPeer::IsStreamWriteBlocked(
+      &session_,
+      QuicUtils::GetHeadersStreamId(connection_->transport_version())));
 }
 #endif  // !defined(OS_IOS)
 
@@ -1056,7 +1235,7 @@ TEST_P(QuicSpdySessionTestServer,
   // our connection level flow control receive window.
   // On close, the stream should mark as consumed all bytes between the highest
   // byte consumed so far and the final byte offset from the RST frame.
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
 
   const QuicStreamOffset kByteOffset =
       1 + kInitialSessionFlowControlWindowForTest / 2;
@@ -1064,13 +1243,29 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
       .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
-  EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
+  if (!IsVersion99()) {
+    // For version99 the call to OnStreamReset happens as a result of receiving
+    // the STOP_SENDING, so set up the EXPECT there.
+    EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
+  }
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED, kByteOffset);
   session_.OnRstStream(rst_frame);
-  if (!session_.deprecate_post_process_after_data()) {
-    session_.PostProcessAfterData();
+  // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
+  // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes a
+  // one-way close.
+  if (IsVersion99()) {
+    // Only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(
+        kInvalidControlFrameId, stream->id(),
+        static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+    // Expect the RESET_STREAM that is generated in response to receiving a
+    // STOP_SENDING.
+    EXPECT_CALL(*connection_,
+                OnStreamReset(stream->id(), QUIC_STREAM_CANCELLED));
+    session_.OnStopSendingFrame(stop_sending);
   }
+
   EXPECT_EQ(kByteOffset, session_.flow_controller()->bytes_consumed());
 }
 
@@ -1081,15 +1276,12 @@ TEST_P(QuicSpdySessionTestServer,
   // The bytes between highest consumed byte, and the final byte offset that we
   // determined when the FIN arrived, should be marked as consumed at the
   // connection level flow controller when the stream is reset.
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
 
   const QuicStreamOffset kByteOffset =
       kInitialSessionFlowControlWindowForTest / 2 - 1;
   QuicStreamFrame frame(stream->id(), true, kByteOffset, ".");
   session_.OnStreamFrame(frame);
-  if (!session_.deprecate_post_process_after_data()) {
-    session_.PostProcessAfterData();
-  }
   EXPECT_TRUE(connection_->connected());
 
   EXPECT_EQ(0u, stream->flow_controller()->bytes_consumed());
@@ -1120,7 +1312,7 @@ TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingFinAfterRst) {
   session_.flow_controller()->AddBytesConsumed(kInitialConnectionBytesConsumed);
 
   // Reset our stream: this results in the stream being closed locally.
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   stream->Reset(QUIC_STREAM_CANCELLED);
@@ -1158,7 +1350,7 @@ TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingRstAfterRst) {
   session_.flow_controller()->AddBytesConsumed(kInitialConnectionBytesConsumed);
 
   // Reset our stream: this results in the stream being closed locally.
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   stream->Reset(QUIC_STREAM_CANCELLED);
@@ -1222,7 +1414,7 @@ TEST_P(QuicSpdySessionTestServer, FlowControlWithInvalidFinalOffset) {
       .Times(2);
 
   // Check that stream frame + FIN results in connection close.
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   stream->Reset(QUIC_STREAM_CANCELLED);
@@ -1261,80 +1453,83 @@ TEST_P(QuicSpdySessionTestServer, WindowUpdateUnblocksHeadersStream) {
 TEST_P(QuicSpdySessionTestServer,
        TooManyUnfinishedStreamsCauseServerRejectStream) {
   // If a buggy/malicious peer creates too many streams that are not ended
-  // with a FIN or RST then we send an RST to refuse streams.
+  // with a FIN or RST then we send an RST to refuse streams for versions other
+  // than version 99. In version 99 the connection gets closed.
   const QuicStreamId kMaxStreams = 5;
   QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
-  const QuicStreamId kFirstStreamId = GetNthClientInitiatedId(0);
-  const QuicStreamId kFinalStreamId = GetNthClientInitiatedId(kMaxStreams);
+  const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);
+  const QuicStreamId kFinalStreamId =
+      GetNthClientInitiatedBidirectionalId(kMaxStreams);
   // Create kMaxStreams data streams, and close them all without receiving a
   // FIN or a RST_STREAM from the client.
-  const QuicStreamId kNextId = QuicSpdySessionPeer::NextStreamId(session_);
+  const QuicStreamId kNextId =
+      QuicUtils::StreamIdDelta(connection_->transport_version());
   for (QuicStreamId i = kFirstStreamId; i < kFinalStreamId; i += kNextId) {
     QuicStreamFrame data1(i, false, 0, QuicStringPiece("HT"));
     session_.OnStreamFrame(data1);
     // EXPECT_EQ(1u, session_.GetNumOpenStreams());
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+    if (!IsVersion99()) {
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+    } else {
+      // V99 has two frames, RST_STREAM and STOP_SENDING
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .Times(2)
+          .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+    }
+    // Close the stream only if not version 99. If we are version 99
+    // then closing the stream opens up the available stream id space,
+    // so we never bump into the limit.
     EXPECT_CALL(*connection_, OnStreamReset(i, _));
     session_.CloseStream(i);
   }
-
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
-  EXPECT_CALL(*connection_, OnStreamReset(kFinalStreamId, QUIC_REFUSED_STREAM))
-      .Times(1);
+  // Try and open a stream that exceeds the limit.
+  if (!IsVersion99()) {
+    // On versions other than 99, opening such a stream results in a
+    // RST_STREAM.
+    EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+    EXPECT_CALL(*connection_,
+                OnStreamReset(kFinalStreamId, QUIC_REFUSED_STREAM))
+        .Times(1);
+  } else {
+    // On version 99 opening such a stream results in a connection close.
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
+                                              "Stream id 28 above 24", _));
+  }
   // Create one more data streams to exceed limit of open stream.
   QuicStreamFrame data1(kFinalStreamId, false, 0, QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
-
-  // Called after any new data is received by the session, and triggers the
-  // call to close the connection.
-  if (!session_.deprecate_post_process_after_data()) {
-    session_.PostProcessAfterData();
-  }
 }
 
 TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // Verify that a draining stream (which has received a FIN but not consumed
   // it) does not count against the open quota (because it is closed from the
   // protocol point of view).
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  if (IsVersion99()) {
+    // Version 99 will result in a MAX_STREAM_ID frame as streams are consumed
+    // (via the OnStreamFrame call) and then released (via
+    // StreamDraining). Eventually this node will believe that the peer is
+    // running low on available stream ids and then send a MAX_STREAM_ID frame,
+    // caught by this EXPECT_CALL.
+    EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  } else {
+    EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  }
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM)).Times(0);
   const QuicStreamId kMaxStreams = 5;
   QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
 
   // Create kMaxStreams + 1 data streams, and mark them draining.
-  const QuicStreamId kFirstStreamId = GetNthClientInitiatedId(0);
+  const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);
   const QuicStreamId kFinalStreamId =
-      GetNthClientInitiatedId(2 * kMaxStreams + 1);
-  for (QuicStreamId i = kFirstStreamId; i < kFinalStreamId; i += NextId()) {
+      GetNthClientInitiatedBidirectionalId(kMaxStreams + 1);
+  for (QuicStreamId i = kFirstStreamId; i < kFinalStreamId; i += IdDelta()) {
     QuicStreamFrame data1(i, true, 0, QuicStringPiece("HT"));
     session_.OnStreamFrame(data1);
     EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
     session_.StreamDraining(i);
     EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
   }
-
-  // Called after any new data is received by the session, and triggers the call
-  // to close the connection.
-  if (!session_.deprecate_post_process_after_data()) {
-    session_.PostProcessAfterData();
-  }
-}
-
-TEST_P(QuicSpdySessionTestServer, TestMaxIncomingAndOutgoingStreamsAllowed) {
-  // Tests that on server side, the value of max_open_incoming/outgoing streams
-  // are setup correctly during negotiation.
-  // The value for outgoing stream is limited to negotiated value and for
-  // incoming stream it is set to be larger than that.
-  session_.OnConfigNegotiated();
-  // The max number of open outgoing streams is less than that of incoming
-  // streams, and it should be same as negotiated value.
-  EXPECT_LT(session_.max_open_outgoing_streams(),
-            session_.max_open_incoming_streams());
-  EXPECT_EQ(session_.max_open_outgoing_streams(),
-            kDefaultMaxStreamsPerConnection);
-  EXPECT_GT(session_.max_open_incoming_streams(),
-            kDefaultMaxStreamsPerConnection);
 }
 
 class QuicSpdySessionTestClient : public QuicSpdySessionTestBase {
@@ -1343,26 +1538,32 @@ class QuicSpdySessionTestClient : public QuicSpdySessionTestBase {
       : QuicSpdySessionTestBase(Perspective::IS_CLIENT) {}
 };
 
-INSTANTIATE_TEST_CASE_P(Tests,
-                        QuicSpdySessionTestClient,
-                        ::testing::ValuesIn(AllSupportedVersions()));
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicSpdySessionTestClient,
+                         ::testing::ValuesIn(AllSupportedVersions()));
 
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(6) != nullptr);
-  // Both 2 and 4 should be available.
-  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(&session_, 2));
-  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(&session_, 4));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(2) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(4) != nullptr);
-  // And 5 should be not available.
-  EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(&session_, 5));
+  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+                  GetNthServerInitiatedBidirectionalId(2)) != nullptr);
+  // Both server initiated streams with smaller stream IDs should be available.
+  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
+      &session_, GetNthServerInitiatedBidirectionalId(0)));
+  EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
+      &session_, GetNthServerInitiatedBidirectionalId(1)));
+  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+                  GetNthServerInitiatedBidirectionalId(0)) != nullptr);
+  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+                  GetNthServerInitiatedBidirectionalId(1)) != nullptr);
+  // And client initiated stream ID should be not available.
+  EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(
+      &session_, GetNthClientInitiatedBidirectionalId(0)));
 }
 
 TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
   // Verify that an incoming FIN is recorded in a stream object even if the read
   // side has been closed.  This prevents an entry from being made in
   // locally_closed_streams_highest_offset_ (which will never be deleted).
-  TestStream* stream = session_.CreateOutgoingDynamicStream();
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
 
   // Close the read side manually.
@@ -1379,10 +1580,6 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
   stream->Reset(QUIC_STREAM_CANCELLED);
   EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream));
 
-  // Allow the session to delete the stream object.
-  if (!session_.deprecate_post_process_after_data()) {
-    session_.PostProcessAfterData();
-  }
   EXPECT_TRUE(connection_->connected());
   EXPECT_TRUE(QuicSessionPeer::IsStreamClosed(&session_, stream_id));
   EXPECT_FALSE(QuicSessionPeer::IsStreamCreated(&session_, stream_id));
@@ -1392,18 +1589,6 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
   EXPECT_EQ(
       0u,
       QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(&session_).size());
-}
-
-TEST_P(QuicSpdySessionTestClient, TestMaxIncomingAndOutgoingStreamsAllowed) {
-  // Tests that on client side, the value of max_open_incoming/outgoing streams
-  // are setup correctly during negotiation.
-  // When flag is true, the value for outgoing stream is limited to negotiated
-  // value and for incoming stream it is set to be larger than that.
-  session_.OnConfigNegotiated();
-  EXPECT_LT(session_.max_open_outgoing_streams(),
-            session_.max_open_incoming_streams());
-  EXPECT_EQ(session_.max_open_outgoing_streams(),
-            kDefaultMaxStreamsPerConnection);
 }
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
@@ -1443,20 +1628,20 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
 }
 
 TEST_P(QuicSpdySessionTestServer, ZombieStreams) {
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicStreamPeer::SetStreamBytesWritten(3, stream2);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(2, _));
-  session_.CloseStream(2);
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), 2));
+  EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
+  session_.CloseStream(stream2->id());
+  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
-  EXPECT_EQ(2u, session_.closed_streams()->front()->id());
+  EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
   session_.OnStreamDoneWaitingForAcks(2);
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), 2));
+  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   EXPECT_EQ(1u, session_.closed_streams()->size());
-  EXPECT_EQ(2u, session_.closed_streams()->front()->id());
+  EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
@@ -1468,20 +1653,29 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
 
   TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
 
-  QuicStreamFrame frame1(kCryptoStreamId, false, 0, 1300);
+  QuicStreamFrame frame1(
+      QuicUtils::GetCryptoStreamId(connection_->transport_version()), false, 0,
+      1300);
   QuicStreamFrame frame2(stream2->id(), false, 0, 9);
   QuicStreamFrame frame3(stream4->id(), false, 0, 9);
 
   // Lost data on cryption stream, streams 2 and 4.
   EXPECT_CALL(*stream4, HasPendingRetransmission()).WillOnce(Return(true));
-  EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
-      .WillOnce(Return(true));
+  if (connection_->transport_version() < QUIC_VERSION_47) {
+    EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
+        .WillOnce(Return(true));
+  }
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(true));
   session_.OnFrameLost(QuicFrame(frame3));
-  session_.OnFrameLost(QuicFrame(frame1));
+  if (connection_->transport_version() < QUIC_VERSION_47) {
+    session_.OnFrameLost(QuicFrame(frame1));
+  } else {
+    QuicCryptoFrame crypto_frame(ENCRYPTION_NONE, 0, 1300);
+    session_.OnFrameLost(QuicFrame(&crypto_frame));
+  }
   session_.OnFrameLost(QuicFrame(frame2));
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
 
@@ -1493,9 +1687,11 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   // stream go first.
   // Do not check congestion window when crypto stream has lost data.
   EXPECT_CALL(*send_algorithm, CanSend(_)).Times(0);
-  EXPECT_CALL(*crypto_stream, OnCanWrite());
-  EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
-      .WillOnce(Return(false));
+  if (connection_->transport_version() < QUIC_VERSION_47) {
+    EXPECT_CALL(*crypto_stream, OnCanWrite());
+    EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
+        .WillOnce(Return(false));
+  }
   // Check congestion window for non crypto streams.
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
   EXPECT_CALL(*stream4, OnCanWrite());
@@ -1526,9 +1722,9 @@ TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
   QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
   QuicStreamFrame frame1(stream2->id(), false, 0, 9);
   QuicStreamFrame frame2(stream4->id(), false, 0, 9);
@@ -1568,9 +1764,9 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
   InSequence s;
 
-  TestStream* stream2 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream4 = session_.CreateOutgoingDynamicStream();
-  TestStream* stream6 = session_.CreateOutgoingDynamicStream();
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
   session_.SendWindowUpdate(stream2->id(), 9);
@@ -1596,8 +1792,8 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
-  TestStream* stream = session_.CreateIncomingDynamicStream(stream_id);
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+  TestStream* stream = session_.CreateIncomingStream(stream_id);
   session_.OnPriorityFrame(stream_id, kV3HighestPriority);
   EXPECT_EQ(kV3HighestPriority, stream->priority());
 }

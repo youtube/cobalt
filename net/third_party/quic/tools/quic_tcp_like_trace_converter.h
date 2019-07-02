@@ -1,12 +1,17 @@
+// Copyright (c) 2018 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #ifndef NET_THIRD_PARTY_QUIC_TOOLS_QUIC_TCP_LIKE_TRACE_CONVERTER_H_
 #define NET_THIRD_PARTY_QUIC_TOOLS_QUIC_TCP_LIKE_TRACE_CONVERTER_H_
 
 #include <vector>
 
 #include "net/third_party/quic/core/frames/quic_stream_frame.h"
+#include "net/third_party/quic/core/quic_interval.h"
+#include "net/third_party/quic/core/quic_interval_set.h"
 #include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_containers.h"
-#include "net/third_party/quic/platform/api/quic_interval.h"
 
 namespace quic {
 

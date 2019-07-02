@@ -5,7 +5,6 @@
 #ifndef NET_THIRD_PARTY_QUIC_CORE_TLS_SERVER_HANDSHAKER_H_
 #define NET_THIRD_PARTY_QUIC_CORE_TLS_SERVER_HANDSHAKER_H_
 
-#include "net/third_party/quic/core/crypto/quic_tls_adapter.h"
 #include "net/third_party/quic/core/proto/cached_network_parameters.pb.h"
 #include "net/third_party/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quic/core/quic_crypto_stream.h"
@@ -51,7 +50,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ShouldSendExpectCTHeader() const override;
 
   // From QuicCryptoServerStream::HandshakerDelegate and TlsHandshaker
-  QuicLongHeaderType GetLongHeaderType(QuicStreamOffset offset) const override;
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
@@ -91,6 +89,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // Called when a new message is received on the crypto stream and is available
   // for the TLS stack to read.
   void AdvanceHandshake() override;
+  void CloseConnection(QuicErrorCode error,
+                       const QuicString& reason_phrase) override;
 
   // Called when the TLS handshake is complete.
   void FinishHandshake();

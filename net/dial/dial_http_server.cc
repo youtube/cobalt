@@ -20,6 +20,7 @@
 
 #if defined(__LB_SHELL__)
 #include "lb_network_helpers.h"
+#include "starboard/string.h"
 #endif
 
 namespace net {
@@ -136,7 +137,8 @@ void DialHttpServer::OnHttpRequest(int conn_id,
     SendDeviceDescriptionManifest(conn_id);
 
   } else if (strstr(info.path.c_str(), kAppsPrefix)) {
-    if (info.method == "GET" && info.path.length() == strlen(kAppsPrefix)) {
+    if (info.method == "GET" &&
+        info.path.length() == SbStringGetLength(kAppsPrefix)) {
       // If /apps/ request, send 302 to current application.
       http_server_->SendRaw(
           conn_id,

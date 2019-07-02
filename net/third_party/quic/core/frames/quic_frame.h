@@ -23,6 +23,7 @@
 #include "net/third_party/quic/core/frames/quic_path_challenge_frame.h"
 #include "net/third_party/quic/core/frames/quic_path_response_frame.h"
 #include "net/third_party/quic/core/frames/quic_ping_frame.h"
+#include "net/third_party/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "net/third_party/quic/core/frames/quic_rst_stream_frame.h"
 #include "net/third_party/quic/core/frames/quic_stop_sending_frame.h"
 #include "net/third_party/quic/core/frames/quic_stop_waiting_frame.h"
@@ -42,18 +43,19 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicMtuDiscoveryFrame frame);
   explicit QuicFrame(QuicPingFrame frame);
   explicit QuicFrame(QuicMaxStreamIdFrame frame);
+  explicit QuicFrame(QuicStopWaitingFrame frame);
   explicit QuicFrame(QuicStreamIdBlockedFrame frame);
   explicit QuicFrame(QuicStreamFrame stream_frame);
 
   explicit QuicFrame(QuicAckFrame* frame);
   explicit QuicFrame(QuicRstStreamFrame* frame);
   explicit QuicFrame(QuicConnectionCloseFrame* frame);
-  explicit QuicFrame(QuicStopWaitingFrame* frame);
   explicit QuicFrame(QuicGoAwayFrame* frame);
   explicit QuicFrame(QuicWindowUpdateFrame* frame);
   explicit QuicFrame(QuicBlockedFrame* frame);
   explicit QuicFrame(QuicApplicationCloseFrame* frame);
   explicit QuicFrame(QuicNewConnectionIdFrame* frame);
+  explicit QuicFrame(QuicRetireConnectionIdFrame* frame);
   explicit QuicFrame(QuicNewTokenFrame* frame);
   explicit QuicFrame(QuicPathResponseFrame* frame);
   explicit QuicFrame(QuicPathChallengeFrame* frame);
@@ -73,6 +75,7 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
     QuicMtuDiscoveryFrame mtu_discovery_frame;
     QuicPingFrame ping_frame;
     QuicMaxStreamIdFrame max_stream_id_frame;
+    QuicStopWaitingFrame stop_waiting_frame;
     QuicStreamIdBlockedFrame stream_id_blocked_frame;
     QuicStreamFrame stream_frame;
 
@@ -81,12 +84,11 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
       QuicFrameType type;
 
       // TODO(wub): These frames can also be inlined without increasing the size
-      // of QuicFrame: QuicStopWaitingFrame, QuicRstStreamFrame,
-      // QuicWindowUpdateFrame, QuicBlockedFrame, QuicPathResponseFrame,
-      // QuicPathChallengeFrame and QuicStopSendingFrame.
+      // of QuicFrame: QuicRstStreamFrame, QuicWindowUpdateFrame,
+      // QuicBlockedFrame, QuicPathResponseFrame, QuicPathChallengeFrame and
+      // QuicStopSendingFrame.
       union {
         QuicAckFrame* ack_frame;
-        QuicStopWaitingFrame* stop_waiting_frame;
         QuicRstStreamFrame* rst_stream_frame;
         QuicConnectionCloseFrame* connection_close_frame;
         QuicGoAwayFrame* goaway_frame;
@@ -94,6 +96,7 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
         QuicBlockedFrame* blocked_frame;
         QuicApplicationCloseFrame* application_close_frame;
         QuicNewConnectionIdFrame* new_connection_id_frame;
+        QuicRetireConnectionIdFrame* retire_connection_id_frame;
         QuicPathResponseFrame* path_response_frame;
         QuicPathChallengeFrame* path_challenge_frame;
         QuicStopSendingFrame* stop_sending_frame;

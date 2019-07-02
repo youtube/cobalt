@@ -5,8 +5,6 @@
 #ifndef NET_QUIC_QUIC_PROXY_CLIENT_SOCKET_H_
 #define NET_QUIC_QUIC_PROXY_CLIENT_SOCKET_H_
 
-#if !defined(QUIC_DISABLED_FOR_STARBOARD)
-
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -44,11 +42,13 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
 
   // ProxyClientSocket methods:
   const HttpResponseInfo* GetConnectResponseInfo() const override;
+  // QUIC46
   std::unique_ptr<HttpStream> CreateConnectResponseStream() override;
   const scoped_refptr<HttpAuthController>& GetAuthController() const override;
   int RestartWithAuth(CompletionOnceCallback callback) override;
   bool IsUsingSpdy() const override;
   NextProto GetProxyNegotiatedProtocol() const override;
+  void SetStreamPriority(RequestPriority priority) override;
 
   // StreamSocket implementation.
   int Connect(CompletionOnceCallback callback) override;
@@ -141,10 +141,6 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
 
   std::string user_agent_;
 
-  // Used only for redirects.
-  bool redirect_has_load_timing_info_;
-  LoadTimingInfo redirect_load_timing_info_;
-
   // Session connect timing info.
   LoadTimingInfo::ConnectTiming connect_timing_;
 
@@ -157,7 +153,5 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
 };
 
 }  // namespace net
-
-#endif  // !defined(QUIC_DISABLED_FOR_STARBOARD)
 
 #endif  // NET_QUIC_QUIC_PROXY_CLIENT_SOCKET_H_

@@ -15,10 +15,6 @@
 
 namespace quic {
 
-namespace test {
-class QuicChromiumClientSessionPeer;
-}  // namespace test
-
 // An implementation of QuicCryptoClientStream::HandshakerDelegate which uses
 // QUIC crypto as the crypto handshake protocol.
 class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
@@ -44,7 +40,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   int num_scup_messages_received() const override;
   bool WasChannelIDSent() const override;
   bool WasChannelIDSourceCallbackRun() const override;
-  QuicLongHeaderType GetLongHeaderType(QuicStreamOffset offset) const override;
   QuicString chlo_hash() const override;
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
@@ -54,6 +49,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
+
+ protected:
+  // Returns the QuicSession that this stream belongs to.
+  QuicSession* session() const { return session_; }
+
+  // Send either InchoateClientHello or ClientHello message to the server.
+  void DoSendCHLO(QuicCryptoClientConfig::CachedState* cached);
 
  private:
   // ChannelIDSourceCallbackImpl is passed as the callback method to
@@ -96,8 +98,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
     QuicCryptoClientHandshaker* parent_;
   };
 
-  friend class test::QuicChromiumClientSessionPeer;
-
   enum State {
     STATE_IDLE,
     STATE_INITIALIZE,
@@ -123,9 +123,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
 
   // Start the handshake process.
   void DoInitialize(QuicCryptoClientConfig::CachedState* cached);
-
-  // Send either InchoateClientHello or ClientHello message to the server.
-  void DoSendCHLO(QuicCryptoClientConfig::CachedState* cached);
 
   // Process REJ message from the server.
   void DoReceiveREJ(const CryptoHandshakeMessage* in,
@@ -164,9 +161,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // Returns true if the server crypto config in |cached| requires a ChannelID
   // and the client config settings also allow sending a ChannelID.
   bool RequiresChannelID(QuicCryptoClientConfig::CachedState* cached);
-
-  // Returns the QuicSession that this stream belongs to.
-  QuicSession* session() const { return session_; }
 
   QuicCryptoClientStream* stream_;
 
@@ -227,8 +221,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // STATE_VERIFY_PROOF*, and subsequent STATE_SEND_CHLO state.
   bool stateless_reject_received_;
 
-  // Only used in chromium, not internally.
-  base::TimeTicks proof_verify_start_time_;
+  QuicTime proof_verify_start_time_;
 
   int num_scup_messages_received_;
 

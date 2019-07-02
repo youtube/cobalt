@@ -56,6 +56,9 @@ class StatelessRejector {
   static void Process(std::unique_ptr<StatelessRejector> rejector,
                       std::unique_ptr<ProcessDoneCallback> done_cb);
 
+  // Return the version of the CHLO.
+  ParsedQuicVersion version() const { return version_; }
+
   // Returns the state of the rejector after OnChlo() has been called.
   State state() const { return state_; }
 

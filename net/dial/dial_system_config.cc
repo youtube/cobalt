@@ -16,6 +16,8 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -36,7 +38,7 @@ DialSystemConfig::DialSystemConfig()
 
 const char* DialSystemConfig::model_uuid() const {
   base::AutoLock lock(lock_);
-  if (!strlen(s_dial_uuid)) {
+  if (!SbStringGetLength(s_dial_uuid)) {
     CreateDialUuid();
   }
   return s_dial_uuid;
@@ -53,7 +55,7 @@ void DialSystemConfig::CreateDialUuid() {
   EVP_MD_CTX* mdctx;
   mdctx = EVP_MD_CTX_create();
   EVP_DigestInit_ex(mdctx, EVP_sha1(), NULL);
-  EVP_DigestUpdate(mdctx, kSecret, strlen(kSecret));
+  EVP_DigestUpdate(mdctx, kSecret, SbStringGetLength(kSecret));
   EVP_DigestUpdate(mdctx, platform_uuid.data(), platform_uuid.size());
   EVP_DigestFinal_ex(mdctx, md_value, &md_len);
   EVP_MD_CTX_destroy(mdctx);
@@ -72,7 +74,7 @@ void DialSystemConfig::CreateDialUuid() {
            md_value[1], md_value[2], md_value[3], md_value[4], md_value[5],
            md_value[6], md_value[7], md_value[8], md_value[9]);
 
-  DCHECK_EQ(22, strlen(s_dial_uuid));
+  DCHECK_EQ(22, SbStringGetLength(s_dial_uuid));
 }
 
 }  // namespace net

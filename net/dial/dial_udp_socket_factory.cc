@@ -14,6 +14,7 @@
 
 #if defined(OS_STARBOARD)
 #include "starboard/common/socket.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {

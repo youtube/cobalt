@@ -12,6 +12,16 @@ namespace test {
 
 class QuicTestUtilsTest : public QuicTest {};
 
+TEST_F(QuicTestUtilsTest, ConnectionId) {
+  EXPECT_NE(EmptyQuicConnectionId(), TestConnectionId());
+  EXPECT_NE(EmptyQuicConnectionId(), TestConnectionId(1));
+  EXPECT_EQ(TestConnectionId(), TestConnectionId());
+  EXPECT_EQ(TestConnectionId(33), TestConnectionId(33));
+  EXPECT_NE(TestConnectionId(0xdead), TestConnectionId(0xbeef));
+  EXPECT_EQ(0x1337u, TestConnectionIdToUInt64(TestConnectionId(0x1337)));
+  EXPECT_NE(0xdeadu, TestConnectionIdToUInt64(TestConnectionId(0xbeef)));
+}
+
 TEST_F(QuicTestUtilsTest, BasicApproxEq) {
   ExpectApproxEq(10, 10, 1e-6f);
   ExpectApproxEq(1000, 1001, 0.01f);

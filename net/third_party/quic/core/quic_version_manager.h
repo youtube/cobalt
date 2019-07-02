@@ -13,6 +13,8 @@ namespace quic {
 // Used to generate filtered supported versions based on flags.
 class QUIC_EXPORT_PRIVATE QuicVersionManager {
  public:
+  // |supported_versions| should be sorted in the order of preference (typically
+  // highest supported version to the lowest supported version).
   explicit QuicVersionManager(ParsedQuicVersionVector supported_versions);
   virtual ~QuicVersionManager();
 
@@ -20,7 +22,8 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // TODO(nharper): Remove this method once it is unused.
   const QuicTransportVersionVector& GetSupportedTransportVersions();
 
-  // Returns currently supported QUIC versions.
+  // Returns currently supported QUIC versions. This vector has the same order
+  // as the versions passed to the constructor.
   const ParsedQuicVersionVector& GetSupportedVersions();
 
  protected:
@@ -35,16 +38,18 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   }
 
  private:
-  // FLAGS_quic_enable_version_99
+  // quic_enable_version_99 flag
   bool enable_version_99_;
-  // FLAGS_quic_reloadable_flag_quic_enable_version_45
-  bool enable_version_45_;
-  // FLAGS_quic_reloadable_flag_quic_enable_version_44
+  // quic_enable_version_47 flag
+  bool enable_version_47_;
+  // quic_enable_version_46 flag
+  bool enable_version_46_;
+  // quic_enable_version_44 flag
   bool enable_version_44_;
-  // FLAGS_quic_reloadable_flag_quic_enable_version_43
+  // quic_enable_version_43 flag
   bool enable_version_43_;
-  // FLAGS_quic_reloadable_flag_quic_disable_version_35
-  bool disable_version_35_;
+  // quic_disable_version_39 flag
+  bool disable_version_39_;
   // The list of versions that may be supported.
   ParsedQuicVersionVector allowed_supported_versions_;
   // This vector contains QUIC versions which are currently supported based on

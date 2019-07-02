@@ -146,7 +146,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   size_t minimum_size_;
 
   // The serialized form of the handshake message. This member is constructed
-  // lasily.
+  // lazily.
   mutable std::unique_ptr<QuicData> serialized_;
 };
 

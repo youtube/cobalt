@@ -4,8 +4,7 @@
 
 #include "net/third_party/quic/test_tools/crypto_test_utils.h"
 
-#include "net/test/gtest_util.h"
-#include "net/third_party/quic/core/crypto/crypto_server_config_protobuf.h"
+#include "net/third_party/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
@@ -59,10 +58,12 @@ class ShloVerifier {
           ValidateClientHelloResultCallback::Result>& result) {
     result_ = result;
     crypto_config_->ProcessClientHello(
-        result_, /*reject_only=*/false, /*connection_id=*/1, server_addr_,
-        client_addr_, AllSupportedVersions().front(), AllSupportedVersions(),
-        /*use_stateless_rejects=*/true, /*server_designated_connection_id=*/0,
-        clock_, QuicRandom::GetInstance(), compressed_certs_cache_, params_,
+        result_, /*reject_only=*/false,
+        /*connection_id=*/TestConnectionId(1), server_addr_, client_addr_,
+        AllSupportedVersions().front(), AllSupportedVersions(),
+        /*use_stateless_rejects=*/true,
+        /*server_designated_connection_id=*/TestConnectionId(2), clock_,
+        QuicRandom::GetInstance(), compressed_certs_cache_, params_,
         signed_config_, /*total_framing_overhead=*/50, kDefaultMaxPacketSize,
         GetProcessClientHelloCallback());
   }
@@ -108,13 +109,13 @@ class ShloVerifier {
 
 class CryptoTestUtilsTest : public QuicTest {};
 
-TEST(CryptoTestUtilsTest, TestGenerateFullCHLO) {
+TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   MockClock clock;
   QuicCryptoServerConfig crypto_config(
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
       crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default(),
       TlsServerHandshaker::CreateSslCtx());
-  QuicSocketAddress server_addr;
+  QuicSocketAddress server_addr(QuicIpAddress::Any4(), 5);
   QuicSocketAddress client_addr(QuicIpAddress::Loopback4(), 1);
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
       new QuicSignedServerConfig);
@@ -136,11 +137,8 @@ TEST(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   QuicStringPiece orbit;
   ASSERT_TRUE(msg->GetStringPiece(kORBT, &orbit));
   QuicString nonce;
-  CryptoUtils::GenerateNonce(
-      clock.WallNow(), QuicRandom::GetInstance(),
-      QuicStringPiece(reinterpret_cast<const char*>(orbit.data()),
-                      sizeof(orbit.size())),
-      &nonce);
+  CryptoUtils::GenerateNonce(clock.WallNow(), QuicRandom::GetInstance(), orbit,
+                             &nonce);
   QuicString nonce_hex = "#" + QuicTextUtils::HexEncode(nonce);
 
   char public_value[32];

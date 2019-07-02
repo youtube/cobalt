@@ -46,6 +46,10 @@ NET_EXPORT std::string EscapeNSURLPrecursor(base::StringPiece precursor);
 NET_EXPORT std::string EscapeUrlEncodedData(base::StringPiece path,
                                             bool use_plus);
 
+// QUIC46
+// Escapes all non-ASCII input, as well as escaping % to %25.
+NET_EXPORT std::string EscapeNonASCIIAndPercent(base::StringPiece input);
+
 // Escapes all non-ASCII input.
 NET_EXPORT std::string EscapeNonASCII(base::StringPiece input);
 

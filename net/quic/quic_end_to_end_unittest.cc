@@ -75,7 +75,7 @@ class TestTransactionFactory : public HttpTransactionFactory {
 
   HttpCache* GetCache() override { return nullptr; }
 
-  HttpNetworkSession* GetSession() override { return session_.get(); };
+  HttpNetworkSession* GetSession() override { return session_.get(); }
 
  private:
   std::unique_ptr<HttpNetworkSession> session_;
@@ -107,8 +107,13 @@ class QuicEndToEndTest : public ::testing::TestWithParam<TestParams>,
         cert_transparency_verifier_(new MultiLogCTVerifier()),
         ssl_config_service_(new SSLConfigServiceDefaults),
         proxy_resolution_service_(ProxyResolutionService::CreateDirect()),
+#if defined(COBALT_QUIC46)
+        // This is legacy m70 code.
         auth_handler_factory_(
             HttpAuthHandlerFactory::CreateDefault(&host_resolver_)),
+#else
+        auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault()),
+#endif
         strike_register_no_startup_period_(false) {
     request_.method = "GET";
     request_.url = GURL("https://test.example.com/");
@@ -157,8 +162,9 @@ class QuicEndToEndTest : public ::testing::TestWithParam<TestParams>,
 
     // Use a mapped host resolver so that request for test.example.com (port 80)
     // reach the server running on localhost.
-    std::string map_rule = "MAP test.example.com test.example.com:" +
-                           base::IntToString(server_->server_address().port());
+    std::string map_rule =
+        "MAP test.example.com test.example.com:" +
+        base::NumberToString(server_->server_address().port());
     EXPECT_TRUE(host_resolver_.AddRuleFromString(map_rule));
 
     // To simplify the test, and avoid the race with the HTTP request, we force
@@ -269,9 +275,9 @@ class QuicEndToEndTest : public ::testing::TestWithParam<TestParams>,
   bool strike_register_no_startup_period_;
 };
 
-INSTANTIATE_TEST_CASE_P(Tests,
-                        QuicEndToEndTest,
-                        ::testing::ValuesIn(GetTestParams()));
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicEndToEndTest,
+                         ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicEndToEndTest, LargeGetWithNoPacketLoss) {
   std::string response(10 * 1024, 'x');

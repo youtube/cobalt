@@ -9,6 +9,7 @@
 #include "net/third_party/quic/core/quic_connection.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_session.h"
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
@@ -22,31 +23,33 @@ namespace quic {
 
 QuicFlowController::QuicFlowController(
     QuicSession* session,
-    QuicConnection* connection,
     QuicStreamId id,
-    Perspective perspective,
+    bool is_connection_flow_controller,
     QuicStreamOffset send_window_offset,
     QuicStreamOffset receive_window_offset,
+    QuicByteCount receive_window_size_limit,
     bool should_auto_tune_receive_window,
     QuicFlowControllerInterface* session_flow_controller)
     : session_(session),
-      connection_(connection),
+      connection_(session->connection()),
       id_(id),
-      perspective_(perspective),
+      is_connection_flow_controller_(is_connection_flow_controller),
+      perspective_(session->perspective()),
       bytes_sent_(0),
       send_window_offset_(send_window_offset),
       bytes_consumed_(0),
       highest_received_byte_offset_(0),
       receive_window_offset_(receive_window_offset),
       receive_window_size_(receive_window_offset),
+      receive_window_size_limit_(receive_window_size_limit),
       auto_tune_receive_window_(should_auto_tune_receive_window),
       session_flow_controller_(session_flow_controller),
       last_blocked_send_window_offset_(0),
       prev_window_update_time_(QuicTime::Zero()) {
-  receive_window_size_limit_ = (id_ == kConnectionLevelId)
-                                   ? kSessionReceiveWindowLimit
-                                   : kStreamReceiveWindowLimit;
   DCHECK_LE(receive_window_size_, receive_window_size_limit_);
+  DCHECK_EQ(is_connection_flow_controller_,
+            QuicUtils::GetInvalidStreamId(
+                session_->connection()->transport_version()) == id_);
 
   QUIC_DVLOG(1) << ENDPOINT << "Created flow controller for stream " << id_
                 << ", setting initial receive window offset to: "
@@ -221,22 +224,23 @@ void QuicFlowController::UpdateReceiveWindowOffsetAndSendWindowUpdate(
   SendWindowUpdate();
 }
 
-void QuicFlowController::MaybeSendBlocked() {
-  if (SendWindowSize() == 0 &&
-      last_blocked_send_window_offset_ < send_window_offset_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id_
-                    << " is flow control blocked. "
-                    << "Send window: " << SendWindowSize()
-                    << ", bytes sent: " << bytes_sent_
-                    << ", send limit: " << send_window_offset_;
-    // The entire send_window has been consumed, we are now flow control
-    // blocked.
-    session_->SendBlocked(id_);
-
-    // Keep track of when we last sent a BLOCKED frame so that we only send one
-    // at a given send offset.
-    last_blocked_send_window_offset_ = send_window_offset_;
+bool QuicFlowController::ShouldSendBlocked() {
+  if (SendWindowSize() != 0 ||
+      last_blocked_send_window_offset_ >= send_window_offset_) {
+    return false;
   }
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id_
+                  << " is flow control blocked. "
+                  << "Send window: " << SendWindowSize()
+                  << ", bytes sent: " << bytes_sent_
+                  << ", send limit: " << send_window_offset_;
+  // The entire send_window has been consumed, we are now flow control
+  // blocked.
+
+  // Keep track of when we last sent a BLOCKED frame so that we only send one
+  // at a given send offset.
+  last_blocked_send_window_offset_ = send_window_offset_;
+  return true;
 }
 
 bool QuicFlowController::UpdateSendWindowOffset(
@@ -294,7 +298,11 @@ void QuicFlowController::UpdateReceiveWindowSize(QuicStreamOffset size) {
 }
 
 void QuicFlowController::SendWindowUpdate() {
-  session_->SendWindowUpdate(id_, receive_window_offset_);
+  QuicStreamId id = id_;
+  if (is_connection_flow_controller_) {
+    id = QuicUtils::GetInvalidStreamId(connection_->transport_version());
+  }
+  session_->SendWindowUpdate(id, receive_window_offset_);
 }
 
 }  // namespace quic

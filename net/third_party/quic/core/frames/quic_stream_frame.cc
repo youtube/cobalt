@@ -8,7 +8,8 @@
 
 namespace quic {
 
-QuicStreamFrame::QuicStreamFrame() : QuicStreamFrame(0, false, 0, nullptr, 0) {}
+QuicStreamFrame::QuicStreamFrame()
+    : QuicStreamFrame(-1, false, 0, nullptr, 0) {}
 
 QuicStreamFrame::QuicStreamFrame(QuicStreamId stream_id,
                                  bool fin,

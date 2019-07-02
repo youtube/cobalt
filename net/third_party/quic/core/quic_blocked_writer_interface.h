@@ -20,6 +20,8 @@ class QUIC_EXPORT_PRIVATE QuicBlockedWriterInterface {
   // Called by the PacketWriter when the underlying socket becomes writable
   // so that the BlockedWriter can go ahead and try writing.
   virtual void OnBlockedWriterCanWrite() = 0;
+
+  virtual bool IsWriterBlocked() const = 0;
 };
 
 }  // namespace quic
