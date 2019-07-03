@@ -613,7 +613,7 @@ SB_EXPORT bool SbSystemSupportsResume();
 // Since the header is used both above and below Starboard, it cannot include
 // any files from above Starboard. It may depend on Starboard headers. That
 // API struct has only 2 required fields which must be first: a const char*
-// |kName|, storing the extension name, and a uint64_t |kVersion| storing the
+// |name|, storing the extension name, and a uint32_t |version| storing the
 // version number of the extension. All other fields may be C types (including
 // custom structs) or function pointers. The application will query for the
 // function by name using SbSystemGetExtension, and the platform returns a
@@ -623,7 +623,7 @@ SB_EXPORT bool SbSystemSupportsResume();
 // the version of extensions are incremented, fields may be added to the end
 // of the struct, but never removed (only deprecated).
 
-SB_EXPORT void* SbSystemGetExtension(const char* name);
+SB_EXPORT const void* SbSystemGetExtension(const char* name);
 #endif  // SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
 
 #ifdef __cplusplus
