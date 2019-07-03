@@ -105,7 +105,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // When calling this, the |audio_source_provider| and
   // |audio_renderer_sink| arguments should be the same object.
 
-  WebMediaPlayerImpl(PipelineWindow window, WebMediaPlayerClient* client,
+  WebMediaPlayerImpl(PipelineWindow window,
+                     const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
+                         get_decode_target_graphics_context_provider_func,
+                     WebMediaPlayerClient* client,
                      WebMediaPlayerDelegate* delegate,
                      DecoderBuffer::Allocator* buffer_allocator,
                      bool allow_resume_after_suspend,

@@ -81,6 +81,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbPlayerPipeline(
       PipelineWindow window,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, MediaLog* media_log,
       VideoFrameProvider* video_frame_provider);
   ~SbPlayerPipeline() override;
@@ -189,6 +191,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // dtor and accesed once by SbPlayerCreate().
   PipelineWindow window_;
 
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  const GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
+
   // Lock used to serialize access for the following member variables.
   mutable base::Lock lock_;
 
@@ -292,11 +298,15 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 SbPlayerPipeline::SbPlayerPipeline(
     PipelineWindow window,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     VideoFrameProvider* video_frame_provider)
-    : window_(window),
-      task_runner_(task_runner),
+    : task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
+      window_(window),
+      get_decode_target_graphics_context_provider_func_(
+          get_decode_target_graphics_context_provider_func),
       natural_size_(0, 0),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       video_frame_provider_(video_frame_provider) {
@@ -899,7 +909,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   {
     base::AutoLock auto_lock(lock_);
     player_.reset(new StarboardPlayer(
-        task_runner_, audio_config, video_config, window_, drm_system, this,
+        task_runner_, get_decode_target_graphics_context_provider_func_,
+        audio_config, video_config, window_, drm_system, this,
         set_bounds_helper_.get(), allow_resume_after_suspend_,
         *decode_to_texture_output_mode_, video_frame_provider_,
         max_video_capabilities_));
@@ -1335,10 +1346,13 @@ void SbPlayerPipeline::ResumeTask(base::WaitableEvent* done_event) {
 scoped_refptr<Pipeline> Pipeline::Create(
     PipelineWindow window,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     VideoFrameProvider* video_frame_provider) {
-  return new SbPlayerPipeline(window, task_runner, allow_resume_after_suspend,
-                              media_log, video_frame_provider);
+  return new SbPlayerPipeline(
+      window, task_runner, get_decode_target_graphics_context_provider_func,
+      allow_resume_after_suspend, media_log, video_frame_provider);
 }
 
 }  // namespace media
