@@ -27,12 +27,12 @@ extern "C" {
   "dev.cobalt.extension.Graphics"
 
 typedef struct CobaltExtensionGraphicsApi {
-  // The name should be set to a string equal to kCobaltExtensionGraphicsName.
+  // Name should be the string kCobaltExtensionGraphicsName.
   // This helps to validate that the extension API is correct.
   const char* name;
 
   // This specifies the version of the API that is implemented.
-  uint64_t version;
+  uint32_t version;
 
   // The fields below this point were added in version 1 or later.
 

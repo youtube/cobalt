@@ -136,6 +136,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'cssom_test',
         'dom_parser_test',
         'dom_test',
+        'extension_test',
         'layout_test',
         'layout_tests',
         'loader_test',

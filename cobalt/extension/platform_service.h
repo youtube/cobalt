@@ -46,9 +46,12 @@ typedef void (*ReceiveMessageCallback)(void* context, void* data,
                                        uint64_t length);
 
 typedef struct CobaltExtensionPlatformServiceApi {
-  // This name will be "dev.cobalt.extensions.PlatformService".
-  const char* kName;
-  uint64_t kVersion;
+  // Name should be the string kCobaltExtensionPlatformServiceName.
+  // This helps to validate that the extension API is correct.
+  const char* name;
+
+  // This specifies the version of the API that is implemented.
+  uint32_t version;
 
   // The fields below this point were added in version 1 or later.
 
