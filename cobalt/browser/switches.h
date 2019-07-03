@@ -24,8 +24,6 @@ namespace browser {
 namespace switches {
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-extern const char kAudioDecoderStub[];
-extern const char kAudioDecoderStubHelp[];
 extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
 
@@ -46,8 +44,6 @@ extern const char kDisableSplashScreenOnReloads[];
 extern const char kDisableSplashScreenOnReloadsHelp[];
 extern const char kDisableWebDriver[];
 extern const char kDisableWebDriverHelp[];
-extern const char kDisableWebmVp9[];
-extern const char kDisableWebmVp9Help[];
 extern const char kExtraWebFileDir[];
 extern const char kExtraWebFileDirHelp[];
 extern const char kFakeMicrophone[];
@@ -62,8 +58,6 @@ extern const char kMinCompatibilityVersion[];
 extern const char kMinCompatibilityVersionHelp[];
 extern const char kMinLogLevel[];
 extern const char kMinLogLevelHelp[];
-extern const char kNullAudioStreamer[];
-extern const char kNullAudioStreamerHelp[];
 extern const char kNullSavegame[];
 extern const char kNullSavegameHelp[];
 extern const char kDisablePartialLayout[];
@@ -86,8 +80,6 @@ extern const char kUserAgentOsNameVersion[];
 extern const char kUserAgentOsNameVersionHelp[];
 extern const char kUseTTS[];
 extern const char kUseTTSHelp[];
-extern const char kVideoDecoderStub[];
-extern const char kVideoDecoderStubHelp[];
 extern const char kWebDriverListenIp[];
 extern const char kWebDriverListenIpHelp[];
 extern const char kWebDriverPort[];

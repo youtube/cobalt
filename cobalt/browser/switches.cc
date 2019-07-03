@@ -23,10 +23,6 @@ namespace switches {
 // message needs to be inserted to the help_map manually.
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-const char kAudioDecoderStub[] = "audio_decoder_stub";
-const char kAudioDecoderStubHelp[] =
-    "Decode audio data using ShellRawAudioDecoderStub.";
-
 const char kDebugConsoleMode[] = "debug_console";
 const char kDebugConsoleModeHelp[] =
     "Switches different debug console modes: on | hud | off";
@@ -78,9 +74,6 @@ const char kDisableSplashScreenOnReloadsHelp[] =
 const char kDisableWebDriver[] = "disable_webdriver";
 const char kDisableWebDriverHelp[] = "Do not create the WebDriver server.";
 
-const char kDisableWebmVp9[] = "disable_webm_vp9";
-const char kDisableWebmVp9Help[] = "Disable webm/vp9.";
-
 const char kExtraWebFileDir[] = "web_file_path";
 const char kExtraWebFileDirHelp[] =
     "Additional base directory for accessing web files via file://.";
@@ -111,11 +104,6 @@ const char kMinCompatibilityVersionHelp[] =
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
     "Set the minimum logging level: info|warning|error|fatal.";
-
-const char kNullAudioStreamer[] = "null_audio_streamer";
-const char kNullAudioStreamerHelp[] =
-    "Use the NullAudioStreamer. Audio will be decoded but will not play back. "
-    "No audio output library will be initialized or used.";
 
 const char kNullSavegame[] = "null_savegame";
 const char kNullSavegameHelp[] =
@@ -184,10 +172,6 @@ const char kUseTTSHelp[] =
     "Enable text-to-speech functionality, for platforms that implement the "
     "speech synthesis API. If the platform doesn't have speech synthesis, "
     "TTSLogger will be used instead.";
-
-extern const char kVideoDecoderStub[] = "video_decoder_stub";
-extern const char kVideoDecoderStubHelp[] =
-    "Decode video data using ShellRawVideoDecoderStub.";
 
 const char kWebDriverListenIp[] = "webdriver_listen_ip";
 const char kWebDriverListenIpHelp[] =
@@ -384,8 +368,7 @@ std::string HelpMessage() {
   std::string help_message;
   std::map<const char*, const char*> help_map {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-    {kAudioDecoderStub, kAudioDecoderStubHelp},
-        {kDebugConsoleMode, kDebugConsoleModeHelp},
+    {kDebugConsoleMode, kDebugConsoleModeHelp},
 #if defined(ENABLE_DEBUGGER)
         {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
 #endif  // ENABLE_DEBUGGER
@@ -395,15 +378,12 @@ std::string HelpMessage() {
         {kDisableSignIn, kDisableSignInHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
         {kDisableWebDriver, kDisableWebDriverHelp},
-        {kDisableWebmVp9, kDisableWebmVp9Help},
         {kExtraWebFileDir, kExtraWebFileDirHelp},
         {kFakeMicrophone, kFakeMicrophoneHelp},
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
         {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
-        {kMinLogLevel, kMinLogLevelHelp},
-        {kNullAudioStreamer, kNullAudioStreamerHelp},
-        {kNullSavegame, kNullSavegameHelp},
+        {kMinLogLevel, kMinLogLevelHelp}, {kNullSavegame, kNullSavegameHelp},
         {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
         {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
         {kRequireCSP, kRequireCSPHelp},
@@ -413,8 +393,7 @@ std::string HelpMessage() {
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
         {kUserAgent, kUserAgentHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
-        {kUseTTS, kUseTTSHelp}, {kVideoDecoderStub, kVideoDecoderStubHelp},
-        {kWebDriverListenIp, kWebDriverListenIpHelp},
+        {kUseTTS, kUseTTSHelp}, {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},
 #if SB_HAS(ON_SCREEN_KEYBOARD)
         {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},

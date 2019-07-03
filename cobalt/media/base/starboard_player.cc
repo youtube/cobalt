@@ -22,7 +22,6 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
-#include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
@@ -117,6 +116,8 @@ StarboardPlayer::StarboardPlayer(
 
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func,
     const AudioDecoderConfig& audio_config,
     const VideoDecoderConfig& video_config, SbWindow window,
     SbDrmSystem drm_system, Host* host,
@@ -125,15 +126,17 @@ StarboardPlayer::StarboardPlayer(
     VideoFrameProvider* const video_frame_provider,
     const std::string& max_video_capabilities)
     : task_runner_(task_runner),
+      get_decode_target_graphics_context_provider_func_(
+          get_decode_target_graphics_context_provider_func),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
-      audio_config_(audio_config),
-      video_config_(video_config),
       window_(window),
       drm_system_(drm_system),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
       allow_resume_after_suspend_(allow_resume_after_suspend),
+      audio_config_(audio_config),
+      video_config_(video_config),
       video_frame_provider_(video_frame_provider),
       max_video_capabilities_(max_video_capabilities)
 #if SB_HAS(PLAYER_WITH_URL)
@@ -141,6 +144,7 @@ StarboardPlayer::StarboardPlayer(
       is_url_based_(false)
 #endif  // SB_HAS(PLAYER_WITH_URL)
 {
+  DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
@@ -549,8 +553,7 @@ void StarboardPlayer::CreatePlayer() {
       &StarboardPlayer::PlayerErrorCB,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       this, output_mode_,
-      ShellMediaPlatform::Instance()
-          ->GetSbDecodeTargetGraphicsContextProvider());
+      get_decode_target_graphics_context_provider_func_.Run());
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

@@ -107,8 +107,10 @@ typedef base::Callback<void(const std::string&, const std::string&,
     OnNeedKeyCB;
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
-    PipelineWindow window, WebMediaPlayerClient* client,
-    WebMediaPlayerDelegate* delegate,
+    PipelineWindow window,
+    const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func,
+    WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     DecoderBuffer::Allocator* buffer_allocator, bool allow_resume_after_suspend,
     const scoped_refptr<MediaLog>& media_log)
     : pipeline_thread_("media_pipeline"),
@@ -140,6 +142,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   pipeline_thread_.Start();
   pipeline_ = Pipeline::Create(window, pipeline_thread_.task_runner(),
+                               get_decode_target_graphics_context_provider_func,
                                allow_resume_after_suspend_, media_log_.get(),
                                video_frame_provider_.get());
 
