@@ -37,8 +37,8 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
   auto* global_environment = dom_settings->global_environment();
   DCHECK(global_environment);
 
-  ExtPlatformServiceApi* platform_service_api =
-      static_cast<ExtPlatformServiceApi*>(
+  const ExtPlatformServiceApi* platform_service_api =
+      static_cast<const ExtPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
   if (!platform_service_api) {
     SB_DLOG(WARNING) << "PlatformService is not implemented on this platform.";
@@ -61,7 +61,7 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
 
 H5vccPlatformService::H5vccPlatformService(
     script::GlobalEnvironment* environment,
-    ExtPlatformServiceApi* platform_service_api,
+    const ExtPlatformServiceApi* platform_service_api,
     const ReceiveCallbackArg& receive_callback)
     : environment_(environment),
       platform_service_api_(platform_service_api),
@@ -88,8 +88,8 @@ bool H5vccPlatformService::Has(const std::string& service_name) {
       << "PlatformService not implemented in this version of Starboard.";
   return false;
 #else   // SB_API_VERSION < SB_EXTENSIONS_API_VERSION
-  ExtPlatformServiceApi* platform_service_api =
-      static_cast<ExtPlatformServiceApi*>(
+  const ExtPlatformServiceApi* platform_service_api =
+      static_cast<const ExtPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
   if (!platform_service_api) {
     DLOG(WARNING) << "PlatformService is not implemented on this platform.";
