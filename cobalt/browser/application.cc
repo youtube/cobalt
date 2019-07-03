@@ -679,22 +679,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   EnableUsingStubImageDecoderIfRequired();
 
-  if (command_line->HasSwitch(browser::switches::kDisableWebmVp9)) {
-    DLOG(INFO) << "Webm/Vp9 disabled";
-    options.media_module_options.disable_webm_vp9 = true;
-  }
-  if (command_line->HasSwitch(switches::kAudioDecoderStub)) {
-    DLOG(INFO) << "Use ShellRawAudioDecoderStub";
-    options.media_module_options.use_audio_decoder_stub = true;
-  }
-  if (command_line->HasSwitch(switches::kNullAudioStreamer)) {
-    DLOG(INFO) << "Use null audio";
-    options.media_module_options.use_null_audio_streamer = true;
-  }
-  if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
-    DLOG(INFO) << "Use ShellRawVideoDecoderStub";
-    options.media_module_options.use_video_decoder_stub = true;
-  }
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);

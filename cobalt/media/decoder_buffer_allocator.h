@@ -45,8 +45,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   Allocations Allocate(size_t size, size_t alignment,
                        intptr_t context) override;
   void Free(Allocations allocations) override;
-
-  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config) override;
 
  private:
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10

@@ -18,11 +18,48 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/synchronization/waitable_event.h"
+#include "cobalt/media/base/media_log.h"
+#include "nb/memory_scope.h"
+#include "starboard/common/string.h"
+#include "starboard/media.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace media {
 
 namespace {
+
+class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
+ public:
+  std::string CanPlayType(bool is_progressive, const std::string& mime_type,
+                          const std::string& key_system) override {
+    if (is_progressive) {
+      // |mime_type| is something like:
+      //   video/mp4
+      //   video/webm
+      //   video/mp4; codecs="avc1.4d401e"
+      //   video/webm; codecs="vp9"
+      // We do a rough pre-filter to ensure that only video/mp4 is supported as
+      // progressive.
+      if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0 &&
+          SbStringFindString(mime_type.c_str(), "application/x-mpegURL") == 0) {
+        return "";
+      }
+    }
+    SbMediaSupportType type =
+        SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
+    switch (type) {
+      case kSbMediaSupportTypeNotSupported:
+        return "";
+      case kSbMediaSupportTypeMaybe:
+        return "maybe";
+      case kSbMediaSupportTypeProbably:
+        return "probably";
+    }
+    NOTREACHED();
+    return "";
+  }
+};
 
 void RunClosureAndSignal(const base::Closure& closure,
                          base::WaitableEvent* event) {
@@ -31,40 +68,55 @@ void RunClosureAndSignal(const base::Closure& closure,
 }
 
 void RunClosureOnMessageLoopAndWait(
-    const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const base::Closure& closure) {
   base::WaitableEvent waitable_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
-  message_loop->PostTask(
+  task_runner->PostTask(
       FROM_HERE, base::Bind(&RunClosureAndSignal, closure, &waitable_event));
   waitable_event.Wait();
 }
 
 }  // namespace
 
+std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
+    WebMediaPlayerClient* client) {
+  TRACK_MEMORY_SCOPE("Media");
+  SbWindow window = kSbWindowInvalid;
+  if (system_window_) {
+    window = system_window_->GetSbWindow();
+  }
+  return std::unique_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
+      window,
+      base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
+                 base::Unretained(this)),
+      client, this, &decoder_buffer_allocator_,
+      options_.allow_resume_after_suspend, new media::MediaLog));
+}
+
 void MediaModule::Suspend() {
   RunClosureOnMessageLoopAndWait(
-      message_loop_,
+      task_runner_,
       base::Bind(&MediaModule::SuspendTask, base::Unretained(this)));
-  OnSuspend();
+  resource_provider_ = NULL;
 }
 
 void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
-  OnResume(resource_provider);
+  resource_provider_ = resource_provider;
   RunClosureOnMessageLoopAndWait(
-      message_loop_,
+      task_runner_,
       base::Bind(&MediaModule::ResumeTask, base::Unretained(this)));
 }
 
 void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
-  RunClosureOnMessageLoopAndWait(message_loop_,
+  RunClosureOnMessageLoopAndWait(task_runner_,
                                  base::Bind(&MediaModule::RegisterPlayerTask,
                                             base::Unretained(this), player));
 }
 
 void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
-  RunClosureOnMessageLoopAndWait(message_loop_,
+  RunClosureOnMessageLoopAndWait(task_runner_,
                                  base::Bind(&MediaModule::UnregisterPlayerTask,
                                             base::Unretained(this), player));
 }
@@ -85,7 +137,7 @@ void MediaModule::DeregisterDebugState() {
 }
 
 void MediaModule::SuspendTask() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   suspended_ = true;
 
@@ -99,7 +151,7 @@ void MediaModule::SuspendTask() {
 }
 
 void MediaModule::ResumeTask() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   for (Players::iterator iter = players_.begin(); iter != players_.end();
        ++iter) {
@@ -113,7 +165,7 @@ void MediaModule::ResumeTask() {
 }
 
 void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   DCHECK(players_.find(player) == players_.end());
   players_.insert(std::make_pair(player, false));
@@ -127,7 +179,7 @@ void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
 }
 
 void MediaModule::UnregisterPlayerTask(WebMediaPlayer* player) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(task_runner_->BelongsToCurrentThread());
 
   DCHECK(players_.find(player) != players_.end());
   players_.erase(players_.find(player));
@@ -137,6 +189,10 @@ void MediaModule::UnregisterPlayerTask(WebMediaPlayer* player) {
   } else {
     RegisterDebugState(players_.begin()->first);
   }
+}
+
+std::unique_ptr<CanPlayTypeHandler> MediaModule::CreateCanPlayTypeHandler() {
+  return std::unique_ptr<CanPlayTypeHandler>(new CanPlayTypeHandlerStarboard);
 }
 
 }  // namespace media

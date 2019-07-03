@@ -56,12 +56,16 @@ class StarboardPlayer {
     ~Host() {}
   };
 
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
+      GetDecodeTargetGraphicsContextProviderFunc;
+
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
   // Create a StarboardPlayer with url-based player.
   StarboardPlayer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const std::string& url, SbWindow window, Host* host,
       SbPlayerSetBoundsHelper* set_bounds_helper,
       bool allow_resume_after_suspend, bool prefer_decode_to_texture,
@@ -71,7 +75,9 @@ class StarboardPlayer {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a StarboardPlayer with normal player
   StarboardPlayer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func,
       const AudioDecoderConfig& audio_config,
       const VideoDecoderConfig& video_config, SbWindow window,
       SbDrmSystem drm_system, Host* host,
@@ -122,7 +128,7 @@ class StarboardPlayer {
     kResuming,
   };
 
-  // This class ensures that the callbacks posted to |message_loop_| are ignored
+  // This class ensures that the callbacks posted to |task_runner_| are ignored
   // automatically once StarboardPlayer is destroyed.
   class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
    public:
@@ -213,6 +219,8 @@ class StarboardPlayer {
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  const GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
   scoped_refptr<CallbackHelper> callback_helper_;
   const SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
@@ -222,7 +230,7 @@ class StarboardPlayer {
   const bool allow_resume_after_suspend_;
 
   // The following variables are only changed or accessed from the
-  // |message_loop_|.
+  // |task_runner_|.
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   SbMediaAudioSampleInfo audio_sample_info_ = {};
