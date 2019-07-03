@@ -19,7 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-void* SbSystemGetExtension(const char* name) {
+const void* SbSystemGetExtension(const char* name) {
   if (SbStringCompareAll(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::android::shared::GetPlatformServiceApi();
   }

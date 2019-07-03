@@ -14,6 +14,6 @@
 
 #include "starboard/system.h"
 
-void* SbSystemGetExtension(const char*) {
+const void* SbSystemGetExtension(const char*) {
   return NULL;
 }
