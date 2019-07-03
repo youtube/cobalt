@@ -43,7 +43,7 @@ class H5vccPlatformService : public script::Wrappable {
   using ReceiveCallbackReference = ReceiveCallbackArg::Reference;
 
   H5vccPlatformService(script::GlobalEnvironment* environment,
-                       ExtPlatformServiceApi* platform_service_api,
+                       const ExtPlatformServiceApi* platform_service_api,
                        const ReceiveCallbackArg& receive_callback);
 
   ~H5vccPlatformService();
@@ -72,7 +72,7 @@ class H5vccPlatformService : public script::Wrappable {
   bool IsOpen();
 
   script::GlobalEnvironment* environment_;
-  ExtPlatformServiceApi* platform_service_api_;
+  const ExtPlatformServiceApi* platform_service_api_;
   const ReceiveCallbackReference receive_callback_;
   // The main message loop.
   scoped_refptr<base::SingleThreadTaskRunner> const main_message_loop_;
