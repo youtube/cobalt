@@ -58,6 +58,10 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // no punch through box should be rendered.
   typedef base::Callback<bool(const gfx::Rect&)> SetBoundsCB;
 
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
+      GetDecodeTargetGraphicsContextProviderFunc;
+
   // Buffering states the pipeline transitions between during playback.
   // kHaveMetadata:
   //   Indicates that the following things are known:
@@ -79,7 +83,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   static scoped_refptr<Pipeline> Create(
       PipelineWindow window,
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, MediaLog* media_log,
       VideoFrameProvider* video_frame_provider);
 

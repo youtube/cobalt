@@ -1576,9 +1576,9 @@ void BrowserModule::InitializeSystemWindow() {
   options_.media_module_options.allow_resume_after_suspend =
       SbSystemSupportsResume();
 #endif  // SB_API_VERSION >= 10
-  media_module_ =
-      media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
-                                 options_.media_module_options);
+  media_module_.reset(new media::MediaModule(system_window_.get(),
+                                             GetResourceProvider(),
+                                             options_.media_module_options));
 
   if (web_module_) {
     web_module_->SetCamera3D(input_device_manager_->camera_3d());

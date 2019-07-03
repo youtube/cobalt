@@ -25,7 +25,6 @@
         'fetcher_buffered_data_source.h',
         'media_module.cc',
         'media_module.h',
-        'media_module_starboard.cc',
 
         'base/audio_codecs.cc',
         'base/audio_codecs.h',
@@ -88,8 +87,6 @@
         'base/shell_audio_bus.h',
         'base/shell_data_source_reader.cc',
         'base/shell_data_source_reader.h',
-        'base/shell_media_platform.cc',
-        'base/shell_media_platform.h',
         'base/starboard_player.cc',
         'base/starboard_player.h',
         'base/starboard_utils.cc',
