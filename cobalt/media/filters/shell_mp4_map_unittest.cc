@@ -22,36 +22,34 @@
 #include <sstream>
 #include <vector>
 
+#include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/base/mock_shell_data_source_reader.h"
-#include "cobalt/media/base/shell_buffer_factory.h"
 #include "cobalt/media/filters/shell_mp4_parser.h"
-#include "lb_platform.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::LB::Platform::load_uint32_big_endian;
-using ::LB::Platform::store_uint32_big_endian;
-using ::LB::Platform::store_uint64_big_endian;
+using cobalt::media::endian_util::load_uint32_big_endian;
+using cobalt::media::endian_util::store_uint32_big_endian;
+using cobalt::media::endian_util::store_uint64_big_endian;
 
-using ::media::kAtomType_co64;
-using ::media::kAtomType_ctts;
-using ::media::kAtomType_stco;
-using ::media::kAtomType_stsc;
-using ::media::kAtomType_stss;
-using ::media::kAtomType_stsz;
-using ::media::kAtomType_stts;
-using ::media::kEntrySize_co64;
-using ::media::kEntrySize_ctts;
-using ::media::kEntrySize_stco;
-using ::media::kEntrySize_stsc;
-using ::media::kEntrySize_stss;
-using ::media::kEntrySize_stsz;
-using ::media::kEntrySize_stts;
-using ::media::MockShellDataSourceReader;
-using ::media::ShellBufferFactory;
-using ::media::ShellMP4Map;
+using cobalt::media::kAtomType_co64;
+using cobalt::media::kAtomType_ctts;
+using cobalt::media::kAtomType_stco;
+using cobalt::media::kAtomType_stsc;
+using cobalt::media::kAtomType_stss;
+using cobalt::media::kAtomType_stsz;
+using cobalt::media::kAtomType_stts;
+using cobalt::media::kEntrySize_co64;
+using cobalt::media::kEntrySize_ctts;
+using cobalt::media::kEntrySize_stco;
+using cobalt::media::kEntrySize_stsc;
+using cobalt::media::kEntrySize_stss;
+using cobalt::media::kEntrySize_stsz;
+using cobalt::media::kEntrySize_stts;
+using cobalt::media::MockShellDataSourceReader;
+using cobalt::media::ShellMP4Map;
 
 using ::testing::_;
 using ::testing::AllOf;
@@ -408,9 +406,6 @@ class SampleTable {
 class ShellMP4MapTest : public testing::Test {
  protected:
   ShellMP4MapTest() {
-    // we create and destroy buffer factory after each test to detect any
-    // leaked reference-counted objects or pending callbacks
-    ShellBufferFactory::Initialize();
     // make a new mock reader
     reader_ = new ::testing::NiceMock<MockShellDataSourceReader>();
     // make a new map with a mock reader.
@@ -418,15 +413,12 @@ class ShellMP4MapTest : public testing::Test {
   }
 
   virtual ~ShellMP4MapTest() {
-    // wipe out the map or ShellBufferFactory may complain of unfreed allocs
     DCHECK(map_->HasOneRef());
     map_ = NULL;
 
-    reader_->Stop(base::Closure());
+    reader_->Stop();
     DCHECK(reader_->HasOneRef());
     reader_ = NULL;
-
-    ShellBufferFactory::Terminate();
   }
 
   void ResetMap() { map_ = new ShellMP4Map(reader_); }
@@ -486,12 +478,12 @@ TEST_F(ShellMP4MapTest, GetSizeWithDefaultSize) {
     SetTestTable(kAtomType_stsz, i);
 
     uint32 returned_size;
-    ASSERT_TRUE(map_->GetSize(0, returned_size));
+    ASSERT_TRUE(map_->GetSize(0, &returned_size));
     ASSERT_EQ(returned_size, 0xb0df00d);
-    ASSERT_FALSE(map_->GetSize(2000, returned_size));
-    ASSERT_TRUE(map_->GetSize(2, returned_size));
+    ASSERT_FALSE(map_->GetSize(2000, &returned_size));
+    ASSERT_TRUE(map_->GetSize(2, &returned_size));
     ASSERT_EQ(returned_size, 0xb0df00d);
-    ASSERT_TRUE(map_->GetSize(120, returned_size));
+    ASSERT_TRUE(map_->GetSize(120, &returned_size));
     ASSERT_EQ(returned_size, 0xb0df00d);
   }
 
@@ -509,7 +501,7 @@ TEST_F(ShellMP4MapTest, GetSizeIterationWithHugeCache) {
 
       for (uint32 j = 0; j < sample_table_->sample_count(); j++) {
         uint32 map_reported_size = 0;
-        ASSERT_TRUE(map_->GetSize(j, map_reported_size));
+        ASSERT_TRUE(map_->GetSize(j, &map_reported_size));
         uint32 table_size = GetTestSample(j).size;
         // reported size should match table size
         ASSERT_EQ(map_reported_size, table_size);
@@ -517,7 +509,7 @@ TEST_F(ShellMP4MapTest, GetSizeIterationWithHugeCache) {
 
       // call to a sample past the size of the table should fail
       uint32 failed_size = 0;
-      ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(), failed_size));
+      ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(), &failed_size));
       ASSERT_LE(sample_table_->read_count(), 1);
       ASSERT_LE(sample_table_->read_bytes(),
                 sample_table_->GetBoxSize(kAtomType_stsz));
@@ -535,7 +527,7 @@ TEST_F(ShellMP4MapTest, GetSizeIterationTinyCache) {
       sample_table_->ClearReadStatistics();
       for (uint32 j = 0; j < sample_table_->sample_count(); j++) {
         uint32 map_reported_size = 0;
-        ASSERT_TRUE(map_->GetSize(j, map_reported_size));
+        ASSERT_TRUE(map_->GetSize(j, &map_reported_size));
         uint32 table_size = GetTestSample(j).size;
         ASSERT_EQ(map_reported_size, table_size);
       }
@@ -546,7 +538,7 @@ TEST_F(ShellMP4MapTest, GetSizeIterationTinyCache) {
                   (i + 1) * kEntrySize_stsz);
       // call to sample past the table size should still faile
       uint32 failed_size = 0;
-      ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(), failed_size));
+      ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(), &failed_size));
     }
   }
 }
@@ -559,7 +551,7 @@ TEST_F(ShellMP4MapTest, GetSizeRandomAccess) {
     sample_table_->ClearReadStatistics();
     // test first sample query somewhere later in the table, sample 105
     uint32 map_reported_size = 0;
-    ASSERT_TRUE(map_->GetSize(i * 4 + 5, map_reported_size));
+    ASSERT_TRUE(map_->GetSize(i * 4 + 5, &map_reported_size));
     uint32 table_size = GetTestSample(i * 4 + 5).size;
     ASSERT_EQ(map_reported_size, table_size);
     ASSERT_EQ(sample_table_->read_count(), 1);
@@ -567,7 +559,7 @@ TEST_F(ShellMP4MapTest, GetSizeRandomAccess) {
 
     // now jump back to sample 0
     sample_table_->ClearReadStatistics();
-    ASSERT_TRUE(map_->GetSize(0, map_reported_size));
+    ASSERT_TRUE(map_->GetSize(0, &map_reported_size));
     table_size = GetTestSample(0).size;
     ASSERT_EQ(map_reported_size, table_size);
     ASSERT_EQ(sample_table_->read_count(), 1);
@@ -576,23 +568,23 @@ TEST_F(ShellMP4MapTest, GetSizeRandomAccess) {
     // now seek well past the end, this query should fail but not break
     // subsequent queries or issue a recache
     ASSERT_FALSE(
-        map_->GetSize(sample_table_->sample_count(), map_reported_size));
+        map_->GetSize(sample_table_->sample_count(), &map_reported_size));
 
     // a query back within the first table should not cause recache
-    ASSERT_TRUE(map_->GetSize(10, map_reported_size));
+    ASSERT_TRUE(map_->GetSize(10, &map_reported_size));
     table_size = GetTestSample(10).size;
     ASSERT_EQ(map_reported_size, table_size);
 
     // check sample queries right on cache boundaries out-of-order
     sample_table_->ClearReadStatistics();
-    ASSERT_TRUE(map_->GetSize(2 * i, map_reported_size));
+    ASSERT_TRUE(map_->GetSize(2 * i, &map_reported_size));
     table_size = GetTestSample(2 * i).size;
     ASSERT_EQ(map_reported_size, table_size);
     ASSERT_EQ(sample_table_->read_count(), 1);
-    ASSERT_TRUE(map_->GetSize(2 * i - 1, map_reported_size));
+    ASSERT_TRUE(map_->GetSize(2 * i - 1, &map_reported_size));
     table_size = GetTestSample(2 * i - 1).size;
     ASSERT_EQ(map_reported_size, table_size);
-    ASSERT_TRUE(map_->GetSize(2 * i - 2, map_reported_size));
+    ASSERT_TRUE(map_->GetSize(2 * i - 2, &map_reported_size));
     table_size = GetTestSample(2 * i - 2).size;
     ASSERT_EQ(map_reported_size, table_size);
     ASSERT_EQ(sample_table_->read_count(), 2);
@@ -613,14 +605,15 @@ TEST_F(ShellMP4MapTest, GetOffsetIterationHugeCache) {
     // no expectations on reader_, all tables should now be in memory
     for (uint32 i = 0; i < sample_table_->sample_count(); ++i) {
       uint64 map_reported_offset = 0;
-      ASSERT_TRUE(map_->GetOffset(i, map_reported_offset));
+      ASSERT_TRUE(map_->GetOffset(i, &map_reported_offset));
       uint64 table_offset = GetTestSample(i).offset;
       ASSERT_EQ(map_reported_offset, table_offset);
     }
 
     // calls to sample numbers outside file range should fail non-fatally
     uint64 failed_offset;
-    ASSERT_FALSE(map_->GetOffset(sample_table_->sample_count(), failed_offset));
+    ASSERT_FALSE(
+        map_->GetOffset(sample_table_->sample_count(), &failed_offset));
   }
 }
 
@@ -636,7 +629,7 @@ TEST_F(ShellMP4MapTest, GetOffsetIterationTinyCache) {
       // iterate through all samples in range
       for (uint32 j = 0; j < sample_table_->sample_count(); j += 2) {
         uint64 map_reported_offset = 0;
-        ASSERT_TRUE(map_->GetOffset(j, map_reported_offset));
+        ASSERT_TRUE(map_->GetOffset(j, &map_reported_offset));
         uint64 table_offset = GetTestSample(j).offset;
         ASSERT_EQ(map_reported_offset, table_offset);
       }
@@ -644,7 +637,7 @@ TEST_F(ShellMP4MapTest, GetOffsetIterationTinyCache) {
       // calls to sample numbers outside file range should fail non-fatally
       uint64 failed_offset;
       ASSERT_FALSE(
-          map_->GetOffset(sample_table_->sample_count(), failed_offset));
+          map_->GetOffset(sample_table_->sample_count(), &failed_offset));
     }
   }
 }
@@ -662,7 +655,7 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessHugeCache) {
     for (int i = 0; i < 1000; ++i) {
       uint32 sample_number = rand() % sample_table_->sample_count();
       uint64 map_reported_offset = 0;
-      ASSERT_TRUE(map_->GetOffset(sample_number, map_reported_offset));
+      ASSERT_TRUE(map_->GetOffset(sample_number, &map_reported_offset));
       uint64 table_offset = GetTestSample(sample_number).offset;
       ASSERT_EQ(map_reported_offset, table_offset);
     }
@@ -681,12 +674,13 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessTinyCache) {
 
     // calls to sample numbers outside file range should fail non-fatally
     uint64 failed_offset;
-    ASSERT_FALSE(map_->GetOffset(sample_table_->sample_count(), failed_offset));
+    ASSERT_FALSE(
+        map_->GetOffset(sample_table_->sample_count(), &failed_offset));
 
     // second sample in the file
     uint32 sample_number = 1;
     uint64 map_reported_offset = 0;
-    ASSERT_TRUE(map_->GetOffset(sample_number, map_reported_offset));
+    ASSERT_TRUE(map_->GetOffset(sample_number, &map_reported_offset));
     uint64 table_offset = GetTestSample(sample_number).offset;
     ASSERT_EQ(map_reported_offset, table_offset);
 
@@ -697,26 +691,26 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessTinyCache) {
       SetTestTable(kAtomType_stco, 7);
 
       sample_number = sample_table_->sample_count() - i;
-      ASSERT_TRUE(map_->GetOffset(sample_number, map_reported_offset));
+      ASSERT_TRUE(map_->GetOffset(sample_number, &map_reported_offset));
       table_offset = GetTestSample(sample_number).offset;
       ASSERT_EQ(map_reported_offset, table_offset);
 
       sample_number--;
-      ASSERT_TRUE(map_->GetOffset(sample_number, map_reported_offset));
+      ASSERT_TRUE(map_->GetOffset(sample_number, &map_reported_offset));
       table_offset = GetTestSample(sample_number).offset;
       ASSERT_EQ(map_reported_offset, table_offset);
 
       // now iterate through a few samples in the middle
       sample_number /= 2;
       for (int j = 0; j < 40; j++) {
-        ASSERT_TRUE(map_->GetOffset(sample_number + j, map_reported_offset));
+        ASSERT_TRUE(map_->GetOffset(sample_number + j, &map_reported_offset));
         table_offset = GetTestSample(sample_number + j).offset;
         ASSERT_EQ(map_reported_offset, table_offset);
       }
 
       // now iterate backwards from the same starting point
       for (int j = 0; j < 40; j++) {
-        ASSERT_TRUE(map_->GetOffset(sample_number - j, map_reported_offset));
+        ASSERT_TRUE(map_->GetOffset(sample_number - j, &map_reported_offset));
         table_offset = GetTestSample(sample_number - j).offset;
         ASSERT_EQ(map_reported_offset, table_offset);
       }
@@ -736,23 +730,23 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessWithDefaultSize) {
     // error.
     uint64 map_reported_offset = 0;
     ASSERT_FALSE(map_->GetOffset(sample_table_->sample_count() + 2,
-                                 map_reported_offset));
+                                 &map_reported_offset));
 
     // First sample in file should still work, though.
-    ASSERT_TRUE(map_->GetOffset(0, map_reported_offset));
+    ASSERT_TRUE(map_->GetOffset(0, &map_reported_offset));
     uint64 table_offset = GetTestSample(0).offset;
     ASSERT_EQ(map_reported_offset, table_offset);
 
     // Last sample should also work.
     ASSERT_TRUE(map_->GetOffset(sample_table_->sample_count() - 1,
-                                map_reported_offset));
+                                &map_reported_offset));
     table_offset = GetTestSample(sample_table_->sample_count() - 1).offset;
     ASSERT_EQ(map_reported_offset, table_offset);
 
     // Skip by 3 through the file a few times
     for (int i = 0; i < sample_table_->sample_count(); ++i) {
       int sample_index = (i * 3) % sample_table_->sample_count();
-      ASSERT_TRUE(map_->GetOffset(sample_index, map_reported_offset));
+      ASSERT_TRUE(map_->GetOffset(sample_index, &map_reported_offset));
       table_offset = GetTestSample(sample_index).offset;
       ASSERT_EQ(map_reported_offset, table_offset);
     }
@@ -768,7 +762,7 @@ TEST_F(ShellMP4MapTest, GetDurationIteration) {
 
   for (uint32 i = 0; i < sample_table_->sample_count(); ++i) {
     uint32 map_reported_duration = 0;
-    ASSERT_TRUE(map_->GetDuration(i, map_reported_duration));
+    ASSERT_TRUE(map_->GetDuration(i, &map_reported_duration));
     uint32 table_duration = GetTestSample(i).dts_duration;
     ASSERT_EQ(map_reported_duration, table_duration);
   }
@@ -776,7 +770,7 @@ TEST_F(ShellMP4MapTest, GetDurationIteration) {
   // entries past end of table should fail
   uint32 failed_duration = 0;
   ASSERT_FALSE(
-      map_->GetDuration(sample_table_->sample_count(), failed_duration));
+      map_->GetDuration(sample_table_->sample_count(), &failed_duration));
 }
 
 TEST_F(ShellMP4MapTest, GetDurationRandomAccess) {
@@ -786,29 +780,29 @@ TEST_F(ShellMP4MapTest, GetDurationRandomAccess) {
 
   // first sample in table
   uint32 map_reported_duration = 0;
-  ASSERT_TRUE(map_->GetDuration(0, map_reported_duration));
+  ASSERT_TRUE(map_->GetDuration(0, &map_reported_duration));
   uint32 table_duration = GetTestSample(0).dts_duration;
   ASSERT_EQ(map_reported_duration, table_duration);
 
   // last sample in table
   ASSERT_TRUE(map_->GetDuration(sample_table_->sample_count() - 1,
-                                map_reported_duration));
+                                &map_reported_duration));
   table_duration =
       GetTestSample(sample_table_->sample_count() - 1).dts_duration;
   ASSERT_EQ(map_reported_duration, table_duration);
 
   // sample just past end should fail
   ASSERT_FALSE(
-      map_->GetDuration(sample_table_->sample_count(), map_reported_duration));
+      map_->GetDuration(sample_table_->sample_count(), &map_reported_duration));
 
   // but shouldn't break other sample lookups
-  ASSERT_TRUE(map_->GetDuration(2, map_reported_duration));
+  ASSERT_TRUE(map_->GetDuration(2, &map_reported_duration));
   table_duration = GetTestSample(2).dts_duration;
   ASSERT_EQ(map_reported_duration, table_duration);
 
   // now iterate backwards through entire table back to first sample
   for (int i = sample_table_->sample_count() - 1; i >= 1; i--) {
-    ASSERT_TRUE(map_->GetDuration(i, map_reported_duration));
+    ASSERT_TRUE(map_->GetDuration(i, &map_reported_duration));
     table_duration = GetTestSample(i).dts_duration;
     ASSERT_EQ(map_reported_duration, table_duration);
   }
@@ -823,7 +817,7 @@ TEST_F(ShellMP4MapTest, GetTimestampIterationNoCompositionTime) {
 
   for (uint32 i = 0; i < sample_table_->sample_count(); ++i) {
     uint64 map_reported_timestamp = 0;
-    ASSERT_TRUE(map_->GetTimestamp(i, map_reported_timestamp));
+    ASSERT_TRUE(map_->GetTimestamp(i, &map_reported_timestamp));
     uint64 table_timestamp = GetTestSample(i).dts;
     ASSERT_EQ(map_reported_timestamp, table_timestamp);
   }
@@ -831,7 +825,7 @@ TEST_F(ShellMP4MapTest, GetTimestampIterationNoCompositionTime) {
   // entries past end of table should fail
   uint64 failed_timestamp = 0;
   ASSERT_FALSE(
-      map_->GetTimestamp(sample_table_->sample_count(), failed_timestamp));
+      map_->GetTimestamp(sample_table_->sample_count(), &failed_timestamp));
 }
 
 TEST_F(ShellMP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
@@ -843,7 +837,7 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
   for (int i = 0; i < sample_table_->sample_count(); ++i) {
     uint32 sample_number = (i * 7) % sample_table_->sample_count();
     uint64 map_reported_timestamp = 0;
-    ASSERT_TRUE(map_->GetTimestamp(sample_number, map_reported_timestamp));
+    ASSERT_TRUE(map_->GetTimestamp(sample_number, &map_reported_timestamp));
     uint64 table_timestamp = GetTestSample(sample_number).dts;
     ASSERT_EQ(map_reported_timestamp, table_timestamp);
   }
@@ -851,14 +845,14 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
   // check a failed entry
   uint64 failed_timestamp = 0;
   ASSERT_FALSE(
-      map_->GetTimestamp(sample_table_->sample_count() * 2, failed_timestamp));
+      map_->GetTimestamp(sample_table_->sample_count() * 2, &failed_timestamp));
 
   // should still be able to recover with valid input, this time skip by 21s
   // backward through the file 21 times
   for (int i = sample_table_->sample_count() - 1; i >= 0; i--) {
     uint32 sample_number = (i * 21) % sample_table_->sample_count();
     uint64 map_reported_timestamp = 0;
-    ASSERT_TRUE(map_->GetTimestamp(sample_number, map_reported_timestamp));
+    ASSERT_TRUE(map_->GetTimestamp(sample_number, &map_reported_timestamp));
     uint64 table_timestamp = GetTestSample(sample_number).dts;
     ASSERT_EQ(map_reported_timestamp, table_timestamp);
   }
@@ -873,12 +867,12 @@ TEST_F(ShellMP4MapTest, GetTimestampIteration) {
 
     for (int j = 0; j < sample_table_->sample_count(); ++j) {
       uint64 map_reported_timestamp = 0;
-      ASSERT_TRUE(map_->GetTimestamp(j, map_reported_timestamp));
+      ASSERT_TRUE(map_->GetTimestamp(j, &map_reported_timestamp));
       uint64 table_timestamp = GetTestSample(j).cts;
       ASSERT_EQ(map_reported_timestamp, table_timestamp);
 
       uint32 map_reported_duration = 0;
-      ASSERT_TRUE(map_->GetDuration(j, map_reported_duration));
+      ASSERT_TRUE(map_->GetDuration(j, &map_reported_duration));
       uint32 table_duration = GetTestSample(j).dts_duration;
       ASSERT_EQ(map_reported_duration, table_duration);
     }
@@ -895,12 +889,12 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccess) {
     for (int j = 0; j < 100; ++j) {
       uint32 sample_number = rand() % sample_table_->sample_count();
       uint64 map_reported_timestamp = 0;
-      ASSERT_TRUE(map_->GetTimestamp(sample_number, map_reported_timestamp));
+      ASSERT_TRUE(map_->GetTimestamp(sample_number, &map_reported_timestamp));
       uint64 table_timestamp = GetTestSample(sample_number).cts;
       ASSERT_EQ(map_reported_timestamp, table_timestamp);
 
       uint32 map_reported_duration = 0;
-      ASSERT_TRUE(map_->GetDuration(sample_number, map_reported_duration));
+      ASSERT_TRUE(map_->GetDuration(sample_number, &map_reported_duration));
       uint32 table_duration = GetTestSample(sample_number).dts_duration;
       ASSERT_EQ(map_reported_duration, table_duration);
     }
@@ -913,16 +907,16 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccess) {
 TEST_F(ShellMP4MapTest, GetIsKeyframeNoKeyframeTable) {
   ResetMap();
   bool is_keyframe_out = false;
-  ASSERT_TRUE(map_->GetIsKeyframe(100, is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(100, &is_keyframe_out));
   ASSERT_TRUE(is_keyframe_out);
 
   is_keyframe_out = false;
-  ASSERT_TRUE(map_->GetIsKeyframe(5, is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(5, &is_keyframe_out));
   ASSERT_TRUE(is_keyframe_out);
 
   for (int i = 17; i < 174; i += 3) {
     is_keyframe_out = false;
-    ASSERT_TRUE(map_->GetIsKeyframe(i, is_keyframe_out));
+    ASSERT_TRUE(map_->GetIsKeyframe(i, &is_keyframe_out));
     ASSERT_TRUE(is_keyframe_out);
   }
 }
@@ -936,7 +930,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeIteration) {
 
   for (uint32 i = 0; i < sample_table_->sample_count(); ++i) {
     bool map_is_keyframe_out = false;
-    ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+    ASSERT_TRUE(map_->GetIsKeyframe(i, &map_is_keyframe_out));
     bool table_is_keyframe = GetTestSample(i).is_key_frame;
     ASSERT_EQ(map_is_keyframe_out, table_is_keyframe);
   }
@@ -954,35 +948,35 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
   while (!GetTestSample(sample_number).is_key_frame) ++sample_number;
   // sample one past it should not be a keyframe
   bool map_is_keyframe_out = false;
-  ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, map_is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, &map_is_keyframe_out));
   ASSERT_FALSE(map_is_keyframe_out);
   // sample one before keyframe should not be a keyframe either
-  ASSERT_TRUE(map_->GetIsKeyframe(sample_number - 1, map_is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number - 1, &map_is_keyframe_out));
   ASSERT_FALSE(map_is_keyframe_out);
   // however it should be a keyframe
-  ASSERT_TRUE(map_->GetIsKeyframe(sample_number, map_is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number, &map_is_keyframe_out));
   ASSERT_TRUE(map_is_keyframe_out);
 
   // first keyframe
   sample_number = 0;
   while (!GetTestSample(sample_number).is_key_frame) ++sample_number;
   // next sample should not be a keyframe
-  ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, map_is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, &map_is_keyframe_out));
   ASSERT_FALSE(map_is_keyframe_out);
   // but it should be
-  ASSERT_TRUE(map_->GetIsKeyframe(sample_number, map_is_keyframe_out));
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number, &map_is_keyframe_out));
   ASSERT_TRUE(map_is_keyframe_out);
 
   // iterate backwards from end of file to beginning
   for (int i = sample_table_->sample_count() - 1; i >= 0; --i) {
-    ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+    ASSERT_TRUE(map_->GetIsKeyframe(i, &map_is_keyframe_out));
     ASSERT_EQ(map_is_keyframe_out, GetTestSample(i).is_key_frame);
   }
 
   // iterate backwards through keyframes only
   for (int i = sample_table_->sample_count() - 1; i >= 0; --i) {
     if (GetTestSample(i).is_key_frame) {
-      ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+      ASSERT_TRUE(map_->GetIsKeyframe(i, &map_is_keyframe_out));
       ASSERT_TRUE(map_is_keyframe_out);
     }
   }
@@ -990,7 +984,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
   // iterate forwards but skip all keyframes
   for (int i = sample_table_->sample_count() - 1; i >= 0; --i) {
     if (!GetTestSample(i).is_key_frame) {
-      ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+      ASSERT_TRUE(map_->GetIsKeyframe(i, &map_is_keyframe_out));
       ASSERT_FALSE(map_is_keyframe_out);
     }
   }
@@ -1002,7 +996,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
   // random access
   for (int i = 0; i < 1000; ++i) {
     sample_number = rand() % sample_table_->sample_count();
-    ASSERT_TRUE(map_->GetIsKeyframe(sample_number, map_is_keyframe_out));
+    ASSERT_TRUE(map_->GetIsKeyframe(sample_number, &map_is_keyframe_out));
     ASSERT_EQ(map_is_keyframe_out, GetTestSample(sample_number).is_key_frame);
   }
 }
@@ -1023,7 +1017,7 @@ TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableIteration) {
     // add a bit of time to sample timestamp, but keep time within this frame
     sample_timestamp += i % sample_duration;
     uint32 map_keyframe = 0;
-    ASSERT_TRUE(map_->GetKeyframe(sample_timestamp, map_keyframe));
+    ASSERT_TRUE(map_->GetKeyframe(sample_timestamp, &map_keyframe));
     ASSERT_EQ(map_keyframe, i);
   }
 }
@@ -1040,7 +1034,7 @@ TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
     uint32 sample_duration = GetTestSample(i).dts_duration;
     sample_timestamp += sample_duration - 1 - (i % sample_duration);
     uint32 map_keyframe = 0;
-    ASSERT_TRUE(map_->GetKeyframe(sample_timestamp, map_keyframe));
+    ASSERT_TRUE(map_->GetKeyframe(sample_timestamp, &map_keyframe));
     ASSERT_EQ(map_keyframe, i);
   }
 
@@ -1050,15 +1044,15 @@ TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
   highest_timestamp +=
       GetTestSample(sample_table_->sample_count() - 1).dts_duration - 1;
   uint32 map_keyframe = 0;
-  ASSERT_TRUE(map_->GetKeyframe(highest_timestamp, map_keyframe));
+  ASSERT_TRUE(map_->GetKeyframe(highest_timestamp, &map_keyframe));
   ASSERT_EQ(map_keyframe, sample_table_->sample_count() - 1);
 
   // lowest valid timestamp in file
-  ASSERT_TRUE(map_->GetKeyframe(0, map_keyframe));
+  ASSERT_TRUE(map_->GetKeyframe(0, &map_keyframe));
   ASSERT_EQ(map_keyframe, 0);
 
   // should fail on higher timestamps
-  ASSERT_FALSE(map_->GetKeyframe(highest_timestamp + 1, map_keyframe));
+  ASSERT_FALSE(map_->GetKeyframe(highest_timestamp + 1, &map_keyframe));
 }
 
 // GetKeyframe is not normally called iteratively, so we test random access
@@ -1070,7 +1064,7 @@ TEST_F(ShellMP4MapTest, GetKeyframe) {
 
   // find first keyframe in file, should be first frame
   uint32 map_keyframe = 0;
-  ASSERT_TRUE(map_->GetKeyframe(0, map_keyframe));
+  ASSERT_TRUE(map_->GetKeyframe(0, &map_keyframe));
   ASSERT_EQ(map_keyframe, 0);
 
   // find a first quarter keyframe in file
@@ -1091,12 +1085,12 @@ TEST_F(ShellMP4MapTest, GetKeyframe) {
   // midway through this frame
   test_frame_timestamp += test_frame_duration / 2;
   // find lower bound keyframe, should be qtr_keyframe
-  ASSERT_TRUE(map_->GetKeyframe(test_frame_timestamp, map_keyframe));
+  ASSERT_TRUE(map_->GetKeyframe(test_frame_timestamp, &map_keyframe));
   ASSERT_EQ(map_keyframe, qtr_keyframe);
 
   // timestamp one tick before qtr_keyframe should find previous keyframe
   test_frame_timestamp = GetTestSample(qtr_keyframe).dts - 1;
-  ASSERT_TRUE(map_->GetKeyframe(test_frame_timestamp, map_keyframe));
+  ASSERT_TRUE(map_->GetKeyframe(test_frame_timestamp, &map_keyframe));
   ASSERT_EQ(map_keyframe, prev_keyframe);
 
   // very highest timestamp in file should return last keyframe
@@ -1104,7 +1098,7 @@ TEST_F(ShellMP4MapTest, GetKeyframe) {
       GetTestSample(sample_table_->sample_count() - 1).dts;
   highest_timestamp +=
       GetTestSample(sample_table_->sample_count() - 1).dts_duration - 1;
-  ASSERT_TRUE(map_->GetKeyframe(highest_timestamp, map_keyframe));
+  ASSERT_TRUE(map_->GetKeyframe(highest_timestamp, &map_keyframe));
   ASSERT_EQ(map_keyframe, last_keyframe);
 }
 
