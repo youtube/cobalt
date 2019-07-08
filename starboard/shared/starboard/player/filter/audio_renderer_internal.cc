@@ -730,8 +730,12 @@ void AudioRenderer::CheckAudioSinkStatus() {
   // Check if sink has updated.
   SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - frames_consumed_set_at_;
   if (elapsed > kCheckAudioSinkStatusInterval) {
+    ScopedLock lock(mutex_);
     SB_DLOG(WARNING) << "|frames_consumed_| has not been updated for "
-                     << elapsed / kSbTimeSecond << " seconds.";
+                     << elapsed / kSbTimeSecond << " seconds, with "
+                     << total_frames_sent_to_sink_ -
+                            total_frames_consumed_by_sink_
+                     << " frames in sink.";
   }
   Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
