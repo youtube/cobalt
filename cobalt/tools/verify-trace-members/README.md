@@ -3,7 +3,6 @@
 ## Overview
 
 `verify-trace-members` is a tool to verify correct usage of Cobalt's tracer members system.
-See [***REMOVED***cobalt-trace-members](***REMOVED***cobalt-trace-members) for further details.
 
 ## Usage
 
