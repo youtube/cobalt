@@ -55,7 +55,7 @@ typedef struct SbCPUFeatures {
 
   // Processor cache line size in bytes. Queried from /proc/cpuinfo or
   // /proc/self/auxv, or CPUID with CLFLUSH instruction.
-  uint32_t cache_size;
+  int32_t cache_size;
 
   // Processor has floating-point unit on-chip.
   bool has_fpu;
@@ -72,22 +72,22 @@ typedef struct SbCPUFeatures {
   // Processor vendor ID string, e.g. "GenuineIntel", "AuthenticAMD", etc
   const char* vendor;
   // Processor family ID
-  uint16_t family;
+  int16_t family;
   // Processor extended family ID, needs to be examined only when the
   // family ID is 0FH.
-  uint16_t ext_family;
+  int16_t ext_family;
   // Processor model ID
-  uint16_t model;
+  int16_t model;
   // Processor extended model ID, needs to be examined only when the
   // family ID is 06H or 0FH.
-  uint16_t ext_model;
+  int16_t ext_model;
   // Processor stepping ID, a product revision number
-  uint16_t stepping;
+  int16_t stepping;
   // Processor type ID
-  uint16_t type;
+  int16_t type;
   // A raw form of collection of processor stepping, model, and
   // family information
-  uint16_t signature;
+  int32_t signature;
 
   // -------------------------------------------------------------------
   //     Processor version information, only valid on Arm and Arm64.
@@ -291,8 +291,8 @@ typedef struct SbCPUFeatures {
 // Retrieve the underlying CPU features and place it in |features|, which must
 // not be NULL.
 //
-// This function returns false if the CPU architecture is unknown. Otherwise,
-// returns true.
+// If this function returns false, it means the CPU architecture is unknown and
+// |features| is unmodified.
 SB_EXPORT bool SbCPUFeaturesGet(SbCPUFeatures* features);
 
 #endif  // STARBOARD_CPU_FEATURES_H_
