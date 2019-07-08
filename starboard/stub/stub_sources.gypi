@@ -49,6 +49,7 @@
         '<(DEPTH)/starboard/shared/stub/condition_variable_signal.cc',
         '<(DEPTH)/starboard/shared/stub/condition_variable_wait.cc',
         '<(DEPTH)/starboard/shared/stub/condition_variable_wait_timed.cc',
+        '<(DEPTH)/starboard/shared/stub/cpu_features_get.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_get_tag.cc',
