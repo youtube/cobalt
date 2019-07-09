@@ -619,6 +619,7 @@ void StarboardPlayer::WriteBufferInternal(
 #if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
 
+  SbPlayerSampleSideData side_data = {};
   SbPlayerSampleInfo sample_info = {};
   sample_info.type = sample_type;
   sample_info.buffer = allocations.buffers()[0];
@@ -626,8 +627,11 @@ void StarboardPlayer::WriteBufferInternal(
   sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
   if (buffer->side_data_size() > 0) {
-    sample_info.side_data = buffer->side_data();
-    sample_info.side_data_size = buffer->side_data_size();
+    // We only support at most one side data currently.
+    side_data.data = buffer->side_data();
+    side_data.size = buffer->side_data_size();
+    sample_info.side_data = &side_data;
+    sample_info.side_data_count = 1;
   }
 
   if (sample_type == kSbMediaTypeAudio) {
