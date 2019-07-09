@@ -141,3 +141,13 @@ api/response/response-stream-disturbed-4.html,PASS
 api/response/response-stream-disturbed-5.html,PASS
 # Fails because trailer is not implemented.
 api/response/response-trailer.html,DISABLE
+# Abort tests
+api/abort/general.any.html,PASS
+# Serviceworkers are not supported
+api/abort/serviceworker-intercepted.https.html,DISABLE
+# Keepalive tests require Iframes, not supported
+api/abort/keepalive.html, DISABLE
+# Cache api is not supported
+api/abort/cache.https.html, DISABLE
+# Regression test, requires iframe support
+api/abort/destroyed-context.html, DISABLE
