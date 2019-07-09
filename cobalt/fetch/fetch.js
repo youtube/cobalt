@@ -39,6 +39,7 @@
   const ArrayBuffer = self.ArrayBuffer
   const create = self.Object.create
   const defineProperties = self.Object.defineProperties
+  const defineProperty = self.Object.defineProperty
   const Error = self.Error
   const Symbol = self.Symbol
   const Symbol_iterator = Symbol.iterator
@@ -75,6 +76,11 @@
   const STATUS_TEXT_SLOT = Symbol('statusText')
   const TYPE_SLOT = Symbol('type')
   const URL_SLOT = Symbol('url')
+  const IS_ABORTED_SLOT = Symbol('is_aborted')
+  const SIGNAL_SLOT = Symbol('signal')
+  const ONABORT_SLOT = Symbol('onabort')
+  const ABORT_HASH_SLOT = Symbol('abort_hash')
+  const LISTENERS_SLOT = Symbol('listeners')
 
   // Forbidden headers corresponding to various header guard types.
   const INVALID_HEADERS_REQUEST = [
@@ -256,6 +262,18 @@
     }
     return false
   }
+
+  const ABORT_ERROR_ID = 20
+  var AbortException = function() {
+    defineProperties(this, {
+      'message': { value: 'Aborted', writable: false},
+      'name' : { value: 'AbortError', writable: false},
+      'code': { value: ABORT_ERROR_ID, writable: false}
+    })
+  }
+  // TODO: This doesn't work under unit tests, should be implemented in IDL
+  // AbortException.prototype = DOMException
+  AbortException.prototype.constructor = AbortException
 
   // https://fetch.spec.whatwg.org/#headers-class
   function Headers(init) {
@@ -480,18 +498,27 @@
     })
 
     this.arrayBuffer = function() {
+      if (this[IS_ABORTED_SLOT]) {
+        return Promise.reject(new AbortException())
+      }
       return consumeBodyAsUint8Array(this).then(function(data) {
         return data.buffer
       })
     }
 
     this.text = function() {
+      if (this[IS_ABORTED_SLOT]) {
+        return Promise.reject(new AbortException())
+      }
       return consumeBodyAsUint8Array(this).then(function(data) {
         return FetchInternal.decodeFromUTF8(data)
       })
     }
 
     this.json = function() {
+      if (this[IS_ABORTED_SLOT]) {
+        return Promise.reject(new AbortException())
+      }
       return this.text().then(JSON.parse)
     }
 
@@ -506,6 +533,66 @@
     return upcased
   }
 
+  // https://dom.spec.whatwg.org/#interface-AbortSignal
+  function AbortSignal(input) {
+    this[ONABORT_SLOT] = null
+    if(input instanceof AbortSignal) {
+      this[ONABORT_SLOT] = input.onabort
+      this[ABORT_HASH_SLOT] = input[ABORT_HASH_SLOT]
+      this[LISTENERS_SLOT] = input[LISTENERS_SLOT]
+    } else {
+      this[ABORT_HASH_SLOT] = { is_aborted: false }
+      this[LISTENERS_SLOT] = {}
+    }
+
+    defineProperties(this,{
+      'aborted': { get: () => this[ABORT_HASH_SLOT].is_aborted },
+      'onabort': {
+        get: () => this[ONABORT_SLOT],
+        set: value => this[ONABORT_SLOT] = value
+      }
+    })
+  }
+  AbortSignal.prototype.constructor = AbortSignal
+  AbortSignal.prototype.dispatchEvent =  function(ev){
+    if(ev.type === 'abort') {
+      this[ABORT_HASH_SLOT].is_aborted = true
+      if(typeof this[ONABORT_SLOT] === 'function') {
+        this[ONABORT_SLOT].call(this,ev)
+      }
+    }
+    if (!(ev.type in this[LISTENERS_SLOT])) {
+      return
+    }
+    const type_listener_array = this[LISTENERS_SLOT][ev.type]
+    for (var i = type_listener_array.length - 1; i >= 0; i--) {
+      type_listener_array[i].call(this,ev)
+    }
+    return !ev.defaultPrevented
+  }
+  AbortSignal.prototype.addEventListener = function(listener_type, listener) {
+    if (!(listener_type in this[LISTENERS_SLOT])) {
+      this[LISTENERS_SLOT][listener_type] = []
+    }
+    this[LISTENERS_SLOT][listener_type].push(listener)
+  }
+  AbortSignal.prototype.removeEventListener = function(listener_type, listener) {
+    if (!(listener_type in this[LISTENERS_SLOT])) {
+      return
+    }
+    const type_listener_array = this[LISTENERS_SLOT][type]
+    for (var i = 0, l = type_listener_array.length; i < l; i++) {
+      if (type_listener_array[i] === listener) {
+        type_listener_array.splice(i, 1)
+        return
+      }
+    }
+  }
+  AbortSignal.prototype.clone = function() {
+    return new AbortSignal(this)
+  }
+  self.AbortSignal = AbortSignal
+
   // https://fetch.spec.whatwg.org/#request-class
   function Request(input, init) {
     // When cloning a request, |init| will have the non-standard member
@@ -517,9 +604,6 @@
     var headersInit = init.headers
 
     if (input instanceof Request) {
-      if (input.bodyUsed) {
-        throw new TypeError('Request body was already read')
-      }
       this[URL_SLOT] = input.url
       this[CACHE_SLOT] = input.cache
       this[CREDENTIALS_SLOT] = input.credentials
@@ -538,6 +622,16 @@
         body = input.body
         input[BODY_USED_SLOT] = true
       }
+
+      if(('signal' in init) && (init.signal == null)) {
+        this[SIGNAL_SLOT] = new AbortSignal()
+      } else {
+        if('signal' in init) {
+          this[SIGNAL_SLOT] = init.signal
+        } else {
+          this[SIGNAL_SLOT] = input[SIGNAL_SLOT]
+        }
+      }
     } else {
       this[URL_SLOT] = String(input)
       if (!FetchInternal.isUrlValid(this[URL_SLOT],
@@ -546,6 +640,12 @@
       }
       this[MODE_SLOT] = 'cors'
       this[CREDENTIALS_SLOT] = 'omit'
+
+      if ((init.signal) && !(init.signal == null) ) {
+        this[SIGNAL_SLOT] = new AbortSignal(init.signal)
+      } else {
+        this[SIGNAL_SLOT] = new AbortSignal()
+      }
     }
 
     if (init.window !== undefined && init.window !== null) {
@@ -617,7 +717,7 @@
       this[BODY_SLOT] = streams[0]
       cloneBody = streams[1]
     }
-    return new Request(this, { cloneBody: cloneBody })
+    return new Request(this, { cloneBody: cloneBody, signal: this[SIGNAL_SLOT].clone() })
   }
 
   defineProperties(Request.prototype, {
@@ -628,7 +728,8 @@
     'method': { get: function() { return this[METHOD_SLOT] } },
     'mode': { get: function() { return this[MODE_SLOT] } },
     'redirect': { get: function() { return this[REDIRECT_SLOT] } },
-    'url': { get: function() { return this[URL_SLOT] } }
+    'url': { get: function() { return this[URL_SLOT] } },
+    'signal': { get: function() { return this[SIGNAL_SLOT] } }
   })
 
   function parseHeaders(rawHeaders, guardCallback) {
@@ -683,6 +784,7 @@
       throw new TypeError(
           'Response body is not allowed with a null body status')
     }
+    this[IS_ABORTED_SLOT] = init.is_aborted || false
     this._initBody(body)
   }
 
@@ -701,7 +803,8 @@
       statusText: this[STATUS_TEXT_SLOT],
       headers: CreateHeadersWithGuard(this[HEADERS_SLOT],
                                       guardResponseCallback),
-      url: this[URL_SLOT]
+      url: this[URL_SLOT],
+      is_aborted: this[IS_ABORTED_SLOT]
     })
   }
 
@@ -741,14 +844,32 @@
   self.Request = Request
   self.Response = Response
 
+  // Algorithm steps for https://fetch.spec.whatwg.org/#fetch-method
   self.fetch = function(input, init) {
+    // 1 Let p be a new promise.
+    // ..
+    // 10. Return p
     return new Promise(function(resolve, reject) {
       var cancelled = false
       var isCORSMode = false
+      // 2. Let requestObject be the result of invoking the initial value of Request
+      //    as constructor
+      // 3.  Let request be requestObjects request.
       var request = new Request(input, init)
       var xhr = new XMLHttpRequest()
-
       var responseStreamController = null
+
+      // 4. If requestObjects signals aborted flag is set, then:
+      //    Abort fetch with p, request, and null.
+      //    Return p.
+      if (request.signal.aborted) {
+        return reject(new AbortException())
+      }
+
+      // 5. If requests clients global object is a ServiceWorkerGlobalScope object,
+      //   then set requests service-workers mode to "none".
+      //   This step is skipped, as serviceWorkers are not supported
+
       var responseStream = new ReadableStream({
         start(controller) {
           responseStreamController = controller
@@ -758,6 +879,48 @@
           xhr.abort()
         }
       })
+
+      var cleanup = function() {
+        if (!cancelled) {
+          cancelled = true
+          responseStream.cancel()
+          if(responseStreamController) {
+            try {
+              responseStreamController.close()
+            } catch(_) {}
+          }
+          setTimeout(function() {
+              try {
+                xhr.abort()
+              } catch(_) {}
+            },0)
+          }
+      }
+
+      // Intercept getReader calls, and patch returned reader objects for abort
+      // This is required to make reader calls reject correctly with Abort
+      // as a result
+      const getReader_original = responseStream.getReader
+      responseStream.getReader = function() {
+        var reader = getReader_original.bind(this).call()
+        const read_original = reader.read
+        const closed_original = reader.closed
+        reader.read = function() {
+          if(request[SIGNAL_SLOT] && request[SIGNAL_SLOT].aborted) {
+            cleanup()
+            return Promise.reject(new AbortException())
+          }
+          return read_original.bind(this).call()
+        }
+        defineProperty(reader,'closed',{ get: function() {
+            if(request[SIGNAL_SLOT] && request[SIGNAL_SLOT].aborted) {
+              cleanup()
+              return Promise.reject(new AbortException())
+            }
+            return closed_original
+          }})
+        return reader
+      }
 
       xhr.onload = function() {
         responseStreamController.close()
@@ -774,7 +937,19 @@
           init.url = 'responseURL' in xhr ?
                      xhr.responseURL : init.headers.get('X-Request-URL')
           try {
+            // 6. Let responseObject be a new Response object
             var response = new Response(responseStream, init)
+            // 7. Let locallyAborted be false - done in response constructor
+
+            request[SIGNAL_SLOT].addEventListener('abort',() => {
+              // 8.1 Set locallyAborted to true.
+              // 8.2 Abort fetch with p, request, and responseObject.
+              // 8.3 Terminate the ongoing fetch with the aborted flag set.
+              response[IS_ABORTED_SLOT] = true
+              cleanup()
+              reject(new AbortException())
+            })
+
             response[TYPE_SLOT] = isCORSMode ? 'cors' : 'basic'
             resolve(response)
           } catch (err) {
@@ -783,7 +958,14 @@
         }
       }
 
+      // 9. Run the following in parallel:
+      //    Fetch request.
+      //    To process response for response, run these substeps:
+      //    9.1 If locallyAborted is true, terminate these substeps
+      //    9.2 If responses aborted flag is set, then abort fetch
+      //       - Above are handled in responseBody methods
       xhr.onerror = function() {
+        // 9.3 If response is a network error, then reject p with a TypeError and terminate these substeps.
         responseStreamController.error(
             new TypeError(ERROR_NETWORK_REQUEST_FAILED))
         reject(new TypeError(ERROR_NETWORK_REQUEST_FAILED))
@@ -826,5 +1008,15 @@
       }
     })
   }
+
+  // https://dom.spec.whatwg.org/#interface-abortcontroller
+  function AbortController() {
+    defineProperty(this, 'signal', {value: new AbortSignal(), writable: false})
+  }
+  AbortController.prototype.abort = function() {
+    this.signal.dispatchEvent(new Event('abort'))
+  }
+  self.AbortController = AbortController
+
   self.fetch.polyfill = true
 })(this);
