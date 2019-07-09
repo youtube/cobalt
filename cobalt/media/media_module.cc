@@ -14,15 +14,23 @@
 
 #include "cobalt/media/media_module.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/logging.h"
+#include "base/strings/string_split.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/mime_util.h"
 #include "nb/memory_scope.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+#include "cobalt/browser/switches.h"
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 namespace cobalt {
 namespace media {
@@ -31,8 +39,18 @@ namespace {
 
 class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
-  std::string CanPlayType(bool is_progressive, const std::string& mime_type,
-                          const std::string& key_system) override {
+  void SetDisabledMediaCodecs(
+      const std::string& disabled_media_codecs) override {
+    disabled_media_codecs_ =
+        base::SplitString(disabled_media_codecs, ";", base::TRIM_WHITESPACE,
+                          base::SPLIT_WANT_NONEMPTY);
+    LOG(INFO) << "Disabled media codecs \"" << disabled_media_codecs
+              << "\" from console/command line.";
+  }
+
+  SbMediaSupportType CanPlayType(const std::string& mime_type,
+                                 const std::string& key_system,
+                                 bool is_progressive) const override {
     if (is_progressive) {
       // |mime_type| is something like:
       //   video/mp4
@@ -43,22 +61,54 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
       // progressive.
       if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0 &&
           SbStringFindString(mime_type.c_str(), "application/x-mpegURL") == 0) {
-        return "";
+        return kSbMediaSupportTypeNotSupported;
+      }
+    }
+    if (!disabled_media_codecs_.empty()) {
+      auto mime_codecs = ExtractCodecs(mime_type);
+      for (auto& disabled_codec : disabled_media_codecs_) {
+        for (auto& mime_codec : mime_codecs) {
+          if (mime_codec.find(disabled_codec) != std::string::npos) {
+            LOG(INFO) << "Codec (" << mime_codec
+                      << ") is disabled via console/command line.";
+            return kSbMediaSupportTypeNotSupported;
+          }
+        }
       }
     }
     SbMediaSupportType type =
         SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
-    switch (type) {
-      case kSbMediaSupportTypeNotSupported:
-        return "";
-      case kSbMediaSupportTypeMaybe:
-        return "maybe";
-      case kSbMediaSupportTypeProbably:
-        return "probably";
-    }
-    NOTREACHED();
-    return "";
+    return type;
   }
+
+ private:
+  std::vector<std::string> ExtractCodecs(const std::string& mime_type) const {
+    std::vector<std::string> codecs;
+    std::vector<std::string> components = base::SplitString(
+        mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    LOG_IF(WARNING, components.empty())
+        << "argument mime type \"" << mime_type << "\" is not valid.";
+    // The first component is the type/subtype pair. We want to iterate over the
+    // remaining components to search for the codecs.
+    auto iter = components.begin() + 1;
+    for (; iter != components.end(); ++iter) {
+      std::vector<std::string> name_and_value = base::SplitString(
+          *iter, "=", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      if (name_and_value.size() != 2) {
+        LOG(WARNING) << "parameter for mime_type \"" << mime_type
+                     << "\" is not valid.";
+        continue;
+      }
+      if (name_and_value[0] == "codecs") {
+        ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
+        return codecs;
+      }
+    }
+    return codecs;
+  }
+
+  // List of disabled media codecs that will be treated as unsupported.
+  std::vector<std::string> disabled_media_codecs_;
 };
 
 void RunClosureAndSignal(const base::Closure& closure,

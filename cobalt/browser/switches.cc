@@ -55,6 +55,14 @@ const char kForceDeterministicRenderingHelp[] =
     "very similar, even if it is not exactly the same.  Setting this flag "
     "avoids that kind of behavior, allowing strict screen-diff tests to pass.";
 
+const char kDisableMediaCodecs[] = "disable_media_codecs";
+const char kDisableMediaCodecsHelp[] =
+    "Disables the semicolon-separated list of codecs that will be treated as "
+    "unsupported for media playback. Used for debugging and testing purposes."
+    "It uses sub-string match to determine whether a codec is disabled, for "
+    "example, setting the value to \"avc;hvc\" will disable any h264 and h265 "
+    "playbacks.";
+
 const char kDisableRasterizerCaching[] = "disable_rasterizer_caching";
 const char kDisableRasterizerCachingHelp[] =
     "Disables caching of rasterized render tree nodes; caching improves "
@@ -380,6 +388,7 @@ std::string HelpMessage() {
 #endif  // ENABLE_DEBUGGER
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
+        {kDisableMediaCodecs, kDisableMediaCodecsHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
         {kDisableSignIn, kDisableSignInHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},

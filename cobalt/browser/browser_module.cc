@@ -152,6 +152,17 @@ const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
     "to disk. Logs the filename of the screenshot to the console when done.";
 
+// Debug console command `disable_media_codecs` for disabling a list of codecs
+// by treating them as unsupported
+const char kDisableMediaCodecsCommand[] = "disable_media_codecs";
+const char kDisableMediaCodecsCommandShortHelp[] =
+    "Specify a semicolon-seperated list of disabled media codecs.";
+const char kDisableMediaCodecsCommandLongHelp[] =
+    "Disabling Media Codecs will force the app to claim they are not "
+    "supported. This "
+    "is useful when trying to target testing to certain codecs, since other "
+    "codecs will get picked as a fallback as a result.";
+
 void ScreenshotCompleteCallback(const base::FilePath& output_path) {
   DLOG(INFO) << "Screenshot written to " << output_path.value();
 }
@@ -260,6 +271,9 @@ BrowserModule::BrowserModule(const GURL& url,
           "The total memory that is reserved by the JavaScript engine, which "
           "includes both parts that have live JavaScript values, as well as "
           "preallocated space for future values."),
+      disabled_media_codecs_(
+          "Media.DisabledMediaCodecs", "",
+          "List of codecs that should currently be reported as unsupported."),
 #if defined(ENABLE_DEBUGGER)
       ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
           kFuzzerToggleCommand,
@@ -273,6 +287,12 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommand,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(disable_media_codecs_command_handler_(
+          kDisableMediaCodecsCommand,
+          base::Bind(&BrowserModule::OnDisableMediaCodecs,
+                     base::Unretained(this)),
+          kDisableMediaCodecsCommandShortHelp,
+          kDisableMediaCodecsCommandLongHelp)),
 #endif  // defined(ENABLE_DEBUGGER)
       has_resumed_(base::WaitableEvent::ResetPolicy::MANUAL,
                    base::WaitableEvent::InitialState::NOT_SIGNALED),
@@ -366,6 +386,21 @@ BrowserModule::BrowserModule(const GURL& url,
     suspend_fuzzer_.emplace();
   }
 #endif  // ENABLE_DEBUGGER && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  if (command_line->HasSwitch(switches::kDisableMediaCodecs)) {
+    std::string codecs =
+        command_line->GetSwitchValueASCII(switches::kDisableMediaCodecs);
+    if (!codecs.empty()) {
+#if defined(ENABLE_DEBUGGER)
+      OnDisableMediaCodecs(codecs);
+#else   // ENABLE_DEBUGGER
+      // Here command line switches are enabled but the debug console is not.
+      can_play_type_handler_->SetDisabledMediaCodecs(codecs);
+#endif  // ENABLE_DEBUGGER
+    }
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (application_state_ == base::kApplicationStateStarted ||
       application_state_ == base::kApplicationStatePaused) {
@@ -996,6 +1031,11 @@ void BrowserModule::OnSetMediaConfig(const std::string& config) {
   } else {
     LOG(WARNING) << "Failed to set " << tokens[0] << " to " << value;
   }
+}
+
+void BrowserModule::OnDisableMediaCodecs(const std::string& codecs) {
+  disabled_media_codecs_ = codecs;
+  can_play_type_handler_->SetDisabledMediaCodecs(codecs);
 }
 
 void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
