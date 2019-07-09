@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/shared/blittergles/blitter_context.h"
+#include "starboard/memory.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/blittergles/blitter_surface.h"
 
@@ -55,11 +55,9 @@ SbBlitterSurface SbBlitterCreateSurfaceFromPixelData(
       pixel_data->format, kSbBlitterPixelDataFormatRGBA8,
       SbBlitterGetPixelDataPitchInBytes(pixel_data), pixel_data->height,
       pixel_data->data);
-  if (!surface->SetTexture(pixel_data->data)) {
-    return kSbBlitterInvalidSurface;
-  }
+  surface->SetTexture(pixel_data->data);
 
+  SbMemoryDeallocate(pixel_data->data);
   delete pixel_data;
-
   return surface.release();
 }

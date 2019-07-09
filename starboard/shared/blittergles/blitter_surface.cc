@@ -17,7 +17,6 @@
 #include <GLES2/gl2.h>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
@@ -30,21 +29,22 @@ SbBlitterSurfacePrivate::~SbBlitterSurfacePrivate() {
   }
 }
 
-bool SbBlitterSurfacePrivate::SetTexture(void* pixel_data) {
+void SbBlitterSurfacePrivate::SetTexture(void* pixel_data) {
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context;
   if (scoped_current_context.InitializationError()) {
-    return false;
+    return;
   }
   glGenTextures(1, &color_texture_handle);
   if (color_texture_handle == 0) {
     SB_DLOG(ERROR) << ": Error creating new texture.";
-    return false;
+    return;
   }
   glBindTexture(GL_TEXTURE_2D, color_texture_handle);
   if (glGetError() != GL_NO_ERROR) {
     GL_CALL(glDeleteTextures(1, &color_texture_handle));
+    color_texture_handle = 0;
     SB_DLOG(ERROR) << ": Error binding new texture.";
-    return false;
+    return;
   }
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
@@ -57,13 +57,10 @@ bool SbBlitterSurfacePrivate::SetTexture(void* pixel_data) {
                pixel_format, GL_UNSIGNED_BYTE, pixel_data);
   if (glGetError() != GL_NO_ERROR) {
     GL_CALL(glDeleteTextures(1, &color_texture_handle));
+    color_texture_handle = 0;
     SB_DLOG(ERROR) << ": Error allocating new texture backing.";
-    return false;
-  }
-  if (pixel_data != NULL) {
-    SbMemoryDeallocate(pixel_data);
+    return;
   }
 
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
-  return true;
 }

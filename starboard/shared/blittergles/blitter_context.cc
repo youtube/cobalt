@@ -144,8 +144,13 @@ bool SbBlitterContextPrivate::MakeCurrentWithRenderTarget(
     return false;
   }
 
-  GLuint framebuffer =
-      render_target->swap_chain != NULL ? 0 : render_target->framebuffer_handle;
+  GLuint framebuffer = 0;
+  if (render_target->swap_chain == NULL) {
+    if (render_target->framebuffer_handle == 0) {
+      return false;
+    }
+    framebuffer = render_target->framebuffer_handle;
+  }
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
   if (glGetError() != GL_NO_ERROR) {
     SB_DLOG(ERROR) << ": Failed to bind framebuffer.";
