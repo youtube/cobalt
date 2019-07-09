@@ -336,6 +336,12 @@ class BrowserModule {
   // MediaModule::SetConfiguration().
   void OnSetMediaConfig(const std::string& config);
 
+  // Sets the disabled media codecs in the debug console and in
+  // the CanPlayTypeHandler instance.
+  // Future requests to play videos with these codecs will report that these
+  // codecs are unsupported.
+  void OnDisableMediaCodecs(const std::string& codecs);
+
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
   void QueueOnDebugConsoleRenderTreeProduced(
@@ -534,6 +540,10 @@ class BrowserModule {
   base::CVal<base::cval::SizeInBytes, base::CValPublic>
       javascript_reserved_memory_;
 
+  // Stores the current list of disabled codecs, which are considered
+  // unsupported by media.
+  base::CVal<std::string, base::CValPublic> disabled_media_codecs_;
+
 #if defined(ENABLE_DEBUGGER)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
@@ -553,6 +563,11 @@ class BrowserModule {
   // Command handler object for screenshot command from the debug console.
   debug::console::ConsoleCommandManager::CommandHandler
       screenshot_command_handler_;
+
+  // Command handler object for changing a list of disabled codecs for
+  // debug and testing purposes.
+  debug::console::ConsoleCommandManager::CommandHandler
+      disable_media_codecs_command_handler_;
 
   base::Optional<SuspendFuzzer> suspend_fuzzer_;
 

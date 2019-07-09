@@ -15,6 +15,7 @@
 // https://www.w3.org/TR/encrypted-media/#navigator-extension-requestmediakeysystemaccess
 
 partial interface Navigator {
+  [CallWith=EnvironmentSettings]
   Promise<MediaKeySystemAccess> requestMediaKeySystemAccess(
       DOMString keySystem,
       sequence<MediaKeySystemConfiguration> supportedConfigurations);

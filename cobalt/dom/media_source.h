@@ -88,7 +88,8 @@ class MediaSource : public EventTarget {
   double duration(script::ExceptionState* exception_state) const;
   void set_duration(double duration, script::ExceptionState* exception_state);
   scoped_refptr<SourceBuffer> AddSourceBuffer(
-      const std::string& type, script::ExceptionState* exception_state);
+      script::EnvironmentSettings* settings, const std::string& type,
+      script::ExceptionState* exception_state);
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
                           script::ExceptionState* exception_state);
 
