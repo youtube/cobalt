@@ -30,6 +30,10 @@ bool SbBlitterBlitRectToRect(SbBlitterContext context,
     SB_DLOG(ERROR) << ": Invalid surface.";
     return false;
   }
+  if (source_surface->color_texture_handle == 0) {
+    SB_DLOG(ERROR) << ": Invalid texture handle on source surface.";
+    return false;
+  }
   if (!context->current_render_target) {
     SB_DLOG(ERROR) << ": Context must have a render target set.";
     return false;
