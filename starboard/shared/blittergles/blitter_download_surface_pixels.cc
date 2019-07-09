@@ -86,7 +86,9 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
 
     SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(
         context_registry->context, surface->render_target);
-
+    if (scoped_current_context.InitializationError()) {
+      return false;
+    }
     GL_CALL(glFinish());
     return CopyPixels(pixel_format, surface->info.height, surface->info.width,
                       pitch_in_bytes, out_pixel_data);
@@ -107,7 +109,9 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
 
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(
       context_registry->context, dummy_render_target.get());
-
+  if (scoped_current_context.InitializationError()) {
+    return false;
+  }
   GL_CALL(glFinish());
   bool success =
       CopyPixels(pixel_format, surface->info.height, surface->info.width,
