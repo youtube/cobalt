@@ -137,6 +137,10 @@ class SbMediaSetAudioWriteDurationTest
     SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
     SbPlayerOutputMode output_mode = kSbPlayerOutputModeDecodeToTexture;
+    if (!SbPlayerOutputModeSupported(output_mode, kSbMediaVideoCodecNone,
+                                     kSbDrmSystemInvalid)) {
+      output_mode = kSbPlayerOutputModePunchOut;
+    }
 
     last_input_timestamp_ =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, 0).timestamp;
