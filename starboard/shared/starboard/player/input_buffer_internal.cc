@@ -48,9 +48,16 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
     video_sample_info_ = sample_info.video_sample_info;
   }
   TryToAssignDrmSampleInfo(sample_info.drm_info);
-  if (sample_info.side_data_size > 0) {
-    side_data_.assign(sample_info.side_data,
-                      sample_info.side_data + sample_info.side_data_size);
+  if (sample_info.side_data_count > 0) {
+    SB_DCHECK(sample_info.side_data_count == 1);
+    SB_DCHECK(sample_info.side_data);
+    SB_DCHECK(sample_info.side_data->type == kMatroskaBlockAdditional);
+    SB_DCHECK(sample_info.side_data->data);
+    // Make a copy anyway as it is possible to release |data_| earlier in
+    // SetDecryptedContent().
+    side_data_.assign(
+        sample_info.side_data->data,
+        sample_info.side_data->data + sample_info.side_data->size);
   }
 }
 #else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION

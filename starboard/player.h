@@ -117,6 +117,33 @@ typedef enum SbPlayerOutputMode {
   kSbPlayerOutputModeInvalid,
 } SbPlayerOutputMode;
 
+#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+
+// Identify the type of side data accompanied with |SbPlayerSampleInfo|, as side
+// data may come from multiple sources.
+typedef enum SbPlayerSampleSideDataType {
+  // The side data comes from the BlockAdditional data in the Matroska/Webm
+  // container, as specified in
+  // https://tools.ietf.org/id/draft-lhomme-cellar-matroska-03.html#rfc.section.7.3.39
+  // and https://www.webmproject.org/docs/container/#BlockAdditional.
+  // The first 8 bytes of the data contains the value of BlockAddID in big
+  // endian format, followed by the content of BlockAdditional.
+  kMatroskaBlockAdditional,
+} SbPlayerSampleSideDataType;
+
+// Side data accompanied with |SbPlayerSampleInfo|, it can be arbitrary binary
+// data coming from multiple sources.
+typedef struct SbPlayerSampleSideData {
+  SbPlayerSampleSideDataType type;
+  // |data| will remain valid until SbPlayerDeallocateSampleFunc() is called on
+  // the |SbPlayerSampleInfo::buffer| the data is associated with.
+  const uint8_t* data;
+  // The size of the data pointed by |data|, in bytes.
+  size_t size;
+} SbPlayerSampleSideData;
+
+#endif  //  SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+
 // Information about the samples to be written into SbPlayerWriteSample2.
 typedef struct SbPlayerSampleInfo {
 #if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
@@ -130,12 +157,11 @@ typedef struct SbPlayerSampleInfo {
   SbTime timestamp;
 
 #if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
-  // Side data for the input when available.  Side data can be any additional
-  // data associated with the input data that is specified in the container.
-  // For example, it can be the BlockAdditional data in the webm container, as
-  // specified in https://www.webmproject.org/docs/container/#BlockAdditional.
-  const uint8_t* side_data;
-  size_t side_data_size;
+  // Points to an array of side data for the input, when available.
+  SbPlayerSampleSideData* side_data;
+  // The number of side data pointed by |side_data|.  It should be set to 0 if
+  // there is no side data for the input.
+  int side_data_count;
 
   union {
     // Information about an audio sample. This value can only be used when
