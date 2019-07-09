@@ -50,7 +50,7 @@ void StubVideoDecoder::WriteInputBuffer(
   if (video_sample_info.is_key_frame) {
     if (!video_sample_info_ ||
         video_sample_info_.value() != video_sample_info) {
-      SB_LOG(ERROR) << "New video sample info: " << video_sample_info;
+      SB_LOG(INFO) << "New video sample info: " << video_sample_info;
       video_sample_info_ = video_sample_info;
     }
   }
