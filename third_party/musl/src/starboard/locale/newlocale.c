@@ -4,7 +4,6 @@
 
 // Starboard does not provide a mechanism to create or delete a locale.
 locale_t __newlocale(int mask, const char *name, locale_t loc) {
-  SB_NOTREACHED();
   return NULL;
 }
 

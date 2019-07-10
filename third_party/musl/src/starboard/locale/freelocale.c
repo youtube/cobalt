@@ -4,7 +4,6 @@
 
 // Starboard does not provide a mechanism to create or delete a locale.
 void freelocale(locale_t l) {
-  SB_NOTREACHED();
   return;
 }
 
