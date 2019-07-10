@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/shared/internal_only.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
