@@ -57,6 +57,9 @@ typedef struct SbCPUFeatures {
   // /proc/self/auxv, or CPUID with CLFLUSH instruction.
   uint32_t cache_size;
 
+  // Processor has floating-point unit on-chip.
+  bool has_fpu;
+
   // -------------------------------------------------------------------
   //     Processor version information, valid only on x86 and x86_64
   //
@@ -86,6 +89,33 @@ typedef struct SbCPUFeatures {
   // family information
   uint16_t signature;
 
+  // -------------------------------------------------------------------
+  //     Processor version information, only valid on Arm and Arm64.
+  //
+  //     Stored in processor ID registers. See the reference manual of
+  //     Cortex-M0 for instance: http://infocenter.arm.com/help/
+  //     index.jsp?topic=/com.arm.doc.ddi0432c/Bhccjgga.html, and
+  //     Cortex-A8 for instance: http://infocenter.arm.com/help/
+  //     index.jsp?topic=/com.arm.doc.ddi0344k/Babififh.html.
+  //     About how to retrieve the information, see Arm CPU Feature
+  //     Registers documentation: https://www.kernel.org/doc/Documentation/
+  //     arm64/cpu-feature-registers.txt, or retrieve from /proc/cpuinfo
+  //     if available.
+  // -------------------------------------------------------------------
+
+  // Processor implementer/implementor code. ARM is 0x41, NVIDIA is 0x4e, etc.
+  int16_t implementer;
+  // Processor variant number, indicating the major revision number.
+  int16_t variant;
+  // Processor revision number, indicating the minor revision number.
+  int16_t revision;
+  // Processor architecture generation number, indicating the generations
+  // (ARMv6-M, ARMv7, etc) within an architecture family. This field is
+  // called "Architecture" or "Constant" in the processor ID register.
+  int16_t architecture_generation;
+  // Processor part number, indicating Cortex-M0, Cortex-A8, etc.
+  int16_t part;
+
   // ---------------------------------------------------------------------
   //     Processor feature flags
   //
@@ -106,8 +136,6 @@ typedef struct SbCPUFeatures {
   //     Intel-defined CPU features, CPUID level 0x00000001(EDX), word 0
   // ---------------------------------------------------------------------
 
-  // Floating-point Unit on-chip.
-  bool has_fpu;
   // Conditional Move Instructions (plus FCMOVcc, FCOMI with FPU).
   bool has_cmov;
   // Multimedia extensions.
