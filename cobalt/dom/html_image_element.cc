@@ -41,6 +41,15 @@ HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
                       .get(),
                   base::Token(kTagName)) {}
 
+void HTMLImageElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
+  if (!cached_image_loaded_callback_handler_) {
+    return;
+  }
+
+  // While we are still loading, treat this as an error.
+  OnLoadingError();
+}
+
 void HTMLImageElement::OnSetAttribute(const std::string& name,
                                       const std::string& /* value */) {
   // A user agent that obtains images immediately must synchronously update the
