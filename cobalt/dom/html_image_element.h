@@ -53,6 +53,9 @@ class HTMLImageElement : public HTMLElement {
  private:
   ~HTMLImageElement() override {}
 
+  // From Node.
+  void PurgeCachedBackgroundImagesOfNodeAndDescendants() override;
+
   // From Element.
   void OnSetAttribute(const std::string& name,
                       const std::string& value) override;
