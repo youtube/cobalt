@@ -23,6 +23,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"

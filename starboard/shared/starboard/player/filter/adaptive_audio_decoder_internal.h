@@ -21,6 +21,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/job_queue.h"

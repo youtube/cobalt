@@ -18,6 +18,7 @@
 #include <queue>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
