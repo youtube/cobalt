@@ -19,6 +19,7 @@
 #include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/time.h"

@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
+#include "starboard/shared/internal_only.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {

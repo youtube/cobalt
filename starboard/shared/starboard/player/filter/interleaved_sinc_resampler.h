@@ -25,6 +25,7 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/shared/internal_only.h"
 
 namespace starboard {
 namespace shared {
