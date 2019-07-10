@@ -2,8 +2,7 @@
 #include "locale_impl.h"
 
 // Starboard does not provide a mechanism to set the locale for the current
-// thread. However, this function is frequently invoked so we will just return
-// |new|.
+// thread.
 locale_t __uselocale(locale_t new) {
   return &new;
 }
