@@ -18,6 +18,10 @@
 #include "SkDistanceFieldGen.h"
 #include "GrDistanceFieldGenFromVector.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif  // defined(STARBOARD)
+
 namespace {
 
 #if defined(COBALT)
@@ -280,18 +284,30 @@ static bool save_pixels(GrContext* context, GrSurfaceProxy* sProxy, const char* 
     }
 
     // remove any previous version of this file
+#if defined(STARBOARD)
+    SbFileDelete(filename);
+#else   // !defined(STARBOARD)
     remove(filename);
+#endif  // defined(STARBOARD)
 
     SkFILEWStream file(filename);
     if (!file.isValid()) {
         SkDebugf("------ failed to create file: %s\n", filename);
+#if defined(STARBOARD)
+        SbFileDelete(filename);
+#else   // !defined(STARBOARD)
         remove(filename);   // remove any partial file
+#endif  // defined(STARBOARD)
         return false;
     }
 
     if (!SkEncodeImage(&file, bm, SkEncodedImageFormat::kPNG, 100)) {
         SkDebugf("------ failed to encode %s\n", filename);
+#if defined(STARBOARD)
+        SbFileDelete(filename);
+#else   // !defined(STARBOARD)
         remove(filename);   // remove any partial file
+#endif  // defined(STARBOARD)
         return false;
     }
 
