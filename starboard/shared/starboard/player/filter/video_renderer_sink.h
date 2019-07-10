@@ -19,6 +19,7 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/types.h"
 

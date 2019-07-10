@@ -23,6 +23,7 @@
 #include "starboard/file.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
