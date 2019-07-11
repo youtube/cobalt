@@ -898,9 +898,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
-#if SB_API_VERSION >= 6
     case kSbEventTypeLowMemory:
-#endif  // SB_API_VERSION >= 6
       OnApplicationEvent(starboard_event->type);
       break;
 #if SB_API_VERSION >= 8
@@ -955,9 +953,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     // Explicitly list unhandled cases here so that the compiler can give a
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
-#if SB_API_VERSION >= 6
     case kSbEventTypePreload:
-#endif  // SB_API_VERSION >= 6
 #if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeNetworkConnect:
     case kSbEventTypeNetworkDisconnect:
@@ -1019,7 +1015,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Resume();
       DLOG(INFO) << "Finished resuming.";
       break;
-#if SB_API_VERSION >= 6
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
@@ -1027,7 +1022,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     // All of the remaining event types are unexpected:
     case kSbEventTypePreload:
-#endif  // SB_API_VERSION >= 6
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
 #endif

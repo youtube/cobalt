@@ -161,37 +161,14 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
 #if SB_HAS(GRAPHICS)
 namespace {
 
-#if SB_API_VERSION < 6
-int PlanesPerFormat(SbDecodeTargetFormat format) {
-  switch (format) {
-    case kSbDecodeTargetFormat1PlaneRGBA:
-      return 1;
-    case kSbDecodeTargetFormat1PlaneBGRA:
-      return 1;
-    case kSbDecodeTargetFormat2PlaneYUVNV12:
-      return 2;
-#if SB_API_VERSION >= 10
-    case kSbDecodeTargetFormat3Plane10BitYUVI420:
-#endif
-    case kSbDecodeTargetFormat3PlaneYUVI420:
-      return 3;
-    default:
-      NOTREACHED();
-      return 0;
-  }
-}
-#endif  // SB_API_VERSION < 6
-
 uint32_t DecodeTargetFormatToGLFormat(
     SbDecodeTargetFormat format, int plane,
     const SbDecodeTargetInfoPlane* plane_info) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
-#if SB_API_VERSION >= 6
     // For UYVY, we will use a fragment shader where R = the first U, G = Y,
     // B = the second U, and A = V.
     case kSbDecodeTargetFormat1PlaneUYVY:
-#endif  // SB_API_VERSION >= 6
     {
       DCHECK_EQ(0, plane);
       return GL_RGBA;
@@ -309,11 +286,7 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
       new DecodeTargetReferenceCounted(decode_target));
 
 // There is limited format support at this time.
-#if SB_API_VERSION >= 6
   int planes_per_format = SbDecodeTargetNumberOfPlanesForFormat(info.format);
-#else
-  int planes_per_format = PlanesPerFormat(info.format);
-#endif  // SB_API_VERSION >= 6
 
   for (int i = 0; i < planes_per_format; ++i) {
     const SbDecodeTargetInfoPlane& plane = info.planes[i];
@@ -344,11 +317,9 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     // this in as supplementary data, as the |texture| object only knows that
     // it is RGBA.
     base::Optional<AlternateRgbaFormat> alternate_rgba_format;
-#if SB_API_VERSION >= 6
     if (info.format == kSbDecodeTargetFormat1PlaneUYVY) {
       alternate_rgba_format = AlternateRgbaFormat_UYVY;
     }
-#endif  // SB_API_VERSION >= 6
 
     planes.push_back(base::WrapRefCounted(new HardwareFrontendImage(
         std::move(texture), alpha_format, cobalt_context_, gr_context_,
