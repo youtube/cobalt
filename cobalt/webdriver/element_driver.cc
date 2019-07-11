@@ -299,13 +299,11 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
 
   event.set_pointer_type("mouse");
   event.set_pointer_id(kWebDriverMousePointerId);
-#if SB_API_VERSION >= 6
   event.set_width(0.0f);
   event.set_height(0.0f);
   event.set_pressure(0.0f);
   event.set_tilt_x(0.0f);
   event.set_tilt_y(0.0f);
-#endif
   event.set_is_primary(true);
 
   event.set_button(0);
@@ -313,15 +311,11 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
   pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
                               base::Tokens::pointermove(), event);
   event.set_buttons(1);
-#if SB_API_VERSION >= 6
   event.set_pressure(0.5f);
-#endif
   pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
                               base::Tokens::pointerdown(), event);
   event.set_buttons(0);
-#if SB_API_VERSION >= 6
   event.set_pressure(0.0f);
-#endif
   pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
                               base::Tokens::pointerup(), event);
 
