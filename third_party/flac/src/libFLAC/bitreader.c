@@ -70,7 +70,7 @@ typedef FLAC__uint32 brword;
 #if defined(_MSC_VER) && !defined(COBALT)
 #define SWAP_BE_WORD_TO_HOST(x) local_swap32_(x)
 #elif defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
+#include "starboard/byte_swap.h"
 #define SWAP_BE_WORD_TO_HOST(x) SB_NET_TO_HOST_U32(x)
 #else
 #define SWAP_BE_WORD_TO_HOST(x) ntohl(x)
