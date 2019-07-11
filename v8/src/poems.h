@@ -27,8 +27,8 @@
 #error "Including V8 poems without V8_OS_STARBOARD defined."
 #endif
 
-#include "starboard/common/string.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 
 #ifdef __cplusplus
 
