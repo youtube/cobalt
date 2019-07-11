@@ -101,10 +101,10 @@ bool BlitShaderProgram::Draw(SbBlitterContext context,
   // Clamp so fragment shader does not sample beyond edges of texture.
   const float kTexelInset = 0.499f;
   float texel_clamps[] = {
-      src_vertices[0] + kTexelInset / src_rect.width,    // min u
-      src_vertices[1] + kTexelInset / src_rect.height,   // min v
-      src_vertices[4] - kTexelInset / src_rect.width,    // max u
-      src_vertices[3] - kTexelInset / src_rect.height};  // max v
+      src_vertices[0] + kTexelInset / surface->info.width,    // min u
+      src_vertices[1] + kTexelInset / surface->info.height,   // min v
+      src_vertices[4] - kTexelInset / surface->info.width,    // max u
+      src_vertices[3] - kTexelInset / surface->info.height};  // max v
   GL_CALL(glVertexAttribPointer(kBlitPositionAttribute, 2, GL_FLOAT, GL_FALSE,
                                 0, dst_vertices));
   GL_CALL(glVertexAttribPointer(kTexCoordAttribute, 2, GL_FLOAT, GL_FALSE, 0,
