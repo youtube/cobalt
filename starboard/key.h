@@ -208,7 +208,6 @@ typedef enum SbKey {
   kSbKeyMediaRewind = 0xE3,
   kSbKeyMediaFastForward = 0xE4,
 
-#if SB_API_VERSION >= 6
   // Key codes from the DTV Application Software Environment,
   //   http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf
   kSbKeyRed = 0x193,
@@ -228,14 +227,12 @@ typedef enum SbKey {
   //   https://apps.cablelabs.com/specification/opencable-application-platform-ocap/
   kSbKeyLast = 0x25f,
   kSbKeyPreviousChannel = kSbKeyLast,
-#endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= 9
   // Also from OCAP
   kSbKeyInstantReplay = 0x273,
 #endif  // SB_API_VERSION >= 9
 
-#if SB_API_VERSION >= 6
   // Custom Starboard-defined keycodes.
 
   // A button that will directly launch the current application.
@@ -243,7 +240,6 @@ typedef enum SbKey {
 
   // A button that will switch between different available audio tracks.
   kSbKeyMediaAudioTrack = 0x3001,
-#endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= 10
   // A button that will trigger voice input.
@@ -323,13 +319,11 @@ typedef enum SbKeyModifiers {
   kSbKeyModifiersCtrl = 1 << 1,
   kSbKeyModifiersMeta = 1 << 2,
   kSbKeyModifiersShift = 1 << 3,
-#if SB_API_VERSION >= 6
   kSbKeyModifiersPointerButtonLeft = 1 << 4,
   kSbKeyModifiersPointerButtonRight = 1 << 5,
   kSbKeyModifiersPointerButtonMiddle = 1 << 6,
   kSbKeyModifiersPointerButtonBack = 1 << 7,
   kSbKeyModifiersPointerButtonForward = 1 << 8,
-#endif
 } SbKeyModifiers;
 
 #ifdef __cplusplus

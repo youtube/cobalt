@@ -617,13 +617,8 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 SB_EXPORT void SbPlayerWriteSample(
     SbPlayer player,
     SbMediaType sample_type,
-#if SB_API_VERSION >= 6
     const void* const* sample_buffers,
     const int* sample_buffer_sizes,
-#else   // SB_API_VERSION >= 6
-    const void** sample_buffers,
-    int* sample_buffer_sizes,
-#endif  // SB_API_VERSION >= 6
     int number_of_sample_buffers,
     SbMediaTime sample_pts,
     const SbMediaVideoSampleInfo* video_sample_info,

@@ -34,10 +34,8 @@ class StorageRecord {
   StorageRecord();
   explicit StorageRecord(SbUser user);
 
-#if SB_API_VERSION >= 6
   explicit StorageRecord(const char* name);
   StorageRecord(SbUser user, const char* name);
-#endif  // SB_API_VERSION >= 6
 
   ~StorageRecord();
   bool IsValid();
@@ -52,9 +50,7 @@ class StorageRecord {
   void Initialize();
 
   SbUser user_;
-#if SB_API_VERSION >= 6
   std::string name_;
-#endif  // SB_API_VERSION >= 6
   SbStorageRecord record_;
 };
 

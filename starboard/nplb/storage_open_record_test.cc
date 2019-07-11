@@ -23,8 +23,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 6
-
 TEST(SbStorageOpenRecordTest, RainyDayInvalidUserValidName) {
   EXPECT_FALSE(SbStorageIsValidRecord(SbStorageOpenRecord(
       kSbUserInvalid, ScopedRandomFile::MakeRandomFilename().c_str())));
@@ -34,14 +32,6 @@ TEST(SbStorageOpenRecordTest, RainyDayInvalidUserNullName) {
   EXPECT_FALSE(
       SbStorageIsValidRecord(SbStorageOpenRecord(kSbUserInvalid, NULL)));
 }
-
-#else  // SB_API_VERSION >= 6
-
-TEST(SbStorageOpenRecordTest, RainyDayInvalidUser) {
-  EXPECT_FALSE(SbStorageIsValidRecord(SbStorageOpenRecord(kSbUserInvalid)));
-}
-
-#endif  // SB_API_VERSION >= 6
 
 }  // namespace
 }  // namespace nplb

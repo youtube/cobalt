@@ -282,7 +282,6 @@
         'time_get_now_test.cc',
         'time_narrow_test.cc',
         'time_zone_get_current_test.cc',
-        'time_zone_get_dst_name_test.cc',
         'time_zone_get_name_test.cc',
         'undefined_behavior_test.cc',
         'unsafe_math_test.cc',

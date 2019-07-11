@@ -68,7 +68,7 @@ SbDrmSystem SbDrmCreateSystem(
   return kSbDrmSystemInvalid;
 }
 
-#else  // SB_API_VERSION >= 6
+#else  // SB_API_VERSION >= 10
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -82,4 +82,4 @@ SbDrmSystem SbDrmCreateSystem(
   return kSbDrmSystemInvalid;
 }
 
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_API_VERSION >= 10

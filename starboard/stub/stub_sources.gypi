@@ -281,7 +281,6 @@
         '<(DEPTH)/starboard/shared/stub/time_get_monotonic_thread_now.cc',
         '<(DEPTH)/starboard/shared/stub/time_get_now.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_current.cc',
-        '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_name.cc',
         '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
         '<(DEPTH)/starboard/shared/stub/user_get_current.cc',

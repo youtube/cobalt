@@ -34,11 +34,7 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     return false;
   }
 
-#if SB_API_VERSION >= 6
   const char* name = record->name.c_str();
-#else
-  const char* name = NULL;
-#endif
   char original_file_path[SB_FILE_MAX_PATH];
   if (!starboard::shared::starboard::GetUserStorageFilePath(
           record->user, name, original_file_path, SB_FILE_MAX_PATH)) {

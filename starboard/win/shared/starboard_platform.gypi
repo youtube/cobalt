@@ -294,7 +294,6 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_freeze.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
-        '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.h',
         '<(DEPTH)/starboard/shared/win32/atomic_public.h',

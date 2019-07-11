@@ -44,10 +44,8 @@ class ApplicationDirectFB : public shared::starboard::QueueApplication {
   IDirectFB* GetDirectFB();
   SbWindow GetWindow();
 
-#if SB_API_VERSION >= 6
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
-#endif  // SB_API_VERSION >= 6
 
  protected:
   // --- Application overrides ---
