@@ -124,7 +124,6 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
   // Starboard handily uses the Microsoft key mapping, which is also what Cobalt
   // uses.
   int key_code = static_cast<int>(data.key);
-#if SB_API_VERSION >= 6
   float pressure = data.pressure;
   uint32 modifiers = data.key_modifiers;
   if (((data.device_type == kSbInputDeviceTypeTouchPad) ||
@@ -174,12 +173,6 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
                      math::PointF(data.size.x, data.size.y),
                      math::PointF(data.tilt.x, data.tilt.y)));
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-#else
-  std::unique_ptr<InputEvent> input_event(new InputEvent(
-      timestamp, type, data.device_id, key_code, data.key_modifiers, is_repeat,
-      math::PointF(data.position.x, data.position.y),
-      math::PointF(data.delta.x, data.delta.y)));
-#endif
   event_dispatcher()->DispatchEvent(
       std::unique_ptr<base::Event>(input_event.release()));
 }
@@ -209,12 +202,10 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
       DispatchInputEvent(data, input_event_type, false /* is_repeat */);
       break;
     }
-#if SB_API_VERSION >= 6
     case kSbInputEventTypeWheel: {
       DispatchInputEvent(data, InputEvent::kWheel, false /* is_repeat */);
       break;
     }
-#endif
     case kSbInputEventTypeMove: {
       if (data.device_type == kSbInputDeviceTypeTouchPad) {
         input_event_type = InputEvent::kTouchpadMove;
