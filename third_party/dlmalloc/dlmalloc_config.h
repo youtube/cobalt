@@ -18,8 +18,8 @@
 
 #if defined(STARBOARD)
 #include <sys/types.h>  // for ssize_t, maybe should add to starboard/types.h
-#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
+#include "starboard/mutex.h"
 // Define STARBOARD_IMPLEMENTATION to allow inclusion of an internal Starboard
 // header. This is "okay" because dlmalloc is essentially an implementation
 // detail of Starboard, and it would be statically linked into the Starboard DSO
