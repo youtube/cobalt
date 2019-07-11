@@ -23,8 +23,6 @@ namespace {
 TEST(SbKeyTest, CanReference) {
   EXPECT_NE(kSbKeyUnknown, kSbKeyMediaRewind);
   EXPECT_NE(kSbKeyUnknown, kSbKeyMediaFastForward);
-
-#if SB_API_VERSION >= 6
   EXPECT_NE(kSbKeyUnknown, kSbKeyRed);
   EXPECT_NE(kSbKeyUnknown, kSbKeyGreen);
   EXPECT_NE(kSbKeyUnknown, kSbKeyYellow);
@@ -39,7 +37,6 @@ TEST(SbKeyTest, CanReference) {
   EXPECT_NE(kSbKeyUnknown, kSbKeyPreviousChannel);
   EXPECT_NE(kSbKeyUnknown, kSbKeyLaunchThisApplication);
   EXPECT_NE(kSbKeyUnknown, kSbKeyMediaAudioTrack);
-#endif  //  SB_API_VERSION >= 6
 }
 
 }  // namespace

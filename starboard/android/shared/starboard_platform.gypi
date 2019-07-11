@@ -152,7 +152,6 @@
         'thread_create_priority.cc',
         'thread_get_name.cc',
         'thread_types_public.h',
-        'time_zone_get_dst_name.cc',
         'time_zone_get_name.cc',
         'trace_util.h',
         'video_decoder.cc',

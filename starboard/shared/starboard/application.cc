@@ -155,9 +155,7 @@ void Application::Link(const char *link_data) {
 }
 
 void Application::InjectLowMemoryEvent() {
-#if SB_API_VERSION >= 6
   Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
-#endif  // SB_API_VERSION >= 6
 }
 
 #if SB_API_VERSION >= 8
@@ -207,12 +205,8 @@ void Application::DispatchStart() {
 
 void Application::DispatchPreload() {
   SB_DCHECK(IsCurrentThread());
-#if SB_API_VERSION >= 6
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload));
-#else  // SB_API_VERSION >= 6
-  SB_NOTREACHED();
-#endif  // SB_API_VERSION >= 6
 }
 
 bool Application::HasPreloadSwitch() {
@@ -231,13 +225,11 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.
   switch (scoped_event->event->type) {
-#if SB_API_VERSION >= 6
     case kSbEventTypePreload:
       if (state() != kStateUnstarted) {
         return true;
       }
       break;
-#endif  // SB_API_VERSION >= 6
     case kSbEventTypeStart:
       if (state() != kStatePreloading && state() != kStateUnstarted) {
         return true;
@@ -318,12 +310,10 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   SbEventHandle(scoped_event->event);
 
   switch (scoped_event->event->type) {
-#if SB_API_VERSION >= 6
     case kSbEventTypePreload:
       SB_DCHECK(state() == kStateUnstarted);
       state_ = kStatePreloading;
       break;
-#endif  // SB_API_VERSION >= 6
     case kSbEventTypeStart:
       SB_DCHECK(state() == kStatePreloading || state() == kStateUnstarted);
       state_ = kStateStarted;
@@ -366,11 +356,7 @@ void Application::CallTeardownCallbacks() {
 }
 
 Application::Event* Application::CreateInitialEvent(SbEventType type) {
-#if SB_API_VERSION >= 6
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
-#else  // SB_API_VERSION >= 6
-  SB_DCHECK(type == kSbEventTypeStart);
-#endif  // SB_API_VERSION >= 6
   SbEventStartData* start_data = new SbEventStartData();
   SbMemorySet(start_data, 0, sizeof(SbEventStartData));
   const CommandLine::StringVector& args = command_line_->argv();
