@@ -19,6 +19,7 @@
 
 #include "base/logging.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/layout/flex_item.h"
 #include "cobalt/layout/layout_unit.h"
 
 namespace cobalt {
@@ -26,42 +27,23 @@ namespace layout {
 
 class FlexLine {
  public:
-  struct Item {
-    Box* box = nullptr;
-    LayoutUnit flex_base_size = LayoutUnit();
-    LayoutUnit hypothetical_main_size = LayoutUnit();
-    LayoutUnit outer_main_size = LayoutUnit();
-    LayoutUnit target_main_size = LayoutUnit();
-    LayoutUnit flex_space = LayoutUnit();
-    LayoutUnit scaled_flex_shrink_factor = LayoutUnit();
-    float flex_factor = 0;
-    bool max_violation = false;
-    bool min_violation = false;
-    Item(Box* box, LayoutUnit flex_base_size, LayoutUnit hypothetical_main_size,
-         LayoutUnit outer_main_size)
-        : box(box),
-          flex_base_size(flex_base_size),
-          hypothetical_main_size(hypothetical_main_size),
-          outer_main_size(outer_main_size) {}
-  };
-
   FlexLine(const LayoutParams& layout_params, bool main_direction_is_horizontal,
            bool direction_is_reversed, LayoutUnit main_size);
 
   // Attempt to add the item to the line. Returns true if the box was
   // added to the line.
-  bool TryAddItem(Box* item, LayoutUnit flex_base_size,
+  bool TryAddItem(Box* box, LayoutUnit flex_base_size,
                   LayoutUnit hypothetical_main_size);
 
   // Add the item to the line.
-  void AddItem(Box* item, LayoutUnit flex_base_size,
+  void AddItem(Box* box, LayoutUnit flex_base_size,
                LayoutUnit hypothetical_main_size);
 
   void ResolveFlexibleLengthsAndCrossSize();
   void CalculateCrossSize();
   void DetermineUsedCrossSizes(LayoutUnit container_cross_size);
   void DoMainAxisAlignment();
-  void DoCrossAxisAlignment(LayoutUnit line_top);
+  void DoCrossAxisAlignment(LayoutUnit line_cross_axis_start);
 
   LayoutUnit cross_size() const { return cross_size_; }
   void set_cross_size(LayoutUnit value) { cross_size_ = value; }
@@ -73,7 +55,7 @@ class FlexLine {
                                    LayoutUnit content_main_size) const;
   float GetFlexFactor(Box* box);
 
-  void SetBoxPosition(LayoutUnit pos, Box* box);
+  void SetMainAxisPosition(LayoutUnit pos, FlexItem* item);
 
   const LayoutParams layout_params_;
   const bool main_direction_is_horizontal_;
@@ -82,8 +64,8 @@ class FlexLine {
 
   bool flex_factor_grow_;
   LayoutUnit items_outer_main_size_;
-  LayoutUnit line_top_;
-  std::vector<Item> items_;
+  LayoutUnit line_cross_axis_start_;
+  std::vector<std::unique_ptr<FlexItem>> items_;
 
   LayoutUnit cross_size_;
 

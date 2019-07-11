@@ -44,6 +44,8 @@
         'flex_container_box.h',
         'flex_formatting_context.cc',
         'flex_formatting_context.h',
+        'flex_item.cc',
+        'flex_item.h',
         'flex_line.cc',
         'flex_line.h',
         'letterboxed_image.cc',

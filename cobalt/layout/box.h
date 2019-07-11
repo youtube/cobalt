@@ -933,6 +933,8 @@ class Box : public base::RefCounted<Box> {
   friend class FlexContainerBox;
   friend class FlexFormattingContext;
   friend class FlexLine;
+  friend class MainAxisHorizontalFlexItem;
+  friend class MainAxisVerticalFlexItem;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
