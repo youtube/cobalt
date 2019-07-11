@@ -14,6 +14,6 @@
 
 #include "starboard/egl.h"
 
-SbEglInterface* SbGetEglInterface() {
+const SbEglInterface* SbGetEglInterface() {
   return nullptr;
 }

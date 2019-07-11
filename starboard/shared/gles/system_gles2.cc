@@ -19,7 +19,7 @@
 
 namespace {
 
-SbGlesInterface g_sb_gles_interface = {
+const SbGlesInterface g_sb_gles_interface = {
     &glActiveTexture,
     &glAttachShader,
     &glBindAttribLocation,
@@ -270,6 +270,6 @@ SbGlesInterface g_sb_gles_interface = {
 
 }  // namespace
 
-SbGlesInterface* SbGetGlesInterface() {
+const SbGlesInterface* SbGetGlesInterface() {
   return &g_sb_gles_interface;
 }
