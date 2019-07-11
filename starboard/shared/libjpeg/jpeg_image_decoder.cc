@@ -168,9 +168,7 @@ bool ReadLines(jpeg_decompress_struct* info,
 #if SB_API_VERSION >= 10
       case kSbDecodeTargetFormat3Plane10BitYUVI420:
 #endif  // SB_API_VERSION >= 10
-#if SB_API_VERSION >= 6
       case kSbDecodeTargetFormat1PlaneUYVY:
-#endif  // SB_API_VERSION >= 6
       case kSbDecodeTargetFormatInvalid:
         SB_NOTREACHED();
         break;

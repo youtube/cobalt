@@ -28,14 +28,6 @@ SbSystemPlatformError SbSystemRaisePlatformError(
     case kSbSystemPlatformErrorTypeConnectionError:
       message = "Connection error.";
       break;
-#if SB_API_VERSION < 6
-    case kSbSystemPlatformErrorTypeUserSignedOut:
-      message = "User is not signed in.";
-      break;
-    case kSbSystemPlatformErrorTypeUserAgeRestricted:
-      message = "User is age restricted.";
-      break;
-#endif
     default:
       message = "<unknown>";
       break;

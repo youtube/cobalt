@@ -225,7 +225,6 @@ SbKey AInputEventToSbKey(AInputEvent* event) {
     case AKEYCODE_MEDIA_FAST_FORWARD:
       return kSbKeyMediaFastForward;
 
-#if SB_API_VERSION >= 6
     // TV Remote specific
     case AKEYCODE_CHANNEL_UP:
       return kSbKeyChannelUp;
@@ -250,7 +249,6 @@ SbKey AInputEventToSbKey(AInputEvent* event) {
       return kSbKeyYellow;
     case AKEYCODE_PROG_BLUE:
       return kSbKeyBlue;
-#endif  // SB_API_VERSION >= 6
 
     // Whitespace
     case AKEYCODE_TAB:
@@ -667,7 +665,6 @@ SbKey ButtonStateToSbKey(int32_t button_state) {
 // Get an SbKeyModifiers from a button state
 unsigned int ButtonStateToSbModifiers(unsigned int button_state) {
   unsigned int key_modifiers = kSbKeyModifiersNone;
-#if SB_API_VERSION >= 6
   if (button_state & AMOTION_EVENT_BUTTON_PRIMARY) {
     key_modifiers |= kSbKeyModifiersPointerButtonLeft;
   }
@@ -683,20 +680,8 @@ unsigned int ButtonStateToSbModifiers(unsigned int button_state) {
   if (button_state & AMOTION_EVENT_BUTTON_FORWARD) {
     key_modifiers |= kSbKeyModifiersPointerButtonForward;
   }
-#endif
   return key_modifiers;
 }
-
-#if SB_API_VERSION < 6
-SbKey ScrollAxisToKey(float hscroll, float vscroll) {
-  if (vscroll != 0) {
-    return vscroll < 0 ? kSbKeyDown : kSbKeyUp;
-  } else if (hscroll != 0) {
-    return hscroll > 0 ? kSbKeyLeft : kSbKeyRight;
-  }
-  return kSbKeyUnknown;
-}
-#endif
 
 }  // namespace
 
@@ -712,11 +697,9 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
 
   data->window = window_;
   SB_DCHECK(SbWindowIsValid(data->window));
-#if SB_API_VERSION >= 6
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};
-#endif
   unsigned int button_state = AMotionEvent_getButtonState(android_event);
   unsigned int button_modifiers = ButtonStateToSbModifiers(button_state);
 
@@ -755,28 +738,10 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
           android_event, AMOTION_EVENT_AXIS_VSCROLL, 0);  // down is -1
       float wheel =
           AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_WHEEL, 0);
-#if SB_API_VERSION >= 6
       data->type = kSbInputEventTypeWheel;
       data->key = kSbKeyUnknown;
       data->delta.y = -vscroll;
       data->delta.x = hscroll;
-#else
-      // This version of Starboard does not support wheel event types, send
-      // keyboard event types instead.
-      data->device_type = kSbInputDeviceTypeKeyboard;
-      data->key = ScrollAxisToKey(hscroll, vscroll);
-
-      std::unique_ptr<SbInputData> data_press(new SbInputData());
-      SbMemoryCopy(data_press.get(), data.get(), sizeof(*data_press));
-
-      // Send a press and unpress event.
-      data_press->type = kSbInputEventTypePress;
-      events->push_back(std::unique_ptr<Event>(
-          new Application::Event(kSbEventTypeInput, data_press.release(),
-                                 &Application::DeleteDestructor<SbInputData>)));
-
-      data->type = kSbInputEventTypeUnpress;
-#endif
       break;
     }
     default:

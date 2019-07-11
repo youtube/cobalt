@@ -12,15 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
-
-#include <time.h>
-
-#if SB_API_VERSION < 6
-const char* SbTimeZoneGetDstName() {
-  // TODO: Using tzname assumes that tzset() has been called at some
-  // point. That should happen as part of Starboard's main loop initialization,
-  // but that doesn't exist yet.
-  return tzname[1];
-}
-#endif  // SB_API_VERSION < 6
+#error This file is deprecated with SB_API_VERSION 6.
