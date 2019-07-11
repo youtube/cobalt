@@ -217,14 +217,6 @@ typedef enum SbSystemPlatformErrorType {
   // |kSbSystemPlatformErrorResponsePositive| then the request should be
   // retried, otherwise the app should be stopped.
   kSbSystemPlatformErrorTypeConnectionError,
-
-#if SB_API_VERSION < 6
-  // The current user is not signed in.
-  kSbSystemPlatformErrorTypeUserSignedOut,
-
-  // The current user does not meet the age requirements to use the app.
-  kSbSystemPlatformErrorTypeUserAgeRestricted
-#endif
 } SbSystemPlatformErrorType;
 
 // Possible responses for |SbSystemPlatformErrorCallback|.

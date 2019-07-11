@@ -26,7 +26,6 @@ StorageRecord::StorageRecord(SbUser user)
   Initialize();
 }
 
-#if SB_API_VERSION >= 6
 StorageRecord::StorageRecord(const char* name)
     : user_(SbUserGetCurrent()), name_(name), record_(kSbStorageInvalidRecord) {
   Initialize();
@@ -36,7 +35,6 @@ StorageRecord::StorageRecord(SbUser user, const char* name)
     : user_(user), name_(name), record_(kSbStorageInvalidRecord) {
   Initialize();
 }
-#endif  // SB_API_VERSION >= 6
 
 StorageRecord::~StorageRecord() {
   Close();
@@ -69,28 +67,20 @@ bool StorageRecord::Close() {
 
 bool StorageRecord::Delete() {
   Close();
-#if SB_API_VERSION >= 6
   if (!name_.empty()) {
     return SbStorageDeleteRecord(user_, name_.c_str());
   } else {
     return SbStorageDeleteRecord(user_, NULL);
   }
-#else   // SB_API_VERSION >= 6
-  return SbStorageDeleteRecord(user_);
-#endif  // SB_API_VERSION >= 6
 }
 
 void StorageRecord::Initialize() {
   if (SbUserIsValid(user_)) {
-#if SB_API_VERSION >= 6
     if (!name_.empty()) {
       record_ = SbStorageOpenRecord(user_, name_.c_str());
     } else {
       record_ = SbStorageOpenRecord(user_, NULL);
     }
-#else   // SB_API_VERSION >= 6
-    record_ = SbStorageOpenRecord(user_);
-#endif  // SB_API_VERSION >= 6
   }
 }
 

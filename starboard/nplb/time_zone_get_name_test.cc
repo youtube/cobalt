@@ -37,13 +37,6 @@ TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
   // or "Pacific Standard Time" or like "America/Los_Angeles"
   EXPECT_GE(i, 3);
 
-#if SB_API_VERSION < 6
-  // Some, like WART for Western Argentina, are 4.
-  // A very few, like ANAST, or CHAST is 5
-  // http://www.timeanddate.com/time/zones/
-  EXPECT_LE(i, 5);
-#endif  // SB_API_VERSION < 6
-
   // On Linux, TZ=":Pacific/Chatham" is a good test of boundary conditions.
   // ":Pacific/Kiritimati" is the western-most timezone at UTC+14.
 }

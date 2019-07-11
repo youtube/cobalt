@@ -129,10 +129,8 @@ typedef enum SbInputEventType {
   // event is sent when the key or button being pressed is released.
   kSbInputEventTypeUnpress,
 
-#if SB_API_VERSION >= 6
   // Wheel movement. Provides relative movements of the |Mouse| wheel.
   kSbInputEventTypeWheel,
-#endif
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // https://w3c.github.io/uievents/#event-type-input
@@ -198,7 +196,6 @@ typedef struct SbInputData {
   // not applicable.
   SbInputVector delta;
 
-#if SB_API_VERSION >= 6
   // The normalized pressure of the pointer input in the range of [0,1], where 0
   // and 1 represent the minimum and maximum pressure the hardware is capable of
   // detecting, respectively. Use NaN for devices that do not report pressure.
@@ -216,7 +213,6 @@ typedef struct SbInputData {
   // towards the user (y). Use (NaN, NaN) for devices that do not report tilt.
   // This value is used for input events with device type mouse or touch screen.
   SbInputVector tilt;
-#endif
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // The text to input for events of type |Input|.
   const char* input_text;
