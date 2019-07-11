@@ -13,7 +13,7 @@
 #define WEBP_UTILS_ENDIAN_INL_UTILS_H_
 
 #if defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
+#include "starboard/byte_swap.h"
 #endif
 
 #ifdef HAVE_CONFIG_H
