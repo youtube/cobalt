@@ -33,7 +33,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 // Applications should not leave the standard error handler registered.
 #define exit(x) SbSystemBreakIntoDebugger(x)
