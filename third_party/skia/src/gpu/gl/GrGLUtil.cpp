@@ -56,7 +56,7 @@ const char *get_error_string(uint32_t err) {
 
 #if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
 const SbEglInterface& SkiaGetEglInterface() {
-    static SbEglInterface* egl_interface = SbGetEglInterface();
+    static const SbEglInterface* egl_interface = SbGetEglInterface();
 
     return *egl_interface;
 }
