@@ -73,13 +73,13 @@ namespace cobalt {
 namespace renderer {
 
 inline const SbEglInterface& CobaltGetEglInterface() {
-  static SbEglInterface* egl_interface = SbGetEglInterface();
+  static const SbEglInterface* egl_interface = SbGetEglInterface();
 
   return *egl_interface;
 }
 
 inline const SbGlesInterface& CobaltGetGlesInterface() {
-  static SbGlesInterface* gles_interface = SbGetGlesInterface();
+  static const SbGlesInterface* gles_interface = SbGetGlesInterface();
 
   return *gles_interface;
 }
