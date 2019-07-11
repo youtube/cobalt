@@ -14,7 +14,31 @@
 
 #include "starboard/cpu_features.h"
 
+#include <string.h>
+
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
-  // Return false indicating the architecture is unknown.
+  memset(features, 0, sizeof(*features));
+  features->architecture = kSbCPUFeaturesArchitectureUnknown;
+  features->brand = "";
+  features->cache_size = -1;
+  features->has_fpu = false;
+  features->hwcap = 0;
+  features->hwcap2 = 0;
+
+  features->arm_features.implementer = -1;
+  features->arm_features.variant = -1;
+  features->arm_features.revision = -1;
+  features->arm_features.architecture_generation = -1;
+  features->arm_features.part = -1;
+
+  features->X86_features.vendor = "";
+  features->X86_features.family = -1;
+  features->X86_features.ext_family = -1;
+  features->X86_features.model = -1;
+  features->X86_features.ext_model = -1;
+  features->X86_features.stepping = -1;
+  features->X86_features.type = -1;
+  features->X86_features.signature = -1;
+
   return false;
 }
