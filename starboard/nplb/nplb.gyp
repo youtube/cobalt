@@ -100,6 +100,7 @@
         'condition_variable_wait_test.cc',
         'condition_variable_wait_timed_test.cc',
         'configuration_test.cc',
+        'cpu_features_get_test.cc',
         'cryptography_create_transformer_test.cc',
         'cryptography_helpers.cc',
         'cryptography_helpers.h',

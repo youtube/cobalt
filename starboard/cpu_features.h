@@ -29,6 +29,8 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
+#if SB_API_VERSION >= 11
+
 typedef enum SbCPUFeaturesArchitecture {
   kSbCPUFeaturesArchitectureArm,
   kSbCPUFeaturesArchitectureArm64,
@@ -297,9 +299,12 @@ typedef struct SbCPUFeatures {
   // - 'false' for feature flag fields
   // - '0' for feature flag bitmasks
   // - empty string for string fields
-  SbCPUFeaturesARM arm_features;
-  SbCPUFeaturesMIPS mips_features;
-  SbCPUFeaturesX86 x86_features;
+  SbCPUFeaturesARM arm;
+  // The reason that the "_arch" suffix exists for mips is because on some
+  // platforms that use MIPS as the underlying architecture, "mips" is
+  // already defined as a macro.
+  SbCPUFeaturesMIPS mips_arch;
+  SbCPUFeaturesX86 x86;
 } SbCPUFeatures;
 
 // Retrieve the underlying CPU features and place it in |features|, which must
@@ -309,4 +314,5 @@ typedef struct SbCPUFeatures {
 // all fields in |features| are invalid.
 SB_EXPORT bool SbCPUFeaturesGet(SbCPUFeatures* features);
 
+#endif  // SB_API_VERSION >= 11
 #endif  // STARBOARD_CPU_FEATURES_H_
