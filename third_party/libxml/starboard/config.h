@@ -1,9 +1,9 @@
 #include "starboard/character.h"
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/double.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 #include "starboard/types.h"
 
 /* Manually adapted from config.h.in. */
