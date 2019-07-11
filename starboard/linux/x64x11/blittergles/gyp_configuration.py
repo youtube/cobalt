@@ -17,26 +17,8 @@
 """Starboard Linux X64X11 BlitterGLES platform configuration."""
 
 from starboard.linux.x64x11 import gyp_configuration as parent_configuration
-from starboard.tools.testing import test_filter
-
-
-class LinuxX64X11BlitterglesConfiguration(
-    parent_configuration.LinuxX64X11Configuration):
-
-  def GetTestFilters(self):
-    filters = super(LinuxX64X11BlitterglesConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  __FILTERED_TESTS = {
-      'nplb_blitter_pixel_tests': [
-          # Filtered because the bilinear interpolation with GLES is slightly
-          # different than the interpolation on the expected image.
-          'SbBlitterPixelTest.MagnifyBlitRectToRectInterpolated',
-      ],
-  }
 
 
 def CreatePlatformConfig():
-  return LinuxX64X11BlitterglesConfiguration('linux-x64x11-blittergles')
+  return parent_configuration.LinuxX64X11Configuration(
+      'linux-x64x11-blittergles')
