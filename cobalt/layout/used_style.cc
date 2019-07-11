@@ -505,7 +505,7 @@ scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
   DCHECK(animated_image_tracker_);
   DCHECK(image_cache_);
   scoped_refptr<loader::image::Image> image =
-      image_cache_->CreateCachedResource(url, loader::Origin())
+      image_cache_->GetOrCreateCachedResource(url, loader::Origin())
           ->TryGetResource();
   if (image && image->IsAnimated()) {
     loader::image::AnimatedImage* animated_image =
@@ -518,7 +518,7 @@ scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
 scoped_refptr<loader::mesh::MeshProjection>
 UsedStyleProvider::ResolveURLToMeshProjection(const GURL& url) {
   DCHECK(mesh_cache_);
-  return mesh_cache_->CreateCachedResource(url, loader::Origin())
+  return mesh_cache_->GetOrCreateCachedResource(url, loader::Origin())
       ->TryGetResource();
 }
 

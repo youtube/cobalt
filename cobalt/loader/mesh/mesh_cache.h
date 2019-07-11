@@ -38,8 +38,7 @@ struct MeshResourceCacheType {
 };
 
 typedef CachedResource<MeshResourceCacheType> CachedMesh;
-typedef CachedResourceReferenceWithCallbacks<MeshResourceCacheType>
-    CachedMeshReferenceWithCallbacks;
+typedef CachedResourceReferenceWithCallbacks CachedMeshReferenceWithCallbacks;
 typedef CachedMeshReferenceWithCallbacks::CachedResourceReferenceVector
     CachedMeshReferenceVector;
 
