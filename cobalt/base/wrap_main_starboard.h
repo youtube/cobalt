@@ -36,7 +36,6 @@ void BaseEventHandler(const SbEvent* event) {
   static base::MessageLoopForUI* g_loop = NULL;
   static bool g_started = false;
   switch (event->type) {
-#if SB_API_VERSION >= 6
     case kSbEventTypePreload: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
@@ -54,7 +53,6 @@ void BaseEventHandler(const SbEvent* event) {
       g_started = true;
       break;
     }
-#endif  // SB_API_VERSION >= 6
     case kSbEventTypeStart: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
@@ -105,9 +103,7 @@ void BaseEventHandler(const SbEvent* event) {
 #endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
     case kSbEventTypeScheduled:
     case kSbEventTypeAccessiblitySettingsChanged:
-#if SB_API_VERSION >= 6
     case kSbEventTypeLowMemory:
-#endif  // SB_API_VERSION >= 6
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
 #endif  // SB_API_VERSION >= 8

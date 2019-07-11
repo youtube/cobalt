@@ -108,13 +108,9 @@ bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
 
 std::unique_ptr<starboard::StorageRecord> CreateRecord(
     const base::Optional<std::string>& id) {
-#if SB_API_VERSION >= 6
   if (id) {
     return base::WrapUnique(new starboard::StorageRecord(id->c_str()));
   }
-#else   // SB_API_VERSION >= 6
-  SB_UNREFERENCED_PARAMETER(id);
-#endif  // SB_API_VERSION >= 6
   return base::WrapUnique(new starboard::StorageRecord());
 }
 
