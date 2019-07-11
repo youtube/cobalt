@@ -126,7 +126,7 @@ void HTMLImageElement::UpdateImageData() {
         node_document()
             ->html_element_context()
             ->image_cache()
-            ->CreateCachedResource(selected_source, loader::Origin());
+            ->GetOrCreateCachedResource(selected_source, loader::Origin());
     if (cached_image->TryGetResource()) {
       PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::load());
       return;

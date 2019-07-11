@@ -332,7 +332,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
   // Retrieve the font from the remote typeface cache, potentially triggering a
   // load.
   scoped_refptr<loader::font::CachedRemoteTypeface> cached_remote_typeface =
-      remote_typeface_cache_->CreateCachedResource(
+      remote_typeface_cache_->GetOrCreateCachedResource(
           url, document_location_ ? document_location_->GetOriginAsObject()
                                   : loader::Origin());
 
