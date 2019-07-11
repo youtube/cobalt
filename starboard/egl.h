@@ -180,7 +180,7 @@ typedef struct SbEglInterface {
                               SbEglInt32 flags);
 } SbEglInterface;
 
-SB_EXPORT SbEglInterface* SbGetEglInterface();
+SB_EXPORT const SbEglInterface* SbGetEglInterface();
 
 // All of the following were previously defined in
 // https://www.khronos.org/registry/EGL/api/EGL/egl.h.

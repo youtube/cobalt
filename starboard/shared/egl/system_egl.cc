@@ -57,7 +57,7 @@ SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
   return eglGetDisplay((EGLNativeDisplayType)display_id);
 }
 
-SbEglInterface g_sb_egl_interface = {
+const SbEglInterface g_sb_egl_interface = {
     &eglChooseConfig,
     &SbEglCopyBuffers,
     &eglCreateContext,
@@ -107,6 +107,6 @@ SbEglInterface g_sb_egl_interface = {
 
 }  // namespace
 
-SbEglInterface* SbGetEglInterface() {
+const SbEglInterface* SbGetEglInterface() {
   return &g_sb_egl_interface;
 }
