@@ -180,13 +180,13 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
   // 14. Align all flex items along the cross-axis.
   // 16. Align all flex lines per 'align-content'.
 
-  LayoutUnit line_top = LayoutUnit();
+  LayoutUnit line_cross_axis_start = LayoutUnit();
   LayoutUnit leftover_cross_size_per_line = LayoutUnit();
   if (leftover_cross_size > LayoutUnit()) {
     if (align_content == cssom::KeywordValue::GetCenter()) {
-      line_top = leftover_cross_size / 2;
+      line_cross_axis_start = leftover_cross_size / 2;
     } else if (align_content == cssom::KeywordValue::GetFlexEnd()) {
-      line_top = leftover_cross_size;
+      line_cross_axis_start = leftover_cross_size;
     } else if (align_content == cssom::KeywordValue::GetSpaceBetween()) {
       leftover_cross_size_per_line =
           (lines_.size() < 2)
@@ -195,15 +195,15 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
     } else if (align_content == cssom::KeywordValue::GetSpaceAround()) {
       leftover_cross_size_per_line =
           leftover_cross_size / static_cast<int>(lines_.size());
-      line_top = leftover_cross_size_per_line / 2;
+      line_cross_axis_start = leftover_cross_size_per_line / 2;
     } else {
       DCHECK((align_content == cssom::KeywordValue::GetFlexStart()) ||
              (align_content == cssom::KeywordValue::GetStretch()));
     }
   }
   for (auto& line : lines_) {
-    line->DoCrossAxisAlignment(line_top);
-    line_top += line->cross_size() + leftover_cross_size_per_line;
+    line->DoCrossAxisAlignment(line_cross_axis_start);
+    line_cross_axis_start += line->cross_size() + leftover_cross_size_per_line;
   }
 }
 
@@ -218,7 +218,11 @@ LayoutUnit FlexFormattingContext::GetBaseline() {
 
   LayoutUnit baseline = LayoutUnit();
   if (!lines_.empty()) {
-    baseline = lines_.front()->GetBaseline();
+    if (direction_is_reversed_) {
+      baseline = lines_.back()->GetBaseline();
+    } else {
+      baseline = lines_.front()->GetBaseline();
+    }
   }
   return baseline;
 }
