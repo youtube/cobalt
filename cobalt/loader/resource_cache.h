@@ -186,7 +186,7 @@ class CachedResourceBase
 
 // CachedResource requests fetching and decoding a single resource and the
 // decoded resource is stored in |resource_|. CachedResource is created by
-// calling |CreateCachedResource| of the ResourceCache.
+// calling |GetOrCreateCachedResource| of the ResourceCache.
 template <typename CacheType>
 class CachedResource : public CachedResourceBase {
  public:
@@ -316,35 +316,27 @@ void CachedResource<CacheType>::OnContentProduced(
   resource_ = resource;
 }
 
-template <typename CacheType>
+// TODO: Collapse this into OnLoadedCallbackHandler.
 class CachedResourceReferenceWithCallbacks {
  public:
-  typedef CachedResource<CacheType> CachedResourceType;
-  typedef typename CachedResourceType::OnLoadedCallbackHandler
+  // typedef CachedResource<CacheType> CachedResourceType;
+  typedef typename CachedResourceBase::OnLoadedCallbackHandler
       CachedResourceTypeOnLoadedCallbackHandler;
 
   typedef std::vector<std::unique_ptr<CachedResourceReferenceWithCallbacks>>
       CachedResourceReferenceVector;
 
   CachedResourceReferenceWithCallbacks(
-      const scoped_refptr<CachedResourceType>& cached_resource,
+      const scoped_refptr<CachedResourceBase>& cached_resource,
       const base::Closure& content_produced_callback,
       const base::Closure& load_complete_callback)
-      : cached_resource_(cached_resource),
-        cached_resource_loaded_callback_handler_(
-            new CachedResourceTypeOnLoadedCallbackHandler(
-                cached_resource, content_produced_callback,
-                load_complete_callback)) {}
-
-  scoped_refptr<CachedResourceType> cached_resource() {
-    return cached_resource_;
-  }
+      : cached_resource_loaded_callback_handler_(cached_resource,
+                                                 content_produced_callback,
+                                                 load_complete_callback) {}
 
  private:
-  // A single cached resource.
-  scoped_refptr<CachedResourceType> cached_resource_;
   // This handles adding and removing the resource loaded callbacks.
-  std::unique_ptr<CachedResourceTypeOnLoadedCallbackHandler>
+  CachedResourceTypeOnLoadedCallbackHandler
       cached_resource_loaded_callback_handler_;
 };
 
@@ -465,7 +457,8 @@ class ResourceCacheBase {
   base::CVal<int, base::CValPublic> count_pending_callbacks_;
 };
 
-// CachedResource is created by calling |CreateCachedResource| of ResourceCache.
+// CachedResource is created by calling |GetOrCreateCachedResource| of
+// ResourceCache.
 // ResourceCache can have observers and when a resource is loaded,
 // ResourceCache would notify its observers. For example, a DOM Document might
 // be an observer of ResourceCache.
@@ -492,13 +485,13 @@ class ResourceCache : public ResourceCacheBase {
                     notify_resource_requested_function =
                         NotifyResourceRequestedFunction());
 
-  // |CreateCachedResource| returns CachedResource. If the CachedResource is not
-  // in |cached_resource_map_| or its resource is not in
+  // |GetOrCreateCachedResource| returns CachedResource. If the CachedResource
+  // is not in |cached_resource_map_| or its resource is not in
   // |unreference_cached_resource_map_|, creates a CachedResource with a loader
   // for it. If the CachedResource is in the cache map, return the
   // CachedResource or wrap the resource if necessary.
-  scoped_refptr<CachedResourceType> CreateCachedResource(const GURL& url,
-                                                         const Origin& origin);
+  scoped_refptr<CachedResourceType> GetOrCreateCachedResource(
+      const GURL& url, const Origin& origin);
 
  private:
   typedef base::hash_map<std::string, CachedResourceType*> CachedResourceMap;
@@ -558,8 +551,8 @@ ResourceCache<CacheType>::ResourceCache(
 
 template <typename CacheType>
 scoped_refptr<CachedResource<CacheType>>
-ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
-                                               const Origin& origin) {
+ResourceCache<CacheType>::GetOrCreateCachedResource(const GURL& url,
+                                                    const Origin& origin) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   DCHECK(url.is_valid());
 
