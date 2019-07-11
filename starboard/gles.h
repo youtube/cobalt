@@ -762,7 +762,7 @@ typedef struct SbGlesInterface {
                                 SbGlInt32* params);
 } SbGlesInterface;
 
-SB_EXPORT SbGlesInterface* SbGetGlesInterface();
+SB_EXPORT const SbGlesInterface* SbGetGlesInterface();
 
 // Previously defined in
 // https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h

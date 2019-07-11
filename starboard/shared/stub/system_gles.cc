@@ -14,6 +14,6 @@
 
 #include "starboard/gles.h"
 
-SbGlesInterface* SbGetGlesInterface() {
+const SbGlesInterface* SbGetGlesInterface() {
   return nullptr;
 }
