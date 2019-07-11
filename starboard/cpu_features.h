@@ -41,25 +41,88 @@ typedef enum SbCPUFeaturesArchitecture {
   kSbCPUFeaturesArchitectureUnknown,
 } SbCPUFeaturesArchitecture;
 
-typedef struct SbCPUFeatures {
-  // -----------------------------------------------------------------
-  //     General processor information, valid on all architectures.
-  // -----------------------------------------------------------------
+typedef struct SbCPUFeaturesARM {
+  // -------------------------------------------------------------------
+  //     Processor version information, only valid on Arm and Arm64.
+  //
+  //     Stored in processor ID registers. See the reference manual of
+  //     Cortex-M0 for instance: http://infocenter.arm.com/help/
+  //     index.jsp?topic=/com.arm.doc.ddi0432c/Bhccjgga.html, and
+  //     Cortex-A8 for instance: http://infocenter.arm.com/help/
+  //     index.jsp?topic=/com.arm.doc.ddi0344k/Babififh.html.
+  //     About how to retrieve the information, see Arm CPU Feature
+  //     Registers documentation: https://www.kernel.org/doc/Documentation/
+  //     arm64/cpu-feature-registers.txt, or retrieve from /proc/cpuinfo
+  //     if available.
+  // -------------------------------------------------------------------
 
-  // Architecture of the processor.
-  SbCPUFeaturesArchitecture architecture;
+  // Processor implementer/implementor code. ARM is 0x41, NVIDIA is 0x4e, etc.
+  int16_t implementer;
+  // Processor variant number, indicating the major revision number.
+  int16_t variant;
+  // Processor revision number, indicating the minor revision number.
+  int16_t revision;
+  // Processor architecture generation number, indicating the generations
+  // (ARMv6-M, ARMv7, etc) within an architecture family. This field is
+  // called "Architecture" or "Constant" in the processor ID register.
+  int16_t architecture_generation;
+  // Processor part number, indicating Cortex-M0, Cortex-A8, etc.
+  int16_t part;
 
-  // Processor brand string retrievable by CPUID or from /proc/cpuinfo
-  // under the key "model name" or "Processor".
-  const char* brand;
+  // ------------------------------------------------------------------------
+  //     Processor feature flags valid on Arm and Arm64
+  //
+  //     See ARM compiler armasm user guide:
+  //     https://developer.arm.com/docs/100069/0604
+  //     and Android NDK cpu features guide:
+  //     https://developer.android.com/ndk/guides/cpu-features
+  // ------------------------------------------------------------------------
 
-  // Processor cache line size in bytes. Queried from /proc/cpuinfo or
-  // /proc/self/auxv, or CPUID with CLFLUSH instruction.
-  int32_t cache_size;
+  // ---------------------------------------------------------------------
+  //     Arm 32 feature flags
+  // ---------------------------------------------------------------------
 
-  // Processor has floating-point unit on-chip.
-  bool has_fpu;
+  // ARM Advanced SIMD (NEON) vector instruction set extension.
+  bool has_neon;
+  // Thumb-2 mode.
+  bool has_thumb2;
+  // VFP (SIMD vector floating point instructions).
+  bool has_vfp;
+  // VFP version 3
+  bool has_vfp3;
+  // VFP version 3 with 32 D-registers.
+  bool has_vfp3_d32;
+  // SDIV and UDIV hardware division in ARM mode.
+  bool has_idiva;
 
+  // ---------------------------------------------------------------------
+  //     Arm 64 feature flags
+  // ---------------------------------------------------------------------
+  // AES instructions.
+  bool has_aes;
+  // CRC32 instructions.
+  bool has_crc32;
+  // SHA-1 instructions.
+  bool has_sha1;
+  // SHA-256 instructions.
+  bool has_sha2;
+  // 64-bit PMULL and PMULL2 instructions.
+  bool has_pmull;
+} SbCPUFeaturesARM;
+
+typedef struct SbCPUFeaturesMIPS {
+  // ----------------------------------------------------------------------
+  //     Processor feature flags valid only on Mips and Mips64
+  //
+  //     See MIPS SIMD documentation:
+  //     https://www.mips.com/products/architectures/ase/simd/
+  // ----------------------------------------------------------------------
+
+  // MIPS SIMD Architecture (MSA).
+  bool has_msa;
+} SbCPUFeaturesMIPS;
+
+typedef struct SbCPUFeaturesX86 {
   // -------------------------------------------------------------------
   //     Processor version information, valid only on x86 and x86_64
   //
@@ -89,43 +152,13 @@ typedef struct SbCPUFeatures {
   // family information
   int32_t signature;
 
-  // -------------------------------------------------------------------
-  //     Processor version information, only valid on Arm and Arm64.
-  //
-  //     Stored in processor ID registers. See the reference manual of
-  //     Cortex-M0 for instance: http://infocenter.arm.com/help/
-  //     index.jsp?topic=/com.arm.doc.ddi0432c/Bhccjgga.html, and
-  //     Cortex-A8 for instance: http://infocenter.arm.com/help/
-  //     index.jsp?topic=/com.arm.doc.ddi0344k/Babififh.html.
-  //     About how to retrieve the information, see Arm CPU Feature
-  //     Registers documentation: https://www.kernel.org/doc/Documentation/
-  //     arm64/cpu-feature-registers.txt, or retrieve from /proc/cpuinfo
-  //     if available.
-  // -------------------------------------------------------------------
-
-  // Processor implementer/implementor code. ARM is 0x41, NVIDIA is 0x4e, etc.
-  int16_t implementer;
-  // Processor variant number, indicating the major revision number.
-  int16_t variant;
-  // Processor revision number, indicating the minor revision number.
-  int16_t revision;
-  // Processor architecture generation number, indicating the generations
-  // (ARMv6-M, ARMv7, etc) within an architecture family. This field is
-  // called "Architecture" or "Constant" in the processor ID register.
-  int16_t architecture_generation;
-  // Processor part number, indicating Cortex-M0, Cortex-A8, etc.
-  int16_t part;
-
   // ---------------------------------------------------------------------
   //     Processor feature flags
   //
   //     These flags denote whether a feature is supported by the processor.
   //     They can be used easily to check one specific feature. The set of
-  //     valid flags depends of specific architecture. Find details below.
-  // ---------------------------------------------------------------------
-
-  // ---------------------------------------------------------------------
-  //     Processor feature flags valid on x86 and x86_64
+  //     valid flags depends of specific architecture. Below are processor
+  //     feature flags valid on x86 and x86_64
   //
   //     See kernal source:
   //     https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/
@@ -214,56 +247,26 @@ typedef struct SbCPUFeatures {
 
   // SAHF in long mode.
   bool has_sahf;
+} SbCPUFeaturesX86;
 
-  // ------------------------------------------------------------------------
-  //     Processor feature flags valid on Arm and Arm64
-  //
-  //     See ARM compiler armasm user guide:
-  //     https://developer.arm.com/docs/100069/0604
-  //     and Android NDK cpu features guide:
-  //     https://developer.android.com/ndk/guides/cpu-features
-  // ------------------------------------------------------------------------
+typedef struct SbCPUFeatures {
+  // -----------------------------------------------------------------
+  //     General processor information, valid on all architectures.
+  // -----------------------------------------------------------------
 
-  // ---------------------------------------------------------------------
-  //     Arm 32 feature flags
-  // ---------------------------------------------------------------------
+  // Architecture of the processor.
+  SbCPUFeaturesArchitecture architecture;
 
-  // ARM Advanced SIMD (NEON) vector instruction set extension.
-  bool has_neon;
-  // Thumb-2 mode.
-  bool has_thumb2;
-  // VFP (SIMD vector floating point instructions).
-  bool has_vfp;
-  // VFP version 3
-  bool has_vfp3;
-  // VFP version 3 with 32 D-registers.
-  bool has_vfp3_d32;
-  // SDIV and UDIV hardware division in ARM mode.
-  bool has_idiva;
+  // Processor brand string retrievable by CPUID or from /proc/cpuinfo
+  // under the key "model name" or "Processor".
+  const char* brand;
 
-  // ---------------------------------------------------------------------
-  //     Arm 64 feature flags
-  // ---------------------------------------------------------------------
-  // AES instructions.
-  bool has_aes;
-  // CRC32 instructions.
-  bool has_crc32;
-  // SHA-1 instructions.
-  bool has_sha1;
-  // SHA-256 instructions.
-  bool has_sha2;
-  // 64-bit PMULL and PMULL2 instructions.
-  bool has_pmull;
+  // Processor cache line size in bytes. Queried from /proc/cpuinfo or
+  // /proc/self/auxv, or CPUID with CLFLUSH instruction.
+  int32_t cache_size;
 
-  // ----------------------------------------------------------------------
-  //     Processor feature flags valid only on Mips and Mips64
-  //
-  //     See MIPS SIMD documentation:
-  //     https://www.mips.com/products/architectures/ase/simd/
-  // ----------------------------------------------------------------------
-
-  // MIPS SIMD Architecture (MSA).
-  bool has_msa;
+  // Processor has floating-point unit on-chip.
+  bool has_fpu;
 
   // ------------------------------------------------------------------
   //     Processor feature flags bitmask, valid on the architectures where
@@ -286,13 +289,24 @@ typedef struct SbCPUFeatures {
   // Similar to hwcap. Queried by getauxval(AT_HWCAP2) if
   // it is supported.
   uint32_t hwcap2;
+
+  // Processor features specific to each architecture. Set the appropriate
+  // |SbCPUFeatures<ARCH_NAME>| for the underlying architecture. Set the
+  // other |SbCPUFeatures<OTHER_ARCH>| to be invalid, meaning:
+  // - '-1' for signed integer fields
+  // - 'false' for feature flag fields
+  // - '0' for feature flag bitmasks
+  // - empty string for string fields
+  SbCPUFeaturesARM arm_features;
+  SbCPUFeaturesMIPS mips_features;
+  SbCPUFeaturesX86 X86_features;
 } SbCPUFeatures;
 
 // Retrieve the underlying CPU features and place it in |features|, which must
 // not be NULL.
 //
 // If this function returns false, it means the CPU architecture is unknown and
-// |features| is unmodified.
+// all fields in |features| are invalid.
 SB_EXPORT bool SbCPUFeaturesGet(SbCPUFeatures* features);
 
 #endif  // STARBOARD_CPU_FEATURES_H_
