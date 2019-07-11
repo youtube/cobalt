@@ -16,6 +16,8 @@
 
 #include <string.h>
 
+#if SB_API_VERSION >= 11
+
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));
   features->architecture = kSbCPUFeaturesArchitectureUnknown;
@@ -25,20 +27,21 @@ bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   features->hwcap = 0;
   features->hwcap2 = 0;
 
-  features->arm_features.implementer = -1;
-  features->arm_features.variant = -1;
-  features->arm_features.revision = -1;
-  features->arm_features.architecture_generation = -1;
-  features->arm_features.part = -1;
+  features->arm.implementer = -1;
+  features->arm.variant = -1;
+  features->arm.revision = -1;
+  features->arm.architecture_generation = -1;
+  features->arm.part = -1;
 
-  features->x86_features.vendor = "";
-  features->x86_features.family = -1;
-  features->x86_features.ext_family = -1;
-  features->x86_features.model = -1;
-  features->x86_features.ext_model = -1;
-  features->x86_features.stepping = -1;
-  features->x86_features.type = -1;
-  features->x86_features.signature = -1;
+  features->x86.vendor = "";
+  features->x86.family = -1;
+  features->x86.ext_family = -1;
+  features->x86.model = -1;
+  features->x86.ext_model = -1;
+  features->x86.stepping = -1;
+  features->x86.type = -1;
+  features->x86.signature = -1;
 
   return false;
 }
+#endif  // SB_API_VERSION >= 11
