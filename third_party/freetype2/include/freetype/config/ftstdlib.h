@@ -76,7 +76,7 @@
 
 
 #if defined(STARBOARD)
-#include "starboard/common/string.h"
+#include "starboard/string.h"
 #include "starboard/memory.h"
 #define ft_memchr   SbMemoryFindByte
 #define ft_memcmp   SbMemoryCompare
@@ -118,7 +118,7 @@
 
 
 #if defined(STARBOARD)
-#include "starboard/common/string.h"
+#include "starboard/string.h"
 #include "starboard/file.h"
 
 #ifndef SEEK_SET
