@@ -93,9 +93,11 @@ blink-contrib/eval-blocked.sub.html,PASS
 # setTimeout() and setInterval() overloads that take DOMString argument are not
 # supported
 blink-contrib/eval-scripts-setInterval-allowed.sub.html,DISABLE
-blink-contrib/eval-scripts-setInterval-blocked.sub.html,PASS
+# Disabled due to failing test fixture
+blink-contrib/eval-scripts-setInterval-blocked.sub.html,DISABLE
 blink-contrib/eval-scripts-setTimeout-allowed.sub.html,DISABLE
-blink-contrib/eval-scripts-setTimeout-blocked.sub.html,PASS
+# Disabled due to failing test fixture
+blink-contrib/eval-scripts-setTimeout-blocked.sub.html,DISABLE
 
 # No filesystem:// support
 blink-contrib/filesystem-urls-do-not-match-self.sub.html,DISABLE
