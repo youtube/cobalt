@@ -316,6 +316,28 @@ void CachedResource<CacheType>::OnContentProduced(
   resource_ = resource;
 }
 
+// It is similar to CachedResource but doesn't hold a strong reference to the
+// underlying resource, so the underlying resource can still be released during
+// purging, after all unreferenced resources are released.
+// It is created by calling |CreateWeakCachedResource|.
+template <typename CacheType>
+class WeakCachedResource {
+ public:
+  explicit WeakCachedResource(const base::Closure& on_resource_destroyed_cb)
+      : on_resource_destroyed_cb_(on_resource_destroyed_cb) {
+    DCHECK(!on_resource_destroyed_cb_.is_null());
+  }
+  ~WeakCachedResource() {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    on_resource_destroyed_cb_.Run();
+  }
+
+ private:
+  THREAD_CHECKER(thread_checker_);
+
+  base::Closure on_resource_destroyed_cb_;
+};
+
 // TODO: Collapse this into OnLoadedCallbackHandler.
 class CachedResourceReferenceWithCallbacks {
  public:
@@ -345,9 +367,6 @@ class ResourceCacheBase {
   typedef base::Callback<void(uint32 bytes_to_reclaim_down_to,
                               bool log_warning_if_over)>
       ReclaimMemoryFunc;
-  ResourceCacheBase(const std::string& name, uint32 cache_capacity,
-                    bool are_loading_retries_enabled,
-                    const ReclaimMemoryFunc& reclaim_memory_func);
 
   // Set a callback that the loader will query to determine if the URL is safe
   // according to our document's security policy.
@@ -382,6 +401,10 @@ class ResourceCacheBase {
   typedef base::hash_set<std::string> ResourceSet;
   typedef net::linked_hash_map<std::string, ResourceCallbackInfo>
       ResourceCallbackMap;
+
+  ResourceCacheBase(const std::string& name, uint32 cache_capacity,
+                    bool are_loading_retries_enabled,
+                    const ReclaimMemoryFunc& reclaim_memory_func);
 
   // Called by CachedResource objects when they fail to load as a result of a
   // transient error and are scheduling a retry.
@@ -466,6 +489,7 @@ template <typename CacheType>
 class ResourceCache : public ResourceCacheBase {
  public:
   typedef CachedResource<CacheType> CachedResourceType;
+  typedef WeakCachedResource<CacheType> WeakCachedResourceType;
   typedef typename CacheType::ResourceType ResourceType;
 
   typedef base::Callback<std::unique_ptr<Loader>(
@@ -484,22 +508,31 @@ class ResourceCache : public ResourceCacheBase {
                 const NotifyResourceRequestedFunction&
                     notify_resource_requested_function =
                         NotifyResourceRequestedFunction());
+  ~ResourceCache() {
+    DCHECK(weak_cached_resource_ref_count_map_.empty());
+    DCHECK(cached_resource_map_.empty());
+  }
 
   // |GetOrCreateCachedResource| returns CachedResource. If the CachedResource
   // is not in |cached_resource_map_| or its resource is not in
-  // |unreference_cached_resource_map_|, creates a CachedResource with a loader
+  // |unreferenced_cached_resource_map_|, creates a CachedResource with a loader
   // for it. If the CachedResource is in the cache map, return the
   // CachedResource or wrap the resource if necessary.
   scoped_refptr<CachedResourceType> GetOrCreateCachedResource(
       const GURL& url, const Origin& origin);
 
+  // |CreateWeakCachedResource| returns a WeakCachedResource referenced to the
+  // same resource identified by the url of |cached_resource|.  A weak
+  // referenced resource may still be released during purging, but only after
+  // all unreferenced resources are released.
+  std::unique_ptr<WeakCachedResourceType> CreateWeakCachedResource(
+      const scoped_refptr<CachedResourceType>& cached_resource);
+
  private:
   typedef base::hash_map<std::string, CachedResourceType*> CachedResourceMap;
-  typedef typename CachedResourceMap::iterator CachedResourceMapIterator;
-
+  typedef net::linked_hash_map<std::string, int> WeakCachedResourceRefCountMap;
   typedef net::linked_hash_map<std::string, scoped_refptr<ResourceType>>
       ResourceMap;
-  typedef typename ResourceMap::iterator ResourceMapIterator;
 
   std::unique_ptr<Loader> StartLoadingResource(
       CachedResourceType* cached_resource);
@@ -509,10 +542,17 @@ class ResourceCache : public ResourceCacheBase {
                                      CallbackType callback_type);
 
   // Called by the destructor of CachedResource to remove CachedResource from
-  // |cached_resource_map_| and either immediately free the resource from memory
-  // or add it to |unreference_cached_resource_map_|, depending on whether the
-  // cache is over its memory limit.
+  // |cached_resource_map_| and add it to |weak_referenced_cached_resource_map_|
+  // or |unreferenced_cached_resource_map_|, depending on whether the resource
+  // is still weakly referenced.
+  // It will then start purgeing and may immediately free the resource from
+  // memory ifthe cache is over its memory limit.
   void NotifyResourceDestroyed(CachedResourceType* cached_resource);
+
+  // Called by the destructor of WeakCachedResource to remove WeakCachedResource
+  // from |weak_cached_resource_ref_count_map_| and add it to
+  // |unreferenced_cached_resource_map_|.
+  void NotifyWeakResourceDestroyed(const std::string& url);
 
   // Releases unreferenced cache objects until our total cache memory usage is
   // less than or equal to |bytes_to_reclaim_down_to|, or until there are no
@@ -522,14 +562,24 @@ class ResourceCache : public ResourceCacheBase {
   const CreateLoaderFunction create_loader_function_;
   const NotifyResourceRequestedFunction notify_resource_requested_function_;
 
-  // |cached_resource_map_| stores the cached resources that are currently
-  // referenced.
+  // Stores the cached resources that are currently referenced.
   CachedResourceMap cached_resource_map_;
 
-  // |unreference_cached_resource_map_| stores the cached resources that are
-  // not referenced, but are being kept in memory as a result of the cache being
-  // under its memory limit.
-  ResourceMap unreference_cached_resource_map_;
+  // Stores the urls to the cached resources that are weakly referenced, with
+  // their ref counts.
+  WeakCachedResourceRefCountMap weak_cached_resource_ref_count_map_;
+
+  // Stores the cached resources that are not referenced, but are being kept in
+  // memory as a result of the cache being under its memory limit.
+  ResourceMap unreferenced_cached_resource_map_;
+
+  // Stores the cached resources that are weakly referenced, they will be
+  // released during purging, once all resources in the above defined
+  // |unreferenced_cached_resource_map_| are released.
+  // While it could be great to sort the resources by both the reference counts
+  // and the last usage, in reality all ref counts are 1 and we only need to put
+  // new items at the end of the map.
+  ResourceMap weak_referenced_cached_resource_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };
@@ -556,21 +606,21 @@ ResourceCache<CacheType>::GetOrCreateCachedResource(const GURL& url,
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   DCHECK(url.is_valid());
 
+  // TODO: We should also notify the fetcher cache when the resource is
+  // destroyed.
   if (!notify_resource_requested_function_.is_null()) {
     notify_resource_requested_function_.Run(url.spec());
   }
 
   // Try to find the resource from |cached_resource_map_|.
-  CachedResourceMapIterator cached_resource_iterator =
-      cached_resource_map_.find(url.spec());
+  auto cached_resource_iterator = cached_resource_map_.find(url.spec());
   if (cached_resource_iterator != cached_resource_map_.end()) {
     return cached_resource_iterator->second;
   }
 
-  // Try to find the resource from |unreference_cached_resource_map_|.
-  ResourceMapIterator resource_iterator =
-      unreference_cached_resource_map_.find(url.spec());
-  if (resource_iterator != unreference_cached_resource_map_.end()) {
+  // Try to find the resource from |unreferenced_cached_resource_map_|.
+  auto resource_iterator = unreferenced_cached_resource_map_.find(url.spec());
+  if (resource_iterator != unreferenced_cached_resource_map_.end()) {
     scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
         url, resource_iterator->second.get(),
         base::Bind(&ResourceCache::StartLoadingResource,
@@ -585,7 +635,28 @@ ResourceCache<CacheType>::GetOrCreateCachedResource(const GURL& url,
                    base::Unretained(this))));
     cached_resource_map_.insert(
         std::make_pair(url.spec(), cached_resource.get()));
-    unreference_cached_resource_map_.erase(url.spec());
+    unreferenced_cached_resource_map_.erase(resource_iterator);
+    return cached_resource;
+  }
+
+  // Try to find the resource from |weak_referenced_cached_resource_map_|.
+  resource_iterator = weak_referenced_cached_resource_map_.find(url.spec());
+  if (resource_iterator != weak_referenced_cached_resource_map_.end()) {
+    scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
+        url, resource_iterator->second.get(),
+        base::Bind(&ResourceCache::StartLoadingResource,
+                   base::Unretained(this)),
+        base::Bind(&ResourceCache::NotifyResourceLoadingRetryScheduled,
+                   base::Unretained(this)),
+        base::Bind(&ResourceCache::NotifyResourceDestroyed,
+                   base::Unretained(this)),
+        base::Bind(&ResourceCache::are_loading_retries_enabled,
+                   base::Unretained(this)),
+        base::Bind(&ResourceCache::NotifyResourceLoadingComplete,
+                   base::Unretained(this))));
+    cached_resource_map_.insert(
+        std::make_pair(url.spec(), cached_resource.get()));
+    weak_referenced_cached_resource_map_.erase(resource_iterator);
     return cached_resource;
   }
 
@@ -613,6 +684,30 @@ ResourceCache<CacheType>::GetOrCreateCachedResource(const GURL& url,
   cached_resource->EnableCompletionCallbacks();
 
   return cached_resource;
+}
+
+template <typename CacheType>
+std::unique_ptr<WeakCachedResource<CacheType>>
+ResourceCache<CacheType>::CreateWeakCachedResource(
+    const scoped_refptr<CachedResourceType>& cached_resource) {
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
+  DCHECK(cached_resource);
+
+  auto url = cached_resource->url().spec();
+  std::unique_ptr<WeakCachedResourceType> weak_cached_resource(
+      new WeakCachedResourceType(
+          base::Bind(&ResourceCache::NotifyWeakResourceDestroyed,
+                     base::Unretained(this), url)));
+
+  auto iterator = weak_cached_resource_ref_count_map_.find(url);
+  int ref_count = 1;
+  if (iterator != weak_cached_resource_ref_count_map_.end()) {
+    ref_count = iterator->second + 1;
+    weak_cached_resource_ref_count_map_.erase(iterator);
+  }
+  weak_cached_resource_ref_count_map_.insert(std::make_pair(url, ref_count));
+
+  return weak_cached_resource;
 }
 
 template <typename CacheType>
@@ -697,15 +792,26 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
 
   cached_resource_map_.erase(url);
 
-  DCHECK(unreference_cached_resource_map_.find(url) ==
-         unreference_cached_resource_map_.end());
+  DCHECK(weak_referenced_cached_resource_map_.find(url) ==
+         weak_referenced_cached_resource_map_.end());
+  DCHECK(unreferenced_cached_resource_map_.find(url) ==
+         unreferenced_cached_resource_map_.end());
 
   // Check to see if this was a loaded resource.
   if (cached_resource->TryGetResource()) {
-    // Add it into the unreferenced cached resource map, so that it will be
-    // retained while memory is available for it in the cache.
-    unreference_cached_resource_map_.insert(
-        std::make_pair(url, cached_resource->TryGetResource()));
+    if (weak_cached_resource_ref_count_map_.find(url) !=
+        weak_cached_resource_ref_count_map_.end()) {
+      // Add it into the weak referenced cached resource map, so that it will be
+      // retained while memory is available for it in the cache, and will be
+      // purged after all unreferenced cached resources.
+      weak_referenced_cached_resource_map_.insert(
+          std::make_pair(url, cached_resource->TryGetResource()));
+    } else {
+      // Add it into the unreferenced cached resource map, so that it will be
+      // retained while memory is available for it in the cache.
+      unreferenced_cached_resource_map_.insert(
+          std::make_pair(url, cached_resource->TryGetResource()));
+    }
   }
 
   // Remove the resource from any loading or pending container that it is in.
@@ -733,23 +839,47 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
 }
 
 template <typename CacheType>
+void ResourceCache<CacheType>::NotifyWeakResourceDestroyed(
+    const std::string& url) {
+  DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
+
+  auto iterator = weak_cached_resource_ref_count_map_.find(url);
+  DCHECK(iterator != weak_cached_resource_ref_count_map_.end());
+  if (iterator->second > 1) {
+    --iterator->second;
+    return;
+  }
+
+  weak_cached_resource_ref_count_map_.erase(iterator);
+  auto resource_iterator = weak_referenced_cached_resource_map_.find(url);
+  if (resource_iterator != weak_referenced_cached_resource_map_.end()) {
+    unreferenced_cached_resource_map_.insert(
+        std::make_pair(resource_iterator->first, resource_iterator->second));
+    weak_referenced_cached_resource_map_.erase(resource_iterator);
+  }
+}
+
+template <typename CacheType>
 void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
                                              bool log_warning_if_over) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
 
-  while (memory_size_in_bytes_ > bytes_to_reclaim_down_to &&
-         !unreference_cached_resource_map_.empty()) {
-    // The first element is the earliest-inserted element.
-    scoped_refptr<ResourceType> resource =
-        unreference_cached_resource_map_.begin()->second;
-    uint32 first_resource_size = resource->GetEstimatedSizeInBytes();
-    // Erase the earliest-inserted element.
-    // TODO: Erasing the earliest-inserted element could be a function
-    // in linked_hash_map. Add that function and related unit test.
-    unreference_cached_resource_map_.erase(
-        unreference_cached_resource_map_.begin());
-    memory_size_in_bytes_ -= first_resource_size;
-    --count_resources_cached_;
+  ResourceMap* resource_maps[] = {&unreferenced_cached_resource_map_,
+                                  &weak_referenced_cached_resource_map_};
+
+  for (size_t i = 0; i < SB_ARRAY_SIZE(resource_maps); ++i) {
+    while (memory_size_in_bytes_ > bytes_to_reclaim_down_to &&
+           !resource_maps[i]->empty()) {
+      // The first element is the earliest-inserted element.
+      scoped_refptr<ResourceType> resource = resource_maps[i]->begin()->second;
+      uint32 first_resource_size = resource->GetEstimatedSizeInBytes();
+      // Erase the earliest-inserted element.
+      // TODO: Erasing the earliest-inserted element could be a function
+      // in linked_hash_map. Add that function and related unit test.
+      resource_maps[i]->erase(resource_maps[i]->begin());
+      memory_size_in_bytes_ -= first_resource_size;
+      --count_resources_cached_;
+    }
   }
 
   if (log_warning_if_over) {

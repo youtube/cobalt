@@ -92,6 +92,11 @@ void HTMLImageElement::UpdateImageData() {
     node_document()->DecreaseLoadingCounter();
   }
 
+  // Keep the old weak cached image reference (if it exists) alive until after
+  // we're done updating to the new one.
+  std::unique_ptr<loader::image::WeakCachedImage> old_weak_cached_image =
+      std::move(weak_cached_image_);
+
   // 4. If the user agent cannot support images, or its support for images has
   // been disabled, then abort these steps.
   // 5. Otherwise, if the element has a src attribute specified and its value is
@@ -122,11 +127,13 @@ void HTMLImageElement::UpdateImageData() {
     // the img element to the completely available state, update the
     // presentation of the image appropriately, queue a task to fire a simple
     // event named load at the img element, and abort these steps.
-    cached_image =
-        node_document()
-            ->html_element_context()
-            ->image_cache()
-            ->GetOrCreateCachedResource(selected_source, loader::Origin());
+    auto image_cache = node_document()->html_element_context()->image_cache();
+    cached_image = image_cache->GetOrCreateCachedResource(selected_source,
+                                                          loader::Origin());
+    DCHECK(cached_image);
+    weak_cached_image_ = image_cache->CreateWeakCachedResource(cached_image);
+    DCHECK(weak_cached_image_);
+
     if (cached_image->TryGetResource()) {
       PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::load());
       return;
