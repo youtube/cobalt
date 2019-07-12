@@ -32,6 +32,8 @@ class MainAxisHorizontalFlexItem : public FlexItem {
                              LayoutUnit hypothetical_main_size)
       : FlexItem(box, flex_base_size, hypothetical_main_size) {}
 
+  ~MainAxisHorizontalFlexItem() override {}
+
   LayoutUnit GetContentToMarginMainAxis() override;
   LayoutUnit GetContentToMarginCrossAxis() override;
   LayoutUnit GetUsedMinMainAxisSize(
@@ -159,6 +161,8 @@ class MainAxisVerticalFlexItem : public FlexItem {
   MainAxisVerticalFlexItem(Box* box, LayoutUnit flex_base_size,
                            LayoutUnit hypothetical_main_size)
       : FlexItem(box, flex_base_size, hypothetical_main_size) {}
+
+  ~MainAxisVerticalFlexItem() override {}
 
   LayoutUnit GetContentToMarginMainAxis() override;
   LayoutUnit GetContentToMarginCrossAxis() override;
