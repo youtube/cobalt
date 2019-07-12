@@ -103,7 +103,8 @@ api/request/request-clone.sub.html,PASS
 api/request/request-consume.html,DISABLE
 # Fails because blob and formData are not supported.
 api/request/request-consume-empty.html,DISABLE
-api/request/request-disturbed.html,PASS
+# Disabled due to failing test fixture
+api/request/request-disturbed.html,DISABLE
 api/request/request-error.html,PASS
 api/request/request-headers.html,PASS
 # Fails because implementation is a polyfill.
