@@ -299,7 +299,7 @@ typedef struct SbCPUFeatures {
   // - empty string for string fields
   SbCPUFeaturesARM arm_features;
   SbCPUFeaturesMIPS mips_features;
-  SbCPUFeaturesX86 X86_features;
+  SbCPUFeaturesX86 x86_features;
 } SbCPUFeatures;
 
 // Retrieve the underlying CPU features and place it in |features|, which must
