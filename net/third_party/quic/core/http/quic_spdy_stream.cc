@@ -275,7 +275,13 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
       spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
 
   // Write frame header.
+#if defined(STARBOARD)
+  // QuicByteCount is not guaranteed to be size_t on some platforms.
+  struct IOVEC header_iov = {static_cast<void*>(buffer.get()),
+                             static_cast<size_t>(header_length)};
+#else
   struct IOVEC header_iov = {static_cast<void*>(buffer.get()), header_length};
+#endif
   QuicMemSliceStorage storage(
       &header_iov, 1,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator(),
