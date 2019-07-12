@@ -155,6 +155,7 @@
             'src/locale/wcsxfrm.c',
             'src/locale/wcsxfrm.c',
             'src/stdio/fprintf.c',
+            'src/stdio/fwrite.c',
             'src/stdio/printf.c',
             'src/stdio/snprintf.c',
             'src/stdio/sscanf.c',
