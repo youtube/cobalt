@@ -76,6 +76,7 @@ class HTMLImageElement : public HTMLElement {
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
 
+  std::unique_ptr<loader::image::WeakCachedImage> weak_cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
 
