@@ -178,6 +178,7 @@
              'AdditionalOptions': [
                '/MDd', # Use debug multithreaded library.
                '/GS',
+               '/bigobj', # unit tests can have huge object files.
              ],
            },
            'VCLinkerTool': {
@@ -202,6 +203,7 @@
              'AdditionalOptions': [
                '/MDd', # Use debug multithreaded library.
                '/GS',
+               '/bigobj', # unit tests can have huge object files.
              ],
            },
            'VCLinkerTool': {
