@@ -38,6 +38,7 @@ struct ImageResourceCacheType {
 };
 
 typedef CachedResource<ImageResourceCacheType> CachedImage;
+typedef WeakCachedResource<ImageResourceCacheType> WeakCachedImage;
 typedef CachedResourceReferenceWithCallbacks CachedImageReferenceWithCallbacks;
 typedef CachedImageReferenceWithCallbacks::CachedResourceReferenceVector
     CachedImageReferenceVector;

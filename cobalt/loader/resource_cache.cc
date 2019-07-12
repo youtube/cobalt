@@ -171,45 +171,6 @@ void CachedResourceBase::OnLoadingComplete(
   }
 }
 
-ResourceCacheBase::ResourceCacheBase(
-    const std::string& name, uint32 cache_capacity,
-    bool are_loading_retries_enabled,
-    const ReclaimMemoryFunc& reclaim_memory_func)
-    : name_(name),
-      are_loading_retries_enabled_(are_loading_retries_enabled),
-      cache_capacity_(cache_capacity),
-      reclaim_memory_func_(reclaim_memory_func),
-      memory_size_in_bytes_(
-          base::StringPrintf("Memory.%s.Size", name_.c_str()), 0,
-          "Total number of bytes currently used by the cache."),
-      memory_capacity_in_bytes_(
-          base::StringPrintf("Memory.%s.Capacity", name_.c_str()),
-          cache_capacity_,
-          "The capacity, in bytes, of the resource cache.  "
-          "Exceeding this results in *unused* resources being "
-          "purged."),
-      memory_resources_loaded_in_bytes_(
-          base::StringPrintf("Memory.%s.Resource.Loaded", name_.c_str()), 0,
-          "Combined size in bytes of all resources that have been loaded by "
-          "the cache."),
-      count_resources_requested_(
-          base::StringPrintf("Count.%s.Resource.Requested", name_.c_str()), 0,
-          "The total number of resources that have been requested."),
-      count_resources_loading_(
-          base::StringPrintf("Count.%s.Resource.Loading", name_.c_str()), 0,
-          "The number of resources that are currently loading."),
-      count_resources_loaded_(
-          base::StringPrintf("Count.%s.Resource.Loaded", name_.c_str()), 0,
-          "The total number of resources that have been successfully "
-          "loaded."),
-      count_resources_cached_(
-          base::StringPrintf("Count.%s.Resource.Cached", name_.c_str()), 0,
-          "The number of resources that are currently in the cache."),
-      count_pending_callbacks_(
-          base::StringPrintf("Count.%s.PendingCallbacks", name_.c_str()), 0,
-          "The number of loading completed resources that have pending "
-          "callbacks.") {}
-
 void ResourceCacheBase::SetCapacity(uint32 capacity) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   cache_capacity_ = capacity;
@@ -252,6 +213,45 @@ void ResourceCacheBase::DisableCallbacks() {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   are_callbacks_disabled_ = true;
 }
+
+ResourceCacheBase::ResourceCacheBase(
+    const std::string& name, uint32 cache_capacity,
+    bool are_loading_retries_enabled,
+    const ReclaimMemoryFunc& reclaim_memory_func)
+    : name_(name),
+      are_loading_retries_enabled_(are_loading_retries_enabled),
+      cache_capacity_(cache_capacity),
+      reclaim_memory_func_(reclaim_memory_func),
+      memory_size_in_bytes_(
+          base::StringPrintf("Memory.%s.Size", name_.c_str()), 0,
+          "Total number of bytes currently used by the cache."),
+      memory_capacity_in_bytes_(
+          base::StringPrintf("Memory.%s.Capacity", name_.c_str()),
+          cache_capacity_,
+          "The capacity, in bytes, of the resource cache.  "
+          "Exceeding this results in *unused* resources being "
+          "purged."),
+      memory_resources_loaded_in_bytes_(
+          base::StringPrintf("Memory.%s.Resource.Loaded", name_.c_str()), 0,
+          "Combined size in bytes of all resources that have been loaded by "
+          "the cache."),
+      count_resources_requested_(
+          base::StringPrintf("Count.%s.Resource.Requested", name_.c_str()), 0,
+          "The total number of resources that have been requested."),
+      count_resources_loading_(
+          base::StringPrintf("Count.%s.Resource.Loading", name_.c_str()), 0,
+          "The number of resources that are currently loading."),
+      count_resources_loaded_(
+          base::StringPrintf("Count.%s.Resource.Loaded", name_.c_str()), 0,
+          "The total number of resources that have been successfully "
+          "loaded."),
+      count_resources_cached_(
+          base::StringPrintf("Count.%s.Resource.Cached", name_.c_str()), 0,
+          "The number of resources that are currently in the cache."),
+      count_pending_callbacks_(
+          base::StringPrintf("Count.%s.PendingCallbacks", name_.c_str()), 0,
+          "The number of loading completed resources that have pending "
+          "callbacks.") {}
 
 void ResourceCacheBase::NotifyResourceLoadingRetryScheduled(
     CachedResourceBase* cached_resource) {
