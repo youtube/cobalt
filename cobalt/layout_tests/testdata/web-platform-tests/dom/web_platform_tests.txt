@@ -1,21 +1,22 @@
 # MutationObserver tests
 
-nodes/MutationObserver-attributes.html,PASS
+# Disabled, until test driver executes fully without Javascript errors
+nodes/MutationObserver-attributes.html,DISABLE
 # These fail because Cobalt doesn't support setAttributeNS.
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: creation mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: prefixed attribute creation mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: removal mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: creation mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: prefixed attribute creation mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: removal mutation
 # Sets Element.localName, which isn't implemented in Cobalt.
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.attributes.value: update mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.attributes.value: update mutation
 # Input element is not supported in Cobalt
-nodes/MutationObserver-attributes.html,FAIL,attributes HTMLInputElement.type: type update mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes HTMLInputElement.type: type update mutation
 # Cobalt doesn't implement DomTokenList.toggle
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token removal mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token addition mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token removal mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced missing token removal no mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced existing token addition no mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token addition mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token removal mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token addition mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token removal mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced missing token removal no mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced existing token addition no mutation
+# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token addition mutation
 
 # Most of these tests use operations such as insertData, replaceData, etc.,
 # which Cobalt doesn't support.
@@ -24,10 +25,11 @@ nodes/MutationObserver-characterData.html,PASS,characterData Text.data: simple m
 nodes/MutationObserver-characterData.html,PASS,characterData Text.data: simple mutation
 nodes/MutationObserver-characterData.html,PASS,characterData/characterDataOldValue alone Text.data: simple mutation
 
-nodes/MutationObserver-childList.html,PASS
+# Disabled, until test driver executes fully without Javascript errors
+nodes/MutationObserver-childList.html,DISABLE
 # Cobalt doesn't implement Node.normalize.
-nodes/MutationObserver-childList.html,FAIL,childList Node.normalize mutation
-nodes/MutationObserver-childList.html,FAIL,childList Node.normalize mutations
+# nodes/MutationObserver-childList.html,FAIL,childList Node.normalize mutation
+# nodes/MutationObserver-childList.html,FAIL,childList Node.normalize mutations
 
 nodes/MutationObserver-disconnect.html,PASS
 
