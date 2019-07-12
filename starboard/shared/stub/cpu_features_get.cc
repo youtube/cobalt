@@ -31,14 +31,14 @@ bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   features->arm_features.architecture_generation = -1;
   features->arm_features.part = -1;
 
-  features->X86_features.vendor = "";
-  features->X86_features.family = -1;
-  features->X86_features.ext_family = -1;
-  features->X86_features.model = -1;
-  features->X86_features.ext_model = -1;
-  features->X86_features.stepping = -1;
-  features->X86_features.type = -1;
-  features->X86_features.signature = -1;
+  features->x86_features.vendor = "";
+  features->x86_features.family = -1;
+  features->x86_features.ext_family = -1;
+  features->x86_features.model = -1;
+  features->x86_features.ext_model = -1;
+  features->x86_features.stepping = -1;
+  features->x86_features.type = -1;
+  features->x86_features.signature = -1;
 
   return false;
 }
