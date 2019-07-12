@@ -34,6 +34,8 @@ class FlexItem {
   // Default move constructor to make the class emplace constructible.
   FlexItem(FlexItem&& that) = default;
 
+  virtual ~FlexItem() = default;
+
   FlexItem(Box* box, LayoutUnit flex_base_size,
            LayoutUnit hypothetical_main_size);
 
