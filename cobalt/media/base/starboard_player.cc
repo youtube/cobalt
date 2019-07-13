@@ -188,6 +188,8 @@ void StarboardPlayer::UpdateAudioConfig(
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(audio_config.IsValidConfig());
 
+  LOG(INFO) << "New audio config -- " << audio_config_.AsHumanReadableString();
+
   audio_config_ = audio_config;
   audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
 }
@@ -196,6 +198,8 @@ void StarboardPlayer::UpdateVideoConfig(
     const VideoDecoderConfig& video_config) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(video_config.IsValidConfig());
+
+  LOG(INFO) << "New video config -- " << video_config_.AsHumanReadableString();
 
   video_config_ = video_config;
   video_sample_info_.frame_width =
