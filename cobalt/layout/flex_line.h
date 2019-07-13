@@ -27,6 +27,10 @@ namespace layout {
 
 class FlexLine {
  public:
+  // Disallow Copy and Assign.
+  FlexLine(const FlexLine&) = delete;
+  FlexLine& operator=(const FlexLine&) = delete;
+
   FlexLine(const LayoutParams& layout_params, bool main_direction_is_horizontal,
            bool direction_is_reversed, LayoutUnit main_size);
 
@@ -68,8 +72,6 @@ class FlexLine {
   std::vector<std::unique_ptr<FlexItem>> items_;
 
   LayoutUnit cross_size_;
-
-  DISALLOW_COPY_AND_ASSIGN(FlexLine);
 };
 
 }  // namespace layout
