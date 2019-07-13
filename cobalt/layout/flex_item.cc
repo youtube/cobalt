@@ -231,9 +231,8 @@ void MainAxisVerticalFlexItem::DetermineHypotheticalCrossSize(
   //   https://www.w3.org/TR/css-flexbox-1/#algo-cross-item
   LayoutParams child_layout_params(layout_params);
   child_layout_params.shrink_to_fit_width_forced = true;
-  child_layout_params.freeze_height = true;
-  box()->set_height(target_main_size());
   box()->UpdateSize(child_layout_params);
+  box()->set_height(target_main_size());
 }
 
 LayoutUnit MainAxisVerticalFlexItem::GetMarginBoxMainSize() {
