@@ -44,9 +44,9 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
                                        ) {
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
   const auto kSbMediaVideoCodecAv1 = kSbMediaVideoCodecVp10;
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
 
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   SB_UNREFERENCED_PARAMETER(profile);

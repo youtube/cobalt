@@ -45,15 +45,15 @@ extern "C" {
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/player.h"
-#if SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#if SB_API_VERSION < 11
 #include "starboard/queue.h"
-#endif  // SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#endif  // SB_API_VERSION < 11
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
-#if SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#if SB_API_VERSION < 11
 #include "starboard/spin_lock.h"
-#endif  // SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#endif  // SB_API_VERSION < 11
 #include "starboard/storage.h"
 #include "starboard/string.h"
 #include "starboard/system.h"

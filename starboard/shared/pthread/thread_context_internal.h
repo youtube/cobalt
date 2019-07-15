@@ -17,10 +17,10 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 struct SbThreadContextPrivate {
   ucontext_t* ucontext = nullptr;
 };
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_CONTEXT_INTERNAL_H_

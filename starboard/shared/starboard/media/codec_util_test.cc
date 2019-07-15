@@ -57,11 +57,11 @@ TEST_F(CodecUtilTest, SimpleCodecs) {
 
 TEST_F(CodecUtilTest, ShortFormAv1) {
   ASSERT_TRUE(Parse("av01.0.01M.08"));
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp10);
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION  ASSERT_EQ(profile_, 64);
+#endif  // SB_API_VERSION < 11  ASSERT_EQ(profile_, 64);
   EXPECT_EQ(profile_, 0);
   EXPECT_EQ(level_, 21);
   EXPECT_EQ(bit_depth_, 8);
@@ -72,11 +72,11 @@ TEST_F(CodecUtilTest, ShortFormAv1) {
 
 TEST_F(CodecUtilTest, LongFormAv1) {
   ASSERT_TRUE(Parse("av01.0.04M.10.0.110.09.16.09.0"));
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp10);
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION  ASSERT_EQ(profile_, 64);
+#endif  // SB_API_VERSION < 11  ASSERT_EQ(profile_, 64);
   EXPECT_EQ(profile_, 0);
   EXPECT_EQ(level_, 30);
   EXPECT_EQ(bit_depth_, 10);

@@ -32,19 +32,19 @@ namespace player {
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
  public:
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
               const SbPlayerSampleInfo& sample_info);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   InputBuffer(SbMediaType sample_type,
               SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
               const SbPlayerSampleInfo& sample_info,
               const SbMediaAudioSampleInfo* audio_sample_info);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
   ~InputBuffer();
 
@@ -87,9 +87,9 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
     SbMediaAudioSampleInfo audio_sample_info_;
     SbMediaVideoSampleInfo video_sample_info_;
   };
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
   SbMediaColorMetadata color_metadata_;
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
   std::vector<SbDrmSubSampleMapping> subsamples_;

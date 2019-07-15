@@ -27,7 +27,7 @@ namespace shared {
 namespace starboard {
 namespace player {
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
 InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          SbPlayer player,
                          void* context,
@@ -60,7 +60,7 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
         sample_info.side_data->data + sample_info.side_data->size);
   }
 }
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
 InputBuffer::InputBuffer(SbMediaType sample_type,
                          SbPlayerDeallocateSampleFunc dealloate_sample_func,
                          SbPlayer player,
@@ -89,7 +89,7 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
   }
   TryToAssignDrmSampleInfo(sample_info.drm_info);
 }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);

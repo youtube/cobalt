@@ -63,11 +63,11 @@ typedef enum SbMediaVideoCodec {
   kSbMediaVideoCodecMpeg2,
   kSbMediaVideoCodecTheora,
   kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
   kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
   kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
   kSbMediaVideoCodecVp8,
   kSbMediaVideoCodecVp9,
 } SbMediaVideoCodec;
@@ -404,10 +404,10 @@ typedef struct SbMediaColorMetadata {
 // The set of information required by the decoder or player for each video
 // sample.
 typedef struct SbMediaVideoSampleInfo {
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   // The video codec of this sample.
   SbMediaVideoCodec codec;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   // Indicates whether the associated sample is a key frame (I-frame).
   // Video key frames must always start with SPS and PPS NAL units.
   bool is_key_frame;
@@ -430,11 +430,11 @@ typedef struct SbMediaVideoSampleInfo {
   // described here: https://matroska.org/technical/specs/index.html .
   // This will only be specified on frames where the HDR metadata and
   // color / color space might have changed (e.g. keyframes).
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   SbMediaColorMetadata color_metadata;
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   SbMediaColorMetadata* color_metadata;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 } SbMediaVideoSampleInfo;
 
 // A structure describing the audio configuration parameters of a single audio
@@ -469,10 +469,10 @@ typedef struct SbMediaAudioConfiguration {
 // The |WAVEFORMATEX| structure is specified at:
 // http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx
 typedef struct SbMediaAudioSampleInfo {
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   // The video codec of this sample.
   SbMediaAudioCodec codec;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   // The waveform-audio format type code.
   uint16_t format_tag;
 
@@ -503,11 +503,11 @@ typedef struct SbMediaAudioSampleInfo {
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 } SbMediaAudioSampleInfo;
 
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
 // SbMediaAudioHeader is same as SbMediaAudioSampleInfo in old starboard
 // version.
 typedef SbMediaAudioSampleInfo SbMediaAudioHeader;
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
 
 #if SB_API_VERSION < 10
 // --- Constants -------------------------------------------------------------
@@ -712,7 +712,7 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int bits_per_pixel);
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#if SB_API_VERSION >= 11
 // Communicate to the platform how far past |current_playback_position| the app
 // will write audio samples. The app will write all samples between
 // |current_playback_position| and |current_playback_position| + |duration|, as
@@ -723,7 +723,7 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
 // no playback issues occur (such as transient or indefinite hanging). The
 // platform may assume |duration| >= 0.5 seconds.
 SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
-#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #ifdef __cplusplus
 }  // extern "C"

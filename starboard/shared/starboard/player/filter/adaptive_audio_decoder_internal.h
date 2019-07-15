@@ -32,7 +32,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   typedef std::function<scoped_ptr<filter::AudioDecoder>(
@@ -102,7 +102,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   bool first_output_received_ = false;
   bool output_format_checked_ = false;
 };
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
 }  // namespace filter
 }  // namespace player

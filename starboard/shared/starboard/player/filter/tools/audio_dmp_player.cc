@@ -76,14 +76,14 @@ static void DeallocateSampleFunc(SbPlayer player,
 starboard::scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
   auto player_sample_info =
       s_video_dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   return new InputBuffer(DeallocateSampleFunc, NULL, NULL, player_sample_info);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   SbMediaAudioSampleInfo audio_sample_info =
       s_video_dmp_reader->GetAudioSampleInfo(index);
   return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
                          player_sample_info, &audio_sample_info);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 
 void OnTimer() {

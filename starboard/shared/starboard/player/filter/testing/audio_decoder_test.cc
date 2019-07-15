@@ -285,15 +285,15 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
   scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) const {
     auto player_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
     return new InputBuffer(DeallocateSampleFunc, NULL, NULL,
                            player_sample_info);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
     SbMediaAudioSampleInfo audio_sample_info =
         dmp_reader_.GetAudioSampleInfo(index);
     return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
                            player_sample_info, &audio_sample_info);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   }
 
   Mutex event_queue_mutex_;
@@ -390,7 +390,7 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
   ASSERT_TRUE(last_decoded_audio_);
 }
 
-#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#if SB_API_VERSION >= 11
 
 TEST_P(AudioDecoderTest, LimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
@@ -437,7 +437,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   ASSERT_TRUE(last_decoded_audio_);
 }
 
-#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#endif  // SB_API_VERSION >= 11
 
 std::vector<const char*> GetSupportedTests() {
   const char* kFilenames[] = {"beneath_the_canopy_140_aac.dmp",

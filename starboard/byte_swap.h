@@ -82,10 +82,10 @@ SB_EXPORT uint64_t SbByteSwapU64(uint64_t value);
 }  // extern "C"
 #endif
 
-#if defined(__cplusplus) && SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#if defined(__cplusplus) && SB_API_VERSION < 11
 extern "C++" {
 #include "starboard/common/byte_swap.h"
 }  // extern "C++"
-#endif  // defined(__cplusplus) && SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#endif  // defined(__cplusplus) && SB_API_VERSION < 11
 
 #endif  // STARBOARD_BYTE_SWAP_H_
