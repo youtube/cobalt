@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -131,11 +132,12 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
   software_surface.surface = kSbBlitterInvalidSurface;
   software_surface.cached = false;
 
-  // We ensure that scale is at least 1. Since it is common to have animating
-  // scale between 0 and 1 (e.g. an item animating from 0 to 1 to "grow" into
-  // the scene), this ensures that rendered items will not look pixellated as
-  // they grow (e.g. if they were cached at scale 0.2, they would be stretched
-  // x5 if the scale were to animate to 1.0).
+  // We ensure that scale is at least 1 except for TextNodes, since the Blitter
+  // scaling is not as sophisticated as Skia's. Since it is common to have
+  // animating scale between 0 and 1 (e.g. an item animating from 0 to 1 to
+  // "grow" into the scene), this ensures that rendered items will not look
+  // pixellated as they grow (e.g. if they were cached at scale 0.2, they would
+  // be stretched x5 if the scale were to animate to 1.0).
   if (transform.scale().x() == 0.0f || transform.scale().y() == 0.0f) {
     // There won't be anything to render if the transform squishes one dimension
     // to 0.
@@ -148,11 +150,13 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
 // scale down for us, it results in too many artifacts.
 #if SB_HAS(BILINEAR_FILTERING_SUPPORT)
   math::Vector2dF apply_scale(1.0f, 1.0f);
-  if (transform.scale().x() < 1.0f) {
-    apply_scale.set_x(1.0f / transform.scale().x());
-  }
-  if (transform.scale().y() < 1.0f) {
-    apply_scale.set_y(1.0f / transform.scale().y());
+  if (node->GetTypeId() != base::GetTypeId<render_tree::TextNode>()) {
+    if (transform.scale().x() < 1.0f) {
+      apply_scale.set_x(1.0f / transform.scale().x());
+    }
+    if (transform.scale().y() < 1.0f) {
+      apply_scale.set_y(1.0f / transform.scale().y());
+    }
   }
   scaled_transform.ApplyScale(apply_scale);
 #endif  // SB_HAS(BILINEAR_FILTERING_SUPPORT)
