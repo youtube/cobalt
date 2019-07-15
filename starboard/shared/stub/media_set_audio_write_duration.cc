@@ -16,11 +16,11 @@
 
 #include "starboard/common/log.h"
 
-#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#if SB_API_VERSION >= 11
 void SbMediaSetAudioWriteDuration(SbTime duration) {
   // The stub implementation assumes no further action is needed from the
   // platform to be compatible with limits >= 0.5 second.
   SB_DCHECK(duration >= kSbTimeSecond / 2)
       << "Limiting audio to less than 0.5 seconds is unexpected.";
 }
-#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#endif  // SB_API_VERSION >= 11

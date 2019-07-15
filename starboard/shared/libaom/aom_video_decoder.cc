@@ -14,9 +14,9 @@
 
 #include "starboard/shared/libaom/aom_video_decoder.h"
 
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#endif  // SB_API_VERSION >= 11
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
@@ -40,11 +40,11 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
   SB_DCHECK(video_codec == kSbMediaVideoCodecVp10);
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
   SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
   SB_DCHECK(is_aom_supported());
 }
 

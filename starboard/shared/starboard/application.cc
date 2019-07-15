@@ -110,14 +110,14 @@ int Application::Run(CommandLine command_line) {
       SetStartLink(value.c_str());
     }
   }
-#if SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+#if SB_API_VERSION >= 11
   if (command_line_->HasSwitch(kMinLogLevel)) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
   } else {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_INFO);
   }
-#endif  // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+#endif  // SB_API_VERSION >= 11
 
   return RunLoop();
 }

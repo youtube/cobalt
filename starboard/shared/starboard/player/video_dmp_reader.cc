@@ -64,12 +64,12 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.buffer_size = static_cast<int>(audio_unit.data().size());
   sample_info.timestamp = audio_unit.timestamp();
   sample_info.drm_info = audio_unit.drm_sample_info();
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   sample_info.type = kSbMediaTypeAudio;
   sample_info.audio_sample_info = audio_unit.audio_sample_info();
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   sample_info.video_sample_info = NULL;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   return sample_info;
 }
 
@@ -80,12 +80,12 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.buffer_size = static_cast<int>(video_unit.data().size());
   sample_info.timestamp = video_unit.timestamp();
   sample_info.drm_info = video_unit.drm_sample_info();
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   sample_info.type = kSbMediaTypeVideo;
   sample_info.video_sample_info = video_unit.video_sample_info();
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   sample_info.video_sample_info = &video_unit.video_sample_info();
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   return sample_info;
 }
 

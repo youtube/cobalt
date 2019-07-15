@@ -235,7 +235,7 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
 // structure.
 typedef struct SbDecodeTargetInfoContentRegion {
-#if SB_API_VERSION >= SB_DECODE_TARGET_CONTENT_REGION_FLOATS_VERSION
+#if SB_API_VERSION >= 11
   // If the texture (width, height) is set to (1, 1), then these values will
   // be interpreted as normalized coordinates, and depending on the platform
   // (for example GLES 2.0 provides no method of obtaining the texture

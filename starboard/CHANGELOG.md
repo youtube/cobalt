@@ -14,6 +14,146 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+## Version 11
+
+### Add arguments to `SbMediaIsVideoSupported`.
+
+Add arguments for profile, level, bit depth, color primaries,
+transfer characteristics, and matrix coefficients. See comments of
+`SbMediaIsVideoSupported` for more details.  Also, the function
+`SbMediaIsTransferCharacteristicsSupported()` is no longer necessary and is
+removed.
+
+### Add support for AC3 audio.
+
+### Replace `kSbMediaVideoCodecVp10` with `kSbMediaVideoCodecAv1`.
+
+### Add a new enum `kSbPlayerErrorMax` in `starboard/player.h`.
+
+### Add new parameter `max_video_capabilities` to `SbPlayerCreate()`.
+
+This gives the application the option to specify to the `SbPlayer` object
+what the maximum video specifications will be, as a hint to the platform
+on how to allocate resources for the `SbPlayer`.  For example, if the player
+will never exceed a 240p playback resolution, then a software decoder may
+be initialized. Please see comment in `SbPlayerCreate()` for more details.
+
+### Refactor `SbPlayerSampleInfo` to reuse `SbPlayerSampleInfo` in filter based player.
+
+Additionally, add audio and codec info for every sample.
+
+### Introduce audio write duration
+
+Add a function `SbMediaSetAudioWriteDuration()` to `starboard/media.h`
+which communicates to the platform how much audio will be sent to the
+platform at a time.
+
+### Introduce Cobalt Extensions using the SbSystemGetExtension interface.
+
+Cobalt extensions implement app & platform specific functionality.
+
+### Deprecate unused function `SbSystemClearPlatformError()`.
+
+### Deprecate `kSbEventTypeNetworkDisconnect` and `kSbEventTypeNetworkConnect`.
+
+### Add support for using C++11 standard unordered maps and sets.
+
+By setting `SB_HAS_STD_UNORDERED_HASH` to 1, a platform can be configured
+to use C++11 standard hash table implementations, specifically, using:
+
+  - `std::unordered_map<>` for `base::hash_map<>`
+  - `std::unordered_multimap<>` for `base::hash_multimap<>`
+  - `std::unordered_set<>` for `base::hash_set<>`
+  - `std::unordered_multiset<>` for `base::hash_multiset<>`
+
+When `SB_HAS_STD_UNORDERED_HASH` is used, it is no longer necessary to
+specify `SB_HAS_LONG_LONG_HASH`, `SB_HAS_STRING_HASH`, `SB_HAS_HASH_USING`,
+`SB_HAS_HASH_VALUE`, `SB_HAS_HASH_WARNING`, `SB_HASH_MAP_INCLUDE`,
+`SB_HASH_NAMESPACE`, or `SB_HASH_SET_INCLUDE`.
+
+### Adds support for specifying screen diagonal length.
+
+When a platform knows its physical screen diagonal length, it can now provide
+that data to the application via `SbWindowGetDiagonalSizeInInches()`.
+
+
+### Add support for device authentication system properties.
+
+The system properties `kSbSystemPropertyCertificationScope` and
+`kSbSystemPropertyBase64EncodedCertificationSecret` have been added to enable
+client apps to perform device authentication.  The values will be queried by
+calls to `SbSystemGetProperty()` in `starboard/system.h`.
+
+### Add support for `SbThreadSampler` and `SbThreadContext`.
+
+This is helpful for enabling the implementation of sampling-based profilers.
+A full implementation is only required if the new function
+`SbThreadSamplerIsSupported()` returns `true`.  A valid implementation will need
+to implement the new `starboard/thread.h` functions,
+`SbThreadContextGetPointer()`, `SbThreadSamplerIsSupported()`,
+`SbThreadSamplerCreate()`, `SbThreadSamplerDestroy()`,
+`SbThreadSamplerFreeze()`, `SbThreadSamplerThaw()`.
+
+### Introduce functions for supplying suggestions to the on screen keyboard.
+
+A new API in `starboard/window.h` is introduced which declares the functions
+`SbWindowUpdateOnScreenKeyboardSuggestions()` and
+`SbWindowOnScreenKeyboardSuggestionsSupported()`.  This is only relevant if
+`SB_HAS(ON_SCREEN_KEYBOARD)`.
+
+### Introduce new file error code `kSbFileErrorIO`.
+
+The new code, added to `starboard/file.h`, should match "EIO" on Posix
+platforms.
+
+### Move the definition of `FormatString()` from `starboard/string.h` to `starboard/format_string.h`.
+
+### Make the decode target content region parameters floats instead of ints.
+
+The `SbDecodeTargetInfoContentRegion` struct is modified to accept `float`s
+instead of `int`s. The primary motivation for this change is to make it so that
+on platforms where it is difficult to obtain the width and height of a texture,
+we can still correctly identify a precise fractional "normalized" content region
+with the texture width and height set to 1.
+
+### Add `kSbSystemPropertyOriginalDesignManufacturerName` enum value.
+
+This change also deprecates `kSbSystemPropertyNetworkOperatorName`.
+The `kSbSystemPropertyOriginalDesignManufacturerName` value will represent
+the corporate entity responsible for the manufacturing/assembly of the device
+on behalf of the business entity owning the brand.
+
+### Cross-platform helper Starboard definitions factored out of core interface.
+
+Cross-platform helper Starboard definitions refactored out of `/starboard/`
+and into `/starboard/common/`. In order to more explicitly identify the core
+Starboard API, multiple files, or parts of them, were moved into the static
+library `/starboard/common/`.
+
+### Log synchronization responsibility has been moved behind Starboard.
+
+The application is no longer responsible for synchronizing (e.g. via mutex)
+calls to Starboard logging, this is now expected to be done by the Starboard
+implementation.  Logging functions, such as `SbLog` or `SbLogRaw`, must now have implementations that are thread-safe because they will be called from multiple
+threads without external synchronization.
+
+Additionally, the minimum logging level is no longer set by the application, and
+is instead set by grabbing the value as a command-line argument within
+Starboard.
+
+### Starboard now provides a EGL and GLES interface as a structure of pointers.
+
+To remove the direct inclusion of EGL and GLES system libraries throughout the
+application, we need to move this dependency behind a Starboardized API. This
+API can be found in `/starboard/egl.h` and `/starboard/gles.h`.
+
+### Add interface for querying for CPU features, in `/starboard/cpu_features.h`.
+
+The new interface enables the platform to communicate to the application which
+CPU features are available, which can enable the application to perform certain
+CPU-specific optimizations (e.g. SIMD).
+
+
 ## Version 10
 
 ### Introduce functions to query at runtime for media buffer settings

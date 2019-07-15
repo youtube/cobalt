@@ -42,12 +42,12 @@ struct SbPlayerPrivate {
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(SbTime seek_to_time, int ticket);
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   void WriteSample(const SbPlayerSampleInfo& sample_info);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   void WriteSample(SbMediaType sample_type,
                    const SbPlayerSampleInfo& sample_info);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   void WriteEndOfStream(SbMediaType stream_type);
   void SetBounds(int z_index, int x, int y, int width, int height);
 
@@ -87,9 +87,9 @@ struct SbPlayerPrivate {
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
   SbMediaAudioSampleInfo audio_sample_info_;
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
 
   starboard::Mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;

@@ -55,12 +55,12 @@ SbPlayerPrivate::SbPlayerPrivate(
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       media_time_updated_at_(SbTimeGetMonotonicNow()) {
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
   if (audio_codec != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_sample_info);
     audio_sample_info_ = *audio_sample_info;
   }
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
   worker_ = starboard::make_scoped_ptr(PlayerWorker::CreateInstance(
       audio_codec, video_codec, player_worker_handler.Pass(),
       std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
@@ -113,7 +113,7 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
   worker_->Seek(seek_to_time, ticket);
 }
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
 void SbPlayerPrivate::WriteSample(const SbPlayerSampleInfo& sample_info) {
   if (sample_info.type == kSbMediaTypeVideo) {
     ++total_video_frames_;
@@ -128,7 +128,7 @@ void SbPlayerPrivate::WriteSample(const SbPlayerSampleInfo& sample_info) {
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   worker_->WriteSample(input_buffer);
 }
-#else  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else  // SB_API_VERSION >= 11
 void SbPlayerPrivate::WriteSample(SbMediaType sample_type,
                                   const SbPlayerSampleInfo& sample_info) {
   if (sample_type == kSbMediaTypeVideo) {
@@ -145,7 +145,7 @@ void SbPlayerPrivate::WriteSample(SbMediaType sample_type,
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   worker_->WriteSample(input_buffer);
 }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
   worker_->WriteEndOfStream(stream_type);

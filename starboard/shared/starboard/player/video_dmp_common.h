@@ -109,11 +109,11 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
       const SbMediaVideoSampleInfoWithOptionalColorMetadata& that)
       : SbMediaVideoSampleInfo(that),
         stored_color_metadata(that.stored_color_metadata) {
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
     if (color_metadata) {
       color_metadata = &stored_color_metadata;
     }
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
   }
   void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) =
       delete;

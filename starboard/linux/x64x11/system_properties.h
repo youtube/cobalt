@@ -15,9 +15,11 @@
 #ifndef STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
 #define STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
 
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#include "starboard/configuration.h"
+
+#if SB_API_VERSION >= 11
 extern const char kCertificationScope[];
 extern const char kBase64EncodedCertificationSecret[];
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
