@@ -46,10 +46,6 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltLinuxConfiguration, self).GetTestFilters()
-    filters.extend([
-        test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec')
-    ])
     return filters
 
   def GetWebPlatformTestFilters(self):

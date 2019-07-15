@@ -65,11 +65,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {
-      'net_unittests': [
-          # This test fails on multiple platforms with our current version of
-          # net library, and will be fixed when net is rebased.
-          'HostResolverImplDnsTest.DnsTaskUnspec',
-      ],
       'renderer_test': [
           # Instead of returning an error when allocating too much texture
           # memory, Android instead just terminates the process.  Since this

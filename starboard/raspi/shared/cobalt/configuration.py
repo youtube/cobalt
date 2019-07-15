@@ -47,9 +47,6 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetTestFilters(self):
     filters = super(CobaltRaspiConfiguration, self).GetTestFilters()
     filters.extend([
-        test_filter.TestFilter('net_unittests',
-                               'HostResolverImplDnsTest.DnsTaskUnspec'),
-
         # These tests are currently producing slightly different images on the
         # RasPi.
         test_filter.TestFilter('renderer_test',
