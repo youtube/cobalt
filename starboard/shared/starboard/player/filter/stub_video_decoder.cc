@@ -55,14 +55,33 @@ void StubVideoDecoder::WriteInputBuffer(
     }
   }
 
-  decoder_status_cb_(kNeedMoreInput, new VideoFrame(input_buffer->timestamp()));
+  output_event_frame_times_.insert(input_buffer->timestamp());
+  // Defer sending frames out until we've accumulated a reasonable number.
+  // This allows for input buffers to be out of order, and we expect that
+  // after buffering 8 (arbitrarily chosen) that the first timestamp in the
+  // sorted buffer will be the "correct" timestamp to send out.
+  const int kMaxFramesToDelay = 8;
+  scoped_refptr<VideoFrame> output_frame = NULL;
+  if (output_event_frame_times_.size() > kMaxFramesToDelay) {
+    output_frame = new VideoFrame(*output_event_frame_times_.begin());
+    output_event_frame_times_.erase(output_event_frame_times_.begin());
+  }
+  decoder_status_cb_(kNeedMoreInput, output_frame);
 }
 
 void StubVideoDecoder::WriteEndOfStream() {
+  // If there are any remaining frames we need to output, send them all out
+  // before writing EOS.
+  for (const auto& time : output_event_frame_times_) {
+    decoder_status_cb_(kBufferFull, new VideoFrame(time));
+  }
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
 }
 
-void StubVideoDecoder::Reset() {}
+void StubVideoDecoder::Reset() {
+  output_event_frame_times_.clear();
+  video_sample_info_ = nullopt;
+}
 
 SbDecodeTarget StubVideoDecoder::GetCurrentDecodeTarget() {
   return kSbDecodeTargetInvalid;
