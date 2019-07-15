@@ -94,7 +94,7 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
     const script::Sequence<std::string>& suggestions) {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   if (suggestions_supported_) {
     int ticket = next_ticket_++;
     bool is_emplaced =
@@ -116,7 +116,7 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
       << "Starboard version " << SB_API_VERSION
       << " does not support on-screen keyboard suggestions on this platform.";
   promise->Reject();
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
   return promise;
 }
 

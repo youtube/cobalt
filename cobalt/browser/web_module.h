@@ -298,11 +298,11 @@ class WebModule : public LifecycleObserver {
   void InjectOnScreenKeyboardFocusedEvent(int ticket);
   // Injects an on screen keyboard blurred event into the web module.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   // Injects an on screen keyboard suggestions updated event into the web
   // module.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a keyboard event into the web module. The value for type

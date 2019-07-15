@@ -116,7 +116,7 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   SbSystemDeviceType device_type = SbSystemGetDeviceType();
 
   // Original Design Manufacturer (ODM)
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
   result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
                                value, kSystemPropertyMaxLength);
 #else
