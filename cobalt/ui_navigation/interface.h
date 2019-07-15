@@ -82,7 +82,7 @@ struct NativeInterface {
 
 #define kNativeItemInvalid nullptr
 
-#endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#endif  // SB_API_VERSION >= 11
 
 // Retrieve the interface to use for UI navigation.
 extern const NativeInterface& GetInterface();
