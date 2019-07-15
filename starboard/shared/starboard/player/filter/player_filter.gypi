@@ -42,6 +42,7 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/mock_audio_decoder.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/mock_audio_renderer_sink.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/player_components.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/player_components.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/punchout_video_renderer_sink.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h',

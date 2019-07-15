@@ -25,6 +25,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -40,6 +41,8 @@ namespace filter {
 namespace testing {
 namespace {
 
+using ::testing::Bool;
+using ::testing::Combine;
 using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
@@ -74,10 +77,15 @@ std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
 }
 
-class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
+class AudioDecoderTest
+    : public ::testing::TestWithParam<std::tuple<const char*, bool> > {
  public:
-  AudioDecoderTest() : dmp_reader_(ResolveTestFileName(GetParam()).c_str()) {
-    SB_LOG(INFO) << "Testing " << GetParam();
+  AudioDecoderTest()
+      : test_filename_(std::get<0>(GetParam())),
+        using_stub_decoder_(std::get<1>(GetParam())),
+        dmp_reader_(ResolveTestFileName(test_filename_).c_str()) {
+    SB_LOG(INFO) << "Testing " << test_filename_
+                 << (using_stub_decoder_ ? " with stub audio decoder." : ".");
   }
   void SetUp() override {
     ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
@@ -87,7 +95,13 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
         dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
         kSbDrmSystemInvalid};
 
-    scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+    scoped_ptr<PlayerComponents> components;
+    if (using_stub_decoder_) {
+      components = make_scoped_ptr<StubPlayerComponentsImpl>(
+          new StubPlayerComponentsImpl);
+    } else {
+      components = PlayerComponents::Create();
+    }
     components->CreateAudioComponents(audio_parameters, &audio_decoder_,
                                       &audio_renderer_sink_);
     ASSERT_TRUE(audio_decoder_);
@@ -150,6 +164,8 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     can_accept_more_input_ = false;
 
     last_input_buffer_ = GetAudioInputBuffer(index);
+
+    outstanding_inputs_.insert(last_input_buffer_->timestamp());
 
     audio_decoder_->Decode(last_input_buffer_, consumed_cb());
   }
@@ -265,6 +281,8 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     can_accept_more_input_ = true;
     last_input_buffer_ = NULL;
     last_decoded_audio_ = NULL;
+    outstanding_inputs_.clear();
+    eos_written_ = false;
   }
 
   void WaitForDecodedAudio() {
@@ -296,8 +314,21 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
 #endif  // SB_API_VERSION >= 11
   }
 
+  void WriteEndOfStream() {
+    SB_DCHECK(!eos_written_);
+    audio_decoder_->WriteEndOfStream();
+    eos_written_ = true;
+  }
+
   Mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
+
+  // Test parameter for the filename to load with the VideoDmpReader.
+  const char* test_filename_;
+
+  // Test parameter to configure whether the test is run with the
+  // StubAudioDecoder, or the platform-specific AudioDecoderImpl
+  bool using_stub_decoder_;
 
   JobQueue job_queue_;
   VideoDmpReader dmp_reader_;
@@ -307,6 +338,12 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
   bool can_accept_more_input_ = true;
   scoped_refptr<InputBuffer> last_input_buffer_;
   scoped_refptr<DecodedAudio> last_decoded_audio_;
+
+  // List of timestamps of InputBuffers provided to the Decoder so far, sorted
+  // in ascending order.
+  std::set<SbTime> outstanding_inputs_;
+
+  bool eos_written_ = false;
 };
 
 TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
@@ -332,7 +369,7 @@ TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
 
 TEST_P(AudioDecoderTest, SingleInput) {
   ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
@@ -346,7 +383,7 @@ TEST_P(AudioDecoderTest, SingleInputHEAAC) {
   }
 
   ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
@@ -367,7 +404,7 @@ TEST_P(AudioDecoderTest, SingleInvalidInput) {
                                           static_cast<int>(content.size()));
   audio_decoder_->Decode(last_input_buffer_, consumed_cb());
 
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
 
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
@@ -381,7 +418,7 @@ TEST_P(AudioDecoderTest, SingleInvalidInput) {
 }
 
 TEST_P(AudioDecoderTest, EndOfStreamWithoutAnyInput) {
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_FALSE(last_decoded_audio_);
@@ -391,7 +428,7 @@ TEST_P(AudioDecoderTest, ResetBeforeInput) {
   ResetDecoder();
 
   ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
@@ -404,7 +441,7 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(0, number_of_inputs_to_write));
 
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
@@ -421,7 +458,7 @@ TEST_P(AudioDecoderTest, LimitedInput) {
   ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
 
   if (start_index >= dmp_reader_.number_of_audio_buffers()) {
-    audio_decoder_->WriteEndOfStream();
+    WriteEndOfStream();
   }
 
   // Wait for decoded audio.
@@ -456,7 +493,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
       ASSERT_FALSE(decoded_audio->is_end_of_stream());
     }
   }
-  audio_decoder_->WriteEndOfStream();
+  WriteEndOfStream();
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
 }
@@ -488,7 +525,7 @@ std::vector<const char*> GetSupportedTests() {
 
 INSTANTIATE_TEST_CASE_P(AudioDecoderTests,
                         AudioDecoderTest,
-                        ValuesIn(GetSupportedTests()));
+                        Combine(ValuesIn(GetSupportedTests()), Bool()));
 
 }  // namespace
 }  // namespace testing
