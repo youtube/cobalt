@@ -551,7 +551,7 @@ void SetMinLogLevel(int level) {
   g_min_log_level = std::min(LOG_FATAL, level);
 
 #if defined(STARBOARD)
-#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#if SB_API_VERSION < 11
   starboard::logging::SetMinLogLevel(
       LogLevelToStarboardLogPriority(std::min(LOG_FATAL, level)));
 #endif
