@@ -310,9 +310,9 @@ SbPlayerPipeline::SbPlayerPipeline(
       natural_size_(0, 0),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       video_frame_provider_(video_frame_provider) {
-#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#if SB_API_VERSION >= 11
   SbMediaSetAudioWriteDuration(kAudioLimit);
-#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
@@ -1123,7 +1123,7 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
     if (audio_read_in_progress_) {
       return;
     }
-#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#if SB_API_VERSION >= 11
     // If we haven't checked the media time recently, update it now.
     if (SbTimeGetNow() - last_time_media_time_retrieved_ >
         kMediaTimeCheckInterval) {
@@ -1146,7 +1146,7 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
       return;
     }
     audio_read_delayed_ = false;
-#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#endif  // SB_API_VERSION >= 11
     audio_read_in_progress_ = true;
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
@@ -1252,11 +1252,11 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
       ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
       break;
 #endif  // SB_API_VERSION >= 10
-#if SB_API_VERSION >= SB_HAS_PLAYER_ERROR_MAX_VERSION
+#if SB_API_VERSION >= 11
     case kSbPlayerErrorMax:
       NOTREACHED();
       break;
-#endif  // SB_API_VERSION >= SB_HAS_PLAYER_ERROR_MAX_VERSION
+#endif  // SB_API_VERSION >= 11
   }
 }
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)

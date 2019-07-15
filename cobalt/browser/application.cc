@@ -160,7 +160,7 @@ std::string GetWebDriverListenIp() {
 }
 #endif  // ENABLE_WEBDRIVER
 
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#if SB_API_VERSION >= 11
 std::string NumberToFourByteString(size_t n) {
   std::string str;
   str += static_cast<char>(((n & 0xff000000) >> 24));
@@ -208,7 +208,7 @@ std::string ComputeSignature(const std::string& cert_scope,
 
   return base_64_url_signature;
 }
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#endif  // SB_API_VERSION >= 11
 
 GURL GetInitialURL() {
   GURL initial_url = GURL(kDefaultURL);
@@ -224,7 +224,7 @@ GURL GetInitialURL() {
     }
   }
 
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#if SB_API_VERSION >= 11
   // Get cert_scope and base_64_secret
   const size_t kCertificationScopeLength = 1023;
   char cert_scope_property[kCertificationScopeLength + 1] = {0};
@@ -278,7 +278,7 @@ GURL GetInitialURL() {
   GURL::Replacements replacements;
   replacements.SetQueryStr(query);
   initial_url = initial_url.ReplaceComponents(replacements);
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#endif  // SB_API_VERSION >= 11
 
   return initial_url;
 }
@@ -749,14 +749,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   on_screen_keyboard_suggestions_updated_event_callback_ =
       base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
                  base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
@@ -842,11 +842,11 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_HAS(CAPTIONS)
   event_dispatcher_.RemoveEventCallback(
@@ -929,12 +929,12 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
       DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
@@ -954,10 +954,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
     case kSbEventTypePreload:
-#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#if SB_API_VERSION < 11
     case kSbEventTypeNetworkConnect:
     case kSbEventTypeNetworkDisconnect:
-#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#endif  // SB_API_VERSION < 11
     case kSbEventTypeScheduled:
     case kSbEventTypeStart:
     case kSbEventTypeStop:
@@ -1033,17 +1033,17 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
-#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#if SB_API_VERSION < 11
     case kSbEventTypeNetworkConnect:
     case kSbEventTypeNetworkDisconnect:
-#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#endif  // SB_API_VERSION < 11
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
@@ -1068,7 +1068,7 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   const base::WindowSizeChangedEvent* window_size_change_event =
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   const auto& size = window_size_change_event->size();
-#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
+#if SB_API_VERSION >= 11
   float diagonal =
       SbWindowGetDiagonalSizeInInches(window_size_change_event->window());
 #else
@@ -1113,7 +1113,7 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
           event));
 }
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
 void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
     const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1122,7 +1122,7 @@ void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
       base::polymorphic_downcast<
           const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)

@@ -23,7 +23,7 @@ namespace backend {
 
 GraphicsContext::GraphicsContext(GraphicsSystem* system)
     : system_(system) {
-#if SB_API_VERSION < SB_EXTENSIONS_API_VERSION
+#if SB_API_VERSION < 11
   graphics_extension_ = nullptr;
 #else
   graphics_extension_ = static_cast<const CobaltExtensionGraphicsApi*>(

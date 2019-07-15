@@ -67,11 +67,11 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
     case kCodecHEVC:
       return kSbMediaVideoCodecH265;
     case kCodecAV1:
-#if SB_API_VERSION >= SB_HAS_AV1_VERSION
+#if SB_API_VERSION >= 11
       return kSbMediaVideoCodecAv1;
-#else  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+#else  // SB_API_VERSION >= 11
       return kSbMediaVideoCodecVp10;
-#endif  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION >= 11
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
       DLOG(ERROR) << "Unsupported video codec "
@@ -86,10 +86,10 @@ SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
     const AudioDecoderConfig& audio_decoder_config) {
   SbMediaAudioSampleInfo audio_sample_info;
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   audio_sample_info.codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   // TODO: Make this work with non AAC audio.
   audio_sample_info.format_tag = 0x00ff;
   audio_sample_info.number_of_channels =

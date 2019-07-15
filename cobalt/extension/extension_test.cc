@@ -19,7 +19,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+#if SB_API_VERSION >= 11
 namespace cobalt {
 namespace extension {
 
@@ -72,4 +72,4 @@ TEST(ExtensionTest, Graphics) {
 
 }  // namespace extension
 }  // namespace cobalt
-#endif  // SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+#endif  // SB_API_VERSION >= 11
