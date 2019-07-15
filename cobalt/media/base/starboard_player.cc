@@ -206,16 +206,16 @@ void StarboardPlayer::UpdateVideoConfig(
       static_cast<int>(video_config_.natural_size().width());
   video_sample_info_.frame_height =
       static_cast<int>(video_config_.natural_size().height());
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   video_sample_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   video_sample_info_.color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   media_color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
   video_sample_info_.color_metadata = &media_color_metadata;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
@@ -525,10 +525,10 @@ void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
   SbMediaVideoCodec video_codec = video_sample_info_.codec;
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
   if (audio_config_.IsValidConfig()) {
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
@@ -537,7 +537,7 @@ void StarboardPlayer::CreatePlayer() {
   if (video_config_.IsValidConfig()) {
     video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
@@ -547,10 +547,10 @@ void StarboardPlayer::CreatePlayer() {
       SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
       drm_system_, has_audio ? &audio_sample_info_ : NULL,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
       max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
                                            : NULL,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
       &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
       &StarboardPlayer::PlayerStatusCB,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -620,7 +620,7 @@ void StarboardPlayer::WriteBufferInternal(
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
 
   SbPlayerSampleSideData side_data = {};
@@ -651,7 +651,7 @@ void StarboardPlayer::WriteBufferInternal(
     sample_info.drm_info = NULL;
   }
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
-#else  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else  // SB_API_VERSION >= 11
   video_sample_info_.is_key_frame = buffer->is_key_frame();
 #if SB_API_VERSION < 10
   SbPlayerWriteSample(
@@ -670,7 +670,7 @@ void StarboardPlayer::WriteBufferInternal(
       drm_info.subsample_count > 0 ? &drm_info : NULL};
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #endif  // SB_API_VERSION < 10
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {

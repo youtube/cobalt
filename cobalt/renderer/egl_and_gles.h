@@ -25,12 +25,12 @@
 // code will be outputted.
 #undef COBALT_EGL_AND_GLES_LOGGING
 
-#if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 #define EGL_CALL_PREFIX ::cobalt::renderer::CobaltGetEglInterface().
 #define GL_CALL_PREFIX ::cobalt::renderer::CobaltGetGlesInterface().
-#else  // SB_API_VERSION < SB_EGL_AND_GLES_INTERFACE_VERSION
+#else  // SB_API_VERSION < 11
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
@@ -40,7 +40,7 @@
 #endif  // defined(GLES3_SUPPORTED)
 #define EGL_CALL_PREFIX
 #define GL_CALL_PREFIX
-#endif  // SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #if defined(COBALT_EGL_AND_GLES_LOGGING)
 #define EGL_DCHECK(x)                                                 \
@@ -68,7 +68,7 @@
   } while (false)
 #endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
 
-#if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#if SB_API_VERSION >= 11
 namespace cobalt {
 namespace renderer {
 
@@ -86,7 +86,7 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 
 }  // namespace renderer
 }  // namespace cobalt
-#endif  // SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #define EGL_CALL(x)    \
   do {                 \
@@ -116,7 +116,7 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 #define GL_CALL_SIMPLE(x) (GL_CALL_PREFIX x)
 #endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
 
-#if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#if SB_API_VERSION >= 11
 
 // EGL TYPES
 #define EGLint SbEglInt32
