@@ -202,7 +202,8 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
   }
 
   *offset_in_frames = frames_consumed_ % kFramesPerChannel;
-  *is_playing = (frames_rendered_ != frames_consumed_);
+  *is_playing =
+      !(silence_written_ != 0 && *frames_in_buffer <= silence_written_);
 }
 
 void AudioDevice::Impl::ConsumeFrames(int frames_consumed) {
