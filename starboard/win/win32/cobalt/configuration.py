@@ -55,20 +55,11 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
     return filters
 
   __FILTERED_TESTS = {
-      'base_unittests': [
-          'PathServiceTest.Get',
-      ],
       'renderer_test': [
           'ResourceProviderTest.ManyTexturesCanBeCreatedAndDestroyedQuickly', # Flaky.
           'ResourceProviderTest.TexturesCanBeCreatedFromSecondaryThread',
           'PixelTest.Width1Image',
           'PixelTest.Height1Image',
           'PixelTest.Area1Image',
-      ],
-      'net_unittests': [
-          'HostResolverImplDnsTest.DnsTaskUnspec',
-          'UDPListenSocketTest.DoRead',
-          'UDPListenSocketTest.DoReadReturnsNullAtEnd',
-          'UDPListenSocketTest.SendTo',
       ],
   }
