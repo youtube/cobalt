@@ -357,12 +357,12 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const {
     auto video_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeVideo, index);
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
     return new InputBuffer(DeallocateSampleFunc, NULL, NULL, video_sample_info);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
     return new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc, NULL, NULL,
                            video_sample_info, NULL);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   }
 
   JobQueue job_queue_;
@@ -409,11 +409,11 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9
   };
@@ -450,11 +450,11 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9
   };
@@ -702,11 +702,11 @@ std::vector<TestParam> GetSupportedTests() {
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
               video_sample_info.frame_width, video_sample_info.frame_height,
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
               video_sample_info->frame_width, video_sample_info->frame_height,
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
               dmp_reader.video_bitrate(), dmp_reader.video_fps()
 #if SB_API_VERSION >= 10
                                               ,

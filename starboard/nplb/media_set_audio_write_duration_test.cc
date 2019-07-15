@@ -22,7 +22,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#if SB_API_VERSION >= 11
 namespace starboard {
 namespace nplb {
 namespace {
@@ -98,10 +98,10 @@ class SbMediaSetAudioWriteDurationTest
     sample_info.buffer_size = player_sample_info.buffer_size;
     sample_info.timestamp = player_sample_info.timestamp;
     sample_info.drm_info = NULL;
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
     sample_info.type = kSbMediaTypeAudio;
     sample_info.audio_sample_info = dmp_reader_.audio_sample_info();
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
     SbPlayer player = pending_decoder_status_->player;
     SbMediaType type = pending_decoder_status_->type;
@@ -145,9 +145,9 @@ class SbMediaSetAudioWriteDurationTest
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
         kAudioCodec, kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
         DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
         DummyErrorFunc, this /* context */, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());
@@ -300,4 +300,4 @@ INSTANTIATE_TEST_CASE_P(SbMediaSetAudioWriteDurationTests,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= SB_SET_AUDIO_WRITE_DURATION_VERSION
+#endif  // SB_API_VERSION >= 11

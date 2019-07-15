@@ -88,11 +88,11 @@ typedef enum SbPlayerError {
   // error code can signal the app to retry the playback, possibly with h264.
   kSbPlayerErrorCapabilityChanged,
 #endif  // SB_API_VERSION >= 10
-#if SB_API_VERSION >= SB_HAS_PLAYER_ERROR_MAX_VERSION
+#if SB_API_VERSION >= 11
   // The max value of SbPlayer error type. It should always at the bottom
   // of SbPlayerError and never be used.
   kSbPlayerErrorMax,
-#endif  // SB_API_VERSION >= SB_HAS_PLAYER_ERROR_MAX_VERSION
+#endif  // SB_API_VERSION >= 11
 } SbPlayerError;
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
@@ -117,7 +117,7 @@ typedef enum SbPlayerOutputMode {
   kSbPlayerOutputModeInvalid,
 } SbPlayerOutputMode;
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
 
 // Identify the type of side data accompanied with |SbPlayerSampleInfo|, as side
 // data may come from multiple sources.
@@ -142,13 +142,13 @@ typedef struct SbPlayerSampleSideData {
   size_t size;
 } SbPlayerSampleSideData;
 
-#endif  //  SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  //  SB_API_VERSION >= 11
 
 // Information about the samples to be written into SbPlayerWriteSample2.
 typedef struct SbPlayerSampleInfo {
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   SbMediaType type;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   // Points to the buffer containing the sample data.
   const void* buffer;
   // Size of the data pointed to by |buffer|.
@@ -156,7 +156,7 @@ typedef struct SbPlayerSampleInfo {
   // The timestamp of the sample in SbTime.
   SbTime timestamp;
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   // Points to an array of side data for the input, when available.
   SbPlayerSampleSideData* side_data;
   // The number of side data pointed by |side_data|.  It should be set to 0 if
@@ -171,11 +171,11 @@ typedef struct SbPlayerSampleInfo {
     // is kSbMediaTypeVideo.
     SbMediaVideoSampleInfo video_sample_info;
   };
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   // Information about a video sample. This value is required for video samples.
   // Otherwise, it must be |NULL|.
   const SbMediaVideoSampleInfo* video_sample_info;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   // The DRM system related info for the media sample. This value is required
   // for encrypted samples. Otherwise, it must be |NULL|.
   const SbDrmSampleInfo* drm_info;
@@ -398,21 +398,21 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   |SbDrmCreateSystem()|. If the stream does not have encrypted portions,
 //   then |drm_system| may be |kSbDrmSystemInvalid|.
 //
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
 // |audio_header|: |audio_header| is same as |audio_sample_info| in old
 // starboard version.
-#else   // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION < 11
 // |audio_sample_info|: Note that the caller must provide a populated
 //   |audio_sample_info| if the audio codec is |kSbMediaAudioCodecAac|.
 //   Otherwise, |audio_sample_info| can be NULL. See media.h for the format of
 //   the |SbMediaAudioSampleInfo| struct.
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 //   Note that |audio_specific_config| is a pointer and the content it points to
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
 // |max_video_capabilities|: This string communicates the video maximums to the
 //   platform. The web app will not provide a video stream exceeding the
 //   maximums described by this parameter. Allows the platform to optimize
@@ -422,7 +422,7 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   it is set to "width=1920; height=1080; framerate=15;", the video will never
 //   adapt to resolution higher than 1920x1080 or frame per second higher than
 //   15 fps. When the maximums are unknown, this will be set to NULL.
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
 #if SB_HAS(AUDIOLESS_VIDEO)
 //   When |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
 #endif  // SB_HAS(AUDIOLESS_VIDEO)
@@ -477,14 +477,14 @@ SbPlayerCreate(SbWindow window,
                SbMediaTime duration_pts,
 #endif  // SB_API_VERSION < 10
                SbDrmSystem drm_system,
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
                const SbMediaAudioHeader* audio_header,
-#else   // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION < 11
                const SbMediaAudioSampleInfo* audio_sample_info,
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION < 11
+#if SB_API_VERSION >= 11
                const char* max_video_capabilities,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
                SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,

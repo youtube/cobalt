@@ -622,11 +622,11 @@ bool ParseVideoCodec(const char* codec_string,
   *matrix_id = kSbMediaMatrixIdUnspecified;
 
   if (SbStringCompare(codec_string, "av01.", 5) == 0) {
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecVp10;
-#else  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else  // SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecAv1;
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     return ParseAv1Info(codec_string, profile, level, bit_depth, primary_id,
                         transfer_id, matrix_id);
   }

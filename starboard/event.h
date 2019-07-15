@@ -180,7 +180,7 @@ typedef enum SbEventType {
   // No data argument.
   kSbEventTypeVerticalSync,
 
-#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#if SB_API_VERSION < 11
   // The platform has detected a network disconnection. The platform should make
   // a best effort to send an event of this type when the network disconnects,
   // but there are likely to be cases where the platform cannot detect the
@@ -193,7 +193,7 @@ typedef enum SbEventType {
   // application start-up, and should always be sent if the network reconnects
   // since a disconnection event was sent.
   kSbEventTypeNetworkConnect,
-#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#endif  // SB_API_VERSION < 11
 
   // An event type reserved for scheduled callbacks. It will only be sent in
   // response to an application call to SbEventSchedule(), and it will call the
@@ -256,7 +256,7 @@ typedef enum SbEventType {
   // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardBlurred,
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   // The platform has updated the on screen keyboard suggestions. This event is
   // triggered by the system or by the application's OnScreenKeyboard update
   // suggestions method. The event has int data representing a ticket. The
@@ -266,7 +266,7 @@ typedef enum SbEventType {
   // SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
   // ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_HAS(CAPTIONS)

@@ -49,7 +49,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
     auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                               SbDrmSystem drm_system) {
       typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
@@ -65,7 +65,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     audio_decoder->reset(
         new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
                                  audio_parameters.drm_system, decoder_creator));
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
     typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
 
     scoped_ptr<AudioDecoderImpl> audio_decoder_impl(AudioDecoderImpl::Create(
@@ -75,7 +75,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     } else {
       audio_decoder->reset();
     }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }
 
@@ -97,11 +97,11 @@ class PlayerComponentsImpl : public PlayerComponents {
 
     video_decoder->reset();
 
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecVp10;
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecAv1;
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
 
     if (video_parameters.video_codec == kSbMediaVideoCodecVp9) {
       video_decoder->reset(new VpxVideoDecoderImpl(

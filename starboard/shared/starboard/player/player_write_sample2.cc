@@ -29,10 +29,10 @@ void SbPlayerWriteSample2(SbPlayer player,
     return;
   }
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   player->WriteSample(*sample_infos);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   player->WriteSample(sample_type, *sample_infos);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 #endif  // SB_API_VERSION >= 10

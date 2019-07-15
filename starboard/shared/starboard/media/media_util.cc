@@ -173,11 +173,11 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     case kSbMediaVideoCodecTheora:
       return false;  // No associated container in YT.
     case kSbMediaVideoCodecVc1:
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     case kSbMediaVideoCodecVp10:
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     case kSbMediaVideoCodecAv1:
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
       return mime_type.subtype() == "mp4";
     case kSbMediaVideoCodecVp8:
     case kSbMediaVideoCodecVp9:
@@ -369,13 +369,13 @@ const char* GetCodecName(SbMediaVideoCodec codec) {
       return "theora";
     case kSbMediaVideoCodecVc1:
       return "vc1";
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     case kSbMediaVideoCodecVp10:
       return "vp10";
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     case kSbMediaVideoCodecAv1:
       return "av1";
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     case kSbMediaVideoCodecVp8:
       return "vp8";
     case kSbMediaVideoCodecVp9:
@@ -538,11 +538,11 @@ bool operator==(const SbMediaColorMetadata& metadata_1,
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2) {
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   if (sample_info_1.codec != sample_info_2.codec) {
     return false;
   }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
     return false;
   }
@@ -552,11 +552,11 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   if (sample_info_1.frame_height != sample_info_2.frame_height) {
     return false;
   }
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   return sample_info_1.color_metadata == sample_info_2.color_metadata;
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   return *sample_info_1.color_metadata == *sample_info_2.color_metadata;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 
 bool operator!=(const SbMediaColorMetadata& metadata_1,
@@ -586,18 +586,18 @@ std::ostream& operator<<(std::ostream& os,
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoSampleInfo& sample_info) {
   using starboard::shared::starboard::media::GetCodecName;
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   os << GetCodecName(sample_info.codec) << ", ";
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   if (sample_info.is_key_frame) {
     os << "key frame, ";
   }
   os << sample_info.frame_width << 'x' << sample_info.frame_height << ' ';
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   os << '(' << sample_info.color_metadata << ')';
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   os << '(' << *sample_info.color_metadata << ')';
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   return os;
 }
 

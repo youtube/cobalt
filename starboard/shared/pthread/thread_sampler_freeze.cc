@@ -14,11 +14,11 @@
 
 #include "starboard/shared/pthread/thread_sampler_internal.h"
 
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler) {
   if (!SbThreadSamplerIsValid(sampler)) {
     return kSbThreadContextInvalid;
   }
   return sampler->Freeze();
 }
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11

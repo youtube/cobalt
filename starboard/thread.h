@@ -260,7 +260,7 @@ static SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
   return SbThreadGetCurrent() == thread;
 }
 
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 
 // Private structure representing the context of a frozen thread.
 typedef struct SbThreadContextPrivate SbThreadContextPrivate;
@@ -335,7 +335,7 @@ SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler);
 // invalidates the context returned from |SbThreadSamplerFreeze|.
 SB_EXPORT bool SbThreadSamplerThaw(SbThreadSampler sampler);
 
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #ifdef __cplusplus
 }  // extern "C"

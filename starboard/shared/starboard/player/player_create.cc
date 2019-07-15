@@ -41,9 +41,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #endif  // SB_API_VERSION < 10
                         SbDrmSystem drm_system,
                         const SbMediaAudioSampleInfo* audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
                         const char* max_video_capabilities,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
@@ -54,17 +54,17 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
   SB_UNREFERENCED_PARAMETER(max_video_capabilities);
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
 #if SB_API_VERSION < 10
   SB_UNREFERENCED_PARAMETER(duration_pts);
 #endif  // SB_API_VERSION < 10
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   if (audio_sample_info) {
     SB_DCHECK(audio_sample_info->codec == audio_codec);
   }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)

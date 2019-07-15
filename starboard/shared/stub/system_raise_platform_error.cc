@@ -16,7 +16,7 @@
 
 #include "starboard/common/log.h"
 
-#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#if SB_API_VERSION < 11
 SbSystemPlatformError SbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
@@ -35,7 +35,7 @@ SbSystemPlatformError SbSystemRaisePlatformError(
   SB_DLOG(INFO) << "SbSystemRaisePlatformError: " << message;
   return kSbSystemPlatformErrorInvalid;
 }
-#else   // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#else   // SB_API_VERSION < 11
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                                 SbSystemPlatformErrorCallback callback,
                                 void* user_data) {
@@ -53,4 +53,4 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
   SB_DLOG(INFO) << "SbSystemRaisePlatformError: " << message;
   return false;
 }
-#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#endif  // SB_API_VERSION < 11

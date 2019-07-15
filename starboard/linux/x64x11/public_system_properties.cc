@@ -14,7 +14,7 @@
 
 #include "starboard/linux/x64x11/system_properties.h"
 
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#if SB_API_VERSION >= 11
 const char kCertificationScope[] = "";
 const char kBase64EncodedCertificationSecret[] = "";
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#endif  // SB_API_VERSION >= 11

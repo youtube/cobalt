@@ -14,7 +14,7 @@
 
 #include "starboard/shared/pthread/thread_sampler_internal.h"
 
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 
 #include <semaphore.h>
 #include <signal.h>
@@ -143,4 +143,4 @@ SbThreadContext SbThreadSamplerPrivate::Freeze() {
 
 bool SbThreadSamplerPrivate::Thaw() { return SignalHandler::Thaw(this); }
 
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11

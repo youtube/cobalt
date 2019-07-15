@@ -55,10 +55,10 @@ class VideoDmpWriter {
 
   SbFile file_;
   WriteCB write_cb_;
-#if SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION < 11
   SbMediaAudioCodec audio_codec_;
   SbMediaVideoCodec video_codec_;
-#endif  // SB_API_VERSION < SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION < 11
 };
 
 }  // namespace video_dmp

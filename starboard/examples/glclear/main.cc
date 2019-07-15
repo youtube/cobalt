@@ -23,12 +23,12 @@
 #include "starboard/system.h"
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/egl.h"
 #include "starboard/gles.h"
-#else   // SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
-#error "This demo requires SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION."
-#endif  // SB_API_VERSION >= SB_EGL_AND_GLES_INTERFACE_VERSION
+#else   // SB_API_VERSION >= 11
+#error "This demo requires SB_API_VERSION >= 11."
+#endif  // SB_API_VERSION >= 11
 
 #define EGL_CALL(x)                                                    \
   do {                                                                 \
