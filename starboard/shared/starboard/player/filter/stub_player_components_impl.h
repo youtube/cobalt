@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_IMPL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_IMPL_H_
+
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 namespace starboard {
@@ -21,7 +23,8 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class PlayerComponentsImpl : public PlayerComponents {
+class StubPlayerComponentsImpl : public PlayerComponents {
+ public:
   void CreateAudioComponents(
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
@@ -49,20 +52,10 @@ class PlayerComponentsImpl : public PlayerComponents {
   }
 };
 
-// static
-scoped_ptr<PlayerComponents> PlayerComponents::Create() {
-  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
-}
-
-// static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
-  return output_mode == kSbPlayerOutputModePunchOut;
-}
-
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_IMPL_H_
