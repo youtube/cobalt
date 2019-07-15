@@ -104,6 +104,12 @@ TEST_F(PathServiceTest, Get) {
 #endif  // defined(STARBOARD)
     EXPECT_PRED1(ReturnsValidPath, key);
   }
+#if defined(STARBOARD)
+  // In the three Starboard custom directories, DIR_CACHE should always be
+  // valid while DIR_SYSTEM_FONTS and DIR_SYSTEM_FONTS_CONFIGURATION
+  // can be invalid on some platforms.
+  EXPECT_PRED1(ReturnsValidPath, DIR_CACHE);
+#else  // STARBOARD
 #if defined(OS_WIN)
   for (int key = PATH_WIN_START + 1; key < PATH_WIN_END; ++key) {
     bool valid = true;
@@ -130,6 +136,7 @@ TEST_F(PathServiceTest, Get) {
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif
+#endif  // STARBOARD
 }
 
 // Test that all versions of the Override function of PathService do what they
