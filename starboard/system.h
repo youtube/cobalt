@@ -74,14 +74,14 @@ typedef enum SbSystemPathId {
 // System properties that can be queried for. Many of these are used in
 // User-Agent string generation.
 typedef enum SbSystemPropertyId {
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#if SB_API_VERSION >= 11
   // The certification scope that identifies a group of devices.
   kSbSystemPropertyCertificationScope,
 
   // The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
   // query parameters from the application startup URL.
   kSbSystemPropertyBase64EncodedCertificationSecret,
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#endif  // SB_API_VERSION >= 11
 
   // The full model number of the main platform chipset, including any
   // vendor-specific prefixes.
@@ -108,7 +108,7 @@ typedef enum SbSystemPropertyId {
   // The year the device was launched, e.g. "2016".
   kSbSystemPropertyModelYear,
 
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
   // The corporate entity responsible for the manufacturing/assembly of the
   // device on behalf of the business entity owning the brand.  This is often
   // abbreviated as ODM.
@@ -238,7 +238,7 @@ typedef void (*SbSystemPlatformErrorCallback)(
 // Private structure used to represent a raised platform error.
 typedef struct SbSystemPlatformErrorPrivate SbSystemPlatformErrorPrivate;
 
-#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#if SB_API_VERSION < 11
 // Opaque handle returned by |SbSystemRaisePlatformError| that can be passed
 // to |SbSystemClearPlatformError|.
 typedef SbSystemPlatformErrorPrivate* SbSystemPlatformError;
@@ -282,7 +282,7 @@ SB_EXPORT SbSystemPlatformError
 SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                            SbSystemPlatformErrorCallback callback,
                            void* user_data);
-#else   // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#else   // SB_API_VERSION < 11
 // Cobalt calls this function to notify the platform that an error has occurred
 // in the application that the platform may need to handle. The platform is
 // expected to then notify the user of the error and to provide a means for
@@ -307,16 +307,16 @@ SB_EXPORT bool SbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
     void* user_data);
-#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#endif  // SB_API_VERSION < 11
 
-#if SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#if SB_API_VERSION < 11
 // Clears a platform error that was previously raised by a call to
 // |SbSystemRaisePlatformError|. The platform may use this, for example,
 // to close a dialog that was opened in response to the error.
 //
 // |handle|: The platform error to be cleared.
 SB_EXPORT void SbSystemClearPlatformError(SbSystemPlatformError handle);
-#endif  // SB_API_VERSION < SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION
+#endif  // SB_API_VERSION < 11
 
 // Pointer to a function to compare two items. The return value uses standard
 // |*cmp| semantics:
@@ -594,7 +594,7 @@ SB_EXPORT void SbSystemHideSplashScreen();
 SB_EXPORT bool SbSystemSupportsResume();
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+#if SB_API_VERSION >= 11
 // Returns pointer to a constant global struct implementing the extension named
 // |name|, if it is implemented. Otherwise return NULL.
 //
@@ -616,7 +616,7 @@ SB_EXPORT bool SbSystemSupportsResume();
 // of the struct, but never removed (only deprecated).
 
 SB_EXPORT const void* SbSystemGetExtension(const char* name);
-#endif  // SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -21,7 +21,7 @@
 namespace starboard {
 namespace nplb {
 namespace {
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 
 class CountingThread : public AbstractTestThread {
  public:
@@ -172,7 +172,7 @@ TEST(ThreadSamplerTest, SunnyDayThreadContextPointers) {
   SbThreadSamplerDestroy(sampler);
 }
 
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11
 }  // namespace.
 }  // namespace nplb.
 }  // namespace starboard.

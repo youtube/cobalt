@@ -26,20 +26,20 @@
 #include "starboard/thread.h"
 #include "starboard/time.h"
 
-#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#if SB_API_VERSION < 11
 #include "starboard/common/mutex.h"
 #include "starboard/common/recursive_mutex.h"
 #include "starboard/once.h"
-#endif  // SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#endif  // SB_API_VERSION < 11
 
 namespace starboard {
 namespace logging {
 namespace {
 SbLogPriority g_min_log_level = kSbLogPriorityUnknown;
 
-#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#if SB_API_VERSION < 11
 SB_ONCE_INITIALIZE_FUNCTION(RecursiveMutex, g_log_mutex);
-#endif  // SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#endif  // SB_API_VERSION < 11
 
 #if defined(COMPILER_MSVC)
 #pragma optimize("", off)
@@ -154,13 +154,13 @@ LogMessage::~LogMessage() {
   }
   std::string str_newline(stream_.str());
 
-#if SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#if SB_API_VERSION < 11
   g_log_mutex()->Acquire();
   SbLog(priority_, str_newline.c_str());
   g_log_mutex()->Release();
-#else   // SB_API_VERSION >= SB_LOG_SYNCHRONIZATION_VERSION
+#else   // SB_API_VERSION >= 11
   SbLog(priority_, str_newline.c_str());
-#endif  // SB_API_VERSION < SB_LOG_SYNCHRONIZATION_VERSION
+#endif  // SB_API_VERSION < 11
 
   if (priority_ == kSbLogPriorityFatal) {
     // Ensure the first characters of the string are on the stack so they

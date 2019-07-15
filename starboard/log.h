@@ -112,8 +112,8 @@ SB_EXPORT bool SbLogIsTty();
 }  // extern "C"
 #endif
 
-#if SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#if SB_API_VERSION < 11
 #include "starboard/common/log.h"
-#endif  // SB_API_VERSION < SB_EXT_API_REFACTORING_VERSION
+#endif  // SB_API_VERSION < 11
 
 #endif  // STARBOARD_LOG_H_

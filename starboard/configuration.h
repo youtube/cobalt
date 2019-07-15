@@ -38,23 +38,23 @@
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 4
+#define SB_MINIMUM_API_VERSION 6
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 11
+#define SB_MAXIMUM_API_VERSION 12
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 11
+#define SB_EXPERIMENTAL_API_VERSION 12
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-#define SB_RELEASE_CANDIDATE_API_VERSION 10
+#define SB_RELEASE_CANDIDATE_API_VERSION 11
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -68,138 +68,13 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce Cobalt Extensions using the SbSystemGetExtension interface.
-// Cobalt extensions implement app & platform specific functionality.
-#define SB_EXTENSIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce audio write duration
-//   Add a function `SbMediaSetAudioWriteDuration()` to `starboard/media.h`
-//   which communicates to the platform how much audio will be sent to the
-//   platform at a time.
-#define SB_SET_AUDIO_WRITE_DURATION_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate unused function `SbSystemClearPlatformError()`.
-#define SB_DEPRECATE_CLEAR_PLATFORM_ERROR_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate the events of type `kSbEventTypeNetworkDisconnect`,
-// `kSbEventTypeNetworkConnect`.
-#define SB_DEPRECATE_DISCONNECT_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Refactor `SbMediaIsVideoSupported` to add arguments for profile, level, bit
-// depth, color primaries, transfer characteristics, and matrix coefficients.
-// See comments of `SbMediaIsVideoSupported` for more details.  Also, remove
-// the function `SbMediaIsTransferCharacteristicsSupported()` which is no
-// longer necessary.
-#define SB_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Add support for using C++11 standard unordered maps and sets.
-//   By setting SB_HAS_STD_UNORDERED_HASH to 1, a platform can be configured
-//   to use C++11 standard hash table implementations, specifically, using:
-//   . std::unordered_map<> for base::hash_map<>, and
-//   . std::unordered_multimap<> for base::hash_multimap<>, and
-//   . std::unordered_set<> for base::hash_set<>, and
-//   . std::unordered_multiset<> for base::hash_multiset<>.
-//   When SB_HAS_STD_UNORDERED_HASH is used, it is no longer necessary to
-//   specify SB_HAS_LONG_LONG_HASH, SB_HAS_STRING_HASH, SB_HAS_HASH_USING,
-//   SB_HAS_HASH_VALUE, SB_HAS_HASH_WARNING, SB_HASH_MAP_INCLUDE,
-//   SB_HASH_NAMESPACE, or SB_HASH_SET_INCLUDE.
-#define SB_HAS_STD_UNORDERED_HASH_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for audio in ac3.
-#define SB_HAS_AC3_AUDIO_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Adds support for allowing the platform to override its screen diagonal
-// length via SbWindowGetDiagonalSizeInInches().
-#define SB_HAS_SCREEN_DIAGONAL_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for startup url signing by adding
-// kSbSystemPropertyCertificationScope and
-// kSbSystemPropertyBase64EncodedCertificationSecret system property enums to
-// system.h.
-#define SB_HAS_STARTUP_URL_SIGNING_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Replace kSbMediaVideoCodecVp10 by kSbMediaVideoCodecAv1.
-// kSbMediaVideoCodecVp10 in media.h is replaced by kSbMediaVideoCodecAv1.
-#define SB_HAS_AV1_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add a new SbPlayerError enum kSbPlayerErrorMax in player.h.
-#define SB_HAS_PLAYER_ERROR_MAX_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for SbThreadSampler and SbThreadContext to support profiling.
-#define SB_THREAD_SAMPLER_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce a new API in starboard/window.h which declares the functions
-// SbWindowUpdateOnScreenKeyboardSuggestions() and
-// SbWindowOnScreenKeyboardSuggestionsSupported().
-#define SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce new potential starboard/file.h error code value,
-// kSbFileErrorIO to match for example "EIO" on posix platforms.
-#define SB_FILE_ERROR_IO_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Move the definition of FormatString() from string.h to a new header
-// format_string.h.
-#define SB_MOVE_FORMAT_STRING_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for hybrid navigation.
+// Add support for platform-based UI navigation.
+// The system can be disabled by implementing the function
+// `SbUiNavGetInterface()` to return `false`.  Platform-based UI navigation
+// allows the platform to receive feedback on where UI elements are located and
+// also lets the platform control what is selected and what the scroll
+// parameters are.
 #define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Make the decode target content region parameters floats instead of ints.
-// The primary motivation for this change is to make it so that on platforms
-// where it is difficult to obtain the width and height of a texture, we can
-// still correctly identify a precise fractional "normalized" content region
-// with the texture width and height set to 1.
-#define SB_DECODE_TARGET_CONTENT_REGION_FLOATS_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Add kSbSystemPropertyOriginalDesignManufacturerName enum value.
-// This change also deprecates kSbSystemPropertyNetworkOperatorName.
-// The kSbSystemPropertyOriginalDesignManufacturerName value will represent
-// the corporate entity responsible for the manufacturing/assembly of the device
-// on behalf of the business entity owning the brand.
-#define SB_ODM_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Cross-platform helper Starboard definitions refactored out of //starboard/
-// and into //starboard/common/. In order to more explicitly identify the core
-// Starboard API, mulitple files, or parts of them, were moved into the static
-// library //starboard/common/. Each of the changes was potentially breaking,
-// and SB_EXT_API_REFACTORING_VERSION allowed us to conditionally #include the
-// destination files in the source files and thus prevent breaks.
-#define SB_EXT_API_REFACTORING_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Log synchronization has been moved behind Starboard. The Starboard extended
-// API refactoring causes the mutex and minimum logging level used for Starboard
-// logging to no longer be guaranteed to be consistent with Cobalt. To combat
-// this, log synchronization has been moved behind Starboard and a requirement
-// that logging methods, such as SbLog or SbLogRaw, be thread-safe because they
-// will likely be called from multiple threads.
-//
-// Additionally, the minimum logging level is no longer set by Cobalt, and is
-// instead set by grabbing the value as a command-line argument within
-// Starboard.
-#define SB_LOG_SYNCHRONIZATION_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add new parameter max_video_capabilities to SbPlayerCreate(), which sets
-// a maximum video features contract. Please see comment in SbPlayerCreate()
-// for more details.
-#define SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Refactor SbPlayerSampleInfo, to reuse SbPlayerSampleInfo in filter based
-// player. Add audio and codec info for every sample.
-#define SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Starboard EGL and GLES interface created to abstract these graphics libaries
-// out of Cobalt. To remove the direct inclusion of EGL and GLES system
-// libraries throughout Cobalt, we need to move this dependency behind a
-// Starboardized API. This API can be found in //starboard/egl.h and
-// //starboard/gles.h. The absence of this flag will cause Cobalt to revert to
-// previous behavior and directly include the system EGL and GLES libraries.
-#define SB_EGL_AND_GLES_INTERFACE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for exposing CPU features, including architecture information
-// and processor capabilities flags. The API is defined in cpu_features.h.
-#define SB_CPU_FEATURES_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -530,7 +405,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
 
-#if SB_API_VERSION >= SB_HAS_STD_UNORDERED_HASH_API_VERSION
+#if SB_API_VERSION >= 11
 #if !SB_HAS(STD_UNORDERED_HASH)
 
 #if !defined(SB_HASH_MAP_INCLUDE)
@@ -552,7 +427,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif
 
 #endif  // !SB_HAS(STD_UNORDERED_HASH)
-#else   // SB_API_VERSION >= SB_HAS_STD_UNORDERED_HASH_API_VERSION
+#else   // SB_API_VERSION >= 11
 
 #if !defined(SB_HASH_MAP_INCLUDE)
 #error "Your platform must define SB_HASH_MAP_INCLUDE."
@@ -566,7 +441,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HASH_SET_INCLUDE."
 #endif
 
-#endif  // SB_API_VERSION >= SB_HAS_STD_UNORDERED_HASH_API_VERSION
+#endif  // SB_API_VERSION >= 11
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
 #error "Your platform must define SB_FILE_MAX_NAME > 1."
 #endif
@@ -710,7 +585,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
 #endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 
-#if SB_API_VERSION >= SB_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT_VERSION
+#if SB_API_VERSION >= 11
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
@@ -720,7 +595,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
 #endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#endif  // SB_API_VERSION >= SB_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= 10
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
@@ -778,7 +653,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
+#if SB_API_VERSION >= 11
 #if defined(SB_HAS_AC3_AUDIO)
 #if !SB_HAS(AC3_AUDIO)
 #error "SB_HAS_AC3_AUDIO is required in this API version."
@@ -786,7 +661,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_AC3_AUDIO)
 #define SB_HAS_AC3_AUDIO 1
 #endif  // defined(SB_HAS_AC3_AUDIO)
-#endif  // SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 11
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.

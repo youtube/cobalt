@@ -24,7 +24,7 @@ namespace filter {
 
 using common::ResetAndReturn;
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
 bool IsResetDecoderNecessary(const SbMediaAudioSampleInfo& current_info,
                              const SbMediaAudioSampleInfo& new_info) {
   if (current_info.codec != new_info.codec) {
@@ -238,7 +238,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     Schedule(output_cb_);
   }
 }
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 
 }  // namespace filter
 }  // namespace player

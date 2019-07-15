@@ -27,7 +27,7 @@
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
 #if SB_HAS(PLAYER_FILTER_TESTS) && \
-    SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+    SB_API_VERSION >= 11
 
 namespace starboard {
 namespace shared {
@@ -56,14 +56,14 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(const VideoDmpReader& dmp_reader,
                                                size_t index) {
   auto player_sample_info =
       dmp_reader.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   return new InputBuffer(DeallocateSampleFunc, NULL, NULL, player_sample_info);
-#else   // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#else   // SB_API_VERSION >= 11
   SbMediaAudioSampleInfo audio_sample_info =
       dmp_reader.GetAudioSampleInfo(index);
   return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
                          player_sample_info, &audio_sample_info);
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
 }
 
 string GetTestInputDirectory() {
@@ -402,4 +402,4 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
 }  // namespace starboard
 
 #endif  // SB_HAS(PLAYER_FILTER_TESTS) &&
-        // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+        // SB_API_VERSION >= 11

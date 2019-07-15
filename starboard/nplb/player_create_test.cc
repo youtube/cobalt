@@ -56,9 +56,9 @@ void DummyErrorFunc(SbPlayer player,
 SbMediaAudioSampleInfo GetDefaultAudioSampleInfo() {
   SbMediaAudioSampleInfo audio_sample_info;
 
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
   audio_sample_info.codec = kSbMediaAudioCodecAac;
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
   audio_sample_info.format_tag = 0xff;
   audio_sample_info.number_of_channels = 2;
   audio_sample_info.samples_per_second = 22050;
@@ -94,9 +94,9 @@ TEST_F(SbPlayerTest, SunnyDay) {
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
         DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         DummyErrorFunc,
@@ -136,9 +136,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
           NULL /* deallocate_sample_func */, DummyDecoderStatusFunc,
           DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -159,9 +159,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
           DummyDeallocateSampleFunc, NULL /* decoder_status_func */,
           DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -182,9 +182,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
           DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
           NULL /*status_func */,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -206,9 +206,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
           SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
           DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
           NULL /*error_func */, NULL /* context */, output_mode,
           fake_graphics_context_provider_.decoder_target_provider());
@@ -242,9 +242,9 @@ TEST_F(SbPlayerTest, Audioless) {
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, NULL /* audio_sample_info */,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
         DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         DummyErrorFunc,
@@ -285,9 +285,9 @@ TEST_F(SbPlayerTest, AudioOnly) {
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
         DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         DummyErrorFunc,
@@ -350,11 +350,11 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9,
   };
@@ -384,15 +384,15 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     for (int j = 0; j < SB_ARRAY_SIZE_INT(kOutputModes); ++j) {
       for (int k = 0; k < SB_ARRAY_SIZE_INT(kAudioCodecs); ++k) {
         for (int l = 0; l < SB_ARRAY_SIZE_INT(kVideoCodecs); ++l) {
-#if SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#if SB_API_VERSION >= 11
           audio_sample_info.codec = kAudioCodecs[k];
-#endif  // SB_API_VERSION >= SB_REFACTOR_PLAYER_SAMPLE_INFO_VERSION
+#endif  // SB_API_VERSION >= 11
           created_players.push_back(SbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#if SB_API_VERSION >= 11
               NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= SB_PLAYER_MAX_VIDEO_CAPABILITIES_VERSION
+#endif  // SB_API_VERSION >= 11
               DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
               DummyStatusFunc, DummyErrorFunc, NULL /* context */,
               kOutputModes[j],
