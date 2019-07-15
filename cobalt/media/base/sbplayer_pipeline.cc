@@ -759,7 +759,7 @@ void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
     {
       base::AutoLock auto_lock(lock_);
       DCHECK(!output_mode_change_cb_.is_null());
-      output_mode_change_cb = std::move(output_mode_change_cb_);
+      output_mode_change_cb = base::ResetAndReturn(&output_mode_change_cb_);
     }
     output_mode_change_cb.Run();
     return;
@@ -829,7 +829,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     {
       base::AutoLock auto_lock(lock_);
       DCHECK(!output_mode_change_cb_.is_null());
-      output_mode_change_cb = std::move(output_mode_change_cb_);
+      output_mode_change_cb = base::ResetAndReturn(&output_mode_change_cb_);
     }
     output_mode_change_cb.Run();
 
@@ -951,7 +951,7 @@ void SbPlayerPipeline::OnDemuxerStopped() {
     return;
   }
 
-  std::move(stop_cb_).Run();
+  base::ResetAndReturn(&stop_cb_).Run();
 }
 
 #if !SB_HAS(PLAYER_WITH_URL)
@@ -1161,7 +1161,7 @@ void SbPlayerPipeline::CallSeekCB(PipelineStatus status) {
   {
     base::AutoLock auto_lock(lock_);
     DCHECK(!seek_cb_.is_null());
-    seek_cb = std::move(seek_cb_);
+    seek_cb = base::ResetAndReturn(&seek_cb_);
     is_initial_preroll = is_initial_preroll_;
     is_initial_preroll_ = false;
   }
