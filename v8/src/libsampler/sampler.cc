@@ -209,7 +209,7 @@ uint32_t ThreadHash(pthread_t thread_id) {
 }  // namespace
 
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 
 class Sampler::PlatformData {
  public:
@@ -237,14 +237,14 @@ class Sampler::PlatformData {
   SbThreadSampler thread_sampler_;
 };
 
-#else  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#else  // SB_API_VERSION >= 11
 
 class Sampler::PlatformData {
  public:
   PlatformData() = default;
 };
 
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
@@ -635,9 +635,9 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
-#if V8_OS_STARBOARD && SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if V8_OS_STARBOARD && SB_API_VERSION >= 11
   platform_data()->EnsureThreadSampler();
-#endif  // V8_OS_STARBOARD && SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // V8_OS_STARBOARD && SB_API_VERSION >= 11
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->AddSampler(this);
 #endif
@@ -645,9 +645,9 @@ void Sampler::Start() {
 
 
 void Sampler::Stop() {
-#if V8_OS_STARBOARD && SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if V8_OS_STARBOARD && SB_API_VERSION >= 11
   platform_data()->ReleaseThreadSampler();
-#endif  // V8_OS_STARBOARD && SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // V8_OS_STARBOARD && SB_API_VERSION >= 11
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
 #endif
@@ -673,7 +673,7 @@ void Sampler::DecreaseProfilingDepth() {
 }
 
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 
 void Sampler::DoSample() {
   SbThreadSampler thread_sampler = platform_data()->EnsureThreadSampler();
@@ -693,7 +693,7 @@ void Sampler::DoSample() {
   SbThreadSamplerThaw(thread_sampler);
 }
 
-#else   // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#else   // SB_API_VERSION >= 11
 
 void Sampler::DoSample() {
   if (!IsRegistered()) {
@@ -703,7 +703,7 @@ void Sampler::DoSample() {
   }
 }
 
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
