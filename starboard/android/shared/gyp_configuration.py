@@ -45,21 +45,19 @@ _ANDROID_NDK_API_LEVEL = '21'
 
 # Maps the Android ABI to the clang & ar executable names.
 _ABI_TOOL_NAMES = {
-    'x86': (
-        'i686-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
-        'i686-linux-android-ar'),
-    'x86_64': (
-        'x86_64-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
-        'x86_64-linux-android-ar'),
-    'armeabi': (
-        'armv7a-linux-androideabi{}-clang'.format(_ANDROID_NDK_API_LEVEL),
-        'armv7a-linux-androideabi-ar'),
-    'armeabi-v7a': (
-        'armv7a-linux-androideabi{}-clang'.format(_ANDROID_NDK_API_LEVEL),
-        'arm-linux-androideabi-ar'),
-    'arm64-v8a': (
-        'aarch64-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
-        'aarch64-linux-android-ar'),
+    'x86': ('i686-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+            'i686-linux-android-ar'),
+    'x86_64': ('x86_64-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+               'x86_64-linux-android-ar'),
+    'armeabi':
+        ('armv7a-linux-androideabi{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+         'armv7a-linux-androideabi-ar'),
+    'armeabi-v7a':
+        ('armv7a-linux-androideabi{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+         'arm-linux-androideabi-ar'),
+    'arm64-v8a':
+        ('aarch64-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+         'aarch64-linux-android-ar'),
 }
 
 
@@ -141,9 +139,8 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetTargetToolchain(self):
     if not self._target_toolchain:
-      tool_prefix = os.path.join(
-          sdk_utils.GetNdkPath(), 'toolchains', 'llvm', 'prebuilt',
-          'linux-x86_64', 'bin', '')
+      tool_prefix = os.path.join(sdk_utils.GetNdkPath(), 'toolchains', 'llvm',
+                                 'prebuilt', 'linux-x86_64', 'bin', '')
       cc_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][0]
       cxx_path = cc_path + '++'
       ar_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][1]
@@ -274,12 +271,6 @@ class AndroidConfiguration(PlatformConfiguration):
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
-          'AudioDecoderTests/AudioDecoderTest.ContinuedLimitedInput/0',
-          'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
-          'AudioDecoderTests/AudioDecoderTest.LimitedInput/0',
-          'AudioDecoderTests/AudioDecoderTest.MultipleInputs/0',
-          'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
-          'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/1',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/2',
