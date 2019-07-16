@@ -19,6 +19,6 @@
 #include "starboard/thread.h"
 
 void SbLogRaw(const char* message) {
-  __android_log_write(kSbLogPriorityInfo, "starboard", message);
+  __android_log_write(ANDROID_LOG_INFO, "starboard", message);
   SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
 }
