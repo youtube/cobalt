@@ -1301,22 +1301,7 @@ void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
 WebModule::Options::Options()
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-      image_cache_capacity(32 * 1024 * 1024),
-      remote_typeface_cache_capacity(4 * 1024 * 1024),
-      mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
-      enable_map_to_mesh_rectangular(false),
-      csp_enforcement_mode(dom::kCspEnforcementEnable),
-      csp_insecure_allowed_token(0),
-      track_event_stats(false),
-      image_cache_capacity_multiplier_when_playing_video(1.0f),
-      thread_priority(base::ThreadPriority::NORMAL),
-      loader_thread_priority(base::ThreadPriority::BACKGROUND),
-      animated_image_decode_thread_priority(base::ThreadPriority::BACKGROUND),
-      video_playback_rate_multiplier(1.f),
-      enable_image_animations(true),
-      should_retain_remote_typeface_cache_on_suspend(false),
-      can_fetch_cache(false),
-      clear_window_with_background_color(true) {}
+      mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES) {}
 
 WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,

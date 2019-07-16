@@ -137,51 +137,53 @@ class WebModule : public LifecycleObserver {
     csp::CSPHeaderPolicy require_csp;
 
     // Encoded image cache capacity in bytes.
-    int encoded_image_cache_capacity;
+    int encoded_image_cache_capacity = 1024 * 1024;
 
     // Image cache capacity in bytes.
-    int image_cache_capacity;
+    int image_cache_capacity = 32 * 1024 * 1024;
 
     // Typeface cache capacity in bytes.
-    int remote_typeface_cache_capacity;
+    int remote_typeface_cache_capacity = 4 * 1024 * 1024;
 
     // Mesh cache capacity in bytes.
     int mesh_cache_capacity;
 
     // Whether map-to-mesh for rectangular videos is enabled.
-    bool enable_map_to_mesh_rectangular;
+    bool enable_map_to_mesh_rectangular = false;
 
     // Content Security Policy enforcement mode for this web module.
-    dom::CspEnforcementType csp_enforcement_mode;
+    dom::CspEnforcementType csp_enforcement_mode = dom::kCspEnforcementEnable;
 
     // Token obtained from CSP to allow creation of insecure delegates.
-    int csp_insecure_allowed_token;
+    int csp_insecure_allowed_token = 0;
 
     // Whether or not the web module's stat tracker should track event stats.
-    bool track_event_stats;
+    bool track_event_stats = false;
 
     // If set to something other than 1.0f, when a video starts to play, the
     // image cache will be flushed and temporarily multiplied by this value (
     // must be less than or equal to 1.0f) until the video ends.  This can
     // help for platforms that are low on image memory while playing a video.
-    float image_cache_capacity_multiplier_when_playing_video;
+    float image_cache_capacity_multiplier_when_playing_video = 1.0f;
 
     // Specifies the priority of the web module's thread.  This is the thread
     // that is responsible for executing JavaScript, managing the DOM, and
     // performing layouts.  The default value is base::ThreadPriority::NORMAL.
-    base::ThreadPriority thread_priority;
+    base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
 
     // Specifies the priority that the web module's corresponding loader thread
     // will be assigned.  This is the thread responsible for performing resource
     // decoding, such as image decoding.  The default value is
     // base::ThreadPriority::BACKGROUND.
-    base::ThreadPriority loader_thread_priority;
+    base::ThreadPriority loader_thread_priority =
+        base::ThreadPriority::BACKGROUND;
 
     // Specifies the priority tha the web module's animated image decoding
     // thread will be assigned. This thread is responsible for decoding,
     // blending and constructing individual frames from animated images. The
     // default value is base::ThreadPriority::BACKGROUND.
-    base::ThreadPriority animated_image_decode_thread_priority;
+    base::ThreadPriority animated_image_decode_thread_priority =
+        base::ThreadPriority::BACKGROUND;
 
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;
@@ -190,15 +192,15 @@ class WebModule : public LifecycleObserver {
 
     // The video playback rate will be multiplied with the following value.  Its
     // default value is 1.0.
-    float video_playback_rate_multiplier;
+    float video_playback_rate_multiplier = 1.f;
 
     // Allows image animations to be enabled/disabled.  Its default value
     // is true to enable them.
-    bool enable_image_animations;
+    bool enable_image_animations = true;
 
     // Whether or not to retain the remote typeface cache when the app enters
     // the suspend state.
-    bool should_retain_remote_typeface_cache_on_suspend;
+    bool should_retain_remote_typeface_cache_on_suspend = false;
 
     // The language and script to use with fonts. If left empty, then the
     // language-script combination provided by base::GetSystemLanguageScript()
@@ -218,7 +220,7 @@ class WebModule : public LifecycleObserver {
 
     // Whether or not the WebModule is allowed to fetch from cache via
     // h5vcc-cache://.
-    bool can_fetch_cache;
+    bool can_fetch_cache = false;
 
     // The dom::OnScreenKeyboard forwards calls to this interface.
     dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = NULL;
@@ -239,7 +241,7 @@ class WebModule : public LifecycleObserver {
     // as a clear, i.e. with blending disabled.  This means that a background
     // color of transparent will replace existing pixel values, effectively
     // clearing the screen.
-    bool clear_window_with_background_color;
+    bool clear_window_with_background_color = true;
 
     // As a preventative measure against Spectre attacks, we explicitly limit
     // the resolution of the performance timer by default.  Setting this option
