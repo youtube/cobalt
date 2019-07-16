@@ -28,14 +28,16 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
     super(LinuxX64X11Clang36Configuration, self).__init__(
         platform, asan_enabled_by_default, goma_supports_compiler=False)
 
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    # Run the script that ensures clang 3.6 is installed.
-    subprocess.call(
-        os.path.join(script_path, 'download_clang.sh'), cwd=script_path)
     self.toolchain_top_dir = os.path.join(build.GetToolchainsDir(),
                                           'x86_64-linux-gnu-clang-3.6')
     self.toolchain_dir = os.path.join(self.toolchain_top_dir, 'llvm',
                                       'Release+Asserts')
+
+  def SetupPlatformTools(self, build_number):
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    # Run the script that ensures clang 3.6 is installed.
+    subprocess.call(
+        os.path.join(script_path, 'download_clang.sh'), cwd=script_path)
 
   def GetEnvironmentVariables(self):
     env_variables = super(LinuxX64X11Clang36Configuration,
