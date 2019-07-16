@@ -187,22 +187,11 @@ void AudioDecoder::ProcessOutputBuffer(
   SB_DCHECK(output_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
 
-  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
-    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
-    {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
-      decoded_audios_.push(new DecodedAudio());
-    }
-
-    Schedule(output_cb_);
-    return;
-  }
-
-  ScopedJavaByteBuffer byte_buffer(
-      media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
-  SB_DCHECK(!byte_buffer.IsNull());
-
   if (dequeue_output_result.num_bytes > 0) {
+    ScopedJavaByteBuffer byte_buffer(
+        media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
+    SB_DCHECK(!byte_buffer.IsNull());
+
     int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
         byte_buffer.address(), dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
@@ -223,7 +212,6 @@ void AudioDecoder::ProcessOutputBuffer(
         size);
 
     SbMemoryCopy(decoded_audio->buffer(), data, size);
-    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
 
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
@@ -232,9 +220,18 @@ void AudioDecoder::ProcessOutputBuffer(
                           << decoded_audios_.front()->timestamp();
     }
     Schedule(output_cb_);
-  } else {
-    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
   }
+
+  // BUFFER_FLAG_END_OF_STREAM may come with the last valid output buffer.
+  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+    {
+      starboard::ScopedLock lock(decoded_audios_mutex_);
+      decoded_audios_.push(new DecodedAudio());
+    }
+    Schedule(output_cb_);
+  }
+
+  media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
 }
 
 void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {

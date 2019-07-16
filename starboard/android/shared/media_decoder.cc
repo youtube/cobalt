@@ -201,7 +201,7 @@ void MediaDecoder::DecoderThreadFunc() {
             !input_buffer_indices.empty() || !input_buffer_indices_.empty();
         bool can_process_input =
             pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
-        if (dequeue_output_results.empty() && !can_process_input) {
+        if (dequeue_output_results_.empty() && !can_process_input) {
           if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
