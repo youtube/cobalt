@@ -639,7 +639,7 @@
         throw new TypeError('Invalid request URL')
       }
       this[MODE_SLOT] = 'cors'
-      this[CREDENTIALS_SLOT] = 'omit'
+      this[CREDENTIALS_SLOT] = 'same-origin'
 
       if ((init.signal) && !(init.signal == null) ) {
         this[SIGNAL_SLOT] = new AbortSignal(init.signal)
@@ -658,7 +658,7 @@
     }
 
     this[CREDENTIALS_SLOT] = init.credentials || this[CREDENTIALS_SLOT] ||
-                             'omit'
+                             'same-origin'
     if (VALID_CREDENTIALS.indexOf(this[CREDENTIALS_SLOT]) === -1) {
       throw new TypeError('Invalid request credentials')
     }
