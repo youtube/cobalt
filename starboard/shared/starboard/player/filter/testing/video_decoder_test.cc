@@ -168,6 +168,16 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     event_queue_.push_back(Event(kError, NULL));
   }
 
+#if SB_HAS(GLES2)
+  void AssertInvalidDecodeTarget() {
+    if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      auto decode_target = video_decoder_->GetCurrentDecodeTarget();
+      ASSERT_FALSE(SbDecodeTargetIsValid(decode_target));
+      fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    }
+  }
+#endif  // SB_HAS(GLES2)
+
  protected:
   enum Status {
     kNeedMoreInput = VideoDecoder::kNeedMoreInput,
@@ -230,7 +240,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   void AssertValidDecodeTargetWhenSupported() {
 #if SB_HAS(GLES2)
     if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
-      SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
+      auto decode_target = video_decoder_->GetCurrentDecodeTarget();
       ASSERT_TRUE(SbDecodeTargetIsValid(decode_target));
       fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
     }
@@ -429,9 +439,7 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
 #if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
   if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
-    EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
-    fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    AssertInvalidDecodeTarget();
   }
 }
 #endif  // SB_HAS(GLES2)
@@ -495,10 +503,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
 
 #if SB_HAS(GLES2)
           if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-            SbDecodeTarget decode_target =
-                video_decoders[i]->GetCurrentDecodeTarget();
-            EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
-            fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+            AssertInvalidDecodeTarget();
           }
 #endif  // SB_HAS(GLES2)
         }
