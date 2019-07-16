@@ -18,13 +18,10 @@
       '-g',
       '-fPIC',
       '-fvisibility=hidden',
-      '-Wno-bad-function-cast',
-    ],
-    'cflags!': [
-      '-Wbad-function-cast',
     ],
     'cflags_c': [
       '-std=gnu99',
+      '-Wno-bad-function-cast',
     ],
     'cflags_c!': [
       '-Wbad-function-cast',
