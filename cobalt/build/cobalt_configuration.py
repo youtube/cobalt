@@ -13,11 +13,9 @@
 # limitations under the License.
 """Base cobalt configuration for GYP."""
 
-import logging
 import os
 
 import _env  # pylint: disable=unused-import
-from cobalt.build import gyp_utils
 from cobalt.tools import paths
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration
@@ -42,7 +40,8 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   def GetVariables(self, config_name):
     variables = {
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
-        'cobalt_version': gyp_utils.GetBuildNumber(),
+        'cobalt_version':
+            self._platform_configuration.GetBuildNumber(config_name),
 
         # This is here rather than cobalt_configuration.gypi so that it's
         # available for browser_bindings_gen.gyp.
@@ -51,7 +50,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         # Cobalt uses OpenSSL on all platforms.
         'use_openssl': 1,
     }
-    logging.info('Build Number: {}'.format(variables['cobalt_version']))
     return variables
 
   def GetPostIncludes(self):
