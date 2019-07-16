@@ -80,6 +80,10 @@ class FakeGraphicsContextProvider {
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context);
 
+  void MakeContextCurrent();
+  void MakeNoContextCurrent();
+  void DestroyContext();
+
   static void DecodeTargetGlesContextRunner(
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
       SbDecodeTargetGlesContextRunnerTarget target_function,
