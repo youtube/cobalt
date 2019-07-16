@@ -195,7 +195,7 @@ def EnsureClangAvailable(clang_spec):
   return _GetClangInstallPath(clang_spec)
 
 
-def GetHostCompilerEnvironment(clang_spec, goma_supports_compiler=False):
+def GetHostCompilerEnvironment(clang_spec, goma_supports_compiler):
   """Return the host compiler toolchain environment."""
 
   toolchain_dir = EnsureClangAvailable(clang_spec)

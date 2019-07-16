@@ -13,14 +13,17 @@
 # limitations under the License.
 """Starboard Raspberry Pi platform configuration."""
 
-import logging
 import os
-import sys
 
 from starboard.build import clang
 from starboard.build import platform_configuration
 from starboard.tools import build
 from starboard.tools.testing import test_filter
+
+# Use a bogus path instead of None so that anything based on $RASPI_HOME won't
+# inadvertently end up pointing to something in the root directory, and this
+# will show up in an error message when that fails.
+_UNDEFINED_RASPI_HOME = '/UNDEFINED/RASPI_HOME'
 
 
 class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
@@ -29,15 +32,8 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   def __init__(self, platform):
     super(RaspiPlatformConfig, self).__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
-
-  def _GetRasPiHome(self):
-    try:
-      raspi_home = os.environ['RASPI_HOME']
-    except KeyError:
-      logging.critical('RasPi builds require the "RASPI_HOME" '
-                       'environment variable to be set.')
-      sys.exit(1)
-    return raspi_home
+    self.raspi_home = os.environ.get('RASPI_HOME', _UNDEFINED_RASPI_HOME)
+    self.sysroot = os.path.realpath(os.path.join(self.raspi_home, 'sysroot'))
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -47,28 +43,20 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     return 'ninja,qtcreator_ninja'
 
   def GetVariables(self, configuration):
-    raspi_home = self._GetRasPiHome()
-    sysroot = os.path.realpath(os.path.join(raspi_home, 'sysroot'))
-    if not os.path.isdir(sysroot):
-      logging.critical('RasPi builds require $RASPI_HOME/sysroot '
-                       'to be a valid directory.')
-      sys.exit(1)
     variables = super(RaspiPlatformConfig, self).GetVariables(configuration)
     variables.update({
         'clang': 0,
-        'sysroot': sysroot,
+        'sysroot': self.sysroot,
     })
 
     return variables
 
   def GetEnvironmentVariables(self):
     env_variables = build.GetHostCompilerEnvironment(
-        clang.GetClangSpecification())
-    raspi_home = self._GetRasPiHome()
-
+        clang.GetClangSpecification(), False)
     toolchain = os.path.realpath(
         os.path.join(
-            raspi_home,
+            self.raspi_home,
             'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
     env_variables.update({
@@ -76,6 +64,15 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         'CXX': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
     })
     return env_variables
+
+  def SetupPlatformTools(self, build_number):
+    # Nothing to setup, but validate that RASPI_HOME is correct.
+    if self.raspi_home == _UNDEFINED_RASPI_HOME:
+      raise RuntimeError('RasPi builds require the "RASPI_HOME" '
+                         'environment variable to be set.')
+    if not os.path.isdir(self.sysroot):
+      raise RuntimeError('RasPi builds require $RASPI_HOME/sysroot '
+                         'to be a valid directory.')
 
   def GetLauncherPath(self):
     """Gets the path to the launcher module for this platform."""

@@ -19,9 +19,10 @@ import imp
 import os
 import subprocess
 
-import gyp_utils
-import starboard.android.shared.sdk_utils as sdk_utils
+from starboard.android.shared import sdk_utils
+from starboard.build import clang as clang_build
 from starboard.build.platform_configuration import PlatformConfiguration
+from starboard.tools import build
 from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
@@ -118,12 +119,13 @@ class AndroidConfiguration(PlatformConfiguration):
     }
     return generator_variables
 
-  def GetEnvironmentVariables(self):
+  def SetupPlatformTools(self, build_number):
     sdk_utils.InstallSdkIfNeeded()
     subprocess.call([_COBALT_GRADLE, '--reset'])
     with open(_APK_BUILD_ID_FILE, 'w') as build_id_file:
-      build_id_file.write('{}'.format(gyp_utils.GetBuildNumber()))
+      build_id_file.write('{}'.format(build_number))
 
+  def GetEnvironmentVariables(self):
     env_variables = {}
 
     # Android builds tend to consume significantly more memory than the
@@ -238,7 +240,8 @@ class AndroidConfiguration(PlatformConfiguration):
   def GetHostToolchain(self):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
-        self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
+        self.host_compiler_environment = build.GetHostCompilerEnvironment(
+            clang_build.GetClangSpecification(), False)
       cc_path = self.host_compiler_environment['CC_host'],
       cxx_path = self.host_compiler_environment['CXX_host']
       self._host_toolchain = [
