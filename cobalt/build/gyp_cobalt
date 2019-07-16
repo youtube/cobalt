@@ -23,6 +23,7 @@ import textwrap
 
 import _env  # pylint: disable=unused-import
 from cobalt.build import cobalt_configuration
+from cobalt.build import gyp_utils
 from cobalt.tools import paths
 from starboard.build.gyp_runner import GypRunner
 from starboard.tools import build
@@ -111,6 +112,8 @@ def main(argv):
   if os.environ.get('GYP_DEFINES'):
     logging.error('GYP_DEFINES environment variable is not supported.')
     return RETVAL_ERROR
+
+  options.build_number = gyp_utils.GetBuildNumber()
 
   try:
     gyp_runner = GypRunner(options)
