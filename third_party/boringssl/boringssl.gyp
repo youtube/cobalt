@@ -44,6 +44,7 @@
         ],
         'sources': [
           '<(boringssl_root)/crypto/rand_extra/starboard.c',
+          '<(boringssl_root)/crypto/cpu-starboard.c',
         ],
         'sources!': [
           '<(boringssl_root)/crypto/bio/connect.c',
