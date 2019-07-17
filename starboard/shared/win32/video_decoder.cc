@@ -252,6 +252,13 @@ void VideoDecoder::Reset() {
   thread_lock_.Release();
   outputs_reset_lock_.Release();
 
+  // If the previous priming hasn't finished, restart it.  This happens rarely
+  // as it is only triggered when a seek is requested immediately after video is
+  // started.
+  if (priming_output_count_ > 0) {
+    priming_output_count_ = kVp9PrimingFrameCount;
+  }
+
   decoder_status_cb_(kReleaseAllFrames, nullptr);
   decoder_->Reset();
 }
@@ -576,6 +583,20 @@ void VideoDecoder::DecoderThreadRun() {
           }
           break;
         case Event::kWriteEndOfStream:
+          if (priming_output_count_ > 0) {
+            // Finish priming when eos is encountered.
+            priming_output_count_ = 0;
+            thread_lock_.Acquire();
+            while (!priming_events.empty()) {
+              thread_events_.emplace_front(priming_events.back().release());
+              priming_events.pop_back();
+            }
+            // Also append the eos event.
+            thread_events_.emplace_back(event.release());
+            thread_lock_.Release();
+            decoder_->Reset();
+            break;
+          }
           event.reset();
           decoder_->Drain();
           is_end_of_stream = true;
