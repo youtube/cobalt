@@ -22,10 +22,14 @@
     # Starboard implementation of the Blitter API.
     'gl_type': 'none',
 
-    'platform_libraries': [
-      '-lX11',
-      '-lXcomposite',
-      '-lXrender',
+    'cobalt_platform_dependencies!': [
+      # Since we pretend gl_type is none, exclude this dependency and below,
+      # explicitly include the one we need.
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+    ],
+
+    'cobalt_platform_dependencies': [
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles_angle.gyp:egl_and_gles_implementation',
     ],
   },
 
@@ -50,6 +54,6 @@
   'includes': [
     '../../shared/compiler_flags.gypi',
     '../../shared/gyp_configuration.gypi',
-    '../enable_glx_via_angle.gypi',
+    '../libraries.gypi',
   ],
 }
