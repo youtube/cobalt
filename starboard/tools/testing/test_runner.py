@@ -17,6 +17,7 @@
 """Cross-platform unit test runner."""
 
 import cStringIO
+import logging
 import os
 import re
 import signal
@@ -34,11 +35,12 @@ from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
 from starboard.tools.util import SetupDefaultLoggingConfig
 
-_TOTAL_TESTS_REGEX = (r"^\[==========\] (.*) tests? from .*"
-                      r"test cases? ran. \(.* ms total\)")
-_TESTS_PASSED_REGEX = r"^\[  PASSED  \] (.*) tests?"
-_TESTS_FAILED_REGEX = r"^\[  FAILED  \] (.*) tests?, listed below:"
-_SINGLE_TEST_FAILED_REGEX = r"^\[  FAILED  \] (.*)"
+_FLAKY_RETRY_LIMIT = 4
+_TOTAL_TESTS_REGEX = re.compile(r"^\[==========\] (.*) tests? from .*"
+                                r"test cases? ran. \(.* ms total\)")
+_TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
+_TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
+_SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
 
 
 def _FilterTests(target_list, filters, config_name):
@@ -294,11 +296,13 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _RunTest(self, target_name):
-    """Runs a single unit test binary and collects all of the output.
+  def _RunTest(self, target_name, test_name=None):
+    """Runs a specific target or test and collects the output.
 
     Args:
-      target_name: The name of the test target being run.
+      target_name: The name of the test suite to be run.
+      test_name: The name of the specific test to be run. The entire test suite
+        is run when this is empty.
 
     Returns:
       A tuple containing tests results (See "_CollectTestResults()").
@@ -314,14 +318,20 @@ class TestRunner(object):
 
     # Filter the specified tests for this platform, if any
     test_params = []
-    if self.test_targets[target_name]:
-      test_params.append("--gtest_filter=-{}".format(":".join(
-          self.test_targets[target_name])))
+    gtest_filter_value = ""
+
+    # If a specific test case was given, filter for the exact name given.
+    if test_name:
+      gtest_filter_value = test_name
+    elif self.test_targets[target_name]:
+      gtest_filter_value = "-" + ":".join(self.test_targets[target_name])
+    if gtest_filter_value:
+      test_params.append("--gtest_filter=" + gtest_filter_value)
 
     if self.log_xml_results:
       # Log the xml results
       test_params.append("--gtest_output=xml:log")
-      print "Xml results for this test will be logged."
+      logging.info("Xml results for this test will be logged.")
     elif self.xml_output_dir:
       # Have gtest create and save a test result xml
       xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
@@ -330,8 +340,9 @@ class TestRunner(object):
       except OSError:
         pass
       xml_output_path = os.path.join(xml_output_subdir, "sponge_log.xml")
-      print "Xml output for this test will be saved to: %s" % xml_output_path
-      test_params.append("--gtest_output=xml:%s" % xml_output_path)
+      logging.info("Xml output for this test will be saved to: %s",
+                   xml_output_path)
+      test_params.append("--gtest_output=xml:%s" % (xml_output_path))
 
     test_params.extend(self.target_params)
 
@@ -351,15 +362,22 @@ class TestRunner(object):
     self.threads.append(test_launcher)
     self.threads.append(test_reader)
 
+    # Output either the name of the test target or the specific test case
+    # being run.
+    # pylint: disable=g-long-ternary
+    sys.stdout.write(
+        "Starting {}".format(test_name if test_name else target_name))
+
     if self.dry_run:
-      # pylint: disable=g-long-ternary
-      sys.stdout.write("{} {}\n".format(target_name, test_params)
-                       if test_params else "{}\n".format(target_name))
+      if test_params:
+        sys.stdout.write(" {}\n".format(test_params))
       write_pipe.close()
       read_pipe.close()
 
     else:
-      sys.stdout.write("Starting {}\n".format(target_name))
+      # Output a newline before running the test target / case.
+      sys.stdout.write("\n")
+
       test_reader.Start()
       test_launcher.Start()
 
@@ -397,20 +415,16 @@ class TestRunner(object):
     failed_count = 0
     failed_tests = []
 
-    total_test_prog = re.compile(_TOTAL_TESTS_REGEX)
-    tests_passed_prog = re.compile(_TESTS_PASSED_REGEX)
-    tests_failed_prog = re.compile(_TESTS_FAILED_REGEX)
-
     for idx, line in enumerate(results):
-      total_tests_match = total_test_prog.search(line)
+      total_tests_match = _TOTAL_TESTS_REGEX.search(line)
       if total_tests_match:
         total_count = int(total_tests_match.group(1))
 
-      passed_match = tests_passed_prog.search(line)
+      passed_match = _TESTS_PASSED_REGEX.search(line)
       if passed_match:
         passed_count = int(passed_match.group(1))
 
-      failed_match = tests_failed_prog.search(line)
+      failed_match = _TESTS_FAILED_REGEX.search(line)
       if failed_match:
         failed_count = int(failed_match.group(1))
         # Descriptions of all failed tests appear after this line
@@ -430,7 +444,7 @@ class TestRunner(object):
     """
     failed_tests = []
     for line in lines:
-      test_failed_match = re.search(_SINGLE_TEST_FAILED_REGEX, line)
+      test_failed_match = _SINGLE_TEST_FAILED_REGEX.search(line)
       if test_failed_match:
         failed_tests.append(test_failed_match.group(1))
     return failed_tests
@@ -449,7 +463,8 @@ class TestRunner(object):
       True if the test run succeeded, False if not.
     """
     if self.dry_run:
-      print "\n{} TOTAL TEST TARGETS".format(len(results))
+      logging.info("")  # formatting newline.
+      logging.info("%d TOTAL TEST TARGETS", len(results))
       return True
 
     total_run_count = 0
@@ -462,69 +477,127 @@ class TestRunner(object):
     # determined, assume an error occurred while running it.
     error = False
 
-    print "\nTEST RUN COMPLETE. RESULTS BELOW:\n"
-
     failed_test_groups = []
 
     for result_set in results:
-
       target_name = result_set[0]
       run_count = result_set[1]
       passed_count = result_set[2]
       failed_count = result_set[3]
       failed_tests = result_set[4]
       return_code = result_set[5]
-      flaky_failed_tests = [
-          test_name for test_name in failed_tests if ".FLAKY_" in test_name
-      ]
+      actual_failed_tests = []
+      flaky_failed_tests = []
+      filtered_tests = self._GetFilteredTestList(target_name)
+
+      for test_name in failed_tests:
+        if ".FLAKY_" in test_name:
+          flaky_failed_tests.append(test_name)
+          continue
+        actual_failed_tests.append(test_name)
+
+      actual_failed_count = len(actual_failed_tests)
+      flaky_failed_count = len(flaky_failed_tests)
+      filtered_count = len(filtered_tests)
+
+      # If our math does not agree with gtest...
+      if actual_failed_count + flaky_failed_count != failed_count:
+        logging.warning("Inconsistent count of actual and flaky failed tests.")
+        logging.info("")  # formatting newline.
+
+      # Retry the flaky test cases that failed, and mark them as passed if they
+      # succeed within the retry limit.
+      if flaky_failed_count > 0:
+        logging.info("RE-RUNNING FLAKY TESTS.\n")
+        flaky_passed_tests = []
+        for test_case in flaky_failed_tests:
+          for retry in range(_FLAKY_RETRY_LIMIT):
+            retry_result = self._RunTest(target_name, test_case)
+            # Explicit print used to have an empty newline for formatting.
+            print
+            if retry_result[2] == 1:
+              flaky_passed_tests.append(test_case)
+              logging.info("%s succeeded on run #%d!\n", test_case, retry + 2)
+              break
+            else:
+              logging.warning("%s Failed. Re-running...\n", test_case)
+        # Remove newly passing flaky tests from failing flaky test list.
+        for test_case in flaky_passed_tests:
+          flaky_failed_tests.remove(test_case)
+        flaky_failed_count -= len(flaky_passed_tests)
+        passed_count += len(flaky_passed_tests)
+      else:
+        logging.info("")  # formatting newline.
+
+      logging.info("TEST RUN COMPLETE. RESULTS BELOW:")
+      logging.info("")  # formatting newline.
 
       test_status = "SUCCEEDED"
+      # If |return_code| is non-zero, the tests either crashed or failed.
       if return_code != 0:
-        error = True
-        test_status = "FAILED"
+        # If |run_count| is zero the tests crashed.
+        if run_count == 0 or actual_failed_count > 0 or flaky_failed_count > 0:
+          error = True
+          test_status = "FAILED"
         failed_test_groups.append(target_name)
 
-      print "{}: {}.".format(target_name, test_status)
-      if run_count == 0 and error:
-        print "  Results not available.  Did the test crash?\n"
+      logging.info("%s: %s.", target_name, test_status)
+      if return_code != 0 and run_count == 0:
+        logging.info("  Results not available.  Did the test crash?")
+        logging.info("")  # formatting newline.
         continue
 
-      print "  TOTAL TESTS RUN: {}".format(run_count)
+      logging.info("  TESTS RUN: %d", run_count)
       total_run_count += run_count
-      print "  PASSED: {}".format(passed_count)
-      total_passed_count += passed_count
-      if failed_count > 0:
-        print "  FAILED: {}".format(failed_count)
-        total_failed_count += failed_count
-        total_flaky_failed_count += len(flaky_failed_tests)
-        print "\n  FAILED TESTS:"
-        for line in failed_tests:
-          print "    {}".format(line)
-      filtered_count = len(self._GetFilteredTestList(target_name))
+      # Output the number of passed, failed, flaked, and filtered tests.
+      if passed_count > 0:
+        logging.info("  TESTS PASSED: %d", passed_count)
+        total_passed_count += passed_count
+      if actual_failed_count > 0:
+        logging.info("  TESTS FAILED: %d", actual_failed_count)
+        total_failed_count += actual_failed_count
+      if flaky_failed_count > 0:
+        logging.info("  TESTS FLAKED: %d", flaky_failed_count)
+        total_flaky_failed_count += flaky_failed_count
       if filtered_count > 0:
-        print "  FILTERED: {}".format(filtered_count)
+        logging.info("  TESTS FILTERED: %d", filtered_count)
         total_filtered_count += filtered_count
-      # Print a single newline to separate results from each test run
-      print
+      # Output the names of the failed, flaked, and filtered tests.
+      if actual_failed_count > 0:
+        logging.info("")  # formatting newline.
+        logging.info("  FAILED TESTS:")
+        for line in actual_failed_tests:
+          logging.info("    %s", line)
+      if flaky_failed_count > 0:
+        logging.info("")  # formatting newline.
+        logging.info("  FLAKED TESTS:")
+        for line in flaky_failed_tests:
+          logging.info("    %s", line)
+      if filtered_count > 0:
+        logging.info("")  # formatting newline.
+        logging.info("  FILTERED TESTS:")
+        for line in filtered_tests:
+          logging.info("    %s", line)
+      logging.info("")  # formatting newline.
 
     overall_status = "SUCCEEDED"
     result = True
 
-    # If we only failed tests that are considered flaky, then count this run
-    # as a pass.
-    if error or total_failed_count - total_flaky_failed_count > 0:
+    # Any failing test or other errors will make the run a failure. This
+    # includes flaky tests if they did not pass any of their retries.
+    if error or actual_failed_count > 0 or flaky_failed_count > 0:
       overall_status = "FAILED"
       result = False
 
-    print "TEST RUN {}.".format(overall_status)
+    logging.info("TEST RUN %s.", overall_status)
     if failed_test_groups:
       failed_test_groups = list(set(failed_test_groups))
-      print "  FAILED TESTS GROUPS: {}".format(", ".join(failed_test_groups))
-    print "  TOTAL TESTS RUN: {}".format(total_run_count)
-    print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
-    print "  TOTAL TESTS FAILED: {}".format(total_failed_count)
-    print "  TOTAL TESTS FILTERED: {}".format(total_filtered_count)
-    print "  TOTAL FLAKY TESTS FAILED: {}".format(total_flaky_failed_count)
+      logging.info("  FAILED TESTS GROUPS: %s", ", ".join(failed_test_groups))
+    logging.info("  TOTAL TESTS RUN: %d", total_run_count)
+    logging.info("  TOTAL TESTS PASSED: %d", total_passed_count)
+    logging.info("  TOTAL TESTS FAILED: %d", total_failed_count)
+    logging.info("  TOTAL TESTS FLAKED: %d", total_flaky_failed_count)
+    logging.info("  TOTAL TESTS FILTERED: %d", total_filtered_count)
 
     return result
 
