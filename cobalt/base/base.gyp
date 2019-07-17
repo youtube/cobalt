@@ -80,8 +80,6 @@
         'unicode/character.h',
         'unicode/character_values.h',
         'unused.h',
-        'user_log.cc',
-        'user_log.h',
         'version_compatibility.cc',
         'version_compatibility.h',
       ],

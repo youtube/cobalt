@@ -26,7 +26,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
