@@ -22,7 +22,6 @@
 #include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
@@ -74,20 +73,6 @@ namespace {
 // commonly used value of -1 is reserved.
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
 const int32 kUiNavFocusTabIndexThreshold = -2;
-
-// This struct manages the user log information for Node count.
-struct HtmlElementCountLog {
- public:
-  HtmlElementCountLog() : count(0) {
-    base::UserLog::Register(base::UserLog::kHtmlElementCountIndex,
-                            "HtmlElementCnt", &count, sizeof(count));
-  }
-  ~HtmlElementCountLog() {
-    base::UserLog::Deregister(base::UserLog::kHtmlElementCountIndex);
-  }
-
-  int count;
-};
 
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
@@ -145,8 +130,6 @@ struct NonTrivialStaticFields {
       size_invalidation_property_checker;
   cssom::CSSComputedStyleData::PropertySetMatcher
       cross_references_invalidation_property_checker;
-
-  HtmlElementCountLog html_element_count_log;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
@@ -1186,7 +1169,6 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
       matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
-  ++(non_trivial_static_fields.Get().html_element_count_log.count);
   dom_stat_tracker_->OnHtmlElementCreated();
 }
 
@@ -1198,7 +1180,6 @@ HTMLElement::~HTMLElement() {
     ui_nav_item_ = nullptr;
   }
 
-  --(non_trivial_static_fields.Get().html_element_count_log.count);
   if (IsInDocument()) {
     dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
   }

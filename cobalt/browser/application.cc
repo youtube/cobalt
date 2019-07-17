@@ -53,7 +53,6 @@
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/startup_timer.h"
-#include "cobalt/base/user_log.h"
 #if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/version_compatibility.h"
 #endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
@@ -519,8 +518,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   DETACH_FROM_THREAD(network_event_thread_checker_);
   DETACH_FROM_THREAD(application_event_thread_checker_);
 
-  RegisterUserLogs();
-
   // Set the minimum logging level, if specified on the command line.
   logging::SetMinLogLevel(StringToLogLevel(GetMinLogLevelString()));
 
@@ -714,7 +711,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
                         (should_preload ? base::kApplicationStatePreloading
                                         : base::kApplicationStateStarted),
                         &event_dispatcher_, account_manager_.get(), options));
-  UpdateAndMaybeRegisterUserAgent();
+  UpdateUserAgent();
 
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
 
@@ -1162,51 +1159,13 @@ Application::CValStats::CValStats()
   }
 }
 
-void Application::RegisterUserLogs() {
-  if (base::UserLog::IsRegistrationSupported()) {
-    base::UserLog::Register(
-        base::UserLog::kSystemLanguageStringIndex, "SystemLanguage",
-        non_trivial_static_fields.Get().system_language.c_str(),
-        non_trivial_static_fields.Get().system_language.size());
-
-    base::UserLog::Register(base::UserLog::kAvailableMemoryIndex,
-                            "AvailableMemory", &available_memory_,
-                            sizeof(available_memory_));
-    base::UserLog::Register(base::UserLog::kAppLifetimeIndex, "Lifetime(ms)",
-                            &lifetime_in_ms_, sizeof(lifetime_in_ms_));
-    base::UserLog::Register(base::UserLog::kAppStatusIndex, "AppStatus",
-                            &app_status_, sizeof(app_status_));
-    base::UserLog::Register(base::UserLog::kAppPauseCountIndex, "PauseCnt",
-                            &app_pause_count_, sizeof(app_pause_count_));
-    base::UserLog::Register(base::UserLog::kAppUnpauseCountIndex, "UnpauseCnt",
-                            &app_unpause_count_, sizeof(app_unpause_count_));
-    base::UserLog::Register(base::UserLog::kAppSuspendCountIndex, "SuspendCnt",
-                            &app_suspend_count_, sizeof(app_suspend_count_));
-    base::UserLog::Register(base::UserLog::kAppResumeCountIndex, "ResumeCnt",
-                            &app_resume_count_, sizeof(app_resume_count_));
-    base::UserLog::Register(base::UserLog::kNetworkStatusIndex, "NetworkStatus",
-                            &network_status_, sizeof(network_status_));
-    base::UserLog::Register(base::UserLog::kNetworkConnectCountIndex,
-                            "ConnectCnt", &network_connect_count_,
-                            sizeof(network_connect_count_));
-    base::UserLog::Register(base::UserLog::kNetworkDisconnectCountIndex,
-                            "DisconnectCnt", &network_disconnect_count_,
-                            sizeof(network_disconnect_count_));
-  }
-}
-
 // NOTE: UserAgent registration is handled separately, as the value is not
 // available when the app is first being constructed. Registration must happen
 // each time the user agent is modified, because the string may be pointing
 // to a new location on the heap.
-void Application::UpdateAndMaybeRegisterUserAgent() {
+void Application::UpdateUserAgent() {
   non_trivial_static_fields.Get().user_agent = browser_module_->GetUserAgent();
   DLOG(INFO) << "User Agent: " << non_trivial_static_fields.Get().user_agent;
-  if (base::UserLog::IsRegistrationSupported()) {
-    base::UserLog::Register(base::UserLog::kUserAgentStringIndex, "UserAgent",
-                            non_trivial_static_fields.Get().user_agent.c_str(),
-                            non_trivial_static_fields.Get().user_agent.size());
-  }
 }
 
 void Application::UpdatePeriodicStats() {

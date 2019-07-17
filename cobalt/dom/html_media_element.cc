@@ -26,7 +26,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
@@ -69,25 +68,6 @@ namespace {
 #define MLOG() EAT_STREAM_PARAMETERS
 
 #endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
-
-// This struct manages the user log information for HTMLMediaElement count.
-struct HTMLMediaElementCountLog {
-  HTMLMediaElementCountLog() : count(0) {
-    base::UserLog::Register(base::UserLog::kHTMLMediaElementCountIndex,
-                            "MediaElementCnt", &count, sizeof(count));
-  }
-  ~HTMLMediaElementCountLog() {
-    base::UserLog::Deregister(base::UserLog::kHTMLMediaElementCountIndex);
-  }
-
-  int count;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HTMLMediaElementCountLog);
-};
-
-base::LazyInstance<HTMLMediaElementCountLog>::DestructorAtExit
-    html_media_element_count_log = LAZY_INSTANCE_INITIALIZER;
 
 loader::RequestMode GetRequestMode(
     const base::Optional<std::string>& cross_origin_attribute) {
@@ -171,14 +151,12 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       request_mode_(loader::kNoCORSMode) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
   MLOG();
-  html_media_element_count_log.Get().count++;
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
   MLOG();
   ClearMediaSource();
-  html_media_element_count_log.Get().count--;
 }
 
 scoped_refptr<MediaError> HTMLMediaElement::error() const {
