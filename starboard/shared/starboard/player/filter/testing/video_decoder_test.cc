@@ -352,6 +352,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     need_more_input_ = true;
     end_of_stream_written_ = false;
     outstanding_inputs_.clear();
+    decoded_frames_.clear();
   }
 
   scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const {
@@ -569,6 +570,22 @@ TEST_P(VideoDecoderTest, ResetAfterInput) {
 
   ResetDecoderAndClearPendingEvents();
   EXPECT_FALSE(HasPendingEvents());
+}
+
+TEST_P(VideoDecoderTest, MultipleResets) {
+  for (int max_inputs = 1; max_inputs < 10; ++max_inputs) {
+    WriteMultipleInputs(0, max_inputs,
+                        [](const Event& event, bool* continue_process) {
+                          *continue_process = event.status != kBufferFull;
+                        });
+    ResetDecoderAndClearPendingEvents();
+    EXPECT_FALSE(HasPendingEvents());
+    WriteSingleInput(0);
+    WriteEndOfStream();
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+    ResetDecoderAndClearPendingEvents();
+    EXPECT_FALSE(HasPendingEvents());
+  }
 }
 
 TEST_P(VideoDecoderTest, MultipleInputs) {
