@@ -15,8 +15,6 @@
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_CACHED_SOFTWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_CACHED_SOFTWARE_RASTERIZER_H_
 
-#include <unordered_map>
-
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/c_val.h"
@@ -24,6 +22,7 @@
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
+#include "net/base/linked_hash_map.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -117,7 +116,7 @@ class CachedSoftwareRasterizer {
   }
 
  private:
-  typedef std::unordered_map<render_tree::Node*, Surface> CacheMap;
+  typedef net::linked_hash_map<render_tree::Node*, Surface> CacheMap;
 
   // Release surfaces until we have |space_needed| free bytes in the cache.
   // This function will never release surfaces that were referenced this frame.
