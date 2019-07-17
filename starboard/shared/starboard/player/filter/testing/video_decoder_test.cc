@@ -227,15 +227,15 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     return !event_queue_.empty();
   }
 
+  void AssertValidDecodeTargetWhenSupported() {
 #if SB_HAS(GLES2)
-  void AssertValidDecodeTarget() {
     if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
       SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
       ASSERT_TRUE(SbDecodeTargetIsValid(decode_target));
       fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
     }
-  }
 #endif  // SB_HAS(GLES2)
+  }
 
   // This has to be called when the decoder is just initialized/reseted or when
   // status is |kNeedMoreInput|.
@@ -506,7 +506,6 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   }
 }
 
-#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, SingleInput) {
   WriteSingleInput(0);
   WriteEndOfStream();
@@ -515,7 +514,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
         if (event.frame) {
-          AssertValidDecodeTarget();
+          AssertValidDecodeTargetWhenSupported();
         }
         *continue_process = true;
       }));
@@ -542,10 +541,9 @@ TEST_P(VideoDecoderTest, SingleInvalidInput) {
     // We don't expect the video decoder to recover from a bad input but some
     // decoders may just return an empty frame.
     ASSERT_FALSE(decoded_frames_.empty());
-    AssertValidDecodeTarget();
+    AssertValidDecodeTargetWhenSupported();
   }
 }
-#endif  // SB_HAS(GLES2)
 
 TEST_P(VideoDecoderTest, EndOfStreamWithoutAnyInput) {
   WriteEndOfStream();
@@ -634,7 +632,6 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
   ASSERT_FALSE(error_occurred);
 }
 
-#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, DecodeFullGOP) {
   int gop_size = 1;
   while (gop_size < dmp_reader_.number_of_video_buffers()) {
@@ -667,7 +664,6 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
       }));
   ASSERT_FALSE(error_occurred);
 }
-#endif  // SB_HAS(GLES2)
 
 std::vector<TestParam> GetSupportedTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
