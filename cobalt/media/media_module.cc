@@ -171,21 +171,6 @@ void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
                                             base::Unretained(this), player));
 }
 
-void MediaModule::RegisterDebugState(WebMediaPlayer* player) {
-  void* debug_state_address = NULL;
-  size_t debug_state_size = 0;
-  if (player->GetDebugReportDataAddress(&debug_state_address,
-                                        &debug_state_size)) {
-    base::UserLog::Register(base::UserLog::kWebMediaPlayerState,
-                            "MediaPlyrState", debug_state_address,
-                            debug_state_size);
-  }
-}
-
-void MediaModule::DeregisterDebugState() {
-  base::UserLog::Deregister(base::UserLog::kWebMediaPlayerState);
-}
-
 void MediaModule::SuspendTask() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
@@ -220,9 +205,6 @@ void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
   DCHECK(players_.find(player) == players_.end());
   players_.insert(std::make_pair(player, false));
 
-  // Track debug state for the most recently added WebMediaPlayer instance.
-  RegisterDebugState(player);
-
   if (suspended_) {
     player->Suspend();
   }
@@ -233,12 +215,6 @@ void MediaModule::UnregisterPlayerTask(WebMediaPlayer* player) {
 
   DCHECK(players_.find(player) != players_.end());
   players_.erase(players_.find(player));
-
-  if (players_.empty()) {
-    DeregisterDebugState();
-  } else {
-    RegisterDebugState(players_.begin()->first);
-  }
 }
 
 std::unique_ptr<CanPlayTypeHandler> MediaModule::CreateCanPlayTypeHandler() {

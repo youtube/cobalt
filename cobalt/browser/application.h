@@ -175,8 +175,7 @@ class Application {
     base::CVal<base::TimeDelta, base::CValPublic> app_lifetime;
   };
 
-  void RegisterUserLogs();
-  void UpdateAndMaybeRegisterUserAgent();
+  void UpdateUserAgent();
   void UpdatePeriodicStats();
   void DispatchEventInternal(base::Event* event);
 

@@ -19,7 +19,6 @@
 
 #include "base/lazy_instance.h"
 #include "base/trace_event/trace_event.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/dom/cdata_section.h"
@@ -48,44 +47,6 @@
 
 namespace cobalt {
 namespace dom {
-
-namespace {
-
-// This struct manages the user log information for Node count.
-struct NodeCountLog {
- public:
-  NodeCountLog() : count(0) {
-    base::UserLog::Register(base::UserLog::kNodeCountIndex, "NodeCnt", &count,
-                            sizeof(count));
-#if defined(HANDLE_CORE_DUMP)
-    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
-#endif
-  }
-
-  ~NodeCountLog() {
-#if defined(HANDLE_CORE_DUMP)
-    SbCoreDumpUnregisterHandler(CoreDumpHandler, this);
-#endif
-    base::UserLog::Deregister(base::UserLog::kNodeCountIndex);
-  }
-
-#if defined(HANDLE_CORE_DUMP)
-  static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger("Total number of nodes",
-                         static_cast<NodeCountLog*>(context)->count);
-  }
-#endif
-
-  int count;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(NodeCountLog);
-};
-
-base::LazyInstance<NodeCountLog>::DestructorAtExit node_count_log =
-    LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
 
 // Diagram for DispatchEvent:
 //  https://www.w3.org/TR/DOM-Level-3-Events/#event-flow
@@ -497,7 +458,6 @@ Node::Node(Document* document)
       node_generation_(kInitialNodeGeneration),
       ALLOW_THIS_IN_INITIALIZER_LIST(registered_observers_(this)) {
   DCHECK(node_document_);
-  ++(node_count_log.Get().count);
   GlobalStats::GetInstance()->Add(this);
 }
 
@@ -511,7 +471,6 @@ Node::~Node() {
     node->previous_sibling_ = NULL;
     node = previous_sibling;
   }
-  --(node_count_log.Get().count);
   GlobalStats::GetInstance()->Remove(this);
 }
 
