@@ -298,13 +298,10 @@ class AndroidConfiguration(PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.SingleInput/1',
           'VideoDecoderTests/VideoDecoderTest.SingleInput/2',
           'VideoDecoderTests/VideoDecoderTest.SingleInput/3',
-
-          # On some platforms, and for some decoders (such as AVC), Android
-          # returns MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER for the test's
-          # invalid input frame instead of signaling an error, which the test is
-          # looking for.
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
+          'VideoDecoderTests/VideoDecoderTest'
+          '.MultipleValidInputsAfterInvalidKeyFrame/*',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
 
           # Android currently does not support multi-video playback, which
           # the following tests depend upon.
