@@ -338,6 +338,26 @@ TEST_P(AudioDecoderTest, SingleInput) {
   ASSERT_TRUE(last_decoded_audio_);
 }
 
+TEST_P(AudioDecoderTest, SingleInputHEAAC) {
+  static const int kAacFrameSize = 1024;
+
+  if (dmp_reader_.audio_codec() != kSbMediaAudioCodecAac) {
+    return;
+  }
+
+  ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
+  audio_decoder_->WriteEndOfStream();
+
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  ASSERT_TRUE(last_decoded_audio_);
+  if (last_decoded_audio_->frames() == kAacFrameSize) {
+    return;
+  }
+  auto sample_info = dmp_reader_.audio_sample_info();
+  ASSERT_EQ(sample_info.samples_per_second * 2,
+            audio_decoder_->GetSamplesPerSecond());
+}
+
 TEST_P(AudioDecoderTest, SingleInvalidInput) {
   can_accept_more_input_ = false;
   last_input_buffer_ = GetAudioInputBuffer(0);
@@ -441,7 +461,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 
 std::vector<const char*> GetSupportedTests() {
   const char* kFilenames[] = {"beneath_the_canopy_140_aac.dmp",
-                              "beneath_the_canopy_249_opus.dmp"};
+                              "beneath_the_canopy_249_opus.dmp", "heaac.dmp"};
 
   static std::vector<const char*> test_params;
 
