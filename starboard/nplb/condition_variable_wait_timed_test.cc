@@ -22,6 +22,13 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+// The SunnyDay, SunnyDayAutoInit, and SunnyDayNearMaxTime test cases directly
+// (performs checks in the test case) or indirectly (invokes DoSunnyDay() which
+// performs the checks) rely on timing constraints that are prone to failure,
+// such as ensuring an action happens within 10 milliseconds. This requirement
+// makes the tests flaky since none of these actions can be guaranteed to always
+// run within the specified time.
+
 void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
   SbThread thread =
       SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
@@ -72,7 +79,8 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
   EXPECT_TRUE(SbMutexDestroy(&context->mutex));
 }
 
-TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
+// Test marked as flaky because it calls DoSunnyDay().
+TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDay) {
   TakeThenSignalContext context;
   context.delay_after_signal = 0;
   EXPECT_TRUE(SbMutexCreate(&context.mutex));
@@ -80,7 +88,8 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
   DoSunnyDay(&context, true);
 }
 
-TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
+// Test marked as flaky because it calls DoSunnyDay().
+TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   {
     TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                      SB_CONDITION_VARIABLE_INITIALIZER, 0};
@@ -98,7 +107,9 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   }
 }
 
-TEST(SbConditionVariableWaitTimedTest, SunnyDayNearMaxTime) {
+// Test marked as flaky because it relies on timing sensitive execution similar
+// to DoSunnyDay().
+TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   const SbTime kOtherDelay = kSbTimeMillisecond * 10;
   TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                    SB_CONDITION_VARIABLE_INITIALIZER,
