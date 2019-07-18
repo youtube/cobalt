@@ -173,6 +173,9 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       'player_filter_tests': [
           # TODO: debug these failures.
           'AudioDecoderTests/AudioDecoderTest.SingleInvalidInput/0',
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
+          'VideoDecoderTests/VideoDecoderTest'
+          '.MultipleValidInputsAfterInvalidKeyFrame/*',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
       ],
   }

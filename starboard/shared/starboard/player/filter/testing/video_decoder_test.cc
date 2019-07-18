@@ -252,6 +252,15 @@ class VideoDecoderTest
     return !event_queue_.empty();
   }
 
+  void GetDecodeTargetWhenSupported() {
+#if SB_HAS(GLES2)
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+      SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
+      fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    }
+#endif  // SB_HAS(GLES2)
+  }
+
   void AssertValidDecodeTargetWhenSupported() {
 #if SB_HAS(GLES2)
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
@@ -304,6 +313,14 @@ class VideoDecoderTest
         ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
         ++start_index;
         --number_of_inputs_to_write;
+      } else if (event.status == kError) {
+        // Assume that the caller does't expect an error when |event_cb| isn't
+        // provided.
+        ASSERT_TRUE(event_cb);
+        bool continue_process = true;
+        event_cb(event, &continue_process);
+        ASSERT_FALSE(continue_process);
+        return;
       } else {
         ASSERT_EQ(event.status, kBufferFull);
       }
@@ -349,7 +366,16 @@ class VideoDecoderTest
       if (event.frame) {
         if (event.frame->is_end_of_stream()) {
           end_of_stream_decoded = true;
-          ASSERT_TRUE(outstanding_inputs_.empty());
+          if (!outstanding_inputs_.empty()) {
+            if (error_occurred) {
+              *error_occurred = true;
+            } else {
+              // |error_occurred| is NULL indicates that the caller doesn't
+              // expect an error, use the following redundant ASSERT to trigger
+              // a failure.
+              ASSERT_TRUE(outstanding_inputs_.empty());
+            }
+          }
         } else {
           if (!decoded_frames_.empty()) {
             ASSERT_LT(decoded_frames_.back()->timestamp(),
@@ -385,11 +411,24 @@ class VideoDecoderTest
     auto video_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeVideo, index);
 #if SB_API_VERSION >= 11
-    return new InputBuffer(DeallocateSampleFunc, NULL, NULL, video_sample_info);
+    auto input_buffer =
+        new InputBuffer(DeallocateSampleFunc, NULL, NULL, video_sample_info);
 #else   // SB_API_VERSION >= 11
-    return new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc, NULL, NULL,
-                           video_sample_info, NULL);
+    auto input_buffer = new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc,
+                                        NULL, NULL, video_sample_info, NULL);
 #endif  // SB_API_VERSION >= 11
+    auto iter = invalid_inputs_.find(index);
+    if (iter != invalid_inputs_.end()) {
+      std::vector<uint8_t> content(input_buffer->size(), iter->second);
+      // Replace the content with invalid data.
+      input_buffer->SetDecryptedContent(content.data(),
+                                        static_cast<int>(content.size()));
+    }
+    return input_buffer;
+  }
+
+  void UseInvalidDataForInput(size_t index, uint8_t byte_to_fill) {
+    invalid_inputs_[index] = byte_to_fill;
   }
 
   JobQueue job_queue_;
@@ -414,6 +453,8 @@ class VideoDecoderTest
   bool need_more_input_ = true;
   std::set<SbTime> outstanding_inputs_;
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
+
+  std::map<size_t, uint8_t> invalid_inputs_;
 
  private:
   SbPlayerPrivate player_;
@@ -556,28 +597,81 @@ TEST_P(VideoDecoderTest, SingleInput) {
   ASSERT_FALSE(error_occurred);
 }
 
-TEST_P(VideoDecoderTest, SingleInvalidInput) {
-  need_more_input_ = false;
-  auto input_buffer = GetVideoInputBuffer(0);
-  outstanding_inputs_.insert(input_buffer->timestamp());
-  std::vector<uint8_t> content(input_buffer->size(), 0xab);
-  // Replace the content with invalid data.
-  input_buffer->SetDecryptedContent(content.data(),
-                                    static_cast<int>(content.size()));
-  video_decoder_->WriteInputBuffer(input_buffer);
+TEST_P(VideoDecoderTest, SingleInvalidKeyFrame) {
+  UseInvalidDataForInput(0, 0xab);
 
+  WriteSingleInput(0);
   WriteEndOfStream();
 
   bool error_occurred = true;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
-  if (error_occurred) {
-    ASSERT_TRUE(decoded_frames_.empty());
-  } else {
-    // We don't expect the video decoder to recover from a bad input but some
-    // decoders may just return an empty frame.
-    ASSERT_FALSE(decoded_frames_.empty());
-    AssertValidDecodeTargetWhenSupported();
+  // We don't expect the video decoder can always recover from a bad key frame
+  // and to raise an error, but it shouldn't crash or hang.
+  GetDecodeTargetWhenSupported();
+}
+
+TEST_P(VideoDecoderTest, MultipleValidInputsAfterInvalidKeyFrame) {
+  const size_t kMaxNumberOfInputToWrite = 10;
+  const size_t number_of_input_to_write =
+      std::min(kMaxNumberOfInputToWrite, dmp_reader_.number_of_video_buffers());
+
+  UseInvalidDataForInput(0, 0xab);
+
+  bool error_occurred = false;
+
+  // Write first few frames.  The first one is invalid and the rest are valid.
+  WriteMultipleInputs(0, number_of_input_to_write,
+                      [&](const Event& event, bool* continue_process) {
+                        if (event.status == kError) {
+                          error_occurred = true;
+                          *continue_process = false;
+                          return;
+                        }
+
+                        *continue_process = event.status != kBufferFull;
+                      });
+
+  if (!error_occurred) {
+    GetDecodeTargetWhenSupported();
+    WriteEndOfStream();
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
   }
+  // We don't expect the video decoder can always recover from a bad key frame
+  // and to raise an error, but it shouldn't crash or hang.
+  GetDecodeTargetWhenSupported();
+}
+
+TEST_P(VideoDecoderTest, MultipleInvalidInput) {
+  const size_t kMaxNumberOfInputToWrite = 128;
+  const size_t number_of_input_to_write =
+      std::min(kMaxNumberOfInputToWrite, dmp_reader_.number_of_video_buffers());
+  // Replace the content of the first few input buffers with invalid data.
+  // Every test instance loads its own copy of data so this won't affect other
+  // tests.
+  for (size_t i = 0; i < number_of_input_to_write; ++i) {
+    UseInvalidDataForInput(i, static_cast<uint8_t>(0xab + i));
+  }
+
+  bool error_occurred = false;
+  WriteMultipleInputs(0, number_of_input_to_write,
+                      [&](const Event& event, bool* continue_process) {
+                        if (event.status == kError) {
+                          error_occurred = true;
+                          *continue_process = false;
+                          return;
+                        }
+
+                        *continue_process = event.status != kBufferFull;
+                      });
+
+  if (!error_occurred) {
+    GetDecodeTargetWhenSupported();
+    WriteEndOfStream();
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+  }
+  // We don't expect the video decoder can always recover from a bad key frame
+  // and to raise an error, but it shouldn't crash or hang.
+  GetDecodeTargetWhenSupported();
 }
 
 TEST_P(VideoDecoderTest, EndOfStreamWithoutAnyInput) {
