@@ -120,13 +120,13 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   switch (type) {
     case kSbMediaTypeAudio: {
       SB_DCHECK(index < audio_access_units_.size());
-      const AudioAccessUnit& aau = audio_access_units_[index];
-      return ConvertToPlayerSampleInfo(aau);
+      const AudioAccessUnit& audio_au = audio_access_units_[index];
+      return ConvertToPlayerSampleInfo(audio_au);
     }
     case kSbMediaTypeVideo: {
       SB_DCHECK(index < video_access_units_.size());
-      const VideoAccessUnit& vau = video_access_units_[index];
-      return ConvertToPlayerSampleInfo(vau);
+      const VideoAccessUnit& video_au = video_access_units_[index];
+      return ConvertToPlayerSampleInfo(video_au);
     }
   }
   SB_NOTREACHED() << "Unhandled SbMediaType";
