@@ -106,19 +106,14 @@ class GypRunner(object):
   def BuildConfig(self, config_name):
     """Builds the GYP file for a given config."""
 
-    # Write the build number in the out directory so that it can be used without
-    # other tools like gclient nor needing to contact the build ID server.
-    build_output_dir = paths.BuildOutputDirectory(
-        self.platform_configuration.GetName(), config_name)
-    if not os.path.exists(build_output_dir):
-      os.makedirs(build_output_dir)
-    build_id_path = os.path.join(build_output_dir, 'build.id')
-    with open(build_id_path, 'w') as build_id_file:
-      build_id_file.write('{0}'.format(self.options.build_number))
-    logging.info('Build Number: %d', self.options.build_number)
-
     # Make a copy of the common arguments.
     args = self.common_args[:]
+
+    logging.info('Build Number: %d', self.options.build_number)
+    build_variables = {
+        'BUILD_NUMBER': self.options.build_number,
+    }
+    _AppendVariables(build_variables, args)
 
     configuration_variables = {
         # Default deploy script. Certain platforms may choose to change this.
