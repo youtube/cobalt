@@ -205,7 +205,7 @@ void SbBlitterPixelTest::CheckSurfacePixels() {
     // adjusted to set how much each pixel color must differ by before being
     // considered a difference.
     const float kBlurSigma = 0.0f;
-    const int kPixelTestValueFuzz = 0;
+    const int kPixelTestValueFuzz = 2;
 
     // Blur the actual and expected images before comparing them so that we
     // can be lenient on one-pixel-off differences.
