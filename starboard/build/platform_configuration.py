@@ -76,15 +76,6 @@ class PlatformConfiguration(object):
     """Returns the platform name."""
     return self._platform_name
 
-  def GetBuildNumber(self, config):
-    """Returns the build number generated when GYP was run."""
-    build_output_dir = paths.BuildOutputDirectory(self.GetName(), config)
-    build_id_path = os.path.join(build_output_dir, 'build.id')
-    if not os.path.isfile(build_id_path):
-      raise RuntimeError('Build number missing (run gyp): %s' % build_id_path)
-    with open(build_id_path, 'r') as build_id_file:
-      return int(build_id_file.read().replace('\n', ''))
-
   def GetDirectory(self):
     """Returns the directory of the platform configuration."""
     return self._directory
