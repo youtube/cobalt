@@ -454,6 +454,8 @@ void TryBuildPath(const scoped_refptr<ParsedCertificate>& target,
   // |input_cert|.
   path_builder.AddCertIssuerSource(intermediates);
 
+// Cobalt does not need AIA fetching.
+#if !defined(STARBOARD)
   // Allow the path builder to discover intermediates through AIA fetching.
   std::unique_ptr<CertIssuerSourceAia> aia_cert_issuer_source;
   if (net_fetcher) {
@@ -462,6 +464,7 @@ void TryBuildPath(const scoped_refptr<ParsedCertificate>& target,
   } else {
     LOG(ERROR) << "No net_fetcher for performing AIA chasing.";
   }
+#endif
 
   path_builder.Run();
 }
@@ -481,6 +484,13 @@ int AssignVerifyResult(X509Certificate* input_cert,
     // builder should always return some partial path (even if just containing
     // the target), then there is a CertErrors to test.
     verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+#if defined(STARBOARD)
+    // Cobalt only trusts root certificates that come with the binary,
+    // If the code reaches this point, it usually means the root certificate
+    // of the chain is not found in the content directory of trusted
+    // certificates.
+    DLOG(ERROR) << "Certificate Authority invalid!";
+#endif
     return ERR_CERT_AUTHORITY_INVALID;
   }
 
@@ -597,7 +607,13 @@ int CertVerifyProcBuiltin::VerifyInternal(
   }
 
   // Get the global dependencies.
+#if defined(STARBOARD)
+  // cert net fetcher is used for fetching AIA certs which Cobalt should not
+  // need.
+  CertNetFetcher* net_fetcher = nullptr;
+#else
   CertNetFetcher* net_fetcher = GetGlobalCertNetFetcher();
+#endif
   const EVRootCAMetadata* ev_metadata = EVRootCAMetadata::GetInstance();
 
   // This boolean tracks whether online revocation checking was performed for
