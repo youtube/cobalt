@@ -431,10 +431,8 @@
         'cert/cert_verify_proc.h',
         # TODO[johnx]: Investigate why net deprecated openssl verifier and
         # if justified switch back to builtin verifier.
-        # 'cert/cert_verify_proc_builtin.cc',
-        # 'cert/cert_verify_proc_builtin.h',
-        'cert/cert_verify_proc_openssl.cc',
-        'cert/cert_verify_proc_openssl.h',
+        'cert/cert_verify_proc_builtin.cc',
+        'cert/cert_verify_proc_builtin.h',
         'cert/ct_log_response_parser.cc',
         'cert/ct_log_response_parser.h',
         'cert/ct_log_verifier.cc',
