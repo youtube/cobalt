@@ -148,6 +148,7 @@
             'src/ctype/iswspace.c',
             'src/errno/strerror.c',
             'src/exit/assert.c',
+            'src/exit/atexit.c',
             'src/internal/floatscan.c',
             'src/internal/intscan.c',
             'src/internal/shgetc.c',
