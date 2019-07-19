@@ -2,6 +2,13 @@
 #include <stdint.h>
 #include "libc.h"
 
+#ifdef STARBOARD
+#include "starboard/common/log.h"
+#include "starboard/mutex.h"
+#include "starboard/thread_types.h"
+#include "starboard/types.h"
+#endif  // STARBOARD
+
 /* Ensure that at least 32 atexit handlers can be registered without malloc */
 #define COUNT 32
 
@@ -13,7 +20,19 @@ static struct fl
 } builtin, *head;
 
 static int slot;
+#ifdef STARBOARD
+static SbMutex lock = SB_MUTEX_INITIALIZER;
+#define LOCK(x)                                          \
+    do {                                                 \
+      SB_DCHECK(SbMutexAcquire(&x) == kSbMutexAcquired); \
+    } while (0)
+#define UNLOCK(x)                    \
+    do {                             \
+      SB_DCHECK(SbMutexRelease(&x)); \
+    } while (0)
+#else   // !STARBOARD
 static volatile int lock[1];
+#endif  // STARBOARD
 
 void __funcs_on_exit()
 {
