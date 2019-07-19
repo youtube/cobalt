@@ -420,6 +420,10 @@ TEST_P(AudioDecoderTest, LimitedInput) {
   int start_index = 0;
   ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
 
+  if (start_index >= dmp_reader_.number_of_audio_buffers()) {
+    audio_decoder_->WriteEndOfStream();
+  }
+
   // Wait for decoded audio.
   WaitForDecodedAudio();
 }
