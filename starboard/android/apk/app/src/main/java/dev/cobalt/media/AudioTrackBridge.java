@@ -35,6 +35,23 @@ public class AudioTrackBridge {
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
 
+  private int GetFrameSize(int sampleType, int channelCount) {
+    switch (sampleType) {
+      case AudioFormat.ENCODING_PCM_16BIT:
+        {
+          return 2 * channelCount;
+        }
+      case AudioFormat.ENCODING_PCM_FLOAT:
+        {
+          return 4 * channelCount;
+        }
+      default:
+        {
+          throw new RuntimeException("Unsupported sample type: " + sampleType);
+        }
+    }
+  }
+
   public AudioTrackBridge(int sampleType, int sampleRate, int channelCount, int framesPerChannel) {
     int channelConfig;
     switch (channelCount) {
@@ -63,13 +80,12 @@ public class AudioTrackBridge {
             .setChannelMask(channelConfig)
             .build();
 
-    int minBufferSizeBytes = AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType);
-    int audioTrackBufferSize = minBufferSizeBytes;
-    // Use framesPerChannel to determine the buffer size.  To use a large buffer on a small
-    // framesPerChannel may lead to audio playback not able to start.
-    while (audioTrackBufferSize < framesPerChannel) {
-      audioTrackBufferSize *= 2;
-    }
+    // Try to create AudioTrack with the same size buffer as in renderer. But AudioTrack would not
+    // start playing until the buffer is fully filled once. A large buffer may cause
+    // AudioTrack not able to start. And we now pass no more than 1s of audio data to
+    // starboard player, limit the buffer size to store at most 0.5s of audio data.
+    int audioTrackBufferSize =
+        Math.min(framesPerChannel, sampleRate / 2) * GetFrameSize(sampleType, channelCount);
     while (audioTrackBufferSize > 0) {
       try {
         if (Build.VERSION.SDK_INT >= 26) {
@@ -105,7 +121,8 @@ public class AudioTrackBridge {
         TAG,
         String.format(
             "AudioTrack created with buffer size %d.  The minimum buffer size is %d.",
-            audioTrackBufferSize, minBufferSizeBytes));
+            audioTrackBufferSize,
+            AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
   }
 
   public Boolean isAudioTrackValid() {
