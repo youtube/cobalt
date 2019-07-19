@@ -40,8 +40,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   def GetVariables(self, config_name):
     variables = {
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
-        'cobalt_version':
-            self._platform_configuration.GetBuildNumber(config_name),
 
         # This is here rather than cobalt_configuration.gypi so that it's
         # available for browser_bindings_gen.gyp.

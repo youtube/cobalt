@@ -118,7 +118,7 @@
     'cobalt_font_package_override_fallback_symbols%': -1,
 
     # Build version number.
-    'cobalt_version%': 0,
+    'cobalt_version%': '<(BUILD_NUMBER)',
 
     # Defines what kind of rasterizer will be used.  This can be adjusted to
     # force a stub graphics implementation or software graphics implementation.
