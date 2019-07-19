@@ -68,6 +68,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
 
   void Resolve(const ResolveType& value) const override {
     DCHECK(!this->IsEmpty());
+    DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -81,6 +82,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
 
   void Reject() const override {
     DCHECK(!this->IsEmpty());
+    DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -92,6 +94,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
 
   void Reject(SimpleExceptionType exception) const override {
     DCHECK(!this->IsEmpty());
+    DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -104,6 +107,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
 
   void Reject(const scoped_refptr<ScriptException>& result) const override {
     DCHECK(!this->IsEmpty());
+    DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
