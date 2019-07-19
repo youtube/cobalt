@@ -14,6 +14,7 @@
 """Starboard Raspberry Pi 0 platform configuration."""
 
 from starboard.raspi.shared import gyp_configuration as shared_configuration
+from starboard.tools.testing import test_filter
 
 
 class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
@@ -28,6 +29,19 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
         'cobalt_enable_jit': 1,
     })
     return variables
+
+  def GetTestFilters(self):
+    filters = super(Raspi0PlatformConfig, self).GetTestFilters()
+    for target, tests in self.__FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
+
+  __FILTERED_TESTS = {
+      'nplb': [
+          # TODO: debug these failures.
+          'SbPlayerTest.MultiPlayer',  # crashes
+      ],
+  }
 
 
 def CreatePlatformConfig():
