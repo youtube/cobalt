@@ -36,6 +36,11 @@ const int kMaxFramesPerRequest = 65536;
 
 const jint kNoOffset = 0;
 
+const size_t kSilenceFramesPerAppend = 1024;
+// 6 (max channels) * 4 (max sample size) * kSilenceFramesPerAppend, the number
+// is to ensure we always have at least 1024 frames silence to write.
+const uint8_t kSilenceBuffer[24 * kSilenceFramesPerAppend] = {0};
+
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
 size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
@@ -98,6 +103,8 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
  private:
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
+
+  int WriteData(JniEnvExt* env, const void* buffer, int size);
 
   Type* type_;
   int channels_;
@@ -292,48 +299,26 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         std::min(expected_written_frames, kMaxFramesPerRequest);
     if (expected_written_frames == 0) {
       // It is possible that all the frames in buffer are written to the
-      // soundcard, but those are not being consumed.
+      // soundcard, but those are not being consumed. If eos is reached,
+      // write silence to make sure audio track start working and avoid
+      // underflow. Android audio track would not start working before
+      // its buffer is fully filled once.
+      if (is_eos_reached) {
+        // Currently AudioDevice and AudioRenderer will write tail silence.
+        // It should be reached only in tests.
+        WriteData(env, kSilenceBuffer, kSilenceFramesPerAppend);
+      }
       SbThreadSleep(10 * kSbTimeMillisecond);
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
-    bool written_fully = false;
-
-    if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-      int expected_written_size = expected_written_frames * channels_;
-      env->SetFloatArrayRegion(
-          static_cast<jfloatArray>(j_audio_data_), kNoOffset,
-          expected_written_size,
-          static_cast<const float*>(IncrementPointerByBytes(
-              frame_buffer_,
-              start_position * channels_ * GetSampleSize(sample_type_))));
-      int written =
-          env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([FI)I",
-                                    j_audio_data_, expected_written_size);
-      SB_DCHECK(written >= 0);
-      SB_DCHECK(written % channels_ == 0);
-      written_frames_ += written / channels_;
-      written_fully = (written == expected_written_frames);
-    } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-      int expected_written_size =
-          expected_written_frames * channels_ * GetSampleSize(sample_type_);
-      env->SetByteArrayRegion(
-          static_cast<jbyteArray>(j_audio_data_), kNoOffset,
-          expected_written_size,
-          static_cast<const jbyte*>(IncrementPointerByBytes(
-              frame_buffer_,
-              start_position * channels_ * GetSampleSize(sample_type_))));
-      int written =
-          env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([BI)I",
-                                    j_audio_data_, expected_written_size);
-      SB_DCHECK(written >= 0);
-      SB_DCHECK(written % (channels_ * GetSampleSize(sample_type_)) == 0);
-      written_frames_ += written / (channels_ * GetSampleSize(sample_type_));
-      written_fully = (written == expected_written_frames);
-    } else {
-      SB_NOTREACHED();
-    }
-
+    int written_frames = WriteData(
+        env,
+        IncrementPointerByBytes(frame_buffer_, start_position * channels_ *
+                                                   GetSampleSize(sample_type_)),
+        expected_written_frames);
+    written_frames_ += written_frames;
+    bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
         written_frames_ * kSbTimeSecond / sampling_frequency_hz_ -
         (SbTimeGetMonotonicNow() - frames_consumed_at);
@@ -346,7 +331,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       SbThreadSleep(40 * kSbTimeMillisecond);
     } else if (!written_fully) {
       // Only sleep if the buffer is nearly full and the last write is partial.
-      SbThreadSleep(1 * kSbTimeMillisecond);
+      SbThreadSleep(10 * kSbTimeMillisecond);
     }
   }
 
@@ -356,6 +341,38 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   // Flushes the audio data currently queued for playback. Any data that has
   // been written but not yet presented will be discarded.
   env->CallVoidMethodOrAbort(j_audio_track_bridge_, "flush", "()V");
+}
+
+int AudioTrackAudioSink::WriteData(JniEnvExt* env,
+                                   const void* buffer,
+                                   int expected_written_frames) {
+  if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
+    int expected_written_size = expected_written_frames * channels_;
+    env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_), kNoOffset,
+                             expected_written_size,
+                             static_cast<const float*>(buffer));
+    int written =
+        env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([FI)I",
+                                  j_audio_data_, expected_written_size);
+    SB_DCHECK(written >= 0);
+    SB_DCHECK(written % channels_ == 0);
+    return written / channels_;
+  }
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
+    int expected_written_size =
+        expected_written_frames * channels_ * GetSampleSize(sample_type_);
+    env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
+                            expected_written_size,
+                            static_cast<const jbyte*>(buffer));
+    int written =
+        env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([BI)I",
+                                  j_audio_data_, expected_written_size);
+    SB_DCHECK(written >= 0);
+    SB_DCHECK(written % (channels_ * GetSampleSize(sample_type_)) == 0);
+    return written / (channels_ * GetSampleSize(sample_type_));
+  }
+  SB_NOTREACHED();
+  return 0;
 }
 
 void AudioTrackAudioSink::SetVolume(double volume) {

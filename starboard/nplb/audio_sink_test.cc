@@ -38,9 +38,10 @@ TEST(SbAudioSinkTest, SomeFramesConsumed) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
+  // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
+  environment.AppendFrame(frames_to_append);
 
-  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
 }
 
@@ -50,8 +51,8 @@ TEST(SbAudioSinkTest, AllFramesConsumed) {
   ASSERT_TRUE(environment.is_valid());
 
   int frames_to_append = frame_buffers.frames_per_channel();
-
   environment.AppendFrame(frames_to_append / 2);
+
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
@@ -60,11 +61,13 @@ TEST(SbAudioSinkTest, MultipleAppendAndConsume) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
+  // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
+  environment.AppendFrame(frames_to_append);
 
-  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
-  environment.AppendFrame(frames_to_append / 2);
+  ASSERT_GT(environment.GetFrameBufferFreeSpaceAmount(), 0);
+  environment.AppendFrame(environment.GetFrameBufferFreeSpaceAmount());
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
@@ -75,9 +78,10 @@ TEST(SbAudioSinkTest, Pause) {
 
   environment.SetIsPlaying(false);
 
+  // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
+  environment.AppendFrame(frames_to_append);
 
-  environment.AppendFrame(frames_to_append / 2);
   int free_space = environment.GetFrameBufferFreeSpaceAmount();
   EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
   EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
@@ -91,12 +95,14 @@ TEST(SbAudioSinkTest, Underflow) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
+  // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
+  environment.AppendFrame(frames_to_append);
 
-  environment.AppendFrame(frames_to_append / 2);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
   SbThreadSleep(250 * kSbTimeMillisecond);
-  environment.AppendFrame(frames_to_append / 2);
+  ASSERT_GT(environment.GetFrameBufferFreeSpaceAmount(), 0);
+  environment.AppendFrame(environment.GetFrameBufferFreeSpaceAmount());
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
