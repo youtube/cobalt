@@ -109,6 +109,8 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     SB_LOG(INFO) << "Testing " << GetParam().filename;
   }
 
+  ~VideoDecoderTest() { video_decoder_->Reset(); }
+
   void SetUp() override {
     ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
     ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
