@@ -402,17 +402,19 @@ void MediaKeySession::OnSessionUpdateKeyStatuses(
 
 // See https://www.w3.org/TR/encrypted-media/#session-closed.
 void MediaKeySession::OnSessionClosed() {
-  // 2. Run the Update Key Statuses algorithm on the session, providing an empty
-  //    sequence.
-  //
-  // TODO: Implement key statuses.
-
-  // 3. Run the Update Expiration algorithm on the session, providing NaN.
-  //
-  // TODO: Implement expiration.
-
-  // 4. Let promise be the closed attribute of the session.
-  // 5. Resolve promise.
+  // 2. Let promise be the session's closed attribute.
+  // 3. If promise is resolved, abort these steps.
+  if (closed_promise_reference_.value().State() !=
+      script::PromiseState::kPending) {
+    return;
+  }
+  // 4. Set the session's closing or closed value to true.
+  // 5. Run the Update Key Statuses algorithm on the session, providing an
+  //    empty sequence.
+  //    - TODO: Implement key statuses.
+  // 6. Run the Update Expiration algorithm on the session, providing NaN.
+  //    - TODO: Implement expiration.
+  // 7. Resolve promise.
   closed_promise_reference_.value().Resolve();
 }
 
