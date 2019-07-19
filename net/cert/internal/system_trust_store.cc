@@ -36,6 +36,17 @@
 #include "net/cert/x509_util_mac.h"
 #elif defined(OS_FUCHSIA)
 #include "third_party/boringssl/src/include/openssl/pool.h"
+#elif defined(STARBOARD)
+#include "base/files/file_path.h"
+#include "base/path_service.h"
+#include "net/cert/internal/cert_errors.h"
+#include "net/cert/pem_tokenizer.h"
+#include "net/cert/x509_certificate.h"
+#include "net/cert/x509_util.h"
+#include "starboard/directory.h"
+#include "starboard/file.h"
+#include "third_party/boringssl/src/include/openssl/digest.h"
+#include "third_party/boringssl/src/include/openssl/x509.h"
 #endif
 
 namespace net {
@@ -218,21 +229,90 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
 
 #elif defined(STARBOARD)
 
-// Starboard does not currently provide support for system trust store access,
-// so we indicate that it should not be used.
+namespace {
+
+// PEM encoded DER certs is usually around or less than 2000 bytes long.
+const int kCertBufferSize = 4096;
+const char kCertificateHeader[] = "CERTIFICATE";
+
+class StarboardSystemCerts {
+ public:
+  StarboardSystemCerts() {
+    base::FilePath cert_dir_path;
+    base::PathService::Get(base::DIR_EXE, &cert_dir_path);
+    cert_dir_path = cert_dir_path.Append("ssl").Append("certs");
+    auto sb_certs_directory =
+        SbDirectoryOpen(cert_dir_path.value().c_str(), nullptr);
+    DCHECK(SbDirectoryIsValid(sb_certs_directory));
+
+    SbDirectoryEntry dir_entry;
+    // SbFileOpen params
+    bool out_created;
+    SbFileError out_error;
+    char cert_buffer[kCertBufferSize];
+
+    while (SbDirectoryGetNext(sb_certs_directory, &dir_entry)) {
+      if (SbStringCompareAll(dir_entry.name, ".") == 0 ||
+          SbStringCompareAll(dir_entry.name, "..") == 0) {
+        continue;
+      }
+      base::FilePath cert_path = cert_dir_path.Append(dir_entry.name);
+      SbFile sb_cert_file =
+          SbFileOpen(cert_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
+                     &out_created, &out_error);
+      DCHECK(SbFileIsValid(sb_cert_file));
+      SbFileInfo info;
+      bool success = SbFileGetInfo(sb_cert_file, &info);
+      SbFileReadAll(sb_cert_file, cert_buffer, info.size);
+      PEMTokenizer pem_tokenizer(base::StringPiece(cert_buffer, info.size),
+                                 {kCertificateHeader});
+      pem_tokenizer.GetNext();
+      std::string decoded(pem_tokenizer.data());
+      DCHECK(!pem_tokenizer.GetNext());
+      bssl::UniquePtr<CRYPTO_BUFFER> crypto_buffer =
+          X509Certificate::CreateCertBufferFromBytes(decoded.data(),
+                                                     decoded.length());
+      DCHECK(crypto_buffer);
+      CertErrors errors;
+      auto parsed = ParsedCertificate::Create(
+          bssl::UpRef(crypto_buffer.get()),
+          x509_util::DefaultParseCertificateOptions(), &errors);
+      CHECK(parsed) << errors.ToDebugString();
+      system_trust_store_.AddTrustAnchor(parsed);
+      SbFileClose(sb_cert_file);
+    }
+    SbDirectoryClose(sb_certs_directory);
+  }
+
+  TrustStoreInMemory* system_trust_store() { return &system_trust_store_; }
+
+ private:
+  TrustStoreInMemory system_trust_store_;
+};
+
+base::LazyInstance<StarboardSystemCerts>::Leaky g_root_certs_starboard =
+    LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
+
+// Starboard does not use system certificate stores but Cobalt ships with a
+// set of trusted CA certificates that can be used for validations.
 class SystemTrustStoreStarboard : public BaseSystemTrustStore {
  public:
   SystemTrustStoreStarboard() {
+    trust_store_.AddTrustStore(
+        g_root_certs_starboard.Get().system_trust_store());
     if (TestRootCerts::HasInstance()) {
       trust_store_.AddTrustStore(
           TestRootCerts::GetInstance()->test_trust_store());
     }
   }
 
-  bool UsesSystemTrustStore() const override { return false; }
+  bool UsesSystemTrustStore() const override { return true; }
 
   bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
-    return false;
+    return g_root_certs_starboard.Get().system_trust_store()->Contains(
+        trust_anchor);
   }
 };
 

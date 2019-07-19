@@ -48,10 +48,8 @@
 #elif defined(OS_WIN)
 #include "base/win/windows_version.h"
 #include "net/cert/cert_verify_proc_win.h"
-#elif defined(OS_FUCHSIA)
+#elif defined(OS_FUCHSIA) || defined(STARBOARD)
 #include "net/cert/cert_verify_proc_builtin.h"
-#elif defined(STARBOARD)
-#include "net/cert/cert_verify_proc_openssl.h"
 #else
 #error Implement certificate verification.
 #endif
@@ -480,10 +478,8 @@ scoped_refptr<CertVerifyProc> CertVerifyProc::CreateDefault() {
   return new CertVerifyProcMac();
 #elif defined(OS_WIN)
   return new CertVerifyProcWin();
-#elif defined(OS_FUCHSIA)
+#elif defined(OS_FUCHSIA) || defined(STARBOARD)
   return CreateCertVerifyProcBuiltin();
-#elif defined(STARBOARD)
-  return new CertVerifyProcOpenSSL();
 #else
 #error Unsupported platform
 #endif
