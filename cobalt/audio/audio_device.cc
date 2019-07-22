@@ -30,15 +30,11 @@ typedef media::ShellAudioBus ShellAudioBus;
 
 namespace {
 const int kRenderBufferSizeFrames = 1024;
+// AudioDevice will keep writing silence frames at the end of playback until the
+// buffer is full to ensure the audible frames being played on platforms with
+// strict underflow control. A large |kFramesPerChannel| will increase the
+// silence between two sounds. So it shouldn't be set to a very large number.
 const int kFramesPerChannel = kRenderBufferSizeFrames * 8;
-}  // namespace
-
-namespace {
-// Write |kTailSizeInFrames| frames of silence at the end of playback to ensure
-// the audible frames being played on platforms with strict underflow control.
-// Increasing this value will also increase the silence between two sounds.  So
-// it shouldn't be set to a very too large.
-const int kTailSizeInFrames = kRenderBufferSizeFrames * 8;
 }  // namespace
 
 class AudioDevice::Impl {
@@ -162,6 +158,9 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
                                            bool* is_playing,
                                            bool* is_eos_reached) {
   TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::UpdateSourceStatus()");
+  // AudioDevice may be reused after stopped but before destroyed. Keep writing
+  // silence before destroyed to let |audio_sink_| keep working without
+  // underflow. It will cause latency between two sounds.
   *is_playing = true;
   *is_eos_reached = false;
 
@@ -182,28 +181,23 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
 
     render_callback_->FillAudioBus(all_consumed, &input_audio_bus_, &silence);
 
-    bool fill_output = true;
     if (silence) {
-      fill_output = kTailSizeInFrames > silence_written_;
       silence_written_ += kRenderBufferSizeFrames;
     } else {
       // Reset |silence_written_| if a new sound is played after some silence
       // frames were injected.
       silence_written_ = 0;
     }
-    if (fill_output) {
-      FillOutputAudioBus();
 
-      frames_rendered_ += kRenderBufferSizeFrames;
-      *frames_in_buffer += kRenderBufferSizeFrames;
-    }
+    FillOutputAudioBus();
+
+    frames_rendered_ += kRenderBufferSizeFrames;
+    *frames_in_buffer += kRenderBufferSizeFrames;
 
     was_silence_last_update_ = silence;
   }
 
   *offset_in_frames = frames_consumed_ % kFramesPerChannel;
-  *is_playing =
-      !(silence_written_ != 0 && *frames_in_buffer <= silence_written_);
 }
 
 void AudioDevice::Impl::ConsumeFrames(int frames_consumed) {
