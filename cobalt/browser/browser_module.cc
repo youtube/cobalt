@@ -465,7 +465,11 @@ BrowserModule::~BrowserModule() {
 #endif
 }
 
-void BrowserModule::Navigate(const GURL& url) {
+void BrowserModule::Navigate(const GURL& url_reference) {
+  // The argument is sometimes |pending_navigate_url_|, and Navigate can modify
+  // |pending_navigate_url_|, so we want to keep a copy of the argument to
+  // preserve its original value.
+  GURL url = url_reference;
   DLOG(INFO) << "In BrowserModule::Navigate " << url;
   TRACE_EVENT1("cobalt::browser", "BrowserModule::Navigate()", "url",
                url.spec());
