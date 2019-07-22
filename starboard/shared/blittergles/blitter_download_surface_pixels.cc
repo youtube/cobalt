@@ -101,7 +101,9 @@ bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface,
   dummy_render_target->width = surface->info.width;
   dummy_render_target->height = surface->info.height;
   dummy_render_target->device = surface->device;
-  dummy_render_target->SetFramebuffer();
+  if (!dummy_render_target->SetFramebuffer()) {
+    return false;
+  }
 
   starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
       starboard::shared::blittergles::GetBlitterContextRegistry();

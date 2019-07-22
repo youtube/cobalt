@@ -36,8 +36,8 @@ struct SbBlitterSurfacePrivate {
   GLuint color_texture_handle;
 
   // Sets the color_texture_handle field using given pixel_data. On failure,
-  // resets color_texture_handle to 0.
-  void SetTexture(void* pixel_data);
+  // resets color_texture_handle to 0 and returns false.
+  bool SetTexture(void* pixel_data);
 };
 
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_SURFACE_H_
