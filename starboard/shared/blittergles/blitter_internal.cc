@@ -150,22 +150,22 @@ void ChangeDataFormat(SbBlitterPixelDataFormat in_format,
 }  // namespace shared
 }  // namespace starboard
 
-void SbBlitterRenderTargetPrivate::SetFramebuffer() {
+bool SbBlitterRenderTargetPrivate::SetFramebuffer() {
   if (surface->color_texture_handle == 0) {
-    return;
+    return false;
   }
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context;
   glGenFramebuffers(1, &framebuffer_handle);
   if (framebuffer_handle == 0) {
     SB_DLOG(ERROR) << ": Error creating new framebuffer.";
-    return;
+    return false;
   }
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_handle);
   if (glGetError() != GL_NO_ERROR) {
     GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle));
     framebuffer_handle = 0;
     SB_DLOG(ERROR) << ": Error binding framebuffer.";
-    return;
+    return false;
   }
   GL_CALL(glBindTexture(GL_TEXTURE_2D, surface->color_texture_handle));
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
@@ -176,7 +176,7 @@ void SbBlitterRenderTargetPrivate::SetFramebuffer() {
     framebuffer_handle = 0;
     surface->color_texture_handle = 0;
     SB_DLOG(ERROR) << ": Error drawing empty image to framebuffer.";
-    return;
+    return false;
   }
 
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
@@ -186,7 +186,8 @@ void SbBlitterRenderTargetPrivate::SetFramebuffer() {
     framebuffer_handle = 0;
     surface->color_texture_handle = 0;
     SB_DLOG(ERROR) << ": Failed to create framebuffer.";
-    return;
+    return false;
   }
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+  return true;
 }

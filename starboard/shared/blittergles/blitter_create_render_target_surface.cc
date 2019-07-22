@@ -46,7 +46,9 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
   surface->info.height = height;
   surface->info.format = surface_format;
   surface->color_texture_handle = 0;
-  surface->SetTexture(NULL);
+  if (!surface->SetTexture(NULL)) {
+    return kSbBlitterInvalidSurface;
+  }
   std::unique_ptr<SbBlitterRenderTargetPrivate> render_target(
       new SbBlitterRenderTargetPrivate());
   render_target->swap_chain = kSbBlitterInvalidSwapChain;
@@ -56,7 +58,9 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
   render_target->device = device;
   render_target->framebuffer_handle = 0;
   surface->render_target = render_target.release();
-  surface->render_target->SetFramebuffer();
+  if (!surface->render_target->SetFramebuffer()) {
+    return kSbBlitterInvalidSurface;
+  }
 
   return surface.release();
 }
