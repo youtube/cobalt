@@ -272,6 +272,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
+#include "starboard/common/spin_lock.h"
 #include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -1477,21 +1478,56 @@ void SetInjectableArgvs(const ::std::vector<testing::internal::string>*
 
 class Mutex {
  public:
-  Mutex() { SbMutexCreate(&mutex_); }
-  ~Mutex() {SbMutexDestroy(&mutex_); }
-  void Lock() { SbMutexAcquire(&mutex_); }
+  enum MutexType { kStatic = 0, kDynamic = 1 };
+
+  // We rely on kStaticMutex being 0 as it is to what the linker initializes
+  // type_ in static mutexes.  critical_section_ will be initialized lazily
+  // in ThreadSafeLazyInit().
+  enum StaticConstructorSelector { kStaticMutex = 0 };
+
+  // This constructor intentionally does nothing.  It relies on type_ being
+  // statically initialized to 0 (effectively setting it to kStatic) and on
+  // ThreadSafeLazyInit() to lazily initialize the rest of the members.
+  explicit Mutex(StaticConstructorSelector /*dummy*/) {}
+
+  Mutex() : type_(kDynamic) { SbMutexCreate(&mutex_); }
+  ~Mutex() {
+    if (type_ != kStatic) {
+      SbMutexDestroy(&mutex_);
+    }
+  }
+  void Lock() {
+    LazyInit();
+    SbMutexAcquire(&mutex_);
+  }
   void Unlock() { SbMutexRelease(&mutex_); }
   void AssertHeld() const {}
 
  private:
+  void LazyInit() {
+    if (type_ == kStatic && !initialized_) {
+      static starboard::SpinLock s_lock;
+      s_lock.Acquire();
+      if (!initialized_) {
+        SbMutexCreate(&mutex_);
+        initialized_ = true;
+      }
+      s_lock.Release();
+    }
+  }
   SbMutex mutex_;
   friend class GTestMutexLock;
+  bool initialized_ = false;
+  // For static mutexes, we rely on type_ member being initialized to zero
+  // by the linker.
+  MutexType type_;
 };
 
 #define GTEST_DECLARE_STATIC_MUTEX_(mutex) \
   extern ::testing::internal::Mutex mutex
 
-#define GTEST_DEFINE_STATIC_MUTEX_(mutex) ::testing::internal::Mutex mutex
+#define GTEST_DEFINE_STATIC_MUTEX_(mutex) \
+  ::testing::internal::Mutex mutex(::testing::internal::Mutex::kStaticMutex)
 
 // We cannot name this class MutexLock because the ctor declaration would
 // conflict with a macro named MutexLock, which is defined on some
@@ -1500,13 +1536,13 @@ class Mutex {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex* mutex) : mutex_ptr_(&mutex->mutex_) {
-    SbMutexAcquire(mutex_ptr_);
+  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) {
+    mutex_->Lock();
   }  // NOLINT
-  ~GTestMutexLock() { SbMutexRelease(mutex_ptr_); }
+  ~GTestMutexLock() { mutex_->Unlock(); }
 
  private:
-  SbMutex* mutex_ptr_;
+  Mutex* mutex_;
 };
 
 typedef GTestMutexLock MutexLock;
