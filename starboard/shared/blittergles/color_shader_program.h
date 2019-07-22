@@ -33,6 +33,10 @@ class ColorShaderProgram : public ShaderProgram {
             float (&color_rgba)[4],
             SbBlitterRect rect) const;
 
+  // Method that draws a 1x1 transparent rectangle and disables leak sanitizer
+  // around glDrawArrays().
+  void DummyDraw(SbBlitterRenderTarget render_target) const;
+
  private:
   // Location of the shader attribute "a_position" for the color shader.
   static const int kPositionAttribute = 0;
