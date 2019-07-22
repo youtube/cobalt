@@ -91,8 +91,8 @@ struct SbBlitterRenderTargetPrivate {
   GLuint framebuffer_handle;
 
   // Sets framebuffer_handle and binds the texture from the surface field to it.
-  // On failure, sets framebuffer_handle to 0.
-  void SetFramebuffer();
+  // On failure, sets framebuffer_handle to 0 and returns false.
+  bool SetFramebuffer();
 };
 
 struct SbBlitterSwapChainPrivate {
