@@ -22,6 +22,8 @@
 #include "starboard/common/optional.h"
 #include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
+#include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/gles/gl_call.h"
 #include "starboard/shared/x11/application_x11.h"
 #include "starboard/window.h"
@@ -79,6 +81,21 @@ starboard::optional<EGLConfig> GetEGLConfig(EGLDisplay display) {
   return starboard::nullopt;
 }
 
+// When using Xvfb, the selected drivers will leak memory on the 1st call to
+// glDrawArrays(). We get that draw out of the way with a dummy draw here.
+void DummyDraw(SbBlitterContext context) {
+  SbBlitterSurface dummy_surface = SbBlitterCreateRenderTargetSurface(
+      context->device, 1, 1, kSbBlitterSurfaceFormatRGBA8);
+  SbBlitterSetRenderTarget(context, dummy_surface->render_target);
+  SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(context);
+  const starboard::shared::blittergles::ColorShaderProgram&
+      color_shader_program = context->GetColorShaderProgram();
+  color_shader_program.DummyDraw(dummy_surface->render_target);
+  context->current_render_target = kSbBlitterInvalidRenderTarget;
+  context->scissor = SbBlitterMakeRect(0, 0, 0, 0);
+  SbBlitterDestroySurface(dummy_surface);
+}
+
 }  // namespace
 
 SbBlitterDevice SbBlitterCreateDefaultDevice() {
@@ -119,6 +136,8 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
       starboard::shared::blittergles::GetBlitterContextRegistry();
   starboard::ScopedLock context_lock(context_registry->mutex);
   context_registry->context = context.release();
+
+  DummyDraw(context_registry->context);
 
   return device_registry->default_device;
 }
