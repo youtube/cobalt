@@ -125,7 +125,7 @@ class BrowserModule {
   // currently suspended, this defers the navigation and instead sets
   // |pending_navigate_url_| to the specified url, which will trigger a
   // navigation when Cobalt resumes.
-  void Navigate(const GURL& url);
+  void Navigate(const GURL& url_reference);
   // Reloads web module.
   void Reload();
 
