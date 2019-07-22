@@ -493,8 +493,8 @@ class TestRunner(object):
       for test_name in failed_tests:
         if ".FLAKY_" in test_name:
           flaky_failed_tests.append(test_name)
-          continue
-        actual_failed_tests.append(test_name)
+        else:
+          actual_failed_tests.append(test_name)
 
       actual_failed_count = len(actual_failed_tests)
       flaky_failed_count = len(flaky_failed_tests)
@@ -585,7 +585,7 @@ class TestRunner(object):
 
     # Any failing test or other errors will make the run a failure. This
     # includes flaky tests if they did not pass any of their retries.
-    if error or actual_failed_count > 0 or flaky_failed_count > 0:
+    if error or total_failed_count > 0 or total_flaky_failed_count > 0:
       overall_status = "FAILED"
       result = False
 
